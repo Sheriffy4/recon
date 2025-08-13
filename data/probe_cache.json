@@ -1,0 +1,329 @@
+{
+  "version": "3.0",
+  "31.13.72.174:443:instagram.com": {
+    "data": {
+      "ip_level_blocked": true
+    },
+    "timestamp": 1753860790.2045653
+  },
+  "157.240.224.174:443:instagram.com": {
+    "data": {
+      "ech_grease_blocked": true,
+      "ip_level_blocked": false,
+      "ech_blocked": true,
+      "stateful_inspection": false,
+      "sni_case_sensitive": false,
+      "quic_udp_blocked": true
+    },
+    "timestamp": 1753861010.016709
+  },
+  "172.66.0.227:443:x.com": {
+    "data": {
+      "bad_checksum": false,
+      "ip_level_blocked": false,
+      "quic_udp_blocked": true,
+      "ech_grease_blocked": true,
+      "ech_fragmentation_effective": false,
+      "stateful_inspection": false
+    },
+    "timestamp": 1754066937.9200704
+  },
+  "90.156.232.4:443:mail.ru": {
+    "data": {
+      "ech_grease_blocked": true,
+      "ech_fragmentation_effective": false,
+      "ip_level_blocked": false,
+      "stateful_inspection": true
+    },
+    "timestamp": 1754075223.3446345
+  },
+  "157.240.253.174:443:instagram.com": {
+    "data": {
+      "ech_grease_blocked": true,
+      "quic_udp_blocked": true,
+      "stateful_inspection": false,
+      "ech_fragmentation_effective": false,
+      "ip_level_blocked": false
+    },
+    "timestamp": 1754150364.5142374
+  },
+  "185.180.201.1:443:mail.ru": {
+    "data": {
+      "ech_grease_blocked": true,
+      "ech_fragmentation_effective": false,
+      "stateful_inspection": true,
+      "ip_level_blocked": false
+    },
+    "timestamp": 1754150410.3888764
+  },
+  "157.240.252.174:443:instagram.com": {
+    "data": {
+      "ip_level_blocked": false,
+      "ech_fragmentation_effective": false,
+      "stateful_inspection": false,
+      "ech_grease_blocked": true,
+      "quic_udp_blocked": true
+    },
+    "timestamp": 1754172060.164892
+  },
+  "104.21.32.1:443:nnmclub.to": {
+    "data": {
+      "quic_udp_blocked": true,
+      "ech_grease_blocked": true,
+      "ech_fragmentation_effective": false,
+      "ip_level_blocked": false,
+      "bad_checksum": false,
+      "stateful_inspection": false
+    },
+    "timestamp": 1754219082.9028945
+  },
+  "172.67.182.196:443:rutracker.org": {
+    "data": {
+      "ech_fragmentation_effective": false,
+      "ech_grease_blocked": true,
+      "stateful_inspection": false,
+      "bad_checksum": false,
+      "ip_level_blocked": false
+    },
+    "timestamp": 1754287239.0301495
+  },
+  "193.46.255.29:443:rutor.info": {
+    "data": {
+      "ech_fragmentation_effective": false,
+      "ip_level_blocked": false,
+      "quic_udp_blocked": true,
+      "stateful_inspection": false,
+      "ech_grease_blocked": true
+    },
+    "timestamp": 1754287317.3660097
+  },
+  "157.240.0.174:443:instagram.com": {
+    "data": {
+      "stateful_inspection": false,
+      "ip_level_blocked": false,
+      "ech_grease_blocked": true,
+      "ech_fragmentation_effective": false,
+      "quic_udp_blocked": true
+    },
+    "timestamp": 1754287356.668855
+  },
+  "162.159.140.229:443:x.com": {
+    "data": {
+      "tcp_options_limit": 40,
+      "bad_checksum": false,
+      "ip_level_blocked": false,
+      "stateful_inspection": false,
+      "ech_grease_blocked": true,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754287396.133677
+  },
+  "89.221.239.1:443:mail.ru": {
+    "data": {
+      "ip_level_blocked": false,
+      "ech_fragmentation_effective": false,
+      "ech_grease_blocked": true,
+      "stateful_inspection": true
+    },
+    "timestamp": 1754287402.304749
+  },
+  "104.21.32.39:443:rutracker.org": {
+    "data": {
+      "bad_checksum": false,
+      "ip_level_blocked": false,
+      "stateful_inspection": false,
+      "ech_grease_blocked": true,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754298558.389847
+  },
+  "127.0.0.1:80:youtube.com": {
+    "data": {
+      "stateful_inspection": false,
+      "ech_fragmentation_effective": false,
+      "bad_checksum": false,
+      "ip_level_blocked": true,
+      "tcp_options_limit": 40
+    },
+    "timestamp": 1754485704.804434
+  },
+  "127.0.0.1:80:twitter.com": {
+    "data": {
+      "tcp_options_limit": 40,
+      "ip_level_blocked": true,
+      "stateful_inspection": false,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754485709.4575388
+  },
+  "127.0.0.1:80:facebook.com": {
+    "data": {
+      "stateful_inspection": false,
+      "bad_checksum": false,
+      "ip_level_blocked": true,
+      "tcp_options_limit": 40,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754485714.0088727
+  },
+  "127.0.0.1:80:rutor.info": {
+    "data": {
+      "stateful_inspection": false,
+      "bad_checksum": false,
+      "ip_level_blocked": true,
+      "tcp_options_limit": 40,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754643607.0938108
+  },
+  "127.0.0.1:80:instagram.com": {
+    "data": {
+      "tcp_options_limit": 40,
+      "stateful_inspection": false,
+      "ip_level_blocked": true,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754643611.449588
+  },
+  "127.0.0.1:80:x.com": {
+    "data": {
+      "ip_level_blocked": true,
+      "bad_checksum": false,
+      "ech_fragmentation_effective": false,
+      "stateful_inspection": false,
+      "tcp_options_limit": 40
+    },
+    "timestamp": 1754643615.5941203
+  },
+  "127.0.0.1:80:rutracker.org": {
+    "data": {
+      "ech_fragmentation_effective": false,
+      "tcp_options_limit": 40,
+      "ip_level_blocked": true,
+      "stateful_inspection": false
+    },
+    "timestamp": 1754846551.793601
+  },
+  "127.0.0.1:80:abs-0.twimg.com": {
+    "data": {
+      "ip_level_blocked": true,
+      "tcp_options_limit": 40,
+      "stateful_inspection": false,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754892343.2836263
+  },
+  "127.0.0.1:80:abs.twimg.com": {
+    "data": {
+      "stateful_inspection": false,
+      "bad_checksum": false,
+      "tcp_options_limit": 40,
+      "ech_fragmentation_effective": false,
+      "ip_level_blocked": true
+    },
+    "timestamp": 1754892347.3010168
+  },
+  "127.0.0.1:80:pbs.twimg.com": {
+    "data": {
+      "bad_checksum": false,
+      "stateful_inspection": false,
+      "ip_level_blocked": true,
+      "ech_fragmentation_effective": false,
+      "tcp_options_limit": 40
+    },
+    "timestamp": 1754892351.7816985
+  },
+  "127.0.0.1:80:api.x.com": {
+    "data": {
+      "stateful_inspection": false,
+      "bad_checksum": false,
+      "tcp_options_limit": 40,
+      "ip_level_blocked": true,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754892355.924164
+  },
+  "127.0.0.1:80:video.twimg.com": {
+    "data": {
+      "tcp_options_limit": 40,
+      "ip_level_blocked": true,
+      "stateful_inspection": false,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1754892360.7438426
+  },
+  "127.0.0.1:80:nnmclub.to": {
+    "data": {
+      "tcp_options_limit": 40,
+      "ech_fragmentation_effective": false,
+      "ip_level_blocked": true,
+      "stateful_inspection": false
+    },
+    "timestamp": 1754914067.3708
+  },
+  "104.21.48.1:443:nnmclub.to": {
+    "data": {
+      "ech_grease_blocked": true,
+      "ip_level_blocked": false,
+      "bad_checksum": false,
+      "ech_fragmentation_effective": false,
+      "stateful_inspection": false,
+      "quic_udp_blocked": true
+    },
+    "timestamp": 1755001984.8915043
+  },
+  "104.21.112.1:443:nnmclub.to": {
+    "data": {
+      "ech_fragmentation_effective": false,
+      "ip_level_blocked": false,
+      "stateful_inspection": false,
+      "tcp_options_limit": 40,
+      "bad_checksum": false,
+      "ech_grease_blocked": true
+    },
+    "timestamp": 1755002713.4923954
+  },
+  "104.21.96.1:443:nnmclub.to": {
+    "data": {
+      "stateful_inspection": false,
+      "ech_fragmentation_effective": false,
+      "bad_checksum": false,
+      "ip_level_blocked": false,
+      "ech_grease_blocked": true
+    },
+    "timestamp": 1755007351.2046025
+  },
+  "104.21.80.1:443:nnmclub.to": {
+    "data": {
+      "stateful_inspection": false,
+      "ech_fragmentation_effective": false,
+      "ip_level_blocked": false,
+      "ech_grease_blocked": true,
+      "tcp_options_limit": 40,
+      "bad_checksum": false
+    },
+    "timestamp": 1755017499.1883821
+  },
+  "104.21.16.1:443:nnmclub.to": {
+    "data": {
+      "ip_level_blocked": false,
+      "ech_fragmentation_effective": false,
+      "tcp_options_limit": 40,
+      "stateful_inspection": false,
+      "ech_grease_blocked": true,
+      "quic_udp_blocked": true,
+      "bad_checksum": false
+    },
+    "timestamp": 1755018765.0604444
+  },
+  "104.21.64.1:443:nnmclub.to": {
+    "data": {
+      "stateful_inspection": false,
+      "ech_grease_blocked": true,
+      "ip_level_blocked": false,
+      "bad_checksum": false,
+      "ech_fragmentation_effective": false
+    },
+    "timestamp": 1755023583.139371
+  }
+}

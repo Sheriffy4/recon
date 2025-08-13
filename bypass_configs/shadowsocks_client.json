@@ -1,0 +1,8 @@
+{
+  "server": "your-vps-ip-or-domain.com",
+  "server_port": 443,
+  "password": "your-strong-password",
+  "method": "chacha20-ietf-poly1305",
+  "plugin": "v2ray-plugin",
+  "plugin_opts": "mode=websocket;tls;host=your-cdn-domain.com;path=/your-ws-path"
+}

@@ -1,0 +1,45 @@
+{
+  "global": {
+    "default_engine": null,
+    "enable_fallback": true,
+    "validate_dependencies": true,
+    "log_level": "WARNING"
+  },
+  "profiles": {
+    "native_pydivert": {
+      "priority": 100,
+      "enabled": true,
+      "default_config": {
+        "debug": false,
+        "timeout": 30.0,
+        "packet_buffer_size": 131072,
+        "max_concurrent_connections": 2000,
+        "log_packets": false
+      },
+      "description": "Production configuration for PyDivert engine - optimized for performance"
+    },
+    "external_tool": {
+      "priority": 80,
+      "enabled": true,
+      "default_config": {
+        "debug": false,
+        "timeout": 30.0,
+        "tool_name": "zapret",
+        "base_path": "/opt/dpi-tools"
+      },
+      "description": "Production configuration for external tool engine"
+    },
+    "native_netfilter": {
+      "priority": 90,
+      "enabled": false,
+      "default_config": {
+        "debug": false,
+        "timeout": 30.0,
+        "packet_buffer_size": 131072,
+        "max_concurrent_connections": 2000,
+        "log_packets": false
+      },
+      "description": "Production configuration for netfilter engine (when implemented)"
+    }
+  }
+}
