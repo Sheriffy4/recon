@@ -1,0 +1,102 @@
+{
+  "version": "2.0",
+  "last_updated": "2025-08-13T15:35:36.591512",
+  "domain_strategies": {
+    "default": {
+      "domain": "default",
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+      "success_rate": 1.0,
+      "avg_latency_ms": 291.6807333628337,
+      "last_tested": "2025-08-13T15:09:30.236991",
+      "test_count": 1
+    },
+    "rutracker.org": {
+      "domain": "rutracker.org",
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 411.5554491678874,
+      "last_tested": "2025-08-13T15:35:36.590372",
+      "test_count": 34
+    },
+    "kinozal.tv": {
+      "domain": "kinozal.tv",
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 411.5554491678874,
+      "last_tested": "2025-08-13T15:35:36.590372",
+      "test_count": 11
+    },
+    "nnmclub.to": {
+      "domain": "nnmclub.to",
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 411.5554491678874,
+      "last_tested": "2025-08-13T15:35:36.590372",
+      "test_count": 34
+    },
+    "rutor.info": {
+      "domain": "rutor.info",
+      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
+      "success_rate": 0.2,
+      "avg_latency_ms": 297.25050926208496,
+      "last_tested": "2025-08-13T15:28:33.243900",
+      "test_count": 22
+    },
+    "instagram.com": {
+      "domain": "instagram.com",
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 411.5554491678874,
+      "last_tested": "2025-08-13T15:35:36.591512",
+      "test_count": 32
+    },
+    "x.com": {
+      "domain": "x.com",
+      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
+      "success_rate": 0.2,
+      "avg_latency_ms": 297.25050926208496,
+      "last_tested": "2025-08-13T15:28:33.244887",
+      "test_count": 22
+    },
+    "mail.ru": {
+      "domain": "mail.ru",
+      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
+      "success_rate": 0.2,
+      "avg_latency_ms": 297.25050926208496,
+      "last_tested": "2025-08-13T15:28:33.245144",
+      "test_count": 22
+    },
+    "tapochek.net": {
+      "domain": "tapochek.net",
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 411.5554491678874,
+      "last_tested": "2025-08-13T15:35:36.590372",
+      "test_count": 10
+    },
+    "www.instagram.com": {
+      "domain": "www.instagram.com",
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 411.5554491678874,
+      "last_tested": "2025-08-13T15:35:36.591512",
+      "test_count": 10
+    },
+    "facebook.com": {
+      "domain": "facebook.com",
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 411.5554491678874,
+      "last_tested": "2025-08-13T15:35:36.591512",
+      "test_count": 10
+    },
+    "cloudflare-ech.com": {
+      "domain": "cloudflare-ech.com",
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 411.5554491678874,
+      "last_tested": "2025-08-13T15:35:36.591512",
+      "test_count": 10
+    }
+  }
+}

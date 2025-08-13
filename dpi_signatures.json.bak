@@ -1,0 +1,221 @@
+{
+  "320cd13b81": {
+    "fingerprint_details": {
+      "rst_ttl": 128,
+      "rst_from_target": false,
+      "icmp_ttl_exceeded": false,
+      "tcp_options": [],
+      "rst_latency_ms": 0.0,
+      "rst_distance": 0,
+      "supports_ip_frag": false,
+      "checksum_validation": true,
+      "tcp_option_len_limit": 0,
+      "quic_udp_blocked": true,
+      "sni_case_sensitive": false,
+      "ech_grease_blocked": false,
+      "timestamp_in_rst": false,
+      "window_size_in_rst": 0,
+      "probe_results": {},
+      "dpi_type": "Sandvine",
+      "dpi_family": "Middlebox_Heavy",
+      "confidence": 0.5
+    },
+    "working_strategy": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+      "success_rate": 0.4,
+      "avg_latency_ms": 391.56476088932584,
+      "successful_sites": 14,
+      "total_sites": 35
+    },
+    "strategy_history": [],
+    "metadata": {
+      "first_seen": 1753253822.3070955,
+      "last_seen": 1753253822.3070955,
+      "update_count": 1,
+      "dpi_changes": []
+    }
+  },
+  "841e9474c7": {
+    "fingerprint_details": {
+      "rst_ttl": 128,
+      "rst_from_target": false,
+      "icmp_ttl_exceeded": false,
+      "tcp_options": [],
+      "rst_latency_ms": 0.0,
+      "rst_distance": 0,
+      "supports_ip_frag": null,
+      "checksum_validation": false,
+      "tcp_option_len_limit": 1,
+      "quic_udp_blocked": true,
+      "sni_case_sensitive": false,
+      "ech_grease_blocked": false,
+      "timestamp_in_rst": false,
+      "window_size_in_rst": 0,
+      "stateful_inspection": true,
+      "rate_limiting_detected": null,
+      "dpi_type": "Sandvine",
+      "dpi_family": "Middlebox_Heavy",
+      "dpi_vendor": "Sandvine/Procera",
+      "confidence": 0.5333333333333333,
+      "classification_reasons": [
+        "QUIC traffic is blocked",
+        "Limits TCP option length"
+      ]
+    },
+    "working_strategy": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum",
+      "success_rate": 0.38235294117647056,
+      "avg_latency_ms": 400.2695633814885,
+      "successful_sites": 13,
+      "total_sites": 34
+    },
+    "strategy_history": [],
+    "metadata": {
+      "first_seen": 1753255046.0292244,
+      "last_seen": 1753255046.0292244,
+      "update_count": 1
+    }
+  },
+  "5d6b7ac499": {
+    "fingerprint_details": {
+      "rst_ttl": 128,
+      "rst_from_target": false,
+      "icmp_ttl_exceeded": false,
+      "tcp_options": [],
+      "rst_latency_ms": 0.0,
+      "rst_distance": 0,
+      "supports_ip_frag": false,
+      "checksum_validation": false,
+      "tcp_option_len_limit": 1,
+      "quic_udp_blocked": true,
+      "sni_case_sensitive": false,
+      "ech_grease_blocked": false,
+      "timestamp_in_rst": false,
+      "window_size_in_rst": 0,
+      "stateful_inspection": true,
+      "rate_limiting_detected": null,
+      "dpi_type": "GFW",
+      "dpi_family": "Inline_Fast",
+      "dpi_vendor": "Great Firewall",
+      "confidence": 0.5666666666666667,
+      "classification_reasons": [
+        "QUIC traffic is blocked",
+        "IP fragmentation is blocked"
+      ]
+    },
+    "working_strategy": {
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badseq --dpi-desync-ttl=2",
+      "success_rate": 0.25,
+      "avg_latency_ms": 384.96196269989014,
+      "successful_sites": 6,
+      "total_sites": 24
+    },
+    "strategy_history": [
+      {
+        "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-ttl=2 --dpi-desync-repeats=2",
+        "success_rate": 0.38235294117647056,
+        "avg_latency_ms": 390.0507596822885,
+        "successful_sites": 13,
+        "total_sites": 34,
+        "timestamp": 1753255419.225546
+      },
+      {
+        "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-ttl=2 --dpi-desync-repeats=2",
+        "success_rate": 0.4,
+        "avg_latency_ms": 378.916791507176,
+        "successful_sites": 14,
+        "total_sites": 35,
+        "timestamp": 1753256061.2313983
+      }
+    ],
+    "metadata": {
+      "first_seen": 1753255419.225546,
+      "last_seen": 1753258533.5290773,
+      "update_count": 3
+    }
+  },
+  "166bfcc1dd": {
+    "fingerprint_details": {
+      "rst_ttl": 128,
+      "rst_from_target": false,
+      "icmp_ttl_exceeded": false,
+      "tcp_options": [],
+      "rst_latency_ms": 0.0,
+      "rst_distance": 0,
+      "supports_ip_frag": false,
+      "checksum_validation": false,
+      "tcp_option_len_limit": 1,
+      "quic_udp_blocked": true,
+      "sni_case_sensitive": false,
+      "ech_grease_blocked": false,
+      "timestamp_in_rst": false,
+      "window_size_in_rst": 0,
+      "stateful_inspection": true,
+      "rate_limiting_detected": null,
+      "ml_detection_blocked": false,
+      "dpi_type": "GFW",
+      "dpi_family": "Inline_Fast",
+      "dpi_vendor": "Great Firewall",
+      "confidence": 0.5666666666666667,
+      "classification_reasons": [
+        "QUIC traffic is blocked",
+        "IP fragmentation is blocked"
+      ]
+    },
+    "working_strategy": {
+      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-ttl=4",
+      "success_rate": 0.25,
+      "avg_latency_ms": 369.0030574798584,
+      "successful_sites": 6,
+      "total_sites": 24
+    },
+    "strategy_history": [],
+    "metadata": {
+      "first_seen": 1753259990.1497161,
+      "last_seen": 1753259990.1497161,
+      "update_count": 1
+    }
+  },
+  "fb2ae71283": {
+    "fingerprint_details": {
+      "rst_ttl": 128,
+      "rst_from_target": false,
+      "icmp_ttl_exceeded": false,
+      "tcp_options": [],
+      "rst_latency_ms": 0.8451938629150391,
+      "rst_distance": 0,
+      "supports_ip_frag": false,
+      "checksum_validation": false,
+      "tcp_option_len_limit": 1,
+      "quic_udp_blocked": true,
+      "sni_case_sensitive": false,
+      "ech_grease_blocked": false,
+      "timestamp_in_rst": false,
+      "window_size_in_rst": 0,
+      "stateful_inspection": true,
+      "rate_limiting_detected": null,
+      "ml_detection_blocked": false,
+      "dpi_type": "GFW",
+      "dpi_family": "Inline_Fast",
+      "dpi_vendor": "Great Firewall",
+      "confidence": 0.5666666666666667,
+      "classification_reasons": [
+        "QUIC traffic is blocked",
+        "IP fragmentation is blocked"
+      ]
+    },
+    "working_strategy": {
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=1 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "success_rate": 0.6,
+      "avg_latency_ms": 302.7462164560954,
+      "successful_sites": 3,
+      "total_sites": 5
+    },
+    "strategy_history": [],
+    "metadata": {
+      "first_seen": 1753262471.2024949,
+      "last_seen": 1753262471.2024949,
+      "update_count": 1
+    }
+  }
+}

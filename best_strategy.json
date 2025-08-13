@@ -1,0 +1,47 @@
+{
+  "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3",
+  "fitness": 0.0,
+  "genes": {
+    "type": "fakedisorder",
+    "ttl": 3,
+    "split_pos": 3
+  },
+  "generation": 4,
+  "evolution_time_seconds": 725.1622347831726,
+  "fitness_history": [
+    {
+      "generation": 0,
+      "best_fitness": 0.0,
+      "avg_fitness": 0.0,
+      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
+    },
+    {
+      "generation": 1,
+      "best_fitness": 0.0,
+      "avg_fitness": 0.0,
+      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
+    },
+    {
+      "generation": 2,
+      "best_fitness": 0.0,
+      "avg_fitness": 0.0,
+      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
+    },
+    {
+      "generation": 3,
+      "best_fitness": 0.0,
+      "avg_fitness": 0.0,
+      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
+    },
+    {
+      "generation": 4,
+      "best_fitness": 0.0,
+      "avg_fitness": 0.0,
+      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
+    }
+  ],
+  "population_size": 20,
+  "generations": 5,
+  "mutation_rate": 0.1,
+  "timestamp": "2025-08-13T16:41:40.492348"
+}
