@@ -20,6 +20,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
 from ..base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from ..registry import register_attack
 
 
 @dataclass
@@ -57,6 +58,7 @@ class FakedDisorderConfig:
     randomize_fake_content: bool = True
 
 
+@register_attack("faked_disorder")
 class FakedDisorderAttack(BaseAttack):
     """
     FakedDisorderAttack using segments architecture.

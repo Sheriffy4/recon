@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
 from ..base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from ..registry import register_attack
 
 
 @dataclass
@@ -47,6 +48,7 @@ class UrgentPointerConfig:
     window_size_range: Tuple[int, int] = (32768, 65535)
 
 
+@register_attack("urgent_pointer")
 class UrgentPointerManipulationAttack(BaseAttack):
     """
     UrgentPointerManipulationAttack using segments architecture.

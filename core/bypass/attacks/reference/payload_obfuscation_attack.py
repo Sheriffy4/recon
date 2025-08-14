@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from ..base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from ..registry import register_attack
 
 
 class ObfuscationMethod(Enum):
@@ -62,6 +63,7 @@ class PayloadObfuscationConfig:
     window_size_range: Tuple[int, int] = (32768, 65535)
 
 
+@register_attack("payload_obfuscation")
 class PayloadObfuscationAttack(BaseAttack):
     """
     PayloadObfuscationAttack using segments architecture.

@@ -66,6 +66,7 @@ from . import config
 from .core.domain_manager import DomainManager
 from .core.doh_resolver import DoHResolver
 from .core.hybrid_engine import HybridEngine
+from .core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
 from .ml.zapret_strategy_generator import ZapretStrategyGenerator
 from .apply_bypass import apply_system_bypass
 
@@ -821,7 +822,6 @@ async def run_hybrid_mode(args):
     doh_resolver = DoHResolver()
     hybrid_engine = HybridEngine(debug=args.debug)
     reporter = SimpleReporter(debug=args.debug)
-    fingerprinter = SimpleFingerprinter(debug=args.debug)
     learning_cache = AdaptiveLearningCache()
 
     # --- Шаг 1: DNS резолвинг ---
@@ -882,17 +882,35 @@ async def run_hybrid_mode(args):
     # --- Шаг 2.5: Фингерпринтинг DPI (опционально) ---
     fingerprints = {}
     if args.fingerprint:
-        console.print("\n[yellow]Step 2.5: DPI Fingerprinting...[/yellow]")
-        with Progress(console=console, transient=True) as progress:
-            task = progress.add_task("[cyan]Fingerprinting...", total=len(blocked_sites))
-            for site in blocked_sites:
-                hostname = urlparse(site).hostname or site
-                target_ip = dns_cache.get(hostname)
-                if target_ip:
-                    fp = await fingerprinter.create_fingerprint(hostname, target_ip, args.port)
-                    fingerprints[hostname] = fp
-                    console.print(f"  - {hostname}: [cyan]{fp.dpi_type}[/cyan] ({fp.blocking_method})")
-                progress.update(task, advance=1)
+        console.print("\n[yellow]Step 2.5: DPI Fingerprinting (Advanced)...[/yellow]")
+
+        # Create config for AdvancedFingerprinter
+        fp_config = FingerprintingConfig(
+            enable_ml=not args.disable_learning, # Use learning status to enable/disable ML
+            enable_cache=not args.clear_cache,
+            timeout=15.0,
+            fallback_on_error=True
+        )
+
+        # The fingerprinter is async, so we use an async context manager
+        try:
+            async with AdvancedFingerprinter(config=fp_config) as fingerprinter:
+                with Progress(console=console, transient=True) as progress:
+                    task = progress.add_task("[cyan]Fingerprinting...", total=len(blocked_sites))
+                    for site in blocked_sites:
+                        hostname = urlparse(site).hostname or site
+                        # AdvancedFingerprinter handles its own DNS, so we just pass the hostname
+                        try:
+                            fp = await fingerprinter.fingerprint_target(hostname, port=args.port)
+                            fingerprints[hostname] = fp
+                            console.print(f"  - {hostname}: [cyan]{fp.dpi_type.value}[/cyan] (Confidence: {fp.confidence:.2f})")
+                        except Exception as e:
+                            console.print(f"  - {hostname}: [red]Fingerprinting failed: {e}[/red]")
+                        progress.update(task, advance=1)
+        except Exception as e:
+            console.print(f"[bold red]Error initializing AdvancedFingerprinter: {e}[/bold red]")
+            console.print("[dim]Advanced fingerprinting failed. Continuing without it.[/dim]")
+
     else:
         console.print("[dim]Skipping fingerprinting (use --fingerprint to enable)[/dim]")
 

@@ -123,10 +123,12 @@ class AttackRegistry:
         """
         import importlib
         import pkgutil
-        from . import tcp, ip, tls, payload, http, tunneling, combo
+        # Temporarily disabling 'combo' due to persistent ModuleNotFoundError
+        from . import tcp, ip, tls, payload, http, tunneling, reference #, combo
 
         LOG.info("Auto-discovering and registering attacks...")
-        packages_to_scan = [tcp, ip, tls, payload, http, tunneling, combo]
+        # Temporarily disabling 'combo' due to persistent ModuleNotFoundError
+        packages_to_scan = [tcp, ip, tls, payload, http, tunneling, reference] #, combo]
 
         for package in packages_to_scan:
             for _, module_name, _ in pkgutil.walk_packages(
@@ -147,11 +149,47 @@ class AttackRegistry:
             cls._categories.clear()
             cls._initialized = False
 
-# --- Декоратор для регистрации ---
-def register_attack(name: str):
-    """Декоратор для автоматической регистрации класса атаки."""
+# --- Декоратор для регистрации (Улучшенная версия) ---
+def register_attack(name_or_class=None):
+    """
+    Универсальный декоратор для регистрации класса атаки.
+    Может использоваться как `@register_attack` (имя берется из свойства `name` класса)
+    или как `@register_attack("custom_name")`.
+    """
     from .base import BaseAttack
+
     def decorator(attack_class: Type[BaseAttack]):
+        # Определяем имя атаки
+        if isinstance(name_or_class, str):
+            # Используется как @register_attack("custom_name")
+            name = name_or_class
+        else:
+            # Используется как @register_attack, имя берем из свойства класса
+            if hasattr(attack_class, 'name') and isinstance(getattr(attack_class, 'name'), property):
+                 # Для свойств, которые нужно инстанцировать
+                try:
+                    temp_instance = attack_class()
+                    name = temp_instance.name
+                except Exception as e:
+                    raise TypeError(f"Could not instantiate {attack_class.__name__} to get name: {e}")
+            elif hasattr(attack_class, 'name'):
+                 # Для статических атрибутов
+                name = getattr(attack_class, 'name')
+            else:
+                raise TypeError(
+                    f"Attack class {attack_class.__name__} must have a 'name' property "
+                    "or be registered with an explicit name, e.g., @register_attack('my_attack')."
+                )
+
+        if not name or not isinstance(name, str):
+            raise TypeError(f"Could not determine a valid string name for attack class {attack_class.__name__}")
+
         AttackRegistry.register(name, attack_class)
         return attack_class
-    return decorator
+
+    if callable(name_or_class):
+        # Используется как @register_attack
+        return decorator(name_or_class)
+    else:
+        # Используется как @register_attack("custom_name")
+        return decorator

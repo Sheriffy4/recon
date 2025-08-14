@@ -22,11 +22,12 @@ except ImportError:
 class MonitoringWebServer:
     """Веб-сервер для мониторинга системы обхода DPI."""
     
-    def __init__(self, monitoring_system, port: int = 8080):
+    def __init__(self, monitoring_system, hybrid_engine, port: int = 8080):
         if not AIOHTTP_AVAILABLE:
             raise ImportError("aiohttp is required for web interface. Install with: pip install aiohttp")
         
         self.monitoring_system = monitoring_system
+        self.hybrid_engine = hybrid_engine
         self.port = port
         self.app: Optional[Application] = None
         self.runner: Optional[web.AppRunner] = None
@@ -47,6 +48,14 @@ class MonitoringWebServer:
         app.router.add_get('/api/config', self.api_get_config)
         app.router.add_post('/api/config', self.api_set_config)
         
+        # Service control routes
+        app.router.add_get('/api/service/status', self.api_service_status)
+        app.router.add_post('/api/service/start', self.api_service_start)
+        app.router.add_post('/api/service/stop', self.api_service_stop)
+
+        # Strategy search routes
+        app.router.add_post('/api/search/start', self.api_search_start)
+
         # WebSocket для real-time обновлений
         app.router.add_get('/ws', self.websocket_handler)
         
@@ -139,6 +148,49 @@ class MonitoringWebServer:
         
         except Exception as e:
             return web.json_response({'error': str(e)}, status=500)
+
+    async def api_service_status(self, request: Request) -> Response:
+        """API: Get bypass service status."""
+        # Placeholder
+        is_running = hasattr(self, 'bypass_process') and self.bypass_process is not None
+        return web.json_response({'status': 'running' if is_running else 'stopped'})
+
+    async def api_service_start(self, request: Request) -> Response:
+        """API: Start the bypass service."""
+        # Placeholder
+        self.logger.info("Received request to start bypass service.")
+        # In a real implementation, this would start recon_service.py
+        # For now, we'll just simulate it.
+        self.bypass_process = "dummy_process"
+        return web.json_response({'success': True, 'message': 'Bypass service started.'})
+
+    async def api_service_stop(self, request: Request) -> Response:
+        """API: Stop the bypass service."""
+        # Placeholder
+        self.logger.info("Received request to stop bypass service.")
+        self.bypass_process = None
+        return web.json_response({'success': True, 'message': 'Bypass service stopped.'})
+
+    async def api_search_start(self, request: Request) -> Response:
+        """API: Start a new strategy search."""
+        # Placeholder
+        data = await request.json()
+        domain = data.get('domain')
+        self.logger.info(f"Received request to start strategy search for {domain}.")
+        # This would trigger a long-running task.
+        # We can use asyncio.create_task to run it in the background.
+        asyncio.create_task(self._run_strategy_search(domain))
+        return web.json_response({'success': True, 'message': f'Strategy search started for {domain}.'})
+
+    async def _run_strategy_search(self, domain: str):
+        """Placeholder for the actual strategy search logic."""
+        self.logger.info(f"Starting background search for {domain}...")
+        await self.broadcast_update({'type': 'search_status', 'data': {'status': 'running', 'domain': domain, 'progress': 0}})
+        await asyncio.sleep(5) # Simulate work
+        await self.broadcast_update({'type': 'search_status', 'data': {'status': 'running', 'domain': domain, 'progress': 50}})
+        await asyncio.sleep(5) # Simulate more work
+        await self.broadcast_update({'type': 'search_status', 'data': {'status': 'complete', 'domain': domain, 'progress': 100, 'best_strategy': '--dpi-desync=fake'}})
+        self.logger.info(f"Search for {domain} complete.")
     
     async def websocket_handler(self, request: Request) -> WebSocketResponse:
         """WebSocket обработчик для real-time обновлений."""
@@ -375,6 +427,25 @@ class MonitoringWebServer:
                 <h3>⚡ Avg Response</h3>
                 <div class="value" id="avgResponse">0ms</div>
             </div>
+            <div class="card">
+                <h3>⚙️ Bypass Service Control</h3>
+                <div id="serviceStatus" style="margin-top: 10px; font-weight: bold;">Status: Unknown</div>
+                <div class="controls">
+                    <button class="btn" onclick="startService()">▶️ Start Service</button>
+                    <button class="btn btn-danger" onclick="stopService()">⏹️ Stop Service</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>🔍 New Strategy Search</h3>
+                <div class="form-group" style="text-align: left;">
+                    <label for="searchDomain">Domain:</label>
+                    <input type="text" id="searchDomain" placeholder="example.com" />
+                </div>
+                <div class="controls">
+                    <button class="btn" onclick="startSearch()">🚀 Start Search</button>
+                </div>
+                <div id="searchStatus" style="margin-top: 10px;"></div>
+            </div>
         </div>
         
         <div class="add-site">
@@ -413,12 +484,21 @@ class MonitoringWebServer:
                     reconnectInterval = null;
                 }
                 loadInitialData();
+                setInterval(updateServiceStatus, 5000); // Update service status every 5 seconds
             };
             
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
                 if (data.type === 'status_update') {
                     updateDashboard(data.data);
+                } else if (data.type === 'search_status') {
+                    const searchData = data.data;
+                    const statusEl = document.getElementById('searchStatus');
+                    if (searchData.status === 'running') {
+                        statusEl.textContent = `Searching ${searchData.domain}: ${searchData.progress}%`;
+                    } else if (searchData.status === 'complete') {
+                        statusEl.innerHTML = `Search for ${searchData.domain} complete! <br>Best strategy: <strong>${searchData.best_strategy}</strong>`;
+                    }
                 }
             };
             
@@ -441,6 +521,7 @@ class MonitoringWebServer:
                 const response = await fetch('/api/status');
                 const data = await response.json();
                 updateDashboard(data);
+                updateServiceStatus();
             } catch (error) {
                 console.error('Failed to load initial data:', error);
             }
@@ -552,6 +633,60 @@ class MonitoringWebServer:
             }
         }
         
+        async function startService() {
+            try {
+                await fetch('/api/service/start', { method: 'POST' });
+                alert('Start command sent to bypass service.');
+                updateServiceStatus();
+            } catch (error) {
+                alert('Failed to start service: ' + error.message);
+            }
+        }
+
+        async function stopService() {
+            try {
+                await fetch('/api/service/stop', { method: 'POST' });
+                alert('Stop command sent to bypass service.');
+                updateServiceStatus();
+            } catch (error) {
+                alert('Failed to stop service: ' + error.message);
+            }
+        }
+
+        async function updateServiceStatus() {
+            try {
+                const response = await fetch('/api/service/status');
+                const data = await response.json();
+                const statusEl = document.getElementById('serviceStatus');
+                if (data.status === 'running') {
+                    statusEl.innerHTML = 'Status: <span class="online">Running</span>';
+                } else {
+                    statusEl.innerHTML = 'Status: <span class="offline">Stopped</span>';
+                }
+            } catch (error) {
+                document.getElementById('serviceStatus').innerHTML = 'Status: <span class="offline">Error</span>';
+            }
+        }
+
+        async function startSearch() {
+            const domain = document.getElementById('searchDomain').value.trim();
+            if (!domain) {
+                alert('Please enter a domain for the search.');
+                return;
+            }
+
+            try {
+                await fetch('/api/search/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ domain })
+                });
+                document.getElementById('searchStatus').textContent = `Search started for ${domain}...`;
+            } catch (error) {
+                alert('Failed to start search: ' + error.message);
+            }
+        }
+
         // Initialize
         connectWebSocket();
     </script>

@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from ..base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from ..registry import register_attack
 from ..safe_result_utils import create_success_result, create_failed_result
 
 
@@ -65,6 +66,7 @@ class WindowScalingConfig:
     ttl_range: Tuple[int, int] = (60, 64)
 
 
+@register_attack("window_scaling")
 class WindowScalingAttack(BaseAttack):
     """
     WindowScalingAttack using segments architecture.

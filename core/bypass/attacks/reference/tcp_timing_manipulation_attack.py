@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from ..base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from ..registry import register_attack
 
 
 class TimingPattern(Enum):
@@ -71,6 +72,7 @@ class TCPTimingConfig:
     congestion_delay_multiplier: float = 3.0
 
 
+@register_attack("tcp_timing")
 class TCPTimingManipulationAttack(BaseAttack):
     """
     TCPTimingManipulationAttack using segments architecture.

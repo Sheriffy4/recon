@@ -19,6 +19,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
 from ..base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from ..registry import register_attack
 
 
 @dataclass
@@ -80,6 +81,7 @@ class MultisplitConfig:
     backoff_multiplier: float = 1.5
 
 
+@register_attack("multisplit")
 class MultisplitAttack(BaseAttack):
     """
     MultisplitAttack using segments architecture.
