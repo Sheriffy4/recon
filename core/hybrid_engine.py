@@ -13,6 +13,15 @@ from urllib.parse import urlparse
 from .bypass_engine import BypassEngine
 from .zapret_parser import ZapretStrategyParser
 
+# Import advanced fingerprinting system
+try:
+    from .fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+    from .fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
+    ADVANCED_FINGERPRINTING_AVAILABLE = True
+except ImportError as e:
+    logging.getLogger("hybrid_engine").warning(f"Advanced fingerprinting not available: {e}")
+    ADVANCED_FINGERPRINTING_AVAILABLE = False
+
 LOG = logging.getLogger("hybrid_engine")
 
 HEADERS = {
@@ -24,11 +33,48 @@ class HybridEngine:
     Гибридный движок, который сочетает:
     1. Парсинг zapret-стратегий.
     2. Реальное тестирование через запущенный BypassEngine с синхронизированным DNS.
+    3. Продвинутый фингерпринтинг DPI для контекстно-зависимой генерации стратегий.
     """
     
-    def __init__(self, debug: bool = False):
+    def __init__(self, debug: bool = False, enable_advanced_fingerprinting: bool = True):
         self.debug = debug
         self.parser = ZapretStrategyParser()
+        
+        # Initialize advanced fingerprinting if available
+        self.advanced_fingerprinting_enabled = (
+            enable_advanced_fingerprinting and ADVANCED_FINGERPRINTING_AVAILABLE
+        )
+        
+        if self.advanced_fingerprinting_enabled:
+            try:
+                fingerprint_config = FingerprintingConfig(
+                    cache_ttl=3600,  # 1 hour cache
+                    enable_ml=True,
+                    enable_cache=True,
+                    timeout=15.0,
+                    fallback_on_error=True
+                )
+                self.advanced_fingerprinter = AdvancedFingerprinter(config=fingerprint_config)
+                LOG.info("Advanced fingerprinting initialized successfully")
+            except Exception as e:
+                LOG.error(f"Failed to initialize advanced fingerprinting: {e}")
+                self.advanced_fingerprinting_enabled = False
+                self.advanced_fingerprinter = None
+        else:
+            self.advanced_fingerprinter = None
+            if not ADVANCED_FINGERPRINTING_AVAILABLE:
+                LOG.info("Advanced fingerprinting disabled - module not available")
+            else:
+                LOG.info("Advanced fingerprinting disabled by configuration")
+        
+        # Statistics for fingerprint-aware testing
+        self.fingerprint_stats = {
+            'fingerprints_created': 0,
+            'fingerprint_cache_hits': 0,
+            'fingerprint_failures': 0,
+            'fingerprint_aware_tests': 0,
+            'fallback_tests': 0
+        }
 
     def _translate_zapret_to_engine_task(self, params: Dict) -> Optional[Dict]:
         """
@@ -164,10 +210,12 @@ class HybridEngine:
         target_ips: Set[str],
         dns_cache: Dict[str, str],
         target_port: int = 443,
-        initial_ttl: Optional[int] = None
+        initial_ttl: Optional[int] = None,
+        fingerprint: Optional[DPIFingerprint] = None
     ) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
+        Теперь с поддержкой контекстной информации от фингерпринтинга.
         """
         parsed_params = self.parser.parse(strategy_str)
         engine_task = self._translate_zapret_to_engine_task(parsed_params)
@@ -179,22 +227,63 @@ class HybridEngine:
         bypass_thread = bypass_engine.start(target_ips, strategy_map)
         
         try:
-            await asyncio.sleep(1.5)
-            # ИСПОЛЬЗУЕМ AIOHTTP ДЛЯ ТЕСТА
-            results = await self._test_sites_connectivity(test_sites, dns_cache)
+            # Adjust wait time based on fingerprint information
+            wait_time = 1.5
+            if fingerprint:
+                # Adjust timing based on DPI characteristics
+                if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
+                    wait_time = 1.0  # TSPU responds quickly
+                elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI:
+                    wait_time = 2.0  # Commercial DPI may need more time
+                elif fingerprint.connection_reset_timing > 0:
+                    # Use detected timing characteristics
+                    wait_time = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
+            
+            await asyncio.sleep(wait_time)
+            
+            # Test connectivity with enhanced error handling
+            try:
+                results = await self._test_sites_connectivity(test_sites, dns_cache)
+            except Exception as connectivity_error:
+                LOG.error(f"Connectivity test failed: {connectivity_error}")
+                # Try with fallback settings if fingerprint suggests specific issues
+                if fingerprint and fingerprint.tcp_window_manipulation:
+                    LOG.info("Retrying with adjusted parameters due to TCP window manipulation")
+                    await asyncio.sleep(0.5)
+                    results = await self._test_sites_connectivity(test_sites, dns_cache)
+                else:
+                    raise
             
             successful_count = sum(1 for status, _, _, _ in results.values() if status == "WORKING")
             successful_latencies = [latency for status, _, latency, _ in results.values() if status == "WORKING"]
             avg_latency = sum(successful_latencies) / len(successful_latencies) if successful_latencies else 0.0
             
-            if successful_count == 0: result_status = "NO_SITES_WORKING"
-            elif successful_count == len(test_sites): result_status = "ALL_SITES_WORKING"
-            else: result_status = "PARTIAL_SUCCESS"
+            if successful_count == 0: 
+                result_status = "NO_SITES_WORKING"
+            elif successful_count == len(test_sites): 
+                result_status = "ALL_SITES_WORKING"
+            else: 
+                result_status = "PARTIAL_SUCCESS"
+            
+            # Log additional context if fingerprint is available
+            if fingerprint and self.debug:
+                LOG.debug(f"Strategy test with DPI context: {fingerprint.dpi_type.value}, "
+                         f"RST injection: {fingerprint.rst_injection_detected}, "
+                         f"TCP manipulation: {fingerprint.tcp_window_manipulation}")
             
             LOG.info(f"Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms")
             return result_status, successful_count, len(test_sites), avg_latency
+            
         except Exception as e:
             LOG.error(f"Ошибка во время реального тестирования: {e}", exc_info=self.debug)
+            
+            # Enhanced error handling with fingerprint context
+            if fingerprint:
+                if fingerprint.rst_injection_detected and "reset" in str(e).lower():
+                    LOG.info("Connection reset detected - consistent with fingerprint analysis")
+                elif fingerprint.dns_hijacking_detected and "dns" in str(e).lower():
+                    LOG.info("DNS issues detected - consistent with fingerprint analysis")
+            
             return "REAL_WORLD_ERROR", 0, len(test_sites), 0.0
         finally:
             bypass_engine.stop()
@@ -211,14 +300,46 @@ class HybridEngine:
         port: int,
         domain: str,
         fast_filter: bool = True,
-        initial_ttl: Optional[int] = None
+        initial_ttl: Optional[int] = None,
+        enable_fingerprinting: bool = True
     ) -> List[Dict]:
         """
-        Гибридное тестирование стратегий:
-        Проводит реальное тестирование всех кандидатов с помощью BypassEngine.
+        Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
+        1. Выполняет фингерпринтинг DPI для целевого домена
+        2. Адаптирует стратегии под обнаруженный тип DPI
+        3. Проводит реальное тестирование с помощью BypassEngine
         """
         results = []
-        strategies_to_test = strategies
+        fingerprint = None
+        
+        # Perform DPI fingerprinting if enabled
+        if enable_fingerprinting and self.advanced_fingerprinting_enabled:
+            try:
+                LOG.info(f"Performing DPI fingerprinting for {domain}:{port}")
+                fingerprint = await self.fingerprint_target(domain, port)
+                
+                if fingerprint:
+                    self.fingerprint_stats['fingerprint_aware_tests'] += 1
+                    LOG.info(f"DPI fingerprint obtained: {fingerprint.dpi_type.value} "
+                           f"(confidence: {fingerprint.confidence:.2f}, "
+                           f"reliability: {fingerprint.reliability_score:.2f})")
+                else:
+                    LOG.warning("DPI fingerprinting failed, proceeding with standard testing")
+                    self.fingerprint_stats['fallback_tests'] += 1
+            except Exception as e:
+                LOG.error(f"DPI fingerprinting error: {e}")
+                self.fingerprint_stats['fingerprint_failures'] += 1
+                self.fingerprint_stats['fallback_tests'] += 1
+        else:
+            self.fingerprint_stats['fallback_tests'] += 1
+        
+        # Adapt strategies based on fingerprint
+        if fingerprint:
+            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies, fingerprint)
+            LOG.info(f"Using {len(strategies_to_test)} fingerprint-adapted strategies")
+        else:
+            strategies_to_test = strategies
+            LOG.info(f"Using {len(strategies_to_test)} standard strategies (no fingerprint)")
         
         LOG.info(f"Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...")
         
@@ -238,6 +359,9 @@ class HybridEngine:
                 'total_sites': total_count,
                 'success_rate': success_rate,
                 'avg_latency_ms': avg_latency,
+                'fingerprint_used': fingerprint is not None,
+                'dpi_type': fingerprint.dpi_type.value if fingerprint else None,
+                'dpi_confidence': fingerprint.confidence if fingerprint else None
             }
             results.append(result_data)
             
@@ -246,9 +370,213 @@ class HybridEngine:
             else:
                 LOG.info(f"✗ Провал: ни один сайт не заработал.")
         
-        results.sort(key=lambda x: (x['success_rate'], -x['avg_latency_ms']), reverse=True)
+        # Sort results with fingerprint-aware scoring
+        if fingerprint:
+            # Prioritize results that match expected DPI behavior
+            results.sort(key=lambda x: (
+                x['success_rate'],
+                -x['avg_latency_ms'],
+                1 if x['fingerprint_used'] else 0  # Prefer fingerprint-aware results
+            ), reverse=True)
+        else:
+            results.sort(key=lambda x: (x['success_rate'], -x['avg_latency_ms']), reverse=True)
+        
+        # Add fingerprint information to results summary
+        if results and fingerprint:
+            LOG.info(f"Strategy testing completed with DPI fingerprint: "
+                   f"{fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f})")
+        
         return results
+
+    async def fingerprint_target(self, 
+                                domain: str, 
+                                port: int = 443,
+                                force_refresh: bool = False) -> Optional[DPIFingerprint]:
+        """
+        Perform advanced DPI fingerprinting for target.
+        
+        Args:
+            domain: Target domain name
+            port: Target port
+            force_refresh: Force new analysis even if cached
+            
+        Returns:
+            DPIFingerprint object or None if fingerprinting fails/disabled
+        """
+        if not self.advanced_fingerprinting_enabled:
+            return None
+        
+        try:
+            LOG.info(f"Starting DPI fingerprinting for {domain}:{port}")
+            start_time = time.time()
+            
+            fingerprint = await self.advanced_fingerprinter.fingerprint_target(
+                target=domain,
+                port=port,
+                force_refresh=force_refresh
+            )
+            
+            analysis_time = time.time() - start_time
+            self.fingerprint_stats['fingerprints_created'] += 1
+            
+            LOG.info(f"DPI fingerprinting completed for {domain}:{port} in {analysis_time:.2f}s")
+            LOG.info(f"Detected DPI type: {fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f})")
+            
+            return fingerprint
+            
+        except FingerprintingError as e:
+            LOG.error(f"Fingerprinting failed for {domain}:{port}: {e}")
+            self.fingerprint_stats['fingerprint_failures'] += 1
+            return None
+        except Exception as e:
+            LOG.error(f"Unexpected error during fingerprinting {domain}:{port}: {e}")
+            self.fingerprint_stats['fingerprint_failures'] += 1
+            return None
+
+    def _adapt_strategies_for_fingerprint(self, 
+                                        strategies: List[str], 
+                                        fingerprint: DPIFingerprint) -> List[str]:
+        """
+        Adapt and prioritize strategies based on DPI fingerprint.
+        
+        Args:
+            strategies: Original list of strategies
+            fingerprint: DPI fingerprint with detected characteristics
+            
+        Returns:
+            Reordered and potentially modified strategy list
+        """
+        if not fingerprint:
+            return strategies
+        
+        adapted_strategies = []
+        dpi_type = fingerprint.dpi_type
+        confidence = fingerprint.confidence
+        
+        LOG.info(f"Adapting strategies for DPI type: {dpi_type.value} (confidence: {confidence:.2f})")
+        
+        # Strategy adaptations based on DPI type
+        if dpi_type == DPIType.ROSKOMNADZOR_TSPU:
+            # TSPU responds quickly to RST injection, prefer fast techniques
+            priority_patterns = [
+                r'--dpi-desync-ttl=[1-5]',  # Low TTL values
+                r'--dpi-desync=fake.*disorder',  # Fake + disorder combinations
+                r'--dpi-desync-fooling=badsum',  # Bad checksum fooling
+            ]
+            adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
+            
+        elif dpi_type == DPIType.ROSKOMNADZOR_DPI:
+            # Standard DPI, prefer segmentation and fake packets
+            priority_patterns = [
+                r'--dpi-desync=.*split',  # Segmentation techniques
+                r'--dpi-desync-split-pos=midsld',  # Middle of SLD splitting
+                r'--dpi-desync=fake',  # Fake packet injection
+            ]
+            adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
+            
+        elif dpi_type == DPIType.COMMERCIAL_DPI:
+            # Commercial DPI often has deep inspection, use advanced techniques
+            priority_patterns = [
+                r'--dpi-desync=multisplit',  # Multiple segmentation
+                r'--dpi-desync-split-seqovl',  # Sequence overlap
+                r'--dpi-desync-repeats=[2-5]',  # Multiple repeats
+            ]
+            adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
+            
+            # Add specific multisplit strategies for commercial DPI
+            adapted_strategies.extend([
+                "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10",
+                "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-fooling=badsum",
+            ])
+            
+        elif dpi_type == DPIType.FIREWALL_BASED:
+            # Firewall-based blocking, prefer simple techniques
+            priority_patterns = [
+                r'--dpi-desync=disorder',  # Simple disorder
+                r'--dpi-desync-ttl=[64,127,128]',  # Standard TTL values
+            ]
+            adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
+            
+        elif dpi_type == DPIType.ISP_TRANSPARENT_PROXY:
+            # Transparent proxy, focus on HTTP-level techniques
+            priority_patterns = [
+                r'--dpi-desync=fake.*disorder',  # Fake + disorder
+                r'--dpi-desync-fooling=.*seq',  # Sequence number manipulation
+            ]
+            adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
+        
+        # Add fingerprint-specific strategies based on detected characteristics
+        if fingerprint.rst_injection_detected and fingerprint.connection_reset_timing < 100:
+            # Fast RST injection detected, add low TTL strategies
+            adapted_strategies.extend([
+                "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq",
+            ])
+        
+        if fingerprint.tcp_window_manipulation:
+            # TCP window manipulation detected, use window-aware techniques
+            adapted_strategies.extend([
+                "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10",
+            ])
+        
+        if fingerprint.http_header_filtering:
+            # HTTP header filtering detected, focus on packet-level techniques
+            adapted_strategies.extend([
+                "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum",
+            ])
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_strategies = []
+        for strategy in adapted_strategies + strategies:
+            if strategy not in seen:
+                seen.add(strategy)
+                unique_strategies.append(strategy)
+        
+        LOG.info(f"Adapted {len(strategies)} strategies to {len(unique_strategies)} fingerprint-aware strategies")
+        return unique_strategies
+    
+    def _prioritize_strategies(self, strategies: List[str], priority_patterns: List[str]) -> List[str]:
+        """
+        Prioritize strategies matching given patterns.
+        
+        Args:
+            strategies: List of strategies to prioritize
+            priority_patterns: List of regex patterns for prioritization
+            
+        Returns:
+            List of strategies matching priority patterns
+        """
+        import re
+        prioritized = []
+        
+        for pattern in priority_patterns:
+            for strategy in strategies:
+                if re.search(pattern, strategy) and strategy not in prioritized:
+                    prioritized.append(strategy)
+        
+        return prioritized
+
+    def get_fingerprint_stats(self) -> Dict[str, int]:
+        """Get fingerprinting statistics"""
+        stats = self.fingerprint_stats.copy()
+        
+        # Add advanced fingerprinter stats if available
+        if self.advanced_fingerprinter:
+            try:
+                advanced_stats = self.advanced_fingerprinter.get_stats()
+                stats.update({
+                    'advanced_' + k: v for k, v in advanced_stats.items()
+                })
+            except Exception as e:
+                LOG.error(f"Failed to get advanced fingerprinter stats: {e}")
+        
+        return stats
 
     def cleanup(self):
         """Очистка ресурсов."""
-        pass
+        if self.advanced_fingerprinter and hasattr(self.advanced_fingerprinter, 'executor'):
+            try:
+                self.advanced_fingerprinter.executor.shutdown(wait=True)
+            except Exception as e:
+                LOG.error(f"Error shutting down fingerprinter executor: {e}")

@@ -1,0 +1,110 @@
+{
+  "accuracy": 0.8333333333333334,
+  "precision_macro": 0.6,
+  "precision_micro": 0.8333333333333334,
+  "recall_macro": 0.6,
+  "recall_micro": 0.8333333333333334,
+  "f1_macro": 0.6,
+  "f1_micro": 0.8333333333333334,
+  "f1_weighted": 0.8333333333333334,
+  "cross_val_scores": [
+    0.8333333333333334
+  ],
+  "cross_val_mean": 0.8333333333333334,
+  "cross_val_std": 0.0,
+  "confusion_matrix": [
+    [
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      3,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      0,
+      0
+    ]
+  ],
+  "classification_report": "                       precision    recall  f1-score   support\n\n       COMMERCIAL_DPI       1.00      1.00      1.00         1\n       FIREWALL_BASED       1.00      1.00      1.00         1\nISP_TRANSPARENT_PROXY       0.00      0.00      0.00         0\n    ROSKOMNADZOR_TSPU       1.00      1.00      1.00         3\n              UNKNOWN       0.00      0.00      0.00         1\n\n             accuracy                           0.83         6\n            macro avg       0.60      0.60      0.60         6\n         weighted avg       0.83      0.83      0.83         6\n",
+  "feature_importance": {
+    "blocking_intensity": 0.01637204012301699,
+    "checksum_validation": 0.006006991861632359,
+    "connection_latency_ms_minmax": 0.03970559016427115,
+    "connection_latency_ms_normalized": 0.06167756585090221,
+    "dns_over_https_blocked": 2.6551618939768983e-18,
+    "dns_resolution_time_ms_minmax": 0.02603844042453711,
+    "dns_resolution_time_ms_normalized": 0.03423295166122733,
+    "dpi_hop_distance_minmax": 0.030879065774858914,
+    "dpi_hop_distance_normalized": 0.05656511645014859,
+    "ech_blocked": 0.02126774825328916,
+    "ecn_support": 0.008027265480750646,
+    "esni_support": 0.009957656335192888,
+    "handshake_time_ms_minmax": 0.05327839260703676,
+    "handshake_time_ms_normalized": 0.04062740344684206,
+    "http2_detection": 0.009251262105400464,
+    "http3_support": 0.008781231688162208,
+    "icmp_ttl_exceeded": 0.009271403657930624,
+    "ip_level_blocked": 0.004399539472256058,
+    "ipv6_handling": 0.022641962287603713,
+    "large_payload_bypass": 0.01810228708478961,
+    "ml_detection_blocked": 0.021125420804864098,
+    "quic_udp_blocked": 0.0020790960451977374,
+    "rate_limiting_detected": 0.004096557977733713,
+    "rst_distance_minmax": 0.0542837635327353,
+    "rst_distance_normalized": 0.05832419250178122,
+    "rst_from_target": 0.010227452818860911,
+    "rst_latency_ms_minmax": 0.035262701200184564,
+    "rst_latency_ms_normalized": 0.04778491012200817,
+    "rst_to_connection_ratio": 0.02633066291591814,
+    "rst_ttl_minmax": 0.009302510118566604,
+    "rst_ttl_normalized": 0.023837442329609323,
+    "stateful_inspection": 0.011694723159226388,
+    "supports_ip_frag": 0.021847751386705062,
+    "tcp_keepalive_handling": 0.01660486164568876,
+    "tcp_option_len_limit_minmax": 0.03323157370372372,
+    "tcp_option_len_limit_normalized": 0.032624538855482964,
+    "tcp_option_splicing": 0.005994249989296333,
+    "technology_support": 0.004103646690146571,
+    "tls_version_sensitivity": 0.03438867167186059,
+    "ttl_category": 0.01680992725095996,
+    "ttl_is_common": 0.0025801683949025567,
+    "websocket_blocked": 0.009110440853695032,
+    "window_size_in_rst_minmax": 0.01753250129886523,
+    "window_size_in_rst_normalized": 0.017728167951124287,
+    "zero_rtt_blocked": 0.006010152051013922
+  },
+  "class_distribution": {
+    "CLOUDFLARE_PROTECTION": 1,
+    "COMMERCIAL_DPI": 4,
+    "FIREWALL_BASED": 5,
+    "GOVERNMENT_CENSORSHIP": 1,
+    "ISP_TRANSPARENT_PROXY": 1,
+    "ROSKOMNADZOR_DPI": 6,
+    "ROSKOMNADZOR_TSPU": 11,
+    "UNKNOWN": 1
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "timestamp": "2025-08-13T16:25:37.168038",
+  "target": "instagram.com",
+  "port": 443,
+  "total_strategies_tested": 20,
+  "working_strategies_found": 0,
+  "success_rate": 0.0,
+  "best_strategy": null,
+  "execution_time_seconds": 142.31049966812134,
+  "domain_status": {
+    "https://instagram.com": "BLOCKED"
+  },
+  "fingerprints": {},
+  "all_results": [
+    {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-repeats=3 --dpi-desync-fooling=badsum,badseq",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=12",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=6",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=3",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-repeats=5",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=64",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-repeats=4",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=10",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=7",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=8",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=7",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=6",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=20",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=1",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=4",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=15",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0
+    }
+  ],
+  "learning_cache_stats": {
+    "total_strategy_records": 485,
+    "total_tests_performed": 530,
+    "domains_learned": 11,
+    "dpi_patterns_learned": 2,
+    "average_success_rate": 0.23617378497790867
+  }
+}

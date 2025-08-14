@@ -1,6 +1,12 @@
 # recon/ml/zapret_strategy_generator.py
 import re
 import random
+from typing import Optional, List, Dict, Any
+try:
+    from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType, ConfidenceLevel
+except ImportError:
+    # Fallback for when running from within recon directory
+    from core.fingerprint.advanced_models import DPIFingerprint, DPIType, ConfidenceLevel
 
 class ZapretStrategyGenerator:
     """Генератор стратегий в формате zapret команд, создающий рабочие комбинации."""
@@ -23,8 +29,58 @@ class ZapretStrategyGenerator:
         "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2",
     ]
     
-    def generate_strategies(self, fingerprint: dict = None, count: int = 20) -> list:
-        """Генерирует список zapret стратегий."""
+    def generate_strategies(self, fingerprint: Optional[DPIFingerprint] = None, count: int = 20) -> List[str]:
+        """
+        Генерирует список zapret стратегий с учетом DPI фингерпринта.
+        
+        Args:
+            fingerprint: DPI фингерпринт для целевой системы (DPIFingerprint или dict для обратной совместимости)
+            count: Количество стратегий для генерации
+            
+        Returns:
+            Список zapret стратегий, отсортированных по вероятности успеха
+        """
+        # Handle backward compatibility with old dict format
+        if isinstance(fingerprint, dict):
+            return self._generate_legacy_strategies(fingerprint, count)
+        elif fingerprint:
+            return self._generate_fingerprint_aware_strategies(fingerprint, count)
+        else:
+            return self._generate_generic_strategies(count)
+    
+    def _generate_fingerprint_aware_strategies(self, fingerprint: DPIFingerprint, count: int) -> List[str]:
+        """Генерирует стратегии с учетом детального фингерпринта DPI."""
+        strategies = set()
+        
+        # Получаем DPI-специфичные стратегии
+        dpi_specific = self._get_dpi_type_strategies(fingerprint.dpi_type)
+        strategies.update(dpi_specific)
+        
+        # Добавляем стратегии на основе конкретных характеристик DPI
+        characteristic_strategies = self._get_characteristic_based_strategies(fingerprint)
+        strategies.update(characteristic_strategies)
+        
+        # Добавляем базовые проверенные стратегии
+        strategies.update(self.PROVEN_WORKING)
+        
+        # Генерируем дополнительные вариации если нужно больше стратегий
+        while len(strategies) < count:
+            base = random.choice(list(strategies))
+            variations = self._generate_variations(base)
+            strategies.update(variations)
+            
+            if len(strategies) < count:
+                new_strategies = self._generate_new_combinations()
+                strategies.update(new_strategies)
+        
+        # Ранжируем стратегии по уверенности и релевантности
+        strategy_list = list(strategies)
+        ranked_strategies = self._rank_strategies_by_confidence(strategy_list, fingerprint)
+        
+        return ranked_strategies[:count]
+    
+    def _generate_generic_strategies(self, count: int) -> List[str]:
+        """Генерирует общие стратегии когда фингерпринт недоступен."""
         strategies = set(self.PROVEN_WORKING)
         
         # Генерируем много вариаций для достижения нужного количества
@@ -40,10 +96,6 @@ class ZapretStrategyGenerator:
             if len(strategies) < count:
                 new_strategies = self._generate_new_combinations()
                 strategies.update(new_strategies)
-
-        # --- ИСПРАВЛЕНИЕ: Добавляем стратегию, учитывающую fingerprint ---
-        if fingerprint and fingerprint.get('dpi_type') == 'LIKELY_WINDOWS_BASED':
-            strategies.add("--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-ttl=127")
 
         strategy_list = list(strategies)
         random.shuffle(strategy_list)
@@ -129,3 +181,288 @@ class ZapretStrategyGenerator:
             new_strategies.add(strategy)
         
         return new_strategies
+    
+    def _get_dpi_type_strategies(self, dpi_type: DPIType) -> List[str]:
+        """Возвращает стратегии, специфичные для типа DPI."""
+        
+        # Шаблоны стратегий для каждого типа DPI
+        dpi_strategies = {
+            DPIType.ROSKOMNADZOR_TSPU: [
+                # ТСПУ часто использует простую фильтрацию по SNI и Host заголовкам
+                "--dpi-desync=fake --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=5",
+                "--dpi-desync=fake,disorder --dpi-desync-split-pos=midsld --dpi-desync-fooling=badseq --dpi-desync-ttl=4",
+                "--dpi-desync=multisplit --dpi-desync-split-count=2 --dpi-desync-split-seqovl=5 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=3 --dpi-desync-repeats=2",
+            ],
+            
+            DPIType.ROSKOMNADZOR_DPI: [
+                # Более продвинутые DPI системы РКН требуют агрессивных методов
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=2",
+                "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=1",
+                "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-repeats=5 --dpi-desync-fooling=badsum,badseq",
+            ],
+            
+            DPIType.COMMERCIAL_DPI: [
+                # Коммерческие DPI системы (Cisco, Fortinet, etc.)
+                "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=md5sig --dpi-desync-ttl=64",
+                "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=datanoack",
+                "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=128 --dpi-desync-repeats=2",
+                "--dpi-desync=disorder2 --dpi-desync-split-pos=5,15 --dpi-desync-fooling=badsum",
+            ],
+            
+            DPIType.FIREWALL_BASED: [
+                # Файрволы с DPI функциональностью
+                "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-fooling=badseq --dpi-desync-ttl=64",
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=1,3,7 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake,disorder --dpi-desync-split-pos=midsld --dpi-desync-ttl=127",
+                "--dpi-desync=fake --dpi-desync-repeats=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=32",
+            ],
+            
+            DPIType.ISP_TRANSPARENT_PROXY: [
+                # Прозрачные прокси провайдеров
+                "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=8",
+                "--dpi-desync=multisplit --dpi-desync-split-count=2 --dpi-desync-split-seqovl=3 --dpi-desync-fooling=badseq",
+                "--dpi-desync=disorder --dpi-desync-split-pos=3,8 --dpi-desync-fooling=badsum --dpi-desync-ttl=16",
+                "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+            ],
+            
+            DPIType.CLOUDFLARE_PROTECTION: [
+                # Cloudflare и подобные CDN с защитой
+                "--dpi-desync=fake --dpi-desync-split-pos=5 --dpi-desync-fooling=badsum --dpi-desync-ttl=10",
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=2,6,12 --dpi-desync-fooling=badseq",
+                "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=midsld --dpi-desync-ttl=15",
+                "--dpi-desync=fake --dpi-desync-repeats=2 --dpi-desync-fooling=md5sig --dpi-desync-ttl=20",
+            ],
+            
+            DPIType.GOVERNMENT_CENSORSHIP: [
+                # Государственные системы цензуры (Китай, Иран, etc.)
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,3,5,7 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=1",
+                "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=2 --dpi-desync-repeats=3",
+                "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-repeats=7 --dpi-desync-fooling=badsum,badseq,md5sig",
+            ]
+        }
+        
+        return dpi_strategies.get(dpi_type, [])
+    
+    def _get_characteristic_based_strategies(self, fingerprint: DPIFingerprint) -> List[str]:
+        """Генерирует стратегии на основе конкретных характеристик DPI."""
+        strategies = []
+        
+        # Стратегии для TCP-характеристик
+        if fingerprint.rst_injection_detected:
+            # RST инъекция - используем стратегии с низким TTL и повторами
+            strategies.extend([
+                "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-repeats=3 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake,disorder --dpi-desync-split-pos=1 --dpi-desync-ttl=2 --dpi-desync-fooling=badseq",
+                "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=15 --dpi-desync-fooling=badsum"
+            ])
+        
+        if fingerprint.tcp_window_manipulation:
+            # Манипуляция с TCP окнами - используем сегментацию
+            strategies.extend([
+                "--dpi-desync=multisplit --dpi-desync-split-count=4 --dpi-desync-split-seqovl=10",
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum"
+            ])
+        
+        if fingerprint.sequence_number_anomalies:
+            # Аномалии в sequence numbers - используем badseq fooling
+            strategies.extend([
+                "--dpi-desync=fake --dpi-desync-fooling=badseq --dpi-desync-ttl=3",
+                "--dpi-desync=disorder2 --dpi-desync-split-pos=2,7 --dpi-desync-fooling=badseq"
+            ])
+        
+        # Стратегии для HTTP-характеристик
+        if fingerprint.http_header_filtering:
+            # Фильтрация HTTP заголовков - используем сегментацию по midsld
+            strategies.extend([
+                "--dpi-desync=fake --dpi-desync-split-pos=midsld --dpi-desync-fooling=badsum --dpi-desync-ttl=4",
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=midsld,10 --dpi-desync-fooling=badseq"
+            ])
+        
+        if fingerprint.content_inspection_depth > 1000:
+            # Глубокая инспекция контента - агрессивная сегментация
+            strategies.extend([
+                "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=25 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,3,5,7,10 --dpi-desync-fooling=badsum,badseq"
+            ])
+        
+        if fingerprint.user_agent_filtering:
+            # Фильтрация User-Agent - используем fake TLS
+            strategies.extend([
+                "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=5",
+                "--dpi-desync=fake,disorder --dpi-desync-fake-tls=0x1603 --dpi-desync-split-pos=3"
+            ])
+        
+        # Стратегии для DNS-характеристик
+        if fingerprint.dns_hijacking_detected:
+            # DNS hijacking - фокус на TCP и TLS обходе
+            strategies.extend([
+                "--dpi-desync=fake --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=6",
+                "--dpi-desync=multisplit --dpi-desync-split-count=2 --dpi-desync-fooling=badseq"
+            ])
+        
+        if fingerprint.doh_blocking and fingerprint.dot_blocking:
+            # Блокировка DoH/DoT - агрессивные методы
+            strategies.extend([
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=2",
+                "--dpi-desync=multisplit --dpi-desync-split-count=4 --dpi-desync-split-seqovl=20"
+            ])
+        
+        # Стратегии для дополнительных характеристик
+        if fingerprint.packet_size_limitations and fingerprint.packet_size_limitations < 1000:
+            # Ограничения размера пакетов - мелкая сегментация
+            strategies.extend([
+                "--dpi-desync=multisplit --dpi-desync-split-count=6 --dpi-desync-split-seqovl=5",
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,2,3,4,5 --dpi-desync-fooling=badsum"
+            ])
+        
+        if fingerprint.geographic_restrictions:
+            # Географические ограничения - сложные стратегии
+            strategies.extend([
+                "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=1 --dpi-desync-repeats=4",
+                "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=35 --dpi-desync-fooling=badsum,badseq"
+            ])
+        
+        return strategies
+    
+    def _rank_strategies_by_confidence(self, strategies: List[str], fingerprint: DPIFingerprint) -> List[str]:
+        """Ранжирует стратегии по уверенности и релевантности для данного DPI."""
+        
+        def calculate_strategy_score(strategy: str) -> float:
+            """Вычисляет оценку стратегии для данного фингерпринта."""
+            score = 0.0
+            
+            # Базовая оценка по уверенности классификации
+            confidence_bonus = fingerprint.confidence * 0.3
+            score += confidence_bonus
+            
+            # Бонус за соответствие типу DPI
+            dpi_specific_strategies = self._get_dpi_type_strategies(fingerprint.dpi_type)
+            if strategy in dpi_specific_strategies:
+                score += 0.4
+            
+            # Бонус за соответствие характеристикам
+            characteristic_strategies = self._get_characteristic_based_strategies(fingerprint)
+            if strategy in characteristic_strategies:
+                score += 0.3
+            
+            # Бонус за проверенные стратегии
+            if strategy in self.PROVEN_WORKING:
+                score += 0.2
+            
+            # Штраф за сложность (слишком сложные стратегии менее надежны)
+            complexity_penalty = self._calculate_strategy_complexity(strategy) * 0.1
+            score -= complexity_penalty
+            
+            # Бонус за релевантность к уровню сложности DPI
+            difficulty = fingerprint.calculate_evasion_difficulty()
+            strategy_aggressiveness = self._calculate_strategy_aggressiveness(strategy)
+            
+            # Оптимальное соответствие агрессивности стратегии сложности DPI
+            aggressiveness_match = 1.0 - abs(difficulty - strategy_aggressiveness)
+            score += aggressiveness_match * 0.2
+            
+            return max(0.0, min(1.0, score))  # Ограничиваем от 0 до 1
+        
+        # Вычисляем оценки и сортируем
+        strategy_scores = [(strategy, calculate_strategy_score(strategy)) for strategy in strategies]
+        strategy_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        return [strategy for strategy, score in strategy_scores]
+    
+    def _calculate_strategy_complexity(self, strategy: str) -> float:
+        """Вычисляет сложность стратегии (0.0 = простая, 1.0 = очень сложная)."""
+        complexity = 0.0
+        
+        # Подсчет количества параметров
+        param_count = len(re.findall(r'--dpi-desync-\w+', strategy))
+        complexity += min(param_count * 0.1, 0.5)
+        
+        # Сложность методов desync
+        if 'multisplit' in strategy:
+            complexity += 0.2
+        if 'multidisorder' in strategy:
+            complexity += 0.2
+        if 'disorder2' in strategy:
+            complexity += 0.15
+        
+        # Сложность fooling методов
+        fooling_count = len(re.findall(r'badsum|badseq|md5sig|datanoack', strategy))
+        complexity += min(fooling_count * 0.05, 0.2)
+        
+        # Сложность split позиций
+        if 'midsld' in strategy:
+            complexity += 0.1
+        split_positions = re.findall(r'--dpi-desync-split-pos=([^\\s]+)', strategy)
+        if split_positions:
+            pos_complexity = len(split_positions[0].split(',')) * 0.05
+            complexity += min(pos_complexity, 0.15)
+        
+        return min(complexity, 1.0)
+    
+    def _calculate_strategy_aggressiveness(self, strategy: str) -> float:
+        """Вычисляет агрессивность стратегии (0.0 = мягкая, 1.0 = очень агрессивная)."""
+        aggressiveness = 0.0
+        
+        # TTL значения (меньше = агрессивнее)
+        ttl_match = re.search(r'--dpi-desync-ttl=(\d+)', strategy)
+        if ttl_match:
+            ttl = int(ttl_match.group(1))
+            if ttl <= 2:
+                aggressiveness += 0.3
+            elif ttl <= 5:
+                aggressiveness += 0.2
+            elif ttl <= 10:
+                aggressiveness += 0.1
+        
+        # Количество повторов
+        repeats_match = re.search(r'--dpi-desync-repeats=(\d+)', strategy)
+        if repeats_match:
+            repeats = int(repeats_match.group(1))
+            aggressiveness += min(repeats * 0.05, 0.2)
+        
+        # Количество split сегментов
+        split_count_match = re.search(r'--dpi-desync-split-count=(\d+)', strategy)
+        if split_count_match:
+            count = int(split_count_match.group(1))
+            aggressiveness += min(count * 0.03, 0.15)
+        
+        # Overlap размер
+        overlap_match = re.search(r'--dpi-desync-split-seqovl=(\d+)', strategy)
+        if overlap_match:
+            overlap = int(overlap_match.group(1))
+            aggressiveness += min(overlap * 0.01, 0.1)
+        
+        # Агрессивные методы
+        if 'multisplit' in strategy:
+            aggressiveness += 0.15
+        if 'multidisorder' in strategy:
+            aggressiveness += 0.15
+        if 'badsum,badseq' in strategy:
+            aggressiveness += 0.1
+        
+        return min(aggressiveness, 1.0)
+    
+    def _generate_legacy_strategies(self, fingerprint: dict, count: int) -> List[str]:
+        """Генерирует стратегии для старого формата фингерпринта (обратная совместимость)."""
+        strategies = set(self.PROVEN_WORKING)
+        
+        # Добавляем стратегию, учитывающую старый fingerprint
+        if fingerprint.get('dpi_type') == 'LIKELY_WINDOWS_BASED':
+            strategies.add("--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-ttl=127")
+        
+        # Генерируем дополнительные стратегии
+        while len(strategies) < count:
+            base = random.choice(self.PROVEN_WORKING)
+            variations = self._generate_variations(base)
+            strategies.update(variations)
+            
+            if len(strategies) < count:
+                new_strategies = self._generate_new_combinations()
+                strategies.update(new_strategies)
+
+        strategy_list = list(strategies)
+        random.shuffle(strategy_list)
+        return strategy_list[:count]

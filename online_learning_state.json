@@ -1,0 +1,188 @@
+{
+  "learning_mode": "moderate",
+  "buffer_size": 5,
+  "min_confidence_threshold": 0.7,
+  "performance_window_size": 100,
+  "retraining_threshold": 0.05,
+  "learning_buffer": [
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "stateful_inspection": true
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.75,
+      "timestamp": 1755158648.8043838,
+      "source": "test"
+    }
+  ],
+  "performance_history": [
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.8,
+      "timestamp": 1755158447.9778652,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "stateful_inspection": true
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "COMMERCIAL_DPI",
+      "confidence": 0.75,
+      "timestamp": 1755158648.8043838,
+      "source": "test"
+    }
+  ],
+  "baseline_performance": {
+    "accuracy": 0.9,
+    "f1_score": 0.85,
+    "confidence_distribution": {},
+    "prediction_counts": {},
+    "timestamp": 1755158447.9778652,
+    "sample_size": 10
+  },
+  "stats": {
+    "total_examples_received": 11,
+    "examples_learned_from": 11,
+    "retraining_events": 5,
+    "ab_tests_completed": 0,
+    "last_retraining_time": 1755158447.9778652,
+    "learning_mode_changes": 0
+  }
+}
