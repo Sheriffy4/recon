@@ -10,6 +10,7 @@ import time
 import random
 import hashlib
 import struct
+import json
 from typing import List, Dict, Any, Optional, Tuple
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
@@ -126,7 +127,7 @@ class XORPayloadEncryptionAttack(BaseAttack):
             key_material = hashlib.sha256(seq_bytes).digest()
             return (key_material * (length // 32 + 1))[:length]
         else:
-            return random.randbytes(length)
+            raise ValueError(f"Invalid key_strategy: {strategy}")
 
     def _xor_encrypt(self, data: bytes, key: bytes) -> bytes:
         """XOR encrypt data with key."""

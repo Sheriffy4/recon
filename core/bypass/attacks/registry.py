@@ -9,7 +9,7 @@ from typing import Dict, Type, Optional, List, Any, Set
 # Используем TYPE_CHECKING для импортов, нужных только для аннотаций
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from base import BaseAttack
+    from .base import BaseAttack
     from integration.attack_adapter import AttackAdapter
 
 LOG = logging.getLogger("AttackRegistry")
@@ -153,7 +153,7 @@ def register_attack(arg=None):
     Декоратор для автоматической регистрации класса атаки.
     Может использоваться как @register_attack или @register_attack("custom_name").
     """
-    from base import BaseAttack
+    from .base import BaseAttack
 
     def decorator(attack_class: Type[BaseAttack]):
         """Внутренний декоратор, который выполняет регистрацию."""

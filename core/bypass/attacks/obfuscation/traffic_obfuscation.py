@@ -102,7 +102,7 @@ class TrafficPatternObfuscationAttack(BaseAttack):
         elif strategy == "mixed":
             return self._apply_mixed_obfuscation(payload, intensity, mimic_app)
         else:
-            return self._apply_mixed_obfuscation(payload, intensity, mimic_app)
+            raise ValueError(f"Invalid obfuscation_strategy: {strategy}")
 
     def _apply_timing_randomization(self, payload: bytes, intensity: str) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply timing randomization obfuscation."""

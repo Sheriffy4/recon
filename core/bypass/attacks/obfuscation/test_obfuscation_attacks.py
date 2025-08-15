@@ -15,7 +15,8 @@ from .protocol_tunneling import (
     HTTPTunnelingObfuscationAttack,
     DNSOverHTTPSTunnelingAttack,
     WebSocketTunnelingObfuscationAttack,
-    SSHTunnelingObfuscationAttack
+    SSHTunnelingObfuscationAttack,
+    VPNTunnelingObfuscationAttack
 )
 from .payload_encryption import (
     XORPayloadEncryptionAttack,
@@ -29,6 +30,13 @@ from .protocol_mimicry import (
     SMTPProtocolMimicryAttack,
     FTPProtocolMimicryAttack
 )
+from .icmp_obfuscation import (
+    ICMPDataTunnelingObfuscationAttack,
+    ICMPTimestampTunnelingObfuscationAttack,
+    ICMPRedirectTunnelingObfuscationAttack,
+    ICMPCovertChannelObfuscationAttack
+)
+from .quic_obfuscation import QUICFragmentationObfuscationAttack
 from .traffic_obfuscation import (
     TrafficPatternObfuscationAttack,
     PacketSizeObfuscationAttack,
@@ -128,6 +136,36 @@ class TestProtocolTunnelingAttacks:
         assert result.packets_sent >= 3  # ID + KEX + Data
         assert result.metadata["encryption_method"] == "aes256-ctr"
 
+    def test_vpn_tunneling_obfuscation_types(self):
+        """Test VPN tunneling with different VPN types."""
+        attack = VPNTunnelingObfuscationAttack()
+        vpn_types = ["openvpn", "wireguard", "ipsec"]
+
+        for vpn_type in vpn_types:
+            context = self.create_test_context(
+                b"vpn test data",
+                vpn_type=vpn_type
+            )
+
+            result = attack.execute(context)
+
+            assert result.status == AttackStatus.SUCCESS
+            assert result.metadata["vpn_type"] == vpn_type
+            assert result.bytes_sent > len(context.payload)
+
+    def test_vpn_tunneling_invalid_type(self):
+        """Test that VPN tunneling handles invalid type."""
+        attack = VPNTunnelingObfuscationAttack()
+        context = self.create_test_context(
+            b"vpn test data",
+            vpn_type="invalid_vpn"
+        )
+
+        result = attack.execute(context)
+
+        assert result.status == AttackStatus.ERROR
+        assert "Invalid vpn_type" in result.error_message
+
 
 class TestPayloadEncryptionAttacks:
     """Test payload encryption obfuscation attacks."""
@@ -169,6 +207,20 @@ class TestPayloadEncryptionAttacks:
             
             assert result.status == AttackStatus.SUCCESS
             assert result.metadata["key_strategy"] == strategy
+
+    def test_xor_encryption_invalid_strategy(self):
+        """Test that XOR encryption handles invalid strategy."""
+        attack = XORPayloadEncryptionAttack()
+        context = self.create_test_context(
+            b"test data",
+            key_strategy="invalid_strategy"
+        )
+
+        result = attack.execute(context)
+
+        assert result.status == AttackStatus.ERROR
+        assert result.error_message is not None
+        assert "Invalid key_strategy" in result.error_message
 
     def test_aes_payload_encryption(self):
         """Test AES payload encryption."""
@@ -347,6 +399,20 @@ class TestTrafficObfuscationAttacks:
             assert result.status == AttackStatus.SUCCESS
             assert result.metadata["obfuscation_strategy"] == strategy
 
+    def test_traffic_pattern_invalid_strategy(self):
+        """Test that traffic pattern attack handles invalid strategy."""
+        attack = TrafficPatternObfuscationAttack()
+        context = self.create_test_context(
+            b"test data",
+            obfuscation_strategy="invalid_strategy"
+        )
+
+        result = attack.execute(context)
+
+        assert result.status == AttackStatus.ERROR
+        assert result.error_message is not None
+        assert "Invalid obfuscation_strategy" in result.error_message
+
     def test_packet_size_obfuscation(self):
         """Test packet size obfuscation."""
         attack = PacketSizeObfuscationAttack()
@@ -392,6 +458,131 @@ class TestTrafficObfuscationAttacks:
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["flow_strategy"] == "bidirectional"
         assert result.metadata["fake_responses"] == True
+
+
+class TestICMPObfuscationAttacks:
+    """Test ICMP obfuscation attacks."""
+
+    def create_test_context(self, payload: bytes = b"test data", **params) -> AttackContext:
+        """Create test attack context."""
+        return AttackContext(
+            dst_ip="8.8.8.8",
+            dst_port=0, # ICMP doesn't use ports
+            src_ip="192.168.1.1",
+            src_port=0,
+            payload=payload,
+            params=params
+        )
+
+    def test_icmp_data_tunneling(self):
+        """Test basic ICMP data tunneling."""
+        attack = ICMPDataTunnelingObfuscationAttack()
+        context = self.create_test_context(
+            b"some secret data here",
+            packet_size=128
+        )
+        result = attack.execute(context)
+        assert result.status == AttackStatus.SUCCESS
+        assert result.technique_used == "icmp_data_tunneling_obfuscation"
+        assert result.packets_sent > 0
+        assert result.bytes_sent > len(context.payload)
+
+    def test_icmp_timestamp_tunneling(self):
+        """Test ICMP timestamp tunneling."""
+        attack = ICMPTimestampTunnelingObfuscationAttack()
+        context = self.create_test_context(b"hide this")
+        result = attack.execute(context)
+        assert result.status == AttackStatus.SUCCESS
+        assert result.technique_used == "icmp_timestamp_tunneling_obfuscation"
+        # 3 packets for 9 bytes of data (4 bytes per packet)
+        assert result.packets_sent == 3
+
+    def test_icmp_redirect_tunneling(self):
+        """Test ICMP redirect tunneling."""
+        attack = ICMPRedirectTunnelingObfuscationAttack()
+        context = self.create_test_context(
+            b"redirect this data",
+            gateway_ip="192.168.1.1"
+        )
+        result = attack.execute(context)
+        assert result.status == AttackStatus.SUCCESS
+        assert result.technique_used == "icmp_redirect_tunneling_obfuscation"
+        assert result.metadata["gateway_ip"] == "192.168.1.1"
+
+    def test_icmp_covert_channel_types(self):
+        """Test ICMP covert channel with different channel types."""
+        attack = ICMPCovertChannelObfuscationAttack()
+        channel_types = ["timing", "size", "sequence"]
+        for channel_type in channel_types:
+            context = self.create_test_context(
+                b"covert",
+                channel_type=channel_type
+            )
+            result = attack.execute(context)
+            assert result.status == AttackStatus.SUCCESS
+            assert result.metadata["channel_type"] == channel_type
+
+    def test_icmp_covert_channel_invalid_type(self):
+        """Test ICMP covert channel with an invalid type."""
+        attack = ICMPCovertChannelObfuscationAttack()
+        context = self.create_test_context(
+            b"covert",
+            channel_type="invalid_type"
+        )
+        result = attack.execute(context)
+        assert result.status == AttackStatus.ERROR
+        assert "Invalid channel_type" in result.error_message
+
+
+class TestQUICObfuscationAttacks:
+    """Test QUIC obfuscation attacks."""
+
+    def create_test_context(self, payload: bytes = b"", **params) -> AttackContext:
+        """Create test attack context for QUIC."""
+        return AttackContext(
+            dst_ip="8.8.8.8",
+            dst_port=443,
+            src_ip="192.168.1.1",
+            src_port=12345,
+            domain="google.com",
+            payload=payload,
+            params=params
+        )
+
+    def test_quic_fragmentation_basic(self):
+        """Test basic QUIC fragmentation."""
+        attack = QUICFragmentationObfuscationAttack()
+        context = self.create_test_context(fragment_size=200)
+
+        result = attack.execute(context)
+
+        assert result.status == AttackStatus.SUCCESS
+        assert result.technique_used == "quic_fragmentation_obfuscation"
+        assert result.metadata["fragment_count"] > 1
+        assert result.metadata["fragment_size"] == 200
+
+    def test_quic_fragmentation_with_vn(self):
+        """Test QUIC fragmentation with a version negotiation packet."""
+        attack = QUICFragmentationObfuscationAttack()
+        context = self.create_test_context(add_version_negotiation=True)
+
+        result = attack.execute(context)
+
+        assert result.status == AttackStatus.SUCCESS
+        assert result.metadata["version_negotiation_added"] is True
+        assert result.packets_sent == result.metadata["fragment_count"] + 1
+
+    def test_quic_fragmentation_with_payload(self):
+        """Test QUIC fragmentation with data tunneling."""
+        attack = QUICFragmentationObfuscationAttack()
+        payload = b"this is my secret data to tunnel"
+        context = self.create_test_context(payload=payload)
+
+        result = attack.execute(context)
+
+        assert result.status == AttackStatus.SUCCESS
+        # The total bytes sent should be much larger than the payload due to QUIC packet structure
+        assert result.bytes_sent > len(payload) * 2
 
 
 class TestObfuscationIntegration:

@@ -866,3 +866,181 @@ class SSHTunnelingObfuscationAttack(BaseAttack):
                 padding.append(random.randint(1, 255))
         
         return bytes(padding)
+
+
+@register_attack
+class VPNTunnelingObfuscationAttack(BaseAttack):
+    """
+    Advanced VPN Tunneling Attack with protocol simulation.
+
+    Simulates various VPN protocols (OpenVPN, WireGuard, IPSec) to tunnel
+    data and evade DPI detection.
+    """
+
+    @property
+    def name(self) -> str:
+        return "vpn_tunneling_obfuscation"
+
+    @property
+    def category(self) -> str:
+        return "protocol_obfuscation"
+
+    @property
+    def description(self) -> str:
+        return "Advanced VPN protocol simulation for data tunneling"
+
+    @property
+    def supported_protocols(self) -> List[str]:
+        return ["udp"]
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Execute VPN tunneling obfuscation attack."""
+        start_time = time.time()
+
+        try:
+            payload = context.payload
+            vpn_type = context.params.get("vpn_type", "openvpn")
+
+            if vpn_type == "openvpn":
+                tunneled_payload = self._create_openvpn_packet(payload)
+            elif vpn_type == "wireguard":
+                tunneled_payload = self._create_wireguard_packet(payload)
+            elif vpn_type == "ipsec":
+                tunneled_payload = self._create_ipsec_packet(payload)
+            else:
+                raise ValueError(f"Invalid vpn_type: {vpn_type}")
+
+            segments = [(tunneled_payload, 0, {
+                "vpn_type": vpn_type,
+                "obfuscated": True
+            })]
+
+            packets_sent = 1
+            bytes_sent = len(tunneled_payload)
+            latency = (time.time() - start_time) * 1000
+
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
+                connection_established=True,
+                data_transmitted=True,
+                technique_used="vpn_tunneling_obfuscation",
+                metadata={
+                    "vpn_type": vpn_type,
+                    "original_size": len(payload),
+                    "tunneled_size": len(tunneled_payload),
+                    "segments": segments
+                }
+            )
+
+        except Exception as e:
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+                technique_used="vpn_tunneling_obfuscation"
+            )
+
+    def _create_openvpn_packet(self, payload: bytes) -> bytes:
+        """Create a more realistic OpenVPN-like data packet."""
+        opcode = 5  # P_DATA_V2
+        key_id = 0  # Default key
+
+        # Simulate encryption (more realistic than simple XOR)
+        key = hashlib.sha256(b"openvpn_sim_key").digest()
+        iv = random.randbytes(16)
+        encrypted_payload = self._simulate_aes_cbc(payload, key, iv)
+
+        # HMAC signature (simulated)
+        hmac_key = hashlib.sha256(b"openvpn_sim_hmac").digest()
+        hmac_sig = hashlib.sha1(hmac_key + encrypted_payload).digest()
+
+        # Packet structure: opcode/key_id + HMAC + IV + encrypted_payload
+        header = bytes([(opcode << 3) | key_id])
+        return header + hmac_sig + iv + encrypted_payload
+
+    def _create_wireguard_packet(self, payload: bytes) -> bytes:
+        """Create a more realistic WireGuard-like transport data packet."""
+        packet_type = 4  # Transport Data
+        receiver_index = random.randint(0, 0xFFFFFF)
+        counter = random.randint(0, 0xFFFFFFFFFFFFFFFF)
+
+        # Simulate ChaCha20Poly1305 encryption
+        key = hashlib.sha256(b"wireguard_sim_key").digest()
+        nonce = counter.to_bytes(8, 'little').ljust(12, b'\x00')
+        encrypted_payload = self._simulate_chacha20(payload, key, nonce)
+        auth_tag = hashlib.sha256(encrypted_payload).digest()[:16]
+
+        # Packet structure: type(1) + reserved(3) + receiver(4) + counter(8) + encrypted
+        header = (
+            bytes([packet_type]) +
+            b'\x00\x00\x00' +
+            receiver_index.to_bytes(4, 'little') +
+            counter.to_bytes(8, 'little')
+        )
+        return header + encrypted_payload + auth_tag
+
+    def _create_ipsec_packet(self, payload: bytes) -> bytes:
+        """Create a more realistic IPSec ESP-like packet."""
+        spi = random.randbytes(4)
+        sequence = random.randint(0, 0xFFFFFFFF).to_bytes(4, 'big')
+
+        # ESP Padding
+        pad_length = 16 - ((len(payload) + 2) % 16)
+        padding = bytes(range(1, pad_length + 1))
+        next_header = 4  # IPv4
+
+        # Simulate AES-GCM encryption (payload + auth tag)
+        key = hashlib.sha256(b"ipsec_sim_key").digest()
+        iv = random.randbytes(8) # GCM uses 8-byte IV
+
+        payload_to_encrypt = payload + padding + bytes([pad_length, next_header])
+        encrypted_data = self._simulate_aes_gcm(payload_to_encrypt, key, iv)
+
+        # Packet structure: SPI + Sequence + IV + Encrypted Data (with auth tag)
+        return spi + sequence + iv + encrypted_data
+
+    # --- Encryption Simulation Helpers ---
+    def _simulate_aes_cbc(self, data: bytes, key: bytes, iv: bytes) -> bytes:
+        # Pad data to 16-byte block size
+        padding_len = 16 - len(data) % 16
+        padded_data = data + bytes([padding_len] * padding_len)
+
+        encrypted = bytearray()
+        prev_block = iv
+        for i in range(0, len(padded_data), 16):
+            block = padded_data[i:i+16]
+            # CBC mode: XOR with prev_block before encryption
+            xored_block = bytes([b ^ p for b, p in zip(block, prev_block)])
+            # Simple encryption simulation
+            encrypted_block = bytes([b ^ k for b, k in zip(xored_block, key[:16])])
+            encrypted.extend(encrypted_block)
+            prev_block = encrypted_block
+        return bytes(encrypted)
+
+    def _simulate_chacha20(self, data: bytes, key: bytes, nonce: bytes) -> bytes:
+        keystream = self._generate_simple_keystream(key, nonce, len(data))
+        return bytes([d ^ k for d, k in zip(data, keystream)])
+
+    def _simulate_aes_gcm(self, data: bytes, key: bytes, iv: bytes) -> bytes:
+        # GCM combines CTR mode encryption with an authentication tag
+        encrypted_data = self._simulate_aes_ctr(data, key, iv)
+        auth_tag = hashlib.sha256(key + iv + encrypted_data).digest()[:16] # Simplified GCM tag
+        return encrypted_data + auth_tag
+
+    def _simulate_aes_ctr(self, data: bytes, key: bytes, nonce: bytes) -> bytes:
+        keystream = self._generate_simple_keystream(key, nonce, len(data))
+        return bytes([d ^ k for d, k in zip(data, keystream)])
+
+    def _generate_simple_keystream(self, key: bytes, nonce: bytes, length: int) -> bytes:
+        """Generate simple keystream for CTR/ChaCha20 simulation."""
+        keystream = b""
+        counter = 0
+        while len(keystream) < length:
+            block_input = key + nonce + struct.pack("!I", counter)
+            block = hashlib.sha256(block_input).digest()
+            keystream += block
+            counter += 1
+        return keystream[:length]
