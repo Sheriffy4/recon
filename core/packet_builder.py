@@ -536,7 +536,7 @@ class PacketBuilder(IPacketBuilder):
             )
 
             if params.options:
-                tcp_layer.options = params.options
+                tcp_layer.options = self._format_tcp_options(params.options)
 
             # Assemble packet
             packet = ip_layer / tcp_layer
@@ -632,6 +632,29 @@ class PacketBuilder(IPacketBuilder):
         except Exception as e:
             self.logger.error(f"Failed to create UDP packet bytes: {e}")
             return None
+
+    def _format_tcp_options(self, options: Any) -> List[Tuple[str, Any]]:
+        """Formats various TCP option types into the list of tuples required by Scapy."""
+        if not options:
+            return []
+
+        if isinstance(options, list):
+            # Already in the correct format
+            return options
+
+        if isinstance(options, dict):
+            # Convert from our simple dictionary format
+            formatted_options = []
+            if 'window_scale' in options:
+                formatted_options.append(('WScale', options['window_scale']))
+            if 'mss' in options:
+                formatted_options.append(('MSS', options['mss']))
+            # Add other known option conversions here
+            return formatted_options
+
+        # Fallback for other unexpected types
+        self.logger.warning(f"Unsupported tcp_options format: {type(options)}. Ignoring.")
+        return []
 
     def _fragment_packet_scapy(self, packet: Packet, frag_size: int) -> List[Packet]:
         """Fragment packet using Scapy."""

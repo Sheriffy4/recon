@@ -18,7 +18,7 @@ if __name__ == "__main__" and __package__ is None:
 
 from recon.core.signature_manager import SignatureManager
 from recon.web.dashboard import ReconDashboard
-from recon.recon_service import ReconService
+from recon.recon_service import DPIBypassService
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)-7s] %(name)s: %(message)s"
@@ -34,17 +34,18 @@ def main():
 
     # Пытаемся запустить службу, чтобы получить живую статистику
     bypass_engine_instance = None
-    service = ReconService()
-    service_thread = threading.Thread(target=service.start, daemon=True)
+    service = DPIBypassService()
+    service_thread = threading.Thread(target=service.run, daemon=True)
     service_thread.start()
     time.sleep(2)  # Даем время на инициализацию движка
-    bypass_engine_instance = service.engine  # Получаем реальный экземпляр
 
-    dashboard = ReconDashboard(
-        signature_manager=sig_manager,
-        bypass_engine=bypass_engine_instance,  # Передаем экземпляр
-        port=8080,
-    )
+    # This logic is flawed as the engine might not be created by the time this is called.
+    # The dashboard should be robust to the engine not being available.
+    if hasattr(service, 'bypass_engine'):
+        bypass_engine_instance = service.bypass_engine
+    else:
+        bypass_engine_instance = None
+
 
     if bypass_engine_instance:
         print("✅ Служба обхода запущена, live-статистика будет доступна.")
@@ -67,7 +68,9 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         print("\nЗавершение работы...")
-        service.stop()
+        # Gracefully stop the service by setting the running flag to False
+        service.running = False
+        service_thread.join(timeout=5.0)
 
 
 if __name__ == "__main__":
