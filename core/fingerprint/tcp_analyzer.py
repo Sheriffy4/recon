@@ -14,15 +14,17 @@ import struct
 import random
 import logging
 from typing import Dict, List, Optional, Any, Tuple, Union
-from dataclasses import dataclass, field
+
 from collections import defaultdict, deque
 from enum import Enum
+from dataclasses import dataclass, field, asdict
 
 try:
     from scapy.all import (
         IP, IPv6, TCP, Raw, sr1, send, conf,
-        get_if_list, get_if_addr, RandShort
+        get_if_list, get_if_addr, RandShort, fragment  # добавлен fragment
     )
+    from scapy.error import Scapy_Exception  # опционально, для точной обработки scapy-исключений
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -120,7 +122,8 @@ class TCPAnalysisResult:
             'connection_state_tracking': self.connection_state_tracking,
             'syn_flood_protection': self.syn_flood_protection,
             'reliability_score': self.reliability_score,
-            'analysis_errors': self.analysis_errors
+            'analysis_errors': self.analysis_errors,
+            'connection_attempts': [asdict(a) for a in self.connection_attempts],  # добавлено
         }
 
 
@@ -147,6 +150,16 @@ class TCPAnalyzer:
         
         if not self.use_raw_sockets:
             self.logger.warning("Scapy not available, using limited TCP analysis capabilities")
+    
+    async def _sr1_async(self, packet, timeout: float):
+        if not self.use_raw_sockets:
+            return None
+        return await asyncio.to_thread(sr1, packet, timeout=timeout, verbose=0)
+
+    async def _send_async(self, packet):
+        if not self.use_raw_sockets:
+            return None
+        return await asyncio.to_thread(send, packet, verbose=0)
     
     async def analyze_tcp_behavior(self, target: str, port: int = 443) -> Dict[str, Any]:
         """
@@ -565,59 +578,55 @@ class TCPAnalyzer:
                 result.ack_number_manipulation = True
     
     async def _analyze_fragmentation_handling(self, result: TCPAnalysisResult, target_ip: str, port: int):
-        """Analyze IP fragmentation handling"""
         self.logger.debug("Analyzing fragmentation handling")
-        
+
         if not self.use_raw_sockets:
             result.fragmentation_handling = "unknown"
             return
-        
+
         try:
-            # Test fragmented packets
-            fragment_results = []
-            
-            # Create a large payload that will be fragmented
-            large_payload = b"X" * 2000  # Larger than typical MTU
-            
-            # Create fragmented packets
+            # Сформируем «большой» SYN, который придётся фрагментировать на IP-уровне
+            large_payload = b"X" * 2000  # намеренно больше типичного MTU
+
             source_port = random.randint(32768, 65535)
             seq_num = random.randint(1000000, 4000000000)
-            
-            # First fragment
-            frag1 = IP(dst=target_ip, flags="MF", frag=0) / TCP(
+
+            pkt = IP(dst=target_ip) / TCP(
                 dport=port,
                 sport=source_port,
                 seq=seq_num,
                 flags="S"
-            ) / Raw(load=large_payload[:1000])
-            
-            # Second fragment
-            frag2 = IP(dst=target_ip, flags=0, frag=125) / Raw(load=large_payload[1000:])
-            
-            # Send fragments
-            send(frag1, verbose=0)
-            await asyncio.sleep(0.1)
-            
-            response = sr1(frag2, timeout=self.timeout, verbose=0)
-            
-            if response:
-                if response.haslayer(TCP):
-                    tcp_layer = response[TCP]
-                    if tcp_layer.flags & 0x12:  # SYN-ACK
-                        result.fragmentation_handling = "reassembled"
-                        fragment_results.append(True)
-                    elif tcp_layer.flags & 0x04:  # RST
-                        result.fragmentation_handling = "blocked"
-                        fragment_results.append(False)
+            ) / Raw(load=large_payload)
+
+            # Разобьём корректно с учётом TCP-заголовка и кратности offset
+            frags = fragment(pkt, fragsize=1200)  # 1200 байт IP-полезной нагрузки на фрагмент
+
+            if not frags:
+                result.fragmentation_handling = "unknown"
+                return
+
+            # Отправим все фрагменты кроме последнего, затем дождёмся ответа на последний
+            for f in frags[:-1]:
+                await self._send_async(f)
+                await asyncio.sleep(0.05)
+
+            response = await self._sr1_async(frags[-1], timeout=self.timeout)
+
+            if response and response.haslayer(TCP):
+                tcp_layer = response[TCP]
+                if tcp_layer.flags & 0x12:  # SYN-ACK
+                    result.fragmentation_handling = "reassembled"
+                elif tcp_layer.flags & 0x04:  # RST
+                    result.fragmentation_handling = "blocked"
                 else:
                     result.fragmentation_handling = "unknown"
             else:
+                # нет ответа — вероятно, блокируется
                 result.fragmentation_handling = "blocked"
-                fragment_results.append(False)
-            
-            # Test MSS clamping
+
+            # Тест MSS clamping
             await self._test_mss_clamping(result, target_ip, port)
-            
+
         except Exception as e:
             self.logger.debug(f"Fragmentation analysis failed: {e}")
             result.fragmentation_handling = "unknown"
@@ -670,71 +679,87 @@ class TCPAnalyzer:
     async def _analyze_tcp_options(self, result: TCPAnalysisResult, target_ip: str, port: int):
         """Analyze TCP options filtering"""
         self.logger.debug("Analyzing TCP options filtering")
-        
+
         if not self.use_raw_sockets:
             self.logger.warning("TCP options analysis requires raw sockets")
             return
-        
-        # Test various TCP options
+
+        # Тестируем набор опций по одной за раз, добавляя базовую MSS для реалистичного SYN
         test_options = [
             ('MSS', 1460),
             ('WScale', 3),
             ('SAckOK', ''),
             ('Timestamp', (12345, 0)),
             ('NOP', None),
-            ('EOL', None)
+            ('EOL', None),
         ]
-        
+
         filtered_options = []
-        
+
         for option_name, option_value in test_options:
             try:
                 source_port = random.randint(32768, 65535)
                 seq_num = random.randint(1000000, 4000000000)
-                
-                # Create packet with specific option
-                if option_value is None:
-                    options = [(option_name,)]
+
+                # Сформируем корректный список опций для Scapy
+                # Добавляем базовую ('MSS', 1460), кроме случая, когда мы как раз тестируем MSS
+                if option_name == 'MSS':
+                    options_list = [('MSS', option_value)]
+                elif option_name in ('NOP', 'EOL'):
+                    options_list = [('MSS', 1460), (option_name, None)]
                 else:
-                    options = [(option_name, option_value)]
-                
+                    options_list = [('MSS', 1460), (option_name, option_value)]
+
                 syn_packet = IP(dst=target_ip) / TCP(
                     dport=port,
                     sport=source_port,
                     seq=seq_num,
                     flags="S",
-                    options=options
+                    options=options_list
                 )
-                
-                response = sr1(syn_packet, timeout=2.0, verbose=0)
-                
+
+                response = await self._sr1_async(syn_packet, timeout=2.0)
                 if response and response.haslayer(TCP):
                     tcp_layer = response[TCP]
-                    
-                    # Check if option is present in response
-                    response_options = [opt[0] for opt in tcp_layer.options]
-                    
-                    if option_name not in response_options and option_name in ['MSS', 'WScale', 'SAckOK']:
-                        filtered_options.append(option_name)
-                        self.logger.info(f"TCP option {option_name} appears to be filtered")
-                    
-                    # Check for timestamp manipulation
+
+                    # Безопасно распарсим опции ответа
+                    response_options_names = set()
+                    try:
+                        for opt in (tcp_layer.options or []):
+                            if isinstance(opt, tuple) and len(opt) >= 1:
+                                response_options_names.add(opt[0])
+                            elif isinstance(opt, str):
+                                response_options_names.add(opt)
+                    except Exception:
+                        pass
+
+                    # Опции, которые должны отражаться в SYN-ACK (обычно MSS, WS, SACKOK)
+                    if option_name in ['MSS', 'WScale', 'SAckOK']:
+                        if option_name not in response_options_names:
+                            filtered_options.append(option_name)
+                            self.logger.info(f"TCP option {option_name} appears to be filtered")
+
+                    # Проверим возможную манипуляцию Timestamp
                     if option_name == 'Timestamp':
-                        for opt in tcp_layer.options:
-                            if opt[0] == 'Timestamp' and len(opt) > 1:
-                                ts_val, ts_ecr = opt[1]
-                                if ts_val == 0 or ts_ecr != 0:
-                                    result.tcp_timestamp_manipulation = True
-                
+                        try:
+                            for opt in (tcp_layer.options or []):
+                                if isinstance(opt, tuple) and opt[0] == 'Timestamp' and len(opt) > 1:
+                                    ts_val, ts_ecr = opt[1] if isinstance(opt[1], tuple) else (None, None)
+                                    # Манипуляция — условно, если ts_val == 0 или ecr неправдоподобен
+                                    if ts_val == 0 or (ts_ecr is not None and ts_ecr != 0):
+                                        result.tcp_timestamp_manipulation = True
+                        except Exception:
+                            pass
+
                 await asyncio.sleep(0.1)
-                
+
             except Exception as e:
                 self.logger.debug(f"TCP option {option_name} test failed: {e}")
                 continue
-        
+
         result.tcp_options_filtering = filtered_options
-        
-        # Test for SYN flood protection
+
+        # Тест на защиту от SYN-флуда
         await self._test_syn_flood_protection(result, target_ip, port)
     
     async def _test_syn_flood_protection(self, result: TCPAnalysisResult, target_ip: str, port: int):
@@ -784,8 +809,11 @@ class TCPAnalyzer:
         if result.rst_timing_patterns:
             if len(result.rst_timing_patterns) > 1:
                 import statistics
-                timing_consistency = 1.0 - (statistics.stdev(result.rst_timing_patterns) / 
-                                           statistics.mean(result.rst_timing_patterns))
+                mean = statistics.mean(result.rst_timing_patterns)
+                if mean > 0:
+                    timing_consistency = 1.0 - (statistics.stdev(result.rst_timing_patterns) / mean)
+                else:
+                    timing_consistency = 0.0
                 score_factors.append(max(0, timing_consistency) * 0.2)
             else:
                 score_factors.append(0.1)
@@ -802,7 +830,7 @@ class TCPAnalyzer:
             analysis_completeness += 0.05
         if result.window_size_variations:
             analysis_completeness += 0.05
-        if result.tcp_options_filtering:
+        if result.tcp_options_filtering is not None:
             analysis_completeness += 0.05
         
         score_factors.append(analysis_completeness)

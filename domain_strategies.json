@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "last_updated": "2025-08-13T15:35:36.591512",
+  "last_updated": "2025-08-15T11:14:55.610253",
   "domain_strategies": {
     "default": {
       "domain": "default",
@@ -12,11 +12,11 @@
     },
     "rutracker.org": {
       "domain": "rutracker.org",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.590372",
-      "test_count": 34
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=12",
+      "success_rate": 0.2,
+      "avg_latency_ms": 293.43366622924805,
+      "last_tested": "2025-08-15T11:14:55.608738",
+      "test_count": 50
     },
     "kinozal.tv": {
       "domain": "kinozal.tv",
@@ -28,43 +28,43 @@
     },
     "nnmclub.to": {
       "domain": "nnmclub.to",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.590372",
-      "test_count": 34
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=12",
+      "success_rate": 0.2,
+      "avg_latency_ms": 293.43366622924805,
+      "last_tested": "2025-08-15T11:14:55.608738",
+      "test_count": 50
     },
     "rutor.info": {
       "domain": "rutor.info",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=12",
       "success_rate": 0.2,
-      "avg_latency_ms": 297.25050926208496,
-      "last_tested": "2025-08-13T15:28:33.243900",
-      "test_count": 22
+      "avg_latency_ms": 293.43366622924805,
+      "last_tested": "2025-08-15T11:14:55.608738",
+      "test_count": 38
     },
     "instagram.com": {
       "domain": "instagram.com",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.591512",
-      "test_count": 32
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=12",
+      "success_rate": 0.2,
+      "avg_latency_ms": 293.43366622924805,
+      "last_tested": "2025-08-15T11:14:55.608738",
+      "test_count": 48
     },
     "x.com": {
       "domain": "x.com",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=12",
       "success_rate": 0.2,
-      "avg_latency_ms": 297.25050926208496,
-      "last_tested": "2025-08-13T15:28:33.244887",
-      "test_count": 22
+      "avg_latency_ms": 293.43366622924805,
+      "last_tested": "2025-08-15T11:14:55.608738",
+      "test_count": 38
     },
     "mail.ru": {
       "domain": "mail.ru",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=12",
       "success_rate": 0.2,
-      "avg_latency_ms": 297.25050926208496,
-      "last_tested": "2025-08-13T15:28:33.245144",
-      "test_count": 22
+      "avg_latency_ms": 293.43366622924805,
+      "last_tested": "2025-08-15T11:14:55.608738",
+      "test_count": 38
     },
     "tapochek.net": {
       "domain": "tapochek.net",
