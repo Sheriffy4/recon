@@ -85,6 +85,310 @@ class TCPWindowScalingAttack(ManipulationAttack):
 
 
 @register_attack
+class TCPOptionsModificationAttack(ManipulationAttack):
+    """
+    TCP Options Modification Attack - adds, removes, or modifies various TCP options.
+    This is intended for testing DPI resilience to different TCP option configurations.
+    """
+
+    @property
+    def name(self) -> str:
+        return "tcp_options_modification"
+
+    @property
+    def description(self) -> str:
+        return "Adds, removes, or modifies TCP options to test DPI option parsing"
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Execute TCP options modification attack."""
+        start_time = time.time()
+
+        try:
+            payload = context.payload
+            modification_type = context.params.get("modification_type", "add_mss_abuse")
+            split_pos = context.params.get("split_pos", len(payload) // 2)
+
+            segments = []
+            part1 = payload[:split_pos]
+            part2 = payload[split_pos:]
+
+            options = {}
+            if modification_type == "add_mss_abuse":
+                # MSS option (Kind=2, Length=4, Value)
+                # Abusing with a small value
+                options = {"tcp_options": b'\x02\x04\x00\x40'}  # MSS = 64
+            elif modification_type == "add_sack_perm":
+                # SACK Permitted option (Kind=4, Length=2)
+                options = {"tcp_options": b'\x04\x02'}
+            elif modification_type == "add_nop_flood":
+                # Flood with NOP options
+                options = {"tcp_options": b'\x01' * 10}
+            else:
+                return AttackResult(
+                    status=AttackStatus.INVALID_PARAMS,
+                    error_message=f"Invalid modification_type: {modification_type}",
+                )
+
+            segments.append((part1, 0, options))
+            if part2:
+                segments.append((part2, split_pos, {}))  # Second part has no special options
+
+            packets_sent = len(segments)
+            bytes_sent = len(payload)
+            latency = (time.time() - start_time) * 1000
+
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
+                connection_established=True,
+                data_transmitted=True,
+                metadata={
+                    "modification_type": modification_type,
+                    "split_pos": split_pos,
+                    "segment_count": len(segments),
+                    "segments": segments if context.engine_type != "local" else None,
+                },
+            )
+
+        except Exception as e:
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+            )
+
+
+@register_attack
+class TCPSequenceNumberManipulationAttack(ManipulationAttack):
+    """
+    TCP Sequence Number Manipulation Attack - creates ambiguity in TCP sequence numbers.
+    This is intended for testing DPI resilience to non-standard sequence numbering.
+    """
+
+    @property
+    def name(self) -> str:
+        return "tcp_sequence_manipulation"
+
+    @property
+    def description(self) -> str:
+        return "Directly manipulates TCP sequence numbers to create ambiguity"
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Execute TCP sequence number manipulation attack."""
+        start_time = time.time()
+
+        try:
+            payload = context.payload
+            manipulation_type = context.params.get("manipulation_type", "overlap_forward")
+            overlap_size = context.params.get("overlap_size", 4)
+            gap_size = context.params.get("gap_size", 10)
+            split_pos = context.params.get("split_pos", len(payload) // 2)
+
+            segments = []
+            part1 = payload[:split_pos]
+            part2 = payload[split_pos:]
+
+            if manipulation_type == "overlap_forward":
+                if part2:
+                    segments.append((part1, 0, {}))
+                    overlap_start = max(0, split_pos - overlap_size)
+                    segments.append((payload[overlap_start:], overlap_start, {}))
+                else:
+                    segments.append((payload, 0, {}))
+
+            elif manipulation_type == "gap":
+                if part2:
+                    segments.append((part1, 0, {}))
+                    segments.append((part2, split_pos + gap_size, {}))
+                else:
+                    segments.append((payload, 0, {}))
+
+            elif manipulation_type == "duplicate":
+                segments.append((part1, 0, {}))
+                segments.append((part1, 0, {}))
+                if part2:
+                    segments.append((part2, split_pos, {}))
+
+            else:
+                return AttackResult(
+                    status=AttackStatus.INVALID_PARAMS,
+                    error_message=f"Invalid manipulation_type: {manipulation_type}",
+                )
+
+            packets_sent = len(segments)
+            bytes_sent = sum(len(s[0]) for s in segments)
+            latency = (time.time() - start_time) * 1000
+
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
+                connection_established=True,
+                data_transmitted=True,
+                metadata={
+                    "manipulation_type": manipulation_type,
+                    "overlap_size": overlap_size if "overlap" in manipulation_type else None,
+                    "gap_size": gap_size if "gap" in manipulation_type else None,
+                    "split_pos": split_pos,
+                    "segment_count": len(segments),
+                    "segments": segments if context.engine_type != "local" else None,
+                },
+            )
+
+        except Exception as e:
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+            )
+
+
+@register_attack
+class TCPWindowManipulationAttack(ManipulationAttack):
+    """
+    Advanced TCP Window Manipulation Attack - modifies TCP window size in various ways.
+    This is intended for testing DPI resilience to non-standard window sizes.
+    """
+
+    @property
+    def name(self) -> str:
+        return "tcp_window_manipulation"
+
+    @property
+    def description(self) -> str:
+        return "Modifies TCP window size in various ways to test DPI evasion"
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Execute advanced TCP window manipulation attack."""
+        start_time = time.time()
+
+        try:
+            payload = context.payload
+            manipulation_type = context.params.get("manipulation_type", "small")
+            split_pos = context.params.get("split_pos", len(payload) // 2)
+
+            segments = []
+            part1 = payload[:split_pos]
+            part2 = payload[split_pos:]
+
+            if manipulation_type == "zero":
+                segments.append((part1, 0, {"window_size": 0}))
+                if part2:
+                    segments.append((part2, split_pos, {"window_size": 0}))
+            elif manipulation_type == "small":
+                small_window = random.randint(1, 10)
+                segments.append((part1, 0, {"window_size": small_window}))
+                if part2:
+                    segments.append((part2, split_pos, {"window_size": small_window}))
+            elif manipulation_type == "large":
+                large_window = 65535
+                segments.append((part1, 0, {"window_size": large_window}))
+                if part2:
+                    segments.append((part2, split_pos, {"window_size": large_window}))
+            elif manipulation_type == "alternate":
+                small_window = random.randint(1, 10)
+                large_window = 65535
+                segments.append((part1, 0, {"window_size": small_window}))
+                if part2:
+                    segments.append((part2, split_pos, {"window_size": large_window}))
+            else:
+                return AttackResult(
+                    status=AttackStatus.INVALID_PARAMS,
+                    error_message=f"Invalid manipulation_type: {manipulation_type}",
+                )
+
+            packets_sent = len(segments)
+            bytes_sent = len(payload)
+            latency = (time.time() - start_time) * 1000
+
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
+                connection_established=True,
+                data_transmitted=True,
+                metadata={
+                    "manipulation_type": manipulation_type,
+                    "split_pos": split_pos,
+                    "segment_count": len(segments),
+                    "segments": segments if context.engine_type != "local" else None,
+                },
+            )
+
+        except Exception as e:
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+            )
+
+
+@register_attack
+class TCPFragmentationAttack(ManipulationAttack):
+    """
+    TCP Fragmentation Attack - splits TCP payload into multiple segments.
+    """
+
+    @property
+    def name(self) -> str:
+        return "tcp_fragmentation"
+
+    @property
+    def description(self) -> str:
+        return "Splits TCP payload into multiple segments to emulate fragmentation"
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Execute TCP fragmentation attack."""
+        start_time = time.time()
+
+        try:
+            payload = context.payload
+            frag_size = context.params.get("frag_size", 8)
+
+            if len(payload) <= frag_size:
+                # Payload too small to fragment
+                segments = [(payload, 0, {})]
+            else:
+                segments = []
+                offset = 0
+                while offset < len(payload):
+                    current_frag_size = min(frag_size, len(payload) - offset)
+                    fragment_data = payload[offset : offset + current_frag_size]
+                    segments.append((fragment_data, offset, {}))
+                    offset += current_frag_size
+
+            packets_sent = len(segments)
+            bytes_sent = len(payload)
+
+            latency = (time.time() - start_time) * 1000
+
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
+                connection_established=True,
+                data_transmitted=True,
+                metadata={
+                    "frag_size": frag_size,
+                    "fragments_count": len(segments),
+                    "segments": segments if context.engine_type != "local" else None,
+                },
+            )
+
+        except Exception as e:
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+            )
+
+
+@register_attack
 class UrgentPointerAttack(ManipulationAttack):
     """
     Urgent Pointer Attack - manipulates TCP urgent pointer.

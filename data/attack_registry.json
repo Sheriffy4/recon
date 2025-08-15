@@ -1,0 +1,357 @@
+{
+  "definitions": {
+    "dns_doh_tunneling": {
+      "id": "dns_doh_tunneling",
+      "name": "DNS over HTTPS Tunneling",
+      "description": "Bypass DNS filtering using DNS over HTTPS (DoH) tunneling",
+      "category": "dns_tunneling",
+      "complexity": 2,
+      "stability": "stable",
+      "parameters": {
+        "provider": "cloudflare",
+        "query_type": "A",
+        "use_json": true
+      },
+      "default_parameters": {
+        "provider": "cloudflare",
+        "query_type": "A",
+        "use_json": true
+      },
+      "required_parameters": [
+        "provider"
+      ],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.9,
+      "effectiveness_score": 0.8,
+      "performance_score": 0.7,
+      "overall_score": 0.83,
+      "test_cases": [
+        {
+          "id": "doh_basic_test",
+          "name": "Basic DoH Resolution",
+          "description": "Test basic DoH resolution functionality",
+          "target_domain": "example.com",
+          "expected_success": true,
+          "test_parameters": {
+            "provider": "cloudflare"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "dns_resolution",
+            "https_tunnel"
+          ]
+        },
+        {
+          "id": "doh_provider_test",
+          "name": "Multiple Provider Test",
+          "description": "Test DoH with different providers",
+          "target_domain": "google.com",
+          "expected_success": true,
+          "test_parameters": {
+            "provider": "google"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "dns_resolution",
+            "provider_switch"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "udp",
+        "tcp",
+        "https"
+      ],
+      "supported_ports": [
+        53,
+        443,
+        853
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [
+        "doh",
+        "https",
+        "tunneling",
+        "dns"
+      ],
+      "created_at": "2025-08-15T16:27:26.010909",
+      "updated_at": "2025-08-15T16:27:26.010909",
+      "version": "1.0.0",
+      "author": null
+    },
+    "dns_dot_tunneling": {
+      "id": "dns_dot_tunneling",
+      "name": "DNS over TLS Tunneling",
+      "description": "Bypass DNS filtering using DNS over TLS (DoT) tunneling",
+      "category": "dns_tunneling",
+      "complexity": 2,
+      "stability": "stable",
+      "parameters": {
+        "provider": "cloudflare",
+        "query_type": "A"
+      },
+      "default_parameters": {
+        "provider": "cloudflare",
+        "query_type": "A"
+      },
+      "required_parameters": [
+        "provider"
+      ],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.85,
+      "effectiveness_score": 0.75,
+      "performance_score": 0.8,
+      "overall_score": 0.8099999999999999,
+      "test_cases": [
+        {
+          "id": "dot_basic_test",
+          "name": "Basic DoT Resolution",
+          "description": "Test basic DoT resolution functionality",
+          "target_domain": "example.com",
+          "expected_success": true,
+          "test_parameters": {
+            "provider": "cloudflare"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "dns_resolution",
+            "tls_tunnel"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp",
+        "tls"
+      ],
+      "supported_ports": [
+        853
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [
+        "dot",
+        "tls",
+        "tunneling",
+        "dns"
+      ],
+      "created_at": "2025-08-15T16:27:26.010909",
+      "updated_at": "2025-08-15T16:27:26.010909",
+      "version": "1.0.0",
+      "author": null
+    },
+    "dns_query_manipulation": {
+      "id": "dns_query_manipulation",
+      "name": "DNS Query Manipulation",
+      "description": "Manipulate DNS queries to evade filtering",
+      "category": "dns_tunneling",
+      "complexity": 3,
+      "stability": "mostly_stable",
+      "parameters": {
+        "technique": "case_randomization",
+        "subdomain": "www"
+      },
+      "default_parameters": {
+        "technique": "case_randomization"
+      },
+      "required_parameters": [
+        "technique"
+      ],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.75,
+      "effectiveness_score": 0.7,
+      "performance_score": 0.85,
+      "overall_score": 0.755,
+      "test_cases": [
+        {
+          "id": "case_randomization_test",
+          "name": "Case Randomization Test",
+          "description": "Test DNS case randomization technique",
+          "target_domain": "example.com",
+          "expected_success": true,
+          "test_parameters": {
+            "technique": "case_randomization"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "dns_resolution",
+            "case_variation"
+          ]
+        },
+        {
+          "id": "subdomain_prepend_test",
+          "name": "Subdomain Prepending Test",
+          "description": "Test subdomain prepending technique",
+          "target_domain": "example.com",
+          "expected_success": true,
+          "test_parameters": {
+            "technique": "subdomain_prepending",
+            "subdomain": "www"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "dns_resolution",
+            "subdomain_modification"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "udp",
+        "tcp"
+      ],
+      "supported_ports": [
+        53
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [
+        "evasion",
+        "manipulation",
+        "dns"
+      ],
+      "created_at": "2025-08-15T16:27:26.010909",
+      "updated_at": "2025-08-15T16:27:26.010909",
+      "version": "1.0.0",
+      "author": null
+    },
+    "dns_cache_poisoning_prevention": {
+      "id": "dns_cache_poisoning_prevention",
+      "name": "DNS Cache Poisoning Prevention",
+      "description": "Prevent DNS cache poisoning attacks through validation",
+      "category": "dns_tunneling",
+      "complexity": 4,
+      "stability": "stable",
+      "parameters": {
+        "technique": "multiple_server_validation"
+      },
+      "default_parameters": {
+        "technique": "multiple_server_validation"
+      },
+      "required_parameters": [
+        "technique"
+      ],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.9,
+      "effectiveness_score": 0.85,
+      "performance_score": 0.6,
+      "overall_score": 0.8250000000000001,
+      "test_cases": [
+        {
+          "id": "multi_server_validation_test",
+          "name": "Multiple Server Validation",
+          "description": "Test validation across multiple DNS servers",
+          "target_domain": "example.com",
+          "expected_success": true,
+          "test_parameters": {
+            "technique": "multiple_server_validation"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "dns_resolution",
+            "server_consensus"
+          ]
+        },
+        {
+          "id": "dnssec_validation_test",
+          "name": "DNSSEC Validation Test",
+          "description": "Test DNSSEC validation functionality",
+          "target_domain": "cloudflare.com",
+          "expected_success": true,
+          "test_parameters": {
+            "technique": "dnssec_validation"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "dns_resolution",
+            "dnssec_signature"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "udp",
+        "tcp"
+      ],
+      "supported_ports": [
+        53
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [
+        "validation",
+        "dnssec",
+        "security",
+        "dns"
+      ],
+      "created_at": "2025-08-15T16:27:26.010909",
+      "updated_at": "2025-08-15T16:27:26.010909",
+      "version": "1.0.0",
+      "author": null
+    }
+  },
+  "test_results": {},
+  "stats": {
+    "total_attacks": 4,
+    "enabled_attacks": 4,
+    "deprecated_attacks": 0,
+    "tests_run": 0,
+    "last_updated": "2025-08-15T16:27:26.014375"
+  },
+  "version": "1.0.0",
+  "saved_at": "2025-08-15T16:27:26.014375"
+}
