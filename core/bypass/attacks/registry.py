@@ -148,10 +148,34 @@ class AttackRegistry:
             cls._initialized = False
 
 # --- Декоратор для регистрации ---
-def register_attack(name: str):
-    """Декоратор для автоматической регистрации класса атаки."""
+def register_attack(arg=None):
+    """
+    Декоратор для автоматической регистрации класса атаки.
+    Может использоваться как @register_attack или @register_attack("custom_name").
+    """
     from .base import BaseAttack
+
     def decorator(attack_class: Type[BaseAttack]):
-        AttackRegistry.register(name, attack_class)
+        """Внутренний декоратор, который выполняет регистрацию."""
+        try:
+            # Если имя передано в декоратор, используем его
+            if isinstance(arg, str):
+                name = arg
+            # Иначе, получаем имя из свойства класса
+            else:
+                # Для доступа к свойству name, нужно создать экземпляр
+                instance = attack_class()
+                name = instance.name
+
+            AttackRegistry.register(name, attack_class)
+        except Exception as e:
+            LOG.error(f"Could not register attack class {attack_class.__name__}: {e}", exc_info=True)
+
         return attack_class
-    return decorator
+
+    # Если @register_attack используется без скобок, arg будет самим классом
+    if callable(arg):
+        return decorator(arg)
+    # Если @register_attack("name") используется со скобками, arg будет строкой
+    else:
+        return decorator
