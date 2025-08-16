@@ -19,6 +19,13 @@ from collections import defaultdict, Counter
 from .traffic_mimicry import TrafficPattern, TrafficType
 from .steganographic_engine import SteganographicManager, SteganographicConfig
 
+try:
+    from scapy.all import rdpcap
+    SCAPY_AVAILABLE = True
+except ImportError:
+    SCAPY_AVAILABLE = False
+
+
 LOG = logging.getLogger(__name__)
 
 
@@ -585,6 +592,64 @@ class AdvancedTrafficProfiler:
         self._profile_cache = {}
         self._analysis_history = []
     
+    def analyze_pcap_file(self, filepath: str, **kwargs) -> Optional[ProfilingResult]:
+        """
+        Analyze a pcap file to extract traffic patterns and signatures.
+
+        Args:
+            filepath: Path to the pcap or pcapng file.
+            **kwargs: Additional context for analysis.
+
+        Returns:
+            ProfilingResult object or None if analysis fails.
+        """
+        if not SCAPY_AVAILABLE:
+            LOG.error("Scapy is not installed. Cannot analyze pcap files.")
+            return None
+
+        LOG.info(f"Analyzing pcap file: {filepath}")
+
+        try:
+            packets = rdpcap(filepath)
+
+            if not packets:
+                LOG.warning(f"No packets found in pcap file: {filepath}")
+                return None
+
+            # Convert scapy packets to packet sequence format
+            packet_sequence = []
+            last_timestamp = None
+
+            for packet in packets:
+                if not hasattr(packet, 'time') or not hasattr(packet, 'payload'):
+                    continue
+
+                timestamp = float(packet.time)
+
+                if last_timestamp is None:
+                    delay = 0.0
+                else:
+                    delay = (timestamp - last_timestamp) * 1000  # Delay in ms
+
+                last_timestamp = timestamp
+
+                # Extract raw payload
+                payload = bytes(packet.payload)
+
+                packet_sequence.append((payload, delay))
+
+            if not packet_sequence:
+                LOG.warning(f"Could not extract a valid packet sequence from {filepath}")
+                return None
+
+            # Perform analysis on the extracted sequence
+            context = kwargs.get('context', {})
+            return self.analyze_traffic(packet_sequence, context)
+
+        except Exception as e:
+            LOG.error(f"Failed to analyze pcap file {filepath}: {e}")
+            return None
+
     def analyze_traffic(
         self, 
         packet_sequence: List[Tuple[bytes, float]], 

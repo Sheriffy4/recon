@@ -336,6 +336,23 @@ class AdvancedFingerprinter:
                 # Store raw metrics
                 fingerprint.raw_metrics.update(result.to_dict() if hasattr(result, 'to_dict') else {})
                 fingerprint.analysis_methods_used.append("comprehensive_metrics")
+
+                # === NEW: Populate Behavioral Markers from Metrics Collection ===
+                if hasattr(result, 'timing'):
+                    timing_metrics = result.timing
+                    if timing_metrics.latency_ms and timing_metrics.latency_ms > 0 and timing_metrics.jitter_ms > 0:
+                        # Normalize jitter to get a sensitivity score
+                        sensitivity = timing_metrics.jitter_ms / timing_metrics.latency_ms
+                        fingerprint.timing_sensitivity = min(1.0, sensitivity)
+
+                    if timing_metrics.timeout_occurred and fingerprint.block_type == 'unknown':
+                        fingerprint.block_type = 'timeout'
+
+                if hasattr(result, 'protocols'):
+                    for proto, proto_metrics in result.protocols.items():
+                        if proto_metrics.blocked_responses > 0 and fingerprint.block_type == 'unknown':
+                            fingerprint.block_type = 'content_block'
+                            break # Stop after finding the first block type
             
             elif task_name == "tcp_analysis" and result:
                 # Integrate TCP-specific results
@@ -349,6 +366,16 @@ class AdvancedFingerprinter:
                 fingerprint.fragmentation_handling = result.get('fragmentation_handling', 'unknown')
                 fingerprint.mss_clamping_detected = result.get('mss_clamping_detected', False)
                 fingerprint.tcp_timestamp_manipulation = result.get('tcp_timestamp_manipulation', False)
+
+                # === NEW: Populate Behavioral Markers from TCP Analysis ===
+                fingerprint.is_stateful = result.get('connection_state_tracking', False)
+
+                if result.get('rst_injection_detected'):
+                    fingerprint.block_type = 'rst'
+                    ttl_analysis = result.get('rst_ttl_analysis', {})
+                    if ttl_analysis.get('avg_ttl'):
+                        fingerprint.rst_ttl = int(ttl_analysis['avg_ttl'])
+
                 fingerprint.analysis_methods_used.append("tcp_analysis")
             
             elif task_name == "http_analysis" and result:

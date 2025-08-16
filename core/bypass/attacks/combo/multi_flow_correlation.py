@@ -19,13 +19,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
-from .traffic_profiles import (
-    TrafficProfile,
-    ZoomTrafficProfile,
-    TelegramTrafficProfile,
-    WhatsAppTrafficProfile,
-    GenericBrowsingProfile,
-)
+from .advanced_traffic_profiler import AdvancedTrafficProfiler, TrafficSignature
+from .full_session_simulation import FullSessionSimulationAttack
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +29,7 @@ LOG = logging.getLogger(__name__)
 class BackgroundFlow:
     """Represents a background traffic flow."""
 
-    profile: TrafficProfile
+    profile: TrafficSignature
     target_domain: str
     target_ip: str
     target_port: int
@@ -99,13 +94,9 @@ class MultiFlowCorrelationAttack(BaseAttack):
         )
         self._stop_event = threading.Event()
 
-        # Initialize traffic profiles
-        self._profiles = [
-            ZoomTrafficProfile(),
-            TelegramTrafficProfile(),
-            WhatsAppTrafficProfile(),
-            GenericBrowsingProfile(),
-        ]
+        # NEW: Initialize advanced components
+        self.traffic_profiler = AdvancedTrafficProfiler()
+        self.session_simulator = FullSessionSimulationAttack()
 
     @property
     def name(self) -> str:
@@ -220,36 +211,38 @@ class MultiFlowCorrelationAttack(BaseAttack):
         self, main_context: AttackContext
     ) -> List[BackgroundFlow]:
         """
-        Create background traffic flows.
-
-        Args:
-            main_context: Main attack context for reference
-
-        Returns:
-            List of background flows
+        Create background traffic flows using the AdvancedTrafficProfiler.
         """
         flows = []
+        # Get available recommended profiles from the profiler's signature database.
+        available_profiles = list(self.traffic_profiler.analyzer._signature_database.keys())
+
+        if not available_profiles:
+            self.logger.error("No traffic profiles available in the profiler.")
+            return []
 
         for i in range(self.config.background_flows_count):
-            # Select domain for background flow
-            domain = random.choice(self.config.background_domains)
-
-            # Select profile
+            # Select a profile for the background flow
             if self.config.diversify_profiles:
-                profile = random.choice(self._profiles)
+                profile_name = random.choice(available_profiles)
             else:
-                # Use profile that matches the domain
-                profile = self._select_profile_for_domain(domain)
+                # Use a consistent profile, e.g., browsing, for all flows
+                profile_name = 'chrome'
+
+            profile_signature = self.traffic_profiler.analyzer.get_signature(profile_name)
+
+            if not profile_signature:
+                self.logger.warning(f"Could not find signature for profile '{profile_name}'. Skipping flow.")
+                continue
 
             # Generate flow parameters
+            domain = random.choice(self.config.background_domains)
             duration = random.uniform(*self.config.background_duration_range)
             pps = random.uniform(*self.config.background_pps_range)
-
-            # Use different ports to avoid direct correlation
-            port = random.choice([80, 443, 8080, 8443])
+            port = random.choice(profile_signature.port_patterns) if profile_signature.port_patterns else 443
 
             flow = BackgroundFlow(
-                profile=profile,
+                profile=profile_signature, # Using the signature as the profile
                 target_domain=domain,
                 target_ip=self._resolve_domain_ip(domain),
                 target_port=port,
@@ -259,89 +252,56 @@ class MultiFlowCorrelationAttack(BaseAttack):
 
             flows.append(flow)
             LOG.debug(
-                f"Created background flow {i+1}: {domain}:{port} using {profile.name} profile"
+                f"Created background flow {i+1}: {domain}:{port} using profile '{profile_name}'"
             )
 
         return flows
 
     def _execute_background_flow(self, flow: BackgroundFlow) -> Dict[str, Any]:
         """
-        Execute a single background traffic flow.
-
-        Args:
-            flow: Background flow to execute
-
-        Returns:
-            Flow execution results
+        Execute a single background traffic flow using FullSessionSimulationAttack.
         """
         start_time = time.time()
-        bytes_sent = 0
-        packets_sent = 0
 
         try:
-            # Generate background payload
-            background_payload = self._generate_background_payload(flow.profile)
-
-            # Create context for background flow
+            # Create an AttackContext for the session simulator
+            # The simulator will use the profile name to configure itself
             bg_context = AttackContext(
                 dst_ip=flow.target_ip,
                 dst_port=flow.target_port,
                 domain=flow.target_domain,
-                payload=background_payload,
+                payload=b'', # The simulator generates its own payload
                 timeout=flow.duration_seconds,
+                params={'browser_type': flow.profile.application_name.lower()}
             )
 
-            # Generate packet sequence
-            packet_sequence = flow.profile.generate_packet_sequence(
-                background_payload, bg_context
-            )
+            # The session simulator's execute method is synchronous, but this whole
+            # function is already running in a ThreadPoolExecutor.
+            result = self.session_simulator.execute(bg_context)
 
-            # Execute packet sequence with timing
-            packet_interval = (
-                1.0 / flow.packets_per_second if flow.packets_per_second > 0 else 1.0
-            )
-
-            for packet_data, profile_delay in packet_sequence:
-                if self._stop_event.is_set():
-                    break
-
-                if time.time() - start_time > flow.duration_seconds:
-                    break
-
-                # Apply profile delay
-                if profile_delay > 0:
-                    time.sleep(profile_delay / 1000.0)
-
-                # Simulate packet sending (in real implementation, this would send actual packets)
-                bytes_sent += len(packet_data)
-                packets_sent += 1
-
-                # Apply flow rate limiting
-                time.sleep(packet_interval)
-
-            flow.bytes_sent = bytes_sent
-            flow.packets_sent = packets_sent
+            # The simulation runs for its own configured duration.
+            # The stop_event can be used inside the simulator if we enhance it later.
 
             LOG.debug(
-                f"Background flow to {flow.target_domain} completed: {packets_sent} packets, {bytes_sent} bytes"
+                f"Background flow to {flow.target_domain} completed: {result.packets_sent} packets, {result.bytes_sent} bytes"
             )
 
             return {
                 "domain": flow.target_domain,
-                "profile": flow.profile.name,
-                "bytes_sent": bytes_sent,
-                "packets_sent": packets_sent,
+                "profile": flow.profile.application_name,
+                "bytes_sent": result.bytes_sent,
+                "packets_sent": result.packets_sent,
                 "duration": time.time() - start_time,
-                "success": True,
+                "success": result.status == AttackStatus.SUCCESS,
             }
 
         except Exception as e:
-            LOG.error(f"Background flow to {flow.target_domain} failed: {e}")
+            LOG.error(f"Background flow to {flow.target_domain} failed: {e}", exc_info=True)
             return {
                 "domain": flow.target_domain,
-                "profile": flow.profile.name,
-                "bytes_sent": bytes_sent,
-                "packets_sent": packets_sent,
+                "profile": flow.profile.application_name,
+                "bytes_sent": 0,
+                "packets_sent": 0,
                 "duration": time.time() - start_time,
                 "success": False,
                 "error": str(e),
@@ -402,259 +362,6 @@ class MultiFlowCorrelationAttack(BaseAttack):
                 latency_ms=(time.time() - start_time) * 1000,
             )
 
-    def _generate_background_payload(self, profile: TrafficProfile) -> bytes:
-        """
-        Generate realistic background payload for a traffic profile.
-
-        Args:
-            profile: Traffic profile to generate payload for
-
-        Returns:
-            Generated background payload
-        """
-        # Generate payload based on profile type
-        if profile.name == "zoom":
-            # Video call data patterns with realistic structure
-            payload_parts = [
-                b"ZOOM_VIDEO_FRAME_START",
-                self._generate_video_frame_data(),
-                b"ZOOM_AUDIO_DATA",
-                self._generate_audio_data(),
-                b"ZOOM_CONTROL_DATA",
-                self._generate_zoom_control_data(),
-                b"ZOOM_FRAME_END",
-            ]
-        elif profile.name == "telegram":
-            # Telegram messaging patterns
-            payload_parts = [
-                b"TG_MSG_HEADER",
-                self._generate_telegram_message(),
-                b"TG_ENCRYPTION_DATA",
-                self._generate_telegram_crypto_data(),
-                b"TG_MSG_FOOTER",
-            ]
-        elif profile.name == "whatsapp":
-            # WhatsApp messaging patterns
-            payload_parts = [
-                b"WA_MSG_HEADER",
-                self._generate_whatsapp_message(),
-                b"WA_MEDIA_DATA",
-                self._generate_whatsapp_media_data(),
-                b"WA_MSG_FOOTER",
-            ]
-        elif profile.name == "netflix":
-            # Netflix streaming patterns
-            payload_parts = [
-                b"NETFLIX_CHUNK_HEADER",
-                self._generate_netflix_video_chunk(),
-                b"NETFLIX_MANIFEST_DATA",
-                self._generate_netflix_manifest(),
-                b"NETFLIX_CHUNK_FOOTER",
-            ]
-        elif profile.name == "youtube":
-            # YouTube streaming patterns
-            payload_parts = [
-                b"YT_VIDEO_SEGMENT",
-                self._generate_youtube_segment(),
-                b"YT_ANALYTICS_DATA",
-                self._generate_youtube_analytics(),
-                b"YT_SEGMENT_END",
-            ]
-        else:
-            # Generic browsing data with realistic HTTP patterns
-            payload_parts = [
-                self._generate_http_request(),
-                self._generate_http_response(),
-                self._generate_web_assets(),
-            ]
-
-        return b"".join(payload_parts)
-
-    def _generate_video_frame_data(self) -> bytes:
-        """Generate realistic video frame data."""
-        # Simulate H.264 video frame structure
-        frame_header = bytes([0x00, 0x00, 0x00, 0x01])  # NAL unit start code
-        frame_type = random.choice([0x67, 0x68, 0x65, 0x41])  # SPS, PPS, IDR, P-frame
-        frame_data = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(500, 1200))]
-        )
-        return frame_header + bytes([frame_type]) + frame_data
-
-    def _generate_audio_data(self) -> bytes:
-        """Generate realistic audio data."""
-        # Simulate AAC audio frame
-        aac_header = bytes([0xFF, 0xF1])  # ADTS header
-        audio_data = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(100, 300))]
-        )
-        return aac_header + audio_data
-
-    def _generate_zoom_control_data(self) -> bytes:
-        """Generate Zoom control protocol data."""
-        control_commands = [
-            b"PARTICIPANT_JOIN",
-            b"AUDIO_MUTE_TOGGLE",
-            b"VIDEO_ENABLE",
-            b"SCREEN_SHARE_START",
-            b"CHAT_MESSAGE",
-        ]
-        command = random.choice(control_commands)
-        control_data = bytes([random.randint(0, 255) for _ in range(50)])
-        return command + b":" + control_data
-
-    def _generate_telegram_message(self) -> bytes:
-        """Generate realistic Telegram message data."""
-        message_types = [
-            b"TEXT_MESSAGE",
-            b"PHOTO_MESSAGE",
-            b"DOCUMENT_MESSAGE",
-            b"VOICE_MESSAGE",
-            b"STICKER_MESSAGE",
-        ]
-        msg_type = random.choice(message_types)
-        msg_content = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(50, 200))]
-        )
-        return msg_type + b":" + msg_content
-
-    def _generate_telegram_crypto_data(self) -> bytes:
-        """Generate Telegram encryption/authentication data."""
-        # Simulate MTProto encryption
-        auth_key_id = bytes([random.randint(0, 255) for _ in range(8)])
-        msg_key = bytes([random.randint(0, 255) for _ in range(16)])
-        encrypted_data = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(100, 400))]
-        )
-        return auth_key_id + msg_key + encrypted_data
-
-    def _generate_whatsapp_message(self) -> bytes:
-        """Generate realistic WhatsApp message data."""
-        # Simulate WhatsApp protocol structure
-        wa_header = b"WA\x02\x00"  # WhatsApp protocol header
-        message_data = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(80, 250))]
-        )
-        return wa_header + message_data
-
-    def _generate_whatsapp_media_data(self) -> bytes:
-        """Generate WhatsApp media data."""
-        media_types = [b"IMAGE", b"VIDEO", b"AUDIO", b"DOCUMENT"]
-        media_type = random.choice(media_types)
-        media_data = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(200, 800))]
-        )
-        return media_type + b":" + media_data
-
-    def _generate_netflix_video_chunk(self) -> bytes:
-        """Generate Netflix video chunk data."""
-        # Simulate DASH video segment
-        chunk_header = b"NETFLIX_DASH_SEGMENT"
-        video_data = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(1000, 3000))]
-        )
-        return chunk_header + video_data
-
-    def _generate_netflix_manifest(self) -> bytes:
-        """Generate Netflix manifest data."""
-        manifest_data = (
-            b'{"profiles":["playready-h264mpl30-dash","playready-h264mpl31-dash"],'
-            b'"video_tracks":[{"streams":[{"bitrate":235,"content":"H264"}]}]}'
-        )
-        return manifest_data
-
-    def _generate_youtube_segment(self) -> bytes:
-        """Generate YouTube video segment."""
-        # Simulate YouTube video chunk
-        yt_header = b"YT_VIDEO_CHUNK"
-        segment_data = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(800, 2000))]
-        )
-        return yt_header + segment_data
-
-    def _generate_youtube_analytics(self) -> bytes:
-        """Generate YouTube analytics data."""
-        analytics_data = (
-            b'{"c":"WEB","cver":"2.0","hl":"en_US","cr":"US",'
-            b'"fmt":"json","rt":' + str(random.randint(100, 500)).encode() + b"}"
-        )
-        return analytics_data
-
-    def _generate_http_request(self) -> bytes:
-        """Generate realistic HTTP request."""
-        methods = ["GET", "POST", "PUT", "DELETE"]
-        paths = ["/", "/api/data", "/images/logo.png", "/css/style.css", "/js/app.js"]
-
-        method = random.choice(methods)
-        path = random.choice(paths)
-
-        request = (
-            f"{method} {path} HTTP/1.1\r\n"
-            f"Host: example.com\r\n"
-            f"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n"
-            f"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
-            f"Accept-Language: en-US,en;q=0.5\r\n"
-            f"Accept-Encoding: gzip, deflate\r\n"
-            f"Connection: keep-alive\r\n"
-            f"\r\n"
-        ).encode()
-
-        return request
-
-    def _generate_http_response(self) -> bytes:
-        """Generate realistic HTTP response."""
-        status_codes = [200, 201, 204, 301, 302, 404, 500]
-        content_types = [
-            "text/html",
-            "application/json",
-            "image/png",
-            "text/css",
-            "application/javascript",
-        ]
-
-        status = random.choice(status_codes)
-        content_type = random.choice(content_types)
-        content_length = random.randint(100, 2000)
-
-        response = (
-            f"HTTP/1.1 {status} OK\r\n"
-            f"Content-Type: {content_type}\r\n"
-            f"Content-Length: {content_length}\r\n"
-            f"Server: nginx/1.18.0\r\n"
-            f"Cache-Control: public, max-age=3600\r\n"
-            f"\r\n"
-        ).encode()
-
-        # Add fake content
-        content = bytes([random.randint(0, 255) for _ in range(content_length)])
-        return response + content
-
-    def _generate_web_assets(self) -> bytes:
-        """Generate web asset requests (CSS, JS, images)."""
-        assets = [
-            b"/* CSS Content */ body { margin: 0; padding: 0; }",
-            b"// JavaScript Content\nfunction init() { console.log('loaded'); }",
-            b"\x89PNG\r\n\x1a\n"
-            + bytes([random.randint(0, 255) for _ in range(100)]),  # Fake PNG
-        ]
-        return random.choice(assets)
-
-    def _select_profile_for_domain(self, domain: str) -> TrafficProfile:
-        """
-        Select appropriate traffic profile for a domain.
-
-        Args:
-            domain: Target domain
-
-        Returns:
-            Selected traffic profile
-        """
-        for profile in self._profiles:
-            if profile.should_use_for_domain(domain):
-                return profile
-
-        # Fallback to generic browsing
-        return GenericBrowsingProfile()
-
     def _resolve_domain_ip(self, domain: str) -> str:
         """
         Resolve domain to IP address.
@@ -709,7 +416,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
 
         # 5. Protocol diversity (different types of background traffic)
         protocol_diversity = len(
-            set(flow.profile.name for flow in self._background_flows)
+            set(flow.profile.application_name for flow in self._background_flows)
         )
         protocol_score = min(1.0, protocol_diversity / 4.0)  # Max 4 different protocols
 
