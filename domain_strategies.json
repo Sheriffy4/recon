@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "last_updated": "2025-08-13T15:35:36.591512",
+  "last_updated": "2025-08-16T18:53:44.906329",
   "domain_strategies": {
     "default": {
       "domain": "default",
@@ -12,11 +12,11 @@
     },
     "rutracker.org": {
       "domain": "rutracker.org",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.590372",
-      "test_count": 34
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-ttl=8",
+      "success_rate": 0.4,
+      "avg_latency_ms": 350.0622510910034,
+      "last_tested": "2025-08-16T11:44:53.131720",
+      "test_count": 48
     },
     "kinozal.tv": {
       "domain": "kinozal.tv",
@@ -28,43 +28,43 @@
     },
     "nnmclub.to": {
       "domain": "nnmclub.to",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.590372",
-      "test_count": 34
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-ttl=8",
+      "success_rate": 0.4,
+      "avg_latency_ms": 350.0622510910034,
+      "last_tested": "2025-08-16T11:44:53.131720",
+      "test_count": 48
     },
     "rutor.info": {
       "domain": "rutor.info",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 297.25050926208496,
-      "last_tested": "2025-08-13T15:28:33.243900",
-      "test_count": 22
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-ttl=8",
+      "success_rate": 0.4,
+      "avg_latency_ms": 350.0622510910034,
+      "last_tested": "2025-08-16T11:44:53.132227",
+      "test_count": 36
     },
     "instagram.com": {
       "domain": "instagram.com",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.591512",
-      "test_count": 32
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
+      "success_rate": 0.25,
+      "avg_latency_ms": 791.9576168060303,
+      "last_tested": "2025-08-16T18:53:44.906329",
+      "test_count": 88
     },
     "x.com": {
       "domain": "x.com",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 297.25050926208496,
-      "last_tested": "2025-08-13T15:28:33.244887",
-      "test_count": 22
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-ttl=8",
+      "success_rate": 0.4,
+      "avg_latency_ms": 350.0622510910034,
+      "last_tested": "2025-08-16T11:44:53.132227",
+      "test_count": 36
     },
     "mail.ru": {
       "domain": "mail.ru",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 297.25050926208496,
-      "last_tested": "2025-08-13T15:28:33.245144",
-      "test_count": 22
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-ttl=8",
+      "success_rate": 0.4,
+      "avg_latency_ms": 350.0622510910034,
+      "last_tested": "2025-08-16T11:44:53.132227",
+      "test_count": 36
     },
     "tapochek.net": {
       "domain": "tapochek.net",
@@ -76,27 +76,27 @@
     },
     "www.instagram.com": {
       "domain": "www.instagram.com",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.591512",
-      "test_count": 10
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
+      "success_rate": 0.25,
+      "avg_latency_ms": 791.9576168060303,
+      "last_tested": "2025-08-16T18:53:44.905049",
+      "test_count": 52
     },
     "facebook.com": {
       "domain": "facebook.com",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.591512",
-      "test_count": 10
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
+      "success_rate": 0.25,
+      "avg_latency_ms": 791.9576168060303,
+      "last_tested": "2025-08-16T18:53:44.906329",
+      "test_count": 52
     },
     "cloudflare-ech.com": {
       "domain": "cloudflare-ech.com",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.591512",
-      "test_count": 10
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
+      "success_rate": 0.25,
+      "avg_latency_ms": 791.9576168060303,
+      "last_tested": "2025-08-16T18:53:44.906329",
+      "test_count": 52
     }
   }
 }

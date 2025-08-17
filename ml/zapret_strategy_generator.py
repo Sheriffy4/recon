@@ -8,8 +8,32 @@ except ImportError:
     # Fallback for when running from within recon directory
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType, ConfidenceLevel
 
+# Import modern attack registry for enhanced strategy generation
+try:
+    from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from recon.core.bypass.attacks.attack_definition import AttackCategory, AttackComplexity
+    MODERN_REGISTRY_AVAILABLE = True
+except ImportError:
+    MODERN_REGISTRY_AVAILABLE = False
+
 class ZapretStrategyGenerator:
     """Генератор стратегий в формате zapret команд, создающий рабочие комбинации."""
+    
+    def __init__(self, use_modern_registry: bool = True):
+        """
+        Initialize strategy generator.
+        
+        Args:
+            use_modern_registry: Whether to use modern attack registry for enhanced generation
+        """
+        self.use_modern_registry = use_modern_registry and MODERN_REGISTRY_AVAILABLE
+        self.attack_registry = None
+        
+        if self.use_modern_registry:
+            try:
+                self.attack_registry = ModernAttackRegistry()
+            except Exception as e:
+                self.use_modern_registry = False
     
     # --- ИСПРАВЛЕНИЕ: Добавлены более агрессивные и проверенные стратегии ---
     PROVEN_WORKING = [
@@ -29,6 +53,33 @@ class ZapretStrategyGenerator:
         "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2",
     ]
     
+    def _normalize_fingerprint(self, fingerprint: Any) -> Optional[DPIFingerprint]:
+        """Преобразует словарь в объект DPIFingerprint или возвращает объект как есть."""
+        if isinstance(fingerprint, DPIFingerprint):
+            return fingerprint
+        
+        if isinstance(fingerprint, dict):
+            # Преобразуем словарь в объект DPIFingerprint, безопасно получая значения
+            # Это защитит от AttributeError, если какие-то ключи отсутствуют
+            try:
+                return DPIFingerprint(
+                    dpi_type=DPIType(fingerprint.get('dpi_type', 'UNKNOWN')),
+                    confidence=float(fingerprint.get('confidence', 0.5)),
+                    rst_injection_detected=bool(fingerprint.get('rst_injection_detected', False)),
+                    http_header_filtering=bool(fingerprint.get('http_header_filtering', False)),
+                    dns_hijacking_detected=bool(fingerprint.get('dns_hijacking_detected', False)),
+                    # Добавьте сюда другие поля из вашего класса DPIFingerprint по аналогии
+                    # Например:
+                    # content_inspection_depth=int(fingerprint.get('content_inspection_depth', 0)),
+                    # tcp_window_manipulation=bool(fingerprint.get('tcp_window_manipulation', False)),
+                )
+            except (TypeError, ValueError) as e:
+                # В случае ошибки приведения типов, возвращаем None
+                # Это может произойти, если в словаре некорректные данные
+                return None
+        
+        return None
+    
     def generate_strategies(self, fingerprint: Optional[DPIFingerprint] = None, count: int = 20) -> List[str]:
         """
         Генерирует список zapret стратегий с учетом DPI фингерпринта.
@@ -40,6 +91,10 @@ class ZapretStrategyGenerator:
         Returns:
             Список zapret стратегий, отсортированных по вероятности успеха
         """
+        # Use modern registry if available
+        if self.use_modern_registry and self.attack_registry:
+            return self._generate_registry_enhanced_strategies(fingerprint, count)
+        
         # Handle backward compatibility with old dict format
         if isinstance(fingerprint, dict):
             return self._generate_legacy_strategies(fingerprint, count)
@@ -100,6 +155,183 @@ class ZapretStrategyGenerator:
         strategy_list = list(strategies)
         random.shuffle(strategy_list)
         return strategy_list[:count]
+    
+    def _generate_registry_enhanced_strategies(self, fingerprint: Optional[Any], count: int) -> List[str]:
+        """
+        Generate strategies enhanced with modern attack registry.
+        
+        Args:
+            fingerprint: DPI fingerprint (DPIFingerprint object or dict)
+            count: Number of strategies to generate
+            
+        Returns:
+            List of registry-enhanced strategies
+        """
+        strategies = set(self.PROVEN_WORKING)
+        
+        # --- НАЧАЛО ИЗМЕНЕНИЙ ---
+        fp_obj = self._normalize_fingerprint(fingerprint)
+        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+
+        if not self.attack_registry:
+            # Если fp_obj не None, можно использовать старую логику
+            if fp_obj:
+                return self._generate_fingerprint_aware_strategies(fp_obj, count)
+            return self._generate_generic_strategies(count)
+        
+        available_attacks = self.attack_registry.list_attacks(enabled_only=True)
+        
+        # --- ИЗМЕНЕНИЕ: Используем fp_obj вместо fingerprint ---
+        if fp_obj:
+            category_strategies = self._generate_category_based_strategies(fp_obj, available_attacks)
+            strategies.update(category_strategies)
+        
+        registry_strategies = self._generate_from_registry_attacks(available_attacks)
+        strategies.update(registry_strategies)
+        
+        strategies.update(self.PROVEN_WORKING)
+        
+        while len(strategies) < count:
+            base = random.choice(list(strategies))
+            variations = self._generate_variations(base)
+            strategies.update(variations)
+            
+            if len(strategies) < count:
+                new_strategies = self._generate_new_combinations()
+                strategies.update(new_strategies)
+        
+        strategy_list = list(strategies)
+        # --- ИЗМЕНЕНИЕ: Используем fp_obj вместо fingerprint ---
+        if fp_obj:
+            ranked_strategies = self._rank_strategies_by_registry(strategy_list, fp_obj)
+        else:
+            random.shuffle(strategy_list)
+            ranked_strategies = strategy_list
+        
+        return ranked_strategies[:count]
+    
+    def _generate_category_based_strategies(self, fingerprint: DPIFingerprint, available_attacks: List[str]) -> List[str]:
+        """Generate strategies based on attack categories suitable for the DPI type."""
+        strategies = []
+        
+        # Map DPI characteristics to attack categories
+        if fingerprint.rst_injection_detected:
+            # Use TCP fragmentation attacks
+            tcp_attacks = [aid for aid in available_attacks 
+                          if self.attack_registry.get_attack_definition(aid) and
+                          self.attack_registry.get_attack_definition(aid).category == AttackCategory.TCP_FRAGMENTATION]
+            
+            for attack_id in tcp_attacks[:3]:  # Use top 3 TCP attacks
+                strategies.extend([
+                    f"--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
+                    f"--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq",
+                ])
+        
+        if fingerprint.http_header_filtering:
+            # Use HTTP manipulation attacks
+            http_attacks = [aid for aid in available_attacks 
+                           if self.attack_registry.get_attack_definition(aid) and
+                           self.attack_registry.get_attack_definition(aid).category == AttackCategory.HTTP_MANIPULATION]
+            
+            for attack_id in http_attacks[:3]:  # Use top 3 HTTP attacks
+                strategies.extend([
+                    f"--dpi-desync=fake --dpi-desync-split-pos=midsld --dpi-desync-fooling=badsum",
+                    f"--dpi-desync=multidisorder --dpi-desync-split-pos=midsld,10 --dpi-desync-fooling=badseq",
+                ])
+        
+        if fingerprint.dns_hijacking_detected:
+            # Use DNS evasion attacks
+            dns_attacks = [aid for aid in available_attacks 
+                          if self.attack_registry.get_attack_definition(aid) and
+                          self.attack_registry.get_attack_definition(aid).category == AttackCategory.DNS_TUNNELING]
+            
+            for attack_id in dns_attacks[:2]:  # Use top 2 DNS attacks
+                strategies.extend([
+                    f"--dpi-desync=fake --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=6",
+                    f"--dpi-desync=multisplit --dpi-desync-split-count=2 --dpi-desync-fooling=badseq",
+                ])
+        
+        return strategies
+    
+    def _generate_from_registry_attacks(self, available_attacks: List[str]) -> List[str]:
+        """Generate strategies from available registry attacks."""
+        strategies = []
+        
+        # Group attacks by complexity
+        simple_attacks = []
+        moderate_attacks = []
+        advanced_attacks = []
+        
+        for attack_id in available_attacks:
+            definition = self.attack_registry.get_attack_definition(attack_id)
+            if not definition:
+                continue
+                
+            if definition.complexity == AttackComplexity.SIMPLE:
+                simple_attacks.append(attack_id)
+            elif definition.complexity == AttackComplexity.MODERATE:
+                moderate_attacks.append(attack_id)
+            elif definition.complexity in [AttackComplexity.ADVANCED, AttackComplexity.EXPERT]:
+                advanced_attacks.append(attack_id)
+        
+        # Generate strategies for each complexity level
+        # Simple attacks - basic strategies
+        for attack_id in simple_attacks[:5]:
+            strategies.extend([
+                "--dpi-desync=fake --dpi-desync-ttl=3 --dpi-desync-fooling=badsum",
+                "--dpi-desync=disorder --dpi-desync-split-pos=3",
+            ])
+        
+        # Moderate attacks - intermediate strategies
+        for attack_id in moderate_attacks[:3]:
+            strategies.extend([
+                "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+                "--dpi-desync=multisplit --dpi-desync-split-count=2 --dpi-desync-fooling=badseq",
+            ])
+        
+        # Advanced attacks - complex strategies
+        for attack_id in advanced_attacks[:2]:
+            strategies.extend([
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=1",
+                "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+            ])
+        
+        return strategies
+    
+    def _rank_strategies_by_registry(self, strategies: List[str], fingerprint: DPIFingerprint) -> List[str]:
+        """Rank strategies using registry information and fingerprint data."""
+        
+        def calculate_registry_score(strategy: str) -> float:
+            """Calculate strategy score using registry information."""
+            score = 0.0
+            
+            # Base score from fingerprint matching
+            if fingerprint:
+                confidence_bonus = fingerprint.confidence * 0.3
+                score += confidence_bonus
+            
+            # Bonus for proven working strategies
+            if strategy in self.PROVEN_WORKING:
+                score += 0.4
+            
+            # Analyze strategy complexity and match to DPI difficulty
+            complexity_penalty = self._calculate_strategy_complexity(strategy) * 0.1
+            score -= complexity_penalty
+            
+            # Registry-specific bonuses
+            if self.attack_registry:
+                # Bonus for strategies using enabled attacks
+                available_attacks = self.attack_registry.list_attacks(enabled_only=True)
+                if available_attacks:  # If we have registry data
+                    score += 0.2
+            
+            return max(0.0, min(1.0, score))
+        
+        # Calculate scores and sort
+        strategy_scores = [(strategy, calculate_registry_score(strategy)) for strategy in strategies]
+        strategy_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        return [strategy for strategy, score in strategy_scores]
     
     def _generate_variations(self, base_strategy: str) -> set:
         """Генерирует вариации базовой стратегии."""

@@ -6,12 +6,24 @@ import asyncio
 import aiohttp
 import socket
 import ssl
-from typing import Dict, List, Tuple, Optional, Set
+from typing import Dict, List, Tuple, Optional, Set, Any
 from urllib.parse import urlparse
 
 # Импортируем наш новый движок и надежный парсер
 from .bypass_engine import BypassEngine
 from .zapret_parser import ZapretStrategyParser
+
+# Import modernized bypass engine components
+try:
+    from .bypass.attacks.modern_registry import ModernAttackRegistry
+    from .bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
+    from .bypass.modes.mode_controller import ModeController, OperationMode
+    from .bypass.validation.reliability_validator import ReliabilityValidator
+    from .bypass.protocols.multi_port_handler import MultiPortHandler
+    MODERN_BYPASS_ENGINE_AVAILABLE = True
+except ImportError as e:
+    logging.getLogger("hybrid_engine").warning(f"Modern bypass engine not available: {e}")
+    MODERN_BYPASS_ENGINE_AVAILABLE = False
 
 # Import advanced fingerprinting system
 try:
@@ -36,9 +48,29 @@ class HybridEngine:
     3. Продвинутый фингерпринтинг DPI для контекстно-зависимой генерации стратегий.
     """
     
-    def __init__(self, debug: bool = False, enable_advanced_fingerprinting: bool = True):
+    def __init__(self, debug: bool = False, enable_advanced_fingerprinting: bool = True, enable_modern_bypass: bool = True):
         self.debug = debug
         self.parser = ZapretStrategyParser()
+        
+        # Initialize modern bypass engine components
+        self.modern_bypass_enabled = enable_modern_bypass and MODERN_BYPASS_ENGINE_AVAILABLE
+        if self.modern_bypass_enabled:
+            try:
+                self.attack_registry = ModernAttackRegistry()
+                self.pool_manager = StrategyPoolManager()
+                self.mode_controller = ModeController()
+                self.reliability_validator = ReliabilityValidator()
+                self.multi_port_handler = MultiPortHandler()
+                LOG.info("Modern bypass engine components initialized successfully")
+            except Exception as e:
+                LOG.error(f"Failed to initialize modern bypass engine: {e}")
+                self.modern_bypass_enabled = False
+        else:
+            self.attack_registry = None
+            self.pool_manager = None
+            self.mode_controller = None
+            self.reliability_validator = None
+            self.multi_port_handler = None
         
         # Initialize advanced fingerprinting if available
         self.advanced_fingerprinting_enabled = (
@@ -74,6 +106,15 @@ class HybridEngine:
             'fingerprint_failures': 0,
             'fingerprint_aware_tests': 0,
             'fallback_tests': 0
+        }
+        
+        # Statistics for modern bypass engine
+        self.bypass_stats = {
+            'modern_engine_tests': 0,
+            'legacy_engine_tests': 0,
+            'pool_assignments': 0,
+            'attack_registry_queries': 0,
+            'mode_switches': 0
         }
 
     def _translate_zapret_to_engine_task(self, params: Dict) -> Optional[Dict]:
@@ -301,16 +342,37 @@ class HybridEngine:
         domain: str,
         fast_filter: bool = True,
         initial_ttl: Optional[int] = None,
-        enable_fingerprinting: bool = True
+        enable_fingerprinting: bool = True,
+        use_modern_engine: bool = True
     ) -> List[Dict]:
         """
         Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
         1. Выполняет фингерпринтинг DPI для целевого домена
         2. Адаптирует стратегии под обнаруженный тип DPI
-        3. Проводит реальное тестирование с помощью BypassEngine
+        3. Использует современный движок обхода если доступен
+        4. Проводит реальное тестирование с помощью BypassEngine
         """
         results = []
         fingerprint = None
+        
+        # Check if we should use modern bypass engine
+        use_modern = use_modern_engine and self.modern_bypass_enabled
+        if use_modern:
+            self.bypass_stats['modern_engine_tests'] += 1
+            LOG.info("Using modern bypass engine for strategy testing")
+        else:
+            self.bypass_stats['legacy_engine_tests'] += 1
+            LOG.info("Using legacy bypass engine for strategy testing")
+        
+        # Check if domain is already managed by pool system
+        if use_modern and self.pool_manager:
+            existing_strategy = self.pool_manager.get_strategy_for_domain(domain, port)
+            if existing_strategy:
+                LOG.info(f"Found existing pool strategy for {domain}:{port}")
+                # Test the pool strategy first
+                pool_strategy_str = existing_strategy.to_zapret_format()
+                if pool_strategy_str not in strategies:
+                    strategies.insert(0, pool_strategy_str)
         
         # Perform DPI fingerprinting if enabled
         if enable_fingerprinting and self.advanced_fingerprinting_enabled:
@@ -333,8 +395,12 @@ class HybridEngine:
         else:
             self.fingerprint_stats['fallback_tests'] += 1
         
-        # Adapt strategies based on fingerprint
-        if fingerprint:
+        # Adapt strategies based on fingerprint and modern engine capabilities
+        if use_modern and self.attack_registry:
+            # Use modern attack registry to enhance strategies
+            strategies_to_test = self._enhance_strategies_with_registry(strategies, fingerprint, domain, port)
+            self.bypass_stats['attack_registry_queries'] += 1
+        elif fingerprint:
             strategies_to_test = self._adapt_strategies_for_fingerprint(strategies, fingerprint)
             LOG.info(f"Using {len(strategies_to_test)} fingerprint-adapted strategies")
         else:
@@ -536,6 +602,190 @@ class HybridEngine:
         LOG.info(f"Adapted {len(strategies)} strategies to {len(unique_strategies)} fingerprint-aware strategies")
         return unique_strategies
     
+    def _enhance_strategies_with_registry(self, strategies: List[str], fingerprint: Optional[DPIFingerprint], 
+                                        domain: str, port: int) -> List[str]:
+        """
+        Enhance strategies using the modern attack registry.
+        
+        Args:
+            strategies: Original list of strategies
+            fingerprint: DPI fingerprint (optional)
+            domain: Target domain
+            port: Target port
+            
+        Returns:
+            Enhanced strategy list with registry-based optimizations
+        """
+        if not self.attack_registry:
+            return strategies
+        
+        enhanced_strategies = []
+        
+        # Get available attacks from registry
+        available_attacks = self.attack_registry.list_attacks(enabled_only=True)
+        LOG.info(f"Found {len(available_attacks)} available attacks in registry")
+        
+        # If we have fingerprint, get attacks suitable for the DPI type
+        if fingerprint:
+            # Get attacks by category that match DPI characteristics
+            if fingerprint.rst_injection_detected:
+                tcp_attacks = self.attack_registry.list_attacks(
+                    category=self.attack_registry.get_attack_definition(available_attacks[0]).category if available_attacks else None,
+                    enabled_only=True
+                )
+                LOG.info(f"Found {len(tcp_attacks)} TCP-based attacks for RST injection DPI")
+        
+        # Enhance original strategies with registry knowledge
+        for strategy in strategies:
+            enhanced_strategy = self._enhance_single_strategy(strategy, available_attacks, fingerprint)
+            if enhanced_strategy:
+                enhanced_strategies.append(enhanced_strategy)
+        
+        # Add registry-recommended strategies
+        if fingerprint and available_attacks:
+            registry_strategies = self._generate_registry_strategies(available_attacks, fingerprint, domain, port)
+            enhanced_strategies.extend(registry_strategies)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_strategies = []
+        for strategy in enhanced_strategies:
+            if strategy not in seen:
+                seen.add(strategy)
+                unique_strategies.append(strategy)
+        
+        LOG.info(f"Enhanced {len(strategies)} strategies to {len(unique_strategies)} registry-optimized strategies")
+        return unique_strategies
+    
+    def _enhance_single_strategy(self, strategy: str, available_attacks: List[str], 
+                               fingerprint: Optional[DPIFingerprint]) -> Optional[str]:
+        """Enhance a single strategy using registry information."""
+        # For now, return the original strategy
+        # In a full implementation, this would analyze the strategy and enhance it
+        return strategy
+    
+    def _generate_registry_strategies(self, available_attacks: List[str], 
+                                    fingerprint: DPIFingerprint, domain: str, port: int) -> List[str]:
+        """Generate new strategies based on registry attacks and fingerprint."""
+        registry_strategies = []
+        
+        # Generate strategies based on fingerprint characteristics
+        if fingerprint.rst_injection_detected and fingerprint.connection_reset_timing < 100:
+            # Fast RST injection - use low TTL attacks
+            registry_strategies.extend([
+                "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq",
+            ])
+        
+        if fingerprint.tcp_window_manipulation:
+            # TCP window manipulation - use segmentation attacks
+            registry_strategies.extend([
+                "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10",
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum",
+            ])
+        
+        return registry_strategies[:5]  # Limit to top 5 registry strategies
+    
+    def assign_domain_to_pool(self, domain: str, port: int = 443, strategy: Optional[BypassStrategy] = None) -> bool:
+        """
+        Assign a domain to a strategy pool.
+        
+        Args:
+            domain: Domain to assign
+            port: Target port
+            strategy: Optional specific strategy to use
+            
+        Returns:
+            True if assignment successful
+        """
+        if not self.modern_bypass_enabled or not self.pool_manager:
+            return False
+        
+        try:
+            # Try auto-assignment first
+            pool_id = self.pool_manager.auto_assign_domain(domain, port=port)
+            
+            if not pool_id and strategy:
+                # Create a new pool for this domain
+                pool = self.pool_manager.create_pool(
+                    f"Pool for {domain}",
+                    strategy,
+                    f"Auto-created pool for {domain}:{port}"
+                )
+                self.pool_manager.add_domain_to_pool(pool.id, domain)
+                pool_id = pool.id
+            
+            if pool_id:
+                self.bypass_stats['pool_assignments'] += 1
+                LOG.info(f"Assigned {domain}:{port} to pool {pool_id}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            LOG.error(f"Failed to assign domain to pool: {e}")
+            return False
+    
+    def get_pool_strategy_for_domain(self, domain: str, port: int = 443) -> Optional[BypassStrategy]:
+        """Get the pool strategy for a domain."""
+        if not self.modern_bypass_enabled or not self.pool_manager:
+            return None
+        
+        return self.pool_manager.get_strategy_for_domain(domain, port)
+    
+    def switch_bypass_mode(self, mode: OperationMode) -> bool:
+        """
+        Switch the bypass engine operation mode.
+        
+        Args:
+            mode: Target operation mode
+            
+        Returns:
+            True if switch successful
+        """
+        if not self.modern_bypass_enabled or not self.mode_controller:
+            return False
+        
+        try:
+            success = self.mode_controller.switch_mode(mode)
+            if success:
+                self.bypass_stats['mode_switches'] += 1
+                LOG.info(f"Switched bypass mode to {mode.value}")
+            return success
+        except Exception as e:
+            LOG.error(f"Failed to switch bypass mode: {e}")
+            return False
+    
+    def validate_strategy_reliability(self, domain: str, strategy: BypassStrategy, port: int = 443) -> Optional[float]:
+        """
+        Validate strategy reliability using the modern validation system.
+        
+        Args:
+            domain: Target domain
+            strategy: Strategy to validate
+            port: Target port
+            
+        Returns:
+            Reliability score (0.0-1.0) or None if validation failed
+        """
+        if not self.modern_bypass_enabled or not self.reliability_validator:
+            return None
+        
+        try:
+            # Convert strategy to validation format
+            validation_result = asyncio.run(
+                self.reliability_validator.validate_strategy(domain, strategy)
+            )
+            
+            if validation_result:
+                return validation_result.reliability_score
+            
+            return None
+            
+        except Exception as e:
+            LOG.error(f"Strategy reliability validation failed: {e}")
+            return None
+    
     def _prioritize_strategies(self, strategies: List[str], priority_patterns: List[str]) -> List[str]:
         """
         Prioritize strategies matching given patterns.
@@ -572,6 +822,50 @@ class HybridEngine:
                 LOG.error(f"Failed to get advanced fingerprinter stats: {e}")
         
         return stats
+    
+    def get_bypass_stats(self) -> Dict[str, Any]:
+        """Get bypass engine statistics"""
+        stats = self.bypass_stats.copy()
+        
+        # Add modern engine component stats if available
+        if self.modern_bypass_enabled:
+            if self.attack_registry:
+                try:
+                    registry_stats = self.attack_registry.get_stats()
+                    stats.update({
+                        'registry_' + k: v for k, v in registry_stats.items()
+                    })
+                except Exception as e:
+                    LOG.error(f"Failed to get attack registry stats: {e}")
+            
+            if self.pool_manager:
+                try:
+                    pool_stats = self.pool_manager.get_pool_statistics()
+                    stats.update({
+                        'pool_' + k: v for k, v in pool_stats.items()
+                    })
+                except Exception as e:
+                    LOG.error(f"Failed to get pool manager stats: {e}")
+            
+            if self.mode_controller:
+                try:
+                    mode_info = self.mode_controller.get_mode_info()
+                    stats.update({
+                        'mode_' + k: v for k, v in mode_info.items()
+                    })
+                except Exception as e:
+                    LOG.error(f"Failed to get mode controller info: {e}")
+        
+        return stats
+    
+    def get_comprehensive_stats(self) -> Dict[str, Any]:
+        """Get comprehensive statistics from all components"""
+        return {
+            'fingerprint_stats': self.get_fingerprint_stats(),
+            'bypass_stats': self.get_bypass_stats(),
+            'modern_engine_enabled': self.modern_bypass_enabled,
+            'advanced_fingerprinting_enabled': self.advanced_fingerprinting_enabled
+        }
 
     def cleanup(self):
         """Очистка ресурсов."""
@@ -580,3 +874,26 @@ class HybridEngine:
                 self.advanced_fingerprinter.executor.shutdown(wait=True)
             except Exception as e:
                 LOG.error(f"Error shutting down fingerprinter executor: {e}")
+        
+        # Cleanup modern bypass engine components
+        if self.modern_bypass_enabled:
+            try:
+                if self.attack_registry and hasattr(self.attack_registry, 'cleanup'):
+                    self.attack_registry.cleanup()
+                
+                if self.pool_manager and hasattr(self.pool_manager, 'cleanup'):
+                    self.pool_manager.cleanup()
+                
+                if self.mode_controller and hasattr(self.mode_controller, 'cleanup'):
+                    self.mode_controller.cleanup()
+                
+                if self.reliability_validator and hasattr(self.reliability_validator, 'cleanup'):
+                    self.reliability_validator.cleanup()
+                
+                if self.multi_port_handler and hasattr(self.multi_port_handler, 'cleanup'):
+                    self.multi_port_handler.cleanup()
+                
+                LOG.info("Modern bypass engine components cleaned up")
+                
+            except Exception as e:
+                LOG.error(f"Error cleaning up modern bypass engine: {e}")

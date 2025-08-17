@@ -1,0 +1,20 @@
+# requirements.txt
+
+# Основные зависимости для работы
+pydivert
+requests
+scapy
+aiohttp
+dnspython
+
+# Зависимости для ML и анализа
+scikit-learn
+xgboost
+joblib
+numpy
+
+# Зависимости для UI и отчетов
+rich
+plotly
+flask
+flask-socketio

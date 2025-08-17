@@ -957,3 +957,213 @@ class FlowObfuscationAttack(BaseAttack):
             response = bytes([random.randint(0, 255) for _ in range(size)])
         
         return response[:size]
+
+
+@register_attack
+class FlowObfuscationAttack(BaseAttack):
+    """
+    Flow Obfuscation Attack.
+    
+    Modifies traffic flow characteristics to evade flow-based fingerprinting
+    through bidirectional traffic simulation and fake responses.
+    """
+
+    @property
+    def name(self) -> str:
+        return "flow_obfuscation"
+
+    @property
+    def category(self) -> str:
+        return "protocol_obfuscation"
+
+    @property
+    def description(self) -> str:
+        return "Modifies traffic flow to evade flow-based fingerprinting"
+
+    @property
+    def supported_protocols(self) -> List[str]:
+        return ["tcp", "udp"]
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Execute flow obfuscation attack."""
+        start_time = time.time()
+
+        try:
+            payload = context.payload
+            flow_strategy = context.params.get("flow_strategy", "bidirectional")
+            fake_responses = context.params.get("fake_responses", True)
+            response_ratio = context.params.get("response_ratio", 0.7)
+
+            # Apply flow obfuscation
+            obfuscated_segments = self._apply_flow_obfuscation(
+                payload, flow_strategy, fake_responses, response_ratio
+            )
+
+            packets_sent = len(obfuscated_segments)
+            bytes_sent = sum(len(seg[0]) for seg in obfuscated_segments)
+            latency = (time.time() - start_time) * 1000
+
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
+                connection_established=True,
+                data_transmitted=True,
+                technique_used="flow_obfuscation",
+                metadata={
+                    "flow_strategy": flow_strategy,
+                    "fake_responses": fake_responses,
+                    "response_ratio": response_ratio,
+                    "original_size": len(payload),
+                    "total_size": bytes_sent,
+                    "segments": obfuscated_segments
+                }
+            )
+
+        except Exception as e:
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+                technique_used="flow_obfuscation"
+            )
+
+    def _apply_flow_obfuscation(self, payload: bytes, strategy: str, fake_responses: bool, response_ratio: float) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+        """Apply flow obfuscation based on strategy."""
+        if strategy == "bidirectional":
+            return self._create_bidirectional_flow(payload, fake_responses, response_ratio)
+        elif strategy == "burst_response":
+            return self._create_burst_response_flow(payload, fake_responses)
+        elif strategy == "interactive":
+            return self._create_interactive_flow(payload, fake_responses)
+        else:
+            return self._create_bidirectional_flow(payload, fake_responses, response_ratio)
+
+    def _create_bidirectional_flow(self, payload: bytes, fake_responses: bool, response_ratio: float) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+        """Create bidirectional traffic flow."""
+        segments = []
+        chunk_size = random.randint(200, 800)
+        
+        for i in range(0, len(payload), chunk_size):
+            chunk = payload[i:i + chunk_size]
+            
+            # Send request
+            segments.append((chunk, random.randint(10, 50), {
+                "flow_type": "bidirectional",
+                "direction": "outbound",
+                "chunk_index": i // chunk_size,
+                "is_response": False
+            }))
+            
+            # Add fake response if enabled
+            if fake_responses and random.random() < response_ratio:
+                response_size = int(len(chunk) * random.uniform(0.5, 1.5))
+                fake_response = self._generate_fake_response(response_size)
+                
+                response_delay = random.randint(20, 100)
+                segments.append((fake_response, response_delay, {
+                    "flow_type": "bidirectional",
+                    "direction": "inbound",
+                    "chunk_index": i // chunk_size,
+                    "is_response": True,
+                    "response_size": response_size
+                }))
+        
+        return segments
+
+    def _create_burst_response_flow(self, payload: bytes, fake_responses: bool) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+        """Create burst response flow pattern."""
+        segments = []
+        
+        # Send all data in bursts
+        burst_size = len(payload) // 3 if len(payload) > 300 else len(payload)
+        
+        for i in range(0, len(payload), burst_size):
+            chunk = payload[i:i + burst_size]
+            
+            # Send burst
+            segments.append((chunk, 0 if i == 0 else random.randint(200, 500), {
+                "flow_type": "burst_response",
+                "direction": "outbound",
+                "burst_index": i // burst_size,
+                "is_response": False
+            }))
+        
+        # Add burst of fake responses
+        if fake_responses:
+            for i in range(random.randint(2, 5)):
+                response_size = random.randint(100, 500)
+                fake_response = self._generate_fake_response(response_size)
+                
+                segments.append((fake_response, random.randint(50, 150), {
+                    "flow_type": "burst_response",
+                    "direction": "inbound",
+                    "burst_index": i,
+                    "is_response": True,
+                    "response_size": response_size
+                }))
+        
+        return segments
+
+    def _create_interactive_flow(self, payload: bytes, fake_responses: bool) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+        """Create interactive flow pattern."""
+        segments = []
+        small_chunk_size = random.randint(50, 150)
+        
+        for i in range(0, len(payload), small_chunk_size):
+            chunk = payload[i:i + small_chunk_size]
+            
+            # Send small chunk (simulating interactive input)
+            segments.append((chunk, random.randint(100, 1000), {
+                "flow_type": "interactive",
+                "direction": "outbound",
+                "chunk_index": i // small_chunk_size,
+                "is_response": False,
+                "interactive": True
+            }))
+            
+            # Add immediate response if enabled
+            if fake_responses:
+                # Small acknowledgment response
+                ack_size = random.randint(10, 50)
+                ack_response = self._generate_fake_response(ack_size)
+                
+                segments.append((ack_response, random.randint(10, 50), {
+                    "flow_type": "interactive",
+                    "direction": "inbound",
+                    "chunk_index": i // small_chunk_size,
+                    "is_response": True,
+                    "response_type": "acknowledgment",
+                    "response_size": ack_size
+                }))
+        
+        return segments
+
+    def _generate_fake_response(self, size: int) -> bytes:
+        """Generate fake response data."""
+        if size <= 0:
+            return b""
+        
+        # Generate realistic-looking response data
+        response_types = ["json", "html", "binary", "text"]
+        response_type = random.choice(response_types)
+        
+        if response_type == "json":
+            # JSON-like response
+            json_template = b'{"status":"ok","data":"' + b"x" * (size - 30) + b'","time":123}'
+            return json_template[:size]
+        
+        elif response_type == "html":
+            # HTML-like response
+            html_template = b'<html><body><p>' + b"content" * (size // 7) + b'</p></body></html>'
+            return html_template[:size]
+        
+        elif response_type == "binary":
+            # Binary response
+            return random.randbytes(size)
+        
+        else:  # text
+            # Text response
+            text_chars = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 \n"
+            return bytes([random.choice(text_chars) for _ in range(size)])

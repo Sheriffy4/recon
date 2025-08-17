@@ -1044,3 +1044,400 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
             keystream += block
             counter += 1
         return keystream[:length]
+
+@register_attack
+class VPNTunnelingObfuscationAttack(BaseAttack):
+    """
+    Advanced VPN Tunneling Attack with multiple VPN protocol simulation.
+    
+    Simulates various VPN protocols (OpenVPN, WireGuard, IPSec) with
+    obfuscation techniques to tunnel data while evading DPI detection.
+    """
+
+    @property
+    def name(self) -> str:
+        return "vpn_tunneling_obfuscation"
+
+    @property
+    def category(self) -> str:
+        return "protocol_obfuscation"
+
+    @property
+    def description(self) -> str:
+        return "Advanced VPN protocol simulation with obfuscation"
+
+    @property
+    def supported_protocols(self) -> List[str]:
+        return ["tcp", "udp"]
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Execute VPN tunneling obfuscation attack."""
+        start_time = time.time()
+
+        try:
+            payload = context.payload
+            vpn_type = context.params.get("vpn_type", "openvpn")
+            obfuscation_level = context.params.get("obfuscation_level", "medium")
+            use_compression = context.params.get("use_compression", False)
+
+            # Validate VPN type
+            if vpn_type not in ["openvpn", "wireguard", "ipsec"]:
+                raise ValueError(f"Invalid vpn_type: {vpn_type}")
+
+            # Generate VPN packets based on type
+            if vpn_type == "openvpn":
+                vpn_packets = self._generate_openvpn_packets(payload, obfuscation_level, use_compression)
+            elif vpn_type == "wireguard":
+                vpn_packets = self._generate_wireguard_packets(payload, obfuscation_level)
+            elif vpn_type == "ipsec":
+                vpn_packets = self._generate_ipsec_packets(payload, obfuscation_level)
+
+            # Create segments with VPN timing
+            segments = []
+            for i, packet in enumerate(vpn_packets):
+                delay = self._calculate_vpn_delay(i, vpn_type)
+                packet_type = self._get_vpn_packet_type(i, vpn_type)
+                segments.append((packet, delay, {
+                    "vpn_type": vpn_type,
+                    "packet_type": packet_type,
+                    "obfuscation_level": obfuscation_level
+                }))
+
+            packets_sent = len(vpn_packets)
+            bytes_sent = sum(len(packet) for packet in vpn_packets)
+            latency = (time.time() - start_time) * 1000
+
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
+                connection_established=True,
+                data_transmitted=True,
+                technique_used="vpn_tunneling_obfuscation",
+                metadata={
+                    "vpn_type": vpn_type,
+                    "obfuscation_level": obfuscation_level,
+                    "use_compression": use_compression,
+                    "original_size": len(payload),
+                    "total_size": bytes_sent,
+                    "segments": segments
+                }
+            )
+
+        except Exception as e:
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+                technique_used="vpn_tunneling_obfuscation"
+            )
+
+    def _generate_openvpn_packets(self, payload: bytes, obfuscation_level: str, use_compression: bool) -> List[bytes]:
+        """Generate OpenVPN packets."""
+        packets = []
+        
+        # OpenVPN handshake
+        client_hello = self._create_openvpn_client_hello()
+        server_hello = self._create_openvpn_server_hello()
+        packets.extend([client_hello, server_hello])
+        
+        # Data packets
+        if use_compression:
+            compressed_payload = self._simulate_compression(payload)
+        else:
+            compressed_payload = payload
+            
+        encrypted_data = self._create_openvpn_data_packets(compressed_payload, obfuscation_level)
+        packets.extend(encrypted_data)
+        
+        return packets
+
+    def _generate_wireguard_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+        """Generate WireGuard packets."""
+        packets = []
+        
+        # WireGuard handshake
+        initiation = self._create_wireguard_initiation()
+        response = self._create_wireguard_response()
+        packets.extend([initiation, response])
+        
+        # Data packets
+        encrypted_data = self._create_wireguard_data_packets(payload, obfuscation_level)
+        packets.extend(encrypted_data)
+        
+        return packets
+
+    def _generate_ipsec_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+        """Generate IPSec packets."""
+        packets = []
+        
+        # IPSec IKE handshake
+        ike_init = self._create_ike_init()
+        ike_auth = self._create_ike_auth()
+        packets.extend([ike_init, ike_auth])
+        
+        # ESP data packets
+        esp_data = self._create_esp_data_packets(payload, obfuscation_level)
+        packets.extend(esp_data)
+        
+        return packets
+
+    def _create_openvpn_client_hello(self) -> bytes:
+        """Create OpenVPN client hello packet."""
+        # OpenVPN packet structure: opcode(1) + key_id(3) + packet_id(4) + payload
+        opcode = 0x38  # P_CONTROL_HARD_RESET_CLIENT_V2
+        key_id = random.randbytes(3)
+        packet_id = struct.pack("!I", random.randint(1, 1000000))
+        
+        # TLS-like payload
+        tls_payload = (
+            b"\x16\x03\x01\x00\x4a" +  # TLS handshake header
+            b"\x01\x00\x00\x46" +      # Client hello
+            b"\x03\x03" +              # TLS version
+            random.randbytes(32) +      # Random
+            b"\x00" +                  # Session ID length
+            b"\x00\x02\x00\x35" +      # Cipher suites
+            b"\x01\x00"                # Compression methods
+        )
+        
+        return bytes([opcode]) + key_id + packet_id + tls_payload
+
+    def _create_openvpn_server_hello(self) -> bytes:
+        """Create OpenVPN server hello packet."""
+        opcode = 0x48  # P_CONTROL_HARD_RESET_SERVER_V2
+        key_id = random.randbytes(3)
+        packet_id = struct.pack("!I", random.randint(1, 1000000))
+        
+        tls_payload = (
+            b"\x16\x03\x01\x00\x4a" +
+            b"\x02\x00\x00\x46" +      # Server hello
+            b"\x03\x03" +
+            random.randbytes(32) +
+            b"\x20" + random.randbytes(32) +  # Session ID
+            b"\x00\x35" +              # Selected cipher
+            b"\x00"                    # Compression
+        )
+        
+        return bytes([opcode]) + key_id + packet_id + tls_payload
+
+    def _create_openvpn_data_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+        """Create OpenVPN data packets."""
+        packets = []
+        chunk_size = 1200
+        
+        for i in range(0, len(payload), chunk_size):
+            chunk = payload[i:i + chunk_size]
+            
+            # OpenVPN data packet
+            opcode = 0x09  # P_DATA_V1
+            key_id = random.randbytes(3)
+            packet_id = struct.pack("!I", i // chunk_size + 1000)
+            
+            # Encrypt chunk (simplified)
+            encrypted_chunk = self._openvpn_encrypt(chunk, obfuscation_level)
+            
+            packet = bytes([opcode]) + key_id + packet_id + encrypted_chunk
+            packets.append(packet)
+        
+        return packets
+
+    def _create_wireguard_initiation(self) -> bytes:
+        """Create WireGuard handshake initiation."""
+        # WireGuard initiation message
+        msg_type = b"\x01\x00\x00\x00"  # Handshake initiation
+        sender_index = random.randbytes(4)
+        unencrypted_ephemeral = random.randbytes(32)
+        encrypted_static = random.randbytes(48)  # 32 + 16 auth tag
+        encrypted_timestamp = random.randbytes(28)  # 12 + 16 auth tag
+        mac1 = random.randbytes(16)
+        mac2 = random.randbytes(16)
+        
+        return (msg_type + sender_index + unencrypted_ephemeral + 
+                encrypted_static + encrypted_timestamp + mac1 + mac2)
+
+    def _create_wireguard_response(self) -> bytes:
+        """Create WireGuard handshake response."""
+        msg_type = b"\x02\x00\x00\x00"  # Handshake response
+        sender_index = random.randbytes(4)
+        receiver_index = random.randbytes(4)
+        unencrypted_ephemeral = random.randbytes(32)
+        encrypted_nothing = random.randbytes(16)  # Auth tag only
+        mac1 = random.randbytes(16)
+        mac2 = random.randbytes(16)
+        
+        return (msg_type + sender_index + receiver_index + 
+                unencrypted_ephemeral + encrypted_nothing + mac1 + mac2)
+
+    def _create_wireguard_data_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+        """Create WireGuard data packets."""
+        packets = []
+        chunk_size = 1400
+        
+        for i in range(0, len(payload), chunk_size):
+            chunk = payload[i:i + chunk_size]
+            
+            msg_type = b"\x04\x00\x00\x00"  # Transport data
+            receiver_index = random.randbytes(4)
+            counter = struct.pack("<Q", i // chunk_size)
+            
+            # Encrypt chunk
+            encrypted_chunk = self._wireguard_encrypt(chunk, obfuscation_level)
+            
+            packet = msg_type + receiver_index + counter + encrypted_chunk
+            packets.append(packet)
+        
+        return packets
+
+    def _create_ike_init(self) -> bytes:
+        """Create IKE initialization packet."""
+        # IKE header
+        initiator_spi = random.randbytes(8)
+        responder_spi = b"\x00" * 8
+        next_payload = 34  # Key Exchange
+        version = 0x20  # IKEv2
+        exchange_type = 34  # IKE_SA_INIT
+        flags = 0x08  # Initiator
+        message_id = b"\x00\x00\x00\x00"
+        
+        # Fake payloads
+        payload_data = random.randbytes(200)
+        length = struct.pack("!I", 28 + len(payload_data))
+        
+        return (initiator_spi + responder_spi + bytes([next_payload, version, exchange_type, flags]) + 
+                message_id + length + payload_data)
+
+    def _create_ike_auth(self) -> bytes:
+        """Create IKE authentication packet."""
+        initiator_spi = random.randbytes(8)
+        responder_spi = random.randbytes(8)
+        next_payload = 35  # Authentication
+        version = 0x20
+        exchange_type = 35  # IKE_AUTH
+        flags = 0x08
+        message_id = b"\x00\x00\x00\x01"
+        
+        payload_data = random.randbytes(150)
+        length = struct.pack("!I", 28 + len(payload_data))
+        
+        return (initiator_spi + responder_spi + bytes([next_payload, version, exchange_type, flags]) + 
+                message_id + length + payload_data)
+
+    def _create_esp_data_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+        """Create ESP data packets."""
+        packets = []
+        chunk_size = 1300
+        
+        for i in range(0, len(payload), chunk_size):
+            chunk = payload[i:i + chunk_size]
+            
+            # ESP header
+            spi = random.randbytes(4)
+            sequence = struct.pack("!I", i // chunk_size + 1)
+            
+            # Encrypt chunk
+            encrypted_chunk = self._ipsec_encrypt(chunk, obfuscation_level)
+            
+            packet = spi + sequence + encrypted_chunk
+            packets.append(packet)
+        
+        return packets
+
+    def _simulate_compression(self, data: bytes) -> bytes:
+        """Simulate compression (simplified)."""
+        # Simple compression simulation - remove repeated bytes
+        compressed = bytearray()
+        i = 0
+        while i < len(data):
+            byte = data[i]
+            count = 1
+            while i + count < len(data) and data[i + count] == byte and count < 255:
+                count += 1
+            
+            if count > 3:
+                compressed.extend([0xFF, count, byte])  # Compression marker
+            else:
+                compressed.extend([byte] * count)
+            
+            i += count
+        
+        return bytes(compressed)
+
+    def _openvpn_encrypt(self, data: bytes, level: str) -> bytes:
+        """Simulate OpenVPN encryption."""
+        key = random.randbytes(32)
+        iv = random.randbytes(16)
+        
+        # Simple encryption simulation
+        encrypted = bytearray()
+        for i, byte in enumerate(data):
+            encrypted.append(byte ^ key[i % len(key)] ^ iv[i % len(iv)])
+        
+        return iv + bytes(encrypted)
+
+    def _wireguard_encrypt(self, data: bytes, level: str) -> bytes:
+        """Simulate WireGuard encryption."""
+        # ChaCha20Poly1305 simulation
+        key = random.randbytes(32)
+        nonce = random.randbytes(12)
+        
+        encrypted = bytearray()
+        for i, byte in enumerate(data):
+            encrypted.append(byte ^ key[i % len(key)])
+        
+        auth_tag = random.randbytes(16)
+        return bytes(encrypted) + auth_tag
+
+    def _ipsec_encrypt(self, data: bytes, level: str) -> bytes:
+        """Simulate IPSec ESP encryption."""
+        # AES-GCM simulation
+        key = random.randbytes(32)
+        iv = random.randbytes(12)
+        
+        encrypted = bytearray()
+        for i, byte in enumerate(data):
+            encrypted.append(byte ^ key[i % len(key)])
+        
+        auth_tag = random.randbytes(16)
+        return iv + bytes(encrypted) + auth_tag
+
+    def _calculate_vpn_delay(self, packet_index: int, vpn_type: str) -> int:
+        """Calculate realistic VPN delay."""
+        base_delays = {
+            "openvpn": 20,
+            "wireguard": 10,
+            "ipsec": 30
+        }
+        
+        base_delay = base_delays.get(vpn_type, 20)
+        
+        if packet_index < 2:  # Handshake packets
+            return base_delay + random.randint(50, 150)
+        else:  # Data packets
+            return base_delay + random.randint(5, 25)
+
+    def _get_vpn_packet_type(self, packet_index: int, vpn_type: str) -> str:
+        """Get VPN packet type description."""
+        if vpn_type == "openvpn":
+            if packet_index == 0:
+                return "client_hello"
+            elif packet_index == 1:
+                return "server_hello"
+            else:
+                return "data"
+        elif vpn_type == "wireguard":
+            if packet_index == 0:
+                return "handshake_initiation"
+            elif packet_index == 1:
+                return "handshake_response"
+            else:
+                return "transport_data"
+        elif vpn_type == "ipsec":
+            if packet_index == 0:
+                return "ike_init"
+            elif packet_index == 1:
+                return "ike_auth"
+            else:
+                return "esp_data"
+        else:
+            return "unknown"

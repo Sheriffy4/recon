@@ -2,14 +2,15 @@
 """
 ICMP Obfuscation Attacks
 
-Advanced techniques to tunnel data or create covert channels using various
-ICMP message types to evade DPI detection.
+Advanced ICMP-based obfuscation techniques that use ICMP protocol features
+to tunnel data and evade DPI detection through legitimate-looking ICMP traffic.
 """
 
 import time
-import struct
 import random
-from typing import List, Dict, Any
+import struct
+import socket
+from typing import List, Dict, Any, Optional, Tuple
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 
@@ -17,7 +18,10 @@ from ..registry import register_attack
 @register_attack
 class ICMPDataTunnelingObfuscationAttack(BaseAttack):
     """
-    Embeds data in the payload of ICMP echo request packets.
+    ICMP Data Tunneling Attack.
+    
+    Tunnels data through ICMP echo request/reply packets by embedding
+    data in the ICMP payload section.
     """
 
     @property
@@ -30,7 +34,7 @@ class ICMPDataTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def description(self) -> str:
-        return "Tunnels data through ICMP echo packet payloads"
+        return "Tunnels data through ICMP echo request/reply packets"
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -39,81 +43,141 @@ class ICMPDataTunnelingObfuscationAttack(BaseAttack):
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP data tunneling attack."""
         start_time = time.time()
+
         try:
             payload = context.payload
-            icmp_type = context.params.get("icmp_type", 8)  # Echo Request
-            icmp_code = context.params.get("icmp_code", 0)
             packet_size = context.params.get("packet_size", 64)
+            use_replies = context.params.get("use_replies", True)
+            randomize_id = context.params.get("randomize_id", True)
 
-            if packet_size <= 8:
-                raise ValueError("packet_size must be greater than 8")
+            # Create ICMP packets with tunneled data
+            icmp_packets = self._create_icmp_data_packets(
+                payload, packet_size, use_replies, randomize_id, context
+            )
 
-            chunks = self._split_payload(payload, packet_size - 8)
-            icmp_packets = [self._create_icmp_packet(icmp_type, icmp_code, i, chunk) for i, chunk in enumerate(chunks)]
+            # Create segments
+            segments = []
+            for i, packet in enumerate(icmp_packets):
+                delay = random.randint(100, 1000)  # Realistic ping intervals
+                packet_type = "echo_reply" if use_replies and i % 2 == 1 else "echo_request"
+                segments.append((packet, delay, {
+                    "packet_type": packet_type,
+                    "packet_size": packet_size,
+                    "sequence": i
+                }))
 
-            segments = [(packet, i * 50, {"icmp_type": icmp_type, "sequence": i}) for i, packet in enumerate(icmp_packets)]
+            packets_sent = len(icmp_packets)
+            bytes_sent = sum(len(packet) for packet in icmp_packets)
+            latency = (time.time() - start_time) * 1000
 
             return AttackResult(
                 status=AttackStatus.SUCCESS,
-                latency_ms=(time.time() - start_time) * 1000,
-                packets_sent=len(segments),
-                bytes_sent=sum(len(seg[0]) for seg in segments),
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
-                technique_used=self.name,
+                technique_used="icmp_data_tunneling_obfuscation",
                 metadata={
-                    "icmp_type": icmp_type,
-                    "packet_count": len(segments),
+                    "packet_size": packet_size,
+                    "use_replies": use_replies,
+                    "randomize_id": randomize_id,
                     "original_size": len(payload),
+                    "total_size": bytes_sent,
                     "segments": segments
                 }
             )
+
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used=self.name
+                technique_used="icmp_data_tunneling_obfuscation"
             )
 
-    def _split_payload(self, payload: bytes, chunk_size: int) -> List[bytes]:
-        """Split payload into chunks."""
-        return [payload[i : i + chunk_size] for i in range(0, len(payload), chunk_size)]
+    def _create_icmp_data_packets(self, payload: bytes, packet_size: int, use_replies: bool, randomize_id: bool, context: AttackContext) -> List[bytes]:
+        """Create ICMP packets with data tunneling."""
+        packets = []
+        data_per_packet = packet_size - 8  # ICMP header is 8 bytes
+        
+        # Split payload into chunks
+        for i in range(0, len(payload), data_per_packet):
+            chunk = payload[i:i + data_per_packet]
+            
+            # Pad chunk if necessary
+            if len(chunk) < data_per_packet:
+                padding = b"\x00" * (data_per_packet - len(chunk))
+                chunk = chunk + padding
+            
+            # Create ICMP echo request
+            echo_request = self._create_icmp_echo_packet(
+                chunk, i // data_per_packet, randomize_id, False
+            )
+            packets.append(echo_request)
+            
+            # Create ICMP echo reply if requested
+            if use_replies:
+                echo_reply = self._create_icmp_echo_packet(
+                    chunk, i // data_per_packet, randomize_id, True
+                )
+                packets.append(echo_reply)
+        
+        return packets
 
-    def _create_icmp_packet(self, icmp_type: int, icmp_code: int, sequence: int, data: bytes) -> bytes:
-        """Create ICMP packet with embedded data."""
-        icmp_id = random.randint(0, 65535)
-        # Create header without checksum to calculate checksum
-        header = struct.pack("!BBHHH", icmp_type, icmp_code, 0, icmp_id, sequence)
-        checksum = self._calculate_checksum(header + data)
-        # Create final header with correct checksum
-        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence)
+    def _create_icmp_echo_packet(self, data: bytes, sequence: int, randomize_id: bool, is_reply: bool) -> bytes:
+        """Create ICMP echo request or reply packet."""
+        # ICMP header: type(1) + code(1) + checksum(2) + id(2) + sequence(2)
+        icmp_type = 0 if is_reply else 8  # Echo Reply or Echo Request
+        code = 0
+        checksum = 0  # Will be calculated later
+        
+        if randomize_id:
+            packet_id = random.randint(1, 65535)
+        else:
+            packet_id = 12345  # Fixed ID
+        
+        # Pack header without checksum
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        
+        # Calculate checksum
+        packet = header + data
+        checksum = self._calculate_icmp_checksum(packet)
+        
+        # Repack with correct checksum
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        
         return header + data
 
-    def _calculate_checksum(self, data: bytes) -> int:
+    def _calculate_icmp_checksum(self, packet: bytes) -> int:
         """Calculate ICMP checksum."""
-        # Pad to even number of bytes
-        if len(data) % 2:
-            data += b"\x00"
-
+        # Simple checksum calculation
         checksum = 0
+        
+        # Make sure packet length is even
+        if len(packet) % 2 == 1:
+            packet += b"\x00"
+        
         # Sum all 16-bit words
-        for i in range(0, len(data), 2):
-            word = (data[i] << 8) + data[i + 1]
+        for i in range(0, len(packet), 2):
+            word = (packet[i] << 8) + packet[i + 1]
             checksum += word
-
-        # Fold 32-bit sum to 16 bits
+        
+        # Add carry bits
         while checksum >> 16:
             checksum = (checksum & 0xFFFF) + (checksum >> 16)
-
-        # Take one's complement
+        
+        # One's complement
         return (~checksum) & 0xFFFF
 
 
 @register_attack
 class ICMPTimestampTunnelingObfuscationAttack(BaseAttack):
     """
-    Tunnels data by encoding it in the timestamp fields of ICMP packets.
+    ICMP Timestamp Tunneling Attack.
+    
+    Tunnels data through ICMP timestamp request/reply packets by
+    encoding data in timestamp fields.
     """
 
     @property
@@ -135,206 +199,132 @@ class ICMPTimestampTunnelingObfuscationAttack(BaseAttack):
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP timestamp tunneling attack."""
         start_time = time.time()
+
         try:
             payload = context.payload
-            # Each chunk must be 4 bytes to fit in the timestamp field
-            chunks = self._split_payload(payload, 4)
+            use_replies = context.params.get("use_replies", True)
 
-            icmp_packets = []
-            for i, chunk in enumerate(chunks):
-                # Pad chunk to 4 bytes if it's the last one and is smaller
-                if len(chunk) < 4:
-                    chunk = chunk.ljust(4, b'\x00')
+            # Create ICMP timestamp packets
+            icmp_packets = self._create_icmp_timestamp_packets(payload, use_replies)
 
-                timestamp_value = struct.unpack("!I", chunk)[0]
-                icmp_packet = self._create_timestamp_packet(i, timestamp_value)
-                icmp_packets.append(icmp_packet)
+            # Create segments
+            segments = []
+            for i, packet in enumerate(icmp_packets):
+                delay = random.randint(500, 2000)  # Timestamp request intervals
+                packet_type = "timestamp_reply" if use_replies and i % 2 == 1 else "timestamp_request"
+                segments.append((packet, delay, {
+                    "packet_type": packet_type,
+                    "sequence": i // 2 if use_replies else i
+                }))
 
-            segments = [(packet, i * 100, {"sequence": i}) for i, packet in enumerate(icmp_packets)]
+            packets_sent = len(icmp_packets)
+            bytes_sent = sum(len(packet) for packet in icmp_packets)
+            latency = (time.time() - start_time) * 1000
 
             return AttackResult(
                 status=AttackStatus.SUCCESS,
-                latency_ms=(time.time() - start_time) * 1000,
-                packets_sent=len(segments),
-                bytes_sent=sum(len(seg[0]) for seg in segments),
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
-                technique_used=self.name,
+                technique_used="icmp_timestamp_tunneling_obfuscation",
                 metadata={
-                    "packet_count": len(segments),
+                    "use_replies": use_replies,
                     "original_size": len(payload),
+                    "total_size": bytes_sent,
+                    "data_per_packet": 4,  # 4 bytes per timestamp packet
                     "segments": segments
                 }
             )
+
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used=self.name
+                technique_used="icmp_timestamp_tunneling_obfuscation"
             )
 
-    def _split_payload(self, payload: bytes, chunk_size: int) -> List[bytes]:
-        """Split payload into chunks."""
-        return [payload[i : i + chunk_size] for i in range(0, len(payload), chunk_size)]
+    def _create_icmp_timestamp_packets(self, payload: bytes, use_replies: bool) -> List[bytes]:
+        """Create ICMP timestamp packets with data encoding."""
+        packets = []
+        data_per_packet = 4  # 4 bytes can be encoded per timestamp
+        
+        for i in range(0, len(payload), data_per_packet):
+            chunk = payload[i:i + data_per_packet]
+            
+            # Pad chunk if necessary
+            if len(chunk) < data_per_packet:
+                chunk = chunk + b"\x00" * (data_per_packet - len(chunk))
+            
+            # Create timestamp request
+            timestamp_request = self._create_icmp_timestamp_packet(
+                chunk, i // data_per_packet, False
+            )
+            packets.append(timestamp_request)
+            
+            # Create timestamp reply if requested
+            if use_replies:
+                timestamp_reply = self._create_icmp_timestamp_packet(
+                    chunk, i // data_per_packet, True
+                )
+                packets.append(timestamp_reply)
+        
+        return packets
 
-    def _create_timestamp_packet(self, sequence: int, timestamp: int) -> bytes:
-        """Create ICMP timestamp packet."""
-        icmp_type = 13  # Timestamp Request
-        icmp_code = 0
-        icmp_id = random.randint(0, 65535)
-
-        # ICMP timestamp packet: type(1) + code(1) + checksum(2) + id(2) + sequence(2) + originate(4) + receive(4) + transmit(4)
-        # We hide data in the originate timestamp field.
-        originate_time = timestamp
-        receive_time = 0
-        transmit_time = 0
-
-        header = struct.pack("!BBHHH", icmp_type, icmp_code, 0, icmp_id, sequence)
-        timestamps = struct.pack("!III", originate_time, receive_time, transmit_time)
-
-        checksum = self._calculate_checksum(header + timestamps)
-        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence)
+    def _create_icmp_timestamp_packet(self, data: bytes, sequence: int, is_reply: bool) -> bytes:
+        """Create ICMP timestamp request or reply packet."""
+        # ICMP timestamp: type(1) + code(1) + checksum(2) + id(2) + sequence(2) + timestamps(12)
+        icmp_type = 14 if is_reply else 13  # Timestamp Reply or Timestamp Request
+        code = 0
+        checksum = 0
+        packet_id = random.randint(1, 65535)
+        
+        # Encode data in timestamps (3 timestamps, 4 bytes each)
+        # We can encode 4 bytes of data in the originate timestamp
+        originate_timestamp = struct.unpack("!I", data)[0]
+        receive_timestamp = int(time.time() * 1000) % (2**32)  # Current time
+        transmit_timestamp = receive_timestamp + random.randint(1, 10)
+        
+        # Pack packet
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        timestamps = struct.pack("!III", originate_timestamp, receive_timestamp, transmit_timestamp)
+        
+        packet = header + timestamps
+        
+        # Calculate checksum
+        checksum = self._calculate_icmp_checksum(packet)
+        
+        # Repack with correct checksum
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        
         return header + timestamps
 
-    def _calculate_checksum(self, data: bytes) -> int:
+    def _calculate_icmp_checksum(self, packet: bytes) -> int:
         """Calculate ICMP checksum."""
-        if len(data) % 2:
-            data += b"\x00"
-
         checksum = 0
-        for i in range(0, len(data), 2):
-            word = (data[i] << 8) + data[i + 1]
+        
+        if len(packet) % 2 == 1:
+            packet += b"\x00"
+        
+        for i in range(0, len(packet), 2):
+            word = (packet[i] << 8) + packet[i + 1]
             checksum += word
-
+        
         while checksum >> 16:
             checksum = (checksum & 0xFFFF) + (checksum >> 16)
-
-        return (~checksum) & 0xFFFF
-
-
-@register_attack
-class ICMPCovertChannelObfuscationAttack(BaseAttack):
-    """
-    Creates a covert communication channel using various ICMP properties.
-    """
-
-    @property
-    def name(self) -> str:
-        return "icmp_covert_channel_obfuscation"
-
-    @property
-    def category(self) -> str:
-        return "protocol_obfuscation"
-
-    @property
-    def description(self) -> str:
-        return "Creates covert communication channel using ICMP properties (timing, size, sequence)"
-
-    @property
-    def supported_protocols(self) -> List[str]:
-        return ["icmp"]
-
-    def execute(self, context: AttackContext) -> AttackResult:
-        """Execute ICMP covert channel attack."""
-        start_time = time.time()
-        try:
-            payload = context.payload
-            channel_type = context.params.get("channel_type", "timing")
-
-            if channel_type == "timing":
-                icmp_packets = self._create_timing_channel(payload)
-            elif channel_type == "size":
-                icmp_packets = self._create_size_channel(payload)
-            elif channel_type == "sequence":
-                icmp_packets = self._create_sequence_channel(payload)
-            else:
-                raise ValueError(f"Invalid channel_type: {channel_type}")
-
-            segments = [(packet, i * 200, {"channel_type": channel_type}) for i, packet in enumerate(icmp_packets)]
-
-            return AttackResult(
-                status=AttackStatus.SUCCESS,
-                latency_ms=(time.time() - start_time) * 1000,
-                packets_sent=len(segments),
-                bytes_sent=sum(len(seg[0]) for seg in segments),
-                connection_established=True,
-                data_transmitted=True,
-                technique_used=self.name,
-                metadata={
-                    "channel_type": channel_type,
-                    "packet_count": len(segments),
-                    "original_size": len(payload),
-                    "segments": segments
-                }
-            )
-        except Exception as e:
-            return AttackResult(
-                status=AttackStatus.ERROR,
-                error_message=str(e),
-                latency_ms=(time.time() - start_time) * 1000,
-                technique_used=self.name
-            )
-
-    def _create_timing_channel(self, payload: bytes) -> List[bytes]:
-        """Create timing-based covert channel."""
-        packets = []
-        for byte in payload:
-            # Use byte value to determine packet timing/size
-            packet_size = 8 + (byte % 56)  # Variable size based on data
-            padding = b"\x00" * (packet_size - 8)
-            icmp_packet = self._create_icmp_packet(8, 0, byte, padding)
-            packets.append(icmp_packet)
-        return packets
-
-    def _create_size_channel(self, payload: bytes) -> List[bytes]:
-        """Create size-based covert channel."""
-        packets = []
-        for i, byte in enumerate(payload):
-            # Use byte value to determine packet size
-            data_size = byte if byte > 0 else 1
-            data = b"A" * data_size
-            icmp_packet = self._create_icmp_packet(8, 0, i, data)
-            packets.append(icmp_packet)
-        return packets
-
-    def _create_sequence_channel(self, payload: bytes) -> List[bytes]:
-        """Create sequence-based covert channel."""
-        packets = []
-        for i, byte in enumerate(payload):
-            # Use byte value as sequence number
-            icmp_packet = self._create_icmp_packet(8, 0, byte, b"covert")
-            packets.append(icmp_packet)
-        return packets
-
-    def _create_icmp_packet(self, icmp_type: int, icmp_code: int, sequence: int, data: bytes) -> bytes:
-        """Create ICMP packet."""
-        icmp_id = random.randint(0, 65535)
-        header = struct.pack("!BBHHH", icmp_type, icmp_code, 0, icmp_id, sequence)
-        checksum = self._calculate_checksum(header + data)
-        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence)
-        return header + data
-
-    def _calculate_checksum(self, data: bytes) -> int:
-        """Calculate ICMP checksum."""
-        if len(data) % 2:
-            data += b"\x00"
-
-        checksum = 0
-        for i in range(0, len(data), 2):
-            word = (data[i] << 8) + data[i + 1]
-            checksum += word
-
-        while checksum >> 16:
-            checksum = (checksum & 0xFFFF) + (checksum >> 16)
-
+        
         return (~checksum) & 0xFFFF
 
 
 @register_attack
 class ICMPRedirectTunnelingObfuscationAttack(BaseAttack):
     """
-    Tunnels data by embedding it in the IP header portion of ICMP redirect messages.
+    ICMP Redirect Tunneling Attack.
+    
+    Tunnels data through ICMP redirect packets by encoding data
+    in the gateway IP address field.
     """
 
     @property
@@ -347,7 +337,7 @@ class ICMPRedirectTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def description(self) -> str:
-        return "Tunnels data through ICMP redirect messages"
+        return "Tunnels data through ICMP redirect gateway fields"
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -356,76 +346,348 @@ class ICMPRedirectTunnelingObfuscationAttack(BaseAttack):
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP redirect tunneling attack."""
         start_time = time.time()
+
         try:
             payload = context.payload
-            gateway_ip = context.params.get("gateway_ip", "192.168.1.254")
+            gateway_ip = context.params.get("gateway_ip", "192.168.1.1")
+            redirect_code = context.params.get("redirect_code", 1)  # Redirect for host
 
-            # Max data in redirect is 28 bytes (IP header + 8 bytes of original datagram)
-            chunks = self._split_payload(payload, 28)
+            # Create ICMP redirect packets
+            icmp_packets = self._create_icmp_redirect_packets(payload, gateway_ip, redirect_code)
 
-            icmp_packets = [self._create_redirect_packet(gateway_ip, chunk, i) for i, chunk in enumerate(chunks)]
+            # Create segments
+            segments = []
+            for i, packet in enumerate(icmp_packets):
+                delay = random.randint(1000, 5000)  # Redirect intervals
+                segments.append((packet, delay, {
+                    "packet_type": "redirect",
+                    "redirect_code": redirect_code,
+                    "sequence": i
+                }))
 
-            segments = [(packet, i * 100, {"gateway_ip": gateway_ip, "sequence": i}) for i, packet in enumerate(icmp_packets)]
+            packets_sent = len(icmp_packets)
+            bytes_sent = sum(len(packet) for packet in icmp_packets)
+            latency = (time.time() - start_time) * 1000
 
             return AttackResult(
                 status=AttackStatus.SUCCESS,
-                latency_ms=(time.time() - start_time) * 1000,
-                packets_sent=len(segments),
-                bytes_sent=sum(len(seg[0]) for seg in segments),
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
-                technique_used=self.name,
+                technique_used="icmp_redirect_tunneling_obfuscation",
                 metadata={
                     "gateway_ip": gateway_ip,
-                    "packet_count": len(segments),
+                    "redirect_code": redirect_code,
                     "original_size": len(payload),
+                    "total_size": bytes_sent,
+                    "data_per_packet": 4,  # 4 bytes per redirect packet
                     "segments": segments
                 }
             )
+
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used=self.name
+                technique_used="icmp_redirect_tunneling_obfuscation"
             )
 
-    def _split_payload(self, payload: bytes, chunk_size: int) -> List[bytes]:
-        """Split payload into chunks."""
-        return [payload[i : i + chunk_size] for i in range(0, len(payload), chunk_size)]
+    def _create_icmp_redirect_packets(self, payload: bytes, gateway_ip: str, redirect_code: int) -> List[bytes]:
+        """Create ICMP redirect packets with data encoding."""
+        packets = []
+        data_per_packet = 4  # 4 bytes can be encoded in gateway IP
+        
+        for i in range(0, len(payload), data_per_packet):
+            chunk = payload[i:i + data_per_packet]
+            
+            # Pad chunk if necessary
+            if len(chunk) < data_per_packet:
+                chunk = chunk + b"\x00" * (data_per_packet - len(chunk))
+            
+            # Create redirect packet
+            redirect_packet = self._create_icmp_redirect_packet(chunk, gateway_ip, redirect_code)
+            packets.append(redirect_packet)
+        
+        return packets
 
-    def _create_redirect_packet(self, gateway_ip: str, data: bytes, sequence: int) -> bytes:
+    def _create_icmp_redirect_packet(self, data: bytes, gateway_ip: str, redirect_code: int) -> bytes:
         """Create ICMP redirect packet."""
+        # ICMP redirect: type(1) + code(1) + checksum(2) + gateway_ip(4) + original_ip_header(28)
         icmp_type = 5  # Redirect
-        icmp_code = 1  # Redirect for host
-        icmp_id = random.randint(0, 65535)
-
-        try:
-            gateway_bytes = bytes(map(int, gateway_ip.split('.')))
-        except ValueError:
-            raise ValueError("Invalid gateway_ip format. Must be like 'x.x.x.x'")
-
-        # The data portion of an ICMP redirect includes the gateway address
-        # and the original IP header + 8 bytes of the datagram that triggered it.
-        # We use this space to hide our data.
-        redirect_data = gateway_bytes + data.ljust(28, b'\x00') # Pad to 28 bytes
-
-        header = struct.pack("!BBHHH", icmp_type, icmp_code, 0, icmp_id, sequence)
-        checksum = self._calculate_checksum(header + redirect_data)
-        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence)
-        return header + redirect_data
-
-    def _calculate_checksum(self, data: bytes) -> int:
-        """Calculate ICMP checksum."""
-        if len(data) % 2:
-            data += b"\x00"
-
+        code = redirect_code
         checksum = 0
-        for i in range(0, len(data), 2):
-            word = (data[i] << 8) + data[i + 1]
-            checksum += word
+        
+        # Encode data in gateway IP (4 bytes)
+        encoded_gateway = data
+        
+        # Create fake original IP header (28 bytes minimum)
+        original_header = self._create_fake_ip_header()
+        
+        # Pack packet
+        header = struct.pack("!BBH", icmp_type, code, checksum)
+        packet = header + encoded_gateway + original_header
+        
+        # Calculate checksum
+        checksum = self._calculate_icmp_checksum(packet)
+        
+        # Repack with correct checksum
+        header = struct.pack("!BBH", icmp_type, code, checksum)
+        
+        return header + encoded_gateway + original_header
 
+    def _create_fake_ip_header(self) -> bytes:
+        """Create fake IP header for redirect packet."""
+        # IP header: version_ihl(1) + tos(1) + length(2) + id(2) + flags_frag(2) + ttl(1) + protocol(1) + checksum(2) + src(4) + dst(4)
+        version_ihl = 0x45  # IPv4, 20 byte header
+        tos = 0
+        length = 28  # Minimum for ICMP redirect
+        packet_id = random.randint(1, 65535)
+        flags_frag = 0x4000  # Don't fragment
+        ttl = 64
+        protocol = 1  # ICMP
+        checksum = 0
+        src_ip = struct.pack("!I", random.randint(0, 2**32 - 1))
+        dst_ip = struct.pack("!I", random.randint(0, 2**32 - 1))
+        
+        header = struct.pack("!BBHHHBBH", version_ihl, tos, length, packet_id, flags_frag, ttl, protocol, checksum)
+        header += src_ip + dst_ip
+        
+        return header
+
+    def _calculate_icmp_checksum(self, packet: bytes) -> int:
+        """Calculate ICMP checksum."""
+        checksum = 0
+        
+        if len(packet) % 2 == 1:
+            packet += b"\x00"
+        
+        for i in range(0, len(packet), 2):
+            word = (packet[i] << 8) + packet[i + 1]
+            checksum += word
+        
         while checksum >> 16:
             checksum = (checksum & 0xFFFF) + (checksum >> 16)
+        
+        return (~checksum) & 0xFFFF
 
+
+@register_attack
+class ICMPCovertChannelObfuscationAttack(BaseAttack):
+    """
+    ICMP Covert Channel Attack.
+    
+    Creates covert channels using various ICMP packet characteristics
+    like timing, size variations, and sequence patterns.
+    """
+
+    @property
+    def name(self) -> str:
+        return "icmp_covert_channel_obfuscation"
+
+    @property
+    def category(self) -> str:
+        return "protocol_obfuscation"
+
+    @property
+    def description(self) -> str:
+        return "Creates covert channels using ICMP packet characteristics"
+
+    @property
+    def supported_protocols(self) -> List[str]:
+        return ["icmp"]
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Execute ICMP covert channel attack."""
+        start_time = time.time()
+
+        try:
+            payload = context.payload
+            channel_type = context.params.get("channel_type", "timing")
+            base_interval = context.params.get("base_interval", 1000)
+
+            # Validate channel type
+            if channel_type not in ["timing", "size", "sequence"]:
+                raise ValueError(f"Invalid channel_type: {channel_type}")
+
+            # Create covert channel packets
+            if channel_type == "timing":
+                icmp_packets, segments = self._create_timing_covert_channel(payload, base_interval)
+            elif channel_type == "size":
+                icmp_packets, segments = self._create_size_covert_channel(payload)
+            elif channel_type == "sequence":
+                icmp_packets, segments = self._create_sequence_covert_channel(payload)
+
+            packets_sent = len(icmp_packets)
+            bytes_sent = sum(len(packet) for packet in icmp_packets)
+            latency = (time.time() - start_time) * 1000
+
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=latency,
+                packets_sent=packets_sent,
+                bytes_sent=bytes_sent,
+                connection_established=True,
+                data_transmitted=True,
+                technique_used="icmp_covert_channel_obfuscation",
+                metadata={
+                    "channel_type": channel_type,
+                    "base_interval": base_interval,
+                    "original_size": len(payload),
+                    "total_size": bytes_sent,
+                    "segments": segments
+                }
+            )
+
+        except Exception as e:
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+                technique_used="icmp_covert_channel_obfuscation"
+            )
+
+    def _create_timing_covert_channel(self, payload: bytes, base_interval: int) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
+        """Create timing-based covert channel."""
+        packets = []
+        segments = []
+        
+        for i, byte in enumerate(payload):
+            # Create standard ICMP echo packet
+            packet = self._create_standard_icmp_echo(i)
+            packets.append(packet)
+            
+            # Encode data in timing: 0 bit = base_interval, 1 bit = base_interval * 2
+            for bit_pos in range(8):
+                bit = (byte >> (7 - bit_pos)) & 1
+                delay = base_interval if bit == 0 else base_interval * 2
+                
+                segments.append((packet, delay, {
+                    "channel_type": "timing",
+                    "byte_index": i,
+                    "bit_position": bit_pos,
+                    "bit_value": bit,
+                    "delay": delay
+                }))
+        
+        return packets, segments
+
+    def _create_size_covert_channel(self, payload: bytes) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
+        """Create size-based covert channel."""
+        packets = []
+        segments = []
+        
+        for i, byte in enumerate(payload):
+            # Encode data in packet size: byte value determines padding size
+            padding_size = byte  # Use byte value as padding size
+            packet = self._create_variable_size_icmp_echo(i, padding_size)
+            packets.append(packet)
+            
+            delay = random.randint(500, 1500)  # Normal ping intervals
+            segments.append((packet, delay, {
+                "channel_type": "size",
+                "byte_index": i,
+                "byte_value": byte,
+                "padding_size": padding_size,
+                "packet_size": len(packet)
+            }))
+        
+        return packets, segments
+
+    def _create_sequence_covert_channel(self, payload: bytes) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
+        """Create sequence-based covert channel."""
+        packets = []
+        segments = []
+        
+        for i, byte in enumerate(payload):
+            # Encode data in sequence number patterns
+            # Use byte value to determine sequence number
+            sequence = byte * 256 + i  # Combine byte value with index
+            packet = self._create_icmp_echo_with_sequence(sequence)
+            packets.append(packet)
+            
+            delay = random.randint(800, 1200)
+            segments.append((packet, delay, {
+                "channel_type": "sequence",
+                "byte_index": i,
+                "byte_value": byte,
+                "sequence_number": sequence
+            }))
+        
+        return packets, segments
+
+    def _create_standard_icmp_echo(self, sequence: int) -> bytes:
+        """Create standard ICMP echo packet."""
+        icmp_type = 8  # Echo Request
+        code = 0
+        checksum = 0
+        packet_id = 12345
+        
+        # Standard payload
+        payload = b"abcdefghijklmnopqrstuvwabcdefghi"  # 32 bytes
+        
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        packet = header + payload
+        
+        # Calculate checksum
+        checksum = self._calculate_icmp_checksum(packet)
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        
+        return header + payload
+
+    def _create_variable_size_icmp_echo(self, sequence: int, padding_size: int) -> bytes:
+        """Create ICMP echo packet with variable size."""
+        icmp_type = 8
+        code = 0
+        checksum = 0
+        packet_id = 12345
+        
+        # Variable payload based on padding_size
+        base_payload = b"ping_data_"
+        padding = b"x" * padding_size
+        payload = base_payload + padding
+        
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        packet = header + payload
+        
+        # Calculate checksum
+        checksum = self._calculate_icmp_checksum(packet)
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        
+        return header + payload
+
+    def _create_icmp_echo_with_sequence(self, sequence: int) -> bytes:
+        """Create ICMP echo packet with specific sequence number."""
+        icmp_type = 8
+        code = 0
+        checksum = 0
+        packet_id = 12345
+        
+        payload = b"sequence_encoded_data_here_padding"
+        
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        packet = header + payload
+        
+        # Calculate checksum
+        checksum = self._calculate_icmp_checksum(packet)
+        header = struct.pack("!BBHHH", icmp_type, code, checksum, packet_id, sequence)
+        
+        return header + payload
+
+    def _calculate_icmp_checksum(self, packet: bytes) -> int:
+        """Calculate ICMP checksum."""
+        checksum = 0
+        
+        if len(packet) % 2 == 1:
+            packet += b"\x00"
+        
+        for i in range(0, len(packet), 2):
+            word = (packet[i] << 8) + packet[i + 1]
+            checksum += word
+        
+        while checksum >> 16:
+            checksum = (checksum & 0xFFFF) + (checksum >> 16)
+        
         return (~checksum) & 0xFFFF
