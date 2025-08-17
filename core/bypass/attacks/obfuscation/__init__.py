@@ -16,7 +16,8 @@ from .protocol_tunneling import (
     HTTPTunnelingObfuscationAttack,
     DNSOverHTTPSTunnelingAttack,
     WebSocketTunnelingObfuscationAttack,
-    SSHTunnelingObfuscationAttack
+    SSHTunnelingObfuscationAttack,
+    VPNTunnelingObfuscationAttack
 )
 
 from .payload_encryption import (
@@ -40,12 +41,24 @@ from .traffic_obfuscation import (
     FlowObfuscationAttack
 )
 
+from .icmp_obfuscation import (
+    ICMPDataTunnelingObfuscationAttack,
+    ICMPTimestampTunnelingObfuscationAttack,
+    ICMPRedirectTunnelingObfuscationAttack,
+    ICMPCovertChannelObfuscationAttack
+)
+
+from .quic_obfuscation import (
+    QUICFragmentationObfuscationAttack
+)
+
 __all__ = [
     # Protocol Tunneling
     'HTTPTunnelingObfuscationAttack',
     'DNSOverHTTPSTunnelingAttack', 
     'WebSocketTunnelingObfuscationAttack',
     'SSHTunnelingObfuscationAttack',
+    'VPNTunnelingObfuscationAttack',
     
     # Payload Encryption
     'XORPayloadEncryptionAttack',
@@ -63,5 +76,14 @@ __all__ = [
     'TrafficPatternObfuscationAttack',
     'PacketSizeObfuscationAttack',
     'TimingObfuscationAttack',
-    'FlowObfuscationAttack'
+    'FlowObfuscationAttack',
+    
+    # ICMP Obfuscation
+    'ICMPDataTunnelingObfuscationAttack',
+    'ICMPTimestampTunnelingObfuscationAttack',
+    'ICMPRedirectTunnelingObfuscationAttack',
+    'ICMPCovertChannelObfuscationAttack',
+    
+    # QUIC Obfuscation
+    'QUICFragmentationObfuscationAttack'
 ]

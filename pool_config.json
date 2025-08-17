@@ -1,0 +1,244 @@
+{
+  "version": "pool_v1",
+  "pools": [
+    {
+      "id": "default",
+      "name": "Default Pool (Migrated)",
+      "description": "Migrated from legacy configuration with 25.00% success rate",
+      "strategy": {
+        "id": "migrated_405ebbdd",
+        "name": "Migrated Strategy",
+        "attacks": [
+          "tcp_bad_checksum",
+          "tcp_fragmentation",
+          "tcp_multisplit"
+        ],
+        "parameters": {
+          "split_count": 5,
+          "split_pos": 4,
+          "sequence_overlap": 20
+        },
+        "target_ports": [
+          80,
+          443
+        ],
+        "subdomain_overrides": {},
+        "compatibility_mode": "zapret",
+        "priority": 1,
+        "success_rate": 0.0,
+        "last_tested": null
+      },
+      "domains": [
+        "*"
+      ],
+      "subdomains": {},
+      "ports": {},
+      "priority": 1,
+      "created_at": "2025-08-17T21:43:21.720670",
+      "updated_at": "2025-08-17T21:43:21.720670"
+    },
+    {
+      "id": "youtube_pool",
+      "name": "YouTube Pool",
+      "description": "Optimized strategies for YouTube and video content",
+      "strategy": {
+        "id": "youtube_strategy",
+        "name": "YouTube Optimized Strategy",
+        "attacks": [
+          "tcp_multisplit",
+          "http_host_case",
+          "tls_sni_modification"
+        ],
+        "parameters": {
+          "split_count": 6,
+          "split_pos": 2,
+          "host_case_mix": true
+        },
+        "target_ports": [
+          80,
+          443
+        ],
+        "subdomain_overrides": {},
+        "compatibility_mode": "native",
+        "priority": 1,
+        "success_rate": 0.0,
+        "last_tested": null
+      },
+      "domains": [
+        "youtube.com",
+        "googlevideo.com",
+        "ytimg.com"
+      ],
+      "subdomains": {
+        "www.youtube.com": {
+          "id": "youtube_web",
+          "name": "YouTube Web Interface",
+          "attacks": [
+            "http_host_case",
+            "http_method_space"
+          ],
+          "parameters": {
+            "host_case_mix": true
+          },
+          "target_ports": [
+            443
+          ],
+          "subdomain_overrides": {},
+          "compatibility_mode": "native",
+          "priority": 1,
+          "success_rate": 0.0,
+          "last_tested": null
+        },
+        "*.googlevideo.com": {
+          "id": "youtube_video",
+          "name": "YouTube Video Streaming",
+          "attacks": [
+            "tcp_multisplit",
+            "tls_fragmentation"
+          ],
+          "parameters": {
+            "split_count": 8,
+            "fragment_size": 64
+          },
+          "target_ports": [
+            443
+          ],
+          "subdomain_overrides": {},
+          "compatibility_mode": "native",
+          "priority": 1,
+          "success_rate": 0.0,
+          "last_tested": null
+        }
+      },
+      "ports": {},
+      "priority": 10,
+      "created_at": "2025-08-17T21:43:21.720670",
+      "updated_at": "2025-08-17T21:43:21.720670"
+    },
+    {
+      "id": "social_media_pool",
+      "name": "Social Media Pool",
+      "description": "Optimized strategies for social media platforms",
+      "strategy": {
+        "id": "social_media_strategy",
+        "name": "Social Media Strategy",
+        "attacks": [
+          "tcp_fragmentation",
+          "http_host_dot",
+          "tls_record_split"
+        ],
+        "parameters": {
+          "split_count": 3,
+          "host_dot_position": "random"
+        },
+        "target_ports": [
+          80,
+          443
+        ],
+        "subdomain_overrides": {},
+        "compatibility_mode": "native",
+        "priority": 1,
+        "success_rate": 0.0,
+        "last_tested": null
+      },
+      "domains": [
+        "twitter.com",
+        "x.com",
+        "instagram.com",
+        "facebook.com"
+      ],
+      "subdomains": {},
+      "ports": {
+        "80": {
+          "id": "social_http",
+          "name": "Social Media HTTP",
+          "attacks": [
+            "http_host_case",
+            "http_domain_case"
+          ],
+          "parameters": {
+            "case_randomization": true
+          },
+          "target_ports": [
+            443
+          ],
+          "subdomain_overrides": {},
+          "compatibility_mode": "native",
+          "priority": 1,
+          "success_rate": 0.0,
+          "last_tested": null
+        },
+        "443": {
+          "id": "social_https",
+          "name": "Social Media HTTPS",
+          "attacks": [
+            "tls_sni_modification",
+            "tls_record_split"
+          ],
+          "parameters": {
+            "sni_case_mix": true,
+            "record_split_size": 128
+          },
+          "target_ports": [
+            443
+          ],
+          "subdomain_overrides": {},
+          "compatibility_mode": "native",
+          "priority": 1,
+          "success_rate": 0.0,
+          "last_tested": null
+        }
+      },
+      "priority": 9,
+      "created_at": "2025-08-17T21:43:21.720670",
+      "updated_at": "2025-08-17T21:43:21.720670"
+    }
+  ],
+  "default_pool": "default",
+  "fallback_strategy": {
+    "id": "fallback",
+    "name": "Fallback Strategy",
+    "attacks": [
+      "tcp_fragmentation",
+      "http_host_case"
+    ],
+    "parameters": {
+      "split_pos": 2,
+      "split_count": 2
+    },
+    "target_ports": [
+      443
+    ],
+    "subdomain_overrides": {},
+    "compatibility_mode": "native",
+    "priority": 0,
+    "success_rate": 0.0,
+    "last_tested": null
+  },
+  "auto_assignment_rules": [
+    {
+      "pattern": ".*\\.youtube\\.com",
+      "pool_id": "youtube_pool",
+      "priority": 10,
+      "conditions": {
+        "requires_video_support": true
+      }
+    },
+    {
+      "pattern": ".*\\.twitter\\.com|.*\\.x\\.com",
+      "pool_id": "social_media_pool",
+      "priority": 9,
+      "conditions": {
+        "requires_media_support": true
+      }
+    }
+  ],
+  "metadata": {
+    "migrated_from": "legacy_best_strategy.json",
+    "original_success_rate": 0.25,
+    "original_dpi_type": "unknown",
+    "migration_notes": "Automatically migrated configuration"
+  },
+  "created_at": "2025-08-17T21:43:21.720670",
+  "updated_at": "2025-08-17T21:43:21.720670"
+}

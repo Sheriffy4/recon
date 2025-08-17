@@ -138,6 +138,7 @@ class TestProtocolTunnelingAttacks:
 
     def test_vpn_tunneling_obfuscation_types(self):
         """Test VPN tunneling with different VPN types."""
+        from .protocol_tunneling import VPNTunnelingObfuscationAttack
         attack = VPNTunnelingObfuscationAttack()
         vpn_types = ["openvpn", "wireguard", "ipsec"]
 
@@ -155,6 +156,7 @@ class TestProtocolTunnelingAttacks:
 
     def test_vpn_tunneling_invalid_type(self):
         """Test that VPN tunneling handles invalid type."""
+        from .protocol_tunneling import VPNTunnelingObfuscationAttack
         attack = VPNTunnelingObfuscationAttack()
         context = self.create_test_context(
             b"vpn test data",

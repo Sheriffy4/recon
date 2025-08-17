@@ -1,47 +1,11 @@
 {
-  "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3",
-  "fitness": 0.0,
-  "genes": {
-    "type": "fakedisorder",
-    "ttl": 3,
-    "split_pos": 3
-  },
-  "generation": 4,
-  "evolution_time_seconds": 795.0065472126007,
-  "fitness_history": [
-    {
-      "generation": 0,
-      "best_fitness": 0.0,
-      "avg_fitness": 0.0,
-      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
-    },
-    {
-      "generation": 1,
-      "best_fitness": 0.0,
-      "avg_fitness": 0.0,
-      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
-    },
-    {
-      "generation": 2,
-      "best_fitness": 0.0,
-      "avg_fitness": 0.0,
-      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
-    },
-    {
-      "generation": 3,
-      "best_fitness": 0.0,
-      "avg_fitness": 0.0,
-      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
-    },
-    {
-      "generation": 4,
-      "best_fitness": 0.0,
-      "avg_fitness": 0.0,
-      "best_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
-    }
-  ],
-  "population_size": 20,
-  "generations": 5,
-  "mutation_rate": 0.1,
-  "timestamp": "2025-08-15T14:39:30.966724"
+  "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-split-pos=4",
+  "result_status": "PARTIAL_SUCCESS",
+  "successful_sites": 1,
+  "total_sites": 4,
+  "success_rate": 0.25,
+  "avg_latency_ms": 465.984582901001,
+  "fingerprint_used": true,
+  "dpi_type": "unknown",
+  "dpi_confidence": 0.0
 }
