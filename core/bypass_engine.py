@@ -251,7 +251,7 @@ class BypassEngine:
     def _run_bypass_loop(self, target_ips: Set[str], strategy_map: Dict[str, Dict]):
         """Основной цикл перехвата и обработки пакетов."""
         # ИСПРАВЛЕНИЕ: Убираем PayloadLength > 0 из фильтра, чтобы ловить и SYN пакеты
-        filter_str = "outbound and tcp.DstPort == 443"
+        filter_str = "outbound and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)"
         self.logger.info(f"🔍 Фильтр pydivert: {filter_str}")
         
         try:

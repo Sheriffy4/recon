@@ -10,34 +10,38 @@ from typing import Dict, Type, Optional, List, Any, Set
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .base import BaseAttack
-    from integration.attack_adapter import AttackAdapter
+    from ....integration.attack_adapter import AttackAdapter
 
 LOG = logging.getLogger("AttackRegistry")
 
 class AttackRegistry:
     """
     Централизованный реестр для всех классов атак с потокобезопасным
-    автоматическим обнаружением и регистрацией.
+    доступом. Атаки регистрируются с помощью декоратора @register_attack.
     """
-    # --- ИЗМЕНЕНИЕ 1: Добавляем все необходимые атрибуты класса ---
     _registry: Dict[str, Type["BaseAttack"]] = {}
     _categories: Dict[str, Set[str]] = {}
-    _init_lock = threading.Lock()
-    _initialized = False
-    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
+    _lock = threading.Lock()
+    logger = LOG # Добавляем логгер для использования в методах класса
 
     @classmethod
     def register(cls, attack_name: str, attack_class: Type["BaseAttack"]):
         """Регистрирует класс атаки с заданным именем."""
-        with cls._init_lock:
+        with cls._lock:
             if attack_name in cls._registry:
-                LOG.warning(f"Attack '{attack_name}' is being overwritten in the registry.")
+                cls.logger.warning(f"Attack '{attack_name}' is being overwritten in the registry.")
             
-            LOG.debug(f"Registering attack: '{attack_name}' -> {attack_class.__name__}")
+            cls.logger.debug(f"Registering attack: '{attack_name}' -> {attack_class.__name__}")
             cls._registry[attack_name] = attack_class
             
             # Обновляем информацию о категориях
-            category = getattr(attack_class, 'category', 'unknown')
+            # Создаем временный экземпляр для доступа к свойству category
+            try:
+                instance = attack_class()
+                category = getattr(instance, 'category', 'unknown')
+            except Exception:
+                category = 'unknown'
+
             if category not in cls._categories:
                 cls._categories[category] = set()
             cls._categories[category].add(attack_name)
@@ -45,19 +49,17 @@ class AttackRegistry:
     @classmethod
     def create(cls, attack_name: str) -> Optional["BaseAttack"]:
         """Создает экземпляр атаки по ее имени."""
-        cls._ensure_initialized()
         attack_class = cls._registry.get(attack_name)
         if not attack_class:
             cls.logger.error(f"Attack class for '{attack_name}' not found in registry.")
             return None
         
         try:
+            # Проверяем, нужен ли attack_adapter в конструкторе
             sig = inspect.signature(attack_class.__init__)
             if 'attack_adapter' in sig.parameters:
-                # --- ИЗМЕНЕНИЕ: Используем АБСОЛЮТНЫЙ импорт ---
-                from core.integration.attack_adapter import AttackAdapter
-                # --- КОНЕЦ ИЗМЕНЕНИЯ ---
-                adapter_instance = AttackAdapter()
+                from ....integration.attack_adapter import AttackAdapter
+                adapter_instance = AttackAdapter() # Создаем адаптер по требованию
                 return attack_class(attack_adapter=adapter_instance)
             else:
                 return attack_class()
@@ -68,84 +70,43 @@ class AttackRegistry:
     @classmethod
     def get(cls, attack_name: str) -> Optional[Type["BaseAttack"]]:
         """Возвращает класс атаки по имени."""
-        cls._ensure_initialized()
         return cls._registry.get(attack_name)
 
     @classmethod
     def get_all(cls) -> Dict[str, Type["BaseAttack"]]:
         """Возвращает все зарегистрированные классы атак."""
-        cls._ensure_initialized()
         return cls._registry.copy()
 
     @classmethod
     def get_by_category(cls, category: str) -> Dict[str, Type["BaseAttack"]]:
         """Возвращает атаки по категории."""
-        cls._ensure_initialized()
         attack_names = cls._categories.get(category, set())
         return {name: cls._registry[name] for name in attack_names if name in cls._registry}
 
     @classmethod
     def get_categories(cls) -> List[str]:
         """Возвращает список всех уникальных категорий атак."""
-        cls._ensure_initialized()
         return sorted(list(cls._categories.keys()))
 
     @classmethod
     def list_attacks(cls) -> List[str]:
         """Возвращает список имен всех зарегистрированных атак."""
-        cls._ensure_initialized()
         return list(cls._registry.keys())
 
     @classmethod
     def get_stats(cls) -> Dict[str, Any]:
         """Возвращает статистику по реестру."""
-        cls._ensure_initialized()
-        stats = {
+        return {
             "total_attacks": len(cls._registry),
             "categories": {cat: len(attacks) for cat, attacks in cls._categories.items()},
         }
-        return stats
-
-    @classmethod
-    def _ensure_initialized(cls):
-        """Потокобезопасно гарантирует, что автообнаружение было запущено хотя бы раз."""
-        if not cls._initialized:
-            with cls._init_lock:
-                # Double-check locking pattern
-                if not cls._initialized:
-                    cls._auto_discover_attacks()
-                    cls._initialized = True
-
-    @classmethod
-    def _auto_discover_attacks(cls):
-        """
-        Автоматически обнаруживает и регистрирует все атаки, сканируя пакет.
-        """
-        import importlib
-        import pkgutil
-        import tcp, ip, tls, payload, http, tunneling, combo
-
-        LOG.info("Auto-discovering and registering attacks...")
-        packages_to_scan = [tcp, ip, tls, payload, http, tunneling, combo]
-
-        for package in packages_to_scan:
-            for _, module_name, _ in pkgutil.walk_packages(
-                package.__path__, package.__name__ + "."
-            ):
-                try:
-                    importlib.import_module(module_name)
-                except ImportError as e:
-                    LOG.error(f"Could not import attack module '{module_name}'. Error: {e}")
-        
-        LOG.info(f"Auto-discovery complete. Registered {len(cls._registry)} attacks.")
 
     @classmethod
     def clear(cls):
         """Очищает реестр (полезно для тестов)."""
-        with cls._init_lock:
+        with cls._lock:
             cls._registry.clear()
             cls._categories.clear()
-            cls._initialized = False
 
 # --- Декоратор для регистрации ---
 def register_attack(arg=None):
@@ -158,16 +119,25 @@ def register_attack(arg=None):
     def decorator(attack_class: Type[BaseAttack]):
         """Внутренний декоратор, который выполняет регистрацию."""
         try:
+            name_to_register = None
             # Если имя передано в декоратор, используем его
             if isinstance(arg, str):
-                name = arg
+                name_to_register = arg
             # Иначе, получаем имя из свойства класса
             else:
                 # Для доступа к свойству name, нужно создать экземпляр
-                instance = attack_class()
-                name = instance.name
+                # Убедимся, что конструктор не требует аргументов
+                try:
+                    instance = attack_class()
+                    name_to_register = instance.name
+                except TypeError:
+                    # Если конструктор требует аргументы, имя должно быть передано явно
+                    LOG.error(f"Cannot determine name for {attack_class.__name__}. "
+                              f"Use @register_attack('attack_name') or ensure a parameterless constructor.")
+            
+            if name_to_register:
+                AttackRegistry.register(name_to_register, attack_class)
 
-            AttackRegistry.register(name, attack_class)
         except Exception as e:
             LOG.error(f"Could not register attack class {attack_class.__name__}: {e}", exc_info=True)
 
