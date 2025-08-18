@@ -25,14 +25,6 @@ if platform.system() == "Windows":
         print("[WARNING] Could not configure Scapy for Windows. Network tests may fail.")
         pass
 
-# --- Блок для запуска скрипта напрямую ---
-if __name__ == "__main__" and __package__ is None:
-    recon_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(recon_dir)
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-    import recon
-    __package__ = "recon"
 
 # --- Импорты ---
 try:
@@ -62,12 +54,12 @@ except ImportError:
         def ask(text, *args, **kwargs):
             return input(f"{text} (y/n): ").lower() == 'y'
 
-from . import config
-from .core.domain_manager import DomainManager
-from .core.doh_resolver import DoHResolver
-from .core.hybrid_engine import HybridEngine
-from .ml.zapret_strategy_generator import ZapretStrategyGenerator
-from .apply_bypass import apply_system_bypass
+import config
+from core.domain_manager import DomainManager
+from core.doh_resolver import DoHResolver
+from core.hybrid_engine import HybridEngine
+from ml.zapret_strategy_generator import ZapretStrategyGenerator
+from apply_bypass import apply_system_bypass
 
 # Advanced DNS functionality
 async def resolve_all_ips(domain: str) -> Set[str]:

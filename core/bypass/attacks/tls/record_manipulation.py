@@ -195,7 +195,7 @@ class TLSRecordPaddingAttack(BaseAttack):
             )
 
 
-@register_attack
+
 class TLSRecordFragmentationAttack(BaseAttack):
     """
     TLS Record Fragmentation Attack - fragments TLS records across multiple TCP segments.
