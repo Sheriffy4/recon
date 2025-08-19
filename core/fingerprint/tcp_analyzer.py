@@ -675,11 +675,10 @@ class TCPAnalyzer:
             self.logger.warning("TCP options analysis requires raw sockets")
             return
         
-        # Test various TCP options
         test_options = [
             ('MSS', 1460),
             ('WScale', 3),
-            ('SAckOK', ''),
+            ('SAckOK', ''),                 # важно: передавать b'' ниже
             ('Timestamp', (12345, 0)),
             ('NOP', None),
             ('EOL', None)
@@ -691,19 +690,31 @@ class TCPAnalyzer:
             try:
                 source_port = random.randint(32768, 65535)
                 seq_num = random.randint(1000000, 4000000000)
-                
-                # Create packet with specific option
-                if option_value is None:
-                    options = [(option_name,)]
+
+                # Сформируем корректный список опций.
+                # Чтобы SYN выглядел реалистично, добавляем MSS=1460, кроме случая, когда тестируем MSS.
+                options_list = []
+                if option_name != 'MSS':
+                    options_list.append(('MSS', 1460))
+
+                if option_name in ('NOP', 'EOL'):
+                    options_list.append((option_name, None))
+                elif option_name == 'SAckOK':
+                    options_list.append(('SAckOK', b''))  # пустое значение в виде байтов
+                elif option_name == 'Timestamp':
+                    tsval, tsecr = option_value if isinstance(option_value, tuple) else (int(option_value), 0)
+                    options_list.append(('Timestamp', (int(tsval), int(tsecr))))
+                elif option_name == 'MSS':
+                    options_list.append(('MSS', int(option_value)))
                 else:
-                    options = [(option_name, option_value)]
+                    options_list.append((option_name, option_value))
                 
                 syn_packet = IP(dst=target_ip) / TCP(
                     dport=port,
                     sport=source_port,
                     seq=seq_num,
                     flags="S",
-                    options=options
+                    options=options_list
                 )
                 
                 response = sr1(syn_packet, timeout=2.0, verbose=0)
@@ -711,20 +722,29 @@ class TCPAnalyzer:
                 if response and response.haslayer(TCP):
                     tcp_layer = response[TCP]
                     
-                    # Check if option is present in response
-                    response_options = [opt[0] for opt in tcp_layer.options]
+                    # Собираем имена опций из ответа безопасно
+                    response_options = []
+                    for opt in (tcp_layer.options or []):
+                        if isinstance(opt, tuple) and len(opt) >= 1:
+                            response_options.append(opt[0])
+                        elif isinstance(opt, str):
+                            response_options.append(opt)
                     
-                    if option_name not in response_options and option_name in ['MSS', 'WScale', 'SAckOK']:
-                        filtered_options.append(option_name)
-                        self.logger.info(f"TCP option {option_name} appears to be filtered")
+                    # MSS/WS/SACK — обычно отражаются в SYN-ACK
+                    if option_name in ['MSS', 'WScale', 'SAckOK']:
+                        if option_name not in response_options:
+                            filtered_options.append(option_name)
+                            self.logger.info(f"TCP option {option_name} appears to be filtered")
                     
-                    # Check for timestamp manipulation
+                    # Проверка Timestamp
                     if option_name == 'Timestamp':
-                        for opt in tcp_layer.options:
-                            if opt[0] == 'Timestamp' and len(opt) > 1:
-                                ts_val, ts_ecr = opt[1]
-                                if ts_val == 0 or ts_ecr != 0:
-                                    result.tcp_timestamp_manipulation = True
+                        for opt in (tcp_layer.options or []):
+                            if isinstance(opt, tuple) and opt[0] == 'Timestamp' and len(opt) > 1:
+                                val = opt[1]
+                                if isinstance(val, tuple) and len(val) == 2:
+                                    ts_val, ts_ecr = val
+                                    if ts_val == 0 or ts_ecr != 0:
+                                        result.tcp_timestamp_manipulation = True
                 
                 await asyncio.sleep(0.1)
                 

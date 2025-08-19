@@ -6,7 +6,8 @@ parallel metric collection, cache integration, and comprehensive error handling.
 
 Requirements: 1.1, 1.2, 3.1, 3.2, 6.1, 6.3
 """
-
+import socket
+import ssl
 import asyncio
 import time
 import logging
@@ -174,19 +175,7 @@ class AdvancedFingerprinter:
                                 force_refresh: bool = False,
                                 protocols: Optional[List[str]] = None) -> DPIFingerprint:
         """
-        Create detailed DPI fingerprint for target.
-        
-        Args:
-            target: Target hostname or IP address
-            port: Target port number
-            force_refresh: Force new analysis even if cached
-            protocols: List of protocols to analyze
-            
-        Returns:
-            DPIFingerprint object with comprehensive analysis
-            
-        Raises:
-            FingerprintingError: If fingerprinting fails completely
+        Create detailed DPI fingerprint for target - IMPROVED with adaptive caching
         """
         start_time = time.time()
         cache_key = f"{target}:{port}"
@@ -203,18 +192,23 @@ class AdvancedFingerprinter:
                     return cached_fingerprint
                 else:
                     self.stats['cache_misses'] += 1
-            elif not force_refresh:
-                # Cache is disabled or unavailable
-                self.stats['cache_misses'] += 1
             
             # Perform comprehensive analysis
             fingerprint = await self._perform_comprehensive_analysis(target, port, protocols)
             
-            # Cache the result
+            # NEW: Adaptive caching based on analysis quality
             if self.cache and fingerprint:
                 try:
-                    self.cache.set(cache_key, fingerprint)
-                    self.logger.debug(f"Cached fingerprint for {cache_key}")
+                    # Short TTL for poor quality results
+                    if fingerprint.reliability_score < 0.5 or len(fingerprint.analysis_methods_used) < 2:
+                        cache_ttl = 300  # 5 minutes
+                    elif fingerprint.analysis_duration < 0.5 and fingerprint.raw_metrics.get('collection_errors'):
+                        cache_ttl = 600  # 10 minutes
+                    else:
+                        cache_ttl = self.config.cache_ttl  # Default TTL
+                    
+                    self.cache.set(cache_key, fingerprint, ttl=cache_ttl)
+                    self.logger.debug(f"Cached fingerprint for {cache_key} with TTL={cache_ttl}s")
                 except Exception as e:
                     self.logger.warning(f"Failed to cache fingerprint: {e}")
             
@@ -223,7 +217,10 @@ class AdvancedFingerprinter:
             self.stats['fingerprints_created'] += 1
             self.stats['total_analysis_time'] += analysis_time
             
-            self.logger.info(f"Fingerprinting completed for {target}:{port} in {analysis_time:.2f}s")
+            self.logger.info(
+                f"Fingerprinting completed for {target}:{port} in {analysis_time:.2f}s "
+                f"(reliability: {fingerprint.reliability_score:.2f})"
+            )
             return fingerprint
             
         except Exception as e:
@@ -231,16 +228,45 @@ class AdvancedFingerprinter:
             self.logger.error(f"Fingerprinting failed for {target}:{port}: {e}")
             
             if self.config.fallback_on_error:
-                # Return minimal fingerprint on error
                 return self._create_fallback_fingerprint(target, str(e))
             else:
                 raise FingerprintingError(f"Fingerprinting failed for {target}:{port}: {e}")
+    
+    def _apply_blocking_patterns(self, fingerprint: DPIFingerprint):
+        """Применяет обнаруженные паттерны блокировки к фингерпринту."""
+        patterns = getattr(self, "_detected_blocking_patterns", [])
+        if not patterns:
+            return
+        
+        fingerprint.raw_metrics.setdefault('blocking_patterns', patterns)
+
+        types = [p[0] for p in patterns]
+        
+        # Определяем основной тип блокировки
+        if 'ssl_handshake_failure' in types or 'connection_reset' in types or 'rst_by_peer' in types:
+            fingerprint.block_type = 'rst'
+            fingerprint.rst_injection_detected = True
+        elif 'tls_timeout' in types or 'tcp_timeout' in types:
+            fingerprint.block_type = 'timeout'
+        
+        # Базовая эвристика для классификации по типу блокировки
+        if fingerprint.block_type == 'rst':
+            # SSL Handshake Failure - очень характерный признак DPI РКН
+            if 'ssl_handshake_failure' in types:
+                fingerprint.dpi_type = DPIType.ROSKOMNADZOR_DPI
+                fingerprint.confidence = max(fingerprint.confidence or 0, 0.75)
+            else:
+                fingerprint.dpi_type = DPIType.FIREWALL_BASED
+                fingerprint.confidence = max(fingerprint.confidence or 0, 0.6)
+        elif fingerprint.block_type == 'timeout':
+            fingerprint.dpi_type = DPIType.GOVERNMENT_CENSORSHIP
+            fingerprint.confidence = max(fingerprint.confidence or 0, 0.5)
     
     async def _perform_comprehensive_analysis(self, 
                                             target: str, 
                                             port: int,
                                             protocols: Optional[List[str]] = None) -> DPIFingerprint:
-        """Perform comprehensive DPI analysis with parallel metric collection"""
+        """Perform comprehensive DPI analysis including blocking pattern analysis"""
         
         # Create base fingerprint
         fingerprint = DPIFingerprint(
@@ -249,69 +275,364 @@ class AdvancedFingerprinter:
         )
         
         analysis_start = time.time()
-        analysis_tasks = []
         
-        # Collect comprehensive metrics
-        if self.metrics_collector:
-            analysis_tasks.append(
-                self._safe_async_call(
-                    "metrics_collection",
-                    self.metrics_collector.collect_comprehensive_metrics(
-                        target, port, protocols=protocols
-                    )
-                )
-            )
+        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Анализ блокировок <<<<<
+        # Инициализируем хранилище паттернов блокировки
+        self._detected_blocking_patterns = []
         
-        # TCP-specific analysis
-        if self.tcp_analyzer:
-            analysis_tasks.append(
-                self._safe_async_call(
-                    "tcp_analysis",
-                    self.tcp_analyzer.analyze_tcp_behavior(target, port)
-                )
-            )
+        # Проверяем базовое подключение и СОБИРАЕМ ПАТТЕРНЫ БЛОКИРОВКИ
+        connectivity_ok = await self._check_basic_connectivity(target, port)
+
+        # Применяем собранные паттерны к фингерпринту в любом случае
+        self._apply_blocking_patterns(fingerprint)
+
+        # ЕСЛИ ПОДКЛЮЧЕНИЯ НЕТ, НО ЕСТЬ ПАТТЕРНЫ - ЭТО УСПЕХ!
+        # Мы уже получили ценные данные (например, тип блокировки) и можем вернуть
+        # качественный фингерпринт, основанный на пассивном анализе.
+        if not connectivity_ok and not self._detected_blocking_patterns:
+            self.logger.warning(f"Basic connectivity failed for {target}:{port}. No blocking patterns detected. Returning minimal fingerprint.")
+            fingerprint.analysis_duration = time.time() - analysis_start
+            fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
+            # Можно добавить запуск пассивных техник, например, traceroute
+            # fingerprint = await self._passive_fingerprinting(target, port, fingerprint)
+            return fingerprint
         
-        # HTTP-specific analysis (for HTTP/HTTPS ports)
-        if self.http_analyzer and port in [80, 443, 8080, 8443]:
-            analysis_tasks.append(
-                self._safe_async_call(
-                    "http_analysis",
-                    self.http_analyzer.analyze_http_behavior(target, port)
-                )
-            )
-        
-        # DNS-specific analysis (for DNS ports or if explicitly requested)
-        if self.dns_analyzer and (port == 53 or (protocols and 'dns' in protocols)):
-            analysis_tasks.append(
-                self._safe_async_call(
-                    "dns_analysis",
-                    self.dns_analyzer.analyze_dns_behavior(target)
-                )
-            )
-        
-        # Execute all analysis tasks concurrently
-        if analysis_tasks:
-            results = await asyncio.gather(*analysis_tasks, return_exceptions=True)
+        # Analyze blocking patterns if detected
+        if hasattr(self, '_detected_blocking_patterns') and self._detected_blocking_patterns:
+            blocking_analysis = self._analyze_blocking_patterns(self._detected_blocking_patterns)
+            fingerprint.raw_metrics['blocking_patterns'] = blocking_analysis
             
-            # Process results and populate fingerprint
-            for i, result in enumerate(results):
-                if isinstance(result, Exception):
-                    self.logger.error(f"Analysis task {i} failed: {result}")
-                    continue
+            # Use blocking patterns to determine DPI type
+            if blocking_analysis.get('ssl_handshake_failure'):
+                # This is characteristic of Russian DPI
+                fingerprint.rst_injection_detected = True
+                fingerprint.block_type = 'ssl_block'
+                fingerprint.analysis_methods_used.append('blocking_pattern_analysis')
                 
-                task_name, task_result = result
-                if task_result:
-                    self._integrate_analysis_result(fingerprint, task_name, task_result)
+                # Try to determine specific DPI type from blocking behavior
+                if blocking_analysis.get('immediate_blocking'):
+                    fingerprint.dpi_type = DPIType.ROSKOMNADZOR_TSPU
+                    fingerprint.confidence = 0.8
+                else:
+                    fingerprint.dpi_type = DPIType.ROSKOMNADZOR_DPI
+                    fingerprint.confidence = 0.7
+                    
+            elif blocking_analysis.get('tcp_timeout'):
+                fingerprint.block_type = 'timeout'
+                fingerprint.dpi_type = DPIType.FIREWALL_BASED
+                fingerprint.confidence = 0.6
+                
+            elif blocking_analysis.get('connection_reset'):
+                fingerprint.rst_injection_detected = True
+                fingerprint.block_type = 'rst'
+                fingerprint.dpi_type = DPIType.ISP_TRANSPARENT_PROXY
+                fingerprint.confidence = 0.6
         
-        # Perform ML classification
-        await self._classify_dpi_type(fingerprint)
+        # If basic connectivity failed completely, use passive fingerprinting
+        if not connectivity_ok and not self._detected_blocking_patterns:
+            self.logger.warning(f"Using passive fingerprinting for {target}:{port}")
+            fingerprint = await self._passive_fingerprinting(target, port, fingerprint)
+            fingerprint.analysis_duration = time.time() - analysis_start
+            fingerprint.reliability_score = 0.3  # Lower reliability for passive
+            return fingerprint
         
-        # Calculate analysis duration and reliability
+        # Continue with normal analysis if we have patterns or connectivity
+        analyzers = []
+        
+        # Even with blocking, we can try these analyzers
+        if self.tcp_analyzer:
+            # TCP analyzer can work with blocking patterns
+            analyzers.append(("tcp_analysis", self._tcp_analysis_with_blocking(target, port)))
+        
+        if self.metrics_collector:
+            # Metrics collector can gather partial data
+            analyzers.append(("metrics_collection", 
+                self.metrics_collector.collect_comprehensive_metrics(target, port, protocols=protocols)))
+        
+        # Run analyzers
+        if analyzers:
+            try:
+                results = await asyncio.gather(
+                    *(self._safe_async_call(name, coro) for name, coro in analyzers),
+                    return_exceptions=True
+                )
+                
+                for i, (name, coro) in enumerate(analyzers):
+                    result = results[i]
+                    if isinstance(result, Exception):
+                        self.logger.error(f"Analyzer {name} failed: {result}")
+                        continue
+                        
+                    task_name, task_result = result
+                    if task_result:
+                        self._integrate_analysis_result(fingerprint, task_name, task_result)
+                        
+            except Exception as e:
+                self.logger.error(f"Failed to run analyzers: {e}")
+        
+        # If we still don't have a DPI type, use blocking patterns
+        if fingerprint.dpi_type == DPIType.UNKNOWN and self._detected_blocking_patterns:
+            fingerprint.dpi_type, fingerprint.confidence = self._classify_from_blocking_patterns(
+                self._detected_blocking_patterns
+            )
+        
+        # Calculate final metrics
         fingerprint.analysis_duration = time.time() - analysis_start
         fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
         
         return fingerprint
+
+    async def _tcp_analysis_with_blocking(self, target: str, port: int) -> Dict[str, Any]:
+        """Modified TCP analysis that works even with blocking"""
+        try:
+            # Try to establish connection and analyze the blocking response
+            result = {
+                'rst_injection_detected': False,
+                'tcp_window_manipulation': False,
+                'connection_reset_timing': 0.0,
+                'blocking_method': 'unknown'
+            }
+            
+            start_time = time.time()
+            
+            try:
+                # Attempt raw socket connection to capture RST packets
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(5.0)
+                sock.setblocking(False)
+                
+                # Get IP address
+                ip = socket.gethostbyname(target)
+                
+                # Try to connect
+                try:
+                    await asyncio.get_event_loop().sock_connect(sock, (ip, port))
+                except ConnectionResetError:
+                    # RST received - measure timing
+                    result['rst_injection_detected'] = True
+                    result['connection_reset_timing'] = (time.time() - start_time) * 1000
+                    result['blocking_method'] = 'rst_injection'
+                except asyncio.TimeoutError:
+                    result['blocking_method'] = 'timeout'
+                except Exception as e:
+                    if 'reset' in str(e).lower():
+                        result['rst_injection_detected'] = True
+                        result['connection_reset_timing'] = (time.time() - start_time) * 1000
+                        result['blocking_method'] = 'rst_injection'
+                finally:
+                    sock.close()
+                    
+            except Exception as e:
+                self.logger.debug(f"TCP analysis with blocking failed: {e}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"TCP blocking analysis failed: {e}")
+            return {}
     
+    async def _passive_fingerprinting(self, target: str, port: int, fingerprint: DPIFingerprint) -> DPIFingerprint:
+        """Passive fingerprinting using traceroute and other non-intrusive methods"""
+        try:
+            # Try traceroute to detect where blocking occurs
+            import subprocess
+            
+            try:
+                result = subprocess.run(
+                    ['traceroute', '-n', '-m', '15', '-w', '2', target],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if result.stdout:
+                    lines = result.stdout.strip().split('\n')
+                    # Analyze where timeouts start
+                    timeout_hop = -1
+                    for i, line in enumerate(lines[1:], 1):  # Skip header
+                        if '* * *' in line:
+                            timeout_hop = i
+                            break
+                    
+                    if timeout_hop > 0 and timeout_hop < 10:
+                        # Blocking happens early - likely ISP level
+                        fingerprint.dpi_type = DPIType.ISP_TRANSPARENT_PROXY
+                        fingerprint.confidence = 0.5
+                    elif timeout_hop >= 10:
+                        # Blocking happens late - likely destination
+                        fingerprint.dpi_type = DPIType.FIREWALL_BASED
+                        fingerprint.confidence = 0.4
+                        
+                    fingerprint.raw_metrics['traceroute_timeout_hop'] = timeout_hop
+                    
+            except Exception as e:
+                self.logger.debug(f"Traceroute failed: {e}")
+            
+            # Try DNS resolution patterns
+            try:
+                # Check if DNS returns fake IPs (common DPI technique)
+                ips = socket.gethostbyname_ex(target)[2]
+                
+                # Check for known blocking IPs
+                blocking_ips = [
+                    '0.0.0.0', '127.0.0.1', '10.10.10.10',
+                    '195.82.146.214',  # Known Roskomnadzor blocking IP
+                ]
+                
+                for ip in ips:
+                    if ip in blocking_ips or ip.startswith('10.') or ip.startswith('192.168.'):
+                        fingerprint.dns_hijacking_detected = True
+                        fingerprint.dpi_type = DPIType.ROSKOMNADZOR_DPI
+                        fingerprint.confidence = 0.7
+                        break
+                        
+            except Exception as e:
+                self.logger.debug(f"DNS analysis failed: {e}")
+            
+            fingerprint.analysis_methods_used.append('passive_fingerprinting')
+            
+        except Exception as e:
+            self.logger.error(f"Passive fingerprinting failed: {e}")
+        
+        return fingerprint
+    
+    def _analyze_blocking_patterns(self, patterns: List[Tuple[str, str]]) -> Dict[str, Any]:
+        """Analyze collected blocking patterns to determine DPI characteristics"""
+        analysis = {
+            'patterns': patterns,
+            'ssl_handshake_failure': False,
+            'tcp_timeout': False,
+            'connection_reset': False,
+            'dns_failure': False,
+            'immediate_blocking': False,
+            'blocking_consistency': 0.0
+        }
+        
+        pattern_types = [p[0] for p in patterns]
+        
+        # Check for specific patterns
+        if 'ssl_handshake_failure' in pattern_types:
+            analysis['ssl_handshake_failure'] = True
+            analysis['immediate_blocking'] = True
+            
+        if 'tcp_timeout' in pattern_types:
+            analysis['tcp_timeout'] = True
+            
+        if 'connection_reset' in pattern_types or 'rst_by_peer' in pattern_types:
+            analysis['connection_reset'] = True
+            analysis['immediate_blocking'] = True
+            
+        if 'dns_resolution_failed' in pattern_types:
+            analysis['dns_failure'] = True
+        
+        # Calculate consistency (same pattern appearing multiple times)
+        from collections import Counter
+        pattern_counts = Counter(pattern_types)
+        if pattern_counts:
+            most_common_count = pattern_counts.most_common(1)[0][1]
+            analysis['blocking_consistency'] = most_common_count / len(patterns)
+        
+        return analysis
+    
+    def _classify_from_blocking_patterns(self, patterns: List[Tuple[str, str]]) -> Tuple[DPIType, float]:
+        """Classify DPI type based on blocking patterns alone"""
+        pattern_types = [p[0] for p in patterns]
+        
+        # SSL handshake failure is characteristic of Russian DPI
+        if 'ssl_handshake_failure' in pattern_types:
+            # Check timing to distinguish TSPU vs regular DPI
+            if any('immediate' in p[1].lower() for p in patterns):
+                return DPIType.ROSKOMNADZOR_TSPU, 0.75
+            return DPIType.ROSKOMNADZOR_DPI, 0.7
+        
+        # Connection reset patterns
+        if 'connection_reset' in pattern_types or 'rst_by_peer' in pattern_types:
+            return DPIType.ISP_TRANSPARENT_PROXY, 0.6
+        
+        # Timeout patterns
+        if 'tcp_timeout' in pattern_types:
+            return DPIType.FIREWALL_BASED, 0.5
+        
+        # DNS failures
+        if 'dns_resolution_failed' in pattern_types:
+            return DPIType.GOVERNMENT_CENSORSHIP, 0.5
+        
+        return DPIType.UNKNOWN, 0.3
+    
+    async def _check_basic_connectivity(self, target: str, port: int) -> bool:
+        """
+        Улучшенная проверка соединения, которая собирает паттерны блокировки.
+        Возвращает True, если удалось установить TCP-соединение ИЛИ были обнаружены паттерны блокировки.
+        Возвращает False только при полной невозможности определить причину сбоя.
+        """
+        max_retries = self.config.retry_attempts
+        retry_delay = self.config.retry_delay
+        loop = asyncio.get_event_loop()
+
+        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Инициализируем хранилище паттернов <<<<<
+        self._detected_blocking_patterns = []
+
+        for retry in range(max_retries):
+            try:
+                # 1. Пробуем чистое TCP-соединение
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(target, port, ssl=None),
+                    timeout=5.0
+                )
+                writer.close()
+                await writer.wait_closed()
+                self.logger.debug(f"TCP connectivity OK for {target}")
+
+                # 2. Пробуем TLS-соединение (не влияет на итоговый True, но собирает данные)
+                if port == 443:
+                    ctx = ssl.create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = ssl.CERT_NONE
+                    try:
+                        ssl_reader, ssl_writer = await asyncio.wait_for(
+                            asyncio.open_connection(
+                                target, port, ssl=ctx, server_hostname=target
+                            ),
+                            timeout=5.0
+                        )
+                        ssl_writer.close()
+                        await ssl_writer.wait_closed()
+                        self.logger.debug(f"TLS handshake OK for {target}")
+                    except (ssl.SSLError, asyncio.TimeoutError, OSError) as tls_e:
+                        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Собираем паттерн, но не падаем <<<<<
+                        msg = str(tls_e).lower()
+                        if 'handshake failure' in msg:
+                            self._detected_blocking_patterns.append(('ssl_handshake_failure', 'DPI SSL blocking suspected'))
+                        elif isinstance(tls_e, asyncio.TimeoutError):
+                            self._detected_blocking_patterns.append(('tls_timeout', 'TLS handshake timeout'))
+                        else:
+                            self._detected_blocking_patterns.append(('tls_error', str(tls_e)))
+                        self.logger.debug(f"TLS handshake failed but captured pattern: {tls_e}")
+
+                return True  # TCP-соединение успешно, это главное
+
+            except ConnectionResetError as e:
+                self._detected_blocking_patterns.append(('connection_reset', str(e)))
+                self.logger.debug(f"Connectivity test attempt {retry+1} failed with RST")
+            except asyncio.TimeoutError as e:
+                self._detected_blocking_patterns.append(('tcp_timeout', str(e)))
+                self.logger.debug(f"Connectivity test attempt {retry+1} failed with Timeout")
+            except Exception as e:
+                self._detected_blocking_patterns.append(('generic_error', str(e)))
+                self.logger.debug(f"Connectivity test attempt {retry+1} failed: {e}")
+
+            if retry < max_retries - 1:
+                await asyncio.sleep(retry_delay * (retry + 1))
+
+        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Если есть паттерны, считаем это успехом анализа <<<<<
+        if self._detected_blocking_patterns:
+            self.logger.info(f"Detected blocking patterns for {target}:{port}: {self._detected_blocking_patterns}")
+            return True
+
+        self.logger.error(f"Basic connectivity test failed for {target}:{port} after {max_retries} retries")
+        return False
+
+
     async def _safe_async_call(self, task_name: str, coro) -> Tuple[str, Any]:
         """Safely execute async call with error handling"""
         try:
@@ -322,26 +643,37 @@ class AdvancedFingerprinter:
             return task_name, None
     
     def _integrate_analysis_result(self, fingerprint: DPIFingerprint, task_name: str, result: Dict[str, Any]):
-        """Integrate analysis results into fingerprint"""
+        """Integrate analysis results into fingerprint - IMPROVED"""
         try:
             if task_name == "metrics_collection" and result:
                 # Integrate comprehensive metrics
                 if hasattr(result, 'timing'):
                     fingerprint.connection_reset_timing = getattr(result.timing, 'connection_time_ms', 0.0)
+                    
+                    # NEW: Use SYN/ACK RTT if available
+                    if hasattr(result.timing, 'syn_ack_rtt') and result.timing.syn_ack_rtt > 0:
+                        fingerprint.raw_metrics['syn_ack_rtt'] = result.timing.syn_ack_rtt
                 
                 if hasattr(result, 'network'):
                     fingerprint.tcp_window_manipulation = getattr(result.network, 'tcp_window_scaling', False)
                     fingerprint.tcp_options_filtering = len(getattr(result.network, 'tcp_options', [])) == 0
+                    
+                    # NEW: Set packet size limitations from MTU
+                    if hasattr(result.network, 'path_mtu') and result.network.path_mtu:
+                        fingerprint.packet_size_limitations = result.network.path_mtu
+                    
+                    # NEW: Check IPv6 from network metrics
+                    if hasattr(result.network, 'supports_ipv6'):
+                        fingerprint.supports_ipv6 = result.network.supports_ipv6
                 
                 # Store raw metrics
                 fingerprint.raw_metrics.update(result.to_dict() if hasattr(result, 'to_dict') else {})
                 fingerprint.analysis_methods_used.append("comprehensive_metrics")
 
-                # === NEW: Populate Behavioral Markers from Metrics Collection ===
+                # Populate Behavioral Markers from Metrics Collection
                 if hasattr(result, 'timing'):
                     timing_metrics = result.timing
                     if timing_metrics.latency_ms and timing_metrics.latency_ms > 0 and timing_metrics.jitter_ms > 0:
-                        # Normalize jitter to get a sensitivity score
                         sensitivity = timing_metrics.jitter_ms / timing_metrics.latency_ms
                         fingerprint.timing_sensitivity = min(1.0, sensitivity)
 
@@ -350,7 +682,11 @@ class AdvancedFingerprinter:
 
                 if hasattr(result, 'protocols'):
                     for proto, proto_metrics in result.protocols.items():
-                        if proto_metrics.blocked_responses > 0 and fingerprint.block_type == 'unknown':
+                        # NEW: Check for legal blocks
+                        if hasattr(proto_metrics, 'legal_block_detected') and proto_metrics.legal_block_detected:
+                            fingerprint.block_type = 'legal'
+                            break
+                        elif proto_metrics.blocked_responses > 0 and fingerprint.block_type == 'unknown':
                             fingerprint.block_type = 'content_block'
                             break # Stop after finding the first block type
             
@@ -360,7 +696,12 @@ class AdvancedFingerprinter:
                 fingerprint.rst_source_analysis = result.get('rst_source_analysis', 'unknown')
                 fingerprint.tcp_window_manipulation = result.get('tcp_window_manipulation', False)
                 fingerprint.sequence_number_anomalies = result.get('sequence_number_anomalies', False)
-                fingerprint.tcp_options_filtering = result.get('tcp_options_filtering', False)
+                opts = result.get('tcp_options_filtering', [])
+                # В TCPAnalyzer это список «отфильтрованных» опций, приводим к булю: есть ли фильтрация?
+                fingerprint.tcp_options_filtering = bool(opts) if isinstance(opts, (list, tuple, set)) else bool(opts)
+                # Сами названия отфильтрованных опций можно сохранить в raw_metrics при желании:
+                fingerprint.raw_metrics.setdefault('tcp_analysis', {})
+                fingerprint.raw_metrics['tcp_analysis']['filtered_tcp_options'] = list(opts) if isinstance(opts, (list, tuple, set)) else ([opts] if opts else [])
                 fingerprint.connection_reset_timing = result.get('connection_reset_timing', 0.0)
                 fingerprint.handshake_anomalies = result.get('handshake_anomalies', [])
                 fingerprint.fragmentation_handling = result.get('fragmentation_handling', 'unknown')
@@ -491,14 +832,21 @@ class AdvancedFingerprinter:
         }
     
     def _heuristic_classification(self, fingerprint: DPIFingerprint) -> Tuple[DPIType, float]:
-        """Fallback heuristic classification when ML is not available"""
+        """Fallback heuristic classification when ML is not available - IMPROVED"""
         confidence = 0.5  # Base confidence for heuristics
+        
+        # NEW: Check for high packet loss + timeout pattern
+        if 'network' in fingerprint.raw_metrics:
+            network_data = fingerprint.raw_metrics['network']
+            if network_data.get('packet_loss_rate', 0) > 0.5:
+                if fingerprint.block_type == 'timeout':
+                    return DPIType.GOVERNMENT_CENSORSHIP, min(confidence + 0.3, 0.9)
         
         # Russian DPI patterns
         if (fingerprint.rst_injection_detected and 
             fingerprint.dns_hijacking_detected and
             fingerprint.http_header_filtering):
-            if fingerprint.connection_reset_timing < 100:  # Fast reset suggests TSPU
+            if fingerprint.connection_reset_timing < 100:
                 return DPIType.ROSKOMNADZOR_TSPU, min(confidence + 0.3, 0.9)
             else:
                 return DPIType.ROSKOMNADZOR_DPI, min(confidence + 0.2, 0.8)
@@ -549,36 +897,39 @@ class AdvancedFingerprinter:
         elif methods_count >= 1:
             score_factors.append(0.1)
         
-        # Data completeness
-        tcp_completeness = sum([
+        # Data completeness (robust casting)
+        tcp_flags = [
             fingerprint.rst_injection_detected,
             fingerprint.tcp_window_manipulation,
             fingerprint.sequence_number_anomalies,
             fingerprint.tcp_options_filtering,
             fingerprint.mss_clamping_detected
-        ]) / 5.0
+        ]
+        tcp_completeness = sum(int(bool(x)) for x in tcp_flags) / 5.0
         score_factors.append(tcp_completeness * 0.2)
         
-        http_completeness = sum([
+        http_flags = [
             fingerprint.http_header_filtering,
             fingerprint.user_agent_filtering,
             fingerprint.host_header_manipulation,
             fingerprint.content_type_filtering,
             fingerprint.redirect_injection
-        ]) / 5.0
+        ]
+        http_completeness = sum(int(bool(x)) for x in http_flags) / 5.0
         score_factors.append(http_completeness * 0.2)
         
-        dns_completeness = sum([
+        dns_flags = [
             fingerprint.dns_hijacking_detected,
             fingerprint.dns_response_modification,
             fingerprint.dns_query_filtering,
             fingerprint.doh_blocking,
             fingerprint.dot_blocking
-        ]) / 5.0
+        ]
+        dns_completeness = sum(int(bool(x)) for x in dns_flags) / 5.0
         score_factors.append(dns_completeness * 0.2)
         
         # Classification confidence
-        score_factors.append(fingerprint.confidence * 0.1)
+        score_factors.append(float(fingerprint.confidence) * 0.1)
         
         return min(sum(score_factors), 1.0)
     
@@ -616,6 +967,35 @@ class AdvancedFingerprinter:
             self.logger.info(f"Cache invalidated for {target if target else 'all entries'}")
         except Exception as e:
             self.logger.error(f"Cache invalidation failed: {e}")
+    
+    async def refine_fingerprint(self,
+                              fingerprint: DPIFingerprint,
+                              test_results: Dict[str, Any]) -> DPIFingerprint:
+        """
+        Refine fingerprint based on bypass test results.
+        This implements the feedback loop where test results improve our fingerprinting accuracy.
+        """
+        try:
+            # Use DPIBehaviorAnalyzer for refinement
+            from .dpi_behavior_analyzer import DPIBehaviorAnalyzer
+            behavior_analyzer = DPIBehaviorAnalyzer(timeout=self.config.timeout)
+            
+            # Refine based on test results
+            refined = await behavior_analyzer.refine_fingerprint(fingerprint, test_results)
+            
+            # If we have a cache, update it with refined fingerprint
+            if self.cache:
+                cache_key = fingerprint.target
+                try:
+                    self.cache.set(cache_key, refined)
+                except Exception as e:
+                    self.logger.warning(f"Failed to update cache with refined fingerprint: {e}")
+            
+            return refined
+            
+        except Exception as e:
+            self.logger.error(f"Fingerprint refinement failed: {e}")
+            return fingerprint
     
     def get_stats(self) -> Dict[str, Any]:
         """Get fingerprinting statistics"""

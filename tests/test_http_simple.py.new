@@ -4,7 +4,6 @@ Simple test to verify HTTP analyzer is working correctly
 
 import unittest
 import asyncio
-import aiohttp
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from core.fingerprint.http_analyzer import HTTPAnalyzer, HTTPAnalysisResult
@@ -54,35 +53,33 @@ class TestHTTPAnalyzerSimple(unittest.TestCase):
                     headers = kwargs.get('headers', {})
                     data = kwargs.get('data', '')
                     
-                    # Block suspicious user agents
-                    user_agent = headers.get('User-Agent', '')
-                    if 'curl' in user_agent.lower():
-                        raise aiohttp.ClientConnectionError("Connection reset by peer")
-                    
-                    # Block certain headers - simulate DPI behavior
-                    suspicious_headers = ['X-Forwarded-For', 'X-Real-IP', 'Via', 'Proxy-Authorization']
-                    for header in suspicious_headers:
-                        if header in headers:
-                            raise aiohttp.ClientConnectionError("Connection reset by peer")
-                    
                     mock_response = MagicMock()
                     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
                     mock_response.__aexit__ = AsyncMock(return_value=None)
                     
+                    # Block suspicious user agents
+                    user_agent = headers.get('User-Agent', '')
+                    if 'curl' in user_agent.lower():
+                        raise Exception("Connection reset by peer")
+                    
+                    # Block certain headers
+                    if 'X-Forwarded-For' in headers:
+                        raise Exception("Connection reset by peer")
+                    
                     # Block certain content
-                    if data and any(keyword in str(data).lower() for keyword in ['vpn', 'proxy', 'tunnel']):
+                    if 'vpn' in str(data).lower():
                         mock_response.status = 302
                         mock_response.headers = {
                             'Location': 'https://blocked.example.com',
                             'Content-Type': 'text/html'
                         }
                         mock_response.text = AsyncMock(return_value="<html>Redirecting...</html>")
-                    else:
-                        # Normal response
-                        mock_response.status = 200
-                        mock_response.headers = {'Content-Type': 'text/html'}
-                        mock_response.text = AsyncMock(return_value="<html><body>Normal content</body></html>")
+                        return mock_response
                     
+                    # Normal response
+                    mock_response.status = 200
+                    mock_response.headers = {'Content-Type': 'text/html'}
+                    mock_response.text = AsyncMock(return_value="<html><body>Normal content</body></html>")
                     return mock_response
                 
                 # Set up method mocks

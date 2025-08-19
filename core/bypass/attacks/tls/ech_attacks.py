@@ -218,13 +218,65 @@ class ECHFragmentationAttack(BaseAttack):
 
 
 # Integration with existing TLS probes
-def integrate_with_prober():
+def integrate_with_prober(prober, domain: str, port: int = 443) -> Dict[str, Any]:
     """
     Integration function to enhance existing ECH probes in prober.py
     This function demonstrates how the attacks can be used with probes.
+
+    Args:
+        prober: The prober instance
+        domain: Target domain to test
+        port: Target port (default 443)
+
+    Returns:
+        Dictionary with test results
     """
-    # This would be called from prober.py to enhance ECH testing
-    pass
+    results = {}
+
+    # Get base ClientHello template
+    base_hello = prober.get_client_hello_template()
+
+    # Test each ECH attack type
+    attack_types = [
+        ECHFragmentationAttack(),
+        ECHGreaseAttack(),
+        ECHDecoyAttack(),
+        ECHOuterSNIManipulationAttack(),
+        ECHAdvancedFragmentationAttack()
+    ]
+
+    for attack in attack_types:
+        context = AttackContext(
+            target_ip=domain,
+            target_port=port,
+            payload=base_hello,
+            domain=domain,
+            engine_type="prober",
+            params={
+                "fragment_count": 5,
+                "use_padding": True,
+                "randomize_order": True,
+                "inner_sni": domain,
+                "grease_intensity": "high",
+                "include_fake_ech": True,
+                "manipulation_strategy": "public_suffix",
+                "fragment_size_variation": True
+            }
+        )
+
+        # Execute attack
+        result = attack.execute(context)
+
+        # Store results
+        results[attack.name] = {
+            "success": result.status == AttackStatus.SUCCESS,
+            "latency_ms": result.latency_ms,
+            "packets_sent": result.packets_sent,
+            "bytes_sent": result.bytes_sent,
+            "metadata": result.metadata
+        }
+
+    return results
 
 
 # Helper function for testing ECH attack effectiveness

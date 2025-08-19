@@ -10,9 +10,10 @@ import time
 import random
 import logging
 import hashlib
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Tuple, Set, Union
+from typing import Dict, Any, List, Optional, Tuple, Set, Union, DefaultDict
 from enum import Enum
 from collections import defaultdict, Counter
 
@@ -598,7 +599,11 @@ class AdvancedTrafficProfiler:
 
         Args:
             filepath: Path to the pcap or pcapng file.
-            **kwargs: Additional context for analysis.
+            **kwargs: Additional context for analysis:
+                - real_time: Enable real-time analysis mode
+                - behavioral_analysis: Enable deep behavioral analysis
+                - steganographic_analysis: Check for potential steganographic channels
+                - protocol_specific: Protocol-specific analysis options
 
         Returns:
             ProfilingResult object or None if analysis fails.
@@ -616,39 +621,301 @@ class AdvancedTrafficProfiler:
                 LOG.warning(f"No packets found in pcap file: {filepath}")
                 return None
 
-            # Convert scapy packets to packet sequence format
+            # Configuration from kwargs
+            real_time = kwargs.get('real_time', False)
+            behavioral_analysis = kwargs.get('behavioral_analysis', True)
+            steganographic_analysis = kwargs.get('steganographic_analysis', True)
+            protocol_options = kwargs.get('protocol_specific', {})
+
+            # Convert scapy packets to enriched packet sequence format
             packet_sequence = []
+            flow_stats = defaultdict(int)
             last_timestamp = None
+            current_flow = None
 
             for packet in packets:
                 if not hasattr(packet, 'time') or not hasattr(packet, 'payload'):
                     continue
 
                 timestamp = float(packet.time)
-
-                if last_timestamp is None:
-                    delay = 0.0
-                else:
-                    delay = (timestamp - last_timestamp) * 1000  # Delay in ms
-
+                delay = 0.0 if last_timestamp is None else (timestamp - last_timestamp) * 1000
                 last_timestamp = timestamp
 
-                # Extract raw payload
-                payload = bytes(packet.payload)
+                # Extract enriched packet information
+                packet_info = self._extract_packet_info(packet)
+                if not packet_info:
+                    continue
 
-                packet_sequence.append((payload, delay))
+                payload, ip_info, transport_info = packet_info
+
+                # Flow tracking
+                flow_key = self._get_flow_key(ip_info, transport_info)
+                if flow_key != current_flow:
+                    if current_flow:
+                        flow_stats[current_flow] += 1
+                    current_flow = flow_key
+
+                # Real-time analysis feedback
+                if real_time:
+                    self._process_realtime_feedback(packet_info)
+
+                # Build enriched packet entry
+                packet_entry = {
+                    'payload': payload,
+                    'delay': delay,
+                    'timestamp': timestamp,
+                    'ip': ip_info,
+                    'transport': transport_info,
+                    'flow_key': flow_key,
+                    'size': len(payload)
+                }
+
+                packet_sequence.append((packet_entry, delay))
 
             if not packet_sequence:
                 LOG.warning(f"Could not extract a valid packet sequence from {filepath}")
                 return None
 
-            # Perform analysis on the extracted sequence
-            context = kwargs.get('context', {})
-            return self.analyze_traffic(packet_sequence, context)
+            # Build enhanced analysis context
+            analysis_context = {
+                'context': kwargs.get('context', {}),
+                'flow_statistics': dict(flow_stats),
+                'behavioral_patterns': self._extract_behavioral_patterns(packet_sequence) if behavioral_analysis else None,
+                'protocol_metrics': self._analyze_protocol_patterns(packet_sequence, protocol_options),
+                'steganographic_opportunities': (
+                    self._identify_steganographic_channels(packet_sequence) 
+                    if steganographic_analysis else None
+                )
+            }
+
+            # Perform comprehensive analysis
+            result = self.analyze_traffic(
+                [entry for entry, _ in packet_sequence], 
+                analysis_context
+            )
+
+            if result and behavioral_analysis:
+                # Enrich result with behavioral insights
+                result.metadata.update({
+                    'flow_analysis': self._analyze_flow_patterns(flow_stats),
+                    'behavioral_markers': analysis_context['behavioral_patterns'],
+                    'protocol_insights': analysis_context['protocol_metrics']
+                })
+
+            return result
 
         except Exception as e:
             LOG.error(f"Failed to analyze pcap file {filepath}: {e}")
             return None
+            
+    def _extract_packet_info(self, packet) -> Optional[Tuple[bytes, Dict, Dict]]:
+        """Extract enriched packet information."""
+        try:
+            # Extract IP layer info
+            ip_layer = packet.payload
+            ip_info = {
+                'version': ip_layer.version,
+                'src': ip_layer.src,
+                'dst': ip_layer.dst,
+                'proto': ip_layer.proto
+            }
+
+            # Extract transport layer info
+            transport_layer = ip_layer.payload
+            transport_info = {
+                'sport': getattr(transport_layer, 'sport', 0),
+                'dport': getattr(transport_layer, 'dport', 0),
+                'flags': getattr(transport_layer, 'flags', 0)
+            }
+
+            # Get application payload
+            payload = bytes(transport_layer.payload)
+
+            return payload, ip_info, transport_info
+
+        except Exception as e:
+            LOG.debug(f"Could not extract packet info: {e}")
+            return None
+
+    def _get_flow_key(self, ip_info: Dict, transport_info: Dict) -> str:
+        """Generate unique flow identifier."""
+        return f"{ip_info['src']}:{transport_info['sport']}-{ip_info['dst']}:{transport_info['dport']}"
+
+    def _process_realtime_feedback(self, packet_info: Tuple[bytes, Dict, Dict]):
+        """Process packet for real-time analysis feedback."""
+        payload, ip_info, transport_info = packet_info
+        
+        # Update flow statistics in real-time
+        flow_key = self._get_flow_key(ip_info, transport_info)
+        
+        # Quick pattern matching for anomaly detection
+        anomaly_score = self._quick_anomaly_check(payload, transport_info)
+        if anomaly_score > 0.8:  # High anomaly threshold
+            LOG.warning(f"Potential anomaly detected in flow {flow_key}")
+
+    def _quick_anomaly_check(self, payload: bytes, transport_info: Dict) -> float:
+        """Quick real-time anomaly detection."""
+        score = 0.0
+        
+        # Size-based checks
+        if len(payload) > 1500 or len(payload) < 20:
+            score += 0.3
+            
+        # Port-based checks
+        if transport_info['dport'] in [22, 23, 3389]:  # Suspicious ports
+            score += 0.2
+            
+        # Pattern-based checks
+        if b'\x00' * 8 in payload:  # Repeated null bytes
+            score += 0.3
+            
+        return min(score, 1.0)
+
+    def _extract_behavioral_patterns(self, packet_sequence: List[Tuple[Dict, float]]) -> Dict[str, Any]:
+        """Extract complex behavioral patterns from packet sequence."""
+        patterns = {
+            'burst_patterns': [],
+            'timing_patterns': [],
+            'size_patterns': [],
+            'direction_patterns': []
+        }
+        
+        current_burst = []
+        last_direction = None
+        
+        for packet, delay in packet_sequence:
+            # Analyze bursts
+            if delay < 50.0:  # Packets within 50ms are considered a burst
+                current_burst.append(packet)
+            else:
+                if current_burst:
+                    patterns['burst_patterns'].append({
+                        'size': len(current_burst),
+                        'avg_packet_size': sum(p['size'] for p in current_burst) / len(current_burst),
+                        'duration': sum(p['delay'] for p in current_burst)
+                    })
+                current_burst = [packet]
+            
+            # Analyze timing
+            patterns['timing_patterns'].append({
+                'delay': delay,
+                'size': packet['size'],
+                'timestamp': packet['timestamp']
+            })
+            
+            # Analyze packet sizes
+            patterns['size_patterns'].append(packet['size'])
+            
+            # Analyze direction changes
+            current_direction = packet['ip']['src']
+            if last_direction and current_direction != last_direction:
+                patterns['direction_patterns'].append({
+                    'timestamp': packet['timestamp'],
+                    'previous': last_direction,
+                    'current': current_direction
+                })
+            last_direction = current_direction
+        
+        return patterns
+
+    def _analyze_protocol_patterns(self, packet_sequence: List[Tuple[Dict, float]], options: Dict) -> Dict[str, Any]:
+        """Analyze protocol-specific patterns."""
+        protocol_metrics = {
+            'http': {'requests': 0, 'responses': 0},
+            'tls': {'handshakes': 0, 'data': 0},
+            'udp': {'packets': 0},
+            'tcp': {
+                'syn': 0,
+                'synack': 0,
+                'established': 0,
+                'fin': 0
+            }
+        }
+        
+        for packet, _ in packet_sequence:
+            payload = packet['payload']
+            transport = packet['transport']
+            
+            # HTTP detection
+            if b'HTTP/' in payload or b'GET ' in payload or b'POST ' in payload:
+                protocol_metrics['http']['requests'] += 1
+            elif b'200 OK' in payload or b'404 Not Found' in payload:
+                protocol_metrics['http']['responses'] += 1
+                
+            # TLS detection
+            if len(payload) > 5 and payload[0] == 0x16:  # TLS Handshake
+                protocol_metrics['tls']['handshakes'] += 1
+            elif len(payload) > 5 and payload[0] == 0x17:  # TLS Application Data
+                protocol_metrics['tls']['data'] += 1
+                
+            # TCP flags analysis
+            if transport['flags']:
+                if transport['flags'] & 0x02:  # SYN
+                    protocol_metrics['tcp']['syn'] += 1
+                if transport['flags'] & 0x12:  # SYN-ACK
+                    protocol_metrics['tcp']['synack'] += 1
+                if transport['flags'] & 0x01:  # FIN
+                    protocol_metrics['tcp']['fin'] += 1
+                    
+            # UDP tracking
+            if packet['ip']['proto'] == 17:  # UDP
+                protocol_metrics['udp']['packets'] += 1
+                
+        return protocol_metrics
+
+    def _identify_steganographic_channels(self, packet_sequence: List[Tuple[Dict, float]]) -> Dict[str, float]:
+        """Identify potential steganographic channels in the traffic."""
+        opportunities = {}
+        total_packets = len(packet_sequence)
+        
+        # Analyze LSB embedding potential
+        payload_sizes = [p['size'] for p, _ in packet_sequence]
+        if len(payload_sizes) > 10:
+            avg_size = sum(payload_sizes) / len(payload_sizes)
+            if avg_size > 500:  # Large packets good for LSB
+                opportunities['lsb_embedding'] = min(avg_size / 1500, 0.9)
+                
+        # Analyze timing channel potential
+        delays = [delay for _, delay in packet_sequence]
+        if len(delays) > 10:
+            delay_variance = sum((d - sum(delays)/len(delays))**2 for d in delays) / len(delays)
+            if 10 < delay_variance < 1000:  # Good timing variance for covert channel
+                opportunities['timing_channel'] = 0.7
+                
+        # Analyze protocol extension potential
+        http_count = sum(1 for p, _ in packet_sequence if b'HTTP/' in p['payload'])
+        if http_count > total_packets * 0.3:  # Significant HTTP traffic
+            opportunities['header_modification'] = 0.8
+            
+        return opportunities
+
+    def _analyze_flow_patterns(self, flow_stats: Dict[str, int]) -> Dict[str, Any]:
+        """Analyze flow patterns for behavioral insights."""
+        flow_analysis = {
+            'total_flows': len(flow_stats),
+            'flow_distribution': {},
+            'flow_entropy': 0.0,
+            'dominant_flows': []
+        }
+        
+        # Calculate flow distribution
+        total_packets = sum(flow_stats.values())
+        for flow, count in flow_stats.items():
+            percentage = count / total_packets
+            flow_analysis['flow_distribution'][flow] = percentage
+            
+            # Calculate entropy
+            if percentage > 0:
+                flow_analysis['flow_entropy'] -= percentage * math.log2(percentage)
+                
+        # Find dominant flows
+        dominant_flows = sorted(flow_stats.items(), key=lambda x: x[1], reverse=True)[:3]
+        flow_analysis['dominant_flows'] = [
+            {'flow': flow, 'packet_count': count, 'percentage': count/total_packets}
+            for flow, count in dominant_flows
+        ]
+        
+        return flow_analysis
 
     def analyze_traffic(
         self, 
@@ -787,3 +1054,297 @@ class AdvancedTrafficProfiler:
             'recent_analyses': self._analysis_history[-10:] if self._analysis_history else [],
             'steganographic_stats': self.steganographic_manager.get_engine_stats()
         }
+
+    def create_enhanced_traffic_profile(
+        self,
+        packet_sequence: List[Tuple[bytes, float]],
+        app_name: str,
+        **kwargs
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create an enhanced traffic profile from packet sequence analysis.
+        
+        This method analyzes a packet sequence and creates a detailed profile
+        that can be used for highly realistic traffic mimicry.
+        
+        Args:
+            packet_sequence: List of (packet_data, delay) tuples
+            app_name: Name of the application to profile
+            **kwargs: Additional options:
+                - behavioral_analysis: Enable deep behavioral analysis
+                - steganographic_hints: Include steganographic embedding hints
+                - ml_classification: Use ML for pattern classification
+        
+        Returns:
+            Enhanced traffic profile dictionary or None if analysis fails
+        """
+        try:
+            if not packet_sequence:
+                LOG.error("Cannot create profile from empty packet sequence")
+                return None
+
+            # Extract behavioral patterns
+            behavioral_patterns = self._extract_behavioral_patterns(
+                [({"payload": p, "size": len(p), "timestamp": time.time(), 
+                   "ip": {}, "transport": {}}, d) for p, d in packet_sequence]
+            )
+
+            # Calculate basic metrics
+            packet_sizes = [len(p) for p, _ in packet_sequence]
+            delays = [d for _, d in packet_sequence]
+
+            profile = {
+                "name": f"{app_name}_enhanced",
+                "version": "2.0",
+                "created_at": time.time(),
+                "packet_metrics": {
+                    "min_size": min(packet_sizes),
+                    "max_size": max(packet_sizes),
+                    "avg_size": sum(packet_sizes) / len(packet_sizes),
+                    "size_stddev": math.sqrt(
+                        sum((x - sum(packet_sizes)/len(packet_sizes))**2 
+                            for x in packet_sizes) / len(packet_sizes)
+                    )
+                },
+                "timing_metrics": {
+                    "min_delay": min(delays),
+                    "max_delay": max(delays),
+                    "avg_delay": sum(delays) / len(delays),
+                    "delay_stddev": math.sqrt(
+                        sum((x - sum(delays)/len(delays))**2 
+                            for x in delays) / len(delays)
+                    )
+                },
+                "behavioral_patterns": behavioral_patterns,
+                "burst_characteristics": {
+                    "patterns": behavioral_patterns["burst_patterns"],
+                    "typical_burst_size": sum(p["size"] for p in behavioral_patterns["burst_patterns"]) / len(behavioral_patterns["burst_patterns"])
+                        if behavioral_patterns["burst_patterns"] else 0
+                },
+                "direction_analysis": {
+                    "patterns": behavioral_patterns["direction_patterns"],
+                    "changes": len(behavioral_patterns["direction_patterns"])
+                }
+            }
+
+            # Add ML-based pattern classification if requested
+            if kwargs.get("ml_classification"):
+                profile["ml_patterns"] = self._classify_traffic_patterns(packet_sequence)
+
+            # Add steganographic hints if requested
+            if kwargs.get("steganographic_hints"):
+                profile["steganographic_hints"] = self._identify_steganographic_channels(
+                    [({"payload": p, "size": len(p)}, d) for p, d in packet_sequence]
+                )
+
+            # Calculate profile quality metrics
+            profile["quality_metrics"] = {
+                "pattern_stability": self._calculate_pattern_stability(behavioral_patterns),
+                "mimicry_effectiveness": self._estimate_mimicry_effectiveness(profile),
+                "detection_resistance": self._estimate_detection_resistance(profile)
+            }
+
+            return profile
+
+        except Exception as e:
+            LOG.error(f"Failed to create enhanced traffic profile: {e}")
+            return None
+
+    def _calculate_pattern_stability(self, patterns: Dict[str, Any]) -> float:
+        """Calculate stability score for behavioral patterns."""
+        stability_score = 0.0
+        total_metrics = 0
+
+        # Check burst pattern stability
+        if patterns["burst_patterns"]:
+            burst_sizes = [p["size"] for p in patterns["burst_patterns"]]
+            if burst_sizes:
+                mean_size = sum(burst_sizes) / len(burst_sizes)
+                variance = sum((x - mean_size)**2 for x in burst_sizes) / len(burst_sizes)
+                stability_score += max(0, 1 - (variance / mean_size if mean_size > 0 else 1))
+                total_metrics += 1
+
+        # Check timing pattern stability
+        if patterns["timing_patterns"]:
+            delays = [p["delay"] for p in patterns["timing_patterns"]]
+            if delays:
+                mean_delay = sum(delays) / len(delays)
+                variance = sum((x - mean_delay)**2 for x in delays) / len(delays)
+                stability_score += max(0, 1 - min(variance / 1000.0, 1.0))
+                total_metrics += 1
+
+        # Check direction pattern stability
+        if patterns["direction_patterns"]:
+            changes = len(patterns["direction_patterns"])
+            total_packets = len(patterns["timing_patterns"])
+            if total_packets > 0:
+                change_rate = changes / total_packets
+                stability_score += max(0, 1 - min(change_rate * 2, 1.0))
+                total_metrics += 1
+
+        return stability_score / total_metrics if total_metrics > 0 else 0.0
+
+    def _estimate_mimicry_effectiveness(self, profile: Dict[str, Any]) -> float:
+        """Estimate how effectively the profile can be used for mimicry."""
+        effectiveness = 0.0
+        total_factors = 0
+
+        # Check packet size distribution
+        metrics = profile["packet_metrics"]
+        if metrics["max_size"] > 0:
+            size_variability = metrics["size_stddev"] / metrics["avg_size"]
+            effectiveness += max(0, 1 - min(size_variability, 1.0))
+            total_factors += 1
+
+        # Check timing characteristics
+        timing = profile["timing_metrics"]
+        if timing["max_delay"] > 0:
+            timing_consistency = timing["delay_stddev"] / timing["avg_delay"]
+            effectiveness += max(0, 1 - min(timing_consistency, 1.0))
+            total_factors += 1
+
+        # Check burst characteristics
+        if profile["burst_characteristics"]["patterns"]:
+            effectiveness += 0.8  # Good burst patterns improve mimicry
+            total_factors += 1
+
+        return effectiveness / total_factors if total_factors > 0 else 0.0
+
+    def _estimate_detection_resistance(self, profile: Dict[str, Any]) -> float:
+        """Estimate how resistant the profile is to DPI detection."""
+        resistance_score = 0.0
+        total_factors = 0
+
+        # Size-based resistance
+        metrics = profile["packet_metrics"]
+        if 200 <= metrics["avg_size"] <= 1400:  # Good size range
+            resistance_score += 0.8
+        else:
+            resistance_score += 0.4
+        total_factors += 1
+
+        # Timing-based resistance
+        timing = profile["timing_metrics"]
+        if 10 <= timing["avg_delay"] <= 1000:  # Good timing range
+            resistance_score += 0.9
+        else:
+            resistance_score += 0.3
+        total_factors += 1
+
+        # Pattern-based resistance
+        patterns = profile["behavioral_patterns"]
+        if patterns["burst_patterns"]:
+            if len(patterns["burst_patterns"]) >= 3:  # Good variety of bursts
+                resistance_score += 0.7
+            else:
+                resistance_score += 0.4
+            total_factors += 1
+
+        return resistance_score / total_factors if total_factors > 0 else 0.0
+
+    def _classify_traffic_patterns(self, packet_sequence: List[Tuple[bytes, float]]) -> Dict[str, Any]:
+        """Use ML techniques to classify traffic patterns."""
+        patterns = {
+            "likely_protocols": [],
+            "behavioral_class": None,
+            "confidence_scores": {}
+        }
+
+        # Extract ML features
+        features = self._extract_ml_features(packet_sequence)
+
+        # Protocol classification
+        protocols = ["HTTP", "TLS", "DNS", "Unknown"]
+        scores = self._calculate_protocol_scores(features)
+        patterns["confidence_scores"] = {
+            proto: score for proto, score in zip(protocols, scores)
+        }
+        patterns["likely_protocols"] = [
+            proto for proto, score in patterns["confidence_scores"].items()
+            if score > 0.6
+        ]
+
+        # Behavioral classification
+        behavior_score = self._classify_behavioral_pattern(features)
+        patterns["behavioral_class"] = {
+            "type": self._get_behavior_class(behavior_score),
+            "confidence": behavior_score
+        }
+
+        return patterns
+
+    def _extract_ml_features(self, packet_sequence: List[Tuple[bytes, float]]) -> Dict[str, float]:
+        """Extract features for ML classification."""
+        features = {}
+
+        # Basic statistical features
+        sizes = [len(p) for p, _ in packet_sequence]
+        delays = [d for _, d in packet_sequence]
+
+        features.update({
+            "avg_size": sum(sizes) / len(sizes) if sizes else 0,
+            "size_variance": sum((x - features["avg_size"])**2 for x in sizes) / len(sizes) if sizes else 0,
+            "avg_delay": sum(delays) / len(delays) if delays else 0,
+            "delay_variance": sum((x - features["avg_delay"])**2 for x in delays) / len(delays) if delays else 0,
+            "packet_count": len(packet_sequence)
+        })
+
+        # Protocol indicators
+        http_count = sum(1 for p, _ in packet_sequence if b"HTTP/" in p[0])
+        tls_count = sum(1 for p, _ in packet_sequence if len(p[0]) > 5 and p[0][0] == 0x16)
+        features.update({
+            "http_ratio": http_count / len(packet_sequence) if packet_sequence else 0,
+            "tls_ratio": tls_count / len(packet_sequence) if packet_sequence else 0
+        })
+
+        return features
+
+    def _calculate_protocol_scores(self, features: Dict[str, float]) -> List[float]:
+        """Calculate confidence scores for each protocol."""
+        scores = [0.0] * 4  # HTTP, TLS, DNS, Unknown
+
+        # HTTP score
+        if features["http_ratio"] > 0.3:
+            scores[0] = min(features["http_ratio"] * 2, 1.0)
+
+        # TLS score
+        if features["tls_ratio"] > 0.3:
+            scores[1] = min(features["tls_ratio"] * 2, 1.0)
+
+        # DNS score
+        if features["avg_size"] < 100 and features["size_variance"] < 1000:
+            scores[2] = 0.7
+
+        # Unknown score (fallback)
+        scores[3] = 1.0 - max(scores[0], scores[1], scores[2])
+
+        return scores
+
+    def _classify_behavioral_pattern(self, features: Dict[str, float]) -> float:
+        """Classify behavioral pattern confidence."""
+        score = 0.0
+
+        # Size-based scoring
+        if 200 <= features["avg_size"] <= 1400:
+            score += 0.3
+
+        # Timing-based scoring
+        if 10 <= features["avg_delay"] <= 1000:
+            score += 0.3
+
+        # Protocol-based scoring
+        if features["http_ratio"] > 0.3 or features["tls_ratio"] > 0.3:
+            score += 0.4
+
+        return min(score, 1.0)
+
+    def _get_behavior_class(self, score: float) -> str:
+        """Convert behavior score to class label."""
+        if score > 0.8:
+            return "Natural"
+        elif score > 0.6:
+            return "Semi-Natural"
+        elif score > 0.4:
+            return "Synthetic"
+        else:
+            return "Anomalous"
