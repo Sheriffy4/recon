@@ -63,37 +63,12 @@ from apply_bypass import apply_system_bypass
 
 # Advanced DNS functionality
 async def resolve_all_ips(domain: str) -> Set[str]:
-    """Агрегирует IP-адреса для домена из системного резолвера и DoH."""
-    ips = set()
-    loop = asyncio.get_event_loop()
-
-    # 1. Системный резолвер (getaddrinfo)
+    """Агрегирует IP-адреса для домена используя DoHResolver."""
+    resolver = DoHResolver()
     try:
-        res = await loop.getaddrinfo(domain, None, family=socket.AF_INET)
-        ips.update(info[4][0] for info in res)
-    except socket.gaierror:
-        pass
-
-    # 2. DoH (упрощенная версия)
-    try:
-        import aiohttp
-        async with aiohttp.ClientSession() as s:
-            for doh in ("https://cloudflare-dns.com/dns-query", "https://dns.google/resolve"):
-                try:
-                    params = {"name": domain, "type": "A"}
-                    headers = {"accept": "application/dns-json"}
-                    async with s.get(doh, params=params, headers=headers, timeout=2) as r:
-                        if r.status == 200:
-                            j = await r.json()
-                            for ans in j.get("Answer", []):
-                                if ans.get("data"):
-                                    ips.add(ans.get("data"))
-                except Exception:
-                    pass
-    except ImportError:
-        pass # aiohttp не установлен, пропускаем
-
-    return {ip for ip in ips if ip}
+        return await resolver.resolve_all(domain)
+    finally:
+        await resolver._cleanup()
 
 async def probe_real_peer_ip(domain: str, port: int) -> Optional[str]:
     """Активно подключается, чтобы узнать реальный IP, выбранный ОС."""
@@ -381,12 +356,15 @@ class StrategyPerformanceRecord:
     dpi_fingerprint_hash: str = ""
     test_count: int = 1
     
-    def update_performance(self, new_success_rate: float, new_latency: float):
+    def update_performance(self, success_rate=None, avg_latency=None, latency=None):
         """Обновляет производительность с учетом нового теста."""
-        # Экспоненциальное сглаживание
         alpha = 0.3  # Коэффициент обучения
-        self.success_rate = alpha * new_success_rate + (1 - alpha) * self.success_rate
-        self.avg_latency = alpha * new_latency + (1 - alpha) * self.avg_latency
+        if success_rate is not None:
+            self.success_rate = alpha * success_rate + (1 - alpha) * self.success_rate
+        if avg_latency is not None:
+            self.avg_latency = alpha * avg_latency + (1 - alpha) * self.avg_latency
+        if latency is not None:
+            self.avg_latency = alpha * latency + (1 - alpha) * self.avg_latency
         self.test_count += 1
         self.timestamp = datetime.now().isoformat()
 
@@ -406,17 +384,36 @@ class AdaptiveLearningCache:
         return f"{domain}_{ip}_{strategy_hash}"
     
     def _extract_strategy_type(self, strategy: str) -> str:
-        """Извлекает тип стратегии из полной строки."""
-        if "fakedisorder" in strategy:
+        """Извлекает тип стратегии из полной строки, устойчиво к опечаткам."""
+        # Try to parse --dpi-desync argument for exact type
+        if "--dpi-desync=" in strategy:
+            value = strategy.split("--dpi-desync=")[1].split()[0]
+            parts = value.split(",")
+            for part in parts:
+                # Accept any part containing 'fakedisorder' or 'fakeddisorder' (typo tolerant)
+                if "fakedisorder" in part or "fakeddisorder" in part:
+                    return "fakedisorder"
+                if part == "multisplit":
+                    return "multisplit"
+                if part == "seqovl":
+                    return "seqovl"
+                if part == "badsum_race":
+                    return "badsum_race"
+                if part == "md5sig_race":
+                    return "md5sig_race"
+            # If not found, fallback to substring search
+        if "fakedisorder" in strategy or "fakeddisorder" in strategy:
             return "fakedisorder"
         elif "multisplit" in strategy:
             return "multisplit"
         elif "seqovl" in strategy:
             return "seqovl"
+        elif "badsum_race" in strategy:
+            return "badsum_race"
+        elif "md5sig_race" in strategy or "md5sig" in strategy:
+            return "md5sig_race"
         elif "badsum" in strategy:
             return "badsum"
-        elif "md5sig" in strategy:
-            return "md5sig"
         else:
             return "unknown"
     
@@ -614,6 +611,9 @@ class SimpleDPIClassifier:
     
     def classify(self, fp: SimpleFingerprint) -> str:
         """Классифицирует тип DPI на основе фингерпринта."""
+        # Transparent proxy check first
+        if fp.rst_from_target:
+            return "LIKELY_TRANSPARENT_PROXY"
         if fp.rst_ttl:
             if 60 < fp.rst_ttl <= 64:
                 return "LIKELY_LINUX_BASED"
@@ -621,10 +621,6 @@ class SimpleDPIClassifier:
                 return "LIKELY_WINDOWS_BASED"
             elif fp.rst_ttl == 1:
                 return "LIKELY_ROUTER_BASED"
-        
-        if fp.rst_from_target:
-            return "LIKELY_TRANSPARENT_PROXY"
-        
         return "UNKNOWN_DPI"
 
 class SimpleFingerprinter:
@@ -703,7 +699,6 @@ class SimpleReporter:
     def generate_report(self, test_results: list, domain_status: dict, args, fingerprints: dict = None, evolution_data: dict = None) -> dict:
         """Генерирует простой отчет о тестировании."""
         working_strategies = [r for r in test_results if r.get('success_rate', 0) > 0]
-        
         report = {
             "timestamp": datetime.now().isoformat(),
             "target": args.target,
@@ -717,7 +712,8 @@ class SimpleReporter:
             "fingerprints": {k: v.to_dict() for k, v in fingerprints.items()} if fingerprints else {},
             "all_results": test_results
         }
-        
+        if evolution_data is not None:
+            report["evolution_data"] = evolution_data
         return report
     
     def save_report(self, report: dict, filename: str = None) -> str:
@@ -817,31 +813,43 @@ async def run_hybrid_mode(args):
     learning_cache = AdaptiveLearningCache()
 
     # --- Шаг 1: DNS резолвинг ---
-    if args.advanced_dns:
-        dns_cache, domain_ip_pool = await run_advanced_dns_resolution(dm.domains, args.port)
-        all_target_ips = set()
-        for ips in domain_ip_pool.values():
-            all_target_ips.update(ips)
-        console.print(f"Advanced DNS resolution completed for {len(dns_cache)} hosts.")
-    else:
-        console.print("\n[yellow]Step 1: Resolving all target domains via DoH...[/yellow]")
-        dns_cache: Dict[str, str] = {}
-        all_target_ips: Set[str] = set()
-        with Progress(console=console, transient=True) as progress:
-            task = progress.add_task("[cyan]Resolving...", total=len(dm.domains))
-            for site in dm.domains:
-                hostname = urlparse(site).hostname if site.startswith('http') else site
-                ip = doh_resolver.resolve(hostname)
-                if ip:
-                    dns_cache[hostname] = ip
-                    all_target_ips.add(ip)
-                progress.update(task, advance=1)
+    console.print("\n[yellow]Step 1: Enhanced DNS Resolution[/yellow]")
+    dns_cache: Dict[str, str] = {}
+    all_target_ips: Set[str] = set()
+    domain_ip_pool: Dict[str, Set[str]] = {}
+    
+    with Progress(console=console, transient=True) as progress:
+        task = progress.add_task("[cyan]Resolving...", total=len(dm.domains))
         
-        if not dns_cache:
-            console.print("[bold red]Fatal Error:[/bold red] Could not resolve any of the target domains.")
-            return
-        
-        console.print(f"DNS cache created for {len(dns_cache)} hosts.")
+        for site in dm.domains:
+            hostname = urlparse(site).hostname if site.startswith('http') else site
+            # Advanced resolution for all IPs
+            ips = await doh_resolver.resolve_all(hostname)
+            
+            if ips:
+                # Store all IPs in the pool
+                domain_ip_pool[hostname] = ips
+                all_target_ips.update(ips)
+                
+                # For main operations, use a random IP from the pool
+                dns_cache[hostname] = random.choice(list(ips))
+                
+                console.print(f"[dim]✓ {hostname}: Found {len(ips)} IPs[/dim]")
+            else:
+                console.print(f"[yellow]⚠️ Could not resolve {hostname}[/yellow]")
+            
+            progress.update(task, advance=1)
+    
+    await doh_resolver._cleanup()
+    
+    if not dns_cache:
+        console.print("[bold red]Fatal Error:[/bold red] Could not resolve any of the target domains.")
+        return
+    
+    console.print(f"\nDNS Resolution Results:")
+    console.print(f"  ✓ Resolved {len(dns_cache)} domains")
+    console.print(f"  ✓ Found {len(all_target_ips)} unique IPs")
+    console.print(f"  ✓ Average IPs per domain: {sum(len(ips) for ips in domain_ip_pool.values()) / len(domain_ip_pool):.1f}")
 
     # --- Шаг 2: Тестирование базовой доступности ---
     console.print("\n[yellow]Step 2: Testing baseline connectivity...[/yellow]")

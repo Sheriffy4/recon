@@ -2,7 +2,16 @@
 """
 Advanced Metrics Collection Framework - Task 3 Implementation
 Implements comprehensive DPI metrics collection with async methods, timing analysis,
-and protocol-agnostic metric aggregation and validation.
+and protocol-agnostic metric                except (asyncio.TimeoutError, ConnectionError, OSError) as e:
+                    last_error = e
+                    self.logger.warning(f"Attempt {retry + 1}/{max_retries} failed: {e}")
+                    if retry < max_retries - 1:
+                        await asyncio.sleep(retry_delay * (retry + 1))
+                    continue
+                    
+                # Add jitter between samples
+                if i < self.samples - 1:
+                    await asyncio.sleep(0.1 + random.uniform(0, 0.1))d validation.
 
 Requirements: 2.1, 2.5
 """
@@ -168,49 +177,64 @@ class TimingMetricsCollector(BaseMetricsCollector):
         timing_data = []
         connection_times = []
         first_byte_times = []
+        max_retries = 3  # Add retries for resilience
+        retry_delay = 1.0  # Delay between retries
         
         for i in range(self.samples):
-            try:
-                start_time = time.perf_counter()
-                
-                # Attempt TCP connection
-                connection_start = time.perf_counter()
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(target, port),
-                    timeout=self.timeout
-                )
-                connection_time = (time.perf_counter() - connection_start) * 1000
-                connection_times.append(connection_time)
-                
-                # Send minimal HTTP request to measure first byte time
-                first_byte_start = time.perf_counter()
-                writer.write(b"GET / HTTP/1.1\r\nHost: " + target.encode() + b"\r\n\r\n")
-                await writer.drain()
-                
-                # Read first byte
-                first_byte = await asyncio.wait_for(
-                    reader.read(1), timeout=self.timeout
-                )
-                first_byte_time = (time.perf_counter() - first_byte_start) * 1000
-                first_byte_times.append(first_byte_time)
-                
-                total_time = (time.perf_counter() - start_time) * 1000
-                timing_data.append(total_time)
-                
-                writer.close()
-                await writer.wait_closed()
-                
-                # Add jitter between samples
-                if i < self.samples - 1:
-                    await asyncio.sleep(0.1 + random.uniform(0, 0.1))
+            success = False
+            last_error = None
+            
+            # Try connection with retries
+            for retry in range(max_retries):
+                try:
+                    start_time = time.perf_counter()
                     
-            except asyncio.TimeoutError:
-                self.logger.warning(f"Timeout during timing measurement {i+1}/{self.samples}")
+                    # Attempt TCP connection with progressive timeouts
+                    connection_start = time.perf_counter()
+                    adjusted_timeout = self.timeout * (1 + retry * 0.5)  # Increase timeout with each retry
+                    reader, writer = await asyncio.wait_for(
+                        asyncio.open_connection(target, port),
+                        timeout=adjusted_timeout
+                    )
+                    connection_time = (time.perf_counter() - connection_start) * 1000
+                    connection_times.append(connection_time)
+                    
+                    # Send minimal HTTP request to measure first byte time
+                    first_byte_start = time.perf_counter()
+                    writer.write(b"GET / HTTP/1.1\r\nHost: " + target.encode() + b"\r\n\r\n")
+                    await writer.drain()
+                    
+                    # Read first byte with adjusted timeout
+                    first_byte = await asyncio.wait_for(
+                        reader.read(1),
+                        timeout=adjusted_timeout
+                    )
+                    first_byte_time = (time.perf_counter() - first_byte_start) * 1000
+                    first_byte_times.append(first_byte_time)
+                    
+                    total_time = (time.perf_counter() - start_time) * 1000
+                    timing_data.append(total_time)
+                    
+                    writer.close()
+                    await writer.wait_closed()
+                    
+                    success = True
+                    break  # Break retry loop on success
+                
+                except (asyncio.TimeoutError, ConnectionError, OSError) as e:
+                    last_error = e
+                    self.logger.warning(f"Attempt {retry + 1}/{max_retries} failed: {e}")
+                    if retry < max_retries - 1:
+                        await asyncio.sleep(retry_delay * (retry + 1))
+                    continue
+            
+            if not success:
+                self.logger.warning(f"All attempts failed for measurement {i+1}/{self.samples}: {last_error}")
                 timing_data.append(self.timeout * 1000)  # Record timeout as max time
-            except Exception as e:
-                self.logger.error(f"Error during timing measurement: {e}")
-                continue
-        
+            
+            # Add jitter between samples to avoid overwhelming the target
+            if i < self.samples - 1:
+                await asyncio.sleep(0.1 + random.uniform(0, 0.1))
         # Calculate statistics
         if timing_data:
             latency_ms = statistics.mean(timing_data)
@@ -238,7 +262,7 @@ class TimingMetricsCollector(BaseMetricsCollector):
             'timeout_occurred': any(t >= self.timeout * 1000 for t in timing_data),
             'retransmission_count': 0,  # Would need packet capture for accurate count
             'samples_collected': len(timing_data),
-            'success_rate': len(timing_data) / self.samples if self.samples > 0 else 0.0
+            'success_rate': len([t for t in timing_data if t < self.timeout * 1000]) / self.samples if self.samples > 0 else 0.0
         }
     
     def get_timing_trends(self) -> Dict[str, Any]:
@@ -401,70 +425,54 @@ class ProtocolMetricsCollector(BaseMetricsCollector):
         return port_mapping.get(port, 'tcp')
     
     async def _collect_http_metrics(self, target: str, port: int, **kwargs) -> Dict[str, Any]:
-        """Collect HTTP-specific metrics"""
         metrics = ProtocolMetrics(protocol='http')
         attempts = 5
         successful_requests = 0
         response_times = []
-        
+        writer = None  # fix
+
         for i in range(attempts):
+            start_time = time.perf_counter()
             try:
-                start_time = time.perf_counter()
-                
                 reader, writer = await asyncio.wait_for(
                     asyncio.open_connection(target, port),
                     timeout=self.timeout
                 )
-                
-                # Send HTTP request
-                request = f"GET / HTTP/1.1\r\nHost: {target}\r\nUser-Agent: MetricsCollector/1.0\r\nConnection: close\r\n\r\n"
+                # send GET
+                request = f"GET / HTTP/1.1\r\nHost: {target}\r\nUA: MetricsCollector/1.0\r\nConnection: close\r\n\r\n"
                 writer.write(request.encode())
                 await writer.drain()
-                
-                # Read response
-                response_data = await asyncio.wait_for(
-                    reader.read(4096), timeout=self.timeout
-                )
-                
+
+                response_data = await asyncio.wait_for(reader.read(4096), timeout=self.timeout)
                 response_time = (time.perf_counter() - start_time) * 1000
                 response_times.append(response_time)
-                
-                # Parse response
+
                 response_str = response_data.decode('utf-8', errors='ignore')
                 if 'HTTP/' in response_str:
                     successful_requests += 1
-                    
-                    # Extract status code
                     try:
-                        status_line = response_str.split('\r\n')[0]
-                        status_code = int(status_line.split()[1])
+                        status_code = int(response_str.split('\r\n')[0].split()[1])
                         metrics.error_codes.append(status_code)
-                        
-                        if status_code >= 300 and status_code < 400:
+                        if status_code == 451:
+                            metrics.blocked_responses += 1
+                        elif 300 <= status_code < 400:
                             metrics.redirect_responses += 1
                         elif status_code >= 400:
                             metrics.blocked_responses += 1
-                            
-                    except (IndexError, ValueError):
+                    except Exception:
                         pass
-                    
-                    # Check for content modifications
-                    if 'content-length' in response_str.lower():
-                        try:
-                            content_length = int(response_str.lower().split('content-length: ')[1].split('\r\n')[0])
-                            metrics.response_sizes.append(content_length)
-                        except (IndexError, ValueError):
-                            pass
-                
-                writer.close()
-                await writer.wait_closed()
-                
+                metrics.response_sizes.append(len(response_data))
             except Exception as e:
-                self.logger.debug(f"HTTP request {i+1} failed: {e}")
-                continue
-        
+                self.logger.debug(f"HTTP attempt {i+1} failed: {e}")
+            finally:
+                if writer:
+                    writer.close()
+                    try:
+                        await writer.wait_closed()
+                    except Exception:
+                        pass
+                writer = None
         metrics.success_rate = successful_requests / attempts if attempts > 0 else 0.0
-        
         return {
             'protocol': 'http',
             'success_rate': metrics.success_rate,
@@ -482,21 +490,86 @@ class ProtocolMetricsCollector(BaseMetricsCollector):
         """Collect HTTPS-specific metrics"""
         # For HTTPS, we'll focus on TLS handshake metrics
         metrics = ProtocolMetrics(protocol='https')
+        max_retries = 3
+        retry_delay = 1.0
+        last_error = None
         
         try:
             import ssl
             
-            # Create SSL context
-            context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
-            
-            start_time = time.perf_counter()
-            
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(target, port, ssl=context),
-                timeout=self.timeout
-            )
+            for retry in range(max_retries):
+                try:
+                    # Create SSL context with modern ciphers and options
+                    context = ssl.create_default_context()
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+                    # Enable all TLS versions
+                    context.minimum_version = ssl.TLSVersion.TLSv1
+                    context.maximum_version = ssl.TLSVersion.TLSv1_3
+                    # Set ciphers to support wide range of servers
+                    context.set_ciphers('DEFAULT@SECLEVEL=1')
+                    
+                    start_time = time.perf_counter()
+                    
+                    # Adjust timeout based on retry attempt
+                    adjusted_timeout = self.timeout * (1 + retry * 0.5)
+                    reader, writer = await asyncio.wait_for(
+                        asyncio.open_connection(target, port, ssl=context),
+                        timeout=adjusted_timeout
+                    )
+                    
+                    # If we get here, connection was successful
+                    handshake_time = (time.perf_counter() - start_time) * 1000
+                    
+                    # Get SSL info
+                    ssl_object = writer.get_extra_info('ssl_object')
+                    if ssl_object:
+                        cipher = ssl_object.cipher()
+                        version = ssl_object.version()
+                        
+                        metrics.raw_data = {
+                            'tls_version': version,
+                            'cipher_suite': cipher[0] if cipher else None,
+                            'handshake_time_ms': handshake_time
+                        }
+                    
+                    metrics.success_rate = 1.0
+                    writer.close()
+                    await writer.wait_closed()
+                    return {
+                        'protocol': 'https',
+                        'success_rate': 1.0,
+                        'error_codes': [],
+                        'response_sizes': [],
+                        'header_modifications': {},
+                        'content_modifications': False,
+                        'redirect_responses': 0,
+                        'blocked_responses': 0,
+                        'tls_handshake_time_ms': handshake_time,
+                        'raw_data': metrics.raw_data
+                    }
+                    
+                except (asyncio.TimeoutError, ssl.SSLError, ConnectionError) as e:
+                    last_error = e
+                    self.logger.debug(f"HTTPS connection attempt {retry + 1} failed: {e}")
+                    if retry < max_retries - 1:
+                        await asyncio.sleep(retry_delay * (retry + 1))
+                    continue
+                    
+            # If we get here, all retries failed
+            self.logger.error(f"All HTTPS connection attempts failed. Last error: {last_error}")
+            return {
+                'protocol': 'https',
+                'success_rate': 0.0,
+                'error_codes': [],
+                'response_sizes': [],
+                'header_modifications': {},
+                'content_modifications': False,
+                'redirect_responses': 0,
+                'blocked_responses': 1,
+                'tls_handshake_time_ms': 0.0,
+                'error': str(last_error)
+            }
             
             handshake_time = (time.perf_counter() - start_time) * 1000
             

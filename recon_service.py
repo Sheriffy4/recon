@@ -161,7 +161,7 @@ class DPIBypassService:
     def start_bypass_engine(self):
         """Запускает движок обхода DPI."""
         try:
-            from recon.core.bypass_engine import BypassEngine
+            from core.bypass_engine import BypassEngine
             
             # Создаем движок обхода без отладки для чистого вывода
             self.bypass_engine = BypassEngine(debug=False)
@@ -189,15 +189,62 @@ class DPIBypassService:
             # Парсим стратегию для BypassEngine
             strategy_config = self.parse_strategy_config(primary_strategy)
             
-            # Запускаем движок с конфигурацией
+            # Проверяем права администратора
+            import ctypes
+            if not ctypes.windll.shell32.IsUserAnAdmin():
+                self.logger.error("❌ Service requires Administrator privileges!")
+                self.logger.error("Please run the service from an Administrator terminal")
+                return False
+            
+            # Проверяем наличие WinDivert
+            import os
+            if not os.path.exists("WinDivert.dll") or not os.path.exists("WinDivert64.sys"):
+                self.logger.error("❌ WinDivert files not found!")
+                self.logger.error("Please ensure WinDivert.dll and WinDivert64.sys are in the current directory")
+                return False
+                
+            # Проверяем и настраиваем сетевые параметры Windows
+            try:
+                import subprocess
+                # Отключаем TCP Chimney (может мешать обходу)
+                subprocess.run(['netsh', 'int', 'tcp', 'set', 'global', 'chimney=disabled'], capture_output=True)
+                # Отключаем TCP Autotunning (может мешать обходу)
+                subprocess.run(['netsh', 'int', 'tcp', 'set', 'global', 'autotuninglevel=disabled'], capture_output=True)
+                # Устанавливаем оптимальные параметры TCP
+                subprocess.run(['netsh', 'int', 'tcp', 'set', 'global', 'congestionprovider=ctcp'], capture_output=True)
+                self.logger.info("✅ Network parameters optimized for bypass")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Could not optimize network parameters: {e}")
+            
+            # Запускаем движок с улучшенной конфигурацией
             self.bypass_engine.start_with_config(strategy_config)
             
+            # Проверяем, запустился ли движок успешно
+            if not self.bypass_engine.running:
+                self.logger.error("❌ Bypass engine failed to start!")
+                return False
+                
             self.logger.info("✅ DPI Bypass Engine started successfully")
             self.logger.info(f"🛡️ Protecting {len(self.monitored_domains)} domains with bypass")
             
+            # Проверяем работоспособность обхода
+            import socket
+            import ssl
+            test_domain = next(iter(self.monitored_domains))
+            try:
+                context = ssl.create_default_context()
+                with socket.create_connection((test_domain, 443), timeout=5) as sock:
+                    with context.wrap_socket(sock, server_hostname=test_domain) as ssock:
+                        self.logger.info(f"✅ Test connection to {test_domain} successful")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Test connection failed: {e}")
+                self.logger.info("This may be normal if the site is blocked. Bypass will still work.")
+            
             return True
+            
         except ImportError as e:
             self.logger.error(f"❌ Failed to import BypassEngine: {e}")
+            self.logger.error("Please run: pip install pydivert")
             return False
         except Exception as e:
             self.logger.error(f"❌ Failed to start bypass engine: {e}")

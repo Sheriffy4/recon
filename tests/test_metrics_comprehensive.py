@@ -8,10 +8,13 @@ import asyncio
 import sys
 import os
 import time
+import unittest
 from unittest.mock import patch, AsyncMock, Mock
 
-# Add current directory to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure we can import from parent directory
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from core.fingerprint.metrics_collector import (
     MetricsCollector,
@@ -339,11 +342,23 @@ async def main():
         traceback.print_exc()
         return False
 
+class TestMetricsComprehensive(unittest.TestCase):
+    """Test suite for comprehensive metrics collection"""
+
+    def setUp(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
+    def tearDown(self):
+        self.loop.close()
+
+    def test_comprehensive_metrics(self):
+        """Test the full metrics collection framework"""
+        try:
+            success = self.loop.run_until_complete(main())
+            self.assertTrue(success, "Comprehensive metrics test failed")
+        except Exception as e:
+            self.fail(f"Test failed with exception: {e}")
+
 if __name__ == '__main__':
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        success = loop.run_until_complete(main())
-        sys.exit(0 if success else 1)
-    finally:
-        loop.close()
+    unittest.main()

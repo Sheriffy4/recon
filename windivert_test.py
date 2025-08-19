@@ -10,6 +10,14 @@ try:
     import pydivert
     import requests
     import ctypes
+    from core.net.packet_engine import PacketEngine
+except ImportError as e:
+    print(f"Ошибка: Необходимая библиотека не установлена. {e}")
+    print("Пожалуйста, выполните: pip install pydivert requests")
+    sys.exit(1)
+
+# Инициализация PacketEngine
+packet_engine = PacketEngine()
 except ImportError as e:
     print(f"Ошибка: Необходимая библиотека не установлена. {e}")
     print("Пожалуйста, выполните: pip install pydivert requests")
@@ -124,6 +132,12 @@ def test_step_4_capture_and_send(filter_str: str, traffic_url: str):
             while time.time() - start_time < 3:
                 packet = w.recv()
                 if packet:
+                    # Обработка пакета через PacketEngine
+                    raw_packet = packet.raw
+                    processed_packet = packet_engine.parse_packet(raw_packet)
+                    # Здесь можно модифицировать пакет при необходимости
+                    new_raw = packet_engine.serialize_packet(processed_packet)
+                    packet.raw = new_raw
                     w.send(packet)
     except Exception as e:
         print(f"❌ ОШИБКА во время перехвата/переотправки: {e}")

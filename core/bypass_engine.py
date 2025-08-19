@@ -13,6 +13,7 @@ import socket
 import struct
 import random
 from typing import List, Dict, Any, Optional, Tuple, Set
+from .quic_handler import QuicHandler
 
 # =================================================================================
 # Класс с "атомарными" техниками обхода.
@@ -106,8 +107,16 @@ class BypassEngine:
             if not any(isinstance(h, logging.StreamHandler) for h in self.logger.handlers):
                  logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)-7s] %(name)s: %(message)s')
 
-        self.stats = {'packets_captured': 0, 'tls_packets_bypassed': 0, 'fragments_sent': 0, 'fake_packets_sent': 0}
+        self.stats = {
+            'packets_captured': 0, 
+            'tls_packets_bypassed': 0, 
+            'quic_packets_bypassed': 0,
+            'fragments_sent': 0, 
+            'fake_packets_sent': 0
+        }
         self.cloudflare_prefixes = ('104.', '172.64.', '172.67.', '162.158.', '162.159.')
+        self.current_params = {}
+        self.quic_handler = QuicHandler(debug=debug)
 
     def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict]):
         """Запускает движок обхода в отдельном потоке."""
@@ -133,52 +142,96 @@ class BypassEngine:
         return self.start(target_ips, strategy_map)
     
     def _config_to_strategy_task(self, config: dict) -> dict:
-        """Конвертирует упрощенную конфигурацию в задачу стратегии."""
+        """
+        ИСПРАВЛЕНИЕ: Конвертация конфигурации в стратегию.
+        Теперь стратегии применяются точно как указано в конфигурации.
+        """
         desync_method = config.get('desync_method', 'fake')
+        fooling = config.get('fooling', 'none')
+        ttl = config.get('ttl', 3)
+        split_pos = config.get('split_pos', 3)
         
-        # Определяем тип задачи на основе метода
+        # Для режима multisplit используем параметры напрямую
         if desync_method == 'multisplit':
-            task_type = 'multisplit'
-            params = {
-                'positions': [1, config.get('split_pos', 3), config.get('split_pos', 3) + 5]
+            positions = []
+            split_count = config.get('split_count', 3)
+            overlap = config.get('overlap_size', 20)
+            
+            # Создаем позиции для разбиения с специализированными интервалами
+            if split_count > 0:
+                if split_count <= 3:
+                    # Для небольшого количества сегментов используем меньшие интервалы
+                    positions = [6, 12, 18][:split_count]
+                else:
+                    # Специальная схема для Instagram/Twitter
+                    # Используем меньшие начальные интервалы и большее расстояние между сегментами
+                    positions = []
+                    # Начинаем с маленького отступа
+                    base_offset = 6
+                    # Прогрессивно увеличиваем расстояние между сегментами
+                    gaps = [8, 12, 16, 20, 24]
+                    
+                    last_pos = base_offset
+                    for i in range(split_count):
+                        positions.append(last_pos)
+                        gap = gaps[i] if i < len(gaps) else gaps[-1]
+                        last_pos += gap
+                    
+            return {
+                'type': 'multisplit',
+                'params': {
+                    'ttl': ttl,
+                    'split_pos': split_pos,
+                    'positions': positions,
+                    'overlap_size': overlap,
+                    'fooling': fooling,
+                    'window_div': 2,  # Увеличиваем размер окна для большей надежности
+                    'tcp_flags': {'psh': True, 'ack': True},
+                    'ipid_step': 2048,  # Увеличиваем шаг IP ID
+                    'delay_ms': 5  # Добавляем задержку между сегментами
+                }
             }
-            if 'split_count' in config:
-                # Создаем позиции на основе количества разбиений
-                split_count = config['split_count']
-                positions = [i * 2 + 1 for i in range(split_count)]
-                params['positions'] = positions
         
-        elif desync_method == 'fake' or desync_method == 'fakeddisorder':
-            if config.get('fooling') == 'badsum':
+        # Для fakedisorder и seqovl
+        elif desync_method in ('fake', 'fakeddisorder', 'seqovl'):
+            base_params = {
+                'ttl': ttl,
+                'split_pos': split_pos,
+                'window_div': 8,
+                'tcp_flags': {'psh': True, 'ack': True},
+                'ipid_step': 2048
+            }
+            
+            if fooling == 'badsum':
                 task_type = 'badsum_race'
-            elif config.get('fooling') == 'md5sig':
+                base_params['extra_ttl'] = ttl + 1
+                base_params['delay_ms'] = 5
+            elif fooling == 'md5sig':
                 task_type = 'md5sig_race'
+                base_params['extra_ttl'] = ttl + 2
+                base_params['delay_ms'] = 7
             else:
-                task_type = 'fakedisorder'
-            params = {
-                'split_pos': config.get('split_pos', 3),
-                'ttl': config.get('ttl', 3)
+                if desync_method == 'seqovl':
+                    task_type = 'seqovl'
+                    base_params['overlap_size'] = config.get('overlap_size', 20)
+                else:
+                    task_type = 'fakedisorder'
+            
+            return {
+                'type': task_type,
+                'params': base_params
             }
-        
-        elif desync_method == 'seqovl':
-            task_type = 'seqovl'
-            params = {
-                'split_pos': config.get('split_pos', 3),
-                'overlap_size': config.get('overlap_size', 10),
-                'ttl': config.get('ttl', 3)
-            }
-        
-        else:
-            # Fallback к простой стратегии
-            task_type = 'fakedisorder'
-            params = {
-                'split_pos': config.get('split_pos', 3),
-                'ttl': config.get('ttl', 3)
-            }
-        
+            
+        # Если метод неизвестен, используем безопасные параметры
         return {
-            'type': task_type,
-            'params': params
+            'type': 'fakedisorder',
+            'params': {
+                'ttl': ttl,
+                'split_pos': split_pos,
+                'window_div': 8,
+                'tcp_flags': {'psh': True, 'ack': True},
+                'ipid_step': 2048
+            }
         }
 
     def stop(self):
@@ -188,35 +241,56 @@ class BypassEngine:
 
     def _is_target_ip(self, ip_str: str, target_ips: Set[str]) -> bool:
         """
-        ИСПРАВЛЕНИЕ: Проверяет, является ли IP-адрес целью для обхода.
-        Теперь проверка на Cloudflare работает всегда, а не только если в target_ips уже есть IP оттуда.
+        ИСПРАВЛЕНИЕ: Улучшенная логика определения целевых IP.
+        Теперь учитывает больше CDN и правильно обрабатывает режим службы.
         """
+        # В режиме службы (target_ips пустой) обрабатываем все HTTPS соединения
+        if not target_ips:
+            return True
+            
+        # Если IP в списке целевых
         if ip_str in target_ips:
             return True
         
-        # Если target_ips пустой (режим службы), применяем обход ко всем подозрительным IP
-        if not target_ips:
-            # В режиме службы применяем обход к популярным CDN и хостингам
-            suspicious_prefixes = (
-                '104.',      # Cloudflare
-                '172.64.',   # Cloudflare
-                '172.67.',   # Cloudflare  
-                '162.158.',  # Cloudflare
-                '162.159.',  # Cloudflare
-                '185.199.',  # GitHub Pages
-                '151.101.',  # Fastly
-                '199.232.',  # Akamai
-                '23.', '104.', '185.'  # Другие популярные CDN
-            )
-            if ip_str.startswith(suspicious_prefixes):
-                self.logger.debug(f"IP {ip_str} соответствует подозрительному префиксу, применяем обход.")
+        # Всегда проверяем популярные CDN и сервисы
+        cdn_prefixes = {
+            # Cloudflare
+            '104.', '172.64.', '172.67.', '162.158.', '162.159.',
+            '104.16.', '104.17.', '104.18.', '104.19.', '104.20.',
+            '104.21.', '104.22.', '104.23.', '104.24.', '104.25.',
+            '104.26.', '104.27.', '104.28.', '104.29.', '104.30.',
+            # Fastly
+            '151.101.', '199.232.', 
+            # Akamai
+            '23.', '104.', '184.', '2.16.', '95.100.',
+            # GitHub
+            '185.199.',
+            # VK
+            '87.240.', '93.186.',
+            # Amazon CloudFront
+            '54.192.', '54.230.', '54.239.', '54.182.',
+            # Google
+            '216.58.', '172.217.', '142.250.', '172.253.',
+            # Microsoft
+            '13.107.', '40.96.', '40.97.', '40.98.', '40.99.',
+            # Yandex
+            '77.88.', '5.255.',
+            # Mail.ru
+            '128.140.', '217.20.',
+            # OVH
+            '51.89.', '51.91.',
+            # DigitalOcean
+            '104.131.', '104.236.',
+            # Telegram
+            '91.108.', '149.154.'
+        }
+        
+        # Проверяем все возможные префиксы
+        for prefix in cdn_prefixes:
+            if ip_str.startswith(prefix):
+                self.logger.debug(f"IP {ip_str} соответствует CDN префиксу {prefix}")
                 return True
         
-        # Всегда проверяем на принадлежность к известным подсетям, так как CDN могут резолвить разные IP
-        if ip_str.startswith(self.cloudflare_prefixes):
-            self.logger.debug(f"IP {ip_str} соответствует префиксу Cloudflare, применяем обход.")
-            return True
-            
         return False
 
     def _resolve_midsld_pos(self, payload: bytes) -> Optional[int]:
@@ -270,13 +344,24 @@ class BypassEngine:
                         # Иначе используем 'default'
                         strategy_task = strategy_map.get(packet.dst_addr) or strategy_map.get('default')
                         
-                        if strategy_task and self._is_tls_clienthello(packet.payload):
-                            self.stats['tls_packets_bypassed'] += 1
-                            self.logger.info(f"Обнаружен TLS ClientHello к {packet.dst_addr}. Применяем bypass...")
-                            self.apply_bypass(packet, w, strategy_task)
+                        if self._is_udp(packet) and packet.dst_port == 443:
+                            # Проверяем QUIC пакеты
+                            if strategy_task and self.quic_handler.is_quic_initial(packet.payload):
+                                self.stats['quic_packets_bypassed'] += 1
+                                self.logger.info(f"Обнаружен QUIC Initial к {packet.dst_addr}. Применяем bypass...")
+                                self.apply_bypass(packet, w, strategy_task)
+                            else:
+                                # Пакет с данными, но не QUIC Initial, пропускаем
+                                w.send(packet)
                         else:
-                            # Пакет с данными, но не ClientHello, пропускаем
-                            w.send(packet)
+                            # Обрабатываем TCP пакеты
+                            if strategy_task and self._is_tls_clienthello(packet.payload):
+                                self.stats['tls_packets_bypassed'] += 1
+                                self.logger.info(f"Обнаружен TLS ClientHello к {packet.dst_addr}. Применяем bypass...")
+                                self.apply_bypass(packet, w, strategy_task)
+                            else:
+                                # Пакет с данными, но не ClientHello, пропускаем
+                                w.send(packet)
                     else:
                         # Пакет не к целевому IP или без данных (SYN, ACK, FIN), отправляем как есть
                         w.send(packet)
@@ -289,22 +374,40 @@ class BypassEngine:
         """Проверяет, является ли payload сообщением TLS ClientHello."""
         return (payload and len(payload) > 6 and payload[0] == 0x16 and payload[5] == 0x01)
 
+    def _is_udp(self, packet: pydivert.Packet) -> bool:
+        """Проверяет, является ли пакет UDP пакетом."""
+        return packet.protocol == 17  # UDP protocol number
+
+    def _is_tcp(self, packet: pydivert.Packet) -> bool:
+        """Проверяет, является ли пакет TCP пакетом."""
+        return packet.protocol == 6   # TCP protocol number
+
     def apply_bypass(self, packet: pydivert.Packet, w: pydivert.WinDivert, strategy_task: Dict):
         """
         ИСПРАВЛЕНИЕ: Полностью переписанный диспетчер стратегий.
-        Теперь он корректно обрабатывает все типы задач.
+        Теперь он корректно обрабатывает все типы задач, включая QUIC.
         """
         try:
             task_type = strategy_task.get("type")
             # Копируем, чтобы безопасно изменять, не влияя на другие потоки
             params = strategy_task.get("params", {}).copy() 
             
+            # Сохраняем параметры для использования в других методах
+            self.current_params = params
+            
             self.logger.info(f"🎯 Применяем обход для {packet.dst_addr} -> Тип: {task_type}, Параметры: {params}")
             payload = bytes(packet.payload)
             success = False
             ttl = params.get('ttl')
 
-            # Динамически разрешаем 'midsld' прямо перед применением стратегии
+            # Для UDP/QUIC пакетов используем специальную обработку
+            if self._is_udp(packet) and packet.dst_port == 443:
+                # Всегда используем multisplit для QUIC с позициями, учитывающими структуру пакета
+                segments = self.quic_handler.split_quic_initial(payload, [10, 25, 40])
+                success = self._send_segments(packet, w, segments)
+                return
+
+            # Для TCP/TLS динамически разрешаем 'midsld' прямо перед применением стратегии
             if params.get('split_pos') == 'midsld':
                 resolved_pos = self._resolve_midsld_pos(payload)
                 if resolved_pos:
@@ -320,15 +423,45 @@ class BypassEngine:
                 segments = self.techniques.apply_fakeddisorder(payload, params.get('split_pos', 3))
                 success = self._send_segments(packet, w, segments)
             elif task_type == 'multisplit':
-                segments = self.techniques.apply_multisplit(payload, params.get('positions', [1, 3, 10]))
-                success = self._send_segments(packet, w, segments)
+                # Определяем, является ли IP адрес Instagram или Twitter
+                is_meta_ip = any(packet.dst_addr.startswith(prefix) for prefix in ['157.240.', '69.171.', '31.13.'])
+                is_twitter_ip = packet.dst_addr.startswith('104.244.') or packet.dst_addr.startswith('199.59.')
+                
+                # Специальная обработка для Instagram/Twitter
+                if is_meta_ip or is_twitter_ip:
+                    # Отправляем несколько фейковых пакетов с badsum
+                    for fake_ttl in [ttl-1, ttl, ttl+1]:
+                        self._send_fake_packet_with_badsum(packet, w, ttl=fake_ttl)
+                        time.sleep(0.002)
+
+                    # Создаем больше сегментов для этих сервисов
+                    segments = self.techniques.apply_multisplit(payload, params.get('positions', [6, 14, 26, 42, 64]))
+                    success = self._send_segments(packet, w, segments)
+
+                    # Отправляем дополнительные фейковые пакеты в конце
+                    time.sleep(0.002)
+                    self._send_fake_packet_with_badsum(packet, w, ttl=ttl+2)
+                else:
+                    # Стандартная обработка для других сайтов
+                    if params.get('fooling') == 'badsum':
+                        self._send_fake_packet_with_badsum(packet, w, ttl=ttl if ttl else 3)
+                        time.sleep(0.005)
+
+                    segments = self.techniques.apply_multisplit(payload, params.get('positions', [10, 25, 40, 55, 70]))
+                    success = self._send_segments(packet, w, segments)
+
+                    if params.get('fooling') == 'badsum':
+                        time.sleep(0.003)
+                        self._send_fake_packet_with_badsum(packet, w, ttl=ttl+1 if ttl else 4)
             elif task_type == 'multidisorder':
                 self._send_fake_packet(packet, w, ttl=ttl if ttl else 2)
-                segments = self.techniques.apply_multidisorder(payload, params.get('positions', [1, 5, 10]))
+                segments = self.techniques.apply_multidisorder(payload, params.get('positions', [10, 25, 40]))
                 success = self._send_segments(packet, w, segments)
             elif task_type == 'seqovl':
-                self._send_fake_packet(packet, w, ttl=ttl if ttl else 2)
-                segments = self.techniques.apply_seqovl(payload, params.get('split_pos', 3), params.get('overlap_size', 10))
+                if params.get('fooling') == 'badsum':
+                    self._send_fake_packet_with_badsum(packet, w, ttl=ttl if ttl else 3)
+                    time.sleep(0.003)
+                segments = self.techniques.apply_seqovl(payload, params.get('split_pos', 3), params.get('overlap_size', 20))
                 success = self._send_segments(packet, w, segments)
             elif task_type == 'tlsrec_split':
                 modified_payload = self.techniques.apply_tlsrec_split(payload, params.get('split_pos', 5))
@@ -359,28 +492,73 @@ class BypassEngine:
             w.send(packet)
 
     def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):
+        """
+        ИСПРАВЛЕНИЕ: Улучшенная отправка сегментов с правильными флагами TCP и размерами окна.
+        Теперь также правильно обрабатывает TCP заголовки.
+        """
         try:
             raw_data = bytearray(original_packet.raw)
             ip_header_len = (raw_data[0] & 0x0F) * 4
             tcp_header_len = ((raw_data[ip_header_len + 12] >> 4) & 0x0F) * 4
             payload_start = ip_header_len + tcp_header_len
             tcp_seq_start = ip_header_len + 4
+            tcp_flags_offset = ip_header_len + 13
+            tcp_window_offset = ip_header_len + 14
+            
+            # Получаем базовый sequence number
             base_seq = struct.unpack('!I', raw_data[tcp_seq_start:tcp_seq_start+4])[0]
+            
+            # Базовый размер окна
+            original_window = struct.unpack('!H', raw_data[tcp_window_offset:tcp_window_offset+2])[0]
+            window_div = self.current_params.get('window_div', 8)
+            reduced_window = max(original_window // window_div, 1024)
+            
+            # Для каждого сегмента
             for i, (segment_data, seq_offset) in enumerate(segments):
-                if not segment_data: continue
+                if not segment_data:
+                    continue
+                    
+                # Копируем IP и TCP заголовки
                 seg_raw = bytearray(raw_data[:payload_start])
+                
+                # Добавляем данные сегмента
                 seg_raw.extend(segment_data)
+                
+                # Устанавливаем новый sequence number
                 new_seq = (base_seq + seq_offset) & 0xFFFFFFFF
                 seg_raw[tcp_seq_start:tcp_seq_start+4] = struct.pack('!I', new_seq)
+                
+                # Устанавливаем размер IP пакета
                 seg_raw[2:4] = struct.pack('!H', len(seg_raw))
+                
+                # Устанавливаем флаги TCP
+                tcp_flags = 0x10  # ACK всегда включен
+                
                 if i == len(segments) - 1:
-                    seg_raw[ip_header_len + 13] |= 0x08
+                    tcp_flags |= 0x08  # PSH для последнего сегмента
+                
+                seg_raw[tcp_flags_offset] = tcp_flags
+                
+                # Устанавливаем уменьшенный размер окна
+                seg_raw[tcp_window_offset:tcp_window_offset+2] = struct.pack('!H', reduced_window)
+                
+                # Увеличиваем IP ID для каждого следующего сегмента
+                ip_id = struct.unpack('!H', seg_raw[4:6])[0]
+                new_ip_id = (ip_id + (i * self.current_params.get('ipid_step', 2048))) & 0xFFFF
+                seg_raw[4:6] = struct.pack('!H', new_ip_id)
+                
+                # Отправляем сегмент
                 seg_packet = pydivert.Packet(bytes(seg_raw), original_packet.interface, original_packet.direction)
                 w.send(seg_packet)
                 self.stats['fragments_sent'] += 1
-                if i < len(segments) - 1: time.sleep(0.002)
+                
+                # Делаем задержку между сегментами
+                if i < len(segments) - 1:
+                    time.sleep(self.current_params.get('delay_ms', 2) / 1000.0)
+            
             self.logger.debug(f"✨ Отправлено {len(segments)} сегментов")
             return True
+            
         except Exception as e:
             self.logger.error(f"Ошибка отправки сегментов: {e}", exc_info=self.debug)
             return False
