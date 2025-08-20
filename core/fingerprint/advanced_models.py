@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from enum import Enum
 import time
 import json
+import hashlib
 
 
 class DPIType(Enum):
@@ -82,8 +83,9 @@ class DPIFingerprint:
     confidence: float = 0.0
     alternative_types: List[Tuple[DPIType, float]] = field(default_factory=list)
 
-    # TCP Behavior Metrics (10 metrics)
+    # TCP Behavior Metrics (11 metrics)
     rst_injection_detected: bool = False
+    rst_ttl: Optional[int] = None  # TTL of detected RST packet
     rst_source_analysis: str = "unknown"  # 'server', 'middlebox', 'unknown'
     tcp_window_manipulation: bool = False
     sequence_number_anomalies: bool = False
@@ -134,6 +136,29 @@ class DPIFingerprint:
     # >>>>> НОВЫЙ КОД: Поле для хранения типа блокировки <<<<<
     block_type: str = "unknown"  # 'rst', 'timeout', 'ssl_block', 'dns_hijack', 'content_block', 'none'
     # >>>>> КОНЕЦ НОВОГО КОДА <<<<<
+
+    # Behavioral Vulnerabilities
+    vulnerable_to_fragmentation: bool = False
+    vulnerable_to_sni_case: bool = False
+    vulnerable_to_bad_checksum_race: bool = False
+    is_stateful: bool = False
+
+    def short_hash(self) -> str:
+        """
+        Generates a short, unique hash based on key, quickly determined
+        characteristics of the DPI fingerprint.
+        """
+        # Using a tuple of key-value pairs for consistent ordering
+        key_features = (
+            ("bt", self.block_type),
+            ("rst", self.rst_injection_detected),
+            ("ttl", self.rst_ttl),
+            ("tcp_opts", self.tcp_options_filtering),
+        )
+        # Create a stable string representation
+        feature_string = ";".join(f"{k}:{v}" for k, v in key_features)
+
+        return hashlib.sha1(feature_string.encode()).hexdigest()[:12]
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert fingerprint to dictionary for serialization"""
