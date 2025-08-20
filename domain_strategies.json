@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "last_updated": "2025-08-19T21:29:09.789226",
+  "last_updated": "2025-08-20T12:27:12.581003",
   "domain_strategies": {
     "default": {
       "domain": "default",
@@ -12,11 +12,11 @@
     },
     "rutracker.org": {
       "domain": "rutracker.org",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 292.42396354675293,
-      "last_tested": "2025-08-19T21:29:09.788716",
-      "test_count": 67
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+      "success_rate": 0.4,
+      "avg_latency_ms": 294.56043243408203,
+      "last_tested": "2025-08-20T12:27:12.579993",
+      "test_count": 79
     },
     "kinozal.tv": {
       "domain": "kinozal.tv",
@@ -28,43 +28,43 @@
     },
     "nnmclub.to": {
       "domain": "nnmclub.to",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 292.42396354675293,
-      "last_tested": "2025-08-19T21:29:09.788716",
-      "test_count": 67
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+      "success_rate": 0.4,
+      "avg_latency_ms": 294.56043243408203,
+      "last_tested": "2025-08-20T12:27:12.579993",
+      "test_count": 79
     },
     "rutor.info": {
       "domain": "rutor.info",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 292.42396354675293,
-      "last_tested": "2025-08-19T21:29:09.788716",
-      "test_count": 55
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+      "success_rate": 0.4,
+      "avg_latency_ms": 294.56043243408203,
+      "last_tested": "2025-08-20T12:27:12.579993",
+      "test_count": 67
     },
     "instagram.com": {
       "domain": "instagram.com",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 292.42396354675293,
-      "last_tested": "2025-08-19T21:29:09.788716",
-      "test_count": 107
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+      "success_rate": 0.4,
+      "avg_latency_ms": 294.56043243408203,
+      "last_tested": "2025-08-20T12:27:12.579993",
+      "test_count": 119
     },
     "x.com": {
       "domain": "x.com",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 292.42396354675293,
-      "last_tested": "2025-08-19T21:29:09.789226",
-      "test_count": 55
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+      "success_rate": 0.4,
+      "avg_latency_ms": 294.56043243408203,
+      "last_tested": "2025-08-20T12:27:12.579993",
+      "test_count": 67
     },
     "mail.ru": {
       "domain": "mail.ru",
-      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=12",
-      "success_rate": 0.2,
-      "avg_latency_ms": 292.42396354675293,
-      "last_tested": "2025-08-19T21:29:09.789226",
-      "test_count": 55
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+      "success_rate": 0.4,
+      "avg_latency_ms": 294.56043243408203,
+      "last_tested": "2025-08-20T12:27:12.581003",
+      "test_count": 67
     },
     "tapochek.net": {
       "domain": "tapochek.net",
