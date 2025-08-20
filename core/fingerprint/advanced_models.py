@@ -131,13 +131,9 @@ class DPIFingerprint:
     analysis_methods_used: List[str] = field(default_factory=list)
     reliability_score: float = 0.0
 
-    # === NEW: Behavioral Markers ===
-    block_type: str = "unknown"  # 'rst', 'timeout', 'content', 'refused', 'unknown'
-    rst_ttl: Optional[int] = None
-    is_stateful: Optional[bool] = None
-    timing_sensitivity: Optional[float] = (
-        None  # 0.0 (not sensitive) to 1.0 (very sensitive)
-    )
+    # >>>>> НОВЫЙ КОД: Поле для хранения типа блокировки <<<<<
+    block_type: str = "unknown"  # 'rst', 'timeout', 'ssl_block', 'dns_hijack', 'content_block', 'none'
+    # >>>>> КОНЕЦ НОВОГО КОДА <<<<<
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert fingerprint to dictionary for serialization"""

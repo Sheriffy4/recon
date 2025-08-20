@@ -12,7 +12,8 @@ import asyncio
 import time
 import logging
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 
 from .advanced_models import (
@@ -26,6 +27,29 @@ from .tcp_analyzer import TCPAnalyzer
 from .http_analyzer import HTTPAnalyzer
 from .dns_analyzer import DNSAnalyzer
 from .ml_classifier import MLClassifier
+
+
+# >>>>> НОВЫЙ КОД: Вспомогательные классы для анализа блокировок <<<<<
+class BlockingEvent(Enum):
+    """Типы событий, приводящих к блокировке или ее обнаружению."""
+    NONE = "none"
+    CONNECTION_RESET = "connection_reset"
+    TCP_TIMEOUT = "tcp_timeout"
+    SSL_HANDSHAKE_FAILURE = "ssl_handshake_failure"
+    DNS_RESOLUTION_FAILED = "dns_resolution_failed"
+    TLS_TIMEOUT = "tls_timeout"
+    GENERIC_ERROR = "generic_error"
+
+@dataclass
+class ConnectivityResult:
+    """Структурированный результат проверки соединения."""
+    connected: bool  # True, если TCP-соединение было успешно установлено
+    event: BlockingEvent = BlockingEvent.NONE
+    error: Optional[str] = None
+    patterns: List[Tuple[str, str, Dict]] = field(default_factory=list)
+    failure_latency_ms: Optional[float] = None
+# >>>>> КОНЕЦ НОВОГО КОДА <<<<<
+
 
 LOG = logging.getLogger(__name__)
 
@@ -288,133 +312,91 @@ class AdvancedFingerprinter:
     async def _perform_comprehensive_analysis(
         self, target: str, port: int, protocols: Optional[List[str]] = None
     ) -> DPIFingerprint:
-        """Perform comprehensive DPI analysis including blocking pattern analysis"""
-
-        # Create base fingerprint
+        """
+        Выполняет комплексный анализ DPI с адаптивным выбором анализаторов
+        на основе паттернов блокировки (логика "Fail Fast").
+        """
         fingerprint = DPIFingerprint(target=f"{target}:{port}", timestamp=time.time())
-
         analysis_start = time.time()
 
-        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Анализ блокировок <<<<<
-        # Инициализируем хранилище паттернов блокировки
-        self._detected_blocking_patterns = []
+        # 1. Проверяем соединение и собираем события блокировки
+        connectivity = await self._check_basic_connectivity(target, port)
 
-        # Проверяем базовое подключение и СОБИРАЕМ ПАТТЕРНЫ БЛОКИРОВКИ
-        connectivity_ok = await self._check_basic_connectivity(target, port)
+        # 2. Если есть паттерны, применяем их для предварительной классификации
+        if connectivity.patterns:
+            self._apply_blocking_patterns(fingerprint)
 
-        # Применяем собранные паттерны к фингерпринту в любом случае
-        self._apply_blocking_patterns(fingerprint)
+        # 3. Логика "Fail Fast": если есть событие блокировки, запускаем только целевые анализаторы
+        if connectivity.event != BlockingEvent.NONE:
+            self.logger.info(f"Blocking event '{connectivity.event.value}' detected. Running targeted analysis.")
 
-        # ЕСЛИ ПОДКЛЮЧЕНИЯ НЕТ, НО ЕСТЬ ПАТТЕРНЫ - ЭТО УСПЕХ!
-        # Мы уже получили ценные данные (например, тип блокировки) и можем вернуть
-        # качественный фингерпринт, основанный на пассивном анализе.
-        if not connectivity_ok and not self._detected_blocking_patterns:
-            self.logger.warning(
-                f"Basic connectivity failed for {target}:{port}. No blocking patterns detected. Returning minimal fingerprint."
-            )
-            fingerprint.analysis_duration = time.time() - analysis_start
-            fingerprint.reliability_score = self._calculate_reliability_score(
-                fingerprint
-            )
-            # Можно добавить запуск пассивных техник, например, traceroute
-            # fingerprint = await self._passive_fingerprinting(target, port, fingerprint)
-            return fingerprint
+            targeted_tasks = []
 
-        # Analyze blocking patterns if detected
-        if (
-            hasattr(self, "_detected_blocking_patterns")
-            and self._detected_blocking_patterns
-        ):
-            blocking_analysis = self._analyze_blocking_patterns(
-                self._detected_blocking_patterns
-            )
-            fingerprint.raw_metrics["blocking_patterns"] = blocking_analysis
+            # Для RST-блокировок, главный инструмент - TCP-анализатор
+            if connectivity.event == BlockingEvent.CONNECTION_RESET and self.tcp_analyzer:
+                targeted_tasks.append(("tcp_analysis", self.tcp_analyzer.analyze_tcp_behavior(target, port)))
 
-            # Use blocking patterns to determine DPI type
-            if blocking_analysis.get("ssl_handshake_failure"):
-                # This is characteristic of Russian DPI
-                fingerprint.rst_injection_detected = True
+            # Для таймаутов или ошибок DNS, главный инструмент - DNS-анализатор
+            if connectivity.event in (BlockingEvent.TCP_TIMEOUT, BlockingEvent.DNS_RESOLUTION_FAILED) and self.dns_analyzer:
+                targeted_tasks.append(("dns_analysis", self.dns_analyzer.analyze_dns_behavior(target)))
+
+            # Ошибки SSL/TLS - это уже ценнейшая информация, L7-анализ не нужен
+            if connectivity.event in (BlockingEvent.SSL_HANDSHAKE_FAILURE, BlockingEvent.TLS_TIMEOUT):
                 fingerprint.block_type = "ssl_block"
-                fingerprint.analysis_methods_used.append("blocking_pattern_analysis")
-
-                # Try to determine specific DPI type from blocking behavior
-                if blocking_analysis.get("immediate_blocking"):
-                    fingerprint.dpi_type = DPIType.ROSKOMNADZOR_TSPU
-                    fingerprint.confidence = 0.8
-                else:
+                # Это характерный признак РКН, можно сделать предположение
+                if fingerprint.dpi_type == DPIType.UNKNOWN:
                     fingerprint.dpi_type = DPIType.ROSKOMNADZOR_DPI
-                    fingerprint.confidence = 0.7
+                    fingerprint.confidence = 0.75
 
-            elif blocking_analysis.get("tcp_timeout"):
-                fingerprint.block_type = "timeout"
-                fingerprint.dpi_type = DPIType.FIREWALL_BASED
-                fingerprint.confidence = 0.6
-
-            elif blocking_analysis.get("connection_reset"):
-                fingerprint.rst_injection_detected = True
-                fingerprint.block_type = "rst"
-                fingerprint.dpi_type = DPIType.ISP_TRANSPARENT_PROXY
-                fingerprint.confidence = 0.6
-
-        # If basic connectivity failed completely, use passive fingerprinting
-        if not connectivity_ok and not self._detected_blocking_patterns:
-            self.logger.warning(f"Using passive fingerprinting for {target}:{port}")
-            fingerprint = await self._passive_fingerprinting(target, port, fingerprint)
-            fingerprint.analysis_duration = time.time() - analysis_start
-            fingerprint.reliability_score = 0.3  # Lower reliability for passive
-            return fingerprint
-
-        # Continue with normal analysis if we have patterns or connectivity
-        analyzers = []
-
-        # Even with blocking, we can try these analyzers
-        if self.tcp_analyzer:
-            # TCP analyzer can work with blocking patterns
-            analyzers.append(
-                ("tcp_analysis", self._tcp_analysis_with_blocking(target, port))
-            )
-
-        if self.metrics_collector:
-            # Metrics collector can gather partial data
-            analyzers.append(
-                (
-                    "metrics_collection",
-                    self.metrics_collector.collect_comprehensive_metrics(
-                        target, port, protocols=protocols
-                    ),
-                )
-            )
-
-        # Run analyzers
-        if analyzers:
-            try:
+            # Запускаем только выбранные низкоуровневые задачи
+            if targeted_tasks:
                 results = await asyncio.gather(
-                    *(self._safe_async_call(name, coro) for name, coro in analyzers),
+                    *(self._safe_async_call(name, coro) for name, coro in targeted_tasks),
                     return_exceptions=True,
                 )
-
-                for i, (name, coro) in enumerate(analyzers):
+                for i, (name, _) in enumerate(targeted_tasks):
                     result = results[i]
                     if isinstance(result, Exception):
-                        self.logger.error(f"Analyzer {name} failed: {result}")
+                        self.logger.error(f"Targeted analyzer {name} failed: {result}")
                         continue
-
                     task_name, task_result = result
                     if task_result:
-                        self._integrate_analysis_result(
-                            fingerprint, task_name, task_result
-                        )
+                        self._integrate_analysis_result(fingerprint, task_name, task_result)
 
-            except Exception as e:
-                self.logger.error(f"Failed to run analyzers: {e}")
+            # Завершаем анализ досрочно
+            fingerprint.analysis_duration = time.time() - analysis_start
+            fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
+            return fingerprint
 
-        # If we still don't have a DPI type, use blocking patterns
-        if fingerprint.dpi_type == DPIType.UNKNOWN and self._detected_blocking_patterns:
-            fingerprint.dpi_type, fingerprint.confidence = (
-                self._classify_from_blocking_patterns(self._detected_blocking_patterns)
+        # 4. Если блокировок нет (connectivity.event == BlockingEvent.NONE), запускаем полный набор анализаторов
+        self.logger.info("No blocking events. Running comprehensive analysis.")
+
+        full_analysis_tasks = []
+        if self.metrics_collector:
+            full_analysis_tasks.append(("metrics_collection", self.metrics_collector.collect_comprehensive_metrics(target, port, protocols=protocols)))
+        if self.tcp_analyzer:
+            full_analysis_tasks.append(("tcp_analysis", self.tcp_analyzer.analyze_tcp_behavior(target, port)))
+        if self.http_analyzer:
+            full_analysis_tasks.append(("http_analysis", self.http_analyzer.analyze_http_behavior(target, port)))
+        if self.dns_analyzer:
+            full_analysis_tasks.append(("dns_analysis", self.dns_analyzer.analyze_dns_behavior(target)))
+
+        if full_analysis_tasks:
+            results = await asyncio.gather(
+                *(self._safe_async_call(name, coro) for name, coro in full_analysis_tasks),
+                return_exceptions=True,
             )
+            for i, (name, _) in enumerate(full_analysis_tasks):
+                result = results[i]
+                if isinstance(result, Exception):
+                    self.logger.error(f"Analyzer {name} failed: {result}")
+                    continue
+                task_name, task_result = result
+                if task_result:
+                    self._integrate_analysis_result(fingerprint, task_name, task_result)
 
-        # Calculate final metrics
+        # 5. Финальная классификация и завершение
+        await self._classify_dpi_type(fingerprint)
         fingerprint.analysis_duration = time.time() - analysis_start
         fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
 
@@ -616,20 +598,21 @@ class AdvancedFingerprinter:
 
         return DPIType.UNKNOWN, 0.3
 
-    async def _check_basic_connectivity(self, target: str, port: int) -> bool:
+    async def _check_basic_connectivity(self, target: str, port: int) -> ConnectivityResult:
         """
         Улучшенная проверка соединения, которая собирает паттерны блокировки.
-        Возвращает True, если удалось установить TCP-соединение ИЛИ были обнаружены паттерны блокировки.
-        Возвращает False только при полной невозможности определить причину сбоя.
+        Возвращает структурированный объект ConnectivityResult.
         """
         max_retries = self.config.retry_attempts
         retry_delay = self.config.retry_delay
-        loop = asyncio.get_event_loop()
 
-        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Инициализируем хранилище паттернов <<<<<
         self._detected_blocking_patterns = []
+        last_event = BlockingEvent.NONE
+        last_error = None
+        last_failure_latency = None
 
         for retry in range(max_retries):
+            start_time = time.time()
             try:
                 # 1. Пробуем чистое TCP-соединение
                 reader, writer = await asyncio.wait_for(
@@ -637,14 +620,15 @@ class AdvancedFingerprinter:
                 )
                 writer.close()
                 await writer.wait_closed()
-                self.logger.debug(f"TCP connectivity OK for {target}")
+                self.logger.debug(f"TCP connectivity OK for {target}:{port}")
 
-                # 2. Пробуем TLS-соединение (не влияет на итоговый True, но собирает данные)
+                # 2. Если порт 443, пробуем TLS. Сбой TLS при успешном TCP - сильный признак DPI.
                 if port == 443:
                     ctx = ssl.create_default_context()
                     ctx.check_hostname = False
                     ctx.verify_mode = ssl.CERT_NONE
                     try:
+                        ssl_start = time.time()
                         ssl_reader, ssl_writer = await asyncio.wait_for(
                             asyncio.open_connection(
                                 target, port, ssl=ctx, server_hostname=target
@@ -653,56 +637,62 @@ class AdvancedFingerprinter:
                         )
                         ssl_writer.close()
                         await ssl_writer.wait_closed()
-                        self.logger.debug(f"TLS handshake OK for {target}")
+                        self.logger.debug(f"TLS handshake OK for {target}:{port}")
+                        # Если и TCP, и TLS успешны, возвращаем успех.
+                        return ConnectivityResult(connected=True, event=BlockingEvent.NONE)
                     except (ssl.SSLError, asyncio.TimeoutError, OSError) as tls_e:
-                        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Собираем паттерн, но не падаем <<<<<
+                        latency_ms = (time.time() - ssl_start) * 1000.0
                         msg = str(tls_e).lower()
+
                         if "handshake failure" in msg or "wrong version number" in msg:
-                            self._detected_blocking_patterns.append(
-                                ("ssl_handshake_failure", "DPI SSL blocking suspected")
-                            )
+                            event = BlockingEvent.SSL_HANDSHAKE_FAILURE
+                            pattern = ("ssl_handshake_failure", str(tls_e), {"timing_ms": latency_ms})
                         elif isinstance(tls_e, asyncio.TimeoutError):
-                            self._detected_blocking_patterns.append(
-                                ("tls_timeout", "TLS handshake timeout")
-                            )
+                            event = BlockingEvent.TLS_TIMEOUT
+                            pattern = ("tls_timeout", str(tls_e), {"timing_ms": latency_ms})
                         else:
-                            self._detected_blocking_patterns.append(
-                                ("tls_error", str(tls_e))
-                            )
-                        self.logger.debug(
-                            f"TLS handshake failed but captured pattern: {tls_e}"
+                            event = BlockingEvent.GENERIC_ERROR
+                            pattern = ("tls_error", str(tls_e), {"timing_ms": latency_ms})
+
+                        self._detected_blocking_patterns.append(pattern)
+                        # TCP соединение было, но TLS упал - это блокировка.
+                        return ConnectivityResult(
+                            connected=True, event=event, error=str(tls_e),
+                            patterns=self._detected_blocking_patterns, failure_latency_ms=latency_ms
                         )
 
-                return True  # TCP-соединение успешно, это главное
+                # Для не-443 портов, если TCP успешен, этого достаточно.
+                return ConnectivityResult(connected=True, event=BlockingEvent.NONE)
 
             except ConnectionResetError as e:
-                self._detected_blocking_patterns.append(("connection_reset", str(e)))
-                self.logger.debug(
-                    f"Connectivity test attempt {retry+1} failed with RST"
-                )
+                last_failure_latency = (time.time() - start_time) * 1000.0
+                last_event = BlockingEvent.CONNECTION_RESET
+                last_error = str(e)
+                self._detected_blocking_patterns.append(("connection_reset", str(e), {"timing_ms": last_failure_latency}))
             except asyncio.TimeoutError as e:
-                self._detected_blocking_patterns.append(("tcp_timeout", str(e)))
-                self.logger.debug(
-                    f"Connectivity test attempt {retry+1} failed with Timeout"
-                )
+                last_failure_latency = (time.time() - start_time) * 1000.0
+                last_event = BlockingEvent.TCP_TIMEOUT
+                last_error = str(e)
+                self._detected_blocking_patterns.append(("tcp_timeout", str(e), {"timing_ms": last_failure_latency}))
+            except socket.gaierror as e:
+                last_failure_latency = (time.time() - start_time) * 1000.0
+                last_event = BlockingEvent.DNS_RESOLUTION_FAILED
+                last_error = str(e)
+                self._detected_blocking_patterns.append(("dns_resolution_failed", str(e), {"timing_ms": last_failure_latency}))
             except Exception as e:
-                self._detected_blocking_patterns.append(("generic_error", str(e)))
-                self.logger.debug(f"Connectivity test attempt {retry+1} failed: {e}")
+                last_failure_latency = (time.time() - start_time) * 1000.0
+                last_event = BlockingEvent.GENERIC_ERROR
+                last_error = str(e)
+                self._detected_blocking_patterns.append(("generic_error", str(e), {"timing_ms": last_failure_latency}))
 
             if retry < max_retries - 1:
                 await asyncio.sleep(retry_delay * (retry + 1))
 
-        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Если есть паттерны, считаем это успехом анализа <<<<<
-        if self._detected_blocking_patterns:
-            self.logger.info(
-                f"Detected blocking patterns for {target}:{port}: {self._detected_blocking_patterns}"
-            )
-            return True
-
-        self.logger.error(
-            f"Basic connectivity test failed for {target}:{port} after {max_retries} retries"
+        # Если цикл завершился без успешного соединения
+        return ConnectivityResult(
+            connected=False, event=last_event, error=last_error,
+            patterns=self._detected_blocking_patterns, failure_latency_ms=last_failure_latency
         )
-        return False
 
     async def _safe_async_call(self, task_name: str, coro) -> Tuple[str, Any]:
         """Safely execute async call with error handling"""
