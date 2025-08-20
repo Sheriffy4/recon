@@ -426,7 +426,7 @@ class StrategySaver:
                     unique_strategies.append(strategy)
                     seen_configs.add(config_tuple)
                 else:
-                    LOG.debug(f"Skipping duplicate strategy configuration")
+                    LOG.debug("Skipping duplicate strategy configuration")
 
             return unique_strategies
 

@@ -9,7 +9,6 @@ Now uses real effectiveness testing instead of simulations.
 import time
 import random
 import hashlib
-import asyncio
 from typing import List, Dict, Any, Optional
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
@@ -60,7 +59,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
             all_segments = []
             total_packets = 0
             total_bytes = 0
-            detection_score = 1.0 # Initialize with a high score
+            detection_score = 1.0  # Initialize with a high score
 
             for iteration in range(max_iterations):
                 adaptation_state["iteration"] = iteration
@@ -143,7 +142,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
                 connection_established=True,
                 data_transmitted=True,
                 technique_used=f"adaptive_iteration_{state['iteration']}",
-                metadata={"segments": [(payload, 0)]} # Pass payload for sending
+                metadata={"segments": [(payload, 0)]},  # Pass payload for sending
             )
 
             # Test baseline and bypass
@@ -151,7 +150,9 @@ class DPIResponseAdaptiveAttack(BaseAttack):
             bypass = await self._effectiveness_tester.test_with_bypass(
                 domain, port, mock_attack_result
             )
-            effectiveness = await self._effectiveness_tester.compare_results(baseline, bypass)
+            effectiveness = await self._effectiveness_tester.compare_results(
+                baseline, bypass
+            )
             detection_score = 1.0 - effectiveness.effectiveness_score
 
             # Adjust based on techniques tried (learning from real results)
@@ -166,23 +167,25 @@ class DPIResponseAdaptiveAttack(BaseAttack):
 
             return max(0.0, min(1.0, detection_score))
 
-        except Exception as e:
+        except Exception:
             # Fallback to entropy-based estimation if real testing fails
             return self._fallback_detection_estimation(payload, state)
 
-    def _fallback_detection_estimation(self, payload: bytes, state: Dict[str, Any]) -> float:
+    def _fallback_detection_estimation(
+        self, payload: bytes, state: Dict[str, Any]
+    ) -> float:
         """Fallback detection estimation based on payload entropy."""
         entropy = self._calculate_entropy(payload)
         # Simple heuristic: higher entropy is more suspicious
         base_score = (entropy / 8.0) * 0.8
-        
+
         # Adjust based on techniques tried
         for technique in state["techniques_tried"]:
             if technique in ["heavy_obfuscation", "tunneling"]:
-                base_score *= 0.7 # These techniques should reduce detection
+                base_score *= 0.7  # These techniques should reduce detection
             elif technique in ["segmentation", "obfuscation"]:
                 base_score *= 0.85
-        
+
         return max(0.0, min(1.0, base_score))
 
     def _calculate_entropy(self, data: bytes) -> float:
@@ -496,7 +499,7 @@ class NetworkConditionAdaptiveAttack(BaseAttack):
 
             return conditions
 
-        except Exception as e:
+        except Exception:
             # Fallback to simulated conditions if real measurement fails
             return self._fallback_network_conditions()
 
@@ -886,7 +889,9 @@ class LearningAdaptiveAttack(BaseAttack):
 
         return strategy
 
-    async def _test_real_effectiveness(self, payload: bytes, context: AttackContext, tester: RealEffectivenessTester) -> EffectivenessResult:
+    async def _test_real_effectiveness(
+        self, payload: bytes, context: AttackContext, tester: RealEffectivenessTester
+    ) -> EffectivenessResult:
         """
         Тестирует реальную эффективность сгенерированного payload, используя правильный
         интерфейс RealEffectivenessTester.
@@ -898,23 +903,27 @@ class LearningAdaptiveAttack(BaseAttack):
             mock_attack_result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 technique_used="learning_adaptive_test",
-                metadata={"segments": [(payload, 0)]} # Передаем payload для отправки
+                metadata={"segments": [(payload, 0)]},  # Передаем payload для отправки
             )
-            
+
             domain = getattr(context, "domain", "example.com")
             # Используем dst_port, так как он более надежен в контексте
             port = getattr(context, "dst_port", 443)
 
             # Выполняем полный цикл тестирования: baseline -> bypass -> compare
             baseline = await tester.test_baseline(domain, port)
-            bypass_result = await tester.test_with_bypass(domain, port, mock_attack_result)
-            
+            bypass_result = await tester.test_with_bypass(
+                domain, port, mock_attack_result
+            )
+
             return await tester.compare_results(baseline, bypass_result)
 
         except Exception as e:
             # В случае ошибки возвращаем результат с низкой эффективностью,
             # чтобы адаптивный алгоритм понял, что что-то пошло не так.
-            self.logger.error(f"Real effectiveness test failed within LearningAdaptiveAttack: {e}")
+            self.logger.error(
+                f"Real effectiveness test failed within LearningAdaptiveAttack: {e}"
+            )
             from ..real_effectiveness_tester import (
                 EffectivenessResult,
                 BaselineResult,
@@ -928,7 +937,10 @@ class LearningAdaptiveAttack(BaseAttack):
                 domain="unknown", success=False, latency_ms=timeout * 1000.0
             )
             bypass = BypassResult(
-                domain="unknown", success=False, latency_ms=timeout * 1000.0, bypass_applied=True
+                domain="unknown",
+                success=False,
+                latency_ms=timeout * 1000.0,
+                bypass_applied=True,
             )
 
             return EffectivenessResult(
@@ -1022,9 +1034,7 @@ class LearningAdaptiveAttack(BaseAttack):
                 import base64
 
                 encoded = base64.b64encode(modified_payload)[:100]  # Limit size
-                dns_header = (
-                    b"\x12\x34\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00"
-                )
+                dns_header = b"\x12\x34\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00"
                 modified_payload = dns_header + encoded + b"\x00\x00\x01\x00\x01"
 
         return modified_payload

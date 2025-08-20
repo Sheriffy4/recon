@@ -2,10 +2,11 @@
 
 import time
 import random
-from typing import List, Optional
+from typing import Optional
 
 # --- НАЧАЛО ИСПРАВЛЕНИЯ ---
 from .race_attacks import RaceAttackConfig
+
 # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 from ..base import BaseAttack, TimingAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
@@ -13,6 +14,7 @@ from ..registry import register_attack
 # --- ДОБАВЛЕНО ДЛЯ ПРОВЕРКИ SCAPY ---
 try:
     from scapy.all import IP, TCP, Raw, send, sr1
+
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -58,7 +60,7 @@ class DripFeedAttack(BaseAttack):
             segments = []
             offset = 0
             while offset < len(payload):
-                chunk = payload[offset:offset + chunk_size]
+                chunk = payload[offset : offset + chunk_size]
                 segment_delay = delay_ms if offset > 0 else 0
                 if self.config.drip_randomize:
                     segment_delay *= random.uniform(0.5, 1.5)
@@ -78,7 +80,7 @@ class DripFeedAttack(BaseAttack):
                     "drip_delay_ms": delay_ms,
                     "packet_count": len(segments),
                     "randomized_timing": self.config.drip_randomize,
-                    "segments": segments
+                    "segments": segments,
                 },
             )
 

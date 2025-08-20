@@ -6,9 +6,7 @@ Tests all obfuscation attack implementations to ensure they work correctly
 and provide the expected obfuscation capabilities.
 """
 
-import pytest
 import time
-from typing import Dict, Any
 
 from ..base import AttackContext, AttackStatus
 from .protocol_tunneling import (
@@ -16,39 +14,41 @@ from .protocol_tunneling import (
     DNSOverHTTPSTunnelingAttack,
     WebSocketTunnelingObfuscationAttack,
     SSHTunnelingObfuscationAttack,
-    VPNTunnelingObfuscationAttack
+    VPNTunnelingObfuscationAttack,
 )
 from .payload_encryption import (
     XORPayloadEncryptionAttack,
     AESPayloadEncryptionAttack,
     ChaCha20PayloadEncryptionAttack,
-    MultiLayerEncryptionAttack
+    MultiLayerEncryptionAttack,
 )
 from .protocol_mimicry import (
     HTTPProtocolMimicryAttack,
     TLSProtocolMimicryAttack,
     SMTPProtocolMimicryAttack,
-    FTPProtocolMimicryAttack
+    FTPProtocolMimicryAttack,
 )
 from .icmp_obfuscation import (
     ICMPDataTunnelingObfuscationAttack,
     ICMPTimestampTunnelingObfuscationAttack,
     ICMPRedirectTunnelingObfuscationAttack,
-    ICMPCovertChannelObfuscationAttack
+    ICMPCovertChannelObfuscationAttack,
 )
 from .quic_obfuscation import QUICFragmentationObfuscationAttack
 from .traffic_obfuscation import (
     TrafficPatternObfuscationAttack,
     PacketSizeObfuscationAttack,
     TimingObfuscationAttack,
-    FlowObfuscationAttack
+    FlowObfuscationAttack,
 )
 
 
 class TestProtocolTunnelingAttacks:
     """Test protocol tunneling obfuscation attacks."""
 
-    def create_test_context(self, payload: bytes = b"test data", **params) -> AttackContext:
+    def create_test_context(
+        self, payload: bytes = b"test data", **params
+    ) -> AttackContext:
         """Create test attack context."""
         return AttackContext(
             dst_ip="192.168.1.100",
@@ -57,16 +57,16 @@ class TestProtocolTunnelingAttacks:
             src_port=12345,
             domain="example.com",
             payload=payload,
-            params=params
+            params=params,
         )
 
     def test_http_tunneling_obfuscation_basic(self):
         """Test basic HTTP tunneling obfuscation."""
         attack = HTTPTunnelingObfuscationAttack()
         context = self.create_test_context(b"secret data")
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 1
         assert result.bytes_sent > len(context.payload)
@@ -77,16 +77,14 @@ class TestProtocolTunnelingAttacks:
         """Test HTTP tunneling with different methods."""
         attack = HTTPTunnelingObfuscationAttack()
         methods = ["POST", "GET", "PUT"]
-        
+
         for method in methods:
             context = self.create_test_context(
-                b"test payload",
-                method=method,
-                obfuscation_level="high"
+                b"test payload", method=method, obfuscation_level="high"
             )
-            
+
             result = attack.execute(context)
-            
+
             assert result.status == AttackStatus.SUCCESS
             assert result.metadata["method"] == method
             assert result.bytes_sent > 0
@@ -97,11 +95,11 @@ class TestProtocolTunnelingAttacks:
         context = self.create_test_context(
             b"dns tunneled data",
             doh_server="cloudflare-dns.com",
-            encoding_method="base32"
+            encoding_method="base32",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 1
         assert result.metadata["doh_server"] == "cloudflare-dns.com"
@@ -111,12 +109,11 @@ class TestProtocolTunnelingAttacks:
         """Test WebSocket tunneling obfuscation."""
         attack = WebSocketTunnelingObfuscationAttack()
         context = self.create_test_context(
-            b"websocket data",
-            obfuscation_method="fragmentation"
+            b"websocket data", obfuscation_method="fragmentation"
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 2  # Handshake + data
         assert result.metadata["obfuscation_method"] == "fragmentation"
@@ -127,26 +124,23 @@ class TestProtocolTunnelingAttacks:
         context = self.create_test_context(
             b"ssh tunneled payload",
             obfuscation_level="high",
-            encryption_method="aes256-ctr"
+            encryption_method="aes256-ctr",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 3  # ID + KEX + Data
         assert result.metadata["encryption_method"] == "aes256-ctr"
 
     def test_vpn_tunneling_obfuscation_types(self):
         """Test VPN tunneling with different VPN types."""
-        from .protocol_tunneling import VPNTunnelingObfuscationAttack
+
         attack = VPNTunnelingObfuscationAttack()
         vpn_types = ["openvpn", "wireguard", "ipsec"]
 
         for vpn_type in vpn_types:
-            context = self.create_test_context(
-                b"vpn test data",
-                vpn_type=vpn_type
-            )
+            context = self.create_test_context(b"vpn test data", vpn_type=vpn_type)
 
             result = attack.execute(context)
 
@@ -156,12 +150,9 @@ class TestProtocolTunnelingAttacks:
 
     def test_vpn_tunneling_invalid_type(self):
         """Test that VPN tunneling handles invalid type."""
-        from .protocol_tunneling import VPNTunnelingObfuscationAttack
+
         attack = VPNTunnelingObfuscationAttack()
-        context = self.create_test_context(
-            b"vpn test data",
-            vpn_type="invalid_vpn"
-        )
+        context = self.create_test_context(b"vpn test data", vpn_type="invalid_vpn")
 
         result = attack.execute(context)
 
@@ -172,22 +163,21 @@ class TestProtocolTunnelingAttacks:
 class TestPayloadEncryptionAttacks:
     """Test payload encryption obfuscation attacks."""
 
-    def create_test_context(self, payload: bytes = b"test data", **params) -> AttackContext:
+    def create_test_context(
+        self, payload: bytes = b"test data", **params
+    ) -> AttackContext:
         """Create test attack context."""
         return AttackContext(
-            dst_ip="192.168.1.100",
-            dst_port=443,
-            payload=payload,
-            params=params
+            dst_ip="192.168.1.100", dst_port=443, payload=payload, params=params
         )
 
     def test_xor_payload_encryption_basic(self):
         """Test basic XOR payload encryption."""
         attack = XORPayloadEncryptionAttack()
         context = self.create_test_context(b"sensitive data")
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.bytes_sent > len(context.payload)
         assert result.technique_used == "xor_payload_encryption"
@@ -197,16 +187,14 @@ class TestPayloadEncryptionAttacks:
         """Test XOR encryption with different key strategies."""
         attack = XORPayloadEncryptionAttack()
         strategies = ["random", "time_based", "domain_based", "sequence_based"]
-        
+
         for strategy in strategies:
             context = self.create_test_context(
-                b"test data",
-                key_strategy=strategy,
-                key_length=32
+                b"test data", key_strategy=strategy, key_length=32
             )
-            
+
             result = attack.execute(context)
-            
+
             assert result.status == AttackStatus.SUCCESS
             assert result.metadata["key_strategy"] == strategy
 
@@ -214,8 +202,7 @@ class TestPayloadEncryptionAttacks:
         """Test that XOR encryption handles invalid strategy."""
         attack = XORPayloadEncryptionAttack()
         context = self.create_test_context(
-            b"test data",
-            key_strategy="invalid_strategy"
+            b"test data", key_strategy="invalid_strategy"
         )
 
         result = attack.execute(context)
@@ -228,13 +215,11 @@ class TestPayloadEncryptionAttacks:
         """Test AES payload encryption."""
         attack = AESPayloadEncryptionAttack()
         context = self.create_test_context(
-            b"aes encrypted data",
-            mode="CTR",
-            key_size=256
+            b"aes encrypted data", mode="CTR", key_size=256
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["mode"] == "CTR"
         assert result.metadata["key_size"] == 256
@@ -243,13 +228,11 @@ class TestPayloadEncryptionAttacks:
         """Test ChaCha20 payload encryption."""
         attack = ChaCha20PayloadEncryptionAttack()
         context = self.create_test_context(
-            b"chacha20 data",
-            use_poly1305=True,
-            nonce_strategy="timestamp"
+            b"chacha20 data", use_poly1305=True, nonce_strategy="timestamp"
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["use_poly1305"] == True
         assert result.metadata["nonce_strategy"] == "timestamp"
@@ -261,11 +244,11 @@ class TestPayloadEncryptionAttacks:
             b"multi layer data",
             layers=["xor", "aes", "chacha20"],
             randomize_order=True,
-            add_noise=True
+            add_noise=True,
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["layer_count"] == 3
         assert result.metadata["randomize_order"] == True
@@ -275,23 +258,25 @@ class TestPayloadEncryptionAttacks:
 class TestProtocolMimicryAttacks:
     """Test protocol mimicry obfuscation attacks."""
 
-    def create_test_context(self, payload: bytes = b"test data", **params) -> AttackContext:
+    def create_test_context(
+        self, payload: bytes = b"test data", **params
+    ) -> AttackContext:
         """Create test attack context."""
         return AttackContext(
             dst_ip="192.168.1.100",
             dst_port=443,
             domain="example.com",
             payload=payload,
-            params=params
+            params=params,
         )
 
     def test_http_protocol_mimicry_basic(self):
         """Test basic HTTP protocol mimicry."""
         attack = HTTPProtocolMimicryAttack()
         context = self.create_test_context(b"http mimicry data")
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 1
         assert result.technique_used == "http_protocol_mimicry"
@@ -300,16 +285,14 @@ class TestProtocolMimicryAttacks:
         """Test HTTP mimicry with different types."""
         attack = HTTPProtocolMimicryAttack()
         types = ["web_browsing", "api_call", "file_download", "form_submission"]
-        
+
         for mimicry_type in types:
             context = self.create_test_context(
-                b"test data",
-                mimicry_type=mimicry_type,
-                include_response=True
+                b"test data", mimicry_type=mimicry_type, include_response=True
             )
-            
+
             result = attack.execute(context)
-            
+
             assert result.status == AttackStatus.SUCCESS
             assert result.metadata["mimicry_type"] == mimicry_type
 
@@ -317,13 +300,11 @@ class TestProtocolMimicryAttacks:
         """Test TLS protocol mimicry."""
         attack = TLSProtocolMimicryAttack()
         context = self.create_test_context(
-            b"tls mimicry data",
-            tls_version="1.3",
-            include_handshake=True
+            b"tls mimicry data", tls_version="1.3", include_handshake=True
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 4  # Handshake + data
         assert result.metadata["tls_version"] == "1.3"
@@ -335,11 +316,11 @@ class TestProtocolMimicryAttacks:
             b"email data",
             sender_email="test@example.com",
             recipient_email="recipient@example.com",
-            use_tls=True
+            use_tls=True,
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 10  # Full SMTP conversation
         assert result.metadata["use_tls"] == True
@@ -348,13 +329,11 @@ class TestProtocolMimicryAttacks:
         """Test FTP protocol mimicry."""
         attack = FTPProtocolMimicryAttack()
         context = self.create_test_context(
-            b"file data",
-            username="testuser",
-            transfer_mode="binary"
+            b"file data", username="testuser", transfer_mode="binary"
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 8  # FTP conversation
         assert result.metadata["transfer_mode"] == "binary"
@@ -363,22 +342,21 @@ class TestProtocolMimicryAttacks:
 class TestTrafficObfuscationAttacks:
     """Test traffic obfuscation attacks."""
 
-    def create_test_context(self, payload: bytes = b"test data", **params) -> AttackContext:
+    def create_test_context(
+        self, payload: bytes = b"test data", **params
+    ) -> AttackContext:
         """Create test attack context."""
         return AttackContext(
-            dst_ip="192.168.1.100",
-            dst_port=443,
-            payload=payload,
-            params=params
+            dst_ip="192.168.1.100", dst_port=443, payload=payload, params=params
         )
 
     def test_traffic_pattern_obfuscation_basic(self):
         """Test basic traffic pattern obfuscation."""
         attack = TrafficPatternObfuscationAttack()
         context = self.create_test_context(b"pattern data")
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent >= 1
         assert result.technique_used == "traffic_pattern_obfuscation"
@@ -387,17 +365,23 @@ class TestTrafficObfuscationAttacks:
     def test_traffic_pattern_strategies(self):
         """Test different traffic pattern strategies."""
         attack = TrafficPatternObfuscationAttack()
-        strategies = ["timing_randomization", "size_padding", "burst_shaping", "flow_mimicry", "mixed"]
-        
+        strategies = [
+            "timing_randomization",
+            "size_padding",
+            "burst_shaping",
+            "flow_mimicry",
+            "mixed",
+        ]
+
         for strategy in strategies:
             context = self.create_test_context(
                 b"test data" * 10,  # Larger payload
                 obfuscation_strategy=strategy,
-                intensity_level="medium"
+                intensity_level="medium",
             )
-            
+
             result = attack.execute(context)
-            
+
             assert result.status == AttackStatus.SUCCESS
             assert result.metadata["obfuscation_strategy"] == strategy
 
@@ -405,8 +389,7 @@ class TestTrafficObfuscationAttacks:
         """Test that traffic pattern attack handles invalid strategy."""
         attack = TrafficPatternObfuscationAttack()
         context = self.create_test_context(
-            b"test data",
-            obfuscation_strategy="invalid_strategy"
+            b"test data", obfuscation_strategy="invalid_strategy"
         )
 
         result = attack.execute(context)
@@ -419,13 +402,11 @@ class TestTrafficObfuscationAttacks:
         """Test packet size obfuscation."""
         attack = PacketSizeObfuscationAttack()
         context = self.create_test_context(
-            b"size test data" * 20,
-            size_strategy="normalize",
-            target_size=1200
+            b"size test data" * 20, size_strategy="normalize", target_size=1200
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["size_strategy"] == "normalize"
         assert result.metadata["size_expansion"] >= 1.0
@@ -434,14 +415,11 @@ class TestTrafficObfuscationAttacks:
         """Test timing obfuscation."""
         attack = TimingObfuscationAttack()
         context = self.create_test_context(
-            b"timing data",
-            timing_strategy="jitter",
-            base_delay=50,
-            jitter_range=20
+            b"timing data", timing_strategy="jitter", base_delay=50, jitter_range=20
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["timing_strategy"] == "jitter"
         assert result.metadata["total_delay_ms"] > 0
@@ -450,13 +428,11 @@ class TestTrafficObfuscationAttacks:
         """Test flow obfuscation."""
         attack = FlowObfuscationAttack()
         context = self.create_test_context(
-            b"flow data" * 5,
-            flow_strategy="bidirectional",
-            fake_responses=True
+            b"flow data" * 5, flow_strategy="bidirectional", fake_responses=True
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["flow_strategy"] == "bidirectional"
         assert result.metadata["fake_responses"] == True
@@ -465,24 +441,23 @@ class TestTrafficObfuscationAttacks:
 class TestICMPObfuscationAttacks:
     """Test ICMP obfuscation attacks."""
 
-    def create_test_context(self, payload: bytes = b"test data", **params) -> AttackContext:
+    def create_test_context(
+        self, payload: bytes = b"test data", **params
+    ) -> AttackContext:
         """Create test attack context."""
         return AttackContext(
             dst_ip="8.8.8.8",
-            dst_port=0, # ICMP doesn't use ports
+            dst_port=0,  # ICMP doesn't use ports
             src_ip="192.168.1.1",
             src_port=0,
             payload=payload,
-            params=params
+            params=params,
         )
 
     def test_icmp_data_tunneling(self):
         """Test basic ICMP data tunneling."""
         attack = ICMPDataTunnelingObfuscationAttack()
-        context = self.create_test_context(
-            b"some secret data here",
-            packet_size=128
-        )
+        context = self.create_test_context(b"some secret data here", packet_size=128)
         result = attack.execute(context)
         assert result.status == AttackStatus.SUCCESS
         assert result.technique_used == "icmp_data_tunneling_obfuscation"
@@ -503,8 +478,7 @@ class TestICMPObfuscationAttacks:
         """Test ICMP redirect tunneling."""
         attack = ICMPRedirectTunnelingObfuscationAttack()
         context = self.create_test_context(
-            b"redirect this data",
-            gateway_ip="192.168.1.1"
+            b"redirect this data", gateway_ip="192.168.1.1"
         )
         result = attack.execute(context)
         assert result.status == AttackStatus.SUCCESS
@@ -516,10 +490,7 @@ class TestICMPObfuscationAttacks:
         attack = ICMPCovertChannelObfuscationAttack()
         channel_types = ["timing", "size", "sequence"]
         for channel_type in channel_types:
-            context = self.create_test_context(
-                b"covert",
-                channel_type=channel_type
-            )
+            context = self.create_test_context(b"covert", channel_type=channel_type)
             result = attack.execute(context)
             assert result.status == AttackStatus.SUCCESS
             assert result.metadata["channel_type"] == channel_type
@@ -527,10 +498,7 @@ class TestICMPObfuscationAttacks:
     def test_icmp_covert_channel_invalid_type(self):
         """Test ICMP covert channel with an invalid type."""
         attack = ICMPCovertChannelObfuscationAttack()
-        context = self.create_test_context(
-            b"covert",
-            channel_type="invalid_type"
-        )
+        context = self.create_test_context(b"covert", channel_type="invalid_type")
         result = attack.execute(context)
         assert result.status == AttackStatus.ERROR
         assert "Invalid channel_type" in result.error_message
@@ -548,7 +516,7 @@ class TestQUICObfuscationAttacks:
             src_port=12345,
             domain="google.com",
             payload=payload,
-            params=params
+            params=params,
         )
 
     def test_quic_fragmentation_basic(self):
@@ -596,15 +564,11 @@ class TestObfuscationIntegration:
             HTTPTunnelingObfuscationAttack(),
             XORPayloadEncryptionAttack(),
             HTTPProtocolMimicryAttack(),
-            TrafficPatternObfuscationAttack()
+            TrafficPatternObfuscationAttack(),
         ]
-        
-        context = AttackContext(
-            dst_ip="192.168.1.100",
-            dst_port=443,
-            payload=b""
-        )
-        
+
+        context = AttackContext(dst_ip="192.168.1.100", dst_port=443, payload=b"")
+
         for attack in attacks:
             result = attack.execute(context)
             # Should handle empty payload gracefully
@@ -613,20 +577,18 @@ class TestObfuscationIntegration:
     def test_large_payload_handling(self):
         """Test handling of large payloads."""
         large_payload = b"x" * 10000  # 10KB payload
-        
+
         attacks = [
             HTTPTunnelingObfuscationAttack(),
             MultiLayerEncryptionAttack(),
-            TrafficPatternObfuscationAttack()
+            TrafficPatternObfuscationAttack(),
         ]
-        
+
         for attack in attacks:
             context = AttackContext(
-                dst_ip="192.168.1.100",
-                dst_port=443,
-                payload=large_payload
+                dst_ip="192.168.1.100", dst_port=443, payload=large_payload
             )
-            
+
             result = attack.execute(context)
             assert result.status == AttackStatus.SUCCESS
             assert result.bytes_sent >= len(large_payload)
@@ -637,19 +599,19 @@ class TestObfuscationIntegration:
             (HTTPTunnelingObfuscationAttack(), {}),
             (XORPayloadEncryptionAttack(), {"key_strategy": "random"}),
             (TLSProtocolMimicryAttack(), {"tls_version": "1.2"}),
-            (PacketSizeObfuscationAttack(), {"size_strategy": "normalize"})
+            (PacketSizeObfuscationAttack(), {"size_strategy": "normalize"}),
         ]
-        
+
         for attack, params in attacks:
             context = AttackContext(
                 dst_ip="192.168.1.100",
                 dst_port=443,
                 payload=b"test data",
-                params=params
+                params=params,
             )
-            
+
             result = attack.execute(context)
-            
+
             assert result.status == AttackStatus.SUCCESS
             assert result.technique_used is not None
             assert result.metadata is not None
@@ -663,16 +625,18 @@ class TestObfuscationIntegration:
             dst_ip="192.168.1.100",
             dst_port=443,
             payload=b"performance test data" * 100,
-            params={"layers": ["xor", "aes"]}
+            params={"layers": ["xor", "aes"]},
         )
-        
+
         start_time = time.time()
         result = attack.execute(context)
         end_time = time.time()
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.latency_ms > 0
-        assert result.latency_ms <= (end_time - start_time) * 1000 + 100  # Allow some margin
+        assert (
+            result.latency_ms <= (end_time - start_time) * 1000 + 100
+        )  # Allow some margin
         assert result.packets_sent > 0
         assert result.bytes_sent > 0
 
@@ -682,36 +646,34 @@ class TestObfuscationIntegration:
             HTTPTunnelingObfuscationAttack(),
             XORPayloadEncryptionAttack(),
             HTTPProtocolMimicryAttack(),
-            TrafficPatternObfuscationAttack()
+            TrafficPatternObfuscationAttack(),
         ]
-        
+
         for attack in attacks:
             context = AttackContext(
-                dst_ip="192.168.1.100",
-                dst_port=443,
-                payload=b"segment test data"
+                dst_ip="192.168.1.100", dst_port=443, payload=b"segment test data"
             )
-            
+
             result = attack.execute(context)
-            
+
             assert result.status == AttackStatus.SUCCESS
             assert "segments" in result.metadata
-            
+
             segments = result.metadata["segments"]
             assert isinstance(segments, list)
-            
+
             for segment in segments:
                 assert isinstance(segment, tuple)
                 assert len(segment) == 3  # (data, delay, metadata)
                 assert isinstance(segment[0], bytes)  # data
-                assert isinstance(segment[1], int)    # delay
-                assert isinstance(segment[2], dict)   # metadata
+                assert isinstance(segment[1], int)  # delay
+                assert isinstance(segment[2], dict)  # metadata
 
 
 def run_obfuscation_tests():
     """Run all obfuscation attack tests."""
     print("Running Protocol Obfuscation Attack Tests...")
-    
+
     # Test protocol tunneling
     print("\n=== Testing Protocol Tunneling Attacks ===")
     tunneling_tests = TestProtocolTunnelingAttacks()
@@ -721,7 +683,7 @@ def run_obfuscation_tests():
     tunneling_tests.test_websocket_tunneling_obfuscation()
     tunneling_tests.test_ssh_tunneling_obfuscation()
     print("✓ Protocol tunneling tests passed")
-    
+
     # Test payload encryption
     print("\n=== Testing Payload Encryption Attacks ===")
     encryption_tests = TestPayloadEncryptionAttacks()
@@ -731,7 +693,7 @@ def run_obfuscation_tests():
     encryption_tests.test_chacha20_payload_encryption()
     encryption_tests.test_multi_layer_encryption()
     print("✓ Payload encryption tests passed")
-    
+
     # Test protocol mimicry
     print("\n=== Testing Protocol Mimicry Attacks ===")
     mimicry_tests = TestProtocolMimicryAttacks()
@@ -741,7 +703,7 @@ def run_obfuscation_tests():
     mimicry_tests.test_smtp_protocol_mimicry()
     mimicry_tests.test_ftp_protocol_mimicry()
     print("✓ Protocol mimicry tests passed")
-    
+
     # Test traffic obfuscation
     print("\n=== Testing Traffic Obfuscation Attacks ===")
     traffic_tests = TestTrafficObfuscationAttacks()
@@ -751,7 +713,7 @@ def run_obfuscation_tests():
     traffic_tests.test_timing_obfuscation()
     traffic_tests.test_flow_obfuscation()
     print("✓ Traffic obfuscation tests passed")
-    
+
     # Test integration
     print("\n=== Testing Integration and Edge Cases ===")
     integration_tests = TestObfuscationIntegration()
@@ -761,7 +723,7 @@ def run_obfuscation_tests():
     integration_tests.test_attack_performance_metrics()
     integration_tests.test_segment_format_consistency()
     print("✓ Integration tests passed")
-    
+
     print("\n🎉 All Protocol Obfuscation Attack tests passed successfully!")
 
 

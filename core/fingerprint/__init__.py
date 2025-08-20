@@ -27,11 +27,11 @@ try:
     from .prober import UltimateDPIProber
     from .classifier import UltimateDPIClassifier
     from .analyzer import PacketAnalyzer, BehaviorAnalyzer
-    
+
     # Псевдонимы для обратной совместимости
     DPIProber = UltimateDPIProber
     DPIClassifier = UltimateDPIClassifier
-    
+
     _legacy_imports_available = True
 except ImportError:
     # Handle missing dependencies gracefully
@@ -47,6 +47,7 @@ except ImportError:
 try:
     from .tcp_analyzer import TCPAnalyzer
     from .metrics_collector import MetricsCollector
+
     _specialized_analyzers_available = True
 except ImportError:
     _specialized_analyzers_available = False
@@ -60,7 +61,6 @@ __all__ = [
     "DPIBehaviorProfile",
     "DPIClassification",
     "ProbeResult",
-    
     # New advanced models (Task 1)
     "DPIFingerprint",
     "DPIType",
@@ -74,25 +74,30 @@ __all__ = [
 
 # Add legacy components if available
 if _legacy_imports_available:
-    __all__.extend([
-        "UltimateDPIProber",
-        "UltimateDPIClassifier",
-        "PacketAnalyzer",
-        "BehaviorAnalyzer",
-        "DPIProber",  # Псевдоним
-        "DPIClassifier",  # Псевдоним
-    ])
+    __all__.extend(
+        [
+            "UltimateDPIProber",
+            "UltimateDPIClassifier",
+            "PacketAnalyzer",
+            "BehaviorAnalyzer",
+            "DPIProber",  # Псевдоним
+            "DPIClassifier",  # Псевдоним
+        ]
+    )
 
 # Add specialized analyzers if available
 if _specialized_analyzers_available:
-    __all__.extend([
-        "TCPAnalyzer",
-        "MetricsCollector",
-    ])
+    __all__.extend(
+        [
+            "TCPAnalyzer",
+            "MetricsCollector",
+        ]
+    )
 
 # Import AdvancedFingerprinter (Task 10)
 try:
     from .advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+
     _advanced_fingerprinter_available = True
 except ImportError:
     _advanced_fingerprinter_available = False
@@ -101,7 +106,9 @@ except ImportError:
 
 # Add AdvancedFingerprinter if available
 if _advanced_fingerprinter_available:
-    __all__.extend([
-        "AdvancedFingerprinter",
-        "FingerprintingConfig",
-    ])
+    __all__.extend(
+        [
+            "AdvancedFingerprinter",
+            "FingerprintingConfig",
+        ]
+    )

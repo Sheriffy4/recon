@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 import struct
+
 
 @dataclass
 class TCPOption:
@@ -21,18 +22,18 @@ class TCPOption:
                 options.append(cls(kind=1, length=1))
                 i += 1
                 continue
-                
+
             if i + 1 >= len(raw):
                 break
-                
+
             length = raw[i + 1]
             if i + length > len(raw):
                 break
-                
-            data = raw[i + 2:i + length] if length > 2 else b""
+
+            data = raw[i + 2 : i + length] if length > 2 else b""
             options.append(cls(kind=kind, length=length, data=data))
             i += length
-            
+
         return options
 
     def serialize(self) -> bytes:
@@ -44,8 +45,10 @@ class TCPOption:
         else:
             return bytes([self.kind, self.length]) + self.data
 
+
 class TCPOptions:
     """Константы для TCP options"""
+
     END = 0
     NOP = 1
     MSS = 2
@@ -57,19 +60,13 @@ class TCPOptions:
     @staticmethod
     def create_mss(mss: int) -> TCPOption:
         """Создать MSS option"""
-        return TCPOption(
-            kind=TCPOptions.MSS,
-            length=4,
-            data=struct.pack("!H", mss)
-        )
+        return TCPOption(kind=TCPOptions.MSS, length=4, data=struct.pack("!H", mss))
 
     @staticmethod
     def create_window_scale(shift_count: int) -> TCPOption:
         """Создать Window Scale option"""
         return TCPOption(
-            kind=TCPOptions.WINDOW_SCALE,
-            length=3,
-            data=bytes([shift_count])
+            kind=TCPOptions.WINDOW_SCALE, length=3, data=bytes([shift_count])
         )
 
     @staticmethod
@@ -78,16 +75,13 @@ class TCPOptions:
         return TCPOption(
             kind=TCPOptions.TIMESTAMP,
             length=10,
-            data=struct.pack("!II", ts_val, ts_echo)
+            data=struct.pack("!II", ts_val, ts_echo),
         )
 
     @staticmethod
     def create_sack_permitted() -> TCPOption:
         """Создать SACK Permitted option"""
-        return TCPOption(
-            kind=TCPOptions.SACK_PERMITTED,
-            length=2
-        )
+        return TCPOption(kind=TCPOptions.SACK_PERMITTED, length=2)
 
     @staticmethod
     def create_sack(blocks: List[Tuple[int, int]]) -> TCPOption:
@@ -95,8 +89,4 @@ class TCPOptions:
         data = b""
         for left, right in blocks:
             data += struct.pack("!II", left, right)
-        return TCPOption(
-            kind=TCPOptions.SACK,
-            length=2 + len(data),
-            data=data
-        )
+        return TCPOption(kind=TCPOptions.SACK, length=2 + len(data), data=data)

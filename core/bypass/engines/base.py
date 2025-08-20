@@ -46,7 +46,7 @@ class EngineStats:
         self.stop_time: Optional[float] = None
         self.errors: int = 0
         self.metadata: Dict[str, Any] = {}
-        
+
     def to_dict(self) -> Dict[str, Any]:
         """Возвращает статистику в виде словаря."""
         return {
@@ -58,7 +58,7 @@ class EngineStats:
             "start_time": self.start_time,
             "stop_time": self.stop_time,
             "errors": self.errors,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -103,7 +103,7 @@ class BaseBypassEngine(ABC):
         pass
 
     @abstractmethod
-    def get_stats(self) -> Dict[str, Any]: # Возвращаемый тип теперь dict
+    def get_stats(self) -> Dict[str, Any]:  # Возвращаемый тип теперь dict
         """Get current engine statistics."""
         return self.stats.to_dict()
 

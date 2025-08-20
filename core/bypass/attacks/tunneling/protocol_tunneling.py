@@ -11,9 +11,7 @@ import random
 import base64
 from typing import List
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from ..safe_result_utils import create_success_result, create_error_result, create_failed_result
 from ..registry import register_attack
-
 
 
 # Safety wrapper for AttackResult creation
@@ -21,15 +19,18 @@ def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
     try:
         from ..safe_result_utils import safe_create_attack_result
+
         return safe_create_attack_result(status_name, **kwargs)
     except Exception:
         # Ultimate fallback
         try:
             from ..base import AttackResult, AttackStatus
+
             status = getattr(AttackStatus, status_name)
             return AttackResult(status=status, **kwargs)
         except Exception:
             return None
+
 
 @register_attack
 class HTTPTunnelingAttack(BaseAttack):

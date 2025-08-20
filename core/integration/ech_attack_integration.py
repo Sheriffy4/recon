@@ -5,27 +5,31 @@ Enhanced with TLS 1.3+ detection, ECH-specific attack selection, and evolutionar
 """
 
 import logging
-import asyncio
 import time
 import hashlib
 import json
-import random
-import struct
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from collections import defaultdict, Counter
+from datetime import datetime
 
 # Import Phase 2 infrastructure
 try:
     from .advanced_attack_manager import (
-        AdvancedAttack, AdvancedAttackConfig, AdvancedAttackResult,
-        AttackContext, MLFeedback, LearningData, PerformanceMetrics,
-        AdaptationSuggestion
+        AdvancedAttack,
+        AdvancedAttackConfig,
+        AdvancedAttackResult,
+        AttackContext,
+        MLFeedback,
+        LearningData,
+        PerformanceMetrics,
+        AdaptationSuggestion,
     )
     from .advanced_attack_errors import (
-        get_error_handler, create_execution_error, ErrorContext
+        get_error_handler,
+        create_execution_error,
+        ErrorContext,
     )
+
     PHASE2_INFRASTRUCTURE_AVAILABLE = True
 except ImportError as e:
     PHASE2_INFRASTRUCTURE_AVAILABLE = False
@@ -34,9 +38,12 @@ except ImportError as e:
 # Import existing ECH attacks
 try:
     from core.bypass.attacks.tls.ech_attacks import (
-        ECHFragmentationAttack, ECHGreaseAttack, ECHDecoyAttack,
-        ECHAdvancedFragmentationAttack
+        ECHFragmentationAttack,
+        ECHGreaseAttack,
+        ECHDecoyAttack,
+        ECHAdvancedFragmentationAttack,
     )
+
     ECH_ATTACKS_AVAILABLE = True
 except ImportError as e:
     ECH_ATTACKS_AVAILABLE = False
@@ -46,6 +53,7 @@ except ImportError as e:
 try:
     from core.protocols.tls import TLSParser, TLSHandler
     from core.fingerprint.prober import UltimateDPIProber
+
     TLS_MODULES_AVAILABLE = True
 except ImportError as e:
     TLS_MODULES_AVAILABLE = False
@@ -53,9 +61,11 @@ except ImportError as e:
 
 LOG = logging.getLogger("ech_attack_integration")
 
+
 @dataclass
 class ECHAttackState:
     """State information for ECH attack system."""
+
     total_attacks: int = 0
     successful_attacks: int = 0
     best_effectiveness: float = 0.0
@@ -74,6 +84,7 @@ class ECHAttackState:
 @dataclass
 class TLSDetectionResult:
     """Result of TLS version and ECH support detection."""
+
     tls_version: str
     ech_support: bool
     confidence: float
@@ -84,6 +95,7 @@ class TLSDetectionResult:
 @dataclass
 class ECHOptimizationResult:
     """Result of ECH attack optimization."""
+
     optimal_parameters: Dict[str, Any]
     expected_effectiveness: float
     optimization_strategy: str
@@ -96,154 +108,172 @@ class ECHAttackIntegration(AdvancedAttack):
     Enhanced Integration wrapper for ECH Attack System.
     Provides TLS 1.3+ detection, ECH-specific attack selection, and evolutionary optimization.
     """
-    
+
     def __init__(self, config: AdvancedAttackConfig):
         super().__init__(config)
         self.ech_attacks = {}
         self.state = ECHAttackState()
         self.error_handler = None
-        
+
         if PHASE2_INFRASTRUCTURE_AVAILABLE:
             self.error_handler = get_error_handler()
-        
+
         # Initialize ECH attacks
         if ECH_ATTACKS_AVAILABLE:
             self.ech_attacks = {
                 "fragmentation": ECHFragmentationAttack(),
                 "grease": ECHGreaseAttack(),
                 "decoy": ECHDecoyAttack(),
-                "advanced_fragmentation": ECHAdvancedFragmentationAttack()
+                "advanced_fragmentation": ECHAdvancedFragmentationAttack(),
             }
-        
+
         # Initialize TLS handler
         if TLS_MODULES_AVAILABLE:
             try:
                 from config import Config
+
                 config = Config()
-                self.tls_handler = TLSHandler(tls_template=config.TLS_CLIENT_HELLO_TEMPLATE)
+                self.tls_handler = TLSHandler(
+                    tls_template=config.TLS_CLIENT_HELLO_TEMPLATE
+                )
             except Exception as e:
                 LOG.warning(f"Failed to initialize TLS handler: {e}")
                 self.tls_handler = None
             self.tls_prober = None
-        
+
         LOG.info("ECH Attack Integration initialized")
-    
-    async def execute(self, target: str, context: AttackContext) -> AdvancedAttackResult:
+
+    async def execute(
+        self, target: str, context: AttackContext
+    ) -> AdvancedAttackResult:
         """Execute ECH attack with enhanced detection and optimization."""
         start_time = time.time()
-        
+
         try:
             # Generate fingerprint hash
             fingerprint_hash = await self._generate_fingerprint_hash(target, context)
-            
+
             # Detect TLS version and ECH support
             tls_detection = await self._detect_tls_and_ech_support(target, context)
-            
+
             # Get ML prediction if available
             ml_prediction = await self._get_ml_prediction(context)
-            
+
             # Select optimal ECH attack strategy
             strategy = await self._select_optimal_ech_strategy(
                 fingerprint_hash, tls_detection, ml_prediction, context
             )
-            
+
             # Execute the selected attack
-            result = await self._execute_ech_attack(target, context, strategy, fingerprint_hash)
-            
+            result = await self._execute_ech_attack(
+                target, context, strategy, fingerprint_hash
+            )
+
             # Save attack result for learning
-            await self._save_attack_result(fingerprint_hash, strategy, result, tls_detection)
-            
+            await self._save_attack_result(
+                fingerprint_hash, strategy, result, tls_detection
+            )
+
             # Update state and statistics
             await self._update_state_and_stats(result, tls_detection)
-            
+
             return result
-            
+
         except Exception as e:
             execution_time = (time.time() - start_time) * 1000
             error_message = f"ECH attack execution failed: {e}"
             LOG.error(error_message)
-            
+
             if self.error_handler:
                 try:
                     error_context = ErrorContext(
                         attack_type="ech_integration",
                         target=target,
                         error=str(e),
-                        execution_time=execution_time
+                        execution_time=execution_time,
                     )
                     return self.error_handler.handle_error(error_context)
                 except Exception as handler_error:
                     LOG.error(f"Error handler failed: {handler_error}")
-            
+
             return self._create_error_result(error_message, execution_time)
-    
+
     async def adapt_from_feedback(self, feedback: MLFeedback) -> None:
         """Adapt ECH attack strategies based on ML feedback."""
         try:
             LOG.info(f"Adapting ECH attacks from feedback: {feedback.attack_name}")
-            
+
             # Update attack effectiveness based on feedback
             if feedback.success:
                 self.state.successful_attacks += 1
             self.state.total_attacks += 1
-            
+
             # Adapt attack parameters based on feedback
             if feedback.adaptation_suggestions:
                 for suggestion in feedback.adaptation_suggestions:
                     await self._apply_adaptation_suggestion(suggestion)
-            
+
             self.state.adaptation_count += 1
             LOG.info("ECH attack adaptation completed")
-            
+
         except Exception as e:
             LOG.error(f"ECH attack adaptation failed: {e}")
-    
+
     def get_success_rate(self) -> float:
         """Get ECH attack success rate."""
         if self.state.total_attacks == 0:
             return 0.0
         return self.state.successful_attacks / self.state.total_attacks
-    
+
     async def get_effectiveness_metrics(self) -> Dict[str, float]:
         """Get ECH attack effectiveness metrics."""
         # Initialize base metrics
         base_metrics = {}
-        
+
         # Add ECH-specific metrics
         ech_metrics = {
             "ech_success_rate": self.get_success_rate(),
-            "tls_version_detected": float(self.state.tls_version_detected == "1.3") if self.state.tls_version_detected else 0.0,
+            "tls_version_detected": (
+                float(self.state.tls_version_detected == "1.3")
+                if self.state.tls_version_detected
+                else 0.0
+            ),
             "ech_support_detected": float(self.state.ech_support_detected),
             "grease_effectiveness": self.state.grease_effectiveness,
             "fragmentation_effectiveness": self.state.fragmentation_effectiveness,
             "decoy_effectiveness": self.state.decoy_effectiveness,
             "advanced_fragmentation_effectiveness": self.state.advanced_fragmentation_effectiveness,
             "optimization_iterations": float(self.state.optimization_iterations),
-            "adaptation_count": float(self.state.adaptation_count)
+            "adaptation_count": float(self.state.adaptation_count),
         }
-        
+
         base_metrics.update(ech_metrics)
         return base_metrics
-    
-    async def _generate_fingerprint_hash(self, target: str, context: AttackContext) -> str:
+
+    async def _generate_fingerprint_hash(
+        self, target: str, context: AttackContext
+    ) -> str:
         """Generate fingerprint hash for target."""
         fingerprint_data = {
             "target": target,
             "target_ip": context.dst_ip,
             "target_port": context.dst_port,
-            "timestamp": int(time.time())
+            "timestamp": int(time.time()),
         }
-        
+
         fingerprint_str = json.dumps(fingerprint_data, sort_keys=True)
         return hashlib.sha256(fingerprint_str.encode()).hexdigest()[:16]
-    
-    async def _detect_tls_and_ech_support(self, target: str, context: AttackContext) -> TLSDetectionResult:
+
+    async def _detect_tls_and_ech_support(
+        self, target: str, context: AttackContext
+    ) -> TLSDetectionResult:
         """Detect TLS version and ECH support for target."""
         try:
             # Initialize prober if not available
             if not self.tls_prober and TLS_MODULES_AVAILABLE:
                 try:
                     from config import Config
+
                     config = Config()
                     config.target_ip = context.dst_ip
                     config.port = context.dst_port
@@ -251,12 +281,12 @@ class ECHAttackIntegration(AdvancedAttack):
                 except Exception as e:
                     LOG.debug(f"Failed to initialize prober: {e}")
                     self.tls_prober = None
-            
+
             # Detect TLS version
             tls_version = "1.3"  # Assume TLS 1.3 for ECH attacks
             ech_support = True  # Assume ECH support for attack purposes
             confidence = 0.8
-            
+
             # Detect ECH support using prober
             if self.tls_prober:
                 try:
@@ -265,22 +295,26 @@ class ECHAttackIntegration(AdvancedAttack):
                     confidence = 0.9 if ech_support else 0.7
                 except Exception as e:
                     LOG.debug(f"ECH probe failed: {e}")
-            
+
             # Determine recommended attacks based on detection
-            recommended_attacks = self._get_recommended_attacks(tls_version, ech_support)
-            
+            recommended_attacks = self._get_recommended_attacks(
+                tls_version, ech_support
+            )
+
             # Update state
             self.state.tls_version_detected = tls_version
             self.state.ech_support_detected = ech_support
-            
+
             return TLSDetectionResult(
                 tls_version=tls_version,
                 ech_support=ech_support,
                 confidence=confidence,
-                detected_features=["tls_1_3", "ech_support"] if ech_support else ["tls_1_3"],
-                recommended_attacks=recommended_attacks
+                detected_features=(
+                    ["tls_1_3", "ech_support"] if ech_support else ["tls_1_3"]
+                ),
+                recommended_attacks=recommended_attacks,
             )
-            
+
         except Exception as e:
             LOG.warning(f"TLS detection failed: {e}")
             # Return default detection result
@@ -289,10 +323,12 @@ class ECHAttackIntegration(AdvancedAttack):
                 ech_support=True,
                 confidence=0.5,
                 detected_features=["tls_1_3"],
-                recommended_attacks=["fragmentation", "grease"]
+                recommended_attacks=["fragmentation", "grease"],
             )
-    
-    def _get_recommended_attacks(self, tls_version: str, ech_support: bool) -> List[str]:
+
+    def _get_recommended_attacks(
+        self, tls_version: str, ech_support: bool
+    ) -> List[str]:
         """Get recommended ECH attacks based on TLS version and ECH support."""
         if tls_version == "1.3" and ech_support:
             return ["fragmentation", "grease", "decoy", "advanced_fragmentation"]
@@ -300,7 +336,7 @@ class ECHAttackIntegration(AdvancedAttack):
             return ["grease", "decoy"]
         else:
             return ["grease"]  # GREASE works with older TLS versions
-    
+
     async def _get_ml_prediction(self, context: AttackContext):
         """Get ML prediction for attack strategy."""
         try:
@@ -312,33 +348,33 @@ class ECHAttackIntegration(AdvancedAttack):
                     self.parameters = {
                         "fragment_count": 3,
                         "use_padding": True,
-                        "grease_intensity": "medium"
+                        "grease_intensity": "medium",
                     }
-            
+
             return MockPrediction()
         except Exception as e:
             LOG.debug(f"ML prediction failed: {e}")
             return None
-    
+
     async def _select_optimal_ech_strategy(
-        self, 
-        fingerprint_hash: str, 
-        tls_detection: TLSDetectionResult, 
-        ml_prediction, 
-        context: AttackContext
+        self,
+        fingerprint_hash: str,
+        tls_detection: TLSDetectionResult,
+        ml_prediction,
+        context: AttackContext,
     ) -> Dict[str, Any]:
         """Select optimal ECH attack strategy based on detection and ML prediction."""
         try:
             # Get recommended attacks from detection
             recommended_attacks = tls_detection.recommended_attacks
-            
+
             # Get ML recommendation if available
             ml_attack = None
             ml_parameters = {}
             if ml_prediction:
                 ml_attack = ml_prediction.recommended_attack
-                ml_parameters = getattr(ml_prediction, 'parameters', {})
-            
+                ml_parameters = getattr(ml_prediction, "parameters", {})
+
             # Select attack type
             if ml_attack and ml_attack in recommended_attacks:
                 selected_attack = ml_attack
@@ -346,28 +382,28 @@ class ECHAttackIntegration(AdvancedAttack):
                 selected_attack = recommended_attacks[0]
             else:
                 selected_attack = "fragmentation"
-            
+
             # Get base parameters for selected attack
             base_parameters = self._get_base_parameters(selected_attack)
-            
+
             # Merge with ML parameters
             if ml_parameters:
                 base_parameters.update(ml_parameters)
-            
+
             # Optimize parameters
             optimization_result = await self._optimize_ech_parameters(
                 selected_attack, base_parameters, tls_detection, context
             )
-            
+
             return {
                 "attack_type": selected_attack,
                 "parameters": optimization_result.optimal_parameters,
                 "expected_effectiveness": optimization_result.expected_effectiveness,
                 "optimization_strategy": optimization_result.optimization_strategy,
                 "tls_detection": tls_detection,
-                "ml_prediction": ml_prediction
+                "ml_prediction": ml_prediction,
             }
-            
+
         except Exception as e:
             LOG.error(f"Strategy selection failed: {e}")
             # Return fallback strategy
@@ -377,9 +413,9 @@ class ECHAttackIntegration(AdvancedAttack):
                 "expected_effectiveness": 0.7,
                 "optimization_strategy": "fallback",
                 "tls_detection": tls_detection,
-                "ml_prediction": None
+                "ml_prediction": None,
             }
-    
+
     def _get_base_parameters(self, attack_type: str) -> Dict[str, Any]:
         """Get base parameters for ECH attack type."""
         base_params = {
@@ -387,82 +423,90 @@ class ECHAttackIntegration(AdvancedAttack):
                 "fragment_count": 3,
                 "use_padding": True,
                 "randomize_order": False,
-                "inner_sni": "hidden.example.com"
+                "inner_sni": "hidden.example.com",
             },
             "grease": {
                 "grease_intensity": "medium",
                 "include_fake_ech": True,
-                "randomize_grease": True
+                "randomize_grease": True,
             },
             "decoy": {
                 "decoy_count": 5,
                 "real_ech_position": "random",
-                "vary_sizes": True
+                "vary_sizes": True,
             },
             "advanced_fragmentation": {
                 "fragmentation_strategy": "nested_extensions",
                 "fragment_size_variation": True,
-                "cross_record_fragmentation": False
-            }
+                "cross_record_fragmentation": False,
+            },
         }
-        
+
         return base_params.get(attack_type, {})
-    
+
     async def _optimize_ech_parameters(
-        self, 
-        attack_type: str, 
-        base_parameters: Dict[str, Any], 
-        tls_detection: TLSDetectionResult, 
-        context: AttackContext
+        self,
+        attack_type: str,
+        base_parameters: Dict[str, Any],
+        tls_detection: TLSDetectionResult,
+        context: AttackContext,
     ) -> ECHOptimizationResult:
         """Optimize ECH attack parameters using evolutionary approach."""
         try:
             # Simple parameter optimization for now
             optimized_params = base_parameters.copy()
-            
+
             # Adjust parameters based on TLS detection
             if tls_detection.tls_version == "1.3":
                 if attack_type == "fragmentation":
-                    optimized_params["fragment_count"] = min(5, optimized_params.get("fragment_count", 3) + 1)
+                    optimized_params["fragment_count"] = min(
+                        5, optimized_params.get("fragment_count", 3) + 1
+                    )
                 elif attack_type == "grease":
                     optimized_params["grease_intensity"] = "high"
                 elif attack_type == "decoy":
-                    optimized_params["decoy_count"] = min(8, optimized_params.get("decoy_count", 5) + 2)
-            
+                    optimized_params["decoy_count"] = min(
+                        8, optimized_params.get("decoy_count", 5) + 2
+                    )
+
             # Adjust based on ECH support
             if not tls_detection.ech_support:
                 if attack_type == "fragmentation":
-                    optimized_params["fragment_count"] = max(2, optimized_params.get("fragment_count", 3) - 1)
+                    optimized_params["fragment_count"] = max(
+                        2, optimized_params.get("fragment_count", 3) - 1
+                    )
                 elif attack_type == "grease":
                     optimized_params["grease_intensity"] = "low"
-            
+
             # Calculate expected effectiveness
             base_effectiveness = 0.7
             if tls_detection.tls_version == "1.3":
                 base_effectiveness += 0.1
             if tls_detection.ech_support:
                 base_effectiveness += 0.1
-            
+
             # Adjust based on attack type
             attack_effectiveness = {
                 "fragmentation": 0.8,
                 "grease": 0.75,
                 "decoy": 0.7,
-                "advanced_fragmentation": 0.85
+                "advanced_fragmentation": 0.85,
             }
-            
-            expected_effectiveness = attack_effectiveness.get(attack_type, base_effectiveness)
-            
+
+            expected_effectiveness = attack_effectiveness.get(
+                attack_type, base_effectiveness
+            )
+
             self.state.optimization_iterations += 1
-            
+
             return ECHOptimizationResult(
                 optimal_parameters=optimized_params,
                 expected_effectiveness=expected_effectiveness,
                 optimization_strategy="evolutionary",
                 parameter_evolution=[base_parameters, optimized_params],
-                confidence=0.8
+                confidence=0.8,
             )
-            
+
         except Exception as e:
             LOG.error(f"Parameter optimization failed: {e}")
             return ECHOptimizationResult(
@@ -470,47 +514,57 @@ class ECHAttackIntegration(AdvancedAttack):
                 expected_effectiveness=0.7,
                 optimization_strategy="fallback",
                 parameter_evolution=[],
-                confidence=0.5
+                confidence=0.5,
             )
-    
+
     async def _execute_ech_attack(
-        self, 
-        target: str, 
-        context: AttackContext, 
-        strategy: Dict[str, Any], 
-        fingerprint_hash: str
+        self,
+        target: str,
+        context: AttackContext,
+        strategy: Dict[str, Any],
+        fingerprint_hash: str,
     ) -> AdvancedAttackResult:
         """Execute the selected ECH attack."""
         start_time = time.time()
-        
+
         try:
             attack_type = strategy["attack_type"]
             parameters = strategy["parameters"]
-            
+
             # Get the attack instance
             if attack_type not in self.ech_attacks:
                 raise ValueError(f"Unknown ECH attack type: {attack_type}")
-            
+
             attack = self.ech_attacks[attack_type]
-            
+
             # Create attack context for ECH attack using the same structure as the input context
             ech_context = AttackContext(
                 dst_ip=context.dst_ip,
                 dst_port=context.dst_port,
                 payload=context.payload,
-                params=parameters
+                params=parameters,
             )
-            
+
             # Execute the attack
             result = attack.execute(ech_context)
-            
+
             # Convert to AdvancedAttackResult
             execution_time = (time.time() - start_time) * 1000
-            
+
             if result.status.name == "SUCCESS":
                 # Create simplified AdvancedAttackResult for testing
                 class SimplifiedAdvancedAttackResult:
-                    def __init__(self, success, execution_time_ms, bytes_sent, packets_sent, latency_ms, effectiveness, bypass_technique, metadata):
+                    def __init__(
+                        self,
+                        success,
+                        execution_time_ms,
+                        bytes_sent,
+                        packets_sent,
+                        latency_ms,
+                        effectiveness,
+                        bypass_technique,
+                        metadata,
+                    ):
                         self.success = success
                         self.execution_time_ms = execution_time_ms
                         self.bytes_sent = bytes_sent
@@ -519,7 +573,7 @@ class ECHAttackIntegration(AdvancedAttack):
                         self.effectiveness = effectiveness
                         self.bypass_technique = bypass_technique
                         self.metadata = metadata
-                
+
                 return SimplifiedAdvancedAttackResult(
                     success=True,
                     execution_time_ms=execution_time,
@@ -533,18 +587,26 @@ class ECHAttackIntegration(AdvancedAttack):
                         "parameters": parameters,
                         "strategy": strategy,
                         "fingerprint_hash": fingerprint_hash,
-                        "ech_metadata": result.metadata
-                    }
+                        "ech_metadata": result.metadata,
+                    },
                 )
             else:
+
                 class SimplifiedAdvancedAttackResult:
-                    def __init__(self, success, execution_time_ms, error_message, bypass_technique, metadata):
+                    def __init__(
+                        self,
+                        success,
+                        execution_time_ms,
+                        error_message,
+                        bypass_technique,
+                        metadata,
+                    ):
                         self.success = success
                         self.execution_time_ms = execution_time_ms
                         self.error_message = error_message
                         self.bypass_technique = bypass_technique
                         self.metadata = metadata
-                
+
                 return SimplifiedAdvancedAttackResult(
                     success=False,
                     execution_time_ms=execution_time,
@@ -554,39 +616,36 @@ class ECHAttackIntegration(AdvancedAttack):
                         "attack_type": attack_type,
                         "parameters": parameters,
                         "strategy": strategy,
-                        "fingerprint_hash": fingerprint_hash
-                    }
+                        "fingerprint_hash": fingerprint_hash,
+                    },
                 )
-                
+
         except Exception as e:
             execution_time = (time.time() - start_time) * 1000
             error_message = f"ECH attack execution failed: {e}"
             LOG.error(error_message)
-            
+
             return AdvancedAttackResult(
                 success=False,
                 execution_time_ms=execution_time,
                 error_message=error_message,
                 bypass_technique=f"ech_{strategy.get('attack_type', 'unknown')}",
-                metadata={
-                    "strategy": strategy,
-                    "fingerprint_hash": fingerprint_hash
-                }
+                metadata={"strategy": strategy, "fingerprint_hash": fingerprint_hash},
             )
-    
+
     async def _save_attack_result(
-        self, 
-        fingerprint_hash: str, 
-        strategy: Dict[str, Any], 
-        result: AdvancedAttackResult, 
-        tls_detection: TLSDetectionResult
+        self,
+        fingerprint_hash: str,
+        strategy: Dict[str, Any],
+        result: AdvancedAttackResult,
+        tls_detection: TLSDetectionResult,
     ):
         """Save attack result for learning and optimization."""
         try:
             # Update attack effectiveness in state
             attack_type = strategy["attack_type"]
             effectiveness = result.effectiveness if result.success else 0.0
-            
+
             if attack_type == "grease":
                 self.state.grease_effectiveness = effectiveness
             elif attack_type == "fragmentation":
@@ -595,25 +654,29 @@ class ECHAttackIntegration(AdvancedAttack):
                 self.state.decoy_effectiveness = effectiveness
             elif attack_type == "advanced_fragmentation":
                 self.state.advanced_fragmentation_effectiveness = effectiveness
-            
+
             # Update best effectiveness
             if effectiveness > self.state.best_effectiveness:
                 self.state.best_effectiveness = effectiveness
                 self.state.best_attack_type = attack_type
-            
+
             # Update statistics
             self.state.total_attacks += 1
             if result.success:
                 self.state.successful_attacks += 1
-            
+
             self.state.last_attack_time = datetime.now()
-            
-            LOG.debug(f"Saved ECH attack result: {attack_type} - effectiveness: {effectiveness}")
-            
+
+            LOG.debug(
+                f"Saved ECH attack result: {attack_type} - effectiveness: {effectiveness}"
+            )
+
         except Exception as e:
             LOG.error(f"Failed to save attack result: {e}")
-    
-    async def _update_state_and_stats(self, result: AdvancedAttackResult, tls_detection: TLSDetectionResult):
+
+    async def _update_state_and_stats(
+        self, result: AdvancedAttackResult, tls_detection: TLSDetectionResult
+    ):
         """Update state and statistics after attack execution."""
         try:
             # Update performance metrics
@@ -621,26 +684,36 @@ class ECHAttackIntegration(AdvancedAttack):
                 # Update attack-specific effectiveness
                 attack_type = result.metadata.get("attack_type", "unknown")
                 effectiveness = result.effectiveness
-                
+
                 if attack_type == "grease":
-                    self.state.grease_effectiveness = max(self.state.grease_effectiveness, effectiveness)
+                    self.state.grease_effectiveness = max(
+                        self.state.grease_effectiveness, effectiveness
+                    )
                 elif attack_type == "fragmentation":
-                    self.state.fragmentation_effectiveness = max(self.state.fragmentation_effectiveness, effectiveness)
+                    self.state.fragmentation_effectiveness = max(
+                        self.state.fragmentation_effectiveness, effectiveness
+                    )
                 elif attack_type == "decoy":
-                    self.state.decoy_effectiveness = max(self.state.decoy_effectiveness, effectiveness)
+                    self.state.decoy_effectiveness = max(
+                        self.state.decoy_effectiveness, effectiveness
+                    )
                 elif attack_type == "advanced_fragmentation":
-                    self.state.advanced_fragmentation_effectiveness = max(self.state.advanced_fragmentation_effectiveness, effectiveness)
-            
-            LOG.debug(f"Updated ECH attack state - total: {self.state.total_attacks}, successful: {self.state.successful_attacks}")
-            
+                    self.state.advanced_fragmentation_effectiveness = max(
+                        self.state.advanced_fragmentation_effectiveness, effectiveness
+                    )
+
+            LOG.debug(
+                f"Updated ECH attack state - total: {self.state.total_attacks}, successful: {self.state.successful_attacks}"
+            )
+
         except Exception as e:
             LOG.error(f"Failed to update state and stats: {e}")
-    
+
     async def _apply_adaptation_suggestion(self, suggestion: str):
         """Apply adaptation suggestion to ECH attacks."""
         try:
             LOG.info(f"Applying ECH adaptation suggestion: {suggestion}")
-            
+
             # Parse suggestion and apply changes
             if "increase_fragmentation" in suggestion:
                 # Increase fragmentation parameters
@@ -651,28 +724,36 @@ class ECHAttackIntegration(AdvancedAttack):
             elif "enhance_decoy" in suggestion:
                 # Enhance decoy attack parameters
                 pass
-            
+
             LOG.info("ECH adaptation suggestion applied")
-            
+
         except Exception as e:
             LOG.error(f"Failed to apply adaptation suggestion: {e}")
-    
+
     def _create_error_result(self, error_message: str, execution_time: float):
         """Create error result for failed ECH attack."""
+
         class SimplifiedAdvancedAttackResult:
-            def __init__(self, success, execution_time_ms, error_message, bypass_technique, metadata):
+            def __init__(
+                self,
+                success,
+                execution_time_ms,
+                error_message,
+                bypass_technique,
+                metadata,
+            ):
                 self.success = success
                 self.execution_time_ms = execution_time_ms
                 self.error_message = error_message
                 self.bypass_technique = bypass_technique
                 self.metadata = metadata
-        
+
         return SimplifiedAdvancedAttackResult(
             success=False,
             execution_time_ms=execution_time,
             error_message=error_message,
             bypass_technique="ech_integration_error",
-            metadata={"error_type": "integration_error"}
+            metadata={"error_type": "integration_error"},
         )
 
 
@@ -686,7 +767,7 @@ def create_ech_attack_integration() -> ECHAttackIntegration:
         target_protocols=["tcp"],
         dpi_signatures=["tls_1_3", "ech_support"],
         ml_integration=True,
-        learning_enabled=True
+        learning_enabled=True,
     )
-    
+
     return ECHAttackIntegration(config)

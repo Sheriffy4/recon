@@ -1,0 +1,9 @@
+# pyproject.toml
+[project]
+name = "recon-dpi-tool"
+version = "0.1.0"
+description = "Advanced DPI vulnerability and bypass testing tool."
+requires-python = ">=3.8"
+
+[tool.setuptools.packages.find]
+where = ["."]

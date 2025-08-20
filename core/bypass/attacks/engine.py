@@ -3,10 +3,9 @@
 """Базовый класс для всех движков обхода DPI."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Set, Optional, Tuple, Any
-import logging
+from typing import Dict, Set, Optional, Any
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ..diagnostics.metrics import MetricsCollector
 from ..diagnostics.logger import get_logger

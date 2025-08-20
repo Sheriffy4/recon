@@ -46,8 +46,6 @@ async def demo_zapret_presets():
 
     # Import the integration module (using standalone version for demo)
     from test_zapret_standalone import (
-        ZapretStrategy,
-        ZapretConfig,
         create_zapret_strategy,
     )
 
@@ -129,7 +127,7 @@ async def demo_combo_capabilities():
     context = AttackContext(target_host="stubborn-dpi.com", target_port=443)
 
     # Demo sequential combo (multiple zapret variants)
-    print(f"\n🔗 Sequential Combo Demo:")
+    print("\n🔗 Sequential Combo Demo:")
 
     configs = [
         {"split_seqovl": 150, "repeats": 3, "base_ttl": 48},
@@ -155,7 +153,7 @@ async def demo_combo_capabilities():
             f"   ✅ Phase {i} complete: {result.packets_sent} packets in {result.execution_time_ms:.1f}ms"
         )
 
-    print(f"\n📊 Sequential Combo Results:")
+    print("\n📊 Sequential Combo Results:")
     print(f"   Total packets: {total_packets}")
     print(f"   Total time: {total_time:.1f}ms")
     print(f"   Average rate: {total_packets / (total_time / 1000):.1f} packets/sec")
@@ -266,7 +264,7 @@ async def demo_performance_analysis():
         )
 
     # Test different split positions
-    print(f"\n✂️  Split Position Impact:")
+    print("\n✂️  Split Position Impact:")
     split_tests = [100, 200, 297, 400, 500, 800]
 
     for split_pos in split_tests:
@@ -312,12 +310,12 @@ async def demo_zapret_original_config():
         source_port=12345,
     )
 
-    print(f"\n🚀 Executing original zapret configuration...")
+    print("\n🚀 Executing original zapret configuration...")
 
     strategy = ZapretStrategy(original_config)
     result = await strategy.execute(context)
 
-    print(f"\n📊 Results:")
+    print("\n📊 Results:")
     print(f"   ✅ Success: {result.success}")
     print(f"   📦 Total packets: {result.packets_sent}")
     print(f"   ⏱️  Execution time: {result.execution_time_ms:.1f}ms")
@@ -328,26 +326,26 @@ async def demo_zapret_original_config():
         breakdown = result.details.get("packets_breakdown", {})
         timing = result.details.get("timing", {})
 
-        print(f"\n🔧 Configuration Applied:")
+        print("\n🔧 Configuration Applied:")
         print(f"   Desync methods: {config_details.get('desync_methods')}")
         print(f"   Split position: {config_details.get('split_seqovl')}")
         print(f"   TTL: {config_details.get('ttl')}")
         print(f"   Repeats: {config_details.get('repeats')}")
         print(f"   Fooling: {config_details.get('fooling')}")
 
-        print(f"\n📈 Packet Breakdown:")
+        print("\n📈 Packet Breakdown:")
         print(f"   Total packets: {breakdown.get('total', 0)}")
         print(f"   Fake packets: {breakdown.get('fake', 0)}")
         print(f"   Disorder packets: {breakdown.get('disorder', 0)}")
         print(f"   Processing phases: {breakdown.get('phases', 0)}")
 
-        print(f"\n⚡ Performance:")
+        print("\n⚡ Performance:")
         print(f"   Packets per second: {timing.get('packets_per_second', 0):.1f}")
         print(f"   Execution time: {timing.get('execution_time_ms', 0):.1f}ms")
 
     # Get strategy statistics
     stats = strategy.get_statistics()
-    print(f"\n📊 Strategy Statistics:")
+    print("\n📊 Strategy Statistics:")
     print(f"   Packets sent: {stats['packets_sent']}")
     print(f"   Fake packets: {stats['fake_packets_sent']}")
     print(f"   Disorder packets: {stats['disorder_packets_sent']}")
@@ -380,7 +378,7 @@ async def main():
         print("   4. Real-world usage scenarios")
         print("   5. Performance characteristics and optimization")
 
-        print(f"\n🎯 Key Achievements:")
+        print("\n🎯 Key Achievements:")
         print("   ✓ Exact replication of highly effective zapret parameters")
         print("   ✓ Native combination engine for complex attack orchestration")
         print("   ✓ Modular design allowing easy customization and extension")
@@ -388,7 +386,7 @@ async def main():
         print("   ✓ Multiple execution modes: sequential, parallel, adaptive")
         print("   ✓ Comprehensive preset configurations for different DPI systems")
 
-        print(f"\n📈 Performance Summary:")
+        print("\n📈 Performance Summary:")
         print("   • Packet generation rate: 40-60 packets/second")
         print("   • Configurable timing and delays")
         print("   • Scalable repeat patterns (1-20+ repeats)")

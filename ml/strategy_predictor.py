@@ -4,10 +4,9 @@ Specialized Strategy Predictor for recommending attack categories based on DPI b
 """
 import logging
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any, Set
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from datetime import datetime
-from collections import defaultdict
 
 # Scikit-learn is an optional dependency
 try:
@@ -22,7 +21,7 @@ try:
 except ImportError:
     SKLEARN_AVAILABLE = False
 
-from core.fingerprint.models import EnhancedFingerprint, DPIBehaviorProfile
+from core.fingerprint.models import DPIBehaviorProfile
 
 LOG = logging.getLogger("strategy_predictor")
 

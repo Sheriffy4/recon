@@ -7,7 +7,7 @@ Attacks that manipulate HTTP headers to evade DPI detection.
 
 import time
 import random
-from typing import List, Dict
+from typing import List
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 

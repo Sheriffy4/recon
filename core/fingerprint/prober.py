@@ -10,11 +10,10 @@ import asyncio
 import random
 import socket
 import struct
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
-from typing import Callable, Optional, Dict, Any, List, Tuple, Set, Union
-from datetime import datetime, timedelta
-import struct
+from typing import Callable, Optional, Dict, Any, List, Set, Union
+from datetime import datetime
 
 
 # FIX: Import scapy at the top level and define SCAPY_AVAILABLE
@@ -71,7 +70,7 @@ except ImportError:
         pass
 
 
-from .models import ProbeConfig, ProbeResult, Fingerprint
+from .models import ProbeConfig, ProbeResult
 
 from ..protocols.tls import TLSHandler
 import config
@@ -164,7 +163,7 @@ class UltimateDPIProber:
         self.config: Optional[ProbeConfig] = None
         self.debug = debug
         self.logger = logging.getLogger("UltimateDPIProber")
-        
+
         # +++ ИЗМЕНЕНИЕ: Инициализируем все как None +++
         self.executor: Optional[ThreadPoolExecutor] = None
         self.cache: Optional[ProbeCache] = None
@@ -242,23 +241,32 @@ class UltimateDPIProber:
         Устанавливает конфигурацию и ИНИЦИАЛИЗИРУЕТ все зависимые компоненты.
         """
         self.config = probe_config
-        self.logger.debug(f"Prober configured for target: {probe_config.target_ip}:{probe_config.port}")
-        
+        self.logger.debug(
+            f"Prober configured for target: {probe_config.target_ip}:{probe_config.port}"
+        )
+
         # +++ ИЗМЕНЕНИЕ: Вся зависимая инициализация теперь здесь +++
-        
+
         # 1. Создаем или пересоздаем executor
         if self.executor:
             self.executor.shutdown(wait=False)
         self.executor = ThreadPoolExecutor(max_workers=self.config.max_workers)
-        
+
         # 2. Создаем или пересоздаем кэш
         self.cache = ProbeCache(self.config.cache_file, self.config.cache_ttl)
 
-    async def run_probes(self, domain: str, preliminary_type: Optional[str] = None, force_all: bool = False) -> Dict[str, Any]:
+    async def run_probes(
+        self,
+        domain: str,
+        preliminary_type: Optional[str] = None,
+        force_all: bool = False,
+    ) -> Dict[str, Any]:
         # +++ ИЗМЕНЕНИЕ: Проверка, что конфигурация и компоненты установлены +++
         if not self.config or not self.executor or not self.cache:
-            raise RuntimeError("ProbeConfig is not set. Call set_config() before running probes.")
-        
+            raise RuntimeError(
+                "ProbeConfig is not set. Call set_config() before running probes."
+            )
+
         start_time = time.time()
         cache_key = f"{self.config.target_ip}:{self.config.port}:{domain}"
 
@@ -313,7 +321,7 @@ class UltimateDPIProber:
             self.executor.shutdown(wait=True)
             self.executor = None
             self.logger.debug("ThreadPoolExecutor shut down.")
-    
+
     def _get_all_probes(self, domain: str) -> Dict[str, Callable]:
         """Get all available probe methods"""
         return {
@@ -762,7 +770,7 @@ class UltimateDPIProber:
     @probe_timeout(2.0)
     async def probe_payload_entropy(self) -> float:
         """Test sensitivity to payload entropy"""
-        LOG.debug(f"Probing payload entropy sensitivity")
+        LOG.debug("Probing payload entropy sensitivity")
 
         results = []
 
@@ -790,7 +798,7 @@ class UltimateDPIProber:
     @probe_timeout(2.0)
     async def probe_http2(self) -> bool:
         """Test HTTP/2 support and detection"""
-        LOG.debug(f"Probing HTTP/2 support")
+        LOG.debug("Probing HTTP/2 support")
 
         # HTTP/2 connection preface
         h2_preface = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
@@ -814,7 +822,7 @@ class UltimateDPIProber:
     @probe_timeout(2.0)
     async def probe_quic_version_negotiation(self) -> bool:
         """Test QUIC version negotiation"""
-        LOG.debug(f"Probing QUIC version negotiation")
+        LOG.debug("Probing QUIC version negotiation")
 
         ip = self._get_ip_layer()
 
@@ -837,7 +845,7 @@ class UltimateDPIProber:
     @probe_timeout(3.0)
     async def probe_tls_versions(self) -> Optional[str]:
         """Test TLS version sensitivity"""
-        LOG.debug(f"Probing TLS version sensitivity")
+        LOG.debug("Probing TLS version sensitivity")
 
         results = {}
         versions = [
@@ -870,7 +878,7 @@ class UltimateDPIProber:
     @probe_timeout(2.0)
     async def probe_tcp_fast_open(self) -> bool:
         """Test TCP Fast Open support"""
-        LOG.debug(f"Probing TCP Fast Open")
+        LOG.debug("Probing TCP Fast Open")
 
         ip = self._get_ip_layer()
 
@@ -893,7 +901,7 @@ class UltimateDPIProber:
     @probe_timeout(2.0)
     async def probe_zero_rtt(self) -> bool:
         """Test TLS 1.3 0-RTT support"""
-        LOG.debug(f"Probing 0-RTT support")
+        LOG.debug("Probing 0-RTT support")
 
         # Build TLS 1.3 ClientHello with early_data extension
         hello = self.tls_handler.build_client_hello(
@@ -915,7 +923,7 @@ class UltimateDPIProber:
         if self.config.family != "IPv6":
             return "not_applicable"
 
-        LOG.debug(f"Probing IPv6 handling")
+        LOG.debug("Probing IPv6 handling")
 
         # Test basic connectivity
         icmp6 = IPv6(dst=self.config.target_ip) / ICMPv6EchoRequest()
@@ -932,7 +940,7 @@ class UltimateDPIProber:
     @probe_timeout(2.0)
     async def probe_dns_over_https(self) -> bool:
         """Test DNS-over-HTTPS blocking"""
-        LOG.debug(f"Probing DoH support")
+        LOG.debug("Probing DoH support")
 
         # DoH POST request
         doh_request = b"POST /dns-query HTTP/1.1\r\n"

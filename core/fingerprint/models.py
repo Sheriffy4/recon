@@ -2,14 +2,11 @@
 """
 Ultimate data models combining all expert ideas with enhanced capabilities
 """
-import os
 import hashlib
-import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Tuple, Any, Optional, Set, Union
+from typing import Dict, List, Tuple, Any, Optional, Set
 from enum import Enum
-import json
 
 
 class DPIFamily(Enum):
@@ -315,9 +312,11 @@ class EnhancedFingerprint(Fingerprint):
 
     reassembly_buffer_size: Optional[int] = None
     reassembly_timeout_ms: Optional[int] = None
-    protocol_parser_strictness: Dict[str, str] = field(default_factory=dict) # {'tls': 'strict', 'http': 'loose'}
-    cache_poisoning_vulnerability: Optional[str] = None # 'ttl', 'checksum', 'none'
-    flow_correlation_sensitivity: Optional[float] = None # 0.0-1.0
+    protocol_parser_strictness: Dict[str, str] = field(
+        default_factory=dict
+    )  # {'tls': 'strict', 'http': 'loose'}
+    cache_poisoning_vulnerability: Optional[str] = None  # 'ttl', 'checksum', 'none'
+    flow_correlation_sensitivity: Optional[float] = None  # 0.0-1.0
 
     def merge_with(self, other: "EnhancedFingerprint") -> "EnhancedFingerprint":
         """Merge with another fingerprint, keeping the most recent/confident data"""

@@ -16,9 +16,9 @@ from .delay_evasion import DelayEvasionAttack
 from .burst_traffic import BurstTrafficAttack
 
 __all__ = [
-    'TimingAttackBase',
-    'TimingResult',
-    'JitterInjectionAttack',
-    'DelayEvasionAttack', 
-    'BurstTrafficAttack'
+    "TimingAttackBase",
+    "TimingResult",
+    "JitterInjectionAttack",
+    "DelayEvasionAttack",
+    "BurstTrafficAttack",
 ]

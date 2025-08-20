@@ -9,7 +9,6 @@ Migrated from:
 
 import time
 import random
-from typing import List
 from ..base import PayloadAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 

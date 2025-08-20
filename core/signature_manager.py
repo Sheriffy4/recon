@@ -5,7 +5,7 @@ import logging
 import time
 import requests
 import threading
-from typing import Dict, Optional, Any, List, TYPE_CHECKING
+from typing import Dict, Optional, Any, TYPE_CHECKING
 from datetime import datetime
 
 try:
@@ -130,7 +130,7 @@ class SignatureManager:
             return
 
         def job():
-            LOG.info(f"Auto-sync: Проверка обновлений в удаленной базе...")
+            LOG.info("Auto-sync: Проверка обновлений в удаленной базе...")
             self.sync_from_remote()
 
         job()

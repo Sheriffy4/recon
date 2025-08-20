@@ -3,13 +3,14 @@ Performance optimization data models.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from datetime import datetime
 from enum import Enum
 
 
 class OptimizationLevel(Enum):
     """Performance optimization levels."""
+
     CONSERVATIVE = "conservative"
     BALANCED = "balanced"
     AGGRESSIVE = "aggressive"
@@ -18,6 +19,7 @@ class OptimizationLevel(Enum):
 
 class AlertSeverity(Enum):
     """Alert severity levels."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -27,6 +29,7 @@ class AlertSeverity(Enum):
 @dataclass
 class PerformanceMetrics:
     """Performance metrics for bypass operations."""
+
     attack_execution_time: float
     strategy_selection_time: float
     validation_time: float
@@ -41,6 +44,7 @@ class PerformanceMetrics:
 @dataclass
 class OptimizationResult:
     """Result of performance optimization."""
+
     original_metrics: PerformanceMetrics
     optimized_metrics: PerformanceMetrics
     improvement_percentage: float
@@ -52,6 +56,7 @@ class OptimizationResult:
 @dataclass
 class StrategyPerformance:
     """Performance data for a specific strategy."""
+
     strategy_id: str
     execution_count: int
     average_execution_time: float
@@ -64,6 +69,7 @@ class StrategyPerformance:
 @dataclass
 class SystemHealth:
     """Overall system health metrics."""
+
     cpu_usage: float
     memory_usage: float
     disk_usage: float
@@ -78,6 +84,7 @@ class SystemHealth:
 @dataclass
 class Alert:
     """System alert."""
+
     id: str
     severity: AlertSeverity
     title: str
@@ -92,6 +99,7 @@ class Alert:
 @dataclass
 class ProductionConfig:
     """Production deployment configuration."""
+
     optimization_level: OptimizationLevel
     max_concurrent_attacks: int
     resource_limits: Dict[str, float]
@@ -106,6 +114,7 @@ class ProductionConfig:
 @dataclass
 class DeploymentChecklist:
     """Production deployment checklist."""
+
     system_requirements_met: bool
     dependencies_installed: bool
     configuration_validated: bool

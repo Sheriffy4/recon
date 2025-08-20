@@ -13,9 +13,7 @@ Implements Task 17.2: Create attacks against stateful DPI with timeouts
 
 import random
 import asyncio
-import time
-import struct
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 from dataclasses import dataclass
 
 try:
@@ -218,7 +216,7 @@ class FakeDisorderAttack(BaseAttack):
                 send(packet, verbose=0)
                 # Small delay between fake packets
                 await asyncio.sleep(self.config.disorder_delay_ms / 1000.0)
-            except Exception as e:
+            except Exception:
                 # Continue even if some fake packets fail
                 pass
 
@@ -238,7 +236,7 @@ class FakeDisorderAttack(BaseAttack):
                     jitter = random.randint(0, self.config.max_jitter_ms)
                     await asyncio.sleep(jitter / 1000.0)
 
-            except Exception as e:
+            except Exception:
                 continue
 
         return response

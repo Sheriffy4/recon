@@ -12,8 +12,6 @@ Migrated and unified from:
 import time
 import os
 import random
-import struct
-from typing import Dict, Any, Optional
 from ..base import ManipulationAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 
@@ -116,13 +114,13 @@ class TCPOptionsModificationAttack(ManipulationAttack):
             if modification_type == "add_mss_abuse":
                 # MSS option (Kind=2, Length=4, Value)
                 # Abusing with a small value
-                options = {"tcp_options": b'\x02\x04\x00\x40'}  # MSS = 64
+                options = {"tcp_options": b"\x02\x04\x00\x40"}  # MSS = 64
             elif modification_type == "add_sack_perm":
                 # SACK Permitted option (Kind=4, Length=2)
-                options = {"tcp_options": b'\x04\x02'}
+                options = {"tcp_options": b"\x04\x02"}
             elif modification_type == "add_nop_flood":
                 # Flood with NOP options
-                options = {"tcp_options": b'\x01' * 10}
+                options = {"tcp_options": b"\x01" * 10}
             else:
                 return AttackResult(
                     status=AttackStatus.INVALID_PARAMS,
@@ -131,7 +129,9 @@ class TCPOptionsModificationAttack(ManipulationAttack):
 
             segments.append((part1, 0, options))
             if part2:
-                segments.append((part2, split_pos, {}))  # Second part has no special options
+                segments.append(
+                    (part2, split_pos, {})
+                )  # Second part has no special options
 
             packets_sent = len(segments)
             bytes_sent = len(payload)
@@ -181,7 +181,9 @@ class TCPSequenceNumberManipulationAttack(ManipulationAttack):
 
         try:
             payload = context.payload
-            manipulation_type = context.params.get("manipulation_type", "overlap_forward")
+            manipulation_type = context.params.get(
+                "manipulation_type", "overlap_forward"
+            )
             overlap_size = context.params.get("overlap_size", 4)
             gap_size = context.params.get("gap_size", 10)
             split_pos = context.params.get("split_pos", len(payload) // 2)
@@ -230,7 +232,9 @@ class TCPSequenceNumberManipulationAttack(ManipulationAttack):
                 data_transmitted=True,
                 metadata={
                     "manipulation_type": manipulation_type,
-                    "overlap_size": overlap_size if "overlap" in manipulation_type else None,
+                    "overlap_size": (
+                        overlap_size if "overlap" in manipulation_type else None
+                    ),
                     "gap_size": gap_size if "gap" in manipulation_type else None,
                     "split_pos": split_pos,
                     "segment_count": len(segments),
@@ -553,7 +557,7 @@ class TCPMultiSplitAttack(ManipulationAttack):
             # Используем get для безопасного получения значений с default
             split_count = int(params.get("dpi-desync-split-count", 3))
             overlap_size = int(params.get("dpi-desync-split-seqovl", 0))
-            fooling_methods = params.get("dpi-desync-fooling", "").split(',')
+            fooling_methods = params.get("dpi-desync-fooling", "").split(",")
 
             self.logger.debug(
                 f"Executing multisplit with count={split_count}, overlap={overlap_size}, fooling={fooling_methods}"
@@ -562,7 +566,7 @@ class TCPMultiSplitAttack(ManipulationAttack):
             if len(payload) < split_count:
                 return AttackResult(
                     status=AttackStatus.INVALID_PARAMS,
-                    error_message=f"Payload too small ({len(payload)} bytes) for {split_count} splits."
+                    error_message=f"Payload too small ({len(payload)} bytes) for {split_count} splits.",
                 )
 
             # --- ГЕНЕРАЦИЯ СЕГМЕНТОВ ---
@@ -574,12 +578,14 @@ class TCPMultiSplitAttack(ManipulationAttack):
             for i in range(split_count):
                 size = segment_size + (1 if i < remainder else 0)
                 end_pos = current_pos + size
-                
+
                 # Применяем overlap
-                start_offset = max(0, current_pos - overlap_size) if i > 0 else current_pos
-                
+                start_offset = (
+                    max(0, current_pos - overlap_size) if i > 0 else current_pos
+                )
+
                 segment_payload = payload[start_offset:end_pos]
-                
+
                 if not segment_payload:
                     continue
 
@@ -588,7 +594,7 @@ class TCPMultiSplitAttack(ManipulationAttack):
                 if "badsum" in fooling_methods:
                     options["bad_checksum"] = True
                 if "md5sig" in fooling_methods:
-                    options["md5_signature"] = os.urandom(16) # TCP MD5-sig option
+                    options["md5_signature"] = os.urandom(16)  # TCP MD5-sig option
                 if "badseq" in fooling_methods:
                     # Эта опция будет обработана сборщиком пакетов
                     options["bad_sequence"] = True
@@ -617,7 +623,7 @@ class TCPMultiSplitAttack(ManipulationAttack):
                     "overlap_size": overlap_size,
                     "fooling_methods": fooling_methods,
                     "segment_count": len(segments),
-                    "segments": segments, # Возвращаем сегменты для движка
+                    "segments": segments,  # Возвращаем сегменты для движка
                 },
             )
         except Exception as e:
@@ -697,6 +703,7 @@ class TCPTimestampAttack(ManipulationAttack):
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
             )
+
 
 @register_attack
 class TCPWindowSizeLimitAttack(ManipulationAttack):

@@ -4,11 +4,10 @@
 import struct
 import socket
 import random
-from typing import List, Tuple, Optional, Dict, Any, Union
-from functools import lru_cache
+from typing import List, Optional, Dict, Any, Union
 import logging
 
-from ..exceptions import InvalidPacketError, PacketProcessingError
+from ..exceptions import InvalidPacketError
 
 
 class PacketBuilder:

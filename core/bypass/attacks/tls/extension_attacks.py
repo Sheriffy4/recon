@@ -5,12 +5,10 @@ import random
 import struct
 from typing import List, Optional, Tuple
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from ..safe_result_utils import create_success_result, create_error_result, create_failed_result
 from ..registry import register_attack
 
 
-from ....protocols.tls import TLSParser, TLSExtensionType
-
+from ....protocols.tls import TLSParser
 
 
 # Safety wrapper for AttackResult creation
@@ -18,15 +16,18 @@ def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
     try:
         from ..safe_result_utils import safe_create_attack_result
+
         return safe_create_attack_result(status_name, **kwargs)
     except Exception:
         # Ultimate fallback
         try:
             from ..base import AttackResult, AttackStatus
+
             status = getattr(AttackStatus, status_name)
             return AttackResult(status=status, **kwargs)
         except Exception:
             return None
+
 
 @register_attack
 class SNIManipulationAttack(BaseAttack):
@@ -65,14 +66,18 @@ class SNIManipulationAttack(BaseAttack):
             # Check if payload looks like TLS
             if not self._is_tls_payload(payload):
                 # For non-TLS payloads, create a mock TLS ClientHello with SNI
-                domain = context.domain or context.params.get("target_domain", "example.com")
+                domain = context.domain or context.params.get(
+                    "target_domain", "example.com"
+                )
                 payload = self._create_mock_client_hello(domain)
 
             # Используем TLSParser для получения SNI
             original_domain = TLSParser.get_sni(payload)
             if not original_domain:
                 # Fallback: use domain from context
-                original_domain = context.domain or context.params.get("target_domain", "example.com")
+                original_domain = context.domain or context.params.get(
+                    "target_domain", "example.com"
+                )
 
             # Apply manipulation using new methods
             if manipulation_type == "case_change":
@@ -130,37 +135,39 @@ class SNIManipulationAttack(BaseAttack):
         if len(payload) < 6:
             return False
         # Check for TLS record header (0x16 = Handshake, version 0x0301-0x0304)
-        return (payload[0] == 0x16 and 
-                payload[1] in [0x03] and 
-                payload[2] in [0x01, 0x02, 0x03, 0x04])
+        return (
+            payload[0] == 0x16
+            and payload[1] in [0x03]
+            and payload[2] in [0x01, 0x02, 0x03, 0x04]
+        )
 
     def _create_mock_client_hello(self, domain: str) -> bytes:
         """Create a mock TLS ClientHello with SNI for testing."""
         import struct
-        
+
         # This is a simplified mock - in real implementation would be more complex
-        sni_data = domain.encode('utf-8')
+        sni_data = domain.encode("utf-8")
         sni_len = len(sni_data)
-        
+
         # Mock TLS ClientHello with SNI extension
         mock_hello = (
-            b'\x16\x03\x01'  # TLS Handshake, version 3.1
-            + b'\x00\x50'      # Length (placeholder)
-            + b'\x01'          # ClientHello
-            + b'\x00\x00\x4c'  # Length
-            + b'\x03\x03'      # Version
-            + b'\x00' * 32     # Random
-            + b'\x00'          # Session ID length
-            + b'\x00\x02'      # Cipher suites length
-            + b'\x00\x35'      # Cipher suite
-            + b'\x01\x00'      # Compression methods
-            + b'\x00\x1d'      # Extensions length
-            + b'\x00\x00'      # SNI extension type
-            + struct.pack('!H', sni_len + 5)  # Extension length
-            + struct.pack('!H', sni_len + 3)  # Server name list length
-            + b'\x00'        # Server name type (hostname)
-            + struct.pack('!H', sni_len)      # Server name length
-            + sni_data       # Server name
+            b"\x16\x03\x01"  # TLS Handshake, version 3.1
+            + b"\x00\x50"  # Length (placeholder)
+            + b"\x01"  # ClientHello
+            + b"\x00\x00\x4c"  # Length
+            + b"\x03\x03"  # Version
+            + b"\x00" * 32  # Random
+            + b"\x00"  # Session ID length
+            + b"\x00\x02"  # Cipher suites length
+            + b"\x00\x35"  # Cipher suite
+            + b"\x01\x00"  # Compression methods
+            + b"\x00\x1d"  # Extensions length
+            + b"\x00\x00"  # SNI extension type
+            + struct.pack("!H", sni_len + 5)  # Extension length
+            + struct.pack("!H", sni_len + 3)  # Server name list length
+            + b"\x00"  # Server name type (hostname)
+            + struct.pack("!H", sni_len)  # Server name length
+            + sni_data  # Server name
         )
         return mock_hello
 
@@ -182,11 +189,11 @@ class SNIManipulationAttack(BaseAttack):
 
     def _add_fake_tld(self, domain: str, fake_tld: str = "local") -> str:
         """Add fake TLD to domain."""
-        parts = domain.split('.')
+        parts = domain.split(".")
         if len(parts) > 1:
             # Replace last part with fake TLD
             parts[-1] = fake_tld
-            return '.'.join(parts)
+            return ".".join(parts)
         return f"{domain}.{fake_tld}"
 
     def _obfuscate_domain(self, domain: str, method: str = "case") -> str:
@@ -348,7 +355,7 @@ class ALPNManipulationAttack(BaseAttack):
             for protocol in fake_protocols:
                 # Convert string to bytes if needed
                 if isinstance(protocol, str):
-                    protocol_bytes = protocol.encode('utf-8')
+                    protocol_bytes = protocol.encode("utf-8")
                 else:
                     protocol_bytes = protocol
                 alpn_data += bytes([len(protocol_bytes)]) + protocol_bytes
@@ -382,7 +389,11 @@ class ALPNManipulationAttack(BaseAttack):
                 data_transmitted=True,
                 metadata={
                     "fake_protocols": [
-                        p.decode("utf-8", errors="ignore") if isinstance(p, bytes) else p 
+                        (
+                            p.decode("utf-8", errors="ignore")
+                            if isinstance(p, bytes)
+                            else p
+                        )
                         for p in fake_protocols
                     ],
                     "alpn_extension_size": len(alpn_extension),

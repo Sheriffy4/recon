@@ -13,7 +13,7 @@ import base64
 import struct
 import hashlib
 import json
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 
@@ -22,7 +22,7 @@ from ..registry import register_attack
 class HTTPTunnelingObfuscationAttack(BaseAttack):
     """
     Advanced HTTP Tunneling Attack with multiple obfuscation layers.
-    
+
     Tunnels data through HTTP requests with various encoding and obfuscation
     techniques to make traffic appear as legitimate web browsing.
     """
@@ -52,8 +52,13 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
             method = context.params.get("method", "POST")
             encoding = context.params.get("encoding", "base64")
             obfuscation_level = context.params.get("obfuscation_level", "medium")
-            user_agent = context.params.get("user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            host_header = context.params.get("host_header", context.domain or "example.com")
+            user_agent = context.params.get(
+                "user_agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            )
+            host_header = context.params.get(
+                "host_header", context.domain or "example.com"
+            )
 
             # Apply multiple layers of obfuscation
             obfuscated_payload = self._apply_obfuscation_layers(
@@ -100,8 +105,8 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
                     "original_size": len(payload),
                     "obfuscated_size": len(obfuscated_payload),
                     "total_size": len(http_request),
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -109,20 +114,22 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="http_tunneling_obfuscation"
+                technique_used="http_tunneling_obfuscation",
             )
 
-    def _apply_obfuscation_layers(self, payload: bytes, encoding: str, level: str) -> str:
+    def _apply_obfuscation_layers(
+        self, payload: bytes, encoding: str, level: str
+    ) -> str:
         """Apply multiple layers of obfuscation to payload."""
         # Layer 1: Basic encoding
         if encoding == "base64":
-            encoded = base64.b64encode(payload).decode('ascii')
+            encoded = base64.b64encode(payload).decode("ascii")
         elif encoding == "hex":
             encoded = payload.hex()
         elif encoding == "url":
             encoded = self._url_encode(payload)
         else:
-            encoded = payload.decode('utf-8', errors='ignore')
+            encoded = payload.decode("utf-8", errors="ignore")
 
         # Layer 2: Obfuscation based on level
         if level == "low":
@@ -142,7 +149,7 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
             f"session_id={self._generate_fake_session()}",
             f"timestamp={int(time.time())}",
             f"data={data}",
-            f"checksum={hashlib.md5(data.encode()).hexdigest()[:8]}"
+            f"checksum={hashlib.md5(data.encode()).hexdigest()[:8]}",
         ]
         random.shuffle(fake_fields)
         return "&".join(fake_fields)
@@ -155,22 +162,24 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
                 "version": "1.0",
                 "timestamp": int(time.time()),
                 "client_id": self._generate_fake_token(),
-                "session": self._generate_fake_session()
+                "session": self._generate_fake_session(),
             },
             "payload": {
                 "type": "form_data",
                 "encoding": "base64",
                 "data": data,
-                "chunks": self._split_data_into_chunks(data)
+                "chunks": self._split_data_into_chunks(data),
             },
             "verification": {
                 "checksum": hashlib.sha256(data.encode()).hexdigest()[:16],
-                "signature": self._generate_fake_signature()
-            }
+                "signature": self._generate_fake_signature(),
+            },
         }
-        return json.dumps(obfuscated, separators=(',', ':'))
+        return json.dumps(obfuscated, separators=(",", ":"))
 
-    def _create_obfuscated_post_request(self, data: str, host: str, user_agent: str, level: str) -> bytes:
+    def _create_obfuscated_post_request(
+        self, data: str, host: str, user_agent: str, level: str
+    ) -> bytes:
         """Create obfuscated POST request."""
         content_type = "application/x-www-form-urlencoded"
         if level == "high":
@@ -178,26 +187,28 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
 
         # Add realistic headers
         headers = [
-            f"POST /api/v1/submit HTTP/1.1",
+            "POST /api/v1/submit HTTP/1.1",
             f"Host: {host}",
             f"User-Agent: {user_agent}",
-            f"Accept: application/json, text/plain, */*",
-            f"Accept-Language: en-US,en;q=0.9",
-            f"Accept-Encoding: gzip, deflate, br",
+            "Accept: application/json, text/plain, */*",
+            "Accept-Language: en-US,en;q=0.9",
+            "Accept-Encoding: gzip, deflate, br",
             f"Content-Type: {content_type}",
             f"Content-Length: {len(data)}",
             f"Origin: https://{host}",
             f"Referer: https://{host}/form",
-            f"Connection: keep-alive",
-            f"Sec-Fetch-Dest: empty",
-            f"Sec-Fetch-Mode: cors",
-            f"Sec-Fetch-Site: same-origin"
+            "Connection: keep-alive",
+            "Sec-Fetch-Dest: empty",
+            "Sec-Fetch-Mode: cors",
+            "Sec-Fetch-Site: same-origin",
         ]
 
         request = "\r\n".join(headers) + "\r\n\r\n" + data
-        return request.encode('utf-8')
+        return request.encode("utf-8")
 
-    def _create_obfuscated_get_request(self, data: str, host: str, user_agent: str, level: str) -> bytes:
+    def _create_obfuscated_get_request(
+        self, data: str, host: str, user_agent: str, level: str
+    ) -> bytes:
         """Create obfuscated GET request."""
         # Limit data size for GET and encode in URL parameters
         if len(data) > 2000:
@@ -206,44 +217,46 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
         # Create realistic URL path
         paths = ["/search", "/api/query", "/data/fetch", "/content/load"]
         path = random.choice(paths)
-        
+
         headers = [
             f"GET {path}?q={data}&t={int(time.time())}&r={random.randint(1000, 9999)} HTTP/1.1",
             f"Host: {host}",
             f"User-Agent: {user_agent}",
-            f"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            f"Accept-Language: en-US,en;q=0.5",
-            f"Accept-Encoding: gzip, deflate",
-            f"Connection: keep-alive",
-            f"Upgrade-Insecure-Requests: 1",
-            f"Sec-Fetch-Dest: document",
-            f"Sec-Fetch-Mode: navigate",
-            f"Sec-Fetch-Site: none"
+            "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language: en-US,en;q=0.5",
+            "Accept-Encoding: gzip, deflate",
+            "Connection: keep-alive",
+            "Upgrade-Insecure-Requests: 1",
+            "Sec-Fetch-Dest: document",
+            "Sec-Fetch-Mode: navigate",
+            "Sec-Fetch-Site: none",
         ]
 
         request = "\r\n".join(headers) + "\r\n\r\n"
-        return request.encode('utf-8')
+        return request.encode("utf-8")
 
-    def _create_obfuscated_put_request(self, data: str, host: str, user_agent: str, level: str) -> bytes:
+    def _create_obfuscated_put_request(
+        self, data: str, host: str, user_agent: str, level: str
+    ) -> bytes:
         """Create obfuscated PUT request."""
         headers = [
-            f"PUT /api/v1/update HTTP/1.1",
+            "PUT /api/v1/update HTTP/1.1",
             f"Host: {host}",
             f"User-Agent: {user_agent}",
-            f"Accept: application/json",
-            f"Accept-Language: en-US,en;q=0.9",
-            f"Content-Type: application/json",
+            "Accept: application/json",
+            "Accept-Language: en-US,en;q=0.9",
+            "Content-Type: application/json",
             f"Content-Length: {len(data)}",
             f"Authorization: Bearer {self._generate_fake_token()}",
-            f"Connection: keep-alive"
+            "Connection: keep-alive",
         ]
 
         request = "\r\n".join(headers) + "\r\n\r\n" + data
-        return request.encode('utf-8')
+        return request.encode("utf-8")
 
     def _generate_fake_token(self) -> str:
         """Generate fake authentication token."""
-        return base64.b64encode(random.randbytes(24)).decode('ascii')
+        return base64.b64encode(random.randbytes(24)).decode("ascii")
 
     def _generate_fake_session(self) -> str:
         """Generate fake session ID."""
@@ -258,7 +271,7 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
         chunk_size = random.randint(50, 200)
         chunks = []
         for i in range(0, len(data), chunk_size):
-            chunks.append(data[i:i + chunk_size])
+            chunks.append(data[i : i + chunk_size])
         return chunks
 
     def _url_encode(self, data: bytes) -> str:
@@ -276,7 +289,7 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
 class DNSOverHTTPSTunnelingAttack(BaseAttack):
     """
     DNS over HTTPS (DoH) Tunneling Attack.
-    
+
     Tunnels data through DNS over HTTPS requests to evade DPI detection
     by appearing as legitimate DNS queries.
     """
@@ -309,10 +322,10 @@ class DNSOverHTTPSTunnelingAttack(BaseAttack):
 
             # Encode payload for DNS tunneling
             encoded_payload = self._encode_payload_for_dns(payload, encoding_method)
-            
+
             # Split into DNS-compatible chunks
             dns_queries = self._create_dns_queries(encoded_payload, max_label_length)
-            
+
             # Create DoH requests
             doh_requests = []
             for query in dns_queries:
@@ -342,8 +355,8 @@ class DNSOverHTTPSTunnelingAttack(BaseAttack):
                     "original_size": len(payload),
                     "encoded_size": len(encoded_payload),
                     "total_size": len(combined_payload),
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -351,66 +364,71 @@ class DNSOverHTTPSTunnelingAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="dns_over_https_tunneling"
+                technique_used="dns_over_https_tunneling",
             )
 
     def _encode_payload_for_dns(self, payload: bytes, method: str) -> str:
         """Encode payload for DNS tunneling."""
         if method == "base32":
             import base64
-            return base64.b32encode(payload).decode('ascii').lower().rstrip('=')
+
+            return base64.b32encode(payload).decode("ascii").lower().rstrip("=")
         elif method == "base64":
             # Use URL-safe base64 and replace problematic characters
-            encoded = base64.urlsafe_b64encode(payload).decode('ascii').rstrip('=')
-            return encoded.replace('-', 'x').replace('_', 'y')
+            encoded = base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+            return encoded.replace("-", "x").replace("_", "y")
         elif method == "hex":
             return payload.hex()
         else:
-            return base64.b32encode(payload).decode('ascii').lower().rstrip('=')
+            return base64.b32encode(payload).decode("ascii").lower().rstrip("=")
 
-    def _create_dns_queries(self, encoded_data: str, max_label_length: int) -> List[str]:
+    def _create_dns_queries(
+        self, encoded_data: str, max_label_length: int
+    ) -> List[str]:
         """Create DNS queries from encoded data."""
         queries = []
-        
+
         # Split data into DNS label-compatible chunks
         for i in range(0, len(encoded_data), max_label_length):
-            chunk = encoded_data[i:i + max_label_length]
-            
+            chunk = encoded_data[i : i + max_label_length]
+
             # Create realistic-looking domain name
             subdomain_parts = []
             for j in range(0, len(chunk), 20):  # Split into smaller parts
-                part = chunk[j:j + 20]
+                part = chunk[j : j + 20]
                 if part:
                     subdomain_parts.append(part)
-            
+
             # Add sequence number and checksum for reassembly
             seq_num = f"s{i // max_label_length:04x}"
             checksum = f"c{hash(chunk) & 0xffff:04x}"
-            
-            query_domain = ".".join(subdomain_parts + [seq_num, checksum, "tunnel.example.com"])
+
+            query_domain = ".".join(
+                subdomain_parts + [seq_num, checksum, "tunnel.example.com"]
+            )
             queries.append(query_domain)
-        
+
         return queries
 
     def _create_doh_request(self, query_domain: str, doh_server: str) -> bytes:
         """Create DNS over HTTPS request."""
         # Create DNS query packet
         dns_query = self._create_dns_query_packet(query_domain)
-        
+
         # Encode as base64 for DoH
-        dns_query_b64 = base64.urlsafe_b64encode(dns_query).decode('ascii').rstrip('=')
-        
+        dns_query_b64 = base64.urlsafe_b64encode(dns_query).decode("ascii").rstrip("=")
+
         # Create HTTPS request
         headers = [
             f"GET /dns-query?dns={dns_query_b64} HTTP/1.1",
             f"Host: {doh_server}",
-            f"Accept: application/dns-message",
-            f"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            f"Connection: keep-alive"
+            "Accept: application/dns-message",
+            "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Connection: keep-alive",
         ]
-        
+
         request = "\r\n".join(headers) + "\r\n\r\n"
-        return request.encode('utf-8')
+        return request.encode("utf-8")
 
     def _create_dns_query_packet(self, domain: str) -> bytes:
         """Create DNS query packet."""
@@ -421,17 +439,19 @@ class DNSOverHTTPSTunnelingAttack(BaseAttack):
         answers = 0
         authority = 0
         additional = 0
-        
-        header = struct.pack('>HHHHHH', query_id, flags, questions, answers, authority, additional)
-        
+
+        header = struct.pack(
+            ">HHHHHH", query_id, flags, questions, answers, authority, additional
+        )
+
         # DNS question
         question = b""
-        for label in domain.split('.'):
+        for label in domain.split("."):
             if label:
-                question += bytes([len(label)]) + label.encode('ascii')
+                question += bytes([len(label)]) + label.encode("ascii")
         question += b"\x00"  # End of domain name
-        question += struct.pack('>HH', 1, 1)  # Type A, Class IN
-        
+        question += struct.pack(">HH", 1, 1)  # Type A, Class IN
+
         return header + question
 
 
@@ -439,7 +459,7 @@ class DNSOverHTTPSTunnelingAttack(BaseAttack):
 class WebSocketTunnelingObfuscationAttack(BaseAttack):
     """
     Advanced WebSocket Tunneling Attack with obfuscation.
-    
+
     Tunnels data through WebSocket connections with various obfuscation
     techniques to evade DPI detection.
     """
@@ -466,14 +486,20 @@ class WebSocketTunnelingObfuscationAttack(BaseAttack):
 
         try:
             payload = context.payload
-            host_header = context.params.get("host_header", context.domain or "example.com")
+            host_header = context.params.get(
+                "host_header", context.domain or "example.com"
+            )
             path = context.params.get("path", "/ws")
             subprotocol = context.params.get("subprotocol", "chat")
-            obfuscation_method = context.params.get("obfuscation_method", "fragmentation")
+            obfuscation_method = context.params.get(
+                "obfuscation_method", "fragmentation"
+            )
 
             # Create WebSocket handshake
-            ws_key = base64.b64encode(random.randbytes(16)).decode('ascii')
-            handshake = self._create_obfuscated_ws_handshake(host_header, path, ws_key, subprotocol)
+            ws_key = base64.b64encode(random.randbytes(16)).decode("ascii")
+            handshake = self._create_obfuscated_ws_handshake(
+                host_header, path, ws_key, subprotocol
+            )
 
             # Create obfuscated WebSocket frames
             ws_frames = self._create_obfuscated_ws_frames(payload, obfuscation_method)
@@ -503,8 +529,8 @@ class WebSocketTunnelingObfuscationAttack(BaseAttack):
                     "frame_count": len(ws_frames),
                     "original_size": len(payload),
                     "total_size": len(combined_payload),
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -512,28 +538,30 @@ class WebSocketTunnelingObfuscationAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="websocket_tunneling_obfuscation"
+                technique_used="websocket_tunneling_obfuscation",
             )
 
-    def _create_obfuscated_ws_handshake(self, host: str, path: str, ws_key: str, subprotocol: str) -> bytes:
+    def _create_obfuscated_ws_handshake(
+        self, host: str, path: str, ws_key: str, subprotocol: str
+    ) -> bytes:
         """Create obfuscated WebSocket handshake."""
         headers = [
             f"GET {path} HTTP/1.1",
             f"Host: {host}",
-            f"Upgrade: websocket",
-            f"Connection: Upgrade",
+            "Upgrade: websocket",
+            "Connection: Upgrade",
             f"Sec-WebSocket-Key: {ws_key}",
-            f"Sec-WebSocket-Version: 13",
+            "Sec-WebSocket-Version: 13",
             f"Sec-WebSocket-Protocol: {subprotocol}",
-            f"Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits",
-            f"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits",
+            "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             f"Origin: https://{host}",
-            f"Cache-Control: no-cache",
-            f"Pragma: no-cache"
+            "Cache-Control: no-cache",
+            "Pragma: no-cache",
         ]
-        
+
         handshake = "\r\n".join(headers) + "\r\n\r\n"
-        return handshake.encode('utf-8')
+        return handshake.encode("utf-8")
 
     def _create_obfuscated_ws_frames(self, payload: bytes, method: str) -> List[bytes]:
         """Create obfuscated WebSocket frames."""
@@ -550,63 +578,63 @@ class WebSocketTunnelingObfuscationAttack(BaseAttack):
         """Create fragmented WebSocket frames."""
         frames = []
         chunk_size = random.randint(50, 200)
-        
+
         for i in range(0, len(payload), chunk_size):
-            chunk = payload[i:i + chunk_size]
-            is_final = (i + chunk_size >= len(payload))
-            is_first = (i == 0)
-            
+            chunk = payload[i : i + chunk_size]
+            is_final = i + chunk_size >= len(payload)
+            is_first = i == 0
+
             # First frame: binary frame, subsequent: continuation frames
             opcode = 2 if is_first else 0
             fin = 1 if is_final else 0
-            
+
             frame = self._create_ws_frame(chunk, opcode, fin)
             frames.append(frame)
-        
+
         return frames
 
     def _create_padded_frames(self, payload: bytes) -> List[bytes]:
         """Create padded WebSocket frames."""
         frames = []
-        
+
         # Add padding to make frames look like different content types
         padded_payload = payload + self._generate_realistic_padding(len(payload))
-        
+
         frame = self._create_ws_frame(padded_payload, 2, 1)  # Binary frame
         frames.append(frame)
-        
+
         return frames
 
     def _create_mixed_type_frames(self, payload: bytes) -> List[bytes]:
         """Create mixed type WebSocket frames."""
         frames = []
-        
+
         # Send some text frames first (fake chat messages)
         fake_messages = [
-            b'{"type":"ping","timestamp":' + str(int(time.time())).encode() + b'}',
+            b'{"type":"ping","timestamp":' + str(int(time.time())).encode() + b"}",
             b'{"type":"status","status":"online"}',
-            b'{"type":"heartbeat"}'
+            b'{"type":"heartbeat"}',
         ]
-        
+
         for msg in fake_messages:
             frame = self._create_ws_frame(msg, 1, 1)  # Text frame
             frames.append(frame)
-        
+
         # Then send the actual payload as binary
         frame = self._create_ws_frame(payload, 2, 1)  # Binary frame
         frames.append(frame)
-        
+
         return frames
 
     def _create_ws_frame(self, payload: bytes, opcode: int, fin: int) -> bytes:
         """Create WebSocket frame."""
         # First byte: FIN + RSV + Opcode
         first_byte = (fin << 7) | opcode
-        
+
         # Payload length and masking
         payload_len = len(payload)
         mask = 1  # Client must mask
-        
+
         if payload_len < 126:
             second_byte = (mask << 7) | payload_len
             length_bytes = b""
@@ -616,40 +644,44 @@ class WebSocketTunnelingObfuscationAttack(BaseAttack):
         else:
             second_byte = (mask << 7) | 127
             length_bytes = struct.pack("!Q", payload_len)
-        
+
         # Masking key
         masking_key = random.randbytes(4)
-        
+
         # Mask payload
         masked_payload = bytearray()
         for i, byte in enumerate(payload):
             masked_payload.append(byte ^ masking_key[i % 4])
-        
-        return (bytes([first_byte, second_byte]) + length_bytes + 
-                masking_key + bytes(masked_payload))
+
+        return (
+            bytes([first_byte, second_byte])
+            + length_bytes
+            + masking_key
+            + bytes(masked_payload)
+        )
 
     def _generate_realistic_padding(self, original_size: int) -> bytes:
         """Generate realistic padding data."""
         padding_size = random.randint(10, 100)
-        
+
         # Create JSON-like padding
         padding_data = {
             "metadata": {
                 "size": original_size,
                 "timestamp": int(time.time()),
-                "version": "1.0"
+                "version": "1.0",
             },
-            "padding": "x" * (padding_size - 50)
+            "padding": "x" * (padding_size - 50),
         }
-        
-        return json.dumps(padding_data).encode('utf-8')
+
+        return json.dumps(padding_data).encode("utf-8")
 
 
 @register_attack
 class SSHTunnelingObfuscationAttack(BaseAttack):
     """
     Advanced SSH Tunneling Attack with obfuscation.
-    
+
     Simulates SSH protocol with advanced obfuscation techniques
     to tunnel data while evading DPI detection.
     """
@@ -682,15 +714,15 @@ class SSHTunnelingObfuscationAttack(BaseAttack):
 
             # Create SSH protocol sequence
             ssh_packets = []
-            
+
             # 1. SSH identification
             ssh_ident = self._create_ssh_identification(ssh_version)
             ssh_packets.append(ssh_ident)
-            
+
             # 2. Key exchange
             kex_packet = self._create_obfuscated_kex_packet(obfuscation_level)
             ssh_packets.append(kex_packet)
-            
+
             # 3. Encrypted data packets
             encrypted_packets = self._create_encrypted_data_packets(
                 payload, encryption_method, obfuscation_level
@@ -720,8 +752,8 @@ class SSHTunnelingObfuscationAttack(BaseAttack):
                     "packet_count": len(ssh_packets),
                     "original_size": len(payload),
                     "total_size": len(combined_payload),
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -729,85 +761,91 @@ class SSHTunnelingObfuscationAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="ssh_tunneling_obfuscation"
+                technique_used="ssh_tunneling_obfuscation",
             )
 
     def _create_ssh_identification(self, version: str) -> bytes:
         """Create SSH identification string."""
-        return f"{version}\r\n".encode('utf-8')
+        return f"{version}\r\n".encode("utf-8")
 
     def _create_obfuscated_kex_packet(self, obfuscation_level: str) -> bytes:
         """Create obfuscated key exchange packet."""
         # SSH packet structure: length(4) + padding_length(1) + payload + padding
-        
+
         if obfuscation_level == "high":
             # Create realistic key exchange with multiple algorithms
             kex_payload = self._create_realistic_kex_payload()
         else:
             # Simple key exchange
             kex_payload = b"\x14" + random.randbytes(32)
-        
+
         padding_length = 8 - ((len(kex_payload) + 1) % 8)
         if padding_length < 4:
             padding_length += 8
-        
+
         padding = random.randbytes(padding_length)
         packet_length = len(kex_payload) + 1 + padding_length
-        
-        return (struct.pack("!I", packet_length) + 
-                bytes([padding_length]) + 
-                kex_payload + 
-                padding)
+
+        return (
+            struct.pack("!I", packet_length)
+            + bytes([padding_length])
+            + kex_payload
+            + padding
+        )
 
     def _create_realistic_kex_payload(self) -> bytes:
         """Create realistic key exchange payload."""
         # SSH_MSG_KEXINIT
         msg_type = b"\x14"
-        
+
         # Random cookie (16 bytes)
         cookie = random.randbytes(16)
-        
+
         # Algorithm lists (simplified)
         algorithms = [
             b"diffie-hellman-group14-sha256,ecdh-sha2-nistp256",  # kex_algorithms
-            b"rsa-sha2-512,rsa-sha2-256,ssh-rsa",                # server_host_key_algorithms
-            b"aes256-ctr,aes192-ctr,aes128-ctr",                 # encryption_algorithms_client_to_server
-            b"aes256-ctr,aes192-ctr,aes128-ctr",                 # encryption_algorithms_server_to_client
-            b"hmac-sha2-256,hmac-sha2-512,hmac-sha1",            # mac_algorithms_client_to_server
-            b"hmac-sha2-256,hmac-sha2-512,hmac-sha1",            # mac_algorithms_server_to_client
-            b"none,zlib@openssh.com",                            # compression_algorithms_client_to_server
-            b"none,zlib@openssh.com",                            # compression_algorithms_server_to_client
-            b"",                                                 # languages_client_to_server
-            b""                                                  # languages_server_to_client
+            b"rsa-sha2-512,rsa-sha2-256,ssh-rsa",  # server_host_key_algorithms
+            b"aes256-ctr,aes192-ctr,aes128-ctr",  # encryption_algorithms_client_to_server
+            b"aes256-ctr,aes192-ctr,aes128-ctr",  # encryption_algorithms_server_to_client
+            b"hmac-sha2-256,hmac-sha2-512,hmac-sha1",  # mac_algorithms_client_to_server
+            b"hmac-sha2-256,hmac-sha2-512,hmac-sha1",  # mac_algorithms_server_to_client
+            b"none,zlib@openssh.com",  # compression_algorithms_client_to_server
+            b"none,zlib@openssh.com",  # compression_algorithms_server_to_client
+            b"",  # languages_client_to_server
+            b"",  # languages_server_to_client
         ]
-        
+
         payload = msg_type + cookie
-        
+
         for alg_list in algorithms:
             payload += struct.pack("!I", len(alg_list)) + alg_list
-        
+
         # First_kex_packet_follows + reserved
         payload += b"\x00\x00\x00\x00\x00"
-        
+
         return payload
 
-    def _create_encrypted_data_packets(self, payload: bytes, encryption_method: str, obfuscation_level: str) -> List[bytes]:
+    def _create_encrypted_data_packets(
+        self, payload: bytes, encryption_method: str, obfuscation_level: str
+    ) -> List[bytes]:
         """Create encrypted data packets."""
         packets = []
-        
+
         # Split payload into chunks
         chunk_size = random.randint(100, 500)
-        
+
         for i in range(0, len(payload), chunk_size):
-            chunk = payload[i:i + chunk_size]
-            
+            chunk = payload[i : i + chunk_size]
+
             # Encrypt chunk (simulated)
             encrypted_chunk = self._simulate_encryption(chunk, encryption_method)
-            
+
             # Create SSH packet
-            ssh_packet = self._create_ssh_data_packet(encrypted_chunk, obfuscation_level)
+            ssh_packet = self._create_ssh_data_packet(
+                encrypted_chunk, obfuscation_level
+            )
             packets.append(ssh_packet)
-        
+
         return packets
 
     def _simulate_encryption(self, data: bytes, method: str) -> bytes:
@@ -827,44 +865,48 @@ class SSHTunnelingObfuscationAttack(BaseAttack):
                 encrypted.append(byte ^ key[i % len(key)])
             return bytes(encrypted)
 
-    def _create_ssh_data_packet(self, encrypted_data: bytes, obfuscation_level: str) -> bytes:
+    def _create_ssh_data_packet(
+        self, encrypted_data: bytes, obfuscation_level: str
+    ) -> bytes:
         """Create SSH data packet."""
         # SSH_MSG_CHANNEL_DATA
         msg_type = b"\x5e"
         channel_number = struct.pack("!I", 0)  # Channel 0
         data_length = struct.pack("!I", len(encrypted_data))
-        
+
         payload = msg_type + channel_number + data_length + encrypted_data
-        
+
         # Add padding
         padding_length = 8 - ((len(payload) + 1) % 8)
         if padding_length < 4:
             padding_length += 8
-        
+
         if obfuscation_level == "high":
             # Use realistic padding patterns
             padding = self._create_realistic_padding(padding_length)
         else:
             padding = random.randbytes(padding_length)
-        
+
         packet_length = len(payload) + 1 + padding_length
-        
-        return (struct.pack("!I", packet_length) + 
-                bytes([padding_length]) + 
-                payload + 
-                padding)
+
+        return (
+            struct.pack("!I", packet_length)
+            + bytes([padding_length])
+            + payload
+            + padding
+        )
 
     def _create_realistic_padding(self, length: int) -> bytes:
         """Create realistic SSH padding."""
         # SSH padding should be random but can have patterns
         padding = bytearray()
-        
+
         for i in range(length):
             if i % 4 == 0:
                 padding.append(0x00)  # Common padding byte
             else:
                 padding.append(random.randint(1, 255))
-        
+
         return bytes(padding)
 
 
@@ -910,10 +952,9 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
             else:
                 raise ValueError(f"Invalid vpn_type: {vpn_type}")
 
-            segments = [(tunneled_payload, 0, {
-                "vpn_type": vpn_type,
-                "obfuscated": True
-            })]
+            segments = [
+                (tunneled_payload, 0, {"vpn_type": vpn_type, "obfuscated": True})
+            ]
 
             packets_sent = 1
             bytes_sent = len(tunneled_payload)
@@ -931,8 +972,8 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
                     "vpn_type": vpn_type,
                     "original_size": len(payload),
                     "tunneled_size": len(tunneled_payload),
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -940,7 +981,7 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="vpn_tunneling_obfuscation"
+                technique_used="vpn_tunneling_obfuscation",
             )
 
     def _create_openvpn_packet(self, payload: bytes) -> bytes:
@@ -969,23 +1010,23 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
 
         # Simulate ChaCha20Poly1305 encryption
         key = hashlib.sha256(b"wireguard_sim_key").digest()
-        nonce = counter.to_bytes(8, 'little').ljust(12, b'\x00')
+        nonce = counter.to_bytes(8, "little").ljust(12, b"\x00")
         encrypted_payload = self._simulate_chacha20(payload, key, nonce)
         auth_tag = hashlib.sha256(encrypted_payload).digest()[:16]
 
         # Packet structure: type(1) + reserved(3) + receiver(4) + counter(8) + encrypted
         header = (
-            bytes([packet_type]) +
-            b'\x00\x00\x00' +
-            receiver_index.to_bytes(4, 'little') +
-            counter.to_bytes(8, 'little')
+            bytes([packet_type])
+            + b"\x00\x00\x00"
+            + receiver_index.to_bytes(4, "little")
+            + counter.to_bytes(8, "little")
         )
         return header + encrypted_payload + auth_tag
 
     def _create_ipsec_packet(self, payload: bytes) -> bytes:
         """Create a more realistic IPSec ESP-like packet."""
         spi = random.randbytes(4)
-        sequence = random.randint(0, 0xFFFFFFFF).to_bytes(4, 'big')
+        sequence = random.randint(0, 0xFFFFFFFF).to_bytes(4, "big")
 
         # ESP Padding
         pad_length = 16 - ((len(payload) + 2) % 16)
@@ -994,7 +1035,7 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
 
         # Simulate AES-GCM encryption (payload + auth tag)
         key = hashlib.sha256(b"ipsec_sim_key").digest()
-        iv = random.randbytes(8) # GCM uses 8-byte IV
+        iv = random.randbytes(8)  # GCM uses 8-byte IV
 
         payload_to_encrypt = payload + padding + bytes([pad_length, next_header])
         encrypted_data = self._simulate_aes_gcm(payload_to_encrypt, key, iv)
@@ -1011,7 +1052,7 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         encrypted = bytearray()
         prev_block = iv
         for i in range(0, len(padded_data), 16):
-            block = padded_data[i:i+16]
+            block = padded_data[i : i + 16]
             # CBC mode: XOR with prev_block before encryption
             xored_block = bytes([b ^ p for b, p in zip(block, prev_block)])
             # Simple encryption simulation
@@ -1027,14 +1068,18 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
     def _simulate_aes_gcm(self, data: bytes, key: bytes, iv: bytes) -> bytes:
         # GCM combines CTR mode encryption with an authentication tag
         encrypted_data = self._simulate_aes_ctr(data, key, iv)
-        auth_tag = hashlib.sha256(key + iv + encrypted_data).digest()[:16] # Simplified GCM tag
+        auth_tag = hashlib.sha256(key + iv + encrypted_data).digest()[
+            :16
+        ]  # Simplified GCM tag
         return encrypted_data + auth_tag
 
     def _simulate_aes_ctr(self, data: bytes, key: bytes, nonce: bytes) -> bytes:
         keystream = self._generate_simple_keystream(key, nonce, len(data))
         return bytes([d ^ k for d, k in zip(data, keystream)])
 
-    def _generate_simple_keystream(self, key: bytes, nonce: bytes, length: int) -> bytes:
+    def _generate_simple_keystream(
+        self, key: bytes, nonce: bytes, length: int
+    ) -> bytes:
         """Generate simple keystream for CTR/ChaCha20 simulation."""
         keystream = b""
         counter = 0
@@ -1045,11 +1090,12 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
             counter += 1
         return keystream[:length]
 
+
 @register_attack
 class VPNTunnelingObfuscationAttack(BaseAttack):
     """
     Advanced VPN Tunneling Attack with multiple VPN protocol simulation.
-    
+
     Simulates various VPN protocols (OpenVPN, WireGuard, IPSec) with
     obfuscation techniques to tunnel data while evading DPI detection.
     """
@@ -1086,9 +1132,13 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
 
             # Generate VPN packets based on type
             if vpn_type == "openvpn":
-                vpn_packets = self._generate_openvpn_packets(payload, obfuscation_level, use_compression)
+                vpn_packets = self._generate_openvpn_packets(
+                    payload, obfuscation_level, use_compression
+                )
             elif vpn_type == "wireguard":
-                vpn_packets = self._generate_wireguard_packets(payload, obfuscation_level)
+                vpn_packets = self._generate_wireguard_packets(
+                    payload, obfuscation_level
+                )
             elif vpn_type == "ipsec":
                 vpn_packets = self._generate_ipsec_packets(payload, obfuscation_level)
 
@@ -1097,11 +1147,17 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
             for i, packet in enumerate(vpn_packets):
                 delay = self._calculate_vpn_delay(i, vpn_type)
                 packet_type = self._get_vpn_packet_type(i, vpn_type)
-                segments.append((packet, delay, {
-                    "vpn_type": vpn_type,
-                    "packet_type": packet_type,
-                    "obfuscation_level": obfuscation_level
-                }))
+                segments.append(
+                    (
+                        packet,
+                        delay,
+                        {
+                            "vpn_type": vpn_type,
+                            "packet_type": packet_type,
+                            "obfuscation_level": obfuscation_level,
+                        },
+                    )
+                )
 
             packets_sent = len(vpn_packets)
             bytes_sent = sum(len(packet) for packet in vpn_packets)
@@ -1121,8 +1177,8 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
                     "use_compression": use_compression,
                     "original_size": len(payload),
                     "total_size": bytes_sent,
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -1130,57 +1186,65 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="vpn_tunneling_obfuscation"
+                technique_used="vpn_tunneling_obfuscation",
             )
 
-    def _generate_openvpn_packets(self, payload: bytes, obfuscation_level: str, use_compression: bool) -> List[bytes]:
+    def _generate_openvpn_packets(
+        self, payload: bytes, obfuscation_level: str, use_compression: bool
+    ) -> List[bytes]:
         """Generate OpenVPN packets."""
         packets = []
-        
+
         # OpenVPN handshake
         client_hello = self._create_openvpn_client_hello()
         server_hello = self._create_openvpn_server_hello()
         packets.extend([client_hello, server_hello])
-        
+
         # Data packets
         if use_compression:
             compressed_payload = self._simulate_compression(payload)
         else:
             compressed_payload = payload
-            
-        encrypted_data = self._create_openvpn_data_packets(compressed_payload, obfuscation_level)
+
+        encrypted_data = self._create_openvpn_data_packets(
+            compressed_payload, obfuscation_level
+        )
         packets.extend(encrypted_data)
-        
+
         return packets
 
-    def _generate_wireguard_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+    def _generate_wireguard_packets(
+        self, payload: bytes, obfuscation_level: str
+    ) -> List[bytes]:
         """Generate WireGuard packets."""
         packets = []
-        
+
         # WireGuard handshake
         initiation = self._create_wireguard_initiation()
         response = self._create_wireguard_response()
         packets.extend([initiation, response])
-        
+
         # Data packets
         encrypted_data = self._create_wireguard_data_packets(payload, obfuscation_level)
         packets.extend(encrypted_data)
-        
+
         return packets
 
-    def _generate_ipsec_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+    def _generate_ipsec_packets(
+        self, payload: bytes, obfuscation_level: str
+    ) -> List[bytes]:
         """Generate IPSec packets."""
         packets = []
-        
+
         # IPSec IKE handshake
         ike_init = self._create_ike_init()
         ike_auth = self._create_ike_auth()
         packets.extend([ike_init, ike_auth])
-        
+
         # ESP data packets
         esp_data = self._create_esp_data_packets(payload, obfuscation_level)
         packets.extend(esp_data)
-        
+
         return packets
 
     def _create_openvpn_client_hello(self) -> bytes:
@@ -1189,18 +1253,18 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         opcode = 0x38  # P_CONTROL_HARD_RESET_CLIENT_V2
         key_id = random.randbytes(3)
         packet_id = struct.pack("!I", random.randint(1, 1000000))
-        
+
         # TLS-like payload
         tls_payload = (
-            b"\x16\x03\x01\x00\x4a" +  # TLS handshake header
-            b"\x01\x00\x00\x46" +      # Client hello
-            b"\x03\x03" +              # TLS version
-            random.randbytes(32) +      # Random
-            b"\x00" +                  # Session ID length
-            b"\x00\x02\x00\x35" +      # Cipher suites
-            b"\x01\x00"                # Compression methods
+            b"\x16\x03\x01\x00\x4a"  # TLS handshake header
+            + b"\x01\x00\x00\x46"  # Client hello
+            + b"\x03\x03"  # TLS version
+            + random.randbytes(32)  # Random
+            + b"\x00"  # Session ID length
+            + b"\x00\x02\x00\x35"  # Cipher suites
+            + b"\x01\x00"  # Compression methods
         )
-        
+
         return bytes([opcode]) + key_id + packet_id + tls_payload
 
     def _create_openvpn_server_hello(self) -> bytes:
@@ -1208,38 +1272,41 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         opcode = 0x48  # P_CONTROL_HARD_RESET_SERVER_V2
         key_id = random.randbytes(3)
         packet_id = struct.pack("!I", random.randint(1, 1000000))
-        
+
         tls_payload = (
-            b"\x16\x03\x01\x00\x4a" +
-            b"\x02\x00\x00\x46" +      # Server hello
-            b"\x03\x03" +
-            random.randbytes(32) +
-            b"\x20" + random.randbytes(32) +  # Session ID
-            b"\x00\x35" +              # Selected cipher
-            b"\x00"                    # Compression
+            b"\x16\x03\x01\x00\x4a"
+            + b"\x02\x00\x00\x46"  # Server hello
+            + b"\x03\x03"
+            + random.randbytes(32)
+            + b"\x20"
+            + random.randbytes(32)  # Session ID
+            + b"\x00\x35"  # Selected cipher
+            + b"\x00"  # Compression
         )
-        
+
         return bytes([opcode]) + key_id + packet_id + tls_payload
 
-    def _create_openvpn_data_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+    def _create_openvpn_data_packets(
+        self, payload: bytes, obfuscation_level: str
+    ) -> List[bytes]:
         """Create OpenVPN data packets."""
         packets = []
         chunk_size = 1200
-        
+
         for i in range(0, len(payload), chunk_size):
-            chunk = payload[i:i + chunk_size]
-            
+            chunk = payload[i : i + chunk_size]
+
             # OpenVPN data packet
             opcode = 0x09  # P_DATA_V1
             key_id = random.randbytes(3)
             packet_id = struct.pack("!I", i // chunk_size + 1000)
-            
+
             # Encrypt chunk (simplified)
             encrypted_chunk = self._openvpn_encrypt(chunk, obfuscation_level)
-            
+
             packet = bytes([opcode]) + key_id + packet_id + encrypted_chunk
             packets.append(packet)
-        
+
         return packets
 
     def _create_wireguard_initiation(self) -> bytes:
@@ -1252,9 +1319,16 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         encrypted_timestamp = random.randbytes(28)  # 12 + 16 auth tag
         mac1 = random.randbytes(16)
         mac2 = random.randbytes(16)
-        
-        return (msg_type + sender_index + unencrypted_ephemeral + 
-                encrypted_static + encrypted_timestamp + mac1 + mac2)
+
+        return (
+            msg_type
+            + sender_index
+            + unencrypted_ephemeral
+            + encrypted_static
+            + encrypted_timestamp
+            + mac1
+            + mac2
+        )
 
     def _create_wireguard_response(self) -> bytes:
         """Create WireGuard handshake response."""
@@ -1265,28 +1339,37 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         encrypted_nothing = random.randbytes(16)  # Auth tag only
         mac1 = random.randbytes(16)
         mac2 = random.randbytes(16)
-        
-        return (msg_type + sender_index + receiver_index + 
-                unencrypted_ephemeral + encrypted_nothing + mac1 + mac2)
 
-    def _create_wireguard_data_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+        return (
+            msg_type
+            + sender_index
+            + receiver_index
+            + unencrypted_ephemeral
+            + encrypted_nothing
+            + mac1
+            + mac2
+        )
+
+    def _create_wireguard_data_packets(
+        self, payload: bytes, obfuscation_level: str
+    ) -> List[bytes]:
         """Create WireGuard data packets."""
         packets = []
         chunk_size = 1400
-        
+
         for i in range(0, len(payload), chunk_size):
-            chunk = payload[i:i + chunk_size]
-            
+            chunk = payload[i : i + chunk_size]
+
             msg_type = b"\x04\x00\x00\x00"  # Transport data
             receiver_index = random.randbytes(4)
             counter = struct.pack("<Q", i // chunk_size)
-            
+
             # Encrypt chunk
             encrypted_chunk = self._wireguard_encrypt(chunk, obfuscation_level)
-            
+
             packet = msg_type + receiver_index + counter + encrypted_chunk
             packets.append(packet)
-        
+
         return packets
 
     def _create_ike_init(self) -> bytes:
@@ -1299,13 +1382,19 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         exchange_type = 34  # IKE_SA_INIT
         flags = 0x08  # Initiator
         message_id = b"\x00\x00\x00\x00"
-        
+
         # Fake payloads
         payload_data = random.randbytes(200)
         length = struct.pack("!I", 28 + len(payload_data))
-        
-        return (initiator_spi + responder_spi + bytes([next_payload, version, exchange_type, flags]) + 
-                message_id + length + payload_data)
+
+        return (
+            initiator_spi
+            + responder_spi
+            + bytes([next_payload, version, exchange_type, flags])
+            + message_id
+            + length
+            + payload_data
+        )
 
     def _create_ike_auth(self) -> bytes:
         """Create IKE authentication packet."""
@@ -1316,31 +1405,39 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         exchange_type = 35  # IKE_AUTH
         flags = 0x08
         message_id = b"\x00\x00\x00\x01"
-        
+
         payload_data = random.randbytes(150)
         length = struct.pack("!I", 28 + len(payload_data))
-        
-        return (initiator_spi + responder_spi + bytes([next_payload, version, exchange_type, flags]) + 
-                message_id + length + payload_data)
 
-    def _create_esp_data_packets(self, payload: bytes, obfuscation_level: str) -> List[bytes]:
+        return (
+            initiator_spi
+            + responder_spi
+            + bytes([next_payload, version, exchange_type, flags])
+            + message_id
+            + length
+            + payload_data
+        )
+
+    def _create_esp_data_packets(
+        self, payload: bytes, obfuscation_level: str
+    ) -> List[bytes]:
         """Create ESP data packets."""
         packets = []
         chunk_size = 1300
-        
+
         for i in range(0, len(payload), chunk_size):
-            chunk = payload[i:i + chunk_size]
-            
+            chunk = payload[i : i + chunk_size]
+
             # ESP header
             spi = random.randbytes(4)
             sequence = struct.pack("!I", i // chunk_size + 1)
-            
+
             # Encrypt chunk
             encrypted_chunk = self._ipsec_encrypt(chunk, obfuscation_level)
-            
+
             packet = spi + sequence + encrypted_chunk
             packets.append(packet)
-        
+
         return packets
 
     def _simulate_compression(self, data: bytes) -> bytes:
@@ -1353,26 +1450,26 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
             count = 1
             while i + count < len(data) and data[i + count] == byte and count < 255:
                 count += 1
-            
+
             if count > 3:
                 compressed.extend([0xFF, count, byte])  # Compression marker
             else:
                 compressed.extend([byte] * count)
-            
+
             i += count
-        
+
         return bytes(compressed)
 
     def _openvpn_encrypt(self, data: bytes, level: str) -> bytes:
         """Simulate OpenVPN encryption."""
         key = random.randbytes(32)
         iv = random.randbytes(16)
-        
+
         # Simple encryption simulation
         encrypted = bytearray()
         for i, byte in enumerate(data):
             encrypted.append(byte ^ key[i % len(key)] ^ iv[i % len(iv)])
-        
+
         return iv + bytes(encrypted)
 
     def _wireguard_encrypt(self, data: bytes, level: str) -> bytes:
@@ -1380,11 +1477,11 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         # ChaCha20Poly1305 simulation
         key = random.randbytes(32)
         nonce = random.randbytes(12)
-        
+
         encrypted = bytearray()
         for i, byte in enumerate(data):
             encrypted.append(byte ^ key[i % len(key)])
-        
+
         auth_tag = random.randbytes(16)
         return bytes(encrypted) + auth_tag
 
@@ -1393,24 +1490,20 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
         # AES-GCM simulation
         key = random.randbytes(32)
         iv = random.randbytes(12)
-        
+
         encrypted = bytearray()
         for i, byte in enumerate(data):
             encrypted.append(byte ^ key[i % len(key)])
-        
+
         auth_tag = random.randbytes(16)
         return iv + bytes(encrypted) + auth_tag
 
     def _calculate_vpn_delay(self, packet_index: int, vpn_type: str) -> int:
         """Calculate realistic VPN delay."""
-        base_delays = {
-            "openvpn": 20,
-            "wireguard": 10,
-            "ipsec": 30
-        }
-        
+        base_delays = {"openvpn": 20, "wireguard": 10, "ipsec": 30}
+
         base_delay = base_delays.get(vpn_type, 20)
-        
+
         if packet_index < 2:  # Handshake packets
             return base_delay + random.randint(50, 150)
         else:  # Data packets

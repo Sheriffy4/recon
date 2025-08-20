@@ -9,13 +9,23 @@ service lifetimes and automatic dependency resolution.
 import logging
 from enum import Enum
 
-from typing import Dict, Any, Type, TypeVar, Callable, Optional, get_origin, get_args, List, Union
+from typing import (
+    Dict,
+    Any,
+    Type,
+    TypeVar,
+    Callable,
+    Optional,
+    get_origin,
+    get_args,
+    List,
+    Union,
+)
 from dataclasses import dataclass
 import inspect
 import asyncio
 
 # --- НАЧАЛО ИЗМЕНЕНИЯ ---
-from typing import get_origin, get_args
 
 LOG = logging.getLogger("DIContainer")
 
@@ -86,13 +96,17 @@ class DIContainer:
         }
 
     # ---- Fallback Resolve ----
-    def try_resolve_with_fallback(self, service_type: Type[T], fallback_factory: Optional[Callable[[], T]] = None) -> T:
+    def try_resolve_with_fallback(
+        self, service_type: Type[T], fallback_factory: Optional[Callable[[], T]] = None
+    ) -> T:
         """Пытается разрешить сервис, при ошибке использует fallback factory (если задана)."""
         try:
             return self.resolve(service_type)
         except Exception as e:
             self._last_error = str(e)
-            self._logger.warning(f"Resolve failed for {self._get_service_name(service_type)}: {e}")
+            self._logger.warning(
+                f"Resolve failed for {self._get_service_name(service_type)}: {e}"
+            )
             if fallback_factory:
                 self._logger.info("Using fallback factory for service")
                 return fallback_factory()
@@ -100,7 +114,9 @@ class DIContainer:
 
     def restart_container(self) -> None:
         """Перезапуск контейнера без потери регистраций: очищает синглтоны/скоупы и сбрасывает состояние."""
-        self._logger.info("Restarting DI container (instances will be recreated on next resolve)")
+        self._logger.info(
+            "Restarting DI container (instances will be recreated on next resolve)"
+        )
         self._singletons.clear()
         self._scoped_instances.clear()
         self._building_stack.clear()
@@ -264,14 +280,18 @@ class DIContainer:
             return self._resolve_service(service_name)
         except Exception as e:
             self._last_error = str(e)
-            self._logger.warning(f"Resolve error for {service_name}: {e}. Attempting container restart and retry...")
+            self._logger.warning(
+                f"Resolve error for {service_name}: {e}. Attempting container restart and retry..."
+            )
             # Попытка восстановиться: перезапустить контейнер и повторить
             self.restart_container()
             try:
                 return self._resolve_service(service_name)
             except Exception as ee:
                 self._last_error = str(ee)
-                self._logger.error(f"Resolve failed after restart for {service_name}: {ee}")
+                self._logger.error(
+                    f"Resolve failed after restart for {service_name}: {ee}"
+                )
                 raise
 
     async def resolve_async(self, service_type: Type[T]) -> T:
@@ -292,13 +312,17 @@ class DIContainer:
             return await self._resolve_service_async(service_name)
         except Exception as e:
             self._last_error = str(e)
-            self._logger.warning(f"Async resolve error for {service_name}: {e}. Attempting container restart and retry...")
+            self._logger.warning(
+                f"Async resolve error for {service_name}: {e}. Attempting container restart and retry..."
+            )
             self.restart_container()
             try:
                 return await self._resolve_service_async(service_name)
             except Exception as ee:
                 self._last_error = str(ee)
-                self._logger.error(f"Async resolve failed after restart for {service_name}: {ee}")
+                self._logger.error(
+                    f"Async resolve failed after restart for {service_name}: {ee}"
+                )
                 raise
 
     def _resolve_service(self, service_name: str) -> Any:
@@ -454,7 +478,7 @@ class DIContainer:
     def _get_service_name(self, service_type: Type) -> str:
         """Get service name from type, now with robust generic type handling."""
         origin = get_origin(service_type)
-        
+
         # Обработка Optional[T] и Union[T, None]
         if origin is Union or origin is Optional:
             args = get_args(service_type)

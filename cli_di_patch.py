@@ -8,12 +8,11 @@ This replaces the manual service creation patterns in cli.py with proper DI.
 
 import logging
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # DI imports
 from .core.di.cli_integration import (
     create_cli_integration,
-    get_services_from_di,
     create_fallback_services,
 )
 

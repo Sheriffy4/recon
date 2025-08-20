@@ -7,11 +7,9 @@ fingerprinting duplication and provide mutually exclusive execution modes.
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from recon.cli import console
 
 from .core.cli_workflow_optimizer import (
-    CLIWorkflowOptimizer,
-    ExecutionMode,
     create_workflow_optimizer,
     detect_execution_mode,
 )
@@ -202,7 +200,7 @@ class OptimizedCLIWorkflow:
 
         # Display workflow optimization statistics
         workflow_stats = self.optimizer.get_workflow_statistics()
-        console.print(f"\n[bold cyan]Workflow Optimization Statistics:[/bold cyan]")
+        console.print("\n[bold cyan]Workflow Optimization Statistics:[/bold cyan]")
         console.print(
             f"  Execution mode: {workflow_stats.get('execution_mode', 'unknown')}"
         )
@@ -296,7 +294,7 @@ class OptimizedCLIWorkflow:
                 # Early termination if we find a very effective strategy
                 if success_rate >= 0.9:
                     console.print(
-                        f"    [bold green]Early termination - found highly effective strategy[/bold green]"
+                        "    [bold green]Early termination - found highly effective strategy[/bold green]"
                     )
                     break
             else:
@@ -311,7 +309,7 @@ class OptimizedCLIWorkflow:
             )
         else:
             console.print(
-                f"  [bold red]No effective strategies found for this group[/bold red]"
+                "  [bold red]No effective strategies found for this group[/bold red]"
             )
 
     def should_skip_evolutionary_search(self, current_effectiveness: float) -> bool:

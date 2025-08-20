@@ -9,7 +9,7 @@ allowing complex multi-technique strategies similar to zapret.
 import asyncio
 import time
 import logging
-from typing import Dict, Any, Optional, List, Tuple, Union, Callable
+from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 import importlib

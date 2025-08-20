@@ -13,9 +13,7 @@ Implements Task 17.3: Create race condition attacks for bypassing caching DPI
 
 import random
 import asyncio
-import time
-import struct
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, List, Optional
 from dataclasses import dataclass
 
 try:
@@ -118,11 +116,15 @@ class BadChecksumRaceAttack(BaseAttack):
 
             # Create segments for combo attacks
             payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-            
+
             # For race attacks, we create two segments: fake packet + real packet
             segments = [
-                (payload, 0, {"bad_checksum": True, "ttl": self.config.fake_packet_ttl}),  # Fake packet
-                (payload, 0, {"bad_checksum": False})  # Real packet
+                (
+                    payload,
+                    0,
+                    {"bad_checksum": True, "ttl": self.config.fake_packet_ttl},
+                ),  # Fake packet
+                (payload, 0, {"bad_checksum": False}),  # Real packet
             ]
 
             return AttackResult(
@@ -198,39 +200,41 @@ class BadChecksumRaceAttack(BaseAttack):
         try:
             # For testing purposes, simulate the race condition without actually sending packets
             # This avoids issues with administrative privileges and Scapy
-            
+
             # Simulate sending fake packet first
             await asyncio.sleep(0.001)  # Simulate network delay
-            
+
             # Wait for race delay
             await asyncio.sleep(self.config.race_delay_ms / 1000.0)
 
             # Simulate sending real packet - for testing, we'll create a mock response
             # In a real implementation, this would use send() and sr1()
-            
+
             # Create a mock successful response for testing
-            if hasattr(self, '_mock_success') and self._mock_success:
+            if hasattr(self, "_mock_success") and self._mock_success:
                 # Create a mock TCP response with HTTP-like payload
                 from scapy.all import TCP, Raw
+
                 response = TCP() / Raw(load=b"HTTP/1.1 200 OK\r\n\r\n")
             else:
                 # Real implementation using Scapy
                 try:
                     # Send fake packet first (should be dropped by target due to bad checksum)
                     send(fake_packet, verbose=0)
-                    
+
                     # Wait for race delay
                     await asyncio.sleep(self.config.race_delay_ms / 1000.0)
-                    
+
                     # Send real packet and wait for response
                     response = sr1(real_packet, timeout=3, verbose=0)
                 except Exception as e:
                     self.logger.error(f"Error in race condition execution: {e}")
                     import traceback
+
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
                     response = None
 
-        except Exception as e:
+        except Exception:
             # Continue even if fake packet fails
             pass
 
@@ -398,9 +402,6 @@ class LowTTLPoisoningAttack(BaseAttack):
                 return True
 
         return False
-
-
-
 
 
 @register_attack
@@ -578,7 +579,9 @@ class MD5SigRaceAttack(BaseAttack):
         self.config = config or RaceAttackConfig()
         self._name = "md5sig_race"
         self._category = "tcp"
-        self._description = "Race condition with MD5 signature fake packet + real packet"
+        self._description = (
+            "Race condition with MD5 signature fake packet + real packet"
+        )
 
     @property
     def name(self) -> str:
@@ -607,7 +610,9 @@ class MD5SigRaceAttack(BaseAttack):
             payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
 
             # Create fake packet with MD5 signature
-            fake_packet = self._create_fake_packet_with_md5(target_ip, target_port, payload)
+            fake_packet = self._create_fake_packet_with_md5(
+                target_ip, target_port, payload
+            )
 
             # Create real packet without MD5 signature
             real_packet = self._create_real_packet(target_ip, target_port, payload)
@@ -652,7 +657,7 @@ class MD5SigRaceAttack(BaseAttack):
         # Add fake MD5 signature to TCP options
         # MD5 signature option: Kind=19, Length=18, MD5 Hash=16 bytes
         fake_md5_hash = bytes([random.randint(0, 255) for _ in range(16)])
-        
+
         # Add the option to the TCP header
         fake_packet[TCP].options = [(19, fake_md5_hash)]
 
@@ -689,7 +694,7 @@ class MD5SigRaceAttack(BaseAttack):
             # Send real packet and wait for response
             response = sr1(real_packet, timeout=3, verbose=0)
 
-        except Exception as e:
+        except Exception:
             # Continue even if fake packet fails
             pass
 

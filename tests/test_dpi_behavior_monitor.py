@@ -13,19 +13,22 @@ Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
 """
 
 import pytest
-import asyncio
 import time
-import json
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 
 from .dpi_behavior_monitor import (
-    DPIBehaviorMonitor, MonitoringConfig, BehaviorAnalyzer, PerformanceMonitor,
-    BehaviorChange, MonitoringAlert, AlertSeverity, MonitoringState
+    DPIBehaviorMonitor,
+    MonitoringConfig,
+    BehaviorAnalyzer,
+    PerformanceMonitor,
+    BehaviorChange,
+    MonitoringAlert,
+    AlertSeverity,
+    MonitoringState,
 )
-from .advanced_models import DPIFingerprint, DPIType, ConfidenceLevel
+from .advanced_models import DPIFingerprint, DPIType
 from .advanced_fingerprinter import AdvancedFingerprinter
 
 
@@ -48,7 +51,6 @@ def sample_fingerprint():
         confidence=0.85,
         analysis_duration=2.5,
         reliability_score=0.9,
-        
         # TCP metrics
         rst_injection_detected=True,
         rst_source_analysis="middlebox",
@@ -60,7 +62,6 @@ def sample_fingerprint():
         fragmentation_handling="blocked",
         mss_clamping_detected=False,
         tcp_timestamp_manipulation=False,
-        
         # HTTP metrics
         http_header_filtering=True,
         content_inspection_depth=500,
@@ -72,7 +73,6 @@ def sample_fingerprint():
         http_response_modification=False,
         keep_alive_manipulation=False,
         chunked_encoding_handling="normal",
-        
         # DNS metrics
         dns_hijacking_detected=True,
         dns_response_modification=True,
@@ -84,7 +84,6 @@ def sample_fingerprint():
         recursive_resolver_blocking=False,
         dns_over_tcp_blocking=False,
         edns_support=True,
-        
         # Additional metrics
         supports_ipv6=True,
         ip_fragmentation_handling="normal",
@@ -92,7 +91,6 @@ def sample_fingerprint():
         protocol_whitelist=["https", "http"],
         geographic_restrictions=False,
         time_based_filtering=False,
-        
         # Metadata
         raw_metrics={},
         analysis_methods_used=["tcp_analysis", "http_analysis", "dns_analysis"],
@@ -121,77 +119,77 @@ def monitoring_config():
         max_strategies_to_test=3,
         save_behavior_changes=False,  # Disable for tests
         behavior_log_file="test_behavior_changes.json",
-        alerts_file="test_alerts.json"
+        alerts_file="test_alerts.json",
     )
 
 
 class TestPerformanceMonitor:
     """Test performance monitoring functionality"""
-    
+
     def test_performance_monitor_initialization(self):
         """Test performance monitor initialization"""
         monitor = PerformanceMonitor()
         assert monitor._cpu_usage == 0.0
         assert monitor._memory_usage == 0.0
         assert monitor._last_check <= time.time()
-    
-    @patch('psutil.cpu_percent')
-    @patch('psutil.virtual_memory')
+
+    @patch("psutil.cpu_percent")
+    @patch("psutil.virtual_memory")
     def test_get_system_metrics_with_psutil(self, mock_memory, mock_cpu):
         """Test system metrics collection with psutil"""
         mock_cpu.return_value = 45.5
         mock_memory.return_value = Mock(percent=67.8)
-        
+
         monitor = PerformanceMonitor()
         cpu = monitor.get_cpu_usage()
         memory = monitor.get_memory_usage()
-        
+
         assert cpu == 45.5
         assert memory == 67.8
-    
-    @patch('psutil.cpu_percent', side_effect=ImportError)
-    @patch('os.getloadavg')
-    @patch('os.cpu_count')
+
+    @patch("psutil.cpu_percent", side_effect=ImportError)
+    @patch("os.getloadavg")
+    @patch("os.cpu_count")
     def test_get_cpu_usage_fallback(self, mock_cpu_count, mock_loadavg):
         """Test CPU usage fallback when psutil unavailable"""
         mock_cpu_count.return_value = 4
         mock_loadavg.return_value = [2.0, 1.5, 1.0]
-        
+
         monitor = PerformanceMonitor()
         cpu = monitor.get_cpu_usage()
-        
+
         assert cpu == 50.0  # (2.0 / 4) * 100
-    
+
     def test_is_system_overloaded(self):
         """Test system overload detection"""
         monitor = PerformanceMonitor()
         monitor._cpu_usage = 85.0
         monitor._memory_usage = 70.0
         monitor._last_check = time.time()
-        
+
         # CPU overloaded
         assert monitor.is_system_overloaded(80.0, 90.0) == True
-        
+
         # Memory overloaded
         monitor._cpu_usage = 70.0
         monitor._memory_usage = 95.0
         assert monitor.is_system_overloaded(80.0, 90.0) == True
-        
+
         # Not overloaded
         monitor._cpu_usage = 70.0
         monitor._memory_usage = 80.0
         assert monitor.is_system_overloaded(80.0, 90.0) == False
-    
+
     def test_get_adaptive_interval(self):
         """Test adaptive interval calculation"""
         monitor = PerformanceMonitor()
-        
+
         # Normal load
         monitor._cpu_usage = 50.0
         monitor._memory_usage = 60.0
         interval = monitor.get_adaptive_interval(60, 30, 300, 80.0, 85.0)
         assert interval == 60
-        
+
         # High load
         monitor._cpu_usage = 90.0
         monitor._memory_usage = 70.0
@@ -202,39 +200,45 @@ class TestPerformanceMonitor:
 
 class TestBehaviorAnalyzer:
     """Test behavior analysis functionality"""
-    
+
     def test_behavior_analyzer_initialization(self, monitoring_config):
         """Test behavior analyzer initialization"""
         analyzer = BehaviorAnalyzer(monitoring_config)
         assert analyzer.config == monitoring_config
         assert len(analyzer._known_patterns) > 0
-        assert 'roskomnadzor_tspu' in analyzer._known_patterns
-    
+        assert "roskomnadzor_tspu" in analyzer._known_patterns
+
     def test_analyze_new_target(self, monitoring_config, sample_fingerprint):
         """Test analysis of new target (no previous fingerprint)"""
         analyzer = BehaviorAnalyzer(monitoring_config)
-        
+
         change = analyzer.analyze_behavior_change(None, sample_fingerprint)
-        
+
         assert change is not None
         assert change.target == sample_fingerprint.target
         assert change.old_fingerprint is None
         assert change.new_fingerprint == sample_fingerprint
-        assert change.change_type in ['known_pattern', 'new_blocking', 'unknown_pattern']
-    
+        assert change.change_type in [
+            "known_pattern",
+            "new_blocking",
+            "unknown_pattern",
+        ]
+
     def test_analyze_no_change(self, monitoring_config, sample_fingerprint):
         """Test analysis when no significant change occurred"""
         analyzer = BehaviorAnalyzer(monitoring_config)
-        
+
         # Same fingerprint should show no change
-        change = analyzer.analyze_behavior_change(sample_fingerprint, sample_fingerprint)
-        
+        change = analyzer.analyze_behavior_change(
+            sample_fingerprint, sample_fingerprint
+        )
+
         assert change is None
-    
+
     def test_analyze_significant_change(self, monitoring_config, sample_fingerprint):
         """Test analysis of significant behavior change"""
         analyzer = BehaviorAnalyzer(monitoring_config)
-        
+
         # Create modified fingerprint
         modified_fp = DPIFingerprint(
             target=sample_fingerprint.target,
@@ -243,18 +247,15 @@ class TestBehaviorAnalyzer:
             confidence=0.75,
             analysis_duration=2.0,
             reliability_score=0.8,
-            
             # Different behavior patterns
             rst_injection_detected=False,  # Changed
-            tcp_window_manipulation=True,   # Changed
-            http_header_filtering=False,    # Changed
+            tcp_window_manipulation=True,  # Changed
+            http_header_filtering=False,  # Changed
             content_inspection_depth=2000,  # Changed
-            user_agent_filtering=True,      # Changed
-            
+            user_agent_filtering=True,  # Changed
             # Keep some same values
             dns_hijacking_detected=sample_fingerprint.dns_hijacking_detected,
             supports_ipv6=sample_fingerprint.supports_ipv6,
-            
             # Initialize other required fields with defaults
             rst_source_analysis="unknown",
             sequence_number_anomalies=False,
@@ -286,27 +287,31 @@ class TestBehaviorAnalyzer:
             geographic_restrictions=False,
             time_based_filtering=False,
             raw_metrics={},
-            analysis_methods_used=[]
+            analysis_methods_used=[],
         )
-        
+
         change = analyzer.analyze_behavior_change(sample_fingerprint, modified_fp)
-        
+
         assert change is not None
         assert change.target == sample_fingerprint.target
         assert change.old_fingerprint == sample_fingerprint
         assert change.new_fingerprint == modified_fp
         assert change.confidence > 0.0
-        assert 'dpi_type_changed' in change.details
-        assert change.details['dpi_type_changed'] == True
-    
-    def test_calculate_fingerprint_similarity(self, monitoring_config, sample_fingerprint):
+        assert "dpi_type_changed" in change.details
+        assert change.details["dpi_type_changed"] == True
+
+    def test_calculate_fingerprint_similarity(
+        self, monitoring_config, sample_fingerprint
+    ):
         """Test fingerprint similarity calculation"""
         analyzer = BehaviorAnalyzer(monitoring_config)
-        
+
         # Same fingerprint should have high similarity
-        similarity = analyzer._calculate_fingerprint_similarity(sample_fingerprint, sample_fingerprint)
+        similarity = analyzer._calculate_fingerprint_similarity(
+            sample_fingerprint, sample_fingerprint
+        )
         assert similarity == 1.0
-        
+
         # Create slightly different fingerprint
         modified_fp = DPIFingerprint(
             target=sample_fingerprint.target,
@@ -315,12 +320,10 @@ class TestBehaviorAnalyzer:
             confidence=sample_fingerprint.confidence,  # Same
             analysis_duration=2.0,
             reliability_score=0.8,
-            
             # Most same, few different
             rst_injection_detected=sample_fingerprint.rst_injection_detected,
             tcp_window_manipulation=not sample_fingerprint.tcp_window_manipulation,  # Different
             http_header_filtering=sample_fingerprint.http_header_filtering,
-            
             # Initialize other required fields
             rst_source_analysis="unknown",
             sequence_number_anomalies=False,
@@ -356,16 +359,18 @@ class TestBehaviorAnalyzer:
             geographic_restrictions=False,
             time_based_filtering=False,
             raw_metrics={},
-            analysis_methods_used=[]
+            analysis_methods_used=[],
         )
-        
-        similarity = analyzer._calculate_fingerprint_similarity(sample_fingerprint, modified_fp)
+
+        similarity = analyzer._calculate_fingerprint_similarity(
+            sample_fingerprint, modified_fp
+        )
         assert 0.0 < similarity < 1.0
-    
+
     def test_generate_alert(self, monitoring_config, sample_fingerprint):
         """Test alert generation"""
         analyzer = BehaviorAnalyzer(monitoring_config)
-        
+
         # Create behavior change
         change = BehaviorChange(
             target="test.com:443",
@@ -374,11 +379,11 @@ class TestBehaviorAnalyzer:
             old_fingerprint=None,
             new_fingerprint=sample_fingerprint,
             confidence=0.9,
-            details={'reason': 'test'}
+            details={"reason": "test"},
         )
-        
+
         alert = analyzer.generate_alert(change)
-        
+
         assert alert is not None
         assert alert.target == change.target
         assert alert.severity == AlertSeverity.HIGH  # unknown_pattern should be HIGH
@@ -386,20 +391,20 @@ class TestBehaviorAnalyzer:
         assert len(alert.suggested_actions) > 0
         assert not alert.acknowledged
         assert not alert.resolved
-    
+
     def test_alert_severity_determination(self, monitoring_config, sample_fingerprint):
         """Test alert severity determination"""
         analyzer = BehaviorAnalyzer(monitoring_config)
-        
+
         test_cases = [
-            ('unknown_pattern', AlertSeverity.HIGH),
-            ('enhanced_blocking', AlertSeverity.MEDIUM),
-            ('dpi_type_change', AlertSeverity.MEDIUM),
-            ('new_blocking', AlertSeverity.MEDIUM),
-            ('reduced_blocking', AlertSeverity.LOW),
-            ('minor_change', AlertSeverity.LOW)
+            ("unknown_pattern", AlertSeverity.HIGH),
+            ("enhanced_blocking", AlertSeverity.MEDIUM),
+            ("dpi_type_change", AlertSeverity.MEDIUM),
+            ("new_blocking", AlertSeverity.MEDIUM),
+            ("reduced_blocking", AlertSeverity.LOW),
+            ("minor_change", AlertSeverity.LOW),
         ]
-        
+
         for change_type, expected_severity in test_cases:
             change = BehaviorChange(
                 target="test.com:443",
@@ -407,88 +412,94 @@ class TestBehaviorAnalyzer:
                 change_type=change_type,
                 old_fingerprint=None,
                 new_fingerprint=sample_fingerprint,
-                confidence=0.8
+                confidence=0.8,
             )
-            
+
             severity = analyzer._determine_alert_severity(change)
             assert severity == expected_severity
 
 
 class TestDPIBehaviorMonitor:
     """Test main DPI behavior monitor functionality"""
-    
+
     def test_monitor_initialization(self, mock_fingerprinter, monitoring_config):
         """Test monitor initialization"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         assert monitor.fingerprinter == mock_fingerprinter
         assert monitor.config == monitoring_config
         assert monitor.state == MonitoringState.STOPPED
         assert len(monitor.monitored_targets) == 0
         assert len(monitor.monitoring_tasks) == 0
-    
+
     def test_add_remove_target(self, mock_fingerprinter, monitoring_config):
         """Test adding and removing monitoring targets"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Add target
         monitor.add_target("example.com", 443)
         # Target should not be in monitored_targets until first check
-        
+
         # Remove target
         monitor.remove_target("example.com", 443)
         assert "example.com:443" not in monitor.monitored_targets
-    
+
     @pytest.mark.asyncio
     async def test_start_stop_monitoring(self, mock_fingerprinter, monitoring_config):
         """Test starting and stopping monitoring"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Start monitoring
         await monitor.start_monitoring()
         assert monitor.state == MonitoringState.RUNNING
-        
+
         # Stop monitoring
         await monitor.stop_monitoring()
         assert monitor.state == MonitoringState.STOPPED
-    
+
     @pytest.mark.asyncio
     async def test_pause_resume_monitoring(self, mock_fingerprinter, monitoring_config):
         """Test pausing and resuming monitoring"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         await monitor.start_monitoring()
         assert monitor.state == MonitoringState.RUNNING
-        
+
         await monitor.pause_monitoring()
         assert monitor.state == MonitoringState.PAUSED
-        
+
         await monitor.resume_monitoring()
         assert monitor.state == MonitoringState.RUNNING
-        
+
         await monitor.stop_monitoring()
-    
+
     @pytest.mark.asyncio
-    async def test_force_check(self, mock_fingerprinter, monitoring_config, sample_fingerprint):
+    async def test_force_check(
+        self, mock_fingerprinter, monitoring_config, sample_fingerprint
+    ):
         """Test force check functionality"""
         mock_fingerprinter.fingerprint_target.return_value = sample_fingerprint
-        
+
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Force check should work even when not monitoring
         change = await monitor.force_check("example.com", 443)
-        
+
         # Should be a new target change
         assert change is not None
         assert change.target == "example.com:443"
         assert change.old_fingerprint is None
         assert change.new_fingerprint == sample_fingerprint
-        
+
         # Verify fingerprinter was called
-        mock_fingerprinter.fingerprint_target.assert_called_with("example.com", 443, force_refresh=True)
-    
+        mock_fingerprinter.fingerprint_target.assert_called_with(
+            "example.com", 443, force_refresh=True
+        )
+
     @pytest.mark.asyncio
-    async def test_behavior_change_handling(self, mock_fingerprinter, monitoring_config, sample_fingerprint):
+    async def test_behavior_change_handling(
+        self, mock_fingerprinter, monitoring_config, sample_fingerprint
+    ):
         """Test behavior change handling"""
         # Create modified fingerprint for change detection
         modified_fp = DPIFingerprint(
@@ -498,14 +509,12 @@ class TestDPIBehaviorMonitor:
             confidence=0.75,
             analysis_duration=2.0,
             reliability_score=0.8,
-            
             # Different patterns
             rst_injection_detected=False,
             tcp_window_manipulation=True,
             http_header_filtering=False,
             content_inspection_depth=2000,
             user_agent_filtering=True,
-            
             # Initialize required fields
             rst_source_analysis="unknown",
             sequence_number_anomalies=False,
@@ -539,32 +548,32 @@ class TestDPIBehaviorMonitor:
             geographic_restrictions=False,
             time_based_filtering=False,
             raw_metrics={},
-            analysis_methods_used=[]
+            analysis_methods_used=[],
         )
-        
+
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Set up initial fingerprint
         monitor.monitored_targets["example.com:443"] = sample_fingerprint
-        
+
         # Mock fingerprinter to return modified fingerprint
         mock_fingerprinter.fingerprint_target.return_value = modified_fp
-        
+
         # Force check to trigger behavior change
         change = await monitor.force_check("example.com", 443)
-        
+
         assert change is not None
         assert len(monitor.behavior_changes) > 0
-        assert monitor.stats['behavior_changes_detected'] > 0
-        assert monitor.stats['fingerprints_updated'] > 0
-        
+        assert monitor.stats["behavior_changes_detected"] > 0
+        assert monitor.stats["fingerprints_updated"] > 0
+
         # Verify cache invalidation was called
         mock_fingerprinter.invalidate_cache.assert_called()
-    
+
     def test_alert_management(self, mock_fingerprinter, monitoring_config):
         """Test alert acknowledgment and resolution"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Create test alert
         alert = MonitoringAlert(
             id="test123",
@@ -574,29 +583,29 @@ class TestDPIBehaviorMonitor:
             title="Test Alert",
             description="Test alert description",
             fingerprint=Mock(),
-            suggested_actions=["Test action"]
+            suggested_actions=["Test action"],
         )
-        
+
         monitor.alerts.append(alert)
-        
+
         # Test acknowledgment
         result = monitor.acknowledge_alert("test123")
         assert result == True
         assert alert.acknowledged == True
-        
+
         # Test resolution
         result = monitor.resolve_alert("test123")
         assert result == True
         assert alert.resolved == True
-        
+
         # Test non-existent alert
         result = monitor.acknowledge_alert("nonexistent")
         assert result == False
-    
+
     def test_get_alerts_filtering(self, mock_fingerprinter, monitoring_config):
         """Test alert filtering functionality"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Create test alerts
         alerts = [
             MonitoringAlert(
@@ -607,7 +616,7 @@ class TestDPIBehaviorMonitor:
                 title="High Alert",
                 description="High severity alert",
                 fingerprint=Mock(),
-                resolved=False
+                resolved=False,
             ),
             MonitoringAlert(
                 id="alert2",
@@ -617,7 +626,7 @@ class TestDPIBehaviorMonitor:
                 title="Low Alert",
                 description="Low severity alert",
                 fingerprint=Mock(),
-                resolved=True
+                resolved=True,
             ),
             MonitoringAlert(
                 id="alert3",
@@ -627,83 +636,89 @@ class TestDPIBehaviorMonitor:
                 title="Medium Alert",
                 description="Medium severity alert",
                 fingerprint=Mock(),
-                resolved=False
-            )
+                resolved=False,
+            ),
         ]
-        
+
         monitor.alerts.extend(alerts)
-        
+
         # Test filtering by target
         target_alerts = monitor.get_alerts(target="example.com:443")
         assert len(target_alerts) == 2
-        
+
         # Test filtering by severity
         high_alerts = monitor.get_alerts(severity=AlertSeverity.HIGH)
         assert len(high_alerts) == 1
         assert high_alerts[0].severity == AlertSeverity.HIGH
-        
+
         # Test filtering unresolved only
         unresolved_alerts = monitor.get_alerts(unresolved_only=True)
         assert len(unresolved_alerts) == 2
         assert all(not alert.resolved for alert in unresolved_alerts)
-    
+
     def test_monitoring_status(self, mock_fingerprinter, monitoring_config):
         """Test monitoring status reporting"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         status = monitor.get_monitoring_status()
-        
-        assert 'state' in status
-        assert 'monitored_targets' in status
-        assert 'active_tasks' in status
-        assert 'behavior_changes' in status
-        assert 'active_alerts' in status
-        assert 'total_alerts' in status
-        assert 'stats' in status
-        assert 'config' in status
-        
-        assert status['state'] == MonitoringState.STOPPED.value
-        assert status['monitored_targets'] == 0
-        assert status['active_tasks'] == 0
-    
-    def test_target_status(self, mock_fingerprinter, monitoring_config, sample_fingerprint):
+
+        assert "state" in status
+        assert "monitored_targets" in status
+        assert "active_tasks" in status
+        assert "behavior_changes" in status
+        assert "active_alerts" in status
+        assert "total_alerts" in status
+        assert "stats" in status
+        assert "config" in status
+
+        assert status["state"] == MonitoringState.STOPPED.value
+        assert status["monitored_targets"] == 0
+        assert status["active_tasks"] == 0
+
+    def test_target_status(
+        self, mock_fingerprinter, monitoring_config, sample_fingerprint
+    ):
         """Test target-specific status reporting"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # No target initially
         status = monitor.get_target_status("example.com", 443)
         assert status is None
-        
+
         # Add target
         monitor.monitored_targets["example.com:443"] = sample_fingerprint
-        
+
         status = monitor.get_target_status("example.com", 443)
         assert status is not None
-        assert status['target'] == "example.com:443"
-        assert 'current_fingerprint' in status
-        assert 'behavior_changes' in status
-        assert 'recent_changes' in status
-        assert 'active_alerts' in status
-        assert 'total_alerts' in status
-        assert 'last_check' in status
+        assert status["target"] == "example.com:443"
+        assert "current_fingerprint" in status
+        assert "behavior_changes" in status
+        assert "recent_changes" in status
+        assert "active_alerts" in status
+        assert "total_alerts" in status
+        assert "last_check" in status
 
 
 class TestMonitoringIntegration:
     """Test integration scenarios"""
-    
+
     @pytest.mark.asyncio
-    async def test_alert_callback(self, mock_fingerprinter, monitoring_config, sample_fingerprint):
+    async def test_alert_callback(
+        self, mock_fingerprinter, monitoring_config, sample_fingerprint
+    ):
         """Test alert callback functionality"""
         callback_called = False
         received_alert = None
-        
+
         def alert_callback(alert):
             nonlocal callback_called, received_alert
             callback_called = True
             received_alert = alert
-        
-        monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config, alert_callback)
-        
+
+        monitor = DPIBehaviorMonitor(
+            mock_fingerprinter, monitoring_config, alert_callback
+        )
+
         # Create behavior change that should generate alert
         change = BehaviorChange(
             target="test.com:443",
@@ -711,49 +726,53 @@ class TestMonitoringIntegration:
             change_type="unknown_pattern",
             old_fingerprint=None,
             new_fingerprint=sample_fingerprint,
-            confidence=0.9
+            confidence=0.9,
         )
-        
+
         await monitor._handle_behavior_change(change)
-        
+
         assert callback_called
         assert received_alert is not None
         assert received_alert.target == "test.com:443"
         assert received_alert.severity == AlertSeverity.HIGH
-    
+
     @pytest.mark.asyncio
-    async def test_performance_adaptive_monitoring(self, mock_fingerprinter, monitoring_config):
+    async def test_performance_adaptive_monitoring(
+        self, mock_fingerprinter, monitoring_config
+    ):
         """Test performance-aware adaptive monitoring"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Mock high system load
-        with patch.object(monitor.performance_monitor, 'is_system_overloaded', return_value=True):
-            with patch.object(monitor.performance_monitor, '_cpu_usage', 90.0):
-                with patch.object(monitor.performance_monitor, '_memory_usage', 85.0):
-                    
+        with patch.object(
+            monitor.performance_monitor, "is_system_overloaded", return_value=True
+        ):
+            with patch.object(monitor.performance_monitor, "_cpu_usage", 90.0):
+                with patch.object(monitor.performance_monitor, "_memory_usage", 85.0):
+
                     interval = monitor.performance_monitor.get_adaptive_interval(
                         monitoring_config.check_interval_seconds,
                         monitoring_config.min_check_interval,
                         monitoring_config.max_check_interval,
                         monitoring_config.performance_threshold_cpu,
-                        monitoring_config.performance_threshold_memory
+                        monitoring_config.performance_threshold_memory,
                     )
-                    
+
                     # Should increase interval under high load
                     assert interval > monitoring_config.check_interval_seconds
-    
+
     def test_data_persistence_disabled(self, mock_fingerprinter, monitoring_config):
         """Test that data persistence is properly disabled in test config"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Should not create files when persistence is disabled
         assert not Path(monitoring_config.behavior_log_file).exists()
         assert not Path(monitoring_config.alerts_file).exists()
-    
+
     def test_cleanup_old_data(self, mock_fingerprinter, monitoring_config):
         """Test cleanup of old behavior changes and alerts"""
         monitor = DPIBehaviorMonitor(mock_fingerprinter, monitoring_config)
-        
+
         # Create old behavior change
         old_change = BehaviorChange(
             target="old.com:443",
@@ -761,9 +780,9 @@ class TestMonitoringIntegration:
             change_type="test",
             old_fingerprint=None,
             new_fingerprint=Mock(),
-            confidence=0.5
+            confidence=0.5,
         )
-        
+
         # Create recent behavior change
         recent_change = BehaviorChange(
             target="recent.com:443",
@@ -771,14 +790,14 @@ class TestMonitoringIntegration:
             change_type="test",
             old_fingerprint=None,
             new_fingerprint=Mock(),
-            confidence=0.5
+            confidence=0.5,
         )
-        
+
         monitor.behavior_changes.extend([old_change, recent_change])
-        
+
         # Trigger cleanup
         monitor._cleanup_old_data()
-        
+
         # Should keep only recent change
         assert len(monitor.behavior_changes) == 1
         assert monitor.behavior_changes[0] == recent_change

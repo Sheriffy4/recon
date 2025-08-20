@@ -2,12 +2,13 @@
 
 import ipaddress
 import logging
-from typing import Iterable, List, Optional, Sequence, Set, Tuple
+from typing import List, Set, Tuple
 
 LOG = logging.getLogger("WinDivertFilterGenerator")
 
 # Устанавливаем константу на уровне модуля для доступа извне
 MAX_FILTER_LENGTH = 4000  # Реальный лимит около 4096, берем с запасом
+
 
 class WinDivertFilterGenerator:
     """
@@ -39,7 +40,7 @@ class WinDivertFilterGenerator:
     ) -> str:
         """Генерирует фильтр на основе набора IP и портов."""
         parts = [direction]
-        
+
         if protocols:
             protocol_part = " or ".join(protocols)
             parts.append(f"({protocol_part})")
@@ -52,25 +53,32 @@ class WinDivertFilterGenerator:
             try:
                 normalized_ips = {self.normalize_ip(ip) for ip in target_ips}
                 # Группируем IP по 15 штук, чтобы избежать слишком длинных "or" цепочек
-                ip_batches = [list(normalized_ips)[i:i+15] for i in range(0, len(normalized_ips), 15)]
-                
+                ip_batches = [
+                    list(normalized_ips)[i : i + 15]
+                    for i in range(0, len(normalized_ips), 15)
+                ]
+
                 batch_conditions = []
                 for batch in ip_batches:
                     ip_conditions = [f"ip.DstAddr == {ip}" for ip in batch]
                     batch_conditions.append(f"({' or '.join(ip_conditions)})")
-                
+
                 parts.append(f"ip and ({' or '.join(batch_conditions)})")
 
             except ValueError:
                 # Если есть невалидный IP, не добавляем IP-фильтрацию вообще
                 LOG.warning("Skipping IP filtering due to invalid IP address.")
-            
+
         final_filter = " and ".join(parts)
 
         # Если фильтр все еще слишком длинный, упрощаем его
         if not self._is_valid_length(final_filter):
-            LOG.warning(f"Generated filter is too long ({len(final_filter)} chars). Simplifying.")
-            return self.progressive_candidates(target_ips, target_ports, direction, protocols)[1]
+            LOG.warning(
+                f"Generated filter is too long ({len(final_filter)} chars). Simplifying."
+            )
+            return self.progressive_candidates(
+                target_ips, target_ports, direction, protocols
+            )[1]
 
         return final_filter
 
@@ -85,20 +93,20 @@ class WinDivertFilterGenerator:
         Создает список фильтров-кандидатов от самого точного к самому общему.
         """
         candidates = []
-        
+
         # 1. Самый точный: все IP и все порты
         full_filter = self.generate(target_ips, target_ports, direction, protocols)
         candidates.append(full_filter)
-        
+
         # 2. Упрощенный: только порты, без IP
         ports_only_filter = self.generate(set(), target_ports, direction, protocols)
         if ports_only_filter not in candidates:
             candidates.append(ports_only_filter)
-        
+
         # 3. Самый общий fallback: только протокол и направление
         base_filter = self.generate(set(), set(), direction, protocols)
         if base_filter not in candidates:
             candidates.append(base_filter)
-            
+
         # Гарантируем, что вернем только валидные по длине фильтры
         return [f for f in candidates if self._is_valid_length(f)]

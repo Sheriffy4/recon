@@ -2,9 +2,7 @@
 
 import logging
 import struct
-import socket
-from typing import Optional, Tuple, Dict, Any, List
-import time
+from typing import Optional, Dict
 
 try:
     import pydivert

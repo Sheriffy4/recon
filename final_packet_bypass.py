@@ -13,7 +13,7 @@ import random
 import os
 import json
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Tuple
 
 
 class AdvancedBypassTechniques:
@@ -1492,7 +1492,7 @@ def test_final_working():
 
         # Финальная статистика
         stats = bypass.get_stats()
-        print(f"\n📊 ИТОГО:")
+        print("\n📊 ИТОГО:")
         print(f"   • Bypass применен: {stats['bypasses_applied']} раз")
         print(f"   • Продвинутых техник: {stats['advanced_techniques_used']}")
         print(f"   • Фейковых пакетов: {stats['fake_packets_sent']}")

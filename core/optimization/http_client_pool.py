@@ -12,10 +12,9 @@ import time
 import logging
 import hashlib
 import json
-from typing import Dict, Any, Optional, List, Tuple, Union
+from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from collections import defaultdict
 import weakref
 
 LOG = logging.getLogger("HTTPClientPool")

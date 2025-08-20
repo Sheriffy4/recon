@@ -1,6 +1,6 @@
 # recon/core/domain_specific_strategies.py
 
-from typing import List, Optional
+from typing import List
 
 
 class DomainSpecificStrategies:

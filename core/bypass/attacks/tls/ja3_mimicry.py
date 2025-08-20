@@ -4,10 +4,10 @@ import time
 import random
 import struct
 import hashlib
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
-from ....protocols.tls import TLSParser, TLSExtensionType
+from ....protocols.tls import TLSParser
 
 
 class BrowserProfile:

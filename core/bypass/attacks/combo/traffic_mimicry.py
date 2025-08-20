@@ -11,7 +11,7 @@ import random
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Tuple, Generator
+from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus

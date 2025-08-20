@@ -12,7 +12,7 @@ from .config_models import (
     PoolConfiguration,
     LegacyConfiguration,
     ConfigurationVersion,
-    MigrationResult
+    MigrationResult,
 )
 from .config_migrator import ConfigurationMigrator
 from .config_validator import ConfigurationValidator
@@ -20,12 +20,12 @@ from .config_manager import ConfigurationManager
 from .backup_manager import BackupManager
 
 __all__ = [
-    'PoolConfiguration',
-    'LegacyConfiguration', 
-    'ConfigurationVersion',
-    'MigrationResult',
-    'ConfigurationMigrator',
-    'ConfigurationValidator',
-    'ConfigurationManager',
-    'BackupManager'
+    "PoolConfiguration",
+    "LegacyConfiguration",
+    "ConfigurationVersion",
+    "MigrationResult",
+    "ConfigurationMigrator",
+    "ConfigurationValidator",
+    "ConfigurationManager",
+    "BackupManager",
 ]

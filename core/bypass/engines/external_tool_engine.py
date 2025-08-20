@@ -5,14 +5,12 @@ Engine for external bypass tools (zapret, goodbyedpi).
 
 import subprocess
 import platform
-import os
 import shutil
 import time
-import logging  # <-- Добавляем
 from typing import Dict, Any, Set, Optional, List  # <-- Добавляем List
 from pathlib import Path
 
-from .base import BaseBypassEngine, EngineConfig, EngineType
+from .base import BaseBypassEngine, EngineConfig
 
 
 class ExternalToolEngine(BaseBypassEngine):

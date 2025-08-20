@@ -9,18 +9,17 @@ including detailed analysis of timing, packet construction, and transmission.
 import time
 import logging
 import threading
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from enum import Enum
-from collections import defaultdict, deque
 
-from core.bypass.attacks.base import AttackContext
 from core.bypass.attacks.segment_packet_builder import SegmentPacketInfo
 from core.bypass.attacks.timing_controller import TimingMeasurement
 
 
 class SegmentExecutionPhase(Enum):
     """Phases of segment execution."""
+
     VALIDATION = "validation"
     CONSTRUCTION = "construction"
     TIMING = "timing"
@@ -32,7 +31,7 @@ class SegmentExecutionPhase(Enum):
 @dataclass
 class SegmentExecutionEvent:
     """Event during segment execution."""
-    
+
     timestamp: float
     segment_id: int
     phase: SegmentExecutionPhase
@@ -46,7 +45,7 @@ class SegmentExecutionEvent:
 @dataclass
 class SegmentExecutionEvent:
     """Event during segment execution."""
-    
+
     timestamp: float
     segment_id: int
     phase: SegmentExecutionPhase
@@ -60,27 +59,27 @@ class SegmentExecutionEvent:
 @dataclass
 class SegmentDiagnosticData:
     """Comprehensive diagnostic data for a segment."""
-    
+
     segment_id: int
     payload_size: int
     seq_offset: int
     options: Dict[str, Any]
-    
+
     # Execution phases
     validation_time_ms: Optional[float] = None
     construction_time_ms: Optional[float] = None
     timing_delay_ms: Optional[float] = None
     transmission_time_ms: Optional[float] = None
     total_execution_time_ms: Optional[float] = None
-    
+
     # Packet information
     packet_info: Optional[SegmentPacketInfo] = None
     timing_measurement: Optional[TimingMeasurement] = None
-    
+
     # Results
     success: bool = False
     error_message: Optional[str] = None
-    
+
     # Events log
     events: List[SegmentExecutionEvent] = field(default_factory=list)
 
@@ -88,36 +87,36 @@ class SegmentDiagnosticData:
 @dataclass
 class SegmentExecutionSummary:
     """Summary of segment execution session."""
-    
+
     session_id: str
     connection_id: str
     total_segments: int
     successful_segments: int
     failed_segments: int
-    
+
     # Timing analysis
     total_execution_time_ms: float
     average_segment_time_ms: float
     min_segment_time_ms: float
     max_segment_time_ms: float
-    
+
     # Packet analysis
     total_packets_built: int
     total_bytes_transmitted: int
     ttl_modifications: int
     checksum_corruptions: int
     timing_delays_applied: int
-    
+
     # Accuracy analysis
     timing_accuracy_average: float
     timing_errors: int
     construction_errors: int
     transmission_errors: int
-    
+
     # Performance metrics
     packets_per_second: float
     bytes_per_second: float
-    
+
     # Detailed breakdown
     segments_data: List[SegmentDiagnosticData] = field(default_factory=list)
 
@@ -125,36 +124,36 @@ class SegmentExecutionSummary:
 @dataclass
 class SegmentExecutionSummary:
     """Summary of segment execution session."""
-    
+
     session_id: str
     connection_id: str
     total_segments: int
     successful_segments: int
     failed_segments: int
-    
+
     # Timing analysis
     total_execution_time_ms: float = 0.0
     average_segment_time_ms: float = 0.0
     min_segment_time_ms: float = 0.0
     max_segment_time_ms: float = 0.0
-    
+
     # Packet analysis
     total_packets_built: int = 0
     total_bytes_transmitted: int = 0
     ttl_modifications: int = 0
     checksum_corruptions: int = 0
     timing_delays_applied: int = 0
-    
+
     # Accuracy analysis
     timing_accuracy_average: float = 0.0
     timing_errors: int = 0
     construction_errors: int = 0
     transmission_errors: int = 0
-    
+
     # Performance metrics
     packets_per_second: float = 0.0
     bytes_per_second: float = 0.0
-    
+
     # Detailed breakdown
     segments_data: List[SegmentDiagnosticData] = field(default_factory=list)
 
@@ -162,15 +161,15 @@ class SegmentExecutionSummary:
 class SegmentDiagnosticLogger:
     """
     Advanced diagnostic logger for segment execution.
-    
+
     Provides detailed logging, analysis, and reporting capabilities
     for segment-based attack orchestration.
     """
-    
+
     def __init__(self, logger_name: str = "SegmentDiagnostics"):
         """
         Initialize segment diagnostic logger.
-        
+
         Args:
             logger_name: Name for the logger instance
         """
@@ -178,21 +177,21 @@ class SegmentDiagnosticLogger:
         self.session_data: Dict[str, List[SegmentDiagnosticData]] = {}
         self.active_sessions: Dict[str, float] = {}  # session_id -> start_time
         self.lock = threading.Lock()
-        
+
         # Configuration
         self.max_events_per_segment = 100
         self.max_sessions_history = 50
         self.detailed_logging = True
-        
+
         # Statistics
         self.total_sessions = 0
         self.total_segments_processed = 0
         self.total_execution_time_ms = 0.0
-    
+
     def start_session(self, session_id: str, connection_id: str) -> None:
         """
         Start a new diagnostic session.
-        
+
         Args:
             session_id: Unique session identifier
             connection_id: Connection identifier
@@ -201,22 +200,30 @@ class SegmentDiagnosticLogger:
             self.active_sessions[session_id] = time.time()
             self.session_data[session_id] = []
             self.total_sessions += 1
-            
+
             if self.detailed_logging:
-                self.logger.info(f"Started diagnostic session {session_id} for connection {connection_id}")
-    
-    def log_segment_start(self, session_id: str, segment_id: int, payload_size: int, 
-                         seq_offset: int, options: Dict[str, Any]) -> SegmentDiagnosticData:
+                self.logger.info(
+                    f"Started diagnostic session {session_id} for connection {connection_id}"
+                )
+
+    def log_segment_start(
+        self,
+        session_id: str,
+        segment_id: int,
+        payload_size: int,
+        seq_offset: int,
+        options: Dict[str, Any],
+    ) -> SegmentDiagnosticData:
         """
         Log the start of segment execution.
-        
+
         Args:
             session_id: Session identifier
             segment_id: Segment identifier
             payload_size: Size of segment payload
             seq_offset: TCP sequence offset
             options: Segment options
-            
+
         Returns:
             SegmentDiagnosticData object for this segment
         """
@@ -224,9 +231,9 @@ class SegmentDiagnosticLogger:
             segment_id=segment_id,
             payload_size=payload_size,
             seq_offset=seq_offset,
-            options=options.copy()
+            options=options.copy(),
         )
-        
+
         # Add start event
         event = SegmentExecutionEvent(
             timestamp=time.time(),
@@ -237,29 +244,35 @@ class SegmentDiagnosticLogger:
             metadata={
                 "payload_size": payload_size,
                 "seq_offset": seq_offset,
-                "options": options
-            }
+                "options": options,
+            },
         )
         segment_data.events.append(event)
-        
+
         with self.lock:
             if session_id in self.session_data:
                 self.session_data[session_id].append(segment_data)
-            
+
             self.total_segments_processed += 1
-        
+
         if self.detailed_logging:
-            self.logger.debug(f"Session {session_id}: Started segment {segment_id} "
-                            f"(payload: {payload_size} bytes, offset: {seq_offset})")
-        
+            self.logger.debug(
+                f"Session {session_id}: Started segment {segment_id} "
+                f"(payload: {payload_size} bytes, offset: {seq_offset})"
+            )
+
         return segment_data
-    
-    def log_validation_phase(self, segment_data: SegmentDiagnosticData, 
-                           validation_time_ms: float, success: bool, 
-                           error_message: Optional[str] = None) -> None:
+
+    def log_validation_phase(
+        self,
+        segment_data: SegmentDiagnosticData,
+        validation_time_ms: float,
+        success: bool,
+        error_message: Optional[str] = None,
+    ) -> None:
         """
         Log segment validation phase.
-        
+
         Args:
             segment_data: Segment diagnostic data
             validation_time_ms: Time spent in validation
@@ -267,7 +280,7 @@ class SegmentDiagnosticLogger:
             error_message: Error message if validation failed
         """
         segment_data.validation_time_ms = validation_time_ms
-        
+
         event = SegmentExecutionEvent(
             timestamp=time.time(),
             segment_id=segment_data.segment_id,
@@ -275,30 +288,33 @@ class SegmentDiagnosticLogger:
             event_type="validation_complete",
             message=f"Validation {'succeeded' if success else 'failed'}",
             duration_ms=validation_time_ms,
-            error=error_message
+            error=error_message,
         )
         segment_data.events.append(event)
-        
+
         if not success:
             segment_data.error_message = error_message
-            
+
         if self.detailed_logging:
             status = "succeeded" if success else f"failed: {error_message}"
-            self.logger.debug(f"Segment {segment_data.segment_id} validation {status} "
-                            f"({validation_time_ms:.3f}ms)")
-    
-    def log_construction_phase(self, segment_data: SegmentDiagnosticData,
-                             packet_info: SegmentPacketInfo) -> None:
+            self.logger.debug(
+                f"Segment {segment_data.segment_id} validation {status} "
+                f"({validation_time_ms:.3f}ms)"
+            )
+
+    def log_construction_phase(
+        self, segment_data: SegmentDiagnosticData, packet_info: SegmentPacketInfo
+    ) -> None:
         """
         Log packet construction phase.
-        
+
         Args:
             segment_data: Segment diagnostic data
             packet_info: Constructed packet information
         """
         segment_data.construction_time_ms = packet_info.construction_time_ms
         segment_data.packet_info = packet_info
-        
+
         event = SegmentExecutionEvent(
             timestamp=time.time(),
             segment_id=segment_data.segment_id,
@@ -312,36 +328,39 @@ class SegmentDiagnosticLogger:
                 "tcp_ack": packet_info.tcp_ack,
                 "ttl": packet_info.ttl,
                 "checksum_corrupted": packet_info.checksum_corrupted,
-                "options_applied": packet_info.options_applied
-            }
+                "options_applied": packet_info.options_applied,
+            },
         )
         segment_data.events.append(event)
-        
+
         if self.detailed_logging:
             modifications = []
             if packet_info.ttl != 64:
                 modifications.append(f"TTL={packet_info.ttl}")
             if packet_info.checksum_corrupted:
                 modifications.append("bad_checksum")
-            
+
             mod_str = f" ({', '.join(modifications)})" if modifications else ""
-            
-            self.logger.debug(f"Segment {segment_data.segment_id} packet constructed: "
-                            f"{packet_info.packet_size} bytes, seq={packet_info.tcp_seq}"
-                            f"{mod_str} ({packet_info.construction_time_ms:.3f}ms)")
-    
-    def log_timing_phase(self, segment_data: SegmentDiagnosticData,
-                        timing_measurement: TimingMeasurement) -> None:
+
+            self.logger.debug(
+                f"Segment {segment_data.segment_id} packet constructed: "
+                f"{packet_info.packet_size} bytes, seq={packet_info.tcp_seq}"
+                f"{mod_str} ({packet_info.construction_time_ms:.3f}ms)"
+            )
+
+    def log_timing_phase(
+        self, segment_data: SegmentDiagnosticData, timing_measurement: TimingMeasurement
+    ) -> None:
         """
         Log timing delay phase.
-        
+
         Args:
             segment_data: Segment diagnostic data
             timing_measurement: Timing measurement result
         """
         segment_data.timing_delay_ms = timing_measurement.actual_delay_ms
         segment_data.timing_measurement = timing_measurement
-        
+
         event = SegmentExecutionEvent(
             timestamp=time.time(),
             segment_id=segment_data.segment_id,
@@ -353,24 +372,30 @@ class SegmentDiagnosticLogger:
                 "requested_delay_ms": timing_measurement.requested_delay_ms,
                 "actual_delay_ms": timing_measurement.actual_delay_ms,
                 "accuracy_error_ms": timing_measurement.accuracy_error_ms,
-                "strategy_used": timing_measurement.strategy_used.value
-            }
+                "strategy_used": timing_measurement.strategy_used.value,
+            },
         )
         segment_data.events.append(event)
-        
+
         if self.detailed_logging:
             accuracy = abs(timing_measurement.accuracy_error_ms)
-            self.logger.debug(f"Segment {segment_data.segment_id} timing delay: "
-                            f"requested={timing_measurement.requested_delay_ms:.3f}ms, "
-                            f"actual={timing_measurement.actual_delay_ms:.3f}ms, "
-                            f"error={accuracy:.3f}ms, strategy={timing_measurement.strategy_used.value}")
-    
-    def log_transmission_phase(self, segment_data: SegmentDiagnosticData,
-                             transmission_time_ms: float, success: bool,
-                             error_message: Optional[str] = None) -> None:
+            self.logger.debug(
+                f"Segment {segment_data.segment_id} timing delay: "
+                f"requested={timing_measurement.requested_delay_ms:.3f}ms, "
+                f"actual={timing_measurement.actual_delay_ms:.3f}ms, "
+                f"error={accuracy:.3f}ms, strategy={timing_measurement.strategy_used.value}"
+            )
+
+    def log_transmission_phase(
+        self,
+        segment_data: SegmentDiagnosticData,
+        transmission_time_ms: float,
+        success: bool,
+        error_message: Optional[str] = None,
+    ) -> None:
         """
         Log packet transmission phase.
-        
+
         Args:
             segment_data: Segment diagnostic data
             transmission_time_ms: Time spent in transmission
@@ -379,12 +404,14 @@ class SegmentDiagnosticLogger:
         """
         segment_data.transmission_time_ms = transmission_time_ms
         segment_data.success = success
-        
+
         if not success and error_message:
             segment_data.error_message = error_message
-        
-        phase = SegmentExecutionPhase.COMPLETED if success else SegmentExecutionPhase.FAILED
-        
+
+        phase = (
+            SegmentExecutionPhase.COMPLETED if success else SegmentExecutionPhase.FAILED
+        )
+
         event = SegmentExecutionEvent(
             timestamp=time.time(),
             segment_id=segment_data.segment_id,
@@ -392,92 +419,132 @@ class SegmentDiagnosticLogger:
             event_type="transmission_complete",
             message=f"Transmission {'succeeded' if success else 'failed'}",
             duration_ms=transmission_time_ms,
-            error=error_message
+            error=error_message,
         )
         segment_data.events.append(event)
-        
+
         # Calculate total execution time
         if segment_data.events:
             start_time = segment_data.events[0].timestamp
             end_time = event.timestamp
             segment_data.total_execution_time_ms = (end_time - start_time) * 1000
-        
+
         if self.detailed_logging:
             status = "succeeded" if success else f"failed: {error_message}"
-            self.logger.debug(f"Segment {segment_data.segment_id} transmission {status} "
-                            f"({transmission_time_ms:.3f}ms)")
-            
+            self.logger.debug(
+                f"Segment {segment_data.segment_id} transmission {status} "
+                f"({transmission_time_ms:.3f}ms)"
+            )
+
             if success and segment_data.total_execution_time_ms:
-                self.logger.info(f"Segment {segment_data.segment_id} completed successfully "
-                               f"(total: {segment_data.total_execution_time_ms:.3f}ms)")
-    
+                self.logger.info(
+                    f"Segment {segment_data.segment_id} completed successfully "
+                    f"(total: {segment_data.total_execution_time_ms:.3f}ms)"
+                )
+
     def end_session(self, session_id: str) -> SegmentExecutionSummary:
         """
         End diagnostic session and generate summary.
-        
+
         Args:
             session_id: Session identifier
-            
+
         Returns:
             Comprehensive execution summary
         """
         with self.lock:
             if session_id not in self.session_data:
                 raise ValueError(f"Session {session_id} not found")
-            
+
             segments_data = self.session_data[session_id]
             start_time = self.active_sessions.get(session_id, time.time())
             end_time = time.time()
-            
+
             # Calculate summary statistics
             total_segments = len(segments_data)
             successful_segments = sum(1 for s in segments_data if s.success)
             failed_segments = total_segments - successful_segments
-            
+
             # Timing analysis
-            execution_times = [s.total_execution_time_ms for s in segments_data 
-                             if s.total_execution_time_ms is not None]
-            
+            execution_times = [
+                s.total_execution_time_ms
+                for s in segments_data
+                if s.total_execution_time_ms is not None
+            ]
+
             total_execution_time_ms = (end_time - start_time) * 1000
-            avg_segment_time = sum(execution_times) / len(execution_times) if execution_times else 0
+            avg_segment_time = (
+                sum(execution_times) / len(execution_times) if execution_times else 0
+            )
             min_segment_time = min(execution_times) if execution_times else 0
             max_segment_time = max(execution_times) if execution_times else 0
-            
+
             # Packet analysis
-            total_packets_built = sum(1 for s in segments_data if s.packet_info is not None)
-            total_bytes = sum(s.packet_info.packet_size for s in segments_data 
-                            if s.packet_info is not None)
-            ttl_mods = sum(1 for s in segments_data 
-                          if s.packet_info and s.packet_info.ttl != 64)
-            checksum_corruptions = sum(1 for s in segments_data 
-                                     if s.packet_info and s.packet_info.checksum_corrupted)
-            timing_delays = sum(1 for s in segments_data 
-                              if s.timing_measurement is not None)
-            
+            total_packets_built = sum(
+                1 for s in segments_data if s.packet_info is not None
+            )
+            total_bytes = sum(
+                s.packet_info.packet_size
+                for s in segments_data
+                if s.packet_info is not None
+            )
+            ttl_mods = sum(
+                1 for s in segments_data if s.packet_info and s.packet_info.ttl != 64
+            )
+            checksum_corruptions = sum(
+                1
+                for s in segments_data
+                if s.packet_info and s.packet_info.checksum_corrupted
+            )
+            timing_delays = sum(
+                1 for s in segments_data if s.timing_measurement is not None
+            )
+
             # Accuracy analysis
-            timing_measurements = [s.timing_measurement for s in segments_data 
-                                 if s.timing_measurement is not None]
+            timing_measurements = [
+                s.timing_measurement
+                for s in segments_data
+                if s.timing_measurement is not None
+            ]
             timing_accuracy = 0.0
             if timing_measurements:
                 errors = [abs(tm.accuracy_error_ms) for tm in timing_measurements]
                 timing_accuracy = 100.0 - (sum(errors) / len(errors))
-            
-            timing_errors = sum(1 for s in segments_data 
-                              if s.timing_measurement and abs(s.timing_measurement.accuracy_error_ms) > 1.0)
-            construction_errors = sum(1 for s in segments_data 
-                                    if s.construction_time_ms is None and not s.success)
-            transmission_errors = sum(1 for s in segments_data 
-                                    if not s.success and s.transmission_time_ms is not None)
-            
+
+            timing_errors = sum(
+                1
+                for s in segments_data
+                if s.timing_measurement
+                and abs(s.timing_measurement.accuracy_error_ms) > 1.0
+            )
+            construction_errors = sum(
+                1
+                for s in segments_data
+                if s.construction_time_ms is None and not s.success
+            )
+            transmission_errors = sum(
+                1
+                for s in segments_data
+                if not s.success and s.transmission_time_ms is not None
+            )
+
             # Performance metrics
             duration_seconds = total_execution_time_ms / 1000.0
-            packets_per_second = total_packets_built / duration_seconds if duration_seconds > 0 else 0
-            bytes_per_second = total_bytes / duration_seconds if duration_seconds > 0 else 0
-            
+            packets_per_second = (
+                total_packets_built / duration_seconds if duration_seconds > 0 else 0
+            )
+            bytes_per_second = (
+                total_bytes / duration_seconds if duration_seconds > 0 else 0
+            )
+
             # Create summary
             summary = SegmentExecutionSummary(
                 session_id=session_id,
-                connection_id=segments_data[0].options.get('connection_id', 'unknown') if segments_data else 'unknown',
+                connection_id=(
+                    segments_data[0].options.get("connection_id", "unknown")
+                    if segments_data
+                    else "unknown"
+                ),
                 total_segments=total_segments,
                 successful_segments=successful_segments,
                 failed_segments=failed_segments,
@@ -496,65 +563,79 @@ class SegmentDiagnosticLogger:
                 transmission_errors=transmission_errors,
                 packets_per_second=packets_per_second,
                 bytes_per_second=bytes_per_second,
-                segments_data=segments_data.copy()
+                segments_data=segments_data.copy(),
             )
-            
+
             # Update global statistics
             self.total_execution_time_ms += total_execution_time_ms
-            
+
             # Clean up session data (keep limited history)
             del self.active_sessions[session_id]
             if len(self.session_data) > self.max_sessions_history:
                 oldest_session = min(self.session_data.keys())
                 del self.session_data[oldest_session]
-            
+
             if self.detailed_logging:
-                self.logger.info(f"Session {session_id} completed: {successful_segments}/{total_segments} "
-                               f"segments successful ({total_execution_time_ms:.1f}ms total)")
-            
+                self.logger.info(
+                    f"Session {session_id} completed: {successful_segments}/{total_segments} "
+                    f"segments successful ({total_execution_time_ms:.1f}ms total)"
+                )
+
             return summary
-    
+
     def log_execution_summary(self, summary: SegmentExecutionSummary) -> None:
         """
         Log comprehensive execution summary.
-        
+
         Args:
             summary: Execution summary to log
         """
-        success_rate = (summary.successful_segments / summary.total_segments * 100) if summary.total_segments > 0 else 0
-        
+        success_rate = (
+            (summary.successful_segments / summary.total_segments * 100)
+            if summary.total_segments > 0
+            else 0
+        )
+
         self.logger.info("=" * 60)
         self.logger.info(f"SEGMENT EXECUTION SUMMARY - Session {summary.session_id}")
         self.logger.info("=" * 60)
         self.logger.info(f"Connection: {summary.connection_id}")
-        self.logger.info(f"Segments: {summary.successful_segments}/{summary.total_segments} successful ({success_rate:.1f}%)")
-        self.logger.info(f"Total execution time: {summary.total_execution_time_ms:.1f}ms")
-        self.logger.info(f"Average segment time: {summary.average_segment_time_ms:.1f}ms")
-        self.logger.info(f"Segment time range: {summary.min_segment_time_ms:.1f}ms - {summary.max_segment_time_ms:.1f}ms")
-        
-        self.logger.info(f"\nPacket Analysis:")
+        self.logger.info(
+            f"Segments: {summary.successful_segments}/{summary.total_segments} successful ({success_rate:.1f}%)"
+        )
+        self.logger.info(
+            f"Total execution time: {summary.total_execution_time_ms:.1f}ms"
+        )
+        self.logger.info(
+            f"Average segment time: {summary.average_segment_time_ms:.1f}ms"
+        )
+        self.logger.info(
+            f"Segment time range: {summary.min_segment_time_ms:.1f}ms - {summary.max_segment_time_ms:.1f}ms"
+        )
+
+        self.logger.info("\nPacket Analysis:")
         self.logger.info(f"  - Packets built: {summary.total_packets_built}")
         self.logger.info(f"  - Bytes transmitted: {summary.total_bytes_transmitted}")
         self.logger.info(f"  - TTL modifications: {summary.ttl_modifications}")
         self.logger.info(f"  - Checksum corruptions: {summary.checksum_corruptions}")
         self.logger.info(f"  - Timing delays applied: {summary.timing_delays_applied}")
-        
-        self.logger.info(f"\nAccuracy Analysis:")
+
+        self.logger.info("\nAccuracy Analysis:")
         self.logger.info(f"  - Timing accuracy: {summary.timing_accuracy_average:.1f}%")
         self.logger.info(f"  - Timing errors: {summary.timing_errors}")
         self.logger.info(f"  - Construction errors: {summary.construction_errors}")
         self.logger.info(f"  - Transmission errors: {summary.transmission_errors}")
-        
-        self.logger.info(f"\nPerformance Metrics:")
+
+        self.logger.info("\nPerformance Metrics:")
         self.logger.info(f"  - Packets/second: {summary.packets_per_second:.1f}")
         self.logger.info(f"  - Bytes/second: {summary.bytes_per_second:.1f}")
-        
+
         self.logger.info("=" * 60)
-    
+
     def get_global_statistics(self) -> Dict[str, Any]:
         """
         Get global diagnostic statistics.
-        
+
         Returns:
             Global statistics dictionary
         """
@@ -565,16 +646,17 @@ class SegmentDiagnosticLogger:
                 "total_segments_processed": self.total_segments_processed,
                 "total_execution_time_ms": self.total_execution_time_ms,
                 "average_execution_time_per_session_ms": (
-                    self.total_execution_time_ms / self.total_sessions 
-                    if self.total_sessions > 0 else 0
+                    self.total_execution_time_ms / self.total_sessions
+                    if self.total_sessions > 0
+                    else 0
                 ),
-                "sessions_in_history": len(self.session_data)
+                "sessions_in_history": len(self.session_data),
             }
-    
+
     def get_global_statistics(self) -> Dict[str, Any]:
         """
         Get global diagnostic statistics.
-        
+
         Returns:
             Global statistics dictionary
         """
@@ -585,16 +667,17 @@ class SegmentDiagnosticLogger:
                 "total_segments_processed": self.total_segments_processed,
                 "total_execution_time_ms": self.total_execution_time_ms,
                 "average_execution_time_per_session_ms": (
-                    self.total_execution_time_ms / self.total_sessions 
-                    if self.total_sessions > 0 else 0
+                    self.total_execution_time_ms / self.total_sessions
+                    if self.total_sessions > 0
+                    else 0
                 ),
-                "sessions_in_history": len(self.session_data)
+                "sessions_in_history": len(self.session_data),
             }
-    
+
     def configure(self, **kwargs) -> None:
         """
         Configure diagnostic logger settings.
-        
+
         Args:
             **kwargs: Configuration parameters
         """
@@ -604,7 +687,7 @@ class SegmentDiagnosticLogger:
             self.max_events_per_segment = kwargs["max_events_per_segment"]
         if "max_sessions_history" in kwargs:
             self.max_sessions_history = kwargs["max_sessions_history"]
-        
+
         self.logger.debug(f"Diagnostic logger configured: {kwargs}")
 
 

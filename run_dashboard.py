@@ -3,7 +3,6 @@ import time
 import os
 import sys
 import logging
-import json
 import threading  # ИСПРАВЛЕНИЕ: Добавлен недостающий импорт
 
 # --- Блок для настройки путей ---
@@ -12,7 +11,6 @@ if __name__ == "__main__" and __package__ is None:
     project_root = os.path.dirname(recon_dir)
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-    import recon
 
     __package__ = "recon"
 

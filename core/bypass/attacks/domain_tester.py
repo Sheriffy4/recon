@@ -12,7 +12,7 @@ import time
 import logging
 import ssl
 from typing import Optional, Tuple, Dict, Any
-from .base import AttackContext, AttackResult, AttackStatus
+from .base import AttackContext
 
 LOG = logging.getLogger("DomainTester")
 
@@ -298,7 +298,6 @@ def test_domain_accessibility_sync(
             # If loop is already running, we need to use a different approach
             # This is a limitation when called from sync code in an async context
             import concurrent.futures
-            import threading
 
             def run_in_thread():
                 new_loop = asyncio.new_event_loop()

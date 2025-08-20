@@ -80,7 +80,7 @@ def apply_system_bypass(strategy: str, zapret_path: str = "zapret"):
         ]
     )
 
-    console.print(f"🚀 Launching system-wide bypass with the best strategy...")
+    console.print("🚀 Launching system-wide bypass with the best strategy...")
     console.print(f"   Command: [cyan]{' '.join(command)}[/cyan]")
     console.print("\n[bold yellow]Your system proxy is now active![/bold yellow]")
     console.print(

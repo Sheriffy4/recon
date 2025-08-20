@@ -2,18 +2,19 @@
 import time
 import random
 import logging
-import asyncio
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass, field
 from enum import Enum
 
 # >>>>> ИЗМЕНЕНИЕ 1: Убираем прямой импорт RealEffectivenessTester <<<<<
 # Он будет внедряться через конструктор.
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from ..bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-    from ..bypass.attacks.registry import AttackRegistry
-    from ..bypass.attacks.real_effectiveness_tester import RealEffectivenessTester, EffectivenessResult
+    from ..bypass.attacks.base import AttackContext
+    from ..bypass.attacks.real_effectiveness_tester import (
+        RealEffectivenessTester,
+    )
 
 LOG = logging.getLogger("DynamicParameterOptimizer")
 
@@ -58,10 +59,9 @@ class DynamicParameterOptimizer:
     """
     Dynamic Parameter Optimizer for automatic attack parameter tuning.
     """
+
     # >>>>> ИЗМЕНЕНИЕ 2: Принимаем зависимость через конструктор (DI) <<<<<
-    def __init__(
-        self, effectiveness_tester: "RealEffectivenessTester"
-    ):
+    def __init__(self, effectiveness_tester: "RealEffectivenessTester"):
         """
         Initialize the parameter optimizer.
 
@@ -70,7 +70,7 @@ class DynamicParameterOptimizer:
         """
         if not effectiveness_tester:
             raise ValueError("effectiveness_tester is a required dependency.")
-            
+
         self.effectiveness_tester = effectiveness_tester
         self.logger = LOG
         self._parameter_ranges = self._initialize_parameter_ranges()

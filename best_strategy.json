@@ -1,11 +1,11 @@
 {
-  "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-split-pos=4",
+  "strategy": "--dpi-desync=disorder --dpi-desync-split-pos=3",
   "result_status": "PARTIAL_SUCCESS",
-  "successful_sites": 1,
-  "total_sites": 4,
-  "success_rate": 0.25,
-  "avg_latency_ms": 465.984582901001,
+  "successful_sites": 4,
+  "total_sites": 5,
+  "success_rate": 0.8,
+  "avg_latency_ms": 575.0959515571594,
   "fingerprint_used": true,
-  "dpi_type": "unknown",
-  "dpi_confidence": 0.0
+  "dpi_type": "government",
+  "dpi_confidence": 0.5
 }

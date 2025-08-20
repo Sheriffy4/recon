@@ -4,10 +4,9 @@
 результаты атак в реальные сетевые пакеты с помощью PacketBuilder.
 """
 import pydivert
-import time
 import logging
 import random
-from typing import List, Tuple, Dict, Any, Union
+from typing import Tuple, Dict, Any, Union
 
 from ..attacks.base import AttackResult, AttackStatus, AttackContext
 from ...packet_builder import EnhancedPacketBuilder  # Используем наш улучшенный сборщик
@@ -51,7 +50,9 @@ class IntelligentPacketExecutor:
         try:
             normalized_ip = self._filter_gen.normalize_ip(context.dst_ip)
         except Exception:
-            normalized_ip = context.dst_ip  # пусть pydivert сам отвалится, но мы попробуем
+            normalized_ip = (
+                context.dst_ip
+            )  # пусть pydivert сам отвалится, но мы попробуем
         filter_str = self._filter_gen.generate(
             target_ips=[normalized_ip],
             target_ports=[context.dst_port],
@@ -65,13 +66,15 @@ class IntelligentPacketExecutor:
                 w = pydivert.WinDivert(filter_str)
                 w.open()
             except Exception as e:
-                LOG.warning(f"Failed to create WinDivert handle with filter '{filter_str}': {e}")
+                LOG.warning(
+                    f"Failed to create WinDivert handle with filter '{filter_str}': {e}"
+                )
                 # Fallback к простейшему фильтру
                 simple_filter = "outbound and tcp"
                 LOG.info(f"Trying simplified filter: {simple_filter}")
                 w = pydivert.WinDivert(simple_filter)
                 w.open()
-            
+
             try:
                 # Устанавливаем базовые SEQ/ACK. Если их нет в контексте, начинаем с 0.
                 # Это важно для атак, которые работают до TCP Handshake.
@@ -121,14 +124,16 @@ class IntelligentPacketExecutor:
                             packet_params["tcp_options"] += options["md5_signature"]
 
                     # 4. Собираем пакет
-                    packet_result = self.packet_builder.create_tcp_packet(**packet_params)
-                    
+                    packet_result = self.packet_builder.create_tcp_packet(
+                        **packet_params
+                    )
+
                     # Конвертируем в bytes если нужно
                     if packet_result is None:
                         LOG.warning(f"PacketBuilder returned None for segment {i+1}")
                         continue
-                    
-                    if hasattr(packet_result, 'build'):  # Scapy packet
+
+                    if hasattr(packet_result, "build"):  # Scapy packet
                         packet_bytes = bytes(packet_result.build())
                     elif isinstance(packet_result, bytes):
                         packet_bytes = packet_result
@@ -150,12 +155,15 @@ class IntelligentPacketExecutor:
             finally:
                 w.close()
         except Exception as e:
-            LOG.error(f"Критическая ошибка при отправке пакетов: {type(e).__name__}: {str(e)}")
+            LOG.error(
+                f"Критическая ошибка при отправке пакетов: {type(e).__name__}: {str(e)}"
+            )
             LOG.error(f"Полная информация об ошибке: {repr(e)}")
             LOG.error(
                 "Возможные причины: отсутствуют права администратора или проблема с драйвером WinDivert."
             )
             import traceback
+
             LOG.debug(f"Traceback: {traceback.format_exc()}")
             return False
 

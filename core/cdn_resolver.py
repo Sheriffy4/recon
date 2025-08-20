@@ -1,6 +1,6 @@
 # recon/core/cdn_resolver.py
 import random
-from typing import Optional, List, Dict, Set, Tuple
+from typing import Optional, List, Dict, Set
 import logging
 from dataclasses import dataclass
 

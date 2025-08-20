@@ -7,12 +7,11 @@ actual bypass effectiveness on blocked domains.
 """
 
 import asyncio
-import time
 import logging
 from typing import Dict, Any, Tuple, Optional
 from .base import AttackContext, AttackResult, AttackStatus
 from .domain_tester import DomainTester
-from .real_effectiveness_tester import RealEffectivenessTester, EffectivenessResult
+from .real_effectiveness_tester import RealEffectivenessTester
 
 LOG = logging.getLogger("BypassTester")
 

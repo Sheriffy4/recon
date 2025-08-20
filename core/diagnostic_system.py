@@ -13,7 +13,6 @@ import json
 import statistics
 from collections import defaultdict, deque
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
 import struct
 import socket
 from typing import (
@@ -25,13 +24,14 @@ from typing import (
     Set,
     TYPE_CHECKING,
 )  # <-- Добавляем TYPE_CHECKING
-from core.effectiveness.production_effectiveness_tester import ProductionEffectivenessTester
+from core.effectiveness.production_effectiveness_tester import (
+    ProductionEffectivenessTester,
+)
 from core.bypass.engines.health_check import EngineHealthCheck
 
 # Используем TYPE_CHECKING для аннотаций типов, чтобы избежать циклов импорта во время выполнения
 if TYPE_CHECKING:
     from ..integration.attack_adapter import AttackAdapter
-    from .bypass.engines.packet_processing_engine import PacketProcessingEngine
 # Import unified attack system components
 
 from .bypass.attacks.registry import AttackRegistry
@@ -767,11 +767,13 @@ class DiagnosticSystem:
                     else 0.0
                 )
                 # Health оценка: используем успешные/неуспешные события как приблизительные counters
-                health = EngineHealthCheck(debug=False).evaluate_strategy_health({
-                    "success_count": stats["successful"],
-                    "fail_count": stats["failed"],
-                    "avg_latency_ms": avg_time,
-                })
+                health = EngineHealthCheck(debug=False).evaluate_strategy_health(
+                    {
+                        "success_count": stats["successful"],
+                        "fail_count": stats["failed"],
+                        "avg_latency_ms": avg_time,
+                    }
+                )
 
                 domain_analysis[domain] = {
                     "total_events": stats["total"],
@@ -3460,12 +3462,20 @@ class DiagnosticSystem:
 
         return recommendations
 
-    def evaluate_domain_effectiveness(self, domain: str, start_bypass_cb=None, stop_bypass_cb=None, use_https: bool = True) -> Dict[str, Any]:
+    def evaluate_domain_effectiveness(
+        self,
+        domain: str,
+        start_bypass_cb=None,
+        stop_bypass_cb=None,
+        use_https: bool = True,
+    ) -> Dict[str, Any]:
         """Запускает production-оценку эффективности обхода для домена."""
         tester = ProductionEffectivenessTester()
         start_bypass_cb = start_bypass_cb or (lambda: None)
         stop_bypass_cb = stop_bypass_cb or (lambda: None)
-        report = tester.evaluate(domain, start_bypass_cb, stop_bypass_cb, use_https=use_https)
+        report = tester.evaluate(
+            domain, start_bypass_cb, stop_bypass_cb, use_https=use_https
+        )
         return {
             "domain": domain,
             "verdict": report.verdict,
@@ -3484,7 +3494,9 @@ class DiagnosticSystem:
             },
         }
 
-    def evaluate_strategy_health(self, success_count: int, fail_count: int, avg_latency_ms: float) -> Dict[str, Any]:
+    def evaluate_strategy_health(
+        self, success_count: int, fail_count: int, avg_latency_ms: float
+    ) -> Dict[str, Any]:
         """Определяет здоровье стратегии для продакшна."""
         hc = EngineHealthCheck(debug=False)
         stats = {

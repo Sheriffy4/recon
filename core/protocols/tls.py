@@ -2,7 +2,7 @@
 
 import struct
 import logging
-from typing import Dict, Optional, Tuple, List, Union
+from typing import Dict, Optional, List
 from dataclasses import dataclass
 from enum import IntEnum
 

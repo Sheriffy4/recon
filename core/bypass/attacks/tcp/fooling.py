@@ -13,8 +13,6 @@ Migrated from:
 
 import time
 import random
-import struct
-from typing import Dict, Any, Optional
 from ..base import ManipulationAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 

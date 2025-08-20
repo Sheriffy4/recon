@@ -11,7 +11,7 @@ import random
 import hashlib
 import struct
 import json
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 
@@ -20,7 +20,7 @@ from ..registry import register_attack
 class XORPayloadEncryptionAttack(BaseAttack):
     """
     XOR Payload Encryption Attack with advanced key management.
-    
+
     Uses XOR encryption with various key generation strategies
     to obfuscate payload content from DPI inspection.
     """
@@ -53,11 +53,13 @@ class XORPayloadEncryptionAttack(BaseAttack):
             include_header = context.params.get("include_header", True)
 
             # Generate encryption key
-            encryption_key = self._generate_encryption_key(key_strategy, key_length, context)
-            
+            encryption_key = self._generate_encryption_key(
+                key_strategy, key_length, context
+            )
+
             # Encrypt payload
             encrypted_payload = self._xor_encrypt(payload, encryption_key)
-            
+
             # Create final packet
             if include_header:
                 final_packet = self._create_packet_with_header(
@@ -69,9 +71,13 @@ class XORPayloadEncryptionAttack(BaseAttack):
             # Handle key rotation
             segments = []
             if key_rotation and len(payload) > 100:
-                segments = self._create_key_rotation_segments(payload, key_strategy, key_length)
+                segments = self._create_key_rotation_segments(
+                    payload, key_strategy, key_length
+                )
             else:
-                segments = [(final_packet, 0, {"encrypted": True, "key_strategy": key_strategy})]
+                segments = [
+                    (final_packet, 0, {"encrypted": True, "key_strategy": key_strategy})
+                ]
 
             packets_sent = len(segments)
             bytes_sent = sum(len(seg[0]) for seg in segments)
@@ -93,8 +99,8 @@ class XORPayloadEncryptionAttack(BaseAttack):
                     "original_size": len(payload),
                     "encrypted_size": len(encrypted_payload),
                     "final_size": len(final_packet),
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -102,10 +108,12 @@ class XORPayloadEncryptionAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="xor_payload_encryption"
+                technique_used="xor_payload_encryption",
             )
 
-    def _generate_encryption_key(self, strategy: str, length: int, context: AttackContext) -> bytes:
+    def _generate_encryption_key(
+        self, strategy: str, length: int, context: AttackContext
+    ) -> bytes:
         """Generate encryption key based on strategy."""
         if strategy == "random":
             return random.randbytes(length)
@@ -136,53 +144,70 @@ class XORPayloadEncryptionAttack(BaseAttack):
             encrypted.append(byte ^ key[i % len(key)])
         return bytes(encrypted)
 
-    def _create_packet_with_header(self, encrypted_payload: bytes, key: bytes, strategy: str) -> bytes:
+    def _create_packet_with_header(
+        self, encrypted_payload: bytes, key: bytes, strategy: str
+    ) -> bytes:
         """Create packet with encryption header."""
         # Header format: magic(4) + version(1) + strategy(1) + key_length(2) + key_hint(8) + payload
         magic = b"XENC"
         version = 1
-        strategy_code = {"random": 1, "time_based": 2, "domain_based": 3, "sequence_based": 4}.get(strategy, 1)
+        strategy_code = {
+            "random": 1,
+            "time_based": 2,
+            "domain_based": 3,
+            "sequence_based": 4,
+        }.get(strategy, 1)
         key_length = len(key)
-        
+
         # Key hint (first 8 bytes of key hash for verification)
         key_hint = hashlib.sha256(key).digest()[:8]
-        
-        header = (magic + 
-                 bytes([version, strategy_code]) + 
-                 struct.pack("!H", key_length) + 
-                 key_hint)
-        
+
+        header = (
+            magic
+            + bytes([version, strategy_code])
+            + struct.pack("!H", key_length)
+            + key_hint
+        )
+
         return header + encrypted_payload
 
-    def _create_key_rotation_segments(self, payload: bytes, strategy: str, key_length: int) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    def _create_key_rotation_segments(
+        self, payload: bytes, strategy: str, key_length: int
+    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Create segments with key rotation."""
         segments = []
         chunk_size = random.randint(50, 150)
-        
+
         for i in range(0, len(payload), chunk_size):
-            chunk = payload[i:i + chunk_size]
-            
+            chunk = payload[i : i + chunk_size]
+
             # Generate new key for each segment
             segment_key = self._generate_rotation_key(strategy, key_length, i)
             encrypted_chunk = self._xor_encrypt(chunk, segment_key)
-            
+
             # Create segment with header
-            segment_packet = self._create_packet_with_header(encrypted_chunk, segment_key, strategy)
-            
-            segments.append((
-                segment_packet, 
-                i * 10,  # Delay between segments
-                {
-                    "encrypted": True,
-                    "key_strategy": strategy,
-                    "segment_index": i // chunk_size,
-                    "key_rotated": True
-                }
-            ))
-        
+            segment_packet = self._create_packet_with_header(
+                encrypted_chunk, segment_key, strategy
+            )
+
+            segments.append(
+                (
+                    segment_packet,
+                    i * 10,  # Delay between segments
+                    {
+                        "encrypted": True,
+                        "key_strategy": strategy,
+                        "segment_index": i // chunk_size,
+                        "key_rotated": True,
+                    },
+                )
+            )
+
         return segments
 
-    def _generate_rotation_key(self, strategy: str, length: int, segment_index: int) -> bytes:
+    def _generate_rotation_key(
+        self, strategy: str, length: int, segment_index: int
+    ) -> bytes:
         """Generate rotated key for segment."""
         if strategy == "sequence_based":
             # Rotate based on segment index
@@ -200,7 +225,7 @@ class XORPayloadEncryptionAttack(BaseAttack):
 class AESPayloadEncryptionAttack(BaseAttack):
     """
     AES Payload Encryption Attack with multiple modes.
-    
+
     Uses AES encryption in various modes (CBC, CTR, GCM) to provide
     strong encryption for payload obfuscation.
     """
@@ -237,17 +262,27 @@ class AESPayloadEncryptionAttack(BaseAttack):
             iv = random.randbytes(16) if include_iv else b"\x00" * 16
 
             # Encrypt payload
-            encrypted_payload = self._aes_encrypt(payload, key, iv, mode, padding_scheme)
-            
-            # Create packet with encryption metadata
-            final_packet = self._create_aes_packet(encrypted_payload, key, iv, mode, include_iv)
+            encrypted_payload = self._aes_encrypt(
+                payload, key, iv, mode, padding_scheme
+            )
 
-            segments = [(final_packet, 0, {
-                "encrypted": True,
-                "algorithm": "AES",
-                "mode": mode,
-                "key_size": key_size
-            })]
+            # Create packet with encryption metadata
+            final_packet = self._create_aes_packet(
+                encrypted_payload, key, iv, mode, include_iv
+            )
+
+            segments = [
+                (
+                    final_packet,
+                    0,
+                    {
+                        "encrypted": True,
+                        "algorithm": "AES",
+                        "mode": mode,
+                        "key_size": key_size,
+                    },
+                )
+            ]
 
             packets_sent = 1
             bytes_sent = len(final_packet)
@@ -269,8 +304,8 @@ class AESPayloadEncryptionAttack(BaseAttack):
                     "original_size": len(payload),
                     "encrypted_size": len(encrypted_payload),
                     "final_size": len(final_packet),
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -278,28 +313,30 @@ class AESPayloadEncryptionAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="aes_payload_encryption"
+                technique_used="aes_payload_encryption",
             )
 
     def _generate_aes_key(self, key_length: int) -> bytes:
         """Generate AES key."""
         return random.randbytes(key_length)
 
-    def _aes_encrypt(self, data: bytes, key: bytes, iv: bytes, mode: str, padding: str) -> bytes:
+    def _aes_encrypt(
+        self, data: bytes, key: bytes, iv: bytes, mode: str, padding: str
+    ) -> bytes:
         """Simulate AES encryption (simplified implementation)."""
         # This is a simplified simulation - in production, use proper AES library
-        
+
         # Apply padding if needed
         if mode in ["CBC", "ECB"] and padding == "PKCS7":
             data = self._apply_pkcs7_padding(data, 16)
-        
+
         # Simulate encryption by XOR with key material
         key_material = self._expand_key_material(key, iv, len(data))
-        
+
         encrypted = bytearray()
         for i, byte in enumerate(data):
             encrypted.append(byte ^ key_material[i % len(key_material)])
-        
+
         return bytes(encrypted)
 
     def _apply_pkcs7_padding(self, data: bytes, block_size: int) -> bytes:
@@ -312,13 +349,20 @@ class AESPayloadEncryptionAttack(BaseAttack):
         """Expand key material for encryption."""
         material = key + iv
         expanded = material
-        
+
         while len(expanded) < length:
             expanded += hashlib.sha256(expanded[-32:]).digest()
-        
+
         return expanded[:length]
 
-    def _create_aes_packet(self, encrypted_payload: bytes, key: bytes, iv: bytes, mode: str, include_iv: bool) -> bytes:
+    def _create_aes_packet(
+        self,
+        encrypted_payload: bytes,
+        key: bytes,
+        iv: bytes,
+        mode: str,
+        include_iv: bool,
+    ) -> bytes:
         """Create AES encrypted packet with metadata."""
         # Header: magic(4) + version(1) + mode(1) + key_size(1) + iv_included(1) + iv(16) + payload
         magic = b"AENC"
@@ -326,13 +370,12 @@ class AESPayloadEncryptionAttack(BaseAttack):
         mode_code = {"CBC": 1, "CTR": 2, "GCM": 3, "ECB": 4}.get(mode, 2)
         key_size = len(key)
         iv_flag = 1 if include_iv else 0
-        
-        header = (magic + 
-                 bytes([version, mode_code, key_size, iv_flag]))
-        
+
+        header = magic + bytes([version, mode_code, key_size, iv_flag])
+
         if include_iv:
             header += iv
-        
+
         return header + encrypted_payload
 
 
@@ -340,7 +383,7 @@ class AESPayloadEncryptionAttack(BaseAttack):
 class ChaCha20PayloadEncryptionAttack(BaseAttack):
     """
     ChaCha20 Payload Encryption Attack.
-    
+
     Uses ChaCha20 stream cipher for fast and secure payload encryption
     with resistance to timing attacks.
     """
@@ -376,7 +419,7 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
 
             # Encrypt payload
             encrypted_payload = self._chacha20_encrypt(payload, key, nonce)
-            
+
             # Add authentication if requested
             if use_poly1305:
                 auth_tag = self._poly1305_authenticate(encrypted_payload, key)
@@ -386,13 +429,21 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
                 auth_tag = b""
 
             # Create packet
-            final_packet = self._create_chacha20_packet(final_payload, key, nonce, use_poly1305)
+            final_packet = self._create_chacha20_packet(
+                final_payload, key, nonce, use_poly1305
+            )
 
-            segments = [(final_packet, 0, {
-                "encrypted": True,
-                "algorithm": "ChaCha20",
-                "authenticated": use_poly1305
-            })]
+            segments = [
+                (
+                    final_packet,
+                    0,
+                    {
+                        "encrypted": True,
+                        "algorithm": "ChaCha20",
+                        "authenticated": use_poly1305,
+                    },
+                )
+            ]
 
             packets_sent = 1
             bytes_sent = len(final_packet)
@@ -413,8 +464,8 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
                     "encrypted_size": len(encrypted_payload),
                     "auth_tag_size": len(auth_tag),
                     "final_size": len(final_packet),
-                    "segments": segments
-                }
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -422,7 +473,7 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="chacha20_payload_encryption"
+                technique_used="chacha20_payload_encryption",
             )
 
     def _generate_nonce(self, strategy: str, context: AttackContext) -> bytes:
@@ -443,51 +494,56 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
     def _chacha20_encrypt(self, data: bytes, key: bytes, nonce: bytes) -> bytes:
         """Simulate ChaCha20 encryption (simplified implementation)."""
         # This is a simplified simulation - in production, use proper ChaCha20 library
-        
+
         # Generate keystream using key and nonce
         keystream = self._generate_chacha20_keystream(key, nonce, len(data))
-        
+
         # XOR data with keystream
         encrypted = bytearray()
         for i, byte in enumerate(data):
             encrypted.append(byte ^ keystream[i])
-        
+
         return bytes(encrypted)
 
-    def _generate_chacha20_keystream(self, key: bytes, nonce: bytes, length: int) -> bytes:
+    def _generate_chacha20_keystream(
+        self, key: bytes, nonce: bytes, length: int
+    ) -> bytes:
         """Generate ChaCha20 keystream (simplified)."""
         # Simplified keystream generation using hash functions
         keystream = b""
         counter = 0
-        
+
         while len(keystream) < length:
             # Create block input: key + nonce + counter
             block_input = key + nonce + struct.pack("!I", counter)
-            
+
             # Generate block using hash (simplified)
             block = hashlib.sha256(block_input).digest()
             keystream += block
             counter += 1
-        
+
         return keystream[:length]
 
     def _poly1305_authenticate(self, data: bytes, key: bytes) -> bytes:
         """Simulate Poly1305 authentication (simplified)."""
         # Simplified Poly1305 - in production, use proper implementation
         auth_key = hashlib.sha256(key + b"poly1305").digest()[:16]
-        
+
         # Simple MAC using HMAC-SHA256 truncated to 16 bytes
         import hmac
+
         mac = hmac.new(auth_key, data, hashlib.sha256).digest()[:16]
         return mac
 
-    def _create_chacha20_packet(self, encrypted_payload: bytes, key: bytes, nonce: bytes, authenticated: bool) -> bytes:
+    def _create_chacha20_packet(
+        self, encrypted_payload: bytes, key: bytes, nonce: bytes, authenticated: bool
+    ) -> bytes:
         """Create ChaCha20 encrypted packet."""
         # Header: magic(4) + version(1) + authenticated(1) + nonce(12) + payload
         magic = b"CENC"
         version = 1
         auth_flag = 1 if authenticated else 0
-        
+
         header = magic + bytes([version, auth_flag]) + nonce
         return header + encrypted_payload
 
@@ -496,7 +552,7 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
 class MultiLayerEncryptionAttack(BaseAttack):
     """
     Multi-Layer Encryption Attack.
-    
+
     Applies multiple layers of encryption with different algorithms
     to create highly obfuscated payloads that are difficult to analyze.
     """
@@ -534,9 +590,11 @@ class MultiLayerEncryptionAttack(BaseAttack):
             # Apply encryption layers
             encrypted_payload = payload
             layer_info = []
-            
+
             for i, layer_type in enumerate(layers):
-                layer_result = self._apply_encryption_layer(encrypted_payload, layer_type, i)
+                layer_result = self._apply_encryption_layer(
+                    encrypted_payload, layer_type, i
+                )
                 encrypted_payload = layer_result["encrypted_data"]
                 layer_info.append(layer_result["info"])
 
@@ -545,15 +603,23 @@ class MultiLayerEncryptionAttack(BaseAttack):
                 encrypted_payload = self._add_noise_layer(encrypted_payload)
 
             # Create final packet with layer metadata
-            final_packet = self._create_multilayer_packet(encrypted_payload, layer_info, layers)
+            final_packet = self._create_multilayer_packet(
+                encrypted_payload, layer_info, layers
+            )
 
-            segments = [(final_packet, 0, {
-                "encrypted": True,
-                "layers": layers,
-                "layer_count": len(layers),
-                "randomized": randomize_order,
-                "noise_added": add_noise
-            })]
+            segments = [
+                (
+                    final_packet,
+                    0,
+                    {
+                        "encrypted": True,
+                        "layers": layers,
+                        "layer_count": len(layers),
+                        "randomized": randomize_order,
+                        "noise_added": add_noise,
+                    },
+                )
+            ]
 
             packets_sent = 1
             bytes_sent = len(final_packet)
@@ -575,9 +641,11 @@ class MultiLayerEncryptionAttack(BaseAttack):
                     "layer_info": layer_info,
                     "original_size": len(payload),
                     "final_size": len(final_packet),
-                    "expansion_ratio": len(final_packet) / len(payload) if payload else 1.0,
-                    "segments": segments
-                }
+                    "expansion_ratio": (
+                        len(final_packet) / len(payload) if payload else 1.0
+                    ),
+                    "segments": segments,
+                },
             )
 
         except Exception as e:
@@ -585,10 +653,12 @@ class MultiLayerEncryptionAttack(BaseAttack):
                 status=AttackStatus.ERROR,
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
-                technique_used="multi_layer_encryption"
+                technique_used="multi_layer_encryption",
             )
 
-    def _apply_encryption_layer(self, data: bytes, layer_type: str, layer_index: int) -> Dict[str, Any]:
+    def _apply_encryption_layer(
+        self, data: bytes, layer_type: str, layer_index: int
+    ) -> Dict[str, Any]:
         """Apply a single encryption layer."""
         if layer_type == "xor":
             key = random.randbytes(32)
@@ -598,10 +668,10 @@ class MultiLayerEncryptionAttack(BaseAttack):
                 "info": {
                     "type": "xor",
                     "key_length": len(key),
-                    "layer_index": layer_index
-                }
+                    "layer_index": layer_index,
+                },
             }
-        
+
         elif layer_type == "aes":
             key = random.randbytes(32)
             iv = random.randbytes(16)
@@ -612,10 +682,10 @@ class MultiLayerEncryptionAttack(BaseAttack):
                     "type": "aes",
                     "key_length": len(key),
                     "iv_length": len(iv),
-                    "layer_index": layer_index
-                }
+                    "layer_index": layer_index,
+                },
             }
-        
+
         elif layer_type == "chacha20":
             key = random.randbytes(32)
             nonce = random.randbytes(12)
@@ -626,22 +696,18 @@ class MultiLayerEncryptionAttack(BaseAttack):
                     "type": "chacha20",
                     "key_length": len(key),
                     "nonce_length": len(nonce),
-                    "layer_index": layer_index
-                }
+                    "layer_index": layer_index,
+                },
             }
-        
+
         elif layer_type == "rot13":
             # Simple ROT13-style rotation
             encrypted = self._rot_encrypt(data, 13)
             return {
                 "encrypted_data": encrypted,
-                "info": {
-                    "type": "rot13",
-                    "rotation": 13,
-                    "layer_index": layer_index
-                }
+                "info": {"type": "rot13", "rotation": 13, "layer_index": layer_index},
             }
-        
+
         else:
             # Default to XOR
             key = random.randbytes(16)
@@ -651,8 +717,8 @@ class MultiLayerEncryptionAttack(BaseAttack):
                 "info": {
                     "type": "xor_default",
                     "key_length": len(key),
-                    "layer_index": layer_index
-                }
+                    "layer_index": layer_index,
+                },
             }
 
     def _xor_encrypt(self, data: bytes, key: bytes) -> bytes:
@@ -666,24 +732,24 @@ class MultiLayerEncryptionAttack(BaseAttack):
         """Simplified AES encryption simulation."""
         # Pad data to block size
         padded_data = self._pad_data(data, 16)
-        
+
         # Simple encryption using key expansion
         key_material = self._expand_key_material(key, iv, len(padded_data))
-        
+
         encrypted = bytearray()
         for i, byte in enumerate(padded_data):
             encrypted.append(byte ^ key_material[i % len(key_material)])
-        
+
         return bytes(encrypted)
 
     def _simple_chacha20_encrypt(self, data: bytes, key: bytes, nonce: bytes) -> bytes:
         """Simplified ChaCha20 encryption simulation."""
         keystream = self._generate_simple_keystream(key, nonce, len(data))
-        
+
         encrypted = bytearray()
         for i, byte in enumerate(data):
             encrypted.append(byte ^ keystream[i])
-        
+
         return bytes(encrypted)
 
     def _rot_encrypt(self, data: bytes, rotation: int) -> bytes:
@@ -703,57 +769,61 @@ class MultiLayerEncryptionAttack(BaseAttack):
         """Expand key material."""
         material = key + iv
         expanded = material
-        
+
         while len(expanded) < length:
             expanded += hashlib.sha256(expanded[-32:]).digest()
-        
+
         return expanded[:length]
 
-    def _generate_simple_keystream(self, key: bytes, nonce: bytes, length: int) -> bytes:
+    def _generate_simple_keystream(
+        self, key: bytes, nonce: bytes, length: int
+    ) -> bytes:
         """Generate simple keystream."""
         keystream = b""
         counter = 0
-        
+
         while len(keystream) < length:
             block_input = key + nonce + struct.pack("!I", counter)
             block = hashlib.sha256(block_input).digest()
             keystream += block
             counter += 1
-        
+
         return keystream[:length]
 
     def _add_noise_layer(self, data: bytes) -> bytes:
         """Add noise layer to obfuscate patterns."""
         noise_size = random.randint(10, 50)
         noise = random.randbytes(noise_size)
-        
+
         # Insert noise at random positions
         result = bytearray(data)
         for _ in range(random.randint(3, 8)):
             pos = random.randint(0, len(result))
             result.insert(pos, random.randint(0, 255))
-        
+
         return bytes(result)
 
-    def _create_multilayer_packet(self, encrypted_payload: bytes, layer_info: List[Dict], layers: List[str]) -> bytes:
+    def _create_multilayer_packet(
+        self, encrypted_payload: bytes, layer_info: List[Dict], layers: List[str]
+    ) -> bytes:
         """Create multi-layer encrypted packet."""
         # Header: magic(4) + version(1) + layer_count(1) + layer_info + payload
         magic = b"MENC"
         version = 1
         layer_count = len(layers)
-        
+
         # Serialize layer info
-        layer_info_bytes = json.dumps({
-            "layers": layers,
-            "count": layer_count,
-            "info": layer_info
-        }).encode('utf-8')
-        
+        layer_info_bytes = json.dumps(
+            {"layers": layers, "count": layer_count, "info": layer_info}
+        ).encode("utf-8")
+
         info_length = len(layer_info_bytes)
-        
-        header = (magic + 
-                 bytes([version, layer_count]) + 
-                 struct.pack("!H", info_length) + 
-                 layer_info_bytes)
-        
+
+        header = (
+            magic
+            + bytes([version, layer_count])
+            + struct.pack("!H", info_length)
+            + layer_info_bytes
+        )
+
         return header + encrypted_payload

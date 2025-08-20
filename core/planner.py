@@ -9,6 +9,8 @@ from .storage import Storage
 from ..ml.strategy_predictor import StrategyPredictor
 from .bypass.attacks.registry import AttackRegistry
 from .integration.attack_adapter import AttackAdapter
+from typing import TYPE_CHECKING
+from typing_extensions import Protocol
 
 LOG = logging.getLogger("AdaptivePlanner")
 
@@ -412,9 +414,15 @@ class AdaptivePlanner:
         seen = set()
         for item in plan:
             if "stages" in item.get("params", {}):
-                item_key = f"{item['type']}:{[s['type'] for s in item['params']['stages']}"
+                item_key = (item["type"], tuple(s["type"] for s in item["params"]["stages"]))
             else:
-                item_key = f"{item['type']}:{item.get('params', {})"
+                # params may contain unhashable values (lists). Convert values where needed.
+                params = item.get("params", {})
+                try:
+                    item_key = (item["type"], tuple(sorted(params.items())))
+                except TypeError:
+                    # Fallback to repr if values are unhashable
+                    item_key = (item["type"], repr(params))
 
             if item_key not in seen:
                 unique_plan.append(item)

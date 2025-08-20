@@ -139,7 +139,7 @@ class MetricsCollector:
                 "counters": self._counters.copy(),
                 "gauges": self._gauges.copy(),
             }
-    
+
     def get_counter(self, name: str, labels: Optional[Dict[str, str]] = None) -> int:
         """Получение значения счетчика."""
         with self._lock:

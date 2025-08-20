@@ -10,13 +10,13 @@ from .dns_tunneling import (
     DoHAttack,
     DoTAttack,
     DNSQueryManipulation,
-    DNSCachePoisoningPrevention
+    DNSCachePoisoningPrevention,
 )
 
 __all__ = [
-    'DNSTunnelingAttack',
-    'DoHAttack', 
-    'DoTAttack',
-    'DNSQueryManipulation',
-    'DNSCachePoisoningPrevention'
+    "DNSTunnelingAttack",
+    "DoHAttack",
+    "DoTAttack",
+    "DNSQueryManipulation",
+    "DNSCachePoisoningPrevention",
 ]

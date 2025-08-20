@@ -10,18 +10,17 @@ import logging
 import sys
 import os
 import socket
-import subprocess
-import time
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
 
 try:
     import pydivert
+
     PYDIVERT_AVAILABLE = True
 except ImportError:
-    pydivert = None # Создаем заглушку, чтобы остальной код не падал
+    pydivert = None  # Создаем заглушку, чтобы остальной код не падал
     PYDIVERT_AVAILABLE = False
 
 LOG = logging.getLogger("EngineHealthCheck")
@@ -170,7 +169,7 @@ class EngineHealthCheck:
             try:
                 # Пытаемся создать простой фильтр, который ничего не будет ловить
                 with pydivert.WinDivert("false") as w:
-                    pass # Если это выполнилось, драйвер и права в порядке
+                    pass  # Если это выполнилось, драйвер и права в порядке
 
                 return HealthCheckResult(
                     component="pydivert",
@@ -191,7 +190,7 @@ class EngineHealthCheck:
                         message="PyDivert requires administrator privileges",
                         details={"error_code": e.winerror, "error_message": str(e)},
                     )
-                elif e.winerror == 2: # Driver not found
+                elif e.winerror == 2:  # Driver not found
                     return HealthCheckResult(
                         component="pydivert",
                         status=HealthStatus.CRITICAL,
@@ -203,7 +202,10 @@ class EngineHealthCheck:
                         component="pydivert",
                         status=HealthStatus.CRITICAL,
                         message=f"PyDivert initialization failed: {e}",
-                        details={"error_code": getattr(e, 'winerror', None), "error_message": str(e)},
+                        details={
+                            "error_code": getattr(e, "winerror", None),
+                            "error_message": str(e),
+                        },
                     )
 
         except ImportError:
@@ -413,14 +415,15 @@ class EngineHealthCheck:
         try:
             # IMPROVED: Use actual PyDivert functionality test instead of service status
             # WinDivert doesn't run as a Windows service - it loads on demand
-            
+
             # First, test if PyDivert can actually work
             try:
                 import pydivert
+
                 # Try to create a simple handle that won't capture anything
                 with pydivert.WinDivert("false") as w:
                     pass
-                
+
                 return HealthCheckResult(
                     component="windivert_driver",
                     status=HealthStatus.HEALTHY,
@@ -428,10 +431,10 @@ class EngineHealthCheck:
                     details={
                         "driver_status": "functional",
                         "can_create_handle": True,
-                        "pydivert_available": True
+                        "pydivert_available": True,
                     },
                 )
-                
+
             except OSError as e:
                 if e.winerror == 5:  # Access denied
                     return HealthCheckResult(
@@ -441,7 +444,7 @@ class EngineHealthCheck:
                         details={
                             "driver_status": "access_denied",
                             "error_code": e.winerror,
-                            "needs_admin": True
+                            "needs_admin": True,
                         },
                     )
                 elif e.winerror == 2:  # Driver not found
@@ -452,7 +455,7 @@ class EngineHealthCheck:
                         details={
                             "driver_status": "files_missing",
                             "error_code": e.winerror,
-                            "needs_reinstall": True
+                            "needs_reinstall": True,
                         },
                     )
                 elif e.winerror == 87:  # Invalid parameter
@@ -463,7 +466,7 @@ class EngineHealthCheck:
                         details={
                             "driver_status": "corrupted",
                             "error_code": e.winerror,
-                            "needs_reinstall": True
+                            "needs_reinstall": True,
                         },
                     )
                 else:
@@ -473,11 +476,11 @@ class EngineHealthCheck:
                         message=f"WinDivert driver error: {e}",
                         details={
                             "driver_status": "error",
-                            "error_code": getattr(e, 'winerror', None),
-                            "error_message": str(e)
+                            "error_code": getattr(e, "winerror", None),
+                            "error_message": str(e),
                         },
                     )
-            
+
             except ImportError:
                 return HealthCheckResult(
                     component="windivert_driver",
@@ -485,7 +488,7 @@ class EngineHealthCheck:
                     message="PyDivert not installed - install with: pip install pydivert",
                     details={
                         "driver_status": "pydivert_missing",
-                        "needs_install": True
+                        "needs_install": True,
                     },
                 )
 
@@ -672,7 +675,9 @@ class EngineHealthCheck:
 
         self.logger.info("=" * 60)
 
-    def evaluate_strategy_health(self, stats: Dict[str, Any], thresholds: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def evaluate_strategy_health(
+        self, stats: Dict[str, Any], thresholds: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         # Ожидается, что stats содержит ключи: success_count, fail_count, avg_latency_ms
         success = int(stats.get("success_count", 0))
         fail = int(stats.get("fail_count", 0))
@@ -683,7 +688,9 @@ class EngineHealthCheck:
         # Пороговые значения (переопределяются конфигом при наличии)
         failing_sr = float((thresholds or {}).get("failing_success_rate", 0.4))
         degrading_sr = float((thresholds or {}).get("degrading_success_rate", 0.7))
-        degrading_latency = float((thresholds or {}).get("degrading_latency_ms", 1500.0))
+        degrading_latency = float(
+            (thresholds or {}).get("degrading_latency_ms", 1500.0)
+        )
 
         status = "healthy"
         reason = None
