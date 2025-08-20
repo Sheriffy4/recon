@@ -47,7 +47,7 @@ class StrategyGenerator:
                     "reason": f"Rule matched: {rule['if']}"
                 }
                 # Ensure strategy name is valid
-                if self.attack_registry.get(strategy["name"]):
+                if self.attack_registry.get_attack_definition(strategy["name"]):
                     candidate_strategies.append(strategy)
                 else:
                     LOG.warning(f"Strategy '{strategy['name']}' from rules is not in the attack registry. Skipping.")
@@ -109,7 +109,7 @@ class StrategyGenerator:
         strat2 = best_single_strategies[1]
 
         # Check if dynamic_combo attack is registered
-        if not self.attack_registry.get("dynamic_combo"):
+        if not self.attack_registry.get_attack_definition("dynamic_combo"):
             LOG.warning("`dynamic_combo` attack not found in registry, cannot generate combo strategies.")
             return []
 
