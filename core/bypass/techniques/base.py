@@ -2,12 +2,11 @@
 """Base classes for bypass techniques."""
 
 import abc
-from typing import List, Tuple, Optional, Dict, Any, Union
-from dataclasses import dataclass
+from typing import List, Tuple, Optional, Any, Union
 import struct
 import random
 
-from ..types import TechniqueParams, PacketInfo, TechniqueType
+from ..types import TechniqueParams, TechniqueType
 from ..exceptions import InvalidPacketError
 
 

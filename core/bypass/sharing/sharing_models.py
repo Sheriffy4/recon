@@ -12,6 +12,7 @@ import json
 
 class ShareLevel(Enum):
     """Strategy sharing access levels."""
+
     PRIVATE = "private"
     TRUSTED = "trusted"
     COMMUNITY = "community"
@@ -20,6 +21,7 @@ class ShareLevel(Enum):
 
 class ValidationStatus(Enum):
     """Strategy validation status."""
+
     PENDING = "pending"
     VALIDATED = "validated"
     REJECTED = "rejected"
@@ -28,6 +30,7 @@ class ValidationStatus(Enum):
 
 class TrustLevel(Enum):
     """Source trust levels."""
+
     UNKNOWN = 0
     LOW = 1
     MEDIUM = 2
@@ -38,6 +41,7 @@ class TrustLevel(Enum):
 @dataclass
 class SharedStrategy:
     """Represents a strategy shared in the community."""
+
     id: str
     name: str
     description: str
@@ -56,25 +60,25 @@ class SharedStrategy:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     signature: Optional[str] = None
-    
+
     def calculate_signature(self, private_key: str) -> str:
         """Calculate cryptographic signature for strategy integrity."""
         data = {
-            'name': self.name,
-            'strategy_data': self.strategy_data,
-            'version': self.version,
-            'author': self.author
+            "name": self.name,
+            "strategy_data": self.strategy_data,
+            "version": self.version,
+            "author": self.author,
         }
         content = json.dumps(data, sort_keys=True)
         return hashlib.sha256(f"{content}{private_key}".encode()).hexdigest()
-    
+
     def verify_signature(self, public_key: str) -> bool:
         """Verify strategy signature."""
         if not self.signature:
             return False
         expected = self.calculate_signature(public_key)
         return self.signature == expected
-    
+
     def get_effectiveness_score(self) -> float:
         """Calculate effectiveness score based on community feedback."""
         total_reports = self.success_reports + self.failure_reports
@@ -86,6 +90,7 @@ class SharedStrategy:
 @dataclass
 class StrategyPackage:
     """Package containing multiple related strategies."""
+
     id: str
     name: str
     description: str
@@ -100,6 +105,7 @@ class StrategyPackage:
 @dataclass
 class TrustedSource:
     """Represents a trusted source for strategy updates."""
+
     id: str
     name: str
     url: str
@@ -109,7 +115,7 @@ class TrustedSource:
     last_sync: Optional[datetime] = None
     sync_interval: int = 3600  # seconds
     enabled: bool = True
-    
+
     def is_sync_due(self) -> bool:
         """Check if sync is due based on interval."""
         if not self.last_sync:
@@ -121,6 +127,7 @@ class TrustedSource:
 @dataclass
 class ValidationResult:
     """Result of strategy validation."""
+
     strategy_id: str
     is_valid: bool
     trust_score: float
@@ -134,6 +141,7 @@ class ValidationResult:
 @dataclass
 class SharingConfig:
     """Configuration for strategy sharing system."""
+
     enable_sharing: bool = True
     enable_auto_updates: bool = False
     default_share_level: ShareLevel = ShareLevel.PRIVATE
@@ -148,6 +156,7 @@ class SharingConfig:
 @dataclass
 class StrategyFeedback:
     """User feedback on strategy effectiveness."""
+
     strategy_id: str
     user_id: str
     success: bool
@@ -160,6 +169,7 @@ class StrategyFeedback:
 @dataclass
 class SyncResult:
     """Result of synchronization with trusted source."""
+
     source_id: str
     success: bool
     strategies_added: int = 0

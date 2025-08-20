@@ -7,13 +7,13 @@ import struct
 import socket
 import random
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Set, TYPE_CHECKING, Union
-from functools import lru_cache
+from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass
 
 try:
     from scapy.all import IP, IPv6, TCP, UDP, Raw, Packet
     from scapy.layers.inet import ICMP
+
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -21,7 +21,9 @@ except ImportError:
 
 # >>> НАЧАЛО ИСПРАВЛЕНИЯ <<<
 from .interfaces import IPacketBuilder
+
 # >>> КОНЕЦ ИСПРАВЛЕНИЯ <<<
+
 
 @dataclass
 class PacketParams:
@@ -163,20 +165,21 @@ class PacketBuilder(IPacketBuilder):
             Scapy Packet or bytes
         """
         import time
+
         start_time = time.time()
-        
+
         params = self._parse_params(**kwargs)
 
         if self.use_scapy:
             result = self._create_tcp_packet_scapy(params)
         else:
             result = self._create_tcp_packet_bytes(params)
-        
+
         # Track performance
         if result is not None:
             PacketBuilder._packets_built += 1
             PacketBuilder._total_build_time_ms += (time.time() - start_time) * 1000
-        
+
         return result
 
     def create_udp_packet(self, **kwargs) -> Optional[Union[Packet, bytes]]:
@@ -286,7 +289,7 @@ class PacketBuilder(IPacketBuilder):
                         window=new_window or 65535,
                         payload=new_payload,
                     )
-                    
+
                     # Try to create packet using existing methods
                     builder = cls()
                     packet = builder.create_tcp_packet(**params.__dict__)
@@ -296,16 +299,16 @@ class PacketBuilder(IPacketBuilder):
                         else:
                             # Scapy packet
                             return bytes(packet)
-                
+
                 # Fallback to minimal packet
                 return cls._create_minimal_tcp_packet(
                     src_ip or "127.0.0.1",
-                    dst_ip or "127.0.0.1", 
+                    dst_ip or "127.0.0.1",
                     src_port or 12345,
                     dst_port or 80,
                     new_payload,
                     new_seq,
-                    new_flags
+                    new_flags,
                 )
 
             # Extract IP header length
@@ -369,18 +372,25 @@ class PacketBuilder(IPacketBuilder):
             return original_raw + new_payload if original_raw else new_payload
 
     @staticmethod
-    def _create_minimal_tcp_packet(src_ip: str, dst_ip: str, src_port: int, dst_port: int, 
-                                  payload: bytes, seq: Optional[int] = None, flags: Optional[str] = None) -> bytes:
+    def _create_minimal_tcp_packet(
+        src_ip: str,
+        dst_ip: str,
+        src_port: int,
+        dst_port: int,
+        payload: bytes,
+        seq: Optional[int] = None,
+        flags: Optional[str] = None,
+    ) -> bytes:
         """Create a minimal TCP packet when no original raw data is available."""
         try:
             import socket
             import struct
             import random
-            
+
             # Convert IPs to bytes
             src_ip_bytes = socket.inet_aton(src_ip)
             dst_ip_bytes = socket.inet_aton(dst_ip)
-            
+
             # IP Header (20 bytes)
             version_ihl = (4 << 4) | 5  # IPv4, 20-byte header
             tos = 0
@@ -390,14 +400,21 @@ class PacketBuilder(IPacketBuilder):
             ttl = 64
             protocol = 6  # TCP
             checksum = 0  # Will calculate
-            
+
             ip_header = struct.pack(
                 "!BBHHHBBH4s4s",
-                version_ihl, tos, total_length, identification,
-                flags_offset, ttl, protocol, checksum,
-                src_ip_bytes, dst_ip_bytes
+                version_ihl,
+                tos,
+                total_length,
+                identification,
+                flags_offset,
+                ttl,
+                protocol,
+                checksum,
+                src_ip_bytes,
+                dst_ip_bytes,
             )
-            
+
             # Calculate IP checksum
             checksum = 0
             header_words = struct.unpack("!10H", ip_header[:20])
@@ -406,60 +423,91 @@ class PacketBuilder(IPacketBuilder):
             while checksum >> 16:
                 checksum = (checksum & 0xFFFF) + (checksum >> 16)
             checksum = ~checksum & 0xFFFF
-            
+
             # Rebuild with correct checksum
             ip_header = struct.pack(
                 "!BBHHHBBH4s4s",
-                version_ihl, tos, total_length, identification,
-                flags_offset, ttl, protocol, checksum,
-                src_ip_bytes, dst_ip_bytes
+                version_ihl,
+                tos,
+                total_length,
+                identification,
+                flags_offset,
+                ttl,
+                protocol,
+                checksum,
+                src_ip_bytes,
+                dst_ip_bytes,
             )
-            
+
             # TCP Header (20 bytes)
             seq_num = seq or random.randint(0, 2**32 - 1)
             ack_num = 0
             data_offset = 5 << 4  # 5 words = 20 bytes
             flags_byte = 0x18 if flags is None else 0  # PA by default
             if flags:
-                if "F" in flags: flags_byte |= 0x01
-                if "S" in flags: flags_byte |= 0x02
-                if "R" in flags: flags_byte |= 0x04
-                if "P" in flags: flags_byte |= 0x08
-                if "A" in flags: flags_byte |= 0x10
-                if "U" in flags: flags_byte |= 0x20
+                if "F" in flags:
+                    flags_byte |= 0x01
+                if "S" in flags:
+                    flags_byte |= 0x02
+                if "R" in flags:
+                    flags_byte |= 0x04
+                if "P" in flags:
+                    flags_byte |= 0x08
+                if "A" in flags:
+                    flags_byte |= 0x10
+                if "U" in flags:
+                    flags_byte |= 0x20
             window = 65535
             tcp_checksum = 0  # Will calculate
             urgent_ptr = 0
-            
+
             tcp_header = struct.pack(
                 "!HHIIBBHHH",
-                src_port, dst_port, seq_num, ack_num,
-                data_offset, flags_byte, window, tcp_checksum, urgent_ptr
+                src_port,
+                dst_port,
+                seq_num,
+                ack_num,
+                data_offset,
+                flags_byte,
+                window,
+                tcp_checksum,
+                urgent_ptr,
             )
-            
+
             # Calculate TCP checksum
-            pseudo_header = src_ip_bytes + dst_ip_bytes + struct.pack("!BBH", 0, 6, 20 + len(payload))
+            pseudo_header = (
+                src_ip_bytes
+                + dst_ip_bytes
+                + struct.pack("!BBH", 0, 6, 20 + len(payload))
+            )
             checksum_data = pseudo_header + tcp_header + payload
             # Pad if odd length
             if len(checksum_data) % 2:
-                checksum_data += b'\x00'
-            
+                checksum_data += b"\x00"
+
             checksum = 0
             for i in range(0, len(checksum_data), 2):
-                checksum += (checksum_data[i] << 8) + checksum_data[i+1]
+                checksum += (checksum_data[i] << 8) + checksum_data[i + 1]
             while checksum >> 16:
                 checksum = (checksum & 0xFFFF) + (checksum >> 16)
             tcp_checksum = ~checksum & 0xFFFF
-            
+
             # Rebuild TCP header with correct checksum
             tcp_header = struct.pack(
                 "!HHIIBBHHH",
-                src_port, dst_port, seq_num, ack_num,
-                data_offset, flags_byte, window, tcp_checksum, urgent_ptr
+                src_port,
+                dst_port,
+                seq_num,
+                ack_num,
+                data_offset,
+                flags_byte,
+                window,
+                tcp_checksum,
+                urgent_ptr,
             )
-            
+
             return ip_header + tcp_header + payload
-            
+
         except Exception:
             # Ultimate fallback
             return payload if payload else b""
@@ -909,7 +957,7 @@ class PacketBuilder(IPacketBuilder):
     def get_performance_stats(cls) -> Dict[str, Any]:
         """
         Get performance statistics for PacketBuilder.
-        
+
         Returns:
             Dictionary with performance metrics
         """
@@ -917,8 +965,8 @@ class PacketBuilder(IPacketBuilder):
             "checksum_cache_size": len(cls._checksum_cache),
             "checksum_cache_hits": cls._cache_stats["hits"],
             "checksum_cache_misses": cls._cache_stats["misses"],
-            "packets_built": getattr(cls, '_packets_built', 0),
-            "total_build_time_ms": getattr(cls, '_total_build_time_ms', 0.0),
+            "packets_built": getattr(cls, "_packets_built", 0),
+            "total_build_time_ms": getattr(cls, "_total_build_time_ms", 0.0),
         }
 
     @classmethod

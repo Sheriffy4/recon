@@ -8,9 +8,8 @@ Dynamic Combo Attack - заглушка для совместимости.
 
 import logging
 import asyncio
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Tuple
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from ..registry import AttackRegistry
 from ..registry import register_attack
 from ....integration.attack_adapter import AttackAdapter
 
@@ -21,30 +20,30 @@ LOG = logging.getLogger("DynamicComboAttack")
 class DynamicComboAttack(BaseAttack):
     """
     Dynamic Combo Attack - выполняет последовательность атак.
-    
+
     Эта атака является заглушкой для совместимости с существующим кодом.
     В реальной реализации она должна выполнять последовательность других атак.
     """
-    
+
     def __init__(self, attack_adapter: AttackAdapter):
         super().__init__()
         self.attack_adapter = attack_adapter
-    
+
     @property
     def name(self) -> str:
         """Unique name for this attack."""
         return "dynamic_combo"
-    
+
     @property
     def category(self) -> str:
         """Attack category."""
         return "combo"
-    
+
     @property
     def description(self) -> str:
         """Human-readable description of the attack."""
         return "Dynamic combination of multiple attacks executed in sequence"
-    
+
     @property
     def supported_protocols(self) -> List[str]:
         """List of supported protocols."""
@@ -142,7 +141,7 @@ class DynamicComboAttack(BaseAttack):
                 propagate_context = bool(src["propagate_context"])
 
         return stages, execution_mode, stop_on_failure, propagate_context
-    
+
     async def execute(self, context: AttackContext, **kwargs) -> AttackResult:
         """
         Выполняет последовательность атак (стадий).
@@ -152,22 +151,26 @@ class DynamicComboAttack(BaseAttack):
         - алиасы: steps/sequence/techniques
         """
         try:
-            stages, execution_mode, stop_on_failure, propagate_context = self._extract_combo_config(kwargs)
+            stages, execution_mode, stop_on_failure, propagate_context = (
+                self._extract_combo_config(kwargs)
+            )
         except Exception as e:
             self.logger.exception("Failed to parse dynamic combo params")
             return AttackResult(
                 status=AttackStatus.INVALID_PARAMS,
-                error_message=f"Invalid combo params: {e}"
+                error_message=f"Invalid combo params: {e}",
             )
 
         if not stages:
             return AttackResult(
                 status=AttackStatus.INVALID_PARAMS,
-                error_message="No stages defined for dynamic combo attack"
+                error_message="No stages defined for dynamic combo attack",
             )
 
         stage_names = [s.get("name") for s in stages if isinstance(s.get("name"), str)]
-        self.logger.info(f"Executing {len(stages)}-stage combo in {execution_mode} mode: {stage_names}")
+        self.logger.info(
+            f"Executing {len(stages)}-stage combo in {execution_mode} mode: {stage_names}"
+        )
 
         # Пытаемся копировать контекст, чтобы не мутировать исходный
         try:
@@ -180,7 +183,9 @@ class DynamicComboAttack(BaseAttack):
         total_packets_sent: int = 0
         errors: List[str] = []
 
-        async def run_stage(idx: int, stage_task: Dict[str, Any], stage_ctx: AttackContext):
+        async def run_stage(
+            idx: int, stage_task: Dict[str, Any], stage_ctx: AttackContext
+        ):
             stage_name = stage_task.get("name") or stage_task.get("type") or "unknown"
             # Базовая нормализация параметров стадии
             stage_params = dict(stage_task)
@@ -188,22 +193,27 @@ class DynamicComboAttack(BaseAttack):
             # Немного мета-инфы (необязательно для податак)
             stage_params.setdefault("_combo", {"index": idx, "total": len(stages)})
 
-            self.logger.debug(f"  Stage {idx+1}/{len(stages)}: '{stage_name}' -> params: { {k: v for k, v in stage_params.items() if k != '_combo'} }")
+            self.logger.debug(
+                f"  Stage {idx+1}/{len(stages)}: '{stage_name}' -> params: { {k: v for k, v in stage_params.items() if k != '_combo'} }"
+            )
             try:
                 res = await self.attack_adapter.execute_attack_by_name(
                     attack_name=stage_name,
                     context=stage_ctx,
-                    strategy_params=stage_params
+                    strategy_params=stage_params,
                 )
                 return res, stage_name
             except Exception as e:
-                self.logger.exception(f"Stage {idx+1} '{stage_name}' raised an exception")
+                self.logger.exception(
+                    f"Stage {idx+1} '{stage_name}' raised an exception"
+                )
                 # Переводим исключение в AttackResult, чтобы общее выполнение не падало
-                return AttackResult(
-                    status=AttackStatus.ERROR,
-                    error_message=str(e),
-                    latency_ms=0.0
-                ), stage_name
+                return (
+                    AttackResult(
+                        status=AttackStatus.ERROR, error_message=str(e), latency_ms=0.0
+                    ),
+                    stage_name,
+                )
 
         if execution_mode == "parallel":
             # Для параллельного режима работаем с независимыми копиями контекста
@@ -220,7 +230,7 @@ class DynamicComboAttack(BaseAttack):
             for i, item in enumerate(results):
                 stage_result, stage_name = item
                 # latency
-                total_latency += (getattr(stage_result, "latency_ms", 0.0) or 0.0)
+                total_latency += getattr(stage_result, "latency_ms", 0.0) or 0.0
                 # packets_sent
                 ps = getattr(stage_result, "packets_sent", None)
                 if isinstance(ps, int) and ps >= 0:
@@ -230,7 +240,10 @@ class DynamicComboAttack(BaseAttack):
                     total_packets_sent += len(segs)
 
                 if getattr(stage_result, "status", None) != AttackStatus.SUCCESS:
-                    emsg = getattr(stage_result, "error_message", None) or f"Stage '{stage_name}' failed with status {getattr(stage_result, 'status', None)}"
+                    emsg = (
+                        getattr(stage_result, "error_message", None)
+                        or f"Stage '{stage_name}' failed with status {getattr(stage_result, 'status', None)}"
+                    )
                     errors.append(f"[{i+1}:{stage_name}] {emsg}")
 
                 segs = getattr(stage_result, "segments", None) or []
@@ -240,9 +253,11 @@ class DynamicComboAttack(BaseAttack):
         else:
             # sequential — поведение по умолчанию (обратная совместимость)
             for i, stage_task in enumerate(stages):
-                stage_result, stage_name = await run_stage(i, stage_task, current_context)
+                stage_result, stage_name = await run_stage(
+                    i, stage_task, current_context
+                )
 
-                total_latency += (getattr(stage_result, "latency_ms", 0.0) or 0.0)
+                total_latency += getattr(stage_result, "latency_ms", 0.0) or 0.0
                 ps = getattr(stage_result, "packets_sent", None)
                 if isinstance(ps, int) and ps >= 0:
                     total_packets_sent += ps
@@ -251,7 +266,10 @@ class DynamicComboAttack(BaseAttack):
                     total_packets_sent += len(segs_tmp)
 
                 if getattr(stage_result, "status", None) != AttackStatus.SUCCESS:
-                    emsg = getattr(stage_result, "error_message", "") or f"Stage '{stage_name}' failed"
+                    emsg = (
+                        getattr(stage_result, "error_message", "")
+                        or f"Stage '{stage_name}' failed"
+                    )
                     self.logger.warning(f"Stage {i+1} '{stage_name}' failed: {emsg}")
                     errors.append(f"[{i+1}:{stage_name}] {emsg}")
                     if stop_on_failure:
@@ -269,36 +287,40 @@ class DynamicComboAttack(BaseAttack):
 
         if not all_segments:
             # Ошибка, если ничего полезного не получилось собрать
-            error_text = "; ".join(errors) if errors else "Combo attack produced no segments."
+            error_text = (
+                "; ".join(errors) if errors else "Combo attack produced no segments."
+            )
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=error_text,
                 latency_ms=total_latency,
                 packets_sent=total_packets_sent,
-                technique_used="dynamic_combo"
+                technique_used="dynamic_combo",
             )
 
         # По прежней логике считаем успехом даже при частичных сбоях, если сегменты есть
-        technique_used = "dynamic_combo:" + ",".join(stage_names) if stage_names else "dynamic_combo"
+        technique_used = (
+            "dynamic_combo:" + ",".join(stage_names) if stage_names else "dynamic_combo"
+        )
         return AttackResult(
             status=AttackStatus.SUCCESS,
             technique_used=technique_used,
             segments=all_segments,
             packets_sent=total_packets_sent,
-            latency_ms=total_latency
+            latency_ms=total_latency,
         )
-    
+
     def validate_params(self, params: Dict[str, Any]) -> bool:
         """
         Валидирует параметры атаки.
-        
+
         Args:
             params: Параметры для валидации. Поддерживаются старый и новый форматы:
                 - {"stages": [...]}
                 - {"params": {"stages": [...]}}
                 - {"strategy_params": {"stages": [...]}}
                 - а также алиасы steps/sequence/techniques и список строк.
-            
+
         Returns:
             True если параметры валидны
         """
@@ -306,7 +328,9 @@ class DynamicComboAttack(BaseAttack):
             return False
 
         # Поддержим случай прямого списка стадий (например, ["a","b"])
-        wrapped = {"strategy_params": params} if not isinstance(params, dict) else params
+        wrapped = (
+            {"strategy_params": params} if not isinstance(params, dict) else params
+        )
         try:
             stages, _, _, _ = self._extract_combo_config(wrapped)
         except Exception:
@@ -317,7 +341,11 @@ class DynamicComboAttack(BaseAttack):
 
         for stage in stages:
             if isinstance(stage, dict):
-                if "name" not in stage and "type" not in stage and "attack" not in stage:
+                if (
+                    "name" not in stage
+                    and "type" not in stage
+                    and "attack" not in stage
+                ):
                     return False
             elif isinstance(stage, str):
                 # сюда мы не дойдем, т.к. _extract_combo_config уже конвертирует в dict
@@ -325,12 +353,12 @@ class DynamicComboAttack(BaseAttack):
             else:
                 return False
         return True
-    
+
     def get_required_params(self) -> List[str]:
         """Возвращает список обязательных параметров."""
         # Для совместимости сохраняем "stages" как ключевой обязательный элемент
         return ["stages"]
-    
+
     def get_optional_params(self) -> List[str]:
         """Возвращает список опциональных параметров."""
         # Новые расширенные опции не обязательны, но поддерживаются

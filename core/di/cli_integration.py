@@ -1,7 +1,7 @@
 # recon/core/di/cli_integration.py
 import logging
 import asyncio
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
 from .cli_provider import CLIServiceProvider
@@ -15,7 +15,7 @@ from ..interfaces import (
     IStrategyGenerator,
     IStrategySaver,
     IClosedLoopManager,
-    IEvolutionarySearcher, # Убедимся, что интерфейс импортирован
+    IEvolutionarySearcher,  # Убедимся, что интерфейс импортирован
 )
 from ml.strategy_generator import AdvancedStrategyGenerator
 from core.bypass.attacks.registry import AttackRegistry
@@ -23,12 +23,14 @@ from core.domain_specific_strategies import DomainSpecificStrategies
 from ml.strategy_predictor import StrategyPredictor
 from core.optimization.dynamic_parameter_optimizer import DynamicParameterOptimizer
 from core.bypass.engines.packet_processing_engine import PacketProcessingEngine
+
 LOG = logging.getLogger("CLIIntegration")
 
 
 @dataclass
 class CLIServices:
     """Container for all CLI services resolved from DI."""
+
     fingerprint_engine: IFingerprintEngine
     prober: IProber
     classifier: IClassifier
@@ -37,16 +39,17 @@ class CLIServices:
     learning_memory: ILearningMemory
     strategy_generator: Optional[IStrategyGenerator]
     strategy_saver: IStrategySaver
-    
+
     packet_processing_engine: PacketProcessingEngine
-    
+
     evolutionary_searcher: Optional[IEvolutionarySearcher] = None
     closed_loop_manager: Optional[IClosedLoopManager] = None
-    
+
     # Additional services
     result_processor: Optional[Any] = None
     diagnostic_system: Optional[Any] = None
     performance_optimizer: Optional[Any] = None
+
 
 class CLIIntegration:
     """
@@ -74,7 +77,7 @@ class CLIIntegration:
             effectiveness_tester = self.provider.get_effectiveness_tester()
             learning_memory = self.provider.get_learning_memory()
             strategy_saver = self.provider.get_strategy_saver()
-            
+
             # +++ ДОБАВЬТЕ РЕЗОЛВИНГ ДВИЖКА +++
             packet_processing_engine = self.provider.get_packet_processing_engine()
 
@@ -85,7 +88,9 @@ class CLIIntegration:
                     # >>> ИЗМЕНЕНИЕ: Резолвим сервис из DI <<<
                     evolutionary_searcher = self.provider.get_evolutionary_searcher()
                 except Exception as e:
-                    self._logger.warning(f"Failed to resolve evolutionary searcher: {e}")
+                    self._logger.warning(
+                        f"Failed to resolve evolutionary searcher: {e}"
+                    )
 
             closed_loop_manager = None
             if hasattr(self.args, "closed_loop") and self.args.closed_loop:
@@ -101,18 +106,23 @@ class CLIIntegration:
 
             try:
                 from core.integration.result_processor import ResultProcessor
+
                 result_processor = ResultProcessor()
             except Exception as e:
                 self._logger.warning(f"Failed to create ResultProcessor: {e}")
 
             try:
                 from core.diagnostic_system import DiagnosticSystem
-                diagnostic_system = DiagnosticSystem(attack_adapter=attack_adapter, debug=self.args.debug)
+
+                diagnostic_system = DiagnosticSystem(
+                    attack_adapter=attack_adapter, debug=self.args.debug
+                )
             except Exception as e:
                 self._logger.warning(f"Failed to create DiagnosticSystem: {e}")
 
             try:
                 from core.optimization.performance_optimizer import PerformanceOptimizer
+
                 performance_optimizer = PerformanceOptimizer()
             except Exception as e:
                 self._logger.warning(f"Failed to create PerformanceOptimizer: {e}")
@@ -125,14 +135,11 @@ class CLIIntegration:
                 attack_adapter=attack_adapter,
                 effectiveness_tester=effectiveness_tester,
                 learning_memory=learning_memory,
-                strategy_generator=None, # Генератор создается позже
+                strategy_generator=None,  # Генератор создается позже
                 strategy_saver=strategy_saver,
-                
                 # +++ ПЕРЕДАЙТЕ ДВИЖОК В КОНТЕЙНЕР +++
                 packet_processing_engine=packet_processing_engine,
-                
                 evolutionary_searcher=evolutionary_searcher,
-                
                 closed_loop_manager=closed_loop_manager,
                 result_processor=result_processor,
                 diagnostic_system=diagnostic_system,
@@ -219,9 +226,13 @@ class CLIIntegration:
         try:
             # Получаем зависимости из DI
             attack_registry = self.provider.container.resolve(AttackRegistry)
-            domain_strategies = self.provider.container.resolve(DomainSpecificStrategies)
+            domain_strategies = self.provider.container.resolve(
+                DomainSpecificStrategies
+            )
             strategy_predictor = self.provider.container.resolve(StrategyPredictor)
-            parameter_optimizer = self.provider.container.resolve(DynamicParameterOptimizer)
+            parameter_optimizer = self.provider.container.resolve(
+                DynamicParameterOptimizer
+            )
 
             # Создаем экземпляр AdvancedStrategyGenerator
             strategy_generator = AdvancedStrategyGenerator(
@@ -230,9 +241,11 @@ class CLIIntegration:
                 strategy_predictor=strategy_predictor,
                 parameter_optimizer=parameter_optimizer,
                 fingerprint_dict=fingerprint_dict,
-                history=[], # История должна передаваться из контекста
+                history=[],  # История должна передаваться из контекста
                 max_strategies=self.args.count,
-                enable_ml_prediction=not self.args.no_ml if hasattr(self.args, 'no_ml') else True
+                enable_ml_prediction=(
+                    not self.args.no_ml if hasattr(self.args, "no_ml") else True
+                ),
             )
 
             return strategy_generator

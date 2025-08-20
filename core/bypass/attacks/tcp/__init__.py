@@ -52,29 +52,25 @@ from .fooling import (
 __all__ = [
     # Manipulation attacks
     "TCPWindowScalingAttack",
-    "UrgentPointerAttack", 
+    "UrgentPointerAttack",
     "TCPOptionsPaddingAttack",
     "TCPTimestampAttack",
     "TCPMultiSplitAttack",
     "TCPWindowSizeLimitAttack",
-    
     # Timing attacks
     "DripFeedAttack",
     "TimingBasedEvasionAttack",
     "BurstTimingEvasionAttack",
-    
     # Race condition attacks
     "BadChecksumRaceAttack",
     "LowTTLPoisoningAttack",
     "CacheConfusionAttack",
     "MD5SigRaceAttack",
-    
     # Stateful attacks
     "FakeDisorderAttack",
-    "MultiDisorderAttack", 
+    "MultiDisorderAttack",
     "SequenceOverlapAttack",
     "TimingManipulationAttack",
-    
     # Fooling attacks
     "BadSumFoolingAttack",
     "MD5SigFoolingAttack",

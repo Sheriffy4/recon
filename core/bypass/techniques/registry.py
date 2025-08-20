@@ -3,11 +3,11 @@
 """Registry system for bypass techniques."""
 
 import logging
-from typing import Dict, Type, Optional, List, Callable, Any
+from typing import Dict, Optional, List, Callable, Any
 from functools import wraps
 import inspect
 
-from ..types import TechniqueType, TechniqueParams, PacketInfo
+from ..types import TechniqueType, TechniqueParams
 from ..exceptions import TechniqueNotFoundError, InvalidStrategyError
 
 

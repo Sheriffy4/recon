@@ -3,6 +3,7 @@ import asyncio
 import socket
 from typing import Set, Optional
 
+
 async def resolve_all_ips(domain: str) -> Set[str]:
     """Агрегирует IP-адреса для домена из системного резолвера и DoH."""
     ips = set()
@@ -18,12 +19,18 @@ async def resolve_all_ips(domain: str) -> Set[str]:
     # 2. DoH (упрощенная версия для примера)
     try:
         import aiohttp
+
         async with aiohttp.ClientSession() as s:
-            for doh in ("https://cloudflare-dns.com/dns-query", "https://dns.google/resolve"):
+            for doh in (
+                "https://cloudflare-dns.com/dns-query",
+                "https://dns.google/resolve",
+            ):
                 try:
                     params = {"name": domain, "type": "A"}
                     headers = {"accept": "application/dns-json"}
-                    async with s.get(doh, params=params, headers=headers, timeout=2) as r:
+                    async with s.get(
+                        doh, params=params, headers=headers, timeout=2
+                    ) as r:
                         if r.status == 200:
                             j = await r.json()
                             for ans in j.get("Answer", []):
@@ -32,15 +39,16 @@ async def resolve_all_ips(domain: str) -> Set[str]:
                 except Exception:
                     pass
     except ImportError:
-        pass # aiohttp не установлен, пропускаем
+        pass  # aiohttp не установлен, пропускаем
 
     return {ip for ip in ips if ip}
+
 
 async def probe_real_peer_ip(domain: str, port: int) -> Optional[str]:
     """Активно подключается, чтобы узнать реальный IP, выбранный ОС."""
     try:
         _, writer = await asyncio.open_connection(domain, port)
-        ip = writer.get_extra_info('peername')[0]
+        ip = writer.get_extra_info("peername")[0]
         writer.close()
         await writer.wait_closed()
         return ip

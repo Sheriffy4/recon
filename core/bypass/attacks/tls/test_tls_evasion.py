@@ -9,17 +9,15 @@ Tests all TLS evasion attacks implemented in task 7:
 - TLS record fragmentation attacks
 """
 
-import pytest
 import struct
 import os
-from typing import List, Dict, Any
 
-from ..base import AttackContext, AttackResult, AttackStatus
+from ..base import AttackContext, AttackStatus
 from .tls_evasion import (
     TLSHandshakeManipulationAttack,
     TLSVersionDowngradeAttack,
     TLSExtensionManipulationAttack,
-    TLSRecordFragmentationAttack
+    TLSRecordFragmentationAttack,
 )
 
 
@@ -35,7 +33,7 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={},
-            engine_type="test"
+            engine_type="test",
         )
 
     def _create_sample_client_hello(self) -> bytes:
@@ -44,53 +42,55 @@ class TestTLSEvasionAttacks:
         record = bytearray()
         record.extend(b"\x16")  # Content Type: Handshake
         record.extend(b"\x03\x03")  # Version: TLS 1.2
-        
+
         # Handshake data (will be filled)
         handshake_start = len(record) + 2  # After length field
         record.extend(b"\x00\x00")  # Placeholder for length
-        
+
         # Handshake Header
         handshake = bytearray()
         handshake.extend(b"\x01")  # Handshake Type: ClientHello
         handshake_length_pos = len(handshake)
         handshake.extend(b"\x00\x00\x00")  # Placeholder for length
-        
+
         # ClientHello content
         handshake.extend(b"\x03\x03")  # Client Version: TLS 1.2
         handshake.extend(os.urandom(32))  # Client Random
         handshake.extend(b"\x00")  # Session ID Length
-        
+
         # Cipher Suites
-        cipher_suites = [0x1301, 0x1302, 0xc02b, 0xc02f]  # Sample cipher suites
+        cipher_suites = [0x1301, 0x1302, 0xC02B, 0xC02F]  # Sample cipher suites
         handshake.extend(struct.pack("!H", len(cipher_suites) * 2))
         for cipher in cipher_suites:
             handshake.extend(struct.pack("!H", cipher))
-        
+
         # Compression Methods
         handshake.extend(b"\x01\x00")  # No compression
-        
+
         # Extensions
         extensions = self._create_sample_extensions()
         handshake.extend(struct.pack("!H", len(extensions)))
         handshake.extend(extensions)
-        
+
         # Update handshake length
         handshake_length = len(handshake) - 4
-        handshake[handshake_length_pos:handshake_length_pos + 3] = handshake_length.to_bytes(3, "big")
-        
+        handshake[handshake_length_pos : handshake_length_pos + 3] = (
+            handshake_length.to_bytes(3, "big")
+        )
+
         # Add handshake to record
         record.extend(handshake)
-        
+
         # Update record length
         record_length = len(record) - 5
         record[3:5] = struct.pack("!H", record_length)
-        
+
         return bytes(record)
 
     def _create_sample_extensions(self) -> bytes:
         """Create sample TLS extensions."""
         extensions = bytearray()
-        
+
         # SNI Extension
         sni_data = b"example.com"
         sni_ext = (
@@ -102,37 +102,37 @@ class TestTLSEvasionAttacks:
             + sni_data
         )
         extensions.extend(sni_ext)
-        
+
         # Supported Groups Extension
-        groups = [0x001d, 0x0017, 0x0018]  # x25519, secp256r1, secp384r1
+        groups = [0x001D, 0x0017, 0x0018]  # x25519, secp256r1, secp384r1
         groups_data = struct.pack("!H", len(groups) * 2)
         for group in groups:
             groups_data += struct.pack("!H", group)
-        
+
         groups_ext = (
             b"\x00\x0a"  # Extension Type: Supported Groups
             + struct.pack("!H", len(groups_data))
             + groups_data
         )
         extensions.extend(groups_ext)
-        
+
         # Signature Algorithms Extension
         sig_algs = [0x0403, 0x0804, 0x0401]  # Sample signature algorithms
         sig_algs_data = struct.pack("!H", len(sig_algs) * 2)
         for alg in sig_algs:
             sig_algs_data += struct.pack("!H", alg)
-        
+
         sig_algs_ext = (
             b"\x00\x0d"  # Extension Type: Signature Algorithms
             + struct.pack("!H", len(sig_algs_data))
             + sig_algs_data
         )
         extensions.extend(sig_algs_ext)
-        
+
         return bytes(extensions)
 
     # TLS Handshake Manipulation Tests
-    
+
     def test_handshake_manipulation_fragment_hello(self):
         """Test ClientHello fragmentation."""
         attack = TLSHandshakeManipulationAttack()
@@ -142,11 +142,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "fragment_hello", "fragment_size": 32},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.packets_sent > 1  # Should be fragmented
         assert result.metadata["manipulation_type"] == "fragment_hello"
@@ -161,11 +161,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "reorder_extensions"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "reorder_extensions"
 
@@ -178,11 +178,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "split_handshake"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "split_handshake"
 
@@ -195,11 +195,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "fake_messages"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "fake_messages"
         assert result.bytes_sent > len(self.sample_client_hello)  # Should be larger
@@ -213,11 +213,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "timing_manipulation"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "timing_manipulation"
 
@@ -230,16 +230,16 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=b"invalid payload",
             params={},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.INVALID_PARAMS
         assert "not a valid TLS handshake" in result.error_message
 
     # TLS Version Downgrade Tests
-    
+
     def test_version_downgrade_tls10(self):
         """Test downgrade to TLS 1.0."""
         attack = TLSVersionDowngradeAttack()
@@ -249,11 +249,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"target_version": "tls10"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["target_version"] == "tls10"
         assert result.metadata["target_version_bytes"] == "0301"
@@ -267,11 +267,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"target_version": "tls11"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["target_version"] == "tls11"
         assert result.metadata["target_version_bytes"] == "0302"
@@ -285,11 +285,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"target_version": "ssl30"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["target_version"] == "ssl30"
         assert result.metadata["target_version_bytes"] == "0300"
@@ -302,15 +302,12 @@ class TestTLSEvasionAttacks:
             dst_port=443,
             domain="example.com",
             payload=self.sample_client_hello,
-            params={
-                "target_version": "tls10",
-                "modify_supported_versions": True
-            },
-            engine_type="test"
+            params={"target_version": "tls10", "modify_supported_versions": True},
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["modify_supported_versions"] is True
 
@@ -322,20 +319,17 @@ class TestTLSEvasionAttacks:
             dst_port=443,
             domain="example.com",
             payload=self.sample_client_hello,
-            params={
-                "target_version": "tls11",
-                "add_fallback_scsv": True
-            },
-            engine_type="test"
+            params={"target_version": "tls11", "add_fallback_scsv": True},
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["add_fallback_scsv"] is True
 
     # TLS Extension Manipulation Tests
-    
+
     def test_extension_manipulation_inject_fake(self):
         """Test fake extension injection."""
         attack = TLSExtensionManipulationAttack()
@@ -344,15 +338,12 @@ class TestTLSEvasionAttacks:
             dst_port=443,
             domain="example.com",
             payload=self.sample_client_hello,
-            params={
-                "manipulation_type": "inject_fake",
-                "fake_extension_count": 5
-            },
-            engine_type="test"
+            params={"manipulation_type": "inject_fake", "fake_extension_count": 5},
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "inject_fake"
         assert result.metadata["fake_extension_count"] == 5
@@ -367,11 +358,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "randomize_order"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "randomize_order"
 
@@ -384,11 +375,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "add_grease"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "add_grease"
         assert result.bytes_sent > len(self.sample_client_hello)
@@ -402,11 +393,11 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "duplicate_extensions"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "duplicate_extensions"
 
@@ -419,16 +410,16 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=self.sample_client_hello,
             params={"manipulation_type": "malformed_extensions"},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["manipulation_type"] == "malformed_extensions"
 
     # TLS Record Fragmentation Tests
-    
+
     def test_record_fragmentation_tcp_segment(self):
         """Test TCP segment fragmentation."""
         attack = TLSRecordFragmentationAttack()
@@ -437,15 +428,12 @@ class TestTLSEvasionAttacks:
             dst_port=443,
             domain="example.com",
             payload=self.sample_client_hello,
-            params={
-                "fragmentation_type": "tcp_segment",
-                "fragment_size": 64
-            },
-            engine_type="test"
+            params={"fragmentation_type": "tcp_segment", "fragment_size": 64},
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["fragmentation_type"] == "tcp_segment"
         assert result.packets_sent > 1
@@ -459,15 +447,12 @@ class TestTLSEvasionAttacks:
             dst_port=443,
             domain="example.com",
             payload=self.sample_client_hello,
-            params={
-                "fragmentation_type": "tls_record",
-                "fragment_size": 100
-            },
-            engine_type="test"
+            params={"fragmentation_type": "tls_record", "fragment_size": 100},
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["fragmentation_type"] == "tls_record"
 
@@ -479,15 +464,12 @@ class TestTLSEvasionAttacks:
             dst_port=443,
             domain="example.com",
             payload=self.sample_client_hello,
-            params={
-                "fragmentation_type": "mixed",
-                "fragment_size": 80
-            },
-            engine_type="test"
+            params={"fragmentation_type": "mixed", "fragment_size": 80},
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["fragmentation_type"] == "mixed"
 
@@ -499,15 +481,12 @@ class TestTLSEvasionAttacks:
             dst_port=443,
             domain="example.com",
             payload=self.sample_client_hello,
-            params={
-                "fragmentation_type": "adaptive",
-                "max_fragments": 8
-            },
-            engine_type="test"
+            params={"fragmentation_type": "adaptive", "max_fragments": 8},
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["fragmentation_type"] == "adaptive"
         assert result.metadata["max_fragments"] == 8
@@ -523,13 +502,13 @@ class TestTLSEvasionAttacks:
             params={
                 "fragmentation_type": "tcp_segment",
                 "fragment_size": 50,
-                "randomize_sizes": True
+                "randomize_sizes": True,
             },
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata["randomize_sizes"] is True
 
@@ -542,25 +521,25 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=b"not a tls record",
             params={},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         result = attack.execute(context)
-        
+
         assert result.status == AttackStatus.INVALID_PARAMS
         assert "not a valid TLS record" in result.error_message
 
     # Integration Tests
-    
+
     def test_all_attacks_with_same_payload(self):
         """Test that all attacks can process the same payload."""
         attacks = [
             TLSHandshakeManipulationAttack(),
             TLSVersionDowngradeAttack(),
             TLSExtensionManipulationAttack(),
-            TLSRecordFragmentationAttack()
+            TLSRecordFragmentationAttack(),
         ]
-        
+
         for attack in attacks:
             result = attack.execute(self.test_context)
             assert result.status == AttackStatus.SUCCESS
@@ -573,9 +552,9 @@ class TestTLSEvasionAttacks:
             (TLSHandshakeManipulationAttack(), {"manipulation_type": "fragment_hello"}),
             (TLSVersionDowngradeAttack(), {"target_version": "tls10"}),
             (TLSExtensionManipulationAttack(), {"manipulation_type": "inject_fake"}),
-            (TLSRecordFragmentationAttack(), {"fragmentation_type": "tcp_segment"})
+            (TLSRecordFragmentationAttack(), {"fragmentation_type": "tcp_segment"}),
         ]
-        
+
         for attack, params in attacks_and_params:
             context = AttackContext(
                 dst_ip="1.1.1.1",
@@ -583,14 +562,17 @@ class TestTLSEvasionAttacks:
                 domain="example.com",
                 payload=self.sample_client_hello,
                 params=params,
-                engine_type="test"
+                engine_type="test",
             )
-            
+
             result = attack.execute(context)
             assert result.status == AttackStatus.SUCCESS
             assert result.metadata is not None
             assert len(result.metadata) > 0
-            assert "original_size" in result.metadata or "segments_count" in result.metadata
+            assert (
+                "original_size" in result.metadata
+                or "segments_count" in result.metadata
+            )
 
     def test_attack_error_handling(self):
         """Test error handling in all attacks."""
@@ -598,9 +580,9 @@ class TestTLSEvasionAttacks:
             TLSHandshakeManipulationAttack(),
             TLSVersionDowngradeAttack(),
             TLSExtensionManipulationAttack(),
-            TLSRecordFragmentationAttack()
+            TLSRecordFragmentationAttack(),
         ]
-        
+
         # Test with empty payload
         empty_context = AttackContext(
             dst_ip="1.1.1.1",
@@ -608,13 +590,17 @@ class TestTLSEvasionAttacks:
             domain="example.com",
             payload=b"",
             params={},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         for attack in attacks:
             result = attack.execute(empty_context)
             # Should either succeed with empty handling or fail gracefully
-            assert result.status in [AttackStatus.SUCCESS, AttackStatus.INVALID_PARAMS, AttackStatus.ERROR]
+            assert result.status in [
+                AttackStatus.SUCCESS,
+                AttackStatus.INVALID_PARAMS,
+                AttackStatus.ERROR,
+            ]
             if result.status == AttackStatus.ERROR:
                 assert result.error_message is not None
 
@@ -622,21 +608,21 @@ class TestTLSEvasionAttacks:
         """Test handling of large payloads."""
         # Create a large payload
         large_payload = self.sample_client_hello * 10
-        
+
         large_context = AttackContext(
             dst_ip="1.1.1.1",
             dst_port=443,
             domain="example.com",
             payload=large_payload,
             params={},
-            engine_type="test"
+            engine_type="test",
         )
-        
+
         attacks = [
             TLSHandshakeManipulationAttack(),
-            TLSRecordFragmentationAttack()  # Most relevant for large payloads
+            TLSRecordFragmentationAttack(),  # Most relevant for large payloads
         ]
-        
+
         for attack in attacks:
             result = attack.execute(large_context)
             assert result.status == AttackStatus.SUCCESS
@@ -646,29 +632,29 @@ class TestTLSEvasionAttacks:
 if __name__ == "__main__":
     # Run tests if executed directly
     import sys
-    
+
     test_suite = TestTLSEvasionAttacks()
     test_suite.setup_method()
-    
+
     # Run a few key tests
     try:
         test_suite.test_handshake_manipulation_fragment_hello()
         print("✓ Handshake manipulation test passed")
-        
+
         test_suite.test_version_downgrade_tls10()
         print("✓ Version downgrade test passed")
-        
+
         test_suite.test_extension_manipulation_inject_fake()
         print("✓ Extension manipulation test passed")
-        
+
         test_suite.test_record_fragmentation_tcp_segment()
         print("✓ Record fragmentation test passed")
-        
+
         test_suite.test_all_attacks_with_same_payload()
         print("✓ Integration test passed")
-        
+
         print("\nAll TLS evasion attack tests passed successfully!")
-        
+
     except Exception as e:
         print(f"✗ Test failed: {e}")
         sys.exit(1)

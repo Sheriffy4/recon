@@ -2,13 +2,22 @@ import asyncio
 import logging
 from web.monitoring_server import MonitoringWebServer
 
+
 # Mock objects for dependencies
 class MockMonitoringSystem:
     def get_status_report(self):
-        return {'total_sites': 0, 'accessible_sites': 0, 'sites_with_bypass': 0, 'average_response_time': 0, 'sites': {}}
+        return {
+            "total_sites": 0,
+            "accessible_sites": 0,
+            "sites_with_bypass": 0,
+            "average_response_time": 0,
+            "sites": {},
+        }
+
 
 class MockHybridEngine:
     pass
+
 
 async def main():
     logging.basicConfig(level=logging.INFO)
@@ -30,10 +39,11 @@ async def main():
     except KeyboardInterrupt:
         await server.stop()
 
+
 if __name__ == "__main__":
     # Add project root to path to allow imports
-    import os
     import sys
-    if '.' not in sys.path:
-        sys.path.insert(0, '.')
+
+    if "." not in sys.path:
+        sys.path.insert(0, ".")
     asyncio.run(main())

@@ -11,7 +11,7 @@ import time
 import struct
 import random
 import secrets
-from typing import List, Dict, Tuple, Optional, Union, Any
+from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass
 from enum import IntEnum
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus

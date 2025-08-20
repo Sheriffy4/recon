@@ -8,7 +8,6 @@ import struct
 import asyncio
 from typing import Dict, Set, Optional, List, Tuple, Any, Union
 from dataclasses import dataclass
-from enum import Enum
 
 try:
     import pydivert
@@ -20,9 +19,10 @@ except ImportError:
 from .base import BaseBypassEngine, EngineConfig
 from .health_check import EngineHealthCheck, SystemHealthReport, HealthStatus
 from ..types import EngineStatus
-from ..exceptions import EngineError, InsufficientPrivilegesError
+from ..exceptions import EngineError
 from ..attacks.base import AttackContext, AttackResult, AttackStatus
 from ...diagnostics.metrics import MetricsCollector
+
 # Импортируем основные компоненты
 from ...robust_packet_processor import RobustPacketProcessor
 from ...packet_builder import EnhancedPacketBuilder
@@ -35,11 +35,7 @@ from ...packet_modification_validator import PacketModificationValidator
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.fingerprint.advanced_fingerprint_engine import (
-        UltimateAdvancedFingerprintEngine,
-    )
-    from ...integration.attack_adapter import AttackAdapter
-    from ...diagnostic_system import DiagnosticSystem
+    pass
 
 
 # Опциональные компоненты
@@ -98,7 +94,7 @@ class PacketProcessingEngine(BaseBypassEngine):
         super().__init__(config)
         self._lock = threading.Lock()
         self._status = EngineStatus.STOPPED
-        
+
         # DI-injected dependencies
         self._performance_optimizer = None
         self._effectiveness_validator = None
@@ -166,9 +162,13 @@ class PacketProcessingEngine(BaseBypassEngine):
                 self.logger.info(f"Engine status changed to: {new_status.value}")
                 if new_status in [EngineStatus.RUNNING, EngineStatus.STARTING]:
                     self._running = True
-                elif new_status in [EngineStatus.STOPPED, EngineStatus.STOPPING, EngineStatus.ERROR]:
+                elif new_status in [
+                    EngineStatus.STOPPED,
+                    EngineStatus.STOPPING,
+                    EngineStatus.ERROR,
+                ]:
                     self._running = False
-    
+
     def is_production_engine(self) -> bool:
         """
         Confirms that this engine is for production packet processing.
@@ -191,7 +191,7 @@ class PacketProcessingEngine(BaseBypassEngine):
         Использует существующую логику проверки.
         """
         return self.is_engine_healthy()
-    
+
     def perform_health_check(self) -> SystemHealthReport:
         """Выполняет полную проверку здоровья движка."""
         LOG.info("🏥 Performing engine health check...")
@@ -371,10 +371,18 @@ class PacketProcessingEngine(BaseBypassEngine):
         """Основной цикл перехвата и обработки пакетов."""
         self.strategy_map = strategy_map
         from core.windivert_filter import WinDivertFilterGenerator
+
         gen = WinDivertFilterGenerator()
         # Цель: outbound tcp трафик на указанные target_ips и порты из стратегий, если доступны
-        ports: Set[int] = {d.get("target_port", 443) for d in (strategy_map or {}).values()} or {80, 443}
-        candidates = gen.progressive_candidates(target_ips=target_ips, target_ports=ports, direction="outbound", protocols=("tcp",))
+        ports: Set[int] = {
+            d.get("target_port", 443) for d in (strategy_map or {}).values()
+        } or {80, 443}
+        candidates = gen.progressive_candidates(
+            target_ips=target_ips,
+            target_ports=ports,
+            direction="outbound",
+            protocols=("tcp",),
+        )
 
         LOG.info(f"🔍 Запуск перехвата с {len(candidates)} кандидатами фильтра")
 
@@ -476,8 +484,16 @@ class PacketProcessingEngine(BaseBypassEngine):
         """Обрабатывает результат атаки и отправляет пакеты."""
         if result.status != AttackStatus.SUCCESS:
             # Если адаптер вернул диагностику параметров — выведем
-            meta_params_missing = (result.metadata or {}).get("params_missing_required") if result.metadata else None
-            meta_params_unexpected = (result.metadata or {}).get("params_unexpected") if result.metadata else None
+            meta_params_missing = (
+                (result.metadata or {}).get("params_missing_required")
+                if result.metadata
+                else None
+            )
+            meta_params_unexpected = (
+                (result.metadata or {}).get("params_unexpected")
+                if result.metadata
+                else None
+            )
             if meta_params_missing or meta_params_unexpected:
                 LOG.warning(
                     f"Strategy param issues: missing={meta_params_missing or []}, unexpected={meta_params_unexpected or []}"
@@ -644,7 +660,11 @@ class PacketProcessingEngine(BaseBypassEngine):
                 expected_seq = packet_params.get("new_seq")
                 new_seq = expected_seq  # предполагаем совпадение, так как мы его задали
                 report = self.mod_validator.validate_segment(
-                    original_payload, data, expected_seq=expected_seq, new_seq=new_seq, is_last=(i == len(segments) - 1)
+                    original_payload,
+                    data,
+                    expected_seq=expected_seq,
+                    new_seq=new_seq,
+                    is_last=(i == len(segments) - 1),
                 )
                 if report.success:
                     try:
@@ -653,7 +673,9 @@ class PacketProcessingEngine(BaseBypassEngine):
                     except Exception:
                         pass
                 else:
-                    LOG.debug(f"Modification validation failed: {report.reason} {report.details or ''}")
+                    LOG.debug(
+                        f"Modification validation failed: {report.reason} {report.details or ''}"
+                    )
 
         return packets_sent
 
@@ -672,7 +694,11 @@ class PacketProcessingEngine(BaseBypassEngine):
         if sent:
             # Валидация: убедимся, что payload действительно изменён
             report = self.mod_validator.validate_segment(
-                original_payload, modified_payload, expected_seq=None, new_seq=None, is_last=True
+                original_payload,
+                modified_payload,
+                expected_seq=None,
+                new_seq=None,
+                is_last=True,
             )
             if report.success:
                 try:
@@ -680,10 +706,17 @@ class PacketProcessingEngine(BaseBypassEngine):
                 except Exception:
                     pass
             else:
-                LOG.debug(f"Modification validation failed (modified_payload): {report.reason} {report.details or ''}")
+                LOG.debug(
+                    f"Modification validation failed (modified_payload): {report.reason} {report.details or ''}"
+                )
         return sent
 
-    def _send_raw_packet(self, w: pydivert.WinDivert, packet_data: bytes, template_packet: pydivert.Packet) -> bool:
+    def _send_raw_packet(
+        self,
+        w: pydivert.WinDivert,
+        packet_data: bytes,
+        template_packet: pydivert.Packet,
+    ) -> bool:
         """Отправляет сырые данные пакета."""
         try:
             packet = pydivert.Packet(
@@ -1016,47 +1049,48 @@ def create_packet_processing_engine(
 ) -> PacketProcessingEngine:
     """Фабричная функция для создания движка."""
     return PacketProcessingEngine(config)
-    
+
     # DI Support Methods
     def set_performance_optimizer(self, optimizer) -> None:
         """
         Set performance optimizer via dependency injection.
-        
+
         Args:
             optimizer: Performance optimizer instance
         """
         self._performance_optimizer = optimizer
         self.logger.debug("Performance optimizer injected via DI")
-    
+
     def set_effectiveness_validator(self, validator) -> None:
         """
         Set effectiveness validator via dependency injection.
-        
+
         Args:
             validator: Effectiveness validator instance
         """
         self._effectiveness_validator = validator
         self.logger.debug("Effectiveness validator injected via DI")
-    
+
     def get_injected_performance_optimizer(self):
         """Get injected performance optimizer."""
         return self._performance_optimizer
-    
+
     def get_injected_effectiveness_validator(self):
         """Get injected effectiveness validator."""
         return self._effectiveness_validator
-    
+
     def has_di_dependencies(self) -> bool:
         """Check if DI dependencies are available."""
         return (
-            self._performance_optimizer is not None or 
-            self._effectiveness_validator is not None
+            self._performance_optimizer is not None
+            or self._effectiveness_validator is not None
         )
-    
+
     def get_di_status(self) -> Dict[str, Any]:
         """Get status of DI dependencies."""
         return {
             "performance_optimizer_injected": self._performance_optimizer is not None,
-            "effectiveness_validator_injected": self._effectiveness_validator is not None,
-            "di_enabled": self.has_di_dependencies()
+            "effectiveness_validator_injected": self._effectiveness_validator
+            is not None,
+            "di_enabled": self.has_di_dependencies(),
         }

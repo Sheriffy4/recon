@@ -7,14 +7,12 @@ import os
 import secrets
 from typing import List, Optional, Dict, Any, Tuple
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from ..safe_result_utils import create_success_result, create_error_result, create_failed_result
 from ..registry import register_attack
-from ....protocols.tls import TLSParser, TLSExtensionType
+from ....protocols.tls import TLSParser
 
 
 # ECH Extension Type (draft-ietf-tls-esni)
 ECH_EXTENSION_TYPE = 0xFE0D
-
 
 
 # Safety wrapper for AttackResult creation
@@ -22,15 +20,18 @@ def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
     try:
         from ..safe_result_utils import safe_create_attack_result
+
         return safe_create_attack_result(status_name, **kwargs)
     except Exception:
         # Ultimate fallback
         try:
             from ..base import AttackResult, AttackStatus
+
             status = getattr(AttackStatus, status_name)
             return AttackResult(status=status, **kwargs)
         except Exception:
             return None
+
 
 @register_attack
 class ECHFragmentationAttack(BaseAttack):
@@ -214,9 +215,6 @@ class ECHFragmentationAttack(BaseAttack):
         return result
 
 
-
-
-
 # Integration with existing TLS probes
 def integrate_with_prober(prober, domain: str, port: int = 443) -> Dict[str, Any]:
     """
@@ -242,7 +240,7 @@ def integrate_with_prober(prober, domain: str, port: int = 443) -> Dict[str, Any
         ECHGreaseAttack(),
         ECHDecoyAttack(),
         ECHOuterSNIManipulationAttack(),
-        ECHAdvancedFragmentationAttack()
+        ECHAdvancedFragmentationAttack(),
     ]
 
     for attack in attack_types:
@@ -260,8 +258,8 @@ def integrate_with_prober(prober, domain: str, port: int = 443) -> Dict[str, Any
                 "grease_intensity": "high",
                 "include_fake_ech": True,
                 "manipulation_strategy": "public_suffix",
-                "fragment_size_variation": True
-            }
+                "fragment_size_variation": True,
+            },
         )
 
         # Execute attack
@@ -273,7 +271,7 @@ def integrate_with_prober(prober, domain: str, port: int = 443) -> Dict[str, Any
             "latency_ms": result.latency_ms,
             "packets_sent": result.packets_sent,
             "bytes_sent": result.bytes_sent,
-            "metadata": result.metadata
+            "metadata": result.metadata,
         }
 
     return results
@@ -823,6 +821,7 @@ class ECHDecoyAttack(BaseAttack):
         return grease_attack._insert_grease_extensions(
             payload, extensions_for_insertion
         )
+
 
 @register_attack
 class ECHAdvancedGreaseAttack(BaseAttack):

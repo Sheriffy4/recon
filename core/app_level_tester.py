@@ -5,10 +5,8 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Dict, List, Tuple, Any, Optional
-from urllib.parse import urlparse
+from typing import Dict, List, Tuple, Optional
 import aiohttp
-import socket
 
 # Используем абсолютный импорт, чтобы избежать проблем с путями
 from .. import config as main_config_module
@@ -175,7 +173,7 @@ class AppLevelTester:
                     f"Tool '{self.tool_name}' started with PID: {self.process.pid}"
                 )
                 return True
-            except Exception as e:
+            except Exception:
                 LOG.exception(f"Failed to start tool '{self.tool_name}':")
                 return False
         else:  # posix

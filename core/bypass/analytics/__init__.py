@@ -12,9 +12,9 @@ from .reporting_dashboard import ReportingDashboard
 from .metrics_collector import MetricsCollector
 
 __all__ = [
-    'AnalyticsEngine',
-    'PerformanceTracker', 
-    'MLPredictor',
-    'ReportingDashboard',
-    'MetricsCollector'
+    "AnalyticsEngine",
+    "PerformanceTracker",
+    "MLPredictor",
+    "ReportingDashboard",
+    "MetricsCollector",
 ]

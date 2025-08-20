@@ -23,12 +23,10 @@ except ImportError:
     check_is_fitted = None
 
 # FIX: Correctly import the necessary classes, not non-existent functions
-from .models import EnhancedFingerprint, DPIBehaviorProfile, ProbeConfig
-from .models import EnhancedFingerprint, ProbeConfig  # Оставляем нужные модели
+from .models import EnhancedFingerprint, DPIBehaviorProfile
 from .analyzer import PacketAnalyzer
 
 # Integration with attack system
-from ..integration.attack_adapter import AttackAdapter
 from ..bypass.attacks.registry import AttackRegistry
 from ..bypass.attacks.base import AttackResult, AttackStatus
 from ..interfaces import IProber, IClassifier, IAttackAdapter, IFingerprintEngine
@@ -196,11 +194,13 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
 
         # Phase 3: Intelligent active probing
         LOG.debug("Phase 3: Performing intelligent active probing...")
-        
+
         # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ <<<<<
         # Инициализируем preliminary_type на основе уже имеющихся данных из классификатора.
         # Это позволит prober'у проводить более целенаправленные тесты.
-        preliminary_type = fp.dpi_type if fp.dpi_type and fp.dpi_type != "Unknown" else None
+        preliminary_type = (
+            fp.dpi_type if fp.dpi_type and fp.dpi_type != "Unknown" else None
+        )
         # >>>>> КОНЕЦ ИСПРАВЛЕНИЯ <<<<<
 
         probe_results = await self.prober.run_probes(
@@ -1005,7 +1005,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
             # Run only the specific probes we need
             # This would use the prober with a filtered probe list
             preliminary_type = None
-            
+
             probe_results = await self.prober.run_probes(
                 fingerprint.domain,
                 preliminary_type=fingerprint.dpi_type,

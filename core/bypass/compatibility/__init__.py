@@ -3,7 +3,7 @@ External Tool Compatibility Layer
 
 This module provides comprehensive compatibility with external DPI bypass tools:
 - zapret: Advanced DPI bypass tool with extensive options
-- goodbyedpi: Popular Windows DPI bypass tool  
+- goodbyedpi: Popular Windows DPI bypass tool
 - byebyedpi: Alternative DPI bypass implementation
 
 The compatibility layer enables:
@@ -21,11 +21,11 @@ from .syntax_converter import SyntaxConverter
 from .compatibility_bridge import CompatibilityBridge
 
 __all__ = [
-    'ToolDetector',
-    'ExternalTool', 
-    'ZapretConfigParser',
-    'GoodbyeDPIParser',
-    'ByeByeDPIParser',
-    'SyntaxConverter',
-    'CompatibilityBridge'
+    "ToolDetector",
+    "ExternalTool",
+    "ZapretConfigParser",
+    "GoodbyeDPIParser",
+    "ByeByeDPIParser",
+    "SyntaxConverter",
+    "CompatibilityBridge",
 ]

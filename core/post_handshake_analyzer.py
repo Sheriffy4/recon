@@ -1,8 +1,7 @@
 # recon/core/post_handshake_analyzer.py
-import time
 import logging
 from typing import Optional, Dict
-from scapy.all import IP, TCP, Raw, sr1, send
+from scapy.all import IP, TCP, Raw, sr1
 
 LOG = logging.getLogger("PostHandshakeAnalyzer")
 

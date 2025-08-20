@@ -7,84 +7,103 @@ import asyncio
 import aiohttp
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from core.fingerprint.http_analyzer import HTTPAnalyzer, HTTPAnalysisResult
+from core.fingerprint.http_analyzer import HTTPAnalyzer
+
 
 class TestHTTPAnalyzerSimple(unittest.TestCase):
     def setUp(self):
         """Create HTTPAnalyzer instance for testing"""
         self.analyzer = HTTPAnalyzer(timeout=2.0, max_attempts=2)
-    
+
     def test_basic_analysis(self):
         """Test basic HTTP analysis functionality"""
+
         async def run_test():
-            with patch('aiohttp.ClientSession') as mock_session_class:
+            with patch("aiohttp.ClientSession") as mock_session_class:
                 mock_session = MagicMock()
-                
+
                 # Mock successful response
                 mock_response = MagicMock()
                 mock_response.status = 200
-                mock_response.headers = {'Content-Type': 'text/html', 'Server': 'nginx'}
-                mock_response.text = AsyncMock(return_value="<html><body>Test content</body></html>")
+                mock_response.headers = {"Content-Type": "text/html", "Server": "nginx"}
+                mock_response.text = AsyncMock(
+                    return_value="<html><body>Test content</body></html>"
+                )
                 mock_response.__aenter__ = AsyncMock(return_value=mock_response)
                 mock_response.__aexit__ = AsyncMock(return_value=None)
-                
+
                 mock_session.get = AsyncMock(return_value=mock_response)
                 mock_session.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_session.__aexit__ = AsyncMock(return_value=None)
                 mock_session_class.return_value = mock_session
-                
+
                 result = await self.analyzer.analyze_http_behavior("example.com", 443)
-                
-                self.assertEqual(result['target'], "example.com")
-                self.assertIn('timestamp', result)
-                self.assertIn('reliability_score', result)
-                self.assertIsInstance(result['http_header_filtering'], bool)
-                self.assertIsInstance(result['user_agent_filtering'], bool)
-                self.assertGreater(result['reliability_score'], 0.5)
-                
+
+                self.assertEqual(result["target"], "example.com")
+                self.assertIn("timestamp", result)
+                self.assertIn("reliability_score", result)
+                self.assertIsInstance(result["http_header_filtering"], bool)
+                self.assertIsInstance(result["user_agent_filtering"], bool)
+                self.assertGreater(result["reliability_score"], 0.5)
+
         asyncio.run(run_test())
-    
+
     def test_blocking_detection(self):
         """Test detection of various blocking methods"""
+
         async def run_test():
-            with patch('aiohttp.ClientSession') as mock_session_class:
+            with patch("aiohttp.ClientSession") as mock_session_class:
                 mock_session = MagicMock()
-                
+
                 def mock_request_behavior(method, url, *args, **kwargs):
-                    headers = kwargs.get('headers', {})
-                    data = kwargs.get('data', '')
-                    
+                    headers = kwargs.get("headers", {})
+                    data = kwargs.get("data", "")
+
                     # Block suspicious user agents
-                    user_agent = headers.get('User-Agent', '')
-                    if 'curl' in user_agent.lower():
+                    user_agent = headers.get("User-Agent", "")
+                    if "curl" in user_agent.lower():
                         raise aiohttp.ClientConnectionError("Connection reset by peer")
-                    
+
                     # Block certain headers - simulate DPI behavior
-                    suspicious_headers = ['X-Forwarded-For', 'X-Real-IP', 'Via', 'Proxy-Authorization']
+                    suspicious_headers = [
+                        "X-Forwarded-For",
+                        "X-Real-IP",
+                        "Via",
+                        "Proxy-Authorization",
+                    ]
                     for header in suspicious_headers:
                         if header in headers:
-                            raise aiohttp.ClientConnectionError("Connection reset by peer")
-                    
+                            raise aiohttp.ClientConnectionError(
+                                "Connection reset by peer"
+                            )
+
                     mock_response = MagicMock()
                     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
                     mock_response.__aexit__ = AsyncMock(return_value=None)
-                    
+
                     # Block certain content
-                    if data and any(keyword in str(data).lower() for keyword in ['vpn', 'proxy', 'tunnel']):
+                    if data and any(
+                        keyword in str(data).lower()
+                        for keyword in ["vpn", "proxy", "tunnel"]
+                    ):
                         mock_response.status = 302
                         mock_response.headers = {
-                            'Location': 'https://blocked.example.com',
-                            'Content-Type': 'text/html'
+                            "Location": "https://blocked.example.com",
+                            "Content-Type": "text/html",
                         }
-                        mock_response.text = AsyncMock(return_value="<html>Redirecting...</html>")
+                        mock_response.text = AsyncMock(
+                            return_value="<html>Redirecting...</html>"
+                        )
                     else:
                         # Normal response
                         mock_response.status = 200
-                        mock_response.headers = {'Content-Type': 'text/html'}
-                        mock_response.text = AsyncMock(return_value="<html><body>Normal content</body></html>")
-                    
+                        mock_response.headers = {"Content-Type": "text/html"}
+                        mock_response.text = AsyncMock(
+                            return_value="<html><body>Normal content</body></html>"
+                        )
+
                     return mock_response
-                
+
                 # Set up method mocks
                 mock_session.get = AsyncMock(side_effect=mock_request_behavior)
                 mock_session.post = AsyncMock(side_effect=mock_request_behavior)
@@ -94,21 +113,24 @@ class TestHTTPAnalyzerSimple(unittest.TestCase):
                 mock_session.options = AsyncMock(side_effect=mock_request_behavior)
                 mock_session.patch = AsyncMock(side_effect=mock_request_behavior)
                 mock_session.request = AsyncMock(side_effect=mock_request_behavior)
-                
+
                 mock_session.__aenter__ = AsyncMock(return_value=mock_session)
                 mock_session.__aexit__ = AsyncMock(return_value=None)
                 mock_session_class.return_value = mock_session
-                
-                result = await self.analyzer.analyze_http_behavior("blocked-site.com", 443)
-                
-                self.assertEqual(result['target'], "blocked-site.com")
-                self.assertTrue(result['user_agent_filtering'])
-                self.assertTrue(result['http_header_filtering'])
-                self.assertTrue(result['redirect_injection'])
-                self.assertTrue(result.get('content_based_blocking', False))
-                self.assertGreater(result['reliability_score'], 0.3)
-                
+
+                result = await self.analyzer.analyze_http_behavior(
+                    "blocked-site.com", 443
+                )
+
+                self.assertEqual(result["target"], "blocked-site.com")
+                self.assertTrue(result["user_agent_filtering"])
+                self.assertTrue(result["http_header_filtering"])
+                self.assertTrue(result["redirect_injection"])
+                self.assertTrue(result.get("content_based_blocking", False))
+                self.assertGreater(result["reliability_score"], 0.3)
+
         asyncio.run(run_test())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

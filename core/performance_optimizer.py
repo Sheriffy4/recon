@@ -9,13 +9,11 @@ import time
 import threading
 import logging
 import statistics
-from typing import Dict, List, Any, Optional, Tuple, Set
-from collections import defaultdict, deque
+from typing import Dict, List, Any, Optional
+from collections import deque
 from dataclasses import dataclass, field
 from functools import lru_cache, wraps
 import hashlib
-import json
-import os
 
 
 @dataclass
@@ -619,7 +617,7 @@ def performance_timer(func):
         try:
             result = func(*args, **kwargs)
             success = True
-        except Exception as e:
+        except Exception:
             result = None
             success = False
             raise

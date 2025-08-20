@@ -7,8 +7,9 @@ import sys
 import importlib
 import traceback
 import os
-import ast # <-- Добавляем AST для анализа кода
-from typing import List, Dict, Any, Optional, Tuple
+import ast  # <-- Добавляем AST для анализа кода
+from typing import Tuple
+
 
 def test_core_imports():
     """Тестирует импорт основных модулей."""
@@ -38,15 +39,18 @@ def test_core_imports():
             error_count += 1
     return success_count, error_count
 
+
 def test_di_container():
     """Тестирует создание DI контейнера."""
     print("\nTesting DI container creation...")
     try:
         from core.di.factory import ServiceFactory
+
         container = ServiceFactory.create_production_container()
         print("✓ DI container created successfully")
         from core.interfaces import IAttackAdapter, IFingerprintEngine
         from core.diagnostic_system import DiagnosticSystem
+
         attack_adapter = container.resolve(IAttackAdapter)
         fingerprint_engine = container.resolve(IFingerprintEngine)
         diagnostic_system = container.resolve(DiagnosticSystem)
@@ -56,6 +60,7 @@ def test_di_container():
         print(f"✗ DI container test failed: {e}")
         traceback.print_exc()
         return False
+
 
 def test_dataclass_definitions() -> Tuple[bool, str]:
     """
@@ -67,17 +72,20 @@ def test_dataclass_definitions() -> Tuple[bool, str]:
         file_path = os.path.join("core", "di", "cli_integration.py")
         with open(file_path, "r", encoding="utf-8") as f:
             source_code = f.read()
-        
+
         tree = ast.parse(source_code)
-        
+
         cliservices_class = None
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and node.name == "CLIServices":
                 cliservices_class = node
                 break
-        
+
         if not cliservices_class:
-            return False, "✗ CRITICAL: Dataclass 'CLIServices' not found in 'core/di/cli_integration.py'."
+            return (
+                False,
+                "✗ CRITICAL: Dataclass 'CLIServices' not found in 'core/di/cli_integration.py'.",
+            )
 
         attributes = set()
         for statement in cliservices_class.body:
@@ -92,7 +100,7 @@ def test_dataclass_definitions() -> Tuple[bool, str]:
             )
             print(error_msg)
             return False, error_msg
-        
+
         print("✓ 'CLIServices' dataclass has the 'evolutionary_searcher' attribute.")
         return True, "✓ All checked dataclasses are valid."
 
@@ -104,6 +112,7 @@ def test_dataclass_definitions() -> Tuple[bool, str]:
         error_msg = f"✗ CRITICAL: Failed to analyze dataclasses: {e}"
         print(error_msg)
         return False, error_msg
+
 
 def main():
     """Главная функция."""
@@ -117,10 +126,12 @@ def main():
 
     print("\n" + "=" * 50)
     print("=== DOCTOR SIMPLE REPORT ===")
-    
+
     total_errors = imports_errors
-    if not di_ok: total_errors += 1
-    if not dataclass_ok: total_errors += 1
+    if not di_ok:
+        total_errors += 1
+    if not dataclass_ok:
+        total_errors += 1
 
     if total_errors == 0:
         print("🏥 PROJECT HEALTH: GOOD")
@@ -129,6 +140,7 @@ def main():
         print(f"🚨 PROJECT HEALTH: {total_errors} ISSUES FOUND")
         print("Fix the errors above before proceeding.")
     print("=" * 50)
+
 
 if __name__ == "__main__":
     main()

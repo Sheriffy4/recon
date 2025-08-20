@@ -1,0 +1,27 @@
+# .pre-commit-config.yaml
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+    -   id: trailing-whitespace   # Удаляет лишние пробелы в конце строк
+    -   id: end-of-file-fixer     # Убеждается, что файл заканчивается пустой строкой
+    -   id: check-yaml            # Проверяет синтаксис YAML файлов
+    -   id: check-added-large-files # Предотвращает коммит больших файлов (например, .pkl моделей)
+
+-   repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+    -   id: black                 # Автоматически форматирует Python код
+
+-   repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+    -   id: isort                 # Автоматически сортирует импорты
+      name: isort (python)
+
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.5
+    hooks:
+    -   id: ruff                  # Запускает ruff (супер-быстрый линтер, замена flake8)
+      args: [--fix]               # Автоматически исправляет простые ошибки
+    -   id: ruff-format           # Использует ruff для форматирования (альтернатива black)

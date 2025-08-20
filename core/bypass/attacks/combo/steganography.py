@@ -387,10 +387,18 @@ class TCPTimestampSteganographyAttack(BaseAttack):
     ) -> bytes:
         """Create TCP packet with steganographic timestamp option."""
         # --- ИСПРАВЛЕНИЕ: Добавляем значения по умолчанию ---
-        src_port = self.context.src_port if hasattr(self, 'context') and self.context.src_port else random.randint(49152, 65535)
-        dst_port = self.context.dst_port if hasattr(self, 'context') and self.context.dst_port else 443
+        src_port = (
+            self.context.src_port
+            if hasattr(self, "context") and self.context.src_port
+            else random.randint(49152, 65535)
+        )
+        dst_port = (
+            self.context.dst_port
+            if hasattr(self, "context") and self.context.dst_port
+            else 443
+        )
         # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-        
+
         seq_num = random.randint(1000000, 9999999)
         ack_num = 0
         header_length = 8  # 32 bytes (20 base + 12 options)

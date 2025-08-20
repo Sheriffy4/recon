@@ -11,18 +11,18 @@ import time
 import json
 import os
 import threading
-import socket
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict, field
-from typing import Dict, List, Optional, Any, Set, Tuple
+from typing import Dict, List, Optional, Any
 from collections import defaultdict, deque
-import hashlib
 
 # Import unified attack system components
 from core.integration.attack_adapter import AttackAdapter
 from core.bypass.attacks.registry import AttackRegistry
 from core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
-from core.effectiveness.production_effectiveness_tester import ProductionEffectivenessTester
+from core.effectiveness.production_effectiveness_tester import (
+    ProductionEffectivenessTester,
+)
 from core.bypass.engines.health_check import EngineHealthCheck
 from core.reporting import EnhancedReporter, StrategyEffectivenessReport
 
@@ -160,7 +160,9 @@ class StrategyMonitor:
         cfg = getattr(getattr(fast_bypass_engine, "config", None), "typed_config", None)
         if cfg and hasattr(cfg, "monitoring"):
             self.monitor_interval = int(cfg.monitoring.monitor_interval_seconds)
-            self._alert_success_rate_threshold = float(cfg.monitoring.alert_success_rate_threshold)
+            self._alert_success_rate_threshold = float(
+                cfg.monitoring.alert_success_rate_threshold
+            )
             self._use_https = bool(cfg.monitoring.use_https)
         else:
             self.monitor_interval = 60
@@ -324,9 +326,12 @@ class StrategyMonitor:
 
             # Дополнительно: Production-оценка (baseline vs bypass) при наличии домена
             if domain:
+
                 def _start():
                     try:
-                        if self.fast_bypass_engine and hasattr(self.fast_bypass_engine, "start"):
+                        if self.fast_bypass_engine and hasattr(
+                            self.fast_bypass_engine, "start"
+                        ):
                             # Нужен минимальный запуск движка или режима
                             pass
                     except Exception:
@@ -334,14 +339,18 @@ class StrategyMonitor:
 
                 def _stop():
                     try:
-                        if self.fast_bypass_engine and hasattr(self.fast_bypass_engine, "stop"):
+                        if self.fast_bypass_engine and hasattr(
+                            self.fast_bypass_engine, "stop"
+                        ):
                             # Остановка режима
                             pass
                     except Exception:
                         pass
 
                 try:
-                    prod_report = self.prod_effectiveness_tester.evaluate(domain, _start, _stop, use_https=self._use_https)
+                    prod_report = self.prod_effectiveness_tester.evaluate(
+                        domain, _start, _stop, use_https=self._use_https
+                    )
                     # Оценка здоровья стратегии на основе production результата
                     health_stats = {
                         "success_count": 1 if prod_report.bypass.success else 0,
@@ -376,7 +385,9 @@ class StrategyMonitor:
                             pass
                 except Exception as e:
                     if self.debug:
-                        self.logger.debug(f"Production effectiveness evaluation failed: {e}")
+                        self.logger.debug(
+                            f"Production effectiveness evaluation failed: {e}"
+                        )
 
             self.logger.debug(
                 f"Effectiveness report generated: {success_rate:.2f} success rate"

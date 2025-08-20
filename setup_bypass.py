@@ -8,7 +8,7 @@ class BypassSetup:
 
     def setup_zapret_with_doh(self):
         """Создает shell-скрипт для запуска Zapret через DoH-мост."""
-        script_content = f"""#!/bin/bash
+        script_content = """#!/bin/bash
 #
 # Скрипт для запуска Zapret с туннелированием через DoH-мост.
 # ВНИМАНИЕ: Это экспериментальная функция!

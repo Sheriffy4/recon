@@ -8,8 +8,7 @@ effective traffic mimicry and behavioral DPI evasion.
 
 import random
 import re
-from typing import List, Tuple, Dict, Any
-from dataclasses import dataclass
+from typing import List, Tuple
 
 from .traffic_mimicry import TrafficProfile, TrafficPattern, TrafficType
 from ..base import AttackContext

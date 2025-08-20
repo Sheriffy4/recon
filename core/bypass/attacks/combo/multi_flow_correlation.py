@@ -10,10 +10,9 @@ to correlate and detect the bypass attempt.
 
 import time
 import random
-import asyncio
 import logging
 import threading
-from typing import Dict, Any, List, Optional, Tuple, Callable
+from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -215,7 +214,9 @@ class MultiFlowCorrelationAttack(BaseAttack):
         """
         flows = []
         # Get available recommended profiles from the profiler's signature database.
-        available_profiles = list(self.traffic_profiler.analyzer._signature_database.keys())
+        available_profiles = list(
+            self.traffic_profiler.analyzer._signature_database.keys()
+        )
 
         if not available_profiles:
             self.logger.error("No traffic profiles available in the profiler.")
@@ -227,22 +228,30 @@ class MultiFlowCorrelationAttack(BaseAttack):
                 profile_name = random.choice(available_profiles)
             else:
                 # Use a consistent profile, e.g., browsing, for all flows
-                profile_name = 'chrome'
+                profile_name = "chrome"
 
-            profile_signature = self.traffic_profiler.analyzer.get_signature(profile_name)
+            profile_signature = self.traffic_profiler.analyzer.get_signature(
+                profile_name
+            )
 
             if not profile_signature:
-                self.logger.warning(f"Could not find signature for profile '{profile_name}'. Skipping flow.")
+                self.logger.warning(
+                    f"Could not find signature for profile '{profile_name}'. Skipping flow."
+                )
                 continue
 
             # Generate flow parameters
             domain = random.choice(self.config.background_domains)
             duration = random.uniform(*self.config.background_duration_range)
             pps = random.uniform(*self.config.background_pps_range)
-            port = random.choice(profile_signature.port_patterns) if profile_signature.port_patterns else 443
+            port = (
+                random.choice(profile_signature.port_patterns)
+                if profile_signature.port_patterns
+                else 443
+            )
 
             flow = BackgroundFlow(
-                profile=profile_signature, # Using the signature as the profile
+                profile=profile_signature,  # Using the signature as the profile
                 target_domain=domain,
                 target_ip=self._resolve_domain_ip(domain),
                 target_port=port,
@@ -270,9 +279,9 @@ class MultiFlowCorrelationAttack(BaseAttack):
                 dst_ip=flow.target_ip,
                 dst_port=flow.target_port,
                 domain=flow.target_domain,
-                payload=b'', # The simulator generates its own payload
+                payload=b"",  # The simulator generates its own payload
                 timeout=flow.duration_seconds,
-                params={'browser_type': flow.profile.application_name.lower()}
+                params={"browser_type": flow.profile.application_name.lower()},
             )
 
             # The session simulator's execute method is synchronous, but this whole
@@ -296,7 +305,9 @@ class MultiFlowCorrelationAttack(BaseAttack):
             }
 
         except Exception as e:
-            LOG.error(f"Background flow to {flow.target_domain} failed: {e}", exc_info=True)
+            LOG.error(
+                f"Background flow to {flow.target_domain} failed: {e}", exc_info=True
+            )
             return {
                 "domain": flow.target_domain,
                 "profile": flow.profile.application_name,
@@ -530,7 +541,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
 
     def _select_intelligent_profile(
         self, domain: str, flow_index: int
-    ) -> TrafficProfile:
+    ) -> TrafficSignature:
         """Select profile intelligently based on domain and flow diversity."""
         # Domain-specific profile selection
         domain_profiles = {
@@ -590,7 +601,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
         multiplier = pattern_multipliers.get(timing_pattern, 1.0)
         return base_rate * multiplier
 
-    def _select_realistic_port(self, profile: TrafficProfile) -> int:
+    def _select_realistic_port(self, profile: TrafficSignature) -> int:
         """Select realistic port based on traffic profile."""
         profile_ports = {
             "zoom": [80, 443, 8801, 8802],

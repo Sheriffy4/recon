@@ -1,16 +1,15 @@
 # recon/core/bypass/attacks/combo/zapret_strategy.py
 import struct
-import socket
 import random
 import time
 import logging
 import asyncio
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field, asdict
 
 # Force use of real imports, not fallback
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from core.packet_builder import EnhancedPacketBuilder
+from ....packet_builder import EnhancedPacketBuilder
 
 LOG = logging.getLogger("ZapretStrategy")
 

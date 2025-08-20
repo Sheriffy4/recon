@@ -596,187 +596,21 @@ def get_global_optimizer() -> SegmentPerformanceOptimizer:
     return _global_optimizer
 
 
-def optimize_segments(segments: List[Tuple[bytes, int, Dict[str, Any]]], 
-                     execution_func: Callable) -> PerformanceMetrics:
+def optimize_segments(
+    segments: List[Tuple[bytes, int, Dict[str, Any]]],
+    execution_func: Callable
+) -> PerformanceMetrics:
     """
     Convenience function to optimize segment execution using global optimizer.
-    
-    Args:
-        segments: List of segments to execute
-        execution_func: Function to execute segments
-        
-    Returns:
-        Performance metrics
     """
     optimizer = get_global_optimizer()
     return optimizer.optimize_segment_execution(segments, execution_func)
-# Export m
-ain class
-__all__ = ["SegmentPerformanceOptimizer", "PerformanceMetrics", "OptimizationConfig"]     
+# Export main class
+__all__ = [
+    "SegmentPerformanceOptimizer",
+    "PerformanceMetrics",
+    "OptimizationConfig",
+    "get_global_optimizer",
+    "optimize_segments",
+]
            
-                # Cache the constructed packet if caching is enabled
-                if self.packet_cache:
-                    self.packet_cache.put(payload, options, packet)
-                
-                packets.append(packet)
-            
-            # Update optimization stats
-            self._optimization_stats['cache_hits'] += cache_hits
-            self._optimization_stats['cache_misses'] += cache_misses
-            
-            return packets
-    
-    def optimize_segments(self, segments: List[Tuple[bytes, int, Dict[str, Any]]], 
-                         context: AttackContext) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """
-        Optimize segments for better performance.
-        
-        Args:
-            segments: List of segment tuples
-            context: Attack context
-            
-        Returns:
-            Optimized segments
-        """
-        with self.profiler.profile("segment_optimization"):
-            if not segments:
-                return segments
-            
-            optimized_segments = []
-            
-            # Apply batch processing if enabled
-            if self.config.enable_batch_processing and len(segments) > self.config.batch_size:
-                # Process in batches for better memory usage
-                for i in range(0, len(segments), self.config.batch_size):
-                    batch = segments[i:i + self.config.batch_size]
-                    optimized_batch = self._optimize_segment_batch(batch, context)
-                    optimized_segments.extend(optimized_batch)
-            else:
-                optimized_segments = self._optimize_segment_batch(segments, context)
-            
-            return optimized_segments
-    
-    def _optimize_segment_batch(self, segments: List[Tuple[bytes, int, Dict[str, Any]]], 
-                               context: AttackContext) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Optimize a batch of segments."""
-        optimized = []
-        
-        for payload, seq_offset, options in segments:
-            # Apply memory optimization
-            if self.config.enable_memory_pooling:
-                # Reuse payload buffers where possible
-                optimized_payload = self._optimize_payload_memory(payload)
-            else:
-                optimized_payload = payload
-            
-            # Optimize timing options
-            optimized_options = self._optimize_timing_options(options, context)
-            
-            optimized.append((optimized_payload, seq_offset, optimized_options))
-        
-        return optimized
-    
-    def _optimize_payload_memory(self, payload: bytes) -> bytes:
-        """Optimize payload memory usage."""
-        # For now, just return the payload as-is
-        # In the future, could implement payload compression or deduplication
-        return payload
-    
-    def _optimize_timing_options(self, options: Dict[str, Any], context: AttackContext) -> Dict[str, Any]:
-        """Optimize timing-related options."""
-        optimized_options = options.copy()
-        
-        # Adjust delays based on performance threshold
-        if 'delay_ms' in optimized_options:
-            current_delay = optimized_options['delay_ms']
-            if current_delay > self.config.performance_threshold_ms:
-                # Reduce delay if it's too high
-                optimized_options['delay_ms'] = min(current_delay, self.config.performance_threshold_ms)
-                self._optimization_stats['timing_optimizations'] += 1
-        
-        return optimized_options
-    
-    def get_performance_metrics(self) -> Dict[str, Any]:
-        """
-        Get current performance metrics.
-        
-        Returns:
-            Dictionary with performance metrics
-        """
-        metrics = {
-            'optimization_stats': dict(self._optimization_stats),
-            'profiling_stats': self.profiler.get_stats(),
-            'cache_stats': {},
-            'memory_pool_stats': {},
-            'config': {
-                'packet_caching_enabled': self.config.enable_packet_caching,
-                'memory_pooling_enabled': self.config.enable_memory_pooling,
-                'async_execution_enabled': self.config.enable_async_execution,
-                'batch_processing_enabled': self.config.enable_batch_processing,
-                'profiling_enabled': self.config.profiling_enabled
-            }
-        }
-        
-        # Add cache stats if available
-        if self.packet_cache:
-            metrics['cache_stats'] = {
-                'hits': self.packet_cache._hits,
-                'misses': self.packet_cache._misses,
-                'hit_rate': self.packet_cache._hits / max(1, self.packet_cache._hits + self.packet_cache._misses),
-                'cache_size': len(self.packet_cache._cache)
-            }
-        
-        # Add memory pool stats if available
-        if self.memory_pool:
-            metrics['memory_pool_stats'] = {
-                'total_buffers': len(self.memory_pool._buffers),
-                'available_buffers': len([b for b in self.memory_pool._buffers if not b['in_use']]),
-                'allocations': self.memory_pool._allocations,
-                'deallocations': self.memory_pool._deallocations
-            }
-        
-        return metrics
-    
-    def reset_metrics(self):
-        """Reset all performance metrics."""
-        self._optimization_stats.clear()
-        self.profiler.clear()
-        
-        if self.packet_cache:
-            self.packet_cache._hits = 0
-            self.packet_cache._misses = 0
-        
-        if self.memory_pool:
-            self.memory_pool._allocations = 0
-            self.memory_pool._deallocations = 0
-    
-    def cleanup(self):
-        """Cleanup resources."""
-        if self._thread_pool:
-            self._thread_pool.shutdown(wait=True)
-        
-        if self.memory_pool:
-            self.memory_pool.cleanup()
-        
-        self.logger.debug("SegmentPerformanceOptimizer cleaned up")
-    
-    def __enter__(self):
-        """Context manager entry."""
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.cleanup()
-
-
-def create_performance_optimizer(config: Optional[OptimizationConfig] = None) -> SegmentPerformanceOptimizer:
-    """
-    Factory function to create a SegmentPerformanceOptimizer.
-    
-    Args:
-        config: Optional optimization configuration
-        
-    Returns:
-        Configured SegmentPerformanceOptimizer instance
-    """
-    return SegmentPerformanceOptimizer(config)

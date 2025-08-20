@@ -4,14 +4,12 @@ Web dashboard for bypass engine management.
 Provides HTML interface for managing pools, strategies, and attacks.
 """
 
-import json
 import logging
-from datetime import datetime
-from typing import Dict, List, Optional, Any
 
 try:
     from aiohttp import web
     from aiohttp.web import Application, Request, Response
+
     AIOHTTP_AVAILABLE = True
 except ImportError:
     AIOHTTP_AVAILABLE = False
@@ -22,77 +20,81 @@ from web.bypass_api import BypassEngineAPI
 
 class BypassDashboard:
     """Web dashboard for bypass engine management."""
-    
+
     def __init__(self, bypass_api: BypassEngineAPI):
         if not AIOHTTP_AVAILABLE:
-            raise ImportError("aiohttp is required for web dashboard. Install with: pip install aiohttp")
-        
+            raise ImportError(
+                "aiohttp is required for web dashboard. Install with: pip install aiohttp"
+            )
+
         self.bypass_api = bypass_api
         self.logger = logging.getLogger(__name__)
-    
+
     def setup_routes(self, app: Application):
         """Setup dashboard routes on the application."""
-        
+
         # Main dashboard pages
-        app.router.add_get('/bypass', self.dashboard_home)
-        app.router.add_get('/bypass/pools', self.pools_page)
-        app.router.add_get('/bypass/attacks', self.attacks_page)
-        app.router.add_get('/bypass/testing', self.testing_page)
-        app.router.add_get('/bypass/config', self.config_page)
-        
+        app.router.add_get("/bypass", self.dashboard_home)
+        app.router.add_get("/bypass/pools", self.pools_page)
+        app.router.add_get("/bypass/attacks", self.attacks_page)
+        app.router.add_get("/bypass/testing", self.testing_page)
+        app.router.add_get("/bypass/config", self.config_page)
+
         # Pool management pages
-        app.router.add_get('/bypass/pools/{pool_id}', self.pool_detail_page)
-        app.router.add_get('/bypass/pools/{pool_id}/edit', self.pool_edit_page)
-        
+        app.router.add_get("/bypass/pools/{pool_id}", self.pool_detail_page)
+        app.router.add_get("/bypass/pools/{pool_id}/edit", self.pool_edit_page)
+
         # Attack management pages
-        app.router.add_get('/bypass/attacks/{attack_id}', self.attack_detail_page)
-    
+        app.router.add_get("/bypass/attacks/{attack_id}", self.attack_detail_page)
+
     async def dashboard_home(self, request: Request) -> Response:
         """Main bypass engine dashboard."""
         html = self._get_dashboard_html()
-        return Response(text=html, content_type='text/html')
-    
+        return Response(text=html, content_type="text/html")
+
     async def pools_page(self, request: Request) -> Response:
         """Strategy pools management page."""
         html = self._get_pools_html()
-        return Response(text=html, content_type='text/html')
-    
+        return Response(text=html, content_type="text/html")
+
     async def attacks_page(self, request: Request) -> Response:
         """Attack registry management page."""
         html = self._get_attacks_html()
-        return Response(text=html, content_type='text/html')
-    
+        return Response(text=html, content_type="text/html")
+
     async def testing_page(self, request: Request) -> Response:
         """Real-time testing interface."""
         html = self._get_testing_html()
-        return Response(text=html, content_type='text/html')
-    
+        return Response(text=html, content_type="text/html")
+
     async def config_page(self, request: Request) -> Response:
         """Configuration import/export page."""
         html = self._get_config_html()
-        return Response(text=html, content_type='text/html')
-    
+        return Response(text=html, content_type="text/html")
+
     async def pool_detail_page(self, request: Request) -> Response:
         """Detailed pool information page."""
-        pool_id = request.match_info['pool_id']
+        pool_id = request.match_info["pool_id"]
         html = self._get_pool_detail_html(pool_id)
-        return Response(text=html, content_type='text/html')
-    
+        return Response(text=html, content_type="text/html")
+
     async def pool_edit_page(self, request: Request) -> Response:
         """Pool editing page."""
-        pool_id = request.match_info['pool_id']
+        pool_id = request.match_info["pool_id"]
         html = self._get_pool_edit_html(pool_id)
-        return Response(text=html, content_type='text/html')
-    
+        return Response(text=html, content_type="text/html")
+
     async def attack_detail_page(self, request: Request) -> Response:
         """Detailed attack information page."""
-        attack_id = request.match_info['attack_id']
+        attack_id = request.match_info["attack_id"]
         html = self._get_attack_detail_html(attack_id)
-        return Response(text=html, content_type='text/html')
-    
-    def _get_base_html(self, title: str, content: str, extra_css: str = "", extra_js: str = "") -> str:
+        return Response(text=html, content_type="text/html")
+
+    def _get_base_html(
+        self, title: str, content: str, extra_css: str = "", extra_js: str = ""
+    ) -> str:
         """Base HTML template."""
-        return f'''
+        return f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -378,11 +380,11 @@ class BypassDashboard:
     </script>
 </body>
 </html>
-        '''
-    
+        """
+
     def _get_dashboard_html(self) -> str:
         """Main dashboard HTML."""
-        content = '''
+        content = """
         <div class="grid grid-4">
             <div class="card">
                 <h3>📊 Pools</h3>
@@ -421,9 +423,9 @@ class BypassDashboard:
                 </div>
             </div>
         </div>
-        '''
-        
-        extra_js = '''
+        """
+
+        extra_js = """
         async function loadDashboardData() {
             try {
                 const stats = await apiCall('/api/bypass/stats');
@@ -446,13 +448,13 @@ class BypassDashboard:
         
         // Refresh data every 30 seconds
         setInterval(loadDashboardData, 30000);
-        '''
-        
+        """
+
         return self._get_base_html("Dashboard", content, extra_js=extra_js)
-    
+
     def _get_pools_html(self) -> str:
         """Pools management HTML."""
-        content = '''
+        content = """
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>Strategy Pools</h2>
@@ -499,9 +501,9 @@ class BypassDashboard:
                 </form>
             </div>
         </div>
-        '''
-        
-        extra_js = '''
+        """
+
+        extra_js = """
         async function updatePoolsList() {
             try {
                 const response = await apiCall('/api/bypass/pools');
@@ -588,13 +590,13 @@ class BypassDashboard:
         
         // Load pools on page load
         updatePoolsList();
-        '''
-        
+        """
+
         return self._get_base_html("Pools", content, extra_js=extra_js)
-    
+
     def _get_attacks_html(self) -> str:
         """Attacks management HTML."""
-        content = '''
+        content = """
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>Attack Registry</h2>
@@ -617,9 +619,9 @@ class BypassDashboard:
             
             <div id="attacksList">Loading attacks...</div>
         </div>
-        '''
-        
-        extra_js = '''
+        """
+
+        extra_js = """
         async function updateAttacksList() {
             try {
                 const category = document.getElementById('categoryFilter').value;
@@ -729,13 +731,13 @@ class BypassDashboard:
         
         // Load attacks on page load
         updateAttacksList();
-        '''
-        
+        """
+
         return self._get_base_html("Attacks", content, extra_js=extra_js)
-    
+
     def _get_testing_html(self) -> str:
         """Real-time testing interface HTML."""
-        content = '''
+        content = """
         <div class="grid grid-2">
             <div class="card">
                 <h2>🧪 Strategy Testing</h2>
@@ -776,9 +778,9 @@ class BypassDashboard:
             <h2>🔄 Active Tests</h2>
             <div id="activeTestsList">No active tests</div>
         </div>
-        '''
-        
-        extra_js = '''
+        """
+
+        extra_js = """
         let activeTests = {};
         
         async function startStrategyTest() {
@@ -892,13 +894,13 @@ class BypassDashboard:
         
         // Update active tests every 5 seconds
         setInterval(updateActiveTestsList, 5000);
-        '''
-        
+        """
+
         return self._get_base_html("Testing", content, extra_js=extra_js)
-    
+
     def _get_config_html(self) -> str:
         """Configuration import/export HTML."""
-        content = '''
+        content = """
         <div class="grid grid-2">
             <div class="card">
                 <h2>📤 Export Configuration</h2>
@@ -923,9 +925,9 @@ class BypassDashboard:
             <h2>📋 Configuration Preview</h2>
             <div id="configPreview">Click "Export Configuration" to see current configuration</div>
         </div>
-        '''
-        
-        extra_js = '''
+        """
+
+        extra_js = """
         async function exportConfig() {
             try {
                 const response = await apiCall('/api/bypass/config/export');
@@ -995,13 +997,13 @@ ${JSON.stringify(config, null, 2)}
                 `;
             }
         }
-        '''
-        
+        """
+
         return self._get_base_html("Configuration", content, extra_js=extra_js)
-    
+
     def _get_pool_detail_html(self, pool_id: str) -> str:
         """Pool detail page HTML."""
-        content = f'''
+        content = f"""
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 id="poolTitle">Loading pool...</h2>
@@ -1013,9 +1015,9 @@ ${JSON.stringify(config, null, 2)}
             
             <div id="poolDetails">Loading pool details...</div>
         </div>
-        '''
-        
-        extra_js = f'''
+        """
+
+        extra_js = f"""
         async function loadPoolDetails() {{
             try {{
                 const response = await apiCall('/api/bypass/pools/{pool_id}');
@@ -1101,13 +1103,13 @@ ${JSON.stringify(config, null, 2)}
         
         // Load pool details on page load
         loadPoolDetails();
-        '''
-        
-        return self._get_base_html(f"Pool Details", content, extra_js=extra_js)
-    
+        """
+
+        return self._get_base_html("Pool Details", content, extra_js=extra_js)
+
     def _get_pool_edit_html(self, pool_id: str) -> str:
         """Pool editing page HTML."""
-        content = f'''
+        content = f"""
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>Edit Pool</h2>
@@ -1119,9 +1121,9 @@ ${JSON.stringify(config, null, 2)}
                 <button type="submit" class="btn btn-success">Save Changes</button>
             </form>
         </div>
-        '''
-        
-        extra_js = f'''
+        """
+
+        extra_js = f"""
         let currentPool = null;
         
         async function loadPoolForEdit() {{
@@ -1202,13 +1204,13 @@ ${JSON.stringify(config, null, 2)}
         
         // Load pool data on page load
         loadPoolForEdit();
-        '''
-        
+        """
+
         return self._get_base_html("Edit Pool", content, extra_js=extra_js)
-    
+
     def _get_attack_detail_html(self, attack_id: str) -> str:
         """Attack detail page HTML."""
-        content = f'''
+        content = """
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 id="attackTitle">Loading attack...</h2>
@@ -1217,9 +1219,9 @@ ${JSON.stringify(config, null, 2)}
             
             <div id="attackDetails">Loading attack details...</div>
         </div>
-        '''
-        
-        extra_js = f'''
+        """
+
+        extra_js = f"""
         async function loadAttackDetails() {{
             try {{
                 const response = await apiCall('/api/bypass/attacks/{attack_id}');
@@ -1348,6 +1350,6 @@ ${JSON.stringify(config, null, 2)}
         
         // Load attack details on page load
         loadAttackDetails();
-        '''
-        
+        """
+
         return self._get_base_html("Attack Details", content, extra_js=extra_js)

@@ -8,7 +8,7 @@ Attacks that manipulate HTTP/2 frames and HPACK compression to evade DPI detecti
 import time
 import struct
 import random
-from typing import List, Dict, Tuple, Optional, Any
+from typing import List, Tuple
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 
@@ -1661,7 +1661,6 @@ class H2StreamMultiplexingAttack(BaseAttack):
         return result
 
 
-
 @register_attack
 class H2CSmugglingAttack(BaseAttack):
     """
@@ -1816,7 +1815,7 @@ class H2CSmugglingAttack(BaseAttack):
         if add_te:
             first_request += "Transfer-Encoding: chunked\r\n"
 
-        first_request += f"Connection: upgrade\r\n" f"Upgrade: h2c\r\n" f"\r\n"
+        first_request += "Connection: upgrade\r\n" "Upgrade: h2c\r\n" "\r\n"
 
         # Second request (smuggled, seen by backend)
         if use_chunked:
@@ -1843,7 +1842,7 @@ class H2CSmugglingAttack(BaseAttack):
             # Add conflicting TE header
             request += "Transfer-Encoding: identity\r\n"
 
-        request += f"Connection: upgrade\r\n" f"Upgrade: h2c\r\n" f"\r\n"
+        request += "Connection: upgrade\r\n" "Upgrade: h2c\r\n" "\r\n"
 
         # Chunked h2c data
         chunk_size = hex(len(h2_data))[2:].upper()

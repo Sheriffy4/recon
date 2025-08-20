@@ -6,14 +6,13 @@ import contextlib
 import threading
 import platform
 import queue
-from pathlib import Path
 from typing import List, Tuple, Generator, Optional
 
 # Отключаем лишний вывод от scapy
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 logging.getLogger("scapy.loading").setLevel(logging.ERROR)
 
-from scapy.all import AsyncSniffer, wrpcap, PcapWriter, Packet as ScapyPacket
+from scapy.all import AsyncSniffer, Packet as ScapyPacket
 from scapy.config import conf
 
 # Важная настройка для Windows и общего поведения
@@ -556,24 +555,49 @@ class PyDivertCaptureWorker:
             # Пробуем валидировать и упрощать фильтр перед открытием
             try:
                 from core.windivert_filter import WinDivertFilterGenerator
+
                 gen = WinDivertFilterGenerator()
                 ok, err = gen.validate_syntax(self.filter_expr)
                 if not ok:
-                    LOG.warning(f"Filter syntax warning: {err}. Trying progressive candidates.")
+                    LOG.warning(
+                        f"Filter syntax warning: {err}. Trying progressive candidates."
+                    )
                     # Попробуем построить кандидаты по портам из фильтра (простое извлечение) и без IP
                     import re
-                    ports = [int(p) for p in re.findall(r"tcp\.DstPort\s*==\s*(\d+)", self.filter_expr)]
+
+                    ports = [
+                        int(p)
+                        for p in re.findall(
+                            r"tcp\.DstPort\s*==\s*(\d+)", self.filter_expr
+                        )
+                    ]
                     ports = ports or [80, 443]
-                    candidates = gen.progressive_candidates(target_ips=[], target_ports=ports, direction="outbound", protocols=("tcp",))
+                    candidates = gen.progressive_candidates(
+                        target_ips=[],
+                        target_ports=ports,
+                        direction="outbound",
+                        protocols=("tcp",),
+                    )
                 else:
                     candidates = [self.filter_expr]
                     # Если длина слишком большая, добавим упрощения
                     if not gen._is_valid_length(self.filter_expr):
                         LOG.warning("Filter too long, using progressive simplification")
                         import re
-                        ports = [int(p) for p in re.findall(r"tcp\.DstPort\s*==\s*(\d+)", self.filter_expr)]
+
+                        ports = [
+                            int(p)
+                            for p in re.findall(
+                                r"tcp\.DstPort\s*==\s*(\d+)", self.filter_expr
+                            )
+                        ]
                         ports = ports or [80, 443]
-                        candidates = gen.progressive_candidates(target_ips=[], target_ports=ports, direction="outbound", protocols=("tcp",))
+                        candidates = gen.progressive_candidates(
+                            target_ips=[],
+                            target_ports=ports,
+                            direction="outbound",
+                            protocols=("tcp",),
+                        )
             except Exception as ve:
                 LOG.debug(f"Filter generator validation exception: {ve}")
                 candidates = [self.filter_expr]
@@ -584,12 +608,16 @@ class PyDivertCaptureWorker:
                 try:
                     handle = pydivert.WinDivert(cand)
                     handle.open()
-                    self.filter_expr = cand  # зафиксировать реальный используемый фильтр
+                    self.filter_expr = (
+                        cand  # зафиксировать реальный используемый фильтр
+                    )
                     break
                 except Exception as e:
                     last_error = e
                     handle = None
-                    LOG.warning(f"Failed to open WinDivert with candidate filter '{cand}': {e}")
+                    LOG.warning(
+                        f"Failed to open WinDivert with candidate filter '{cand}': {e}"
+                    )
             if handle is None:
                 # Финальный fallback — безопасный общий
                 simple_filter = "outbound and tcp"
@@ -972,7 +1000,7 @@ def session(
             scapy_error = _get_error_message(str(e))
 
             if pydivert_failed:
-                LOG.error(f"Both PyDivert and Scapy capture failed:")
+                LOG.error("Both PyDivert and Scapy capture failed:")
                 LOG.error(f"  PyDivert error: {pydivert_error}")
                 LOG.error(f"  Scapy error: {scapy_error}")
                 LOG.error(

@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: recon-dpi-tool
+Version: 0.1.0
+Summary: Advanced DPI vulnerability and bypass testing tool.
+Requires-Python: >=3.8

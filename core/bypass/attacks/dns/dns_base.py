@@ -13,6 +13,7 @@ from enum import Enum
 
 class AttackStatus(Enum):
     """Status of attack execution."""
+
     SUCCESS = "success"
     FAILURE = "failure"
     ERROR = "error"
@@ -22,12 +23,13 @@ class AttackStatus(Enum):
 @dataclass
 class AttackResult:
     """Result of attack execution."""
+
     success: bool
     data: Dict[str, Any] = field(default_factory=dict)
     error: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
     latency_ms: float = 0.0
-    
+
     @property
     def status(self) -> AttackStatus:
         """Get attack status based on success flag."""
@@ -41,11 +43,13 @@ class AttackResult:
 
 class BaseAttack(ABC):
     """Base class for all DNS attacks."""
-    
+
     def __init__(self):
         self.name = self.__class__.__name__
-        
+
     @abstractmethod
-    async def execute(self, target: str, parameters: Dict[str, Any] = None) -> AttackResult:
+    async def execute(
+        self, target: str, parameters: Dict[str, Any] = None
+    ) -> AttackResult:
         """Execute the attack against the target."""
         pass

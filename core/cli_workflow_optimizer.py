@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .fingerprint.models import EnhancedFingerprint
-from .bypass.attacks.base import AttackContext
 from .integration.attack_adapter import AttackAdapter
 from .integration.result_processor import ResultProcessor
 

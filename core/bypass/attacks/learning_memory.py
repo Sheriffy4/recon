@@ -12,9 +12,9 @@ import hashlib
 import asyncio
 import logging
 import time
-from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 LOG = logging.getLogger("LearningMemory")
@@ -67,9 +67,14 @@ class LearningMemory:
     """
     Persistent learning memory system using SQLite storage.
     """
-    def __init__(self, storage_path: str = "data/learning_memory.db", max_history_entries: int = 10000):
+
+    def __init__(
+        self,
+        storage_path: str = "data/learning_memory.db",
+        max_history_entries: int = 10000,
+    ):
         self.storage_path = Path(storage_path)
-        self.max_history_entries = max_history_entries # <-- ДОБАВЛЕНО
+        self.max_history_entries = max_history_entries  # <-- ДОБАВЛЕНО
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
         self.logger = LOG
         self._connection = None
@@ -368,7 +373,7 @@ class LearningMemory:
                     GROUP BY attack_name
                     HAVING success_count > 0
                 """,
-                    (fingerprint_hash, self.max_history_entries), # <-- ДОБАВЛЕНО
+                    (fingerprint_hash, self.max_history_entries),  # <-- ДОБАВЛЕНО
                 )
 
                 successful_attacks = {}
@@ -394,7 +399,11 @@ class LearningMemory:
                         WHERE fingerprint_hash = ? AND success = 1
                     )
                 """,
-                    (fingerprint_hash, self.max_history_entries, fingerprint_hash), # <-- ДОБАВЛЕНО
+                    (
+                        fingerprint_hash,
+                        self.max_history_entries,
+                        fingerprint_hash,
+                    ),  # <-- ДОБАВЛЕНО
                 )
 
                 failed_attacks = {row[0] for row in cursor.fetchall()}
@@ -557,7 +566,7 @@ class LearningMemory:
         """
         if not self._initialized:
             await self._initialize_database()
-            
+
         async with self._lock:
             try:
                 conn = await self._get_connection()
@@ -610,7 +619,7 @@ class LearningMemory:
         """
         if not self._initialized:
             await self._initialize_database()
-            
+
         async with self._lock:
             try:
                 conn = await self._get_connection()

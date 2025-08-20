@@ -26,6 +26,7 @@ class TrendDirection(Enum):
 @dataclass
 class AttackMetrics:
     """Metrics for individual attack performance"""
+
     attack_id: str
     success_count: int = 0
     failure_count: int = 0
@@ -34,13 +35,13 @@ class AttackMetrics:
     reliability_score: float = 0.0
     last_success: Optional[datetime] = None
     last_failure: Optional[datetime] = None
-    
+
     @property
     def success_rate(self) -> float:
         if self.total_attempts == 0:
             return 0.0
         return self.success_count / self.total_attempts
-    
+
     def update_metrics(self, success: bool, response_time: float):
         """Update metrics with new test result"""
         self.total_attempts += 1
@@ -50,17 +51,17 @@ class AttackMetrics:
         else:
             self.failure_count += 1
             self.last_failure = datetime.now()
-        
+
         # Update average response time
         self.avg_response_time = (
-            (self.avg_response_time * (self.total_attempts - 1) + response_time) 
-            / self.total_attempts
-        )
+            self.avg_response_time * (self.total_attempts - 1) + response_time
+        ) / self.total_attempts
 
 
 @dataclass
 class StrategyMetrics:
     """Metrics for strategy performance"""
+
     strategy_id: str
     domain_count: int = 0
     successful_domains: int = 0
@@ -68,7 +69,7 @@ class StrategyMetrics:
     avg_effectiveness: float = 0.0
     trend_direction: TrendDirection = TrendDirection.STABLE
     last_updated: datetime = field(default_factory=datetime.now)
-    
+
     @property
     def success_rate(self) -> float:
         if self.domain_count == 0:
@@ -79,6 +80,7 @@ class StrategyMetrics:
 @dataclass
 class DomainAnalytics:
     """Analytics data for specific domain"""
+
     domain: str
     port: int
     successful_strategies: List[str] = field(default_factory=list)
@@ -92,36 +94,39 @@ class DomainAnalytics:
 @dataclass
 class PerformanceTrend:
     """Performance trend data over time"""
+
     metric_type: MetricType
     entity_id: str  # attack_id, strategy_id, or domain
     timestamps: List[datetime] = field(default_factory=list)
     values: List[float] = field(default_factory=list)
     trend_direction: TrendDirection = TrendDirection.STABLE
     trend_strength: float = 0.0  # 0-1, how strong the trend is
-    
+
     def add_data_point(self, timestamp: datetime, value: float):
         """Add new data point to trend"""
         self.timestamps.append(timestamp)
         self.values.append(value)
         self._calculate_trend()
-    
+
     def _calculate_trend(self):
         """Calculate trend direction and strength"""
         if len(self.values) < 3:
             return
-        
+
         # Simple linear trend calculation
         recent_values = self.values[-10:]  # Last 10 points
         if len(recent_values) < 3:
             return
-        
+
         # Calculate slope
         x = list(range(len(recent_values)))
         y = recent_values
         n = len(x)
-        
-        slope = (n * sum(x[i] * y[i] for i in range(n)) - sum(x) * sum(y)) / (n * sum(x[i]**2 for i in range(n)) - sum(x)**2)
-        
+
+        slope = (n * sum(x[i] * y[i] for i in range(n)) - sum(x) * sum(y)) / (
+            n * sum(x[i] ** 2 for i in range(n)) - sum(x) ** 2
+        )
+
         # Determine trend direction
         if abs(slope) < 0.01:
             self.trend_direction = TrendDirection.STABLE
@@ -129,7 +134,7 @@ class PerformanceTrend:
             self.trend_direction = TrendDirection.IMPROVING
         else:
             self.trend_direction = TrendDirection.DECLINING
-        
+
         # Calculate trend strength (normalized)
         self.trend_strength = min(abs(slope) * 10, 1.0)
 
@@ -137,6 +142,7 @@ class PerformanceTrend:
 @dataclass
 class PredictionResult:
     """ML prediction result"""
+
     entity_id: str
     metric_type: MetricType
     predicted_value: float
@@ -148,6 +154,7 @@ class PredictionResult:
 @dataclass
 class AnalyticsReport:
     """Comprehensive analytics report"""
+
     report_id: str
     generated_at: datetime
     time_period: Dict[str, datetime]  # start, end
@@ -163,6 +170,7 @@ class AnalyticsReport:
 @dataclass
 class RealtimeMetrics:
     """Real-time metrics for dashboard"""
+
     timestamp: datetime
     active_attacks: int
     active_strategies: int

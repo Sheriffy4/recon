@@ -7,7 +7,7 @@ Provides configuration classes for different DI modes and service configurations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from enum import Enum
 
 LOG = logging.getLogger("DIConfig")

@@ -8,12 +8,13 @@ for better type safety and validation.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, Union
 from enum import Enum
 from pathlib import Path
 
 try:
     from pydantic import BaseModel, Field, field_validator
+
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
@@ -181,7 +182,9 @@ if PYDANTIC_AVAILABLE:
 
         # Monitoring and Health
         monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
-        health_thresholds: HealthThresholdsConfig = Field(default_factory=HealthThresholdsConfig)
+        health_thresholds: HealthThresholdsConfig = Field(
+            default_factory=HealthThresholdsConfig
+        )
 
         # Custom service configurations
         custom_services: Dict[str, ServiceConfiguration] = Field(default_factory=dict)
@@ -380,7 +383,9 @@ else:
 
         # Monitoring and Health
         monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
-        health_thresholds: HealthThresholdsConfig = field(default_factory=HealthThresholdsConfig)
+        health_thresholds: HealthThresholdsConfig = field(
+            default_factory=HealthThresholdsConfig
+        )
 
         # Custom service configurations
         custom_services: Dict[str, ServiceConfiguration] = field(default_factory=dict)

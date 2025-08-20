@@ -7,16 +7,17 @@ from typing import Dict, Set, Optional, Any
 try:
     import os
     import tempfile
-    
+
     # Set Scapy cache directory to temp to avoid permission issues
-    os.environ['SCAPY_CACHE_DIR'] = tempfile.gettempdir()
-    
+    os.environ["SCAPY_CACHE_DIR"] = tempfile.gettempdir()
+
     from scapy.all import sniff, send, IP, TCP, Raw, conf
 
     SCAPY_AVAILABLE = True
 except (ImportError, PermissionError, OSError) as e:
     SCAPY_AVAILABLE = False
     import logging
+
     logging.getLogger("ScapyEngine").warning(f"Scapy not available: {e}")
 
 from .base import BaseBypassEngine, EngineConfig

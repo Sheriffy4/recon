@@ -37,7 +37,12 @@ class ProductionEffectivenessTester:
     - Provides simple alerting on degrading trends
     """
 
-    def __init__(self, history_size: int = 50, alert_threshold: float = 0.6, timeout_s: float = 7.0):
+    def __init__(
+        self,
+        history_size: int = 50,
+        alert_threshold: float = 0.6,
+        timeout_s: float = 7.0,
+    ):
         self.history_size = max(10, history_size)
         self.alert_threshold = max(0.0, min(1.0, alert_threshold))
         self.timeout_s = timeout_s
@@ -47,7 +52,9 @@ class ProductionEffectivenessTester:
         try:
             import requests  # type: ignore
         except Exception as e:
-            return TestOutcome(success=False, latency_ms=0.0, error=f"requests not available: {e}")
+            return TestOutcome(
+                success=False, latency_ms=0.0, error=f"requests not available: {e}"
+            )
 
         scheme = "https" if https else "http"
         url = f"{scheme}://{domain}"
@@ -55,8 +62,12 @@ class ProductionEffectivenessTester:
         try:
             resp = requests.get(url, timeout=self.timeout_s)
             latency = (time.perf_counter() - start) * 1000.0
-            ok = 200 <= resp.status_code < 500  # считать подключение успешным при любом ответе сервера
-            return TestOutcome(success=ok, latency_ms=latency, status_code=resp.status_code)
+            ok = (
+                200 <= resp.status_code < 500
+            )  # считать подключение успешным при любом ответе сервера
+            return TestOutcome(
+                success=ok, latency_ms=latency, status_code=resp.status_code
+            )
         except Exception as e:
             latency = (time.perf_counter() - start) * 1000.0
             return TestOutcome(success=False, latency_ms=latency, error=str(e))
@@ -87,7 +98,9 @@ class ProductionEffectivenessTester:
 
         # 1) Baseline (без обхода)
         baseline = self._http_probe(domain, https=use_https)
-        LOG.debug(f"Baseline outcome: success={baseline.success}, code={baseline.status_code}, latency={baseline.latency_ms:.1f}ms error={baseline.error}")
+        LOG.debug(
+            f"Baseline outcome: success={baseline.success}, code={baseline.status_code}, latency={baseline.latency_ms:.1f}ms error={baseline.error}"
+        )
 
         # 2) Bypass (с включённым обходом)
         start_bypass()
@@ -100,28 +113,46 @@ class ProductionEffectivenessTester:
             except Exception:
                 pass
 
-        LOG.debug(f"Bypass outcome: success={bypass.success}, code={bypass.status_code}, latency={bypass.latency_ms:.1f}ms error={bypass.error}")
+        LOG.debug(
+            f"Bypass outcome: success={bypass.success}, code={bypass.status_code}, latency={bypass.latency_ms:.1f}ms error={bypass.error}"
+        )
 
         verdict, reason = self._derive_verdict(baseline, bypass)
-        report = EffectivenessReport(domain=domain, baseline=baseline, bypass=bypass, verdict=verdict, reason=reason)
+        report = EffectivenessReport(
+            domain=domain,
+            baseline=baseline,
+            bypass=bypass,
+            verdict=verdict,
+            reason=reason,
+        )
         self._append_history(report)
 
         trend = self._compute_trend()
-        if trend.get("success_rate") is not None and trend["success_rate"] < self.alert_threshold:
+        if (
+            trend.get("success_rate") is not None
+            and trend["success_rate"] < self.alert_threshold
+        ):
             LOG.warning(
                 f"Effectiveness degrading: success_rate={trend['success_rate']:.2f} < threshold={self.alert_threshold:.2f}"
             )
 
-        LOG.info(f"Effectiveness test verdict for {domain}: {verdict} ({reason or 'n/a'})")
+        LOG.info(
+            f"Effectiveness test verdict for {domain}: {verdict} ({reason or 'n/a'})"
+        )
         return report
 
-    def _derive_verdict(self, baseline: TestOutcome, bypass: TestOutcome) -> (str, Optional[str]):
+    def _derive_verdict(
+        self, baseline: TestOutcome, bypass: TestOutcome
+    ) -> (str, Optional[str]):
         # Отдельная проверка базовой коннективности
         if baseline.success:
             # Если baseline работает, то цель обхода — не ухудшить
             if bypass.success:
                 # Сравним задержки: если обход резко ухудшает — предупреждение
-                if bypass.latency_ms > baseline.latency_ms * 2 and bypass.latency_ms - baseline.latency_ms > 300:
+                if (
+                    bypass.latency_ms > baseline.latency_ms * 2
+                    and bypass.latency_ms - baseline.latency_ms > 300
+                ):
                     return "degrading", "bypass increases latency significantly"
                 return "healthy", None
             else:
@@ -137,4 +168,4 @@ class ProductionEffectivenessTester:
         return list(self._history)
 
     def get_trend(self) -> Dict[str, Any]:
-        return self._compute_trend() 
+        return self._compute_trend()

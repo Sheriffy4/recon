@@ -1,6 +1,5 @@
 # recon/config.py
 
-import pathlib
 
 # --- Корректный шаблон TLS ClientHello ---
 TLS_CLIENT_HELLO_TEMPLATE = bytes.fromhex(

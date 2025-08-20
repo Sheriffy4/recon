@@ -9,26 +9,21 @@ import logging
 import asyncio
 import copy
 import inspect
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 
-from ..async_utils.import_manager import ImportManager
 from ..bypass.attacks.registry import AttackRegistry
 from ..bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from ..async_utils import ImportManager, ensure_attack_execution_context
+from ..async_utils import ensure_attack_execution_context
 from .strategy_mapper import StrategyMapper
 from .result_processor import ResultProcessor
 from .integration_config import (
     IntegrationConfig,
     AttackExecutionError,
     CompatibilityError,
-    PerformanceError,
-    AttackMapping,
 )
-from ..protocols.tls import TLSHandler
 from ..bypass.engines.packet_executor import IntelligentPacketExecutor
-import config as recon_config
 
 
 LOG = logging.getLogger("AttackAdapter")
@@ -36,34 +31,47 @@ LOG = logging.getLogger("AttackAdapter")
 
 class AttackAdapter:
     # --- НАЧАЛО ИЗМЕНЕНИЯ ---
-    def __init__(self, attack_registry: Optional[AttackRegistry] = None, integration_config: Optional[IntegrationConfig] = None):
+    def __init__(
+        self,
+        attack_registry: Optional[AttackRegistry] = None,
+        integration_config: Optional[IntegrationConfig] = None,
+    ):
         """
         Инициализирует адаптер с опциональной зависимостью AttackRegistry.
         """
-        self.attack_registry = attack_registry or AttackRegistry()  # Создаем если не передан
+        self.attack_registry = (
+            attack_registry or AttackRegistry()
+        )  # Создаем если не передан
         self.config = integration_config or IntegrationConfig()
         self.logger = logging.getLogger("AttackAdapter")
         self.registry = self.attack_registry  # Используем переданный или созданный
 
         # Принудительно запускаем автообнаружение
-        if hasattr(self.registry, '_ensure_initialized'):
+        if hasattr(self.registry, "_ensure_initialized"):
             self.registry._ensure_initialized()
-        
+
         # Ensure attack imports are available
         self._ensure_attack_imports()
-    
+
     def _cache_attack_imports(self):
         """Cache attack imports for safe access."""
         try:
             from ..bypass.attacks.base import AttackResult, AttackStatus
+
             self._cached_attack_result = AttackResult
             self._cached_attack_status = AttackStatus
         except Exception as e:
             self.logger.warning(f"Failed to cache attack imports: {e}")
             self._cached_attack_result = None
             self._cached_attack_status = None
-    
-    def _safe_create_attack_result(self, status_name: str, error_message: str = "", technique_used: str = "", **kwargs):
+
+    def _safe_create_attack_result(
+        self,
+        status_name: str,
+        error_message: str = "",
+        technique_used: str = "",
+        **kwargs,
+    ):
         """Safely create AttackResult with proper error handling."""
         try:
             # Try using cached imports first
@@ -73,20 +81,21 @@ class AttackAdapter:
                     status=status,
                     error_message=error_message,
                     technique_used=technique_used,
-                    **kwargs
+                    **kwargs,
                 )
         except Exception:
             pass
-        
+
         try:
             # Fallback to direct import
             from ..bypass.attacks.base import AttackResult, AttackStatus
+
             status = getattr(AttackStatus, status_name)
             return AttackResult(
                 status=status,
                 error_message=error_message,
                 technique_used=technique_used,
-                **kwargs
+                **kwargs,
             )
         except Exception as e:
             self.logger.critical(f"Critical error creating AttackResult: {e}")
@@ -94,14 +103,14 @@ class AttackAdapter:
 
         self.strategy_mapper = StrategyMapper()
         self.result_processor = ResultProcessor()
-        
+
         # Cache imports for safe access
         self._cached_attack_result = None
         self._cached_attack_status = None
         self._cache_attack_imports()
 
         # --- ДОБАВИТЬ ЭТИ 2 СТРОКИ ---
-      
+
         if self.config.debug_mode:
             self.logger.setLevel(logging.DEBUG)
 
@@ -133,27 +142,37 @@ class AttackAdapter:
         LOG.info("AttackAdapter initialized with unified attack system integration")
         LOG.info("AttackAdapter serves as bridge between testing and production modes")
         LOG.info("IntelligentPacketExecutor integrated for raw packet attacks")
-        
+
         # Dry run statistics
         self.dry_run_stats = {
             "total_dry_runs": 0,
             "segments_simulated": 0,
             "validation_errors": 0,
-            "simulation_time": 0.0
+            "simulation_time": 0.0,
         }
 
     _PARAM_ALIASES = {
         "tcp_multisplit": {
             # вход -> (целевой ключ, преобразование)
             "split_count": ("positions", lambda v: list(range(1, int(v) * 2, 2))),
-            "split_positions": ("positions", lambda v: [int(x) for x in v] if isinstance(v, (list, tuple)) else [int(v)]),
+            "split_positions": (
+                "positions",
+                lambda v: (
+                    [int(x) for x in v] if isinstance(v, (list, tuple)) else [int(v)]
+                ),
+            ),
             "split_pos": ("positions", lambda v: [int(v)]),
             "seq_overlap": ("overlap_size", int),
             "overlap": ("overlap_size", int),
         },
         "tcp_multidisorder": {
             "split_count": ("positions", lambda v: list(range(1, int(v) * 2, 2))),
-            "split_positions": ("positions", lambda v: [int(x) for x in v] if isinstance(v, (list, tuple)) else [int(v)]),
+            "split_positions": (
+                "positions",
+                lambda v: (
+                    [int(x) for x in v] if isinstance(v, (list, tuple)) else [int(v)]
+                ),
+            ),
             "split_pos": ("positions", lambda v: [int(v)]),
         },
         "tcp_seqovl": {
@@ -161,7 +180,10 @@ class AttackAdapter:
             "split_pos": ("split_pos", int),
         },
         "tcp_fakeddisorder": {
-            "split_positions": ("split_pos", lambda v: int(v[0]) if isinstance(v, (list, tuple)) and v else int(v)),
+            "split_positions": (
+                "split_pos",
+                lambda v: int(v[0]) if isinstance(v, (list, tuple)) and v else int(v),
+            ),
             "split_pos": ("split_pos", int),
         },
         "badsum_race": {
@@ -174,7 +196,7 @@ class AttackAdapter:
         self,
         attack_name: str,
         provided: Dict[str, Any],
-        expected_keys: Optional[set] = None
+        expected_keys: Optional[set] = None,
     ) -> Dict[str, Any]:
         """
         Приводит параметры к ожидаемым ключам атаки:
@@ -198,7 +220,7 @@ class AttackAdapter:
         out: Dict[str, Any] = {}
         consumed_keys = set()
 
-        for src_key, value in (normalized.items()):
+        for src_key, value in normalized.items():
             if src_key in aliases:
                 dst_key, converter = aliases[src_key]
                 try:
@@ -254,8 +276,6 @@ class AttackAdapter:
 
         return out
 
-    
-    
     def is_bridge_component(self) -> bool:
         """
         Confirms that this adapter bridges testing and production modes.
@@ -369,11 +389,13 @@ class AttackAdapter:
 
             # **ИСПРАВЛЕНИЕ:** Извлекаем только словарь 'params' и обновляем контекст.
             if strategy_params:
-                params_to_update = strategy_params.get('params', {})
+                params_to_update = strategy_params.get("params", {})
                 if params_to_update:
                     execution_context.params.update(params_to_update)
-            
-            self.logger.debug(f"Final parameters for '{attack_name}': {execution_context.params}")
+
+            self.logger.debug(
+                f"Final parameters for '{attack_name}': {execution_context.params}"
+            )
 
             # Выполняем атаку, передавая только контекст.
             if inspect.iscoroutinefunction(attack_instance.execute):
@@ -381,23 +403,22 @@ class AttackAdapter:
             else:
                 loop = asyncio.get_running_loop()
                 result = await loop.run_in_executor(
-                    None,
-                    attack_instance.execute,
-                    execution_context
+                    None, attack_instance.execute, execution_context
                 )
-            
+
             return result
 
         except Exception as e:
             self.logger.error(
-                f"Exception during execution of attack '{attack_name}': {e}", exc_info=True
+                f"Exception during execution of attack '{attack_name}': {e}",
+                exc_info=True,
             )
             # Возвращаем стандартизированный результат ошибки.
             # Предполагается, что циклические импорты устранены.
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=f"Exception during execution: {e}",
-                technique_used=attack_name
+                technique_used=attack_name,
             )
 
     async def execute_attack_sequence(
@@ -423,7 +444,9 @@ class AttackAdapter:
             # --- НОРМАЛИЗАЦИЯ ПАРАМЕТРОВ ДЛЯ СТАДИИ ---
             stage_params_raw = stage_task.get("params", {}) or {}
             # Если схема у конкретной атаки недоступна — expected_keys=None (не фильтруем лишнее)
-            stage_params = self._normalize_attack_params_for_name(stage_name, stage_params_raw, expected_keys=None)
+            stage_params = self._normalize_attack_params_for_name(
+                stage_name, stage_params_raw, expected_keys=None
+            )
             current_context.params = stage_params
             # --- КОНЕЦ НОРМАЛИЗАЦИИ ---
 
@@ -434,11 +457,12 @@ class AttackAdapter:
 
             # Безопасная проверка статуса
             try:
-                is_success = (stage_result.status == AttackStatus.SUCCESS)
+                is_success = stage_result.status == AttackStatus.SUCCESS
             except NameError:
                 from ..bypass.attacks.base import AttackStatus as AS
-                is_success = (stage_result.status == AS.SUCCESS)
-            
+
+                is_success = stage_result.status == AS.SUCCESS
+
             if is_success:
                 successful_stages.append(stage_name)
                 current_context = self._update_context_from_result(
@@ -461,8 +485,7 @@ class AttackAdapter:
         """Агрегирует результаты комбо-атаки."""
         if not results:
             return self._safe_create_attack_result(
-                status_name="ERROR",
-                error_message="No stages were executed."
+                status_name="ERROR", error_message="No stages were executed."
             )
 
         final_result = results[-1]
@@ -472,6 +495,7 @@ class AttackAdapter:
                 final_result.status = AttackStatus.ERROR
             except NameError:
                 from ..bypass.attacks.base import AttackStatus as AS
+
                 final_result.status = AS.ERROR
             failed_stage_info = all_stages[len(successful_stages)]
             failed_stage_name = failed_stage_info.get("name") or failed_stage_info.get(
@@ -487,7 +511,9 @@ class AttackAdapter:
         final_result.packets_sent = sum(r.packets_sent for r in results)
         final_result.bytes_sent = sum(r.bytes_sent for r in results)
         final_result.technique_used = "dynamic_combo"
-        final_result.set_metadata("combo_stages_executed", [r.technique_used for r in results])
+        final_result.set_metadata(
+            "combo_stages_executed", [r.technique_used for r in results]
+        )
         final_result.set_metadata("combo_successful_stages", successful_stages)
 
         return final_result
@@ -536,9 +562,7 @@ class AttackAdapter:
                 except Exception as e:
                     LOG.error(f"Parallel attack {attack_name} failed: {e}")
                     error_result = self._safe_create_attack_result(
-                        status_name="ERROR", 
-                        error_message=str(e), 
-                        latency_ms=0
+                        status_name="ERROR", error_message=str(e), latency_ms=0
                     )
                     results.append(error_result)
 
@@ -729,7 +753,7 @@ class AttackAdapter:
             return self._safe_create_attack_result(
                 status_name="TIMEOUT",
                 error_message=f"Attack timed out after {self.config.attack_timeout_seconds}s",
-                latency_ms=self.config.attack_timeout_seconds * 1000
+                latency_ms=self.config.attack_timeout_seconds * 1000,
             )
 
     def _generate_cache_key(self, attack_name: str, context: AttackContext) -> str:
@@ -817,15 +841,15 @@ class AttackAdapter:
         try:
             # Get attack execution context and inject into current globals
             context = ensure_attack_execution_context()
-            
+
             # Inject imports into the current module's globals
             current_globals = globals()
             for name, value in context.items():
                 if value is not None and name not in current_globals:
                     current_globals[name] = value
-                    
+
             LOG.debug("Attack imports ensured successfully")
-            
+
         except Exception as e:
             LOG.warning(f"Failed to ensure attack imports: {e}")
 
@@ -943,7 +967,7 @@ class AttackAdapter:
             mock_result = self._safe_create_attack_result(
                 status_name="SUCCESS",
                 technique_used="scapy_conversion",
-                metadata={"segments": segments}
+                metadata={"segments": segments},
             )
             if mock_result:
                 mock_result.success = True
@@ -1005,27 +1029,29 @@ class AttackAdapter:
             True if IntelligentPacketExecutor is available and functional
         """
         return self.packet_executor is not None
-    
-    async def _execute_dry_run(self, attack, context: AttackContext, attack_name: str) -> AttackResult:
+
+    async def _execute_dry_run(
+        self, attack, context: AttackContext, attack_name: str
+    ) -> AttackResult:
         """
         Execute attack in dry run mode - simulate execution without network transmission.
-        
+
         Args:
             attack: Attack instance to simulate
             context: Attack context
             attack_name: Name of the attack
-            
+
         Returns:
             AttackResult with simulation details
         """
         start_time = time.time()
-        
+
         try:
             with self.stats_lock:
                 self.dry_run_stats["total_dry_runs"] += 1
-            
+
             LOG.info(f"Starting dry run simulation for attack '{attack_name}'")
-            
+
             # Create dry run result
             result = self._safe_create_attack_result(
                 status_name="SUCCESS",
@@ -1035,79 +1061,93 @@ class AttackAdapter:
                     "dry_run": True,
                     "simulation_mode": True,
                     "attack_name": attack_name,
-                    "context_summary": self._create_context_summary(context)
-                }
+                    "context_summary": self._create_context_summary(context),
+                },
             )
-            
+
             # Simulate attack execution by calling the attack's execute method
             # but intercept any network operations
             try:
                 # Execute attack in simulation mode
-                simulated_result = await self._simulate_attack_execution(attack, context)
-                
+                simulated_result = await self._simulate_attack_execution(
+                    attack, context
+                )
+
                 # Merge simulation results
                 if simulated_result:
                     result.status = simulated_result.status
-                    result.technique_used = simulated_result.technique_used or attack_name
+                    result.technique_used = (
+                        simulated_result.technique_used or attack_name
+                    )
                     result.error_message = simulated_result.error_message
-                    
+
                     # Copy metadata from simulated result
                     if simulated_result.metadata:
                         result.metadata.update(simulated_result.metadata)
-                    
+
                     # Handle segments simulation
-                    if hasattr(simulated_result, '_segments') and simulated_result._segments:
+                    if (
+                        hasattr(simulated_result, "_segments")
+                        and simulated_result._segments
+                    ):
                         segments = simulated_result._segments
                         result._segments = segments
                         result.metadata["segments"] = segments
                         result.metadata["segments_count"] = len(segments)
-                        
+
                         # Simulate segment validation and analysis
-                        validation_result = self._simulate_segments_validation(segments, context)
+                        validation_result = self._simulate_segments_validation(
+                            segments, context
+                        )
                         result.metadata.update(validation_result)
-                        
+
                         with self.stats_lock:
                             self.dry_run_stats["segments_simulated"] += len(segments)
-                    
+
                     # Handle modified payload
                     if simulated_result.modified_payload:
                         result.modified_payload = simulated_result.modified_payload
                         result.metadata["payload_modified"] = True
                         result.metadata["original_payload_size"] = len(context.payload)
-                        result.metadata["modified_payload_size"] = len(simulated_result.modified_payload)
-                
+                        result.metadata["modified_payload_size"] = len(
+                            simulated_result.modified_payload
+                        )
+
             except Exception as e:
                 LOG.warning(f"Dry run simulation encountered error: {e}")
                 try:
                     result.status = AttackStatus.FAILED
                 except NameError:
                     from ..bypass.attacks.base import AttackStatus as AS
+
                     result.status = AS.FAILED
                 result.error_message = f"Simulation error: {e}"
                 result.metadata["simulation_error"] = str(e)
-                
+
                 with self.stats_lock:
                     self.dry_run_stats["validation_errors"] += 1
-            
+
             # Add dry run specific metadata
             simulation_time = (time.time() - start_time) * 1000
             result.latency_ms = simulation_time
             result.metadata["simulation_time_ms"] = simulation_time
             result.metadata["dry_run_timestamp"] = time.time()
-            
+
             # Log dry run summary
             self._log_dry_run_summary(result, attack_name, context)
-            
+
             with self.stats_lock:
                 self.dry_run_stats["simulation_time"] += simulation_time
-            
-            LOG.info(f"Dry run simulation completed for '{attack_name}' in {simulation_time:.3f}ms")
-            
+
+            LOG.info(
+                f"Dry run simulation completed for '{attack_name}' in {simulation_time:.3f}ms"
+            )
+
             return result
-            
+
         except Exception as e:
             LOG.error(f"Dry run execution failed for '{attack_name}': {e}")
-            
+
             # Return failed result
             return self._safe_create_attack_result(
                 status_name="FAILED",
@@ -1117,18 +1157,18 @@ class AttackAdapter:
                 metadata={
                     "dry_run": True,
                     "simulation_mode": True,
-                    "dry_run_error": str(e)
-                }
+                    "dry_run_error": str(e),
+                },
             )
-    
+
     async def _simulate_attack_execution(self, attack, context: AttackContext):
         """
         Simulate attack execution by calling the attack but preventing network operations.
-        
+
         Args:
             attack: Attack instance
             context: Attack context
-            
+
         Returns:
             Simulated AttackResult
         """
@@ -1138,55 +1178,61 @@ class AttackAdapter:
             sim_context.params = sim_context.params or {}
             sim_context.params["dry_run"] = True
             sim_context.params["simulation_mode"] = True
-            
+
             # Execute attack in thread to prevent blocking
             result = await asyncio.to_thread(attack.execute, sim_context)
-            
+
             return result
-            
+
         except Exception as e:
             LOG.debug(f"Attack simulation failed: {e}")
             return None
-    
-    def _simulate_segments_validation(self, segments: list, context: AttackContext) -> dict:
+
+    def _simulate_segments_validation(
+        self, segments: list, context: AttackContext
+    ) -> dict:
         """
         Simulate validation of segments for dry run.
-        
+
         Args:
             segments: List of segment tuples
             context: Attack context
-            
+
         Returns:
             Dictionary with validation results
         """
         validation_result = {
             "segments_validated": True,
             "validation_errors": [],
-            "segment_analysis": {}
+            "segment_analysis": {},
         }
-        
+
         try:
             # Import validation function
-            from ..bypass.attacks.segment_packet_builder import validate_segments_for_building
-            
+            from ..bypass.attacks.segment_packet_builder import (
+                validate_segments_for_building,
+            )
+
             is_valid, error_msg = validate_segments_for_building(segments, context)
-            
+
             validation_result["segments_valid"] = is_valid
             if not is_valid:
                 validation_result["validation_errors"].append(error_msg)
-            
+
             # Analyze segments
             total_payload_size = 0
             ttl_modifications = 0
             checksum_corruptions = 0
             timing_delays = 0
-            
+
             for i, segment in enumerate(segments):
                 if len(segment) >= 3:
                     payload_data, seq_offset, options = segment[:3]
-                    
-                    total_payload_size += len(payload_data) if isinstance(payload_data, bytes) else 0
-                    
+
+                    total_payload_size += (
+                        len(payload_data) if isinstance(payload_data, bytes) else 0
+                    )
+
                     if isinstance(options, dict):
                         if options.get("ttl") and options["ttl"] != 64:
                             ttl_modifications += 1
@@ -1194,28 +1240,28 @@ class AttackAdapter:
                             checksum_corruptions += 1
                         if options.get("delay_ms", 0) > 0:
                             timing_delays += 1
-            
+
             validation_result["segment_analysis"] = {
                 "total_segments": len(segments),
                 "total_payload_size": total_payload_size,
                 "ttl_modifications": ttl_modifications,
                 "checksum_corruptions": checksum_corruptions,
-                "timing_delays": timing_delays
+                "timing_delays": timing_delays,
             }
-            
+
         except Exception as e:
             validation_result["segments_validated"] = False
             validation_result["validation_errors"].append(f"Validation error: {e}")
-        
+
         return validation_result
-    
+
     def _create_context_summary(self, context: AttackContext) -> dict:
         """
         Create summary of attack context for dry run logging.
-        
+
         Args:
             context: Attack context
-            
+
         Returns:
             Dictionary with context summary
         """
@@ -1226,13 +1272,16 @@ class AttackAdapter:
             "payload_size": len(context.payload) if context.payload else 0,
             "domain": context.domain,
             "params_count": len(context.params) if context.params else 0,
-            "has_tcp_session": hasattr(context, 'tcp_seq') and context.tcp_seq is not None
+            "has_tcp_session": hasattr(context, "tcp_seq")
+            and context.tcp_seq is not None,
         }
-    
-    def _log_dry_run_summary(self, result: AttackResult, attack_name: str, context: AttackContext):
+
+    def _log_dry_run_summary(
+        self, result: AttackResult, attack_name: str, context: AttackContext
+    ):
         """
         Log comprehensive dry run summary.
-        
+
         Args:
             result: Dry run result
             attack_name: Name of attack
@@ -1242,17 +1291,21 @@ class AttackAdapter:
         LOG.info(f"DRY RUN SUMMARY - Attack: {attack_name}")
         LOG.info("=" * 60)
         LOG.info(f"Status: {result.status.value}")
-        LOG.info(f"Simulation time: {result.metadata.get('simulation_time_ms', 0):.3f}ms")
-        
+        LOG.info(
+            f"Simulation time: {result.metadata.get('simulation_time_ms', 0):.3f}ms"
+        )
+
         if result.error_message:
             LOG.info(f"Error: {result.error_message}")
-        
+
         # Log context summary
         context_summary = result.metadata.get("context_summary", {})
-        LOG.info(f"Target: {context_summary.get('dst_ip')}:{context_summary.get('dst_port')}")
+        LOG.info(
+            f"Target: {context_summary.get('dst_ip')}:{context_summary.get('dst_port')}"
+        )
         LOG.info(f"Protocol: {context_summary.get('protocol')}")
         LOG.info(f"Payload size: {context_summary.get('payload_size')} bytes")
-        
+
         # Log segments analysis if available
         if "segment_analysis" in result.metadata:
             analysis = result.metadata["segment_analysis"]
@@ -1261,7 +1314,7 @@ class AttackAdapter:
             LOG.info(f"TTL modifications: {analysis.get('ttl_modifications', 0)}")
             LOG.info(f"Checksum corruptions: {analysis.get('checksum_corruptions', 0)}")
             LOG.info(f"Timing delays: {analysis.get('timing_delays', 0)}")
-        
+
         # Log validation results
         if "validation_errors" in result.metadata:
             errors = result.metadata["validation_errors"]
@@ -1271,27 +1324,33 @@ class AttackAdapter:
                     LOG.info(f"  - {error}")
             else:
                 LOG.info("Validation: PASSED")
-        
+
         LOG.info("=" * 60)
-    
+
     def get_dry_run_stats(self) -> dict:
         """
         Get dry run execution statistics.
-        
+
         Returns:
             Dictionary with dry run statistics
         """
         with self.stats_lock:
             stats = self.dry_run_stats.copy()
-        
+
         # Calculate derived statistics
         if stats["total_dry_runs"] > 0:
-            stats["average_simulation_time_ms"] = stats["simulation_time"] / stats["total_dry_runs"]
-            stats["average_segments_per_run"] = stats["segments_simulated"] / stats["total_dry_runs"]
-            stats["validation_error_rate"] = stats["validation_errors"] / stats["total_dry_runs"]
+            stats["average_simulation_time_ms"] = (
+                stats["simulation_time"] / stats["total_dry_runs"]
+            )
+            stats["average_segments_per_run"] = (
+                stats["segments_simulated"] / stats["total_dry_runs"]
+            )
+            stats["validation_error_rate"] = (
+                stats["validation_errors"] / stats["total_dry_runs"]
+            )
         else:
             stats["average_simulation_time_ms"] = 0.0
             stats["average_segments_per_run"] = 0.0
             stats["validation_error_rate"] = 0.0
-        
+
         return stats

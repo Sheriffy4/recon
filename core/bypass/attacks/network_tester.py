@@ -10,7 +10,7 @@ import socket
 import time
 import ssl
 import logging
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple
 from .base import AttackContext, AttackResult, AttackStatus
 from .domain_tester import test_domain_accessibility_sync
 from .bypass_tester import test_bypass_effectiveness_sync
@@ -259,7 +259,7 @@ class NetworkTester:
                             attack_result.metadata["bypass_results"] = bypass_results
                             attack_result.metadata["domain_tested"] = context.domain
 
-            except Exception as e:
+            except Exception:
                 # Fallback to old HTTP test if domain testing fails
                 success, latency_ms, error_msg, response = self.test_http_request(
                     context, use_ssl

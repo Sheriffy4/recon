@@ -12,6 +12,7 @@ from core.bypass.types import PacketInfo, PacketDirection, ProtocolType
 # Conditional imports
 try:
     import pydivert
+
     HAS_PYDIVERT = True
 except ImportError:
     HAS_PYDIVERT = False
@@ -19,6 +20,7 @@ except ImportError:
 
 try:
     from scapy.all import IP, TCP, UDP, Raw
+
     HAS_SCAPY = True
 except ImportError:
     HAS_SCAPY = False
@@ -26,35 +28,45 @@ except ImportError:
 
 class PacketConverter:
     """Convert various packet formats to unified PacketInfo."""
-    
-    def _build_packet_info(packet: 'pydivert.Packet', protocol_specific_data: Dict[str, Any]) -> PacketInfo:
+
+    def _build_packet_info(
+        packet: "pydivert.Packet", protocol_specific_data: Dict[str, Any]
+    ) -> PacketInfo:
         """Вспомогательный метод для создания объекта PacketInfo, чтобы избежать дублирования."""
-        ttl = packet.ipv4.ttl if packet.ipv4 else (packet.ipv6.hop_limit if packet.ipv6 else 64)
-        
+        ttl = (
+            packet.ipv4.ttl
+            if packet.ipv4
+            else (packet.ipv6.hop_limit if packet.ipv6 else 64)
+        )
+
         base_data = {
             "src_ip": packet.src_addr,
             "dst_ip": packet.dst_addr,
-            "direction": PacketDirection.OUTBOUND if packet.is_outbound else PacketDirection.INBOUND,
+            "direction": (
+                PacketDirection.OUTBOUND
+                if packet.is_outbound
+                else PacketDirection.INBOUND
+            ),
             "ip_ttl": ttl,
             "raw_data": bytes(packet.raw),
             "interface": packet.interface,
             # --- ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Используем metadata для служебной информации ---
             "metadata": {
                 "source": "pydivert",
-                "original_packet": packet # Сохраняем оригинал для глубокой отладки
-            }
+                "original_packet": packet,  # Сохраняем оригинал для глубокой отладки
+            },
         }
-        
+
         # Объединяем базовые и специфичные для протокола данные
         all_data = {**base_data, **protocol_specific_data}
-        
+
         # Заполняем payload_size
         all_data["payload_size"] = len(all_data.get("payload", b""))
 
         return PacketInfo(**all_data)
-    
+
     @staticmethod
-    def from_pydivert(packet: 'pydivert.Packet') -> Optional[PacketInfo]:
+    def from_pydivert(packet: "pydivert.Packet") -> Optional[PacketInfo]:
         """Convert PyDivert packet to PacketInfo."""
         if not HAS_PYDIVERT or not packet:
             return None
@@ -88,22 +100,30 @@ class PacketConverter:
                     "protocol": protocol,
                 }
             else:
-                return None # Пропускаем не TCP/UDP пакеты
+                return None  # Пропускаем не TCP/UDP пакеты
 
             # --- ОСНОВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
             # Убираем 'source' и создаем объект корректно
             base_data = {
                 "src_ip": packet.src_addr,
                 "dst_ip": packet.dst_addr,
-                "direction": PacketDirection.OUTBOUND if packet.is_outbound else PacketDirection.INBOUND,
-                "ip_ttl": packet.ipv4.ttl if packet.ipv4 else (packet.ipv6.hop_limit if packet.ipv6 else 64),
+                "direction": (
+                    PacketDirection.OUTBOUND
+                    if packet.is_outbound
+                    else PacketDirection.INBOUND
+                ),
+                "ip_ttl": (
+                    packet.ipv4.ttl
+                    if packet.ipv4
+                    else (packet.ipv6.hop_limit if packet.ipv6 else 64)
+                ),
                 "raw_data": bytes(packet.raw),
                 "interface": packet.interface,
                 "payload_size": len(payload),
                 "metadata": {
                     "source_lib": "pydivert",
-                    "original_packet_ref": id(packet)
-                }
+                    "original_packet_ref": id(packet),
+                },
             }
 
             # Объединяем данные и создаем PacketInfo
@@ -112,29 +132,32 @@ class PacketConverter:
 
         except Exception as e:
             import logging
-            logging.getLogger("PacketConverter").error(f"Error converting PyDivert packet: {e}")
+
+            logging.getLogger("PacketConverter").error(
+                f"Error converting PyDivert packet: {e}"
+            )
             return None
-    
+
     @staticmethod
     def from_scapy(packet: Any) -> Optional[PacketInfo]:
         """Convert Scapy packet to PacketInfo."""
         if not HAS_SCAPY:
             return None
-            
+
         try:
             # Check if packet has IP layer
-            if not packet.haslayer('IP'):
+            if not packet.haslayer("IP"):
                 return None
-                
-            ip_layer = packet['IP']
-            
+
+            ip_layer = packet["IP"]
+
             # Determine protocol and extract transport info
-            if packet.haslayer('TCP'):
+            if packet.haslayer("TCP"):
                 protocol = ProtocolType.TCP
-                tcp_layer = packet['TCP']
+                tcp_layer = packet["TCP"]
                 src_port = tcp_layer.sport
                 dst_port = tcp_layer.dport
-                
+
                 # TCP specific fields
                 tcp_seq = tcp_layer.seq
                 tcp_ack = tcp_layer.ack
@@ -142,29 +165,31 @@ class PacketConverter:
                 tcp_window = tcp_layer.window
                 tcp_urgent = tcp_layer.urgptr
                 tcp_options = bytes(tcp_layer.options) if tcp_layer.options else None
-                
+
                 # Extract payload
-                payload = bytes(packet['Raw']) if packet.haslayer('Raw') else b""
-                
-            elif packet.haslayer('UDP'):
+                payload = bytes(packet["Raw"]) if packet.haslayer("Raw") else b""
+
+            elif packet.haslayer("UDP"):
                 protocol = ProtocolType.UDP
-                udp_layer = packet['UDP']
+                udp_layer = packet["UDP"]
                 src_port = udp_layer.sport
                 dst_port = udp_layer.dport
-                
+
                 # No TCP fields for UDP
-                tcp_seq = tcp_ack = tcp_flags = tcp_window = tcp_urgent = tcp_options = None
-                
+                tcp_seq = tcp_ack = tcp_flags = tcp_window = tcp_urgent = (
+                    tcp_options
+                ) = None
+
                 # Extract payload
-                payload = bytes(packet['Raw']) if packet.haslayer('Raw') else b""
-                
+                payload = bytes(packet["Raw"]) if packet.haslayer("Raw") else b""
+
             else:
                 # Unsupported transport protocol
                 return None
-                
+
             # Scapy doesn't have direction info, assume outbound
             direction = PacketDirection.OUTBOUND
-            
+
             return PacketInfo(
                 # IP layer
                 src_ip=ip_layer.src,
@@ -174,12 +199,10 @@ class PacketConverter:
                 ip_id=ip_layer.id,
                 ip_flags=ip_layer.flags,
                 ip_options=bytes(ip_layer.options) if ip_layer.options else b"",
-                
                 # Transport layer
                 src_port=src_port,
                 dst_port=dst_port,
                 protocol=protocol,
-                
                 # TCP specific
                 tcp_seq=tcp_seq,
                 tcp_ack=tcp_ack,
@@ -187,37 +210,35 @@ class PacketConverter:
                 tcp_window=tcp_window,
                 tcp_urgent=tcp_urgent,
                 tcp_options=tcp_options,
-                
                 # Common
                 direction=direction,
                 payload=payload,
                 payload_size=len(payload),
                 raw_data=bytes(packet),
-                
                 # Metadata
-                metadata={
-                    "original_packet": packet,
-                    "packet_type": "scapy"
-                }
+                metadata={"original_packet": packet, "packet_type": "scapy"},
             )
-            
+
         except Exception as e:
             import logging
+
             logging.error(f"Error converting Scapy packet: {e}")
             return None
-    
+
     @staticmethod
-    def from_raw_bytes(data: bytes, direction: PacketDirection = PacketDirection.OUTBOUND) -> Optional[PacketInfo]:
+    def from_raw_bytes(
+        data: bytes, direction: PacketDirection = PacketDirection.OUTBOUND
+    ) -> Optional[PacketInfo]:
         """Convert raw packet bytes to PacketInfo."""
         try:
             if len(data) < 20:  # Minimum IP header
                 return None
-                
+
             # Parse IP header
             ip_version = (data[0] >> 4) & 0xF
             if ip_version != 4:  # Only IPv4 for now
                 return None
-                
+
             ip_hlen = (data[0] & 0xF) * 4
             ip_total_len = struct.unpack("!H", data[2:4])[0]
             ip_id = struct.unpack("!H", data[4:6])[0]
@@ -227,12 +248,12 @@ class PacketConverter:
             ip_protocol = data[9]
             src_ip = socket.inet_ntoa(data[12:16])
             dst_ip = socket.inet_ntoa(data[16:20])
-            
+
             # Parse transport layer
             if ip_protocol == 6:  # TCP
                 if len(data) < ip_hlen + 20:  # Minimum TCP header
                     return None
-                    
+
                 tcp_data = data[ip_hlen:]
                 src_port = struct.unpack("!H", tcp_data[0:2])[0]
                 dst_port = struct.unpack("!H", tcp_data[2:4])[0]
@@ -242,20 +263,26 @@ class PacketConverter:
                 tcp_flags_byte = tcp_data[13]
                 tcp_window = struct.unpack("!H", tcp_data[14:16])[0]
                 tcp_urgent = struct.unpack("!H", tcp_data[18:20])[0]
-                
+
                 # Convert flags to string
                 tcp_flags = ""
-                if tcp_flags_byte & 0x01: tcp_flags += "F"
-                if tcp_flags_byte & 0x02: tcp_flags += "S"
-                if tcp_flags_byte & 0x04: tcp_flags += "R"
-                if tcp_flags_byte & 0x08: tcp_flags += "P"
-                if tcp_flags_byte & 0x10: tcp_flags += "A"
-                if tcp_flags_byte & 0x20: tcp_flags += "U"
-                
+                if tcp_flags_byte & 0x01:
+                    tcp_flags += "F"
+                if tcp_flags_byte & 0x02:
+                    tcp_flags += "S"
+                if tcp_flags_byte & 0x04:
+                    tcp_flags += "R"
+                if tcp_flags_byte & 0x08:
+                    tcp_flags += "P"
+                if tcp_flags_byte & 0x10:
+                    tcp_flags += "A"
+                if tcp_flags_byte & 0x20:
+                    tcp_flags += "U"
+
                 # Extract payload
                 payload_start = ip_hlen + tcp_hlen
                 payload = data[payload_start:] if len(data) > payload_start else b""
-                
+
                 return PacketInfo(
                     src_ip=src_ip,
                     dst_ip=dst_ip,
@@ -275,21 +302,21 @@ class PacketConverter:
                     payload=payload,
                     payload_size=len(payload),
                     raw_data=data,
-                    metadata={"packet_type": "raw"}
+                    metadata={"packet_type": "raw"},
                 )
-                
+
             elif ip_protocol == 17:  # UDP
                 if len(data) < ip_hlen + 8:  # Minimum UDP header
                     return None
-                    
+
                 udp_data = data[ip_hlen:]
                 src_port = struct.unpack("!H", udp_data[0:2])[0]
                 dst_port = struct.unpack("!H", udp_data[2:4])[0]
-                
+
                 # Extract payload
                 payload_start = ip_hlen + 8
                 payload = data[payload_start:] if len(data) > payload_start else b""
-                
+
                 return PacketInfo(
                     src_ip=src_ip,
                     dst_ip=dst_ip,
@@ -304,51 +331,64 @@ class PacketConverter:
                     payload=payload,
                     payload_size=len(payload),
                     raw_data=data,
-                    metadata={"packet_type": "raw"}
+                    metadata={"packet_type": "raw"},
                 )
-                
+
             else:
                 return None  # Unsupported protocol
-                
+
         except Exception as e:
             import logging
+
             logging.error(f"Error converting raw bytes: {e}")
             return None
-    
+
     @staticmethod
     def _get_tcp_flags_string(tcp_header) -> str:
         """Преобразует флаги TCP из PyDivert в строку (C, E, U, A, P, R, S, F)."""
         flags = []
         flag_map = [
-            ('C', 'cwr'), ('E', 'ece'), ('U', 'urg'), ('A', 'ack'),
-            ('P', 'psh'), ('R', 'rst'), ('S', 'syn'), ('F', 'fin')
+            ("C", "cwr"),
+            ("E", "ece"),
+            ("U", "urg"),
+            ("A", "ack"),
+            ("P", "psh"),
+            ("R", "rst"),
+            ("S", "syn"),
+            ("F", "fin"),
         ]
         for char, attr in flag_map:
             if getattr(tcp_header, attr, False):
                 flags.append(char)
         return "".join(flags)
-    
+
     @staticmethod
     def _scapy_flags_to_string(flags: Union[int, str]) -> str:
         """Convert Scapy TCP flags to string."""
         if isinstance(flags, str):
             return flags
-            
+
         # Convert numeric flags to string
         flag_str = ""
-        if flags & 0x01: flag_str += "F"
-        if flags & 0x02: flag_str += "S"
-        if flags & 0x04: flag_str += "R"
-        if flags & 0x08: flag_str += "P"
-        if flags & 0x10: flag_str += "A"
-        if flags & 0x20: flag_str += "U"
+        if flags & 0x01:
+            flag_str += "F"
+        if flags & 0x02:
+            flag_str += "S"
+        if flags & 0x04:
+            flag_str += "R"
+        if flags & 0x08:
+            flag_str += "P"
+        if flags & 0x10:
+            flag_str += "A"
+        if flags & 0x20:
+            flag_str += "U"
         return flag_str
-    
+
     @staticmethod
-    def to_attack_context(packet_info: PacketInfo) -> 'AttackContext':
+    def to_attack_context(packet_info: PacketInfo) -> "AttackContext":
         """Convert PacketInfo to AttackContext."""
         from .bypass.attacks.base import AttackContext
-        
+
         return AttackContext(
             dst_ip=packet_info.dst_ip,
             dst_port=packet_info.dst_port,
@@ -359,5 +399,5 @@ class PacketConverter:
             flags=packet_info.tcp_flags or "PA",
             payload=packet_info.payload,
             protocol="tcp" if packet_info.is_tcp else "udp",
-            engine_type="native_pydivert"  # Set correct engine type for segment return
+            engine_type="native_pydivert",  # Set correct engine type for segment return
         )

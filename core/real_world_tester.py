@@ -52,21 +52,21 @@ class RealWorldTester:
         self.is_using_global_windivert = False
         self.target_ips: Set[str] = set()  # Добавляем хранилище IP-адресов
 
-
     # ИСПРАВЛЕНИЕ: Добавлен параметр initial_ttl
     def start_bypass_engine(
-        self, 
-        strategy: str, 
+        self,
+        strategy: str,
         target_ips: Set[str],  # ИЗМЕНЕНИЕ: Принимаем множество IP
-        target_port: int = 443, 
-        initial_ttl: Optional[int] = None
+        target_port: int = 443,
+        initial_ttl: Optional[int] = None,
     ) -> bool:
         """Start bypass engine with specific target IPs."""
         try:
-            import pydivert
-            
+
             self.target_ips = target_ips
-            LOG.info(f"Starting bypass engine for IPs {target_ips} with strategy: {strategy}")
+            LOG.info(
+                f"Starting bypass engine for IPs {target_ips} with strategy: {strategy}"
+            )
 
             self.stop_event.clear()
             self.engine_thread = threading.Thread(
@@ -76,7 +76,7 @@ class RealWorldTester:
             )
             self.engine_thread.start()
             time.sleep(0.5)
-            
+
             LOG.info(f"Bypass engine started successfully for {len(target_ips)} IPs")
             return True
 
@@ -103,26 +103,40 @@ class RealWorldTester:
             with RealWorldTester._global_lock:
                 if RealWorldTester._global_windivert is None:
                     from core.windivert_filter import WinDivertFilterGenerator
+
                     gen = WinDivertFilterGenerator()
                     ports = [80, 443] if target_port == 0 else [target_port]
-                    candidates = gen.progressive_candidates(target_ips=[], target_ports=ports, direction="outbound", protocols=("tcp",))
+                    candidates = gen.progressive_candidates(
+                        target_ips=[],
+                        target_ports=ports,
+                        direction="outbound",
+                        protocols=("tcp",),
+                    )
 
                     last_error = None
                     for filter_str in candidates:
-                        LOG.debug(f"Creating global WinDivert with filter: {filter_str}")
+                        LOG.debug(
+                            f"Creating global WinDivert with filter: {filter_str}"
+                        )
                         try:
-                            RealWorldTester._global_windivert = pydivert.WinDivert(filter_str)
+                            RealWorldTester._global_windivert = pydivert.WinDivert(
+                                filter_str
+                            )
                             RealWorldTester._global_windivert.open()
                             break
                         except Exception as e:
                             last_error = e
-                            LOG.warning(f"Failed to open WinDivert with filter '{filter_str}': {e}")
+                            LOG.warning(
+                                f"Failed to open WinDivert with filter '{filter_str}': {e}"
+                            )
                             RealWorldTester._global_windivert = None
                     if RealWorldTester._global_windivert is None:
                         # Fallback самый простой
                         simple_filter = "outbound and tcp"
                         LOG.info(f"Trying simplified filter: {simple_filter}")
-                        RealWorldTester._global_windivert = pydivert.WinDivert(simple_filter)
+                        RealWorldTester._global_windivert = pydivert.WinDivert(
+                            simple_filter
+                        )
                         RealWorldTester._global_windivert.open()
 
                 RealWorldTester._active_testers += 1

@@ -10,7 +10,7 @@ Migrated and unified from:
 
 import time
 import random
-from typing import List, Tuple
+from typing import List
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
 

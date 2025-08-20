@@ -1,7 +1,7 @@
 # recon/core/fingerprint/classifier.py
 from __future__ import annotations
 import logging
-from typing import Dict, List, Tuple, Optional, Callable, Any
+from typing import List, Optional
 import numpy as np
 import joblib
 import os
@@ -274,7 +274,11 @@ class UltimateDPIClassifier:
             "conditions": [
                 (lambda fp: fp.ipv6_handling == "throttled", "IPv6 throttled", 0.20),
                 (lambda fp: fp.dns_over_https_blocked is True, "DoH blocked", 0.15),
-                (lambda fp: getattr(fp, 'ipsec_detection', False) is True, "IPSec detection", 0.15),
+                (
+                    lambda fp: getattr(fp, "ipsec_detection", False) is True,
+                    "IPSec detection",
+                    0.15,
+                ),
                 (lambda fp: fp.stateful_inspection is True, "Stateful", 0.15),
                 (
                     lambda fp: fp.tcp_option_len_limit is not None,
@@ -843,5 +847,7 @@ class UltimateDPIClassifier:
 
         except Exception as e:
             LOG.error(f"Failed to update ML model: {e}")
+
+
 # Export DPIClassifier for backward compatibility
 DPIClassifier = UltimateDPIClassifier

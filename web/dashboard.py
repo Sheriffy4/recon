@@ -2,9 +2,7 @@
 import threading
 import logging
 import json
-import random
-from datetime import datetime, timedelta
-from flask import Flask, render_template_string, jsonify
+from flask import Flask, render_template_string
 
 try:
     import plotly.graph_objs as go
@@ -108,7 +106,7 @@ class ReconDashboard:
         prod_trend = {}
         health_alerts = []
         try:
-            from core.strategy_monitor import StrategyMonitor
+
             monitor = getattr(self.bypass_engine, "strategy_monitor", None)
             if monitor and hasattr(monitor, "prod_effectiveness_tester"):
                 prod_trend = monitor.prod_effectiveness_tester.get_trend()

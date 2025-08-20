@@ -20,7 +20,7 @@ try:
 except ImportError:
     SKLEARN_AVAILABLE = False
 
-from ..core.fingerprint.models import EnhancedFingerprint, DPIBehaviorProfile
+from ..core.fingerprint.models import DPIBehaviorProfile
 
 LOG = logging.getLogger("dpi_classifier")
 
@@ -408,7 +408,7 @@ class DPIClassifier:
 
         if not reasoning:
             reasoning.append(
-                f"Classification based on overall behavioral pattern analysis"
+                "Classification based on overall behavioral pattern analysis"
             )
 
         return reasoning

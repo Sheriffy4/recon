@@ -4,7 +4,7 @@ Protocol Obfuscation Attacks Module
 
 This module implements various protocol obfuscation techniques to evade DPI detection:
 - Protocol tunneling techniques
-- Payload encryption attacks  
+- Payload encryption attacks
 - Protocol mimicry techniques
 - Traffic pattern obfuscation attacks
 
@@ -17,73 +17,66 @@ from .protocol_tunneling import (
     DNSOverHTTPSTunnelingAttack,
     WebSocketTunnelingObfuscationAttack,
     SSHTunnelingObfuscationAttack,
-    VPNTunnelingObfuscationAttack
+    VPNTunnelingObfuscationAttack,
 )
 
 from .payload_encryption import (
     XORPayloadEncryptionAttack,
     AESPayloadEncryptionAttack,
     ChaCha20PayloadEncryptionAttack,
-    MultiLayerEncryptionAttack
+    MultiLayerEncryptionAttack,
 )
 
 from .protocol_mimicry import (
     HTTPProtocolMimicryAttack,
     TLSProtocolMimicryAttack,
     SMTPProtocolMimicryAttack,
-    FTPProtocolMimicryAttack
+    FTPProtocolMimicryAttack,
 )
 
 from .traffic_obfuscation import (
     TrafficPatternObfuscationAttack,
     PacketSizeObfuscationAttack,
     TimingObfuscationAttack,
-    FlowObfuscationAttack
+    FlowObfuscationAttack,
 )
 
 from .icmp_obfuscation import (
     ICMPDataTunnelingObfuscationAttack,
     ICMPTimestampTunnelingObfuscationAttack,
     ICMPRedirectTunnelingObfuscationAttack,
-    ICMPCovertChannelObfuscationAttack
+    ICMPCovertChannelObfuscationAttack,
 )
 
-from .quic_obfuscation import (
-    QUICFragmentationObfuscationAttack
-)
+from .quic_obfuscation import QUICFragmentationObfuscationAttack
 
 __all__ = [
     # Protocol Tunneling
-    'HTTPTunnelingObfuscationAttack',
-    'DNSOverHTTPSTunnelingAttack', 
-    'WebSocketTunnelingObfuscationAttack',
-    'SSHTunnelingObfuscationAttack',
-    'VPNTunnelingObfuscationAttack',
-    
+    "HTTPTunnelingObfuscationAttack",
+    "DNSOverHTTPSTunnelingAttack",
+    "WebSocketTunnelingObfuscationAttack",
+    "SSHTunnelingObfuscationAttack",
+    "VPNTunnelingObfuscationAttack",
     # Payload Encryption
-    'XORPayloadEncryptionAttack',
-    'AESPayloadEncryptionAttack',
-    'ChaCha20PayloadEncryptionAttack',
-    'MultiLayerEncryptionAttack',
-    
+    "XORPayloadEncryptionAttack",
+    "AESPayloadEncryptionAttack",
+    "ChaCha20PayloadEncryptionAttack",
+    "MultiLayerEncryptionAttack",
     # Protocol Mimicry
-    'HTTPProtocolMimicryAttack',
-    'TLSProtocolMimicryAttack',
-    'SMTPProtocolMimicryAttack',
-    'FTPProtocolMimicryAttack',
-    
+    "HTTPProtocolMimicryAttack",
+    "TLSProtocolMimicryAttack",
+    "SMTPProtocolMimicryAttack",
+    "FTPProtocolMimicryAttack",
     # Traffic Obfuscation
-    'TrafficPatternObfuscationAttack',
-    'PacketSizeObfuscationAttack',
-    'TimingObfuscationAttack',
-    'FlowObfuscationAttack',
-    
+    "TrafficPatternObfuscationAttack",
+    "PacketSizeObfuscationAttack",
+    "TimingObfuscationAttack",
+    "FlowObfuscationAttack",
     # ICMP Obfuscation
-    'ICMPDataTunnelingObfuscationAttack',
-    'ICMPTimestampTunnelingObfuscationAttack',
-    'ICMPRedirectTunnelingObfuscationAttack',
-    'ICMPCovertChannelObfuscationAttack',
-    
+    "ICMPDataTunnelingObfuscationAttack",
+    "ICMPTimestampTunnelingObfuscationAttack",
+    "ICMPRedirectTunnelingObfuscationAttack",
+    "ICMPCovertChannelObfuscationAttack",
     # QUIC Obfuscation
-    'QUICFragmentationObfuscationAttack'
+    "QUICFragmentationObfuscationAttack",
 ]

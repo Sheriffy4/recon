@@ -4,21 +4,16 @@
 Advanced packet and behavior analysis for DPI fingerprinting.
 """
 
-import time
 import logging
 import statistics
-from typing import List, Dict, Optional, Any, Tuple, Set
+from typing import List, Dict, Optional, Any, Tuple
 from collections import defaultdict, deque
-from datetime import datetime, timedelta
-import numpy as np
+from datetime import datetime
 
-from scapy.all import Packet, IP, IPv6, TCP, UDP, ICMP, Raw
-from scapy.layers.tls.handshake import TLSClientHello
-from scapy.layers.http import HTTP, HTTPRequest, HTTPResponse
+from scapy.all import Packet, IP, IPv6, TCP, ICMP
 
 # ИСПРАВЛЕНИЕ 1: Импортируем ProbeConfig и UltimateDPIProber вместо ProbeOrchestrator
 from .models import Fingerprint, EnhancedFingerprint, DPIBehaviorProfile, ProbeConfig
-from .classifier import UltimateDPIClassifier
 from .prober import UltimateDPIProber
 
 # --- КОНЕЦ ИЗМЕНЕНИЙ ---

@@ -7,10 +7,7 @@ Doctor Script - Санитарная проверка проекта
 """
 
 import sys
-import os
 import importlib
-import traceback
-import time
 from pathlib import Path
 from typing import List, Dict, Set, Tuple
 import ast
@@ -174,7 +171,7 @@ class ProjectDoctor:
                     if node.module:
                         imports.add(node.module.split(".")[0])
 
-        except Exception as e:
+        except Exception:
             # Если не можем парсить, пропускаем
             pass
 

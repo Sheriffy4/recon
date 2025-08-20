@@ -11,19 +11,13 @@ import logging
 import time
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
-from datetime import datetime
 
-from ..fingerprint.advanced_fingerprint_engine import UltimateAdvancedFingerprintEngine
 from ..fingerprint.models import EnhancedFingerprint
 from ml.strategy_generator import AdvancedStrategyGenerator
 from ..bypass.attacks.real_effectiveness_tester import (
-    RealEffectivenessTester,
     EffectivenessResult,
 )
-from ..bypass.attacks.learning_memory import LearningMemory, AdaptationRecord
 from ..bypass.attacks.combo.adaptive_combo import LearningAdaptiveAttack
-from ..integration.attack_adapter import AttackAdapter
-from ..integration.strategy_saver import StrategySaver
 from ..failure_analyzer import FailureAnalyzer, FailureAnalysisResult
 
 from ..interfaces import (
@@ -162,7 +156,7 @@ class ClosedLoopManager(IClosedLoopManager):
 
         self.logger.info(f"Starting enhanced closed loop process for {domain}:{port}")
         self.logger.info(
-            f"Algorithm: Fingerprint → Plan → Execute → Analyze → Refine & Learn"
+            "Algorithm: Fingerprint → Plan → Execute → Analyze → Refine & Learn"
         )
         self.logger.info(
             f"Configuration: max_iterations={self.max_iterations}, "
@@ -643,13 +637,13 @@ class ClosedLoopManager(IClosedLoopManager):
                 failure_analysis=previous_failure_analysis,
                 use_parameter_ranges=True,
             )
-            self.logger.info(f"Generated strategies with failure analysis guidance")
+            self.logger.info("Generated strategies with failure analysis guidance")
         else:
             strategies = strategy_gen.generate_strategies(
                 count=self.strategies_per_iteration
             )
             self.logger.info(
-                f"Generated strategies without failure analysis (first iteration)"
+                "Generated strategies without failure analysis (first iteration)"
             )
 
         self.logger.info(

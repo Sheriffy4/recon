@@ -14,15 +14,9 @@ from .factory import ServiceFactory
 from .config import (
     DIConfiguration,
     DIMode,
-    get_production_config,
-    get_development_config,
-    get_testing_config,
 )
 from .typed_config import (
     TypedDIConfiguration,
-    create_production_config,
-    create_development_config,
-    create_testing_config,
     ConfigurationBuilder,
     DIMode,  # <-- Добавляем импорт DIMode
 )
@@ -33,14 +27,14 @@ from ..interfaces import (
     IAttackAdapter,
     IEffectivenessTester,
     ILearningMemory,
-    IStrategyGenerator,
     IStrategySaver,
     IClosedLoopManager,
-    IEvolutionarySearcher, # Убедитесь, что этот импорт есть
+    IEvolutionarySearcher,  # Убедитесь, что этот импорт есть
 )
 from ..bypass.engines.packet_processing_engine import PacketProcessingEngine
 
 LOG = logging.getLogger("CLIProvider")
+
 
 class CLIServiceProvider:
     """
@@ -131,8 +125,6 @@ class CLIServiceProvider:
     def get_learning_memory(self) -> ILearningMemory:
         """Get learning memory service."""
         return self._resolve_service(ILearningMemory)
-
-
 
     def get_strategy_saver(self) -> IStrategySaver:
         """Get strategy saver service."""

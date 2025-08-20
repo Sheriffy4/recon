@@ -13,7 +13,6 @@ import logging
 from .base import BaseBypassEngine, EngineConfig, EngineType
 from .external_tool_engine import ExternalToolEngine
 from .native_pydivert_engine import NativePydivertEngine
-from .scapy_engine import ScapyEngine, SCAPY_AVAILABLE
 
 LOG = logging.getLogger("EngineFactory")
 
@@ -42,7 +41,7 @@ def create_engine(
             "Use create_best_engine() for automatic engine selection, or "
             "provide a specific EngineType (e.g., EngineType.NATIVE_PYDIVERT)"
         )
-    
+
     if config is None:
         config = EngineConfig()
 
@@ -82,11 +81,12 @@ def detect_best_engine() -> EngineType:
     try:
         # Use the enhanced detector if available
         from .engine_type_detector import get_recommended_engine
+
         return get_recommended_engine()
     except ImportError:
         # Fallback to original detection logic
         LOG.debug("Enhanced detector not available, using fallback detection")
-        
+
         system = platform.system()
 
         if system == "Windows":
@@ -127,36 +127,39 @@ def create_best_engine(config: Optional[EngineConfig] = None) -> BaseBypassEngin
 def create_engine_with_validation(
     engine_type: Optional[Union[str, EngineType]] = None,
     config: Optional[EngineConfig] = None,
-    **kwargs
+    **kwargs,
 ) -> BaseBypassEngine:
     """
     Create an engine with enhanced validation and error handling.
-    
+
     This function provides a bridge to the EnhancedEngineFactory for users
     who want improved error handling and validation without changing their
     existing code structure.
-    
+
     Args:
         engine_type: Type of engine to create (optional, will auto-detect if None)
         config: Engine configuration
         **kwargs: Additional parameters
-        
+
     Returns:
         Configured engine instance
-        
+
     Raises:
         Various engine creation errors with detailed messages
     """
     try:
         # Import here to avoid circular imports
         from .enhanced_factory import create_engine_enhanced
+
         return create_engine_enhanced(engine_type, config, **kwargs)
     except ImportError:
         # Fallback to original implementation if enhanced factory is not available
-        LOG.warning("Enhanced factory not available, falling back to original implementation")
+        LOG.warning(
+            "Enhanced factory not available, falling back to original implementation"
+        )
         if engine_type is None:
             return create_best_engine(config)
-        
+
         if isinstance(engine_type, str):
             # Convert string to EngineType
             for et in EngineType:
@@ -165,5 +168,5 @@ def create_engine_with_validation(
                     break
             else:
                 raise ValueError(f"Unknown engine type: {engine_type}")
-        
+
         return create_engine(engine_type, config)

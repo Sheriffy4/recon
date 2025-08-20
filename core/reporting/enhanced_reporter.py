@@ -7,11 +7,10 @@ and system performance with confidence levels and actionable insights.
 """
 
 import json
-import time
 import logging
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field, asdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 
 LOG = logging.getLogger("EnhancedReporter")
@@ -580,7 +579,7 @@ class EnhancedReporter:
 
         # Check for timing-based vulnerabilities
         # >>> ИЗМЕНЕНИЕ: Добавляем `or 0` для безопасной обработки None <<<
-        if (fingerprint_data.get("timing_attack_vulnerable") or 0):
+        if fingerprint_data.get("timing_attack_vulnerable") or 0:
             vulnerabilities.append("Vulnerable to timing-based attacks")
 
         # Check for fragmentation vulnerabilities
@@ -805,7 +804,7 @@ class EnhancedReporter:
                     f"python cli.py {target_domain} --strategy {best_strategy.strategy_name}"
                 )
 
-        commands.append(f"python recon_service.py  # Start persistent bypass service")
+        commands.append("python recon_service.py  # Start persistent bypass service")
 
         return commands
 

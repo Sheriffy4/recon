@@ -8,40 +8,33 @@ from core.di.container import DIContainer, DIError
 from core.di.typed_config import TypedDIConfiguration
 from core.di.config import DIConfiguration, ServiceConfig
 from core.interfaces import (
-    IFingerprintEngine, IProber, IClassifier, IAttackAdapter,
-    IEffectivenessTester, ILearningMemory, IStrategyGenerator, IStrategySaver,
-    IClosedLoopManager, IEvolutionarySearcher
+    IFingerprintEngine,
+    IProber,
+    IClassifier,
+    IAttackAdapter,
+    IEffectivenessTester,
+    ILearningMemory,
+    IStrategyGenerator,
+    IStrategySaver,
+    IClosedLoopManager,
+    IEvolutionarySearcher,
 )
+
 # Импортируем конкретные реализации, которые будем создавать
 from core.robust_packet_processor import RobustPacketProcessor
 from core.integration.strategy_mapper import StrategyMapper
 from core.integration.result_processor import ResultProcessor
-from core.bypass.engines.packet_processing_engine import PacketProcessingEngine
-from core.fingerprint.prober import UltimateDPIProber
-from core.fingerprint.classifier import UltimateDPIClassifier
-from core.fingerprint.advanced_fingerprint_engine import UltimateAdvancedFingerprintEngine
-from core.integration.attack_adapter import AttackAdapter
-from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
-from core.bypass.attacks.learning_memory import LearningMemory
-from ml.strategy_generator import AdvancedStrategyGenerator
-from core.integration.strategy_saver import StrategySaver
-from core.integration.closed_loop_manager import ClosedLoopManager
-from core.failure_analyzer import FailureAnalyzer
-from core.diagnostic_system import DiagnosticSystem
-from core.bypass.engines.base import EngineConfig
-from core.bypass.attacks.registry import AttackRegistry
-from core.domain_specific_strategies import DomainSpecificStrategies
-from ml.strategy_predictor import StrategyPredictor, SKLEARN_AVAILABLE
-from ml.evolutionary_search import EvolutionarySearcher
 
 try:
     from core.optimization.dynamic_parameter_optimizer import DynamicParameterOptimizer
+
     OPTIMIZER_AVAILABLE = True
 except ImportError:
     OPTIMIZER_AVAILABLE = False
     DynamicParameterOptimizer = None
 
 LOG = logging.getLogger("ServiceFactory")
+
 
 class ServiceFactory:
     @staticmethod
@@ -51,16 +44,22 @@ class ServiceFactory:
             # --- Импорты конкретных реализаций ---
             from core.fingerprint.prober import UltimateDPIProber
             from core.fingerprint.classifier import UltimateDPIClassifier
-            from core.fingerprint.advanced_fingerprint_engine import UltimateAdvancedFingerprintEngine
+            from core.fingerprint.advanced_fingerprint_engine import (
+                UltimateAdvancedFingerprintEngine,
+            )
             from core.integration.attack_adapter import AttackAdapter
-            from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+            from core.bypass.attacks.real_effectiveness_tester import (
+                RealEffectivenessTester,
+            )
             from core.bypass.attacks.learning_memory import LearningMemory
             from ml.strategy_generator import AdvancedStrategyGenerator
             from core.integration.strategy_saver import StrategySaver
             from core.integration.closed_loop_manager import ClosedLoopManager
             from core.failure_analyzer import FailureAnalyzer
             from core.diagnostic_system import DiagnosticSystem
-            from core.bypass.engines.packet_processing_engine import PacketProcessingEngine
+            from core.bypass.engines.packet_processing_engine import (
+                PacketProcessingEngine,
+            )
             from core.bypass.engines.base import EngineConfig
             from core.bypass.attacks.registry import AttackRegistry
             from core.domain_specific_strategies import DomainSpecificStrategies
@@ -73,97 +72,176 @@ class ServiceFactory:
             container.register_singleton(AttackRegistry)
 
             # --- 2. Теперь регистрируем сервисы, которые зависят от AttackRegistry ---
-            
+
             # Создаем фабричную функцию, которая будет получать зависимости из контейнера.
             # DI-контейнер автоматически увидит type hint `registry: AttackRegistry`
             # и передаст сюда уже созданный singleton.
             def create_attack_adapter_factory(registry: AttackRegistry):
                 from core.integration.integration_config import IntegrationConfig
+
                 return AttackAdapter(
                     attack_registry=registry,  # <-- Внедряем зависимость!
-                    integration_config=IntegrationConfig(debug_mode=config.attack_adapter.debug_mode)
+                    integration_config=IntegrationConfig(
+                        debug_mode=config.attack_adapter.debug_mode
+                    ),
                 )
-            
+
             # Регистрируем AttackAdapter с использованием этой фабрики.
-            container.register_singleton(IAttackAdapter, factory=create_attack_adapter_factory)
+            container.register_singleton(
+                IAttackAdapter, factory=create_attack_adapter_factory
+            )
 
             def create_diagnostic_system_factory(attack_adapter: IAttackAdapter):
-                return DiagnosticSystem(attack_adapter=attack_adapter, debug=config.debug_enabled)
-            container.register_singleton(DiagnosticSystem, factory=create_diagnostic_system_factory)
+                return DiagnosticSystem(
+                    attack_adapter=attack_adapter, debug=config.debug_enabled
+                )
+
+            container.register_singleton(
+                DiagnosticSystem, factory=create_diagnostic_system_factory
+            )
 
             def create_prober_factory():
                 return UltimateDPIProber(debug=config.debug_enabled)
+
             container.register_singleton(IProber, factory=create_prober_factory)
 
             def create_classifier_factory():
-                return UltimateDPIClassifier(ml_enabled=config.classifier.ml_enabled, debug=config.debug_enabled)
+                return UltimateDPIClassifier(
+                    ml_enabled=config.classifier.ml_enabled, debug=config.debug_enabled
+                )
+
             container.register_singleton(IClassifier, factory=create_classifier_factory)
 
             def create_effectiveness_tester_factory():
-                return RealEffectivenessTester(timeout=config.effectiveness_tester.timeout, max_retries=config.effectiveness_tester.max_retries)
-            container.register_singleton(IEffectivenessTester, factory=create_effectiveness_tester_factory)
+                return RealEffectivenessTester(
+                    timeout=config.effectiveness_tester.timeout,
+                    max_retries=config.effectiveness_tester.max_retries,
+                )
+
+            container.register_singleton(
+                IEffectivenessTester, factory=create_effectiveness_tester_factory
+            )
 
             # +++ ЯВНЫЕ ФАБРИКИ ДЛЯ ЗАВИСИМОСТЕЙ ДВИЖКА +++
             def create_robust_packet_processor_factory():
                 return RobustPacketProcessor(debug=config.debug_enabled)
-            container.register_singleton(RobustPacketProcessor, factory=create_robust_packet_processor_factory)
+
+            container.register_singleton(
+                RobustPacketProcessor, factory=create_robust_packet_processor_factory
+            )
 
             def create_strategy_mapper_factory():
                 return StrategyMapper()
-            container.register_singleton(StrategyMapper, factory=create_strategy_mapper_factory)
-            
+
+            container.register_singleton(
+                StrategyMapper, factory=create_strategy_mapper_factory
+            )
+
             container.register_singleton(ResultProcessor)
 
             # --- 3. Сервисы, зависящие от уже зарегистрированных ---
-            def create_fingerprint_engine_factory(prober: IProber, classifier: IClassifier, attack_adapter: IAttackAdapter):
-                return UltimateAdvancedFingerprintEngine(prober=prober, classifier=classifier, attack_adapter=attack_adapter, debug=config.fingerprint_engine.debug, ml_enabled=config.fingerprint_engine.ml_enabled)
-            container.register_singleton(IFingerprintEngine, factory=create_fingerprint_engine_factory)
+            def create_fingerprint_engine_factory(
+                prober: IProber, classifier: IClassifier, attack_adapter: IAttackAdapter
+            ):
+                return UltimateAdvancedFingerprintEngine(
+                    prober=prober,
+                    classifier=classifier,
+                    attack_adapter=attack_adapter,
+                    debug=config.fingerprint_engine.debug,
+                    ml_enabled=config.fingerprint_engine.ml_enabled,
+                )
+
+            container.register_singleton(
+                IFingerprintEngine, factory=create_fingerprint_engine_factory
+            )
 
             # --- Тестирование и обучение ---
             def create_effectiveness_tester_factory():
-                return RealEffectivenessTester(timeout=config.effectiveness_tester.timeout, max_retries=config.effectiveness_tester.max_retries)
-            container.register_singleton(IEffectivenessTester, factory=create_effectiveness_tester_factory)
+                return RealEffectivenessTester(
+                    timeout=config.effectiveness_tester.timeout,
+                    max_retries=config.effectiveness_tester.max_retries,
+                )
+
+            container.register_singleton(
+                IEffectivenessTester, factory=create_effectiveness_tester_factory
+            )
 
             def create_learning_memory_factory():
-                return LearningMemory(storage_path=config.learning_memory.storage_path, max_history_entries=config.learning_memory.max_history_entries)
+                return LearningMemory(
+                    storage_path=config.learning_memory.storage_path,
+                    max_history_entries=config.learning_memory.max_history_entries,
+                )
 
-            container.register_singleton(IAttackAdapter, factory=create_attack_adapter_factory)
-            container.register_singleton(IEffectivenessTester, factory=create_effectiveness_tester_factory)
-            container.register_singleton(ILearningMemory, factory=create_learning_memory_factory)
+            container.register_singleton(
+                IAttackAdapter, factory=create_attack_adapter_factory
+            )
+            container.register_singleton(
+                IEffectivenessTester, factory=create_effectiveness_tester_factory
+            )
+            container.register_singleton(
+                ILearningMemory, factory=create_learning_memory_factory
+            )
 
             # --- Fingerprint Engine (зависит от других сервисов) ---
-            def create_fingerprint_engine_factory(prober: IProber, classifier: IClassifier, attack_adapter: IAttackAdapter):
-                return UltimateAdvancedFingerprintEngine(prober=prober, classifier=classifier, attack_adapter=attack_adapter, debug=config.fingerprint_engine.debug, ml_enabled=config.fingerprint_engine.ml_enabled)
+            def create_fingerprint_engine_factory(
+                prober: IProber, classifier: IClassifier, attack_adapter: IAttackAdapter
+            ):
+                return UltimateAdvancedFingerprintEngine(
+                    prober=prober,
+                    classifier=classifier,
+                    attack_adapter=attack_adapter,
+                    debug=config.fingerprint_engine.debug,
+                    ml_enabled=config.fingerprint_engine.ml_enabled,
+                )
 
-            container.register_singleton(IFingerprintEngine, factory=create_fingerprint_engine_factory)
+            container.register_singleton(
+                IFingerprintEngine, factory=create_fingerprint_engine_factory
+            )
 
             # --- Strategy services ---
             container.register_singleton(AttackRegistry)
             container.register_singleton(DomainSpecificStrategies)
 
             def create_strategy_predictor_factory():
-                return StrategyPredictor(model_path="data/strategy_predictor_model.joblib")
+                return StrategyPredictor(
+                    model_path="data/strategy_predictor_model.joblib"
+                )
 
             if config.strategy_generator.enable_ml_prediction and SKLEARN_AVAILABLE:
-                container.register_singleton(StrategyPredictor, factory=create_strategy_predictor_factory)
+                container.register_singleton(
+                    StrategyPredictor, factory=create_strategy_predictor_factory
+                )
             else:
                 container.register_singleton(StrategyPredictor, instance=None)
 
             def create_strategy_saver_factory():
                 return StrategySaver(
                     strategy_file=config.strategy_saver.storage_path,
-                    max_strategies_per_fingerprint=config.strategy_saver.max_strategies_to_save
+                    max_strategies_per_fingerprint=config.strategy_saver.max_strategies_to_save,
                 )
-            container.register_singleton(IStrategySaver, factory=create_strategy_saver_factory)
+
+            container.register_singleton(
+                IStrategySaver, factory=create_strategy_saver_factory
+            )
 
             # --- Optional services ---
             if OPTIMIZER_AVAILABLE:
                 # Фабрика теперь принимает зависимость IEffectivenessTester
-                def create_parameter_optimizer_factory(effectiveness_tester: IEffectivenessTester):
-                    return DynamicParameterOptimizer(effectiveness_tester=effectiveness_tester)
-                container.register_singleton(DynamicParameterOptimizer, factory=create_parameter_optimizer_factory)
+                def create_parameter_optimizer_factory(
+                    effectiveness_tester: IEffectivenessTester,
+                ):
+                    return DynamicParameterOptimizer(
+                        effectiveness_tester=effectiveness_tester
+                    )
+
+                container.register_singleton(
+                    DynamicParameterOptimizer,
+                    factory=create_parameter_optimizer_factory,
+                )
             else:
-                LOG.warning("DynamicParameterOptimizer not available. Registering as None.")
+                LOG.warning(
+                    "DynamicParameterOptimizer not available. Registering as None."
+                )
                 container.register_singleton(DynamicParameterOptimizer, instance=None)
 
             # --- Strategy Generator (зависит от многих сервисов, включая опциональный optimizer) ---
@@ -171,70 +249,107 @@ class ServiceFactory:
                 attack_registry: AttackRegistry,
                 domain_strategies: DomainSpecificStrategies,
                 strategy_predictor: Optional[StrategyPredictor],
-                parameter_optimizer: Optional[DynamicParameterOptimizer] # <-- Тип теперь Optional
+                parameter_optimizer: Optional[
+                    DynamicParameterOptimizer
+                ],  # <-- Тип теперь Optional
             ):
-                from ml.strategy_generator import AdvancedStrategyGenerator
+
                 return AdvancedStrategyGenerator(
                     attack_registry=attack_registry,
                     domain_strategies=domain_strategies,
                     strategy_predictor=strategy_predictor,
-                    parameter_optimizer=parameter_optimizer, # <-- Передаем None, если недоступен
-                    fingerprint_dict={}, history=[],
+                    parameter_optimizer=parameter_optimizer,  # <-- Передаем None, если недоступен
+                    fingerprint_dict={},
+                    history=[],
                     max_strategies=config.strategy_generator.max_strategies,
                     enable_ml_prediction=config.strategy_generator.enable_ml_prediction,
                 )
-            container.register_singleton(IStrategyGenerator, factory=create_strategy_generator_factory)
+
+            container.register_singleton(
+                IStrategyGenerator, factory=create_strategy_generator_factory
+            )
 
             # --- Integration services ---
-            def create_closed_loop_manager_factory(fingerprint_engine: IFingerprintEngine, strategy_generator: IStrategyGenerator, effectiveness_tester: IEffectivenessTester, learning_memory: ILearningMemory, attack_adapter: IAttackAdapter, strategy_saver: IStrategySaver):
-                return ClosedLoopManager(fingerprint_engine=fingerprint_engine, strategy_generator=strategy_generator, effectiveness_tester=effectiveness_tester, learning_memory=learning_memory, attack_adapter=attack_adapter, strategy_saver=strategy_saver)
+            def create_closed_loop_manager_factory(
+                fingerprint_engine: IFingerprintEngine,
+                strategy_generator: IStrategyGenerator,
+                effectiveness_tester: IEffectivenessTester,
+                learning_memory: ILearningMemory,
+                attack_adapter: IAttackAdapter,
+                strategy_saver: IStrategySaver,
+            ):
+                return ClosedLoopManager(
+                    fingerprint_engine=fingerprint_engine,
+                    strategy_generator=strategy_generator,
+                    effectiveness_tester=effectiveness_tester,
+                    learning_memory=learning_memory,
+                    attack_adapter=attack_adapter,
+                    strategy_saver=strategy_saver,
+                )
 
-            container.register_singleton(IClosedLoopManager, factory=create_closed_loop_manager_factory)
+            container.register_singleton(
+                IClosedLoopManager, factory=create_closed_loop_manager_factory
+            )
             container.register_singleton(FailureAnalyzer)
 
             def create_diagnostic_system_factory(attack_adapter: IAttackAdapter):
-                return DiagnosticSystem(attack_adapter=attack_adapter, debug=config.debug_enabled)
-            container.register_singleton(DiagnosticSystem, factory=create_diagnostic_system_factory)
+                return DiagnosticSystem(
+                    attack_adapter=attack_adapter, debug=config.debug_enabled
+                )
+
+            container.register_singleton(
+                DiagnosticSystem, factory=create_diagnostic_system_factory
+            )
 
             # --- ML services ---
-            def create_evolutionary_searcher_factory(attack_adapter: IAttackAdapter, strategy_generator: IStrategyGenerator):
-                return EvolutionarySearcher(attack_adapter=attack_adapter, strategy_generator=strategy_generator)
-            container.register_singleton(IEvolutionarySearcher, factory=create_evolutionary_searcher_factory)
+            def create_evolutionary_searcher_factory(
+                attack_adapter: IAttackAdapter, strategy_generator: IStrategyGenerator
+            ):
+                return EvolutionarySearcher(
+                    attack_adapter=attack_adapter, strategy_generator=strategy_generator
+                )
+
+            container.register_singleton(
+                IEvolutionarySearcher, factory=create_evolutionary_searcher_factory
+            )
 
             # --- Engine services ---
             # Create EngineConfig outside of DI to avoid bool dependency resolution
             engine_config = EngineConfig(debug=config.debug_enabled)
-            
+
             def create_packet_processing_engine_factory(
                 attack_adapter: IAttackAdapter,
                 fingerprint_engine: IFingerprintEngine,
                 diagnostic_system: DiagnosticSystem,
                 packet_processor: RobustPacketProcessor,
                 strategy_mapper: StrategyMapper,
-                result_processor: ResultProcessor
+                result_processor: ResultProcessor,
             ):
                 engine_config = EngineConfig(debug=config.debug_enabled)
                 return PacketProcessingEngine(
-                    attack_adapter=attack_adapter, 
-                    fingerprint_engine=fingerprint_engine, 
+                    attack_adapter=attack_adapter,
+                    fingerprint_engine=fingerprint_engine,
                     diagnostic_system=diagnostic_system,
                     packet_processor=packet_processor,
                     strategy_mapper=strategy_mapper,
                     result_processor=result_processor,
-                    config=engine_config
+                    config=engine_config,
                 )
-            
-            container.register_singleton(PacketProcessingEngine, factory=create_packet_processing_engine_factory)
 
-            LOG.info(f"Created DI container from typed configuration (mode: {config.mode})")
+            container.register_singleton(
+                PacketProcessingEngine, factory=create_packet_processing_engine_factory
+            )
+
+            LOG.info(
+                f"Created DI container from typed configuration (mode: {config.mode})"
+            )
             return container
 
         except Exception as e:
-            LOG.error(f"Failed to create container from typed config: {e}", exc_info=True)
+            LOG.error(
+                f"Failed to create container from typed config: {e}", exc_info=True
+            )
             raise DIError("Failed to build DI container from typed config.") from e
-            
-            
-            
 
     @staticmethod
     def create_production_container() -> DIContainer:
@@ -242,6 +357,7 @@ class ServiceFactory:
         Create DI container configured for production use.
         """
         from .typed_config import create_production_config
+
         config = create_production_config()
         return ServiceFactory.create_container_from_typed_config(config)
 
@@ -251,6 +367,7 @@ class ServiceFactory:
         Create DI container configured for development use.
         """
         from .typed_config import create_development_config
+
         config = create_development_config()
         return ServiceFactory.create_container_from_typed_config(config)
 

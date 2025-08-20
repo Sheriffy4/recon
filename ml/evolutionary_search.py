@@ -4,19 +4,18 @@ import random
 import logging
 import copy
 import time
-from typing import List, Dict, Any, Tuple, Optional, Set
+from typing import List, Dict, Any, Set
 
 # >>> ИЗМЕНЕНИЕ: Заменяем относительные импорты на абсолютные <<<
 from core.interfaces import IEvolutionarySearcher, IAttackAdapter, IStrategyGenerator
-from core.bypass.attacks.base import AttackContext, AttackStatus
-from core.zapret import synth
+from core.bypass.attacks.base import AttackContext
 from core.metrics import BypassQualityMetrics
-import config # <-- Этот импорт нужно будет проверить, возможно, `from . import config` или `from recon import config`
+import config  # <-- Этот импорт нужно будет проверить, возможно, `from . import config` или `from recon import config`
 
 LOG = logging.getLogger("EvolutionarySearcher")
 
 
-class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Реализуем интерфейс
+class EvolutionarySearcher(IEvolutionarySearcher):  # <<< ИЗМЕНЕНИЕ: Реализуем интерфейс
     """
     Использует генетический алгоритм для "эволюционного" поиска
     оптимальной многоступенчатой стратегии обхода DPI.
@@ -37,7 +36,7 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
         Данные для запуска (домены, IP) будут передаваться в метод run().
         """
         self.attack_adapter = attack_adapter
-        self.strategy_generator = strategy_generator # Используем внедренный генератор
+        self.strategy_generator = strategy_generator  # Используем внедренный генератор
 
         self.population_size = population_size
         self.generations = generations
@@ -49,6 +48,7 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
         self.semaphore = asyncio.Semaphore(10)
         self.fitness_cache = {}
         self.cache_ttl = 300
+
     # >>> КОНЕЦ ИЗМЕНЕНИЯ <<<
 
     def _create_random_stage(self) -> Dict:
@@ -85,29 +85,41 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
                 if "layer2" in task.get("params", {}):
                     stages.append({"name": task["params"]["layer2"], "params": {}})
                 if stages:
-                    chromosome = {"strategy": {"type": "dynamic_combo", "stages": stages}, "fitness": 0.0}
+                    chromosome = {
+                        "strategy": {"type": "dynamic_combo", "stages": stages},
+                        "fitness": 0.0,
+                    }
                     self.population.append(chromosome)
             else:
-                chromosome = {"strategy": {"type": "dynamic_combo", "stages": [task]}, "fitness": 0.0}
+                chromosome = {
+                    "strategy": {"type": "dynamic_combo", "stages": [task]},
+                    "fitness": 0.0,
+                }
                 self.population.append(chromosome)
 
         # Дополняем популяцию случайными стратегиями
         while len(self.population) < self.population_size:
             num_stages = random.randint(2, 4)
             stages = [self._create_random_stage() for _ in range(num_stages)]
-            chromosome = {"strategy": {"type": "dynamic_combo", "stages": stages}, "fitness": 0.0}
+            chromosome = {
+                "strategy": {"type": "dynamic_combo", "stages": stages},
+                "fitness": 0.0,
+            }
             self.population.append(chromosome)
 
         LOG.info(f"Создана начальная популяция из {len(self.population)} стратегий.")
 
-    async def _calculate_fitness(self, chromosome: Dict, domains: List[str], dns_cache: Dict[str, str]) -> float:
+    async def _calculate_fitness(
+        self, chromosome: Dict, domains: List[str], dns_cache: Dict[str, str]
+    ) -> float:
         """
         Оценивает приспособленность. Теперь принимает домены и dns_cache как аргументы.
         """
         async with self.semaphore:
             strategy_task = chromosome["strategy"]
             attack_name = strategy_task.get("type")
-            if not attack_name: return -1000.0
+            if not attack_name:
+                return -1000.0
 
             strategy_key = self._create_strategy_cache_key(strategy_task)
             cached_result = self._get_cached_fitness(strategy_key)
@@ -116,7 +128,8 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
 
             target_domain = random.choice(domains) if domains else "example.com"
             target_ip = dns_cache.get(target_domain)
-            if not target_ip: return -1000.0
+            if not target_ip:
+                return -1000.0
 
             context = AttackContext(
                 dst_ip=target_ip,
@@ -162,7 +175,6 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
         Returns:
             Значение фитнеса
         """
-        from core.metrics import BypassQualityMetrics
 
         quality_metrics = BypassQualityMetrics()
 
@@ -324,7 +336,7 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
         domains: List[str],
         ips: Set[str],
         dns_cache: Dict[str, str],
-        fingerprint_dict: Dict[str, Any]
+        fingerprint_dict: Dict[str, Any],
     ) -> Dict:
         """
         Запускает полный цикл эволюционного поиска.
@@ -343,7 +355,10 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
             LOG.info(f"--- Поколение {gen + 1}/{self.generations} ---")
 
             # Передаем данные в _calculate_fitness
-            tasks = [self._calculate_fitness(chromo, domains, dns_cache) for chromo in self.population]
+            tasks = [
+                self._calculate_fitness(chromo, domains, dns_cache)
+                for chromo in self.population
+            ]
             fitness_scores = await asyncio.gather(*tasks)
 
             for i, score in enumerate(fitness_scores):
@@ -355,9 +370,13 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
             if current_best["fitness"] > self.best_strategy_so_far["fitness"]:
                 self.best_strategy_so_far = copy.deepcopy(current_best)
 
-            avg_fitness = sum(s for s in fitness_scores if s is not None) / len(fitness_scores)
+            avg_fitness = sum(s for s in fitness_scores if s is not None) / len(
+                fitness_scores
+            )
             best_fitness_in_gen = current_best["fitness"]
-            fitness_history.append({"gen": gen + 1, "best": best_fitness_in_gen, "avg": avg_fitness})
+            fitness_history.append(
+                {"gen": gen + 1, "best": best_fitness_in_gen, "avg": avg_fitness}
+            )
 
             LOG.info(
                 f"Лучший фитнес в поколении: {best_fitness_in_gen:.2f}. Средний: {avg_fitness:.2f}. Глобально лучший: {self.best_strategy_so_far['fitness']:.2f}"
@@ -557,25 +576,25 @@ class EvolutionarySearcher(IEvolutionarySearcher): # <<< ИЗМЕНЕНИЕ: Р�
         try:
             # Create a simple DNS cache for the domain
             dns_cache = {domain: domain}  # Simplified for interface compatibility
-            
+
             # Run the evolutionary search
             result = asyncio.run(self.run([domain], dns_cache, generations))
-            
+
             # Extract strategies from the result
             if result and "strategy" in result:
                 return [result["strategy"]]
             else:
                 return []
-                
+
         except Exception as e:
             LOG.error(f"Error in search_optimal_strategies: {e}")
             return []
-    
+
     def get_search_results(self) -> Dict[str, Any]:
         """Get results from evolutionary search."""
         return {
             "best_strategy": self.best_strategy_so_far,
             "population_size": self.population_size,
             "generations": self.generations,
-            "cache_stats": self.get_cache_stats()
+            "cache_stats": self.get_cache_stats(),
         }

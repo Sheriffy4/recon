@@ -12,12 +12,12 @@ from .update_manager import UpdateManager
 from .sharing_models import *
 
 __all__ = [
-    'SharingManager',
-    'StrategyValidator', 
-    'CommunityDatabase',
-    'UpdateManager',
-    'SharedStrategy',
-    'StrategyPackage',
-    'TrustedSource',
-    'ValidationResult'
+    "SharingManager",
+    "StrategyValidator",
+    "CommunityDatabase",
+    "UpdateManager",
+    "SharedStrategy",
+    "StrategyPackage",
+    "TrustedSource",
+    "ValidationResult",
 ]

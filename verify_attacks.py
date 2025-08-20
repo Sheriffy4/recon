@@ -4,6 +4,7 @@ from core.bypass.attacks.registry import AttackRegistry
 # Set up basic logging to see the output from the registry's auto-discovery
 logging.basicConfig(level=logging.DEBUG)
 
+
 def main():
     """
     Initializes the AttackRegistry and lists all discovered attacks.
@@ -22,8 +23,8 @@ def main():
     stats = AttackRegistry.get_stats()
     print(f"Total attacks: {stats['total_attacks']}")
     print("Attacks by category:")
-    if stats['categories']:
-        for category, count in stats['categories'].items():
+    if stats["categories"]:
+        for category, count in stats["categories"].items():
             print(f"- {category}: {count}")
     else:
         print("- No categories found.")

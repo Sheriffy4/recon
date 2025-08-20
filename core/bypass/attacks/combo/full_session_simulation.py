@@ -16,14 +16,13 @@ import socket
 import struct
 import logging
 import hashlib
-import os
-from typing import Dict, Any, List, Optional, Tuple, Generator
+from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
 from ..base import BaseAttack, AttackContext, AttackResult, AttackStatus
 from ..registry import register_attack
-from core.dns.robust_dns_handler import RobustDNSHandler, DNSResolutionResult
+from ....dns.robust_dns_handler import RobustDNSHandler  # Fixed import
 
 LOG = logging.getLogger(__name__)
 
@@ -1308,7 +1307,7 @@ class FullSessionSimulationAttack(BaseAttack):
 
         # Create realistic HTTP request with browser-specific headers
         request_lines = [
-            f"POST /api/data HTTP/1.1",
+            "POST /api/data HTTP/1.1",
             f"Host: {domain}",
             f"User-Agent: {fingerprint['user_agent']}",
             f"Accept: {fingerprint['accept']}",
@@ -1815,7 +1814,7 @@ class FullSessionSimulationAttack(BaseAttack):
 
         # Create realistic HTTP request
         request_lines = [
-            f"POST /api/data HTTP/1.1",
+            "POST /api/data HTTP/1.1",
             f"Host: {domain}",
             "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Accept: application/json, text/plain, */*",
@@ -1877,11 +1876,11 @@ class FullSessionSimulationAttack(BaseAttack):
 
         # Vary request types for realism
         request_types = [
-            f"GET /api/status HTTP/1.1",
-            f"GET /api/user/profile HTTP/1.1",
-            f"POST /api/analytics HTTP/1.1",
-            f"GET /static/css/style.css HTTP/1.1",
-            f"GET /static/js/app.js HTTP/1.1",
+            "GET /api/status HTTP/1.1",
+            "GET /api/user/profile HTTP/1.1",
+            "POST /api/analytics HTTP/1.1",
+            "GET /static/css/style.css HTTP/1.1",
+            "GET /static/js/app.js HTTP/1.1",
         ]
 
         request_line = random.choice(request_types)

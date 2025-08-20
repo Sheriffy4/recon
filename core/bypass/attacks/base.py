@@ -10,16 +10,19 @@ import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, asdict, replace
 
-from typing import Dict, Any, Optional, List, Generator, Union, TYPE_CHECKING, Tuple
+
+from typing import Dict, Any, Optional, List, Union, TYPE_CHECKING, Tuple, Type
 from enum import Enum
 
 # Use TYPE_CHECKING for forward references
 if TYPE_CHECKING:
     from core.bypass.handlers.tls_handler import TLSHandler
 
+
 # Additional types from base_types.py for effectiveness testing
 class BlockType(Enum):
     """Types of blocking detected during testing."""
+
     NONE = "none"
     HTTP_ERROR = "http_error"
     TIMEOUT = "timeout"
@@ -31,10 +34,12 @@ class BlockType(Enum):
 
 class BypassMode(Enum):
     """Modes of bypass operation."""
-    NONE = "none"              # No bypass (baseline)
-    EXTERNAL_TOOL = "external" # External tool (zapret/goodbyedpi)
-    NATIVE_PYDIVERT = "native" # Native packet interception (WinDivert)
-    HYBRID = "hybrid"          # Automatic selection
+
+    NONE = "none"  # No bypass (baseline)
+    EXTERNAL_TOOL = "external"  # External tool (zapret/goodbyedpi)
+    NATIVE_PYDIVERT = "native"  # Native packet interception (WinDivert)
+    HYBRID = "hybrid"  # Automatic selection
+
 
 # Type definitions for segments orchestration
 SegmentTuple = Tuple[bytes, int, Dict[str, Any]]
@@ -53,8 +58,9 @@ Segment tuple format: (payload_data, seq_offset, options_dict)
 
 class AttackStatus(Enum):
     """Статус выполнения атаки."""
+
     SUCCESS = "success"
-    FAILURE = "failure" # Можно переименовать в FAILED для единообразия
+    FAILURE = "failure"  # Можно переименовать в FAILED для единообразия
     ERROR = "error"
     TIMEOUT = "timeout"
     BLOCKED = "blocked"
@@ -99,7 +105,7 @@ class AttackContext:
     connection_id: str = ""
     packet_id: int = 0
     session_established: bool = False
-    
+
     # Sequence number management
     initial_seq: Optional[int] = None
     current_seq_offset: int = 0
@@ -116,7 +122,15 @@ class AttackContext:
     engine_type: str = "local"
     debug: bool = False
     tls_handler: Optional["TLSHandler"] = None
-    
+
+    @classmethod
+    def from_compat(cls: Type["AttackContext"], **kwargs: Any) -> "AttackContext":
+        if "target_ip" in kwargs and "dst_ip" not in kwargs:
+            kwargs["dst_ip"] = kwargs.pop("target_ip")
+        if "target_port" in kwargs and "dst_port" not in kwargs:
+            kwargs["dst_port"] = kwargs.pop("target_port")
+        return cls(**kwargs)
+
     def copy(self) -> "AttackContext":
         """
         Создает поверхностную копию (shallow copy) этого AttackContext.
@@ -124,141 +138,153 @@ class AttackContext:
         чтобы избежать побочных эффектов при изменении параметров.
         """
         return replace(self)
-    
+
     def get_next_seq(self, payload_len: int) -> int:
         """
         Calculate next sequence number after sending payload.
-        
+
         Args:
             payload_len: Length of payload being sent
-            
+
         Returns:
             Next sequence number
         """
         return self.tcp_seq + payload_len
-    
+
     def advance_seq(self, payload_len: int) -> None:
         """
         Advance TCP sequence number after sending payload.
-        
+
         Args:
             payload_len: Length of payload that was sent
         """
         self.tcp_seq += payload_len
         self.current_seq_offset += payload_len
-    
+
     def get_seq_with_offset(self, offset: int) -> int:
         """
         Get sequence number with specific offset.
-        
+
         Args:
             offset: Offset from current sequence number
-            
+
         Returns:
             Sequence number with offset applied
         """
         return self.tcp_seq + offset
-    
+
     def set_tcp_flags(self, flags: Union[int, str]) -> None:
         """
         Set TCP flags from integer or string representation.
-        
+
         Args:
             flags: TCP flags as int (0x18) or string ("PSH,ACK")
         """
         if isinstance(flags, str):
             # Convert string flags to integer
             flag_map = {
-                "FIN": 0x01, "SYN": 0x02, "RST": 0x04, "PSH": 0x08,
-                "ACK": 0x10, "URG": 0x20, "ECE": 0x40, "CWR": 0x80
+                "FIN": 0x01,
+                "SYN": 0x02,
+                "RST": 0x04,
+                "PSH": 0x08,
+                "ACK": 0x10,
+                "URG": 0x20,
+                "ECE": 0x40,
+                "CWR": 0x80,
             }
-            
+
             tcp_flags = 0
             for flag in flags.upper().split(","):
                 flag = flag.strip()
                 if flag in flag_map:
                     tcp_flags |= flag_map[flag]
-            
+
             self.tcp_flags = tcp_flags
         else:
             self.tcp_flags = flags
-    
+
     def get_tcp_flags_string(self) -> str:
         """
         Get TCP flags as human-readable string.
-        
+
         Returns:
             String representation of TCP flags (e.g., "PSH,ACK")
         """
         flags = []
         flag_map = {
-            0x01: "FIN", 0x02: "SYN", 0x04: "RST", 0x08: "PSH",
-            0x10: "ACK", 0x20: "URG", 0x40: "ECE", 0x80: "CWR"
+            0x01: "FIN",
+            0x02: "SYN",
+            0x04: "RST",
+            0x08: "PSH",
+            0x10: "ACK",
+            0x20: "URG",
+            0x40: "ECE",
+            0x80: "CWR",
         }
-        
+
         for bit, name in flag_map.items():
             if self.tcp_flags & bit:
                 flags.append(name)
-        
+
         return ",".join(flags) if flags else "NONE"
-    
+
     def create_connection_id(self) -> str:
         """
         Create unique connection identifier.
-        
+
         Returns:
             Connection ID string
         """
         if not self.connection_id:
             self.connection_id = f"{self.src_ip or 'unknown'}:{self.src_port or 0}->{self.dst_ip}:{self.dst_port}"
         return self.connection_id
-    
+
     def increment_packet_id(self) -> int:
         """
         Increment and return packet ID for this connection.
-        
+
         Returns:
             New packet ID
         """
         self.packet_id += 1
         return self.packet_id
-    
+
     def reset_sequence_tracking(self) -> None:
         """Reset sequence number tracking to initial state."""
         if self.initial_seq is not None:
             self.tcp_seq = self.initial_seq
         self.current_seq_offset = 0
         self.packet_id = 0
-    
+
     def validate_tcp_session(self) -> bool:
         """
         Validate that TCP session information is consistent.
-        
+
         Returns:
             True if session info is valid, False otherwise
         """
         # Check basic requirements
         if not self.dst_ip or not self.dst_port:
             return False
-        
+
         # Check sequence numbers are reasonable
         if self.tcp_seq < 0 or self.tcp_ack < 0:
             return False
-        
+
         # Check window size is reasonable
         if self.tcp_window_size < 0 or self.tcp_window_size > 65535:
             return False
-        
+
         # Check flags are valid
         if self.tcp_flags < 0 or self.tcp_flags > 255:
             return False
-        
+
         return True
-    
+
     def copy_tcp_session(self) -> "AttackContext":
         """
         Create a copy of this context with same TCP session info.
-        
+
         Returns:
             New AttackContext with copied TCP session information
         """
@@ -270,7 +296,6 @@ class AttackContext:
             domain=self.domain,
             payload=self.payload,
             protocol=self.protocol,
-            
             # Copy TCP session info
             tcp_seq=self.tcp_seq,
             tcp_ack=self.tcp_ack,
@@ -278,7 +303,6 @@ class AttackContext:
             tcp_window_size=self.tcp_window_size,
             tcp_urgent_pointer=self.tcp_urgent_pointer,
             tcp_options=self.tcp_options,
-            
             # Copy connection state
             connection_id=self.connection_id,
             packet_id=self.packet_id,
@@ -286,18 +310,17 @@ class AttackContext:
             initial_seq=self.initial_seq,
             current_seq_offset=self.current_seq_offset,
             expected_ack=self.expected_ack,
-            
             # Copy other fields
             params=self.params.copy(),
             timeout=self.timeout,
             engine_type=self.engine_type,
-            debug=self.debug
+            debug=self.debug,
         )
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert context to dictionary for logging/debugging.
-        
+
         Returns:
             Dictionary representation of context
         """
@@ -306,7 +329,7 @@ class AttackContext:
                 "src": f"{self.src_ip}:{self.src_port}",
                 "dst": f"{self.dst_ip}:{self.dst_port}",
                 "domain": self.domain,
-                "protocol": self.protocol
+                "protocol": self.protocol,
             },
             "tcp_session": {
                 "seq": self.tcp_seq,
@@ -314,7 +337,7 @@ class AttackContext:
                 "flags": self.get_tcp_flags_string(),
                 "window": self.tcp_window_size,
                 "urgent": self.tcp_urgent_pointer,
-                "options_len": len(self.tcp_options)
+                "options_len": len(self.tcp_options),
             },
             "state": {
                 "connection_id": self.connection_id,
@@ -322,23 +345,18 @@ class AttackContext:
                 "session_established": self.session_established,
                 "seq_offset": self.current_seq_offset,
                 "initial_seq": self.initial_seq,
-                "expected_ack": self.expected_ack
+                "expected_ack": self.expected_ack,
             },
             "payload_size": len(self.payload),
             "params": self.params,
-            "timing": {
-                "timeout": self.timeout
-            },
-            "engine": {
-                "type": self.engine_type,
-                "debug": self.debug
-            }
+            "timing": {"timeout": self.timeout},
+            "engine": {"type": self.engine_type, "debug": self.debug},
         }
-    
+
     def get_tcp_header_info(self) -> Dict[str, Any]:
         """
         Get complete TCP header information for packet construction.
-        
+
         Returns:
             Dictionary with TCP header fields
         """
@@ -349,13 +367,15 @@ class AttackContext:
             "window": self.tcp_window_size,
             "urgent": self.tcp_urgent_pointer,
             "options": self.tcp_options,
-            "flags_string": self.get_tcp_flags_string()
+            "flags_string": self.get_tcp_flags_string(),
         }
-    
-    def update_from_packet(self, seq: int, ack: int, flags: int, window: int = None) -> None:
+
+    def update_from_packet(
+        self, seq: int, ack: int, flags: int, window: int = None
+    ) -> None:
         """
         Update TCP session info from received packet.
-        
+
         Args:
             seq: Sequence number from packet
             ack: Acknowledgment number from packet
@@ -365,27 +385,27 @@ class AttackContext:
         self.tcp_seq = seq
         self.tcp_ack = ack
         self.tcp_flags = flags
-        
+
         if window is not None:
             self.tcp_window_size = window
-        
+
         # Update connection state
         if flags & 0x02:  # SYN flag
             if not self.session_established:
                 self.initial_seq = seq
                 self.session_established = True
-        
+
         # Update expected ACK
         if flags & 0x08:  # PSH flag - data packet
             self.expected_ack = seq + len(self.payload)
-    
+
     def create_response_context(self, response_payload: bytes = b"") -> "AttackContext":
         """
         Create a response context for bidirectional communication.
-        
+
         Args:
             response_payload: Payload for the response
-            
+
         Returns:
             New AttackContext configured for response
         """
@@ -398,29 +418,26 @@ class AttackContext:
             domain=self.domain,
             payload=response_payload,
             protocol=self.protocol,
-            
             # Set TCP session for response
             tcp_seq=self.tcp_ack,  # Our ACK becomes their SEQ
             tcp_ack=self.tcp_seq + len(self.payload),  # Their next expected SEQ
             tcp_flags=0x18,  # PSH+ACK
             tcp_window_size=self.tcp_window_size,
-            
             # Copy session state
             connection_id=self.connection_id,
             session_established=self.session_established,
-            
             # Copy other settings
             timeout=self.timeout,
             engine_type=self.engine_type,
-            debug=self.debug
+            debug=self.debug,
         )
-        
+
         return response_context
-    
+
     def calculate_checksum_fields(self) -> Dict[str, int]:
         """
         Calculate fields needed for TCP checksum computation.
-        
+
         Returns:
             Dictionary with checksum-related fields
         """
@@ -434,60 +451,60 @@ class AttackContext:
             "flags": self.tcp_flags,
             "window": self.tcp_window_size,
             "urgent": self.tcp_urgent_pointer,
-            "payload_len": len(self.payload)
+            "payload_len": len(self.payload),
         }
-    
+
     def is_handshake_packet(self) -> bool:
         """
         Check if this context represents a TCP handshake packet.
-        
+
         Returns:
             True if this is a handshake packet (SYN, SYN-ACK, or final ACK)
         """
         # SYN packet
         if self.tcp_flags == 0x02:
             return True
-        
+
         # SYN-ACK packet
         if self.tcp_flags == 0x12:
             return True
-        
+
         # Final ACK of handshake (ACK only, no data)
         if self.tcp_flags == 0x10 and len(self.payload) == 0:
             return True
-        
+
         return False
-    
+
     def is_data_packet(self) -> bool:
         """
         Check if this context represents a data packet.
-        
+
         Returns:
             True if this packet carries data (PSH flag set and payload present, or just payload)
         """
         # Data packet must have payload or PSH flag with established connection
         has_payload = len(self.payload) > 0
         has_psh_flag = (self.tcp_flags & 0x08) != 0
-        
+
         # If it's a handshake packet, it's not a data packet even with PSH
         if self.is_handshake_packet():
             return False
-        
+
         return has_payload or (has_psh_flag and self.session_established)
-    
+
     def is_fin_packet(self) -> bool:
         """
         Check if this context represents a FIN packet (connection termination).
-        
+
         Returns:
             True if FIN flag is set
         """
         return (self.tcp_flags & 0x01) != 0
-    
+
     def is_rst_packet(self) -> bool:
         """
         Check if this context represents a RST packet (connection reset).
-        
+
         Returns:
             True if RST flag is set
         """
@@ -499,7 +516,7 @@ class AttackResult:
     """
     Result of attack execution.
     Standardized across all attack types.
-    
+
     Enhanced with segments support for TCP session orchestration.
     """
 
@@ -520,7 +537,7 @@ class AttackResult:
     # Success indicators
     connection_established: bool = False
     data_transmitted: bool = False
-    
+
     # Legacy field - maintained for backward compatibility
     modified_payload: Optional[bytes] = None
 
@@ -532,7 +549,7 @@ class AttackResult:
     def set_metadata(self, key: str, value: Any) -> None:
         """
         Safely set metadata value.
-        
+
         Args:
             key: Metadata key
             value: Metadata value
@@ -544,11 +561,11 @@ class AttackResult:
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """
         Safely get metadata value.
-        
+
         Args:
             key: Metadata key
             default: Default value if key not found
-            
+
         Returns:
             Metadata value or default
         """
@@ -559,10 +576,10 @@ class AttackResult:
     def has_metadata(self, key: str) -> bool:
         """
         Check if metadata key exists.
-        
+
         Args:
             key: Metadata key to check
-            
+
         Returns:
             True if key exists, False otherwise
         """
@@ -573,54 +590,58 @@ class AttackResult:
     def update_metadata(self, updates: Dict[str, Any]) -> None:
         """
         Safely update multiple metadata values.
-        
+
         Args:
             updates: Dictionary of key-value pairs to update
         """
         if self.metadata is None:
             self.metadata = {}
         self.metadata.update(updates)
-    
-    def create_segments_from_modified_payload(self, modified_payload: bytes, original_payload: bytes) -> None:
+
+    def create_segments_from_modified_payload(
+        self, modified_payload: bytes, original_payload: bytes
+    ) -> None:
         """
         Create segments from a modified payload for backward compatibility.
         This allows old-style attacks to work with new segment-based execution.
-        
+
         Args:
             modified_payload: The modified payload from old-style attack
             original_payload: The original payload for reference
         """
         if not modified_payload:
             return
-        
+
         # Simple segmentation for backward compatibility
         # Just create a single segment with the entire modified payload
         self.segments = [(modified_payload, 0, {})]
-    
+
     def ensure_segments_or_fallback(self, original_payload: bytes) -> None:
         """
         Ensure segments are present, creating them from modified_payload if needed.
         This provides backward compatibility for old attacks.
-        
+
         Args:
             original_payload: Original payload for fallback creation
         """
         if self.has_segments():
             return  # Already has segments
-        
+
         # Check for modified_payload (old style)
         if self.modified_payload:
-            self.create_segments_from_modified_payload(self.modified_payload, original_payload)
+            self.create_segments_from_modified_payload(
+                self.modified_payload, original_payload
+            )
         elif self.metadata and "modified_payload" in self.metadata:
             modified = self.metadata["modified_payload"]
             if isinstance(modified, bytes):
                 self.create_segments_from_modified_payload(modified, original_payload)
-    
+
     @property
     def segments(self) -> Optional[List[SegmentTuple]]:
         """
         Get segments list from metadata for TCP session orchestration.
-        
+
         Each segment is a tuple: (payload_data, seq_offset, options_dict)
         - payload_data: bytes - Raw bytes to send
         - seq_offset: int - TCP sequence offset from original packet
@@ -630,51 +651,58 @@ class AttackResult:
           - "delay_ms": float - Delay before sending (milliseconds)
           - "window_size": int - TCP window size override
           - "flags": int - TCP flags override
-        
+
         Returns:
             List of segment tuples or None if not set
         """
         return self.metadata.get("segments") if self.metadata else None
-    
+
     @segments.setter
     def segments(self, value: Optional[List[SegmentTuple]]) -> None:
         """
         Set segments list in metadata.
-        
+
         Args:
             value: List of segment tuples or None to clear
         """
         if self.metadata is None:
             self.metadata = {}
-        
+
         if value is None:
             self.metadata.pop("segments", None)
         else:
             # Validate segment format
             if not isinstance(value, list):
                 raise ValueError("Segments must be a list")
-            
+
             for i, segment in enumerate(value):
                 if not isinstance(segment, tuple) or len(segment) != 3:
-                    raise ValueError(f"Segment {i} must be a tuple of length 3: (payload_data, seq_offset, options_dict)")
-                
+                    raise ValueError(
+                        f"Segment {i} must be a tuple of length 3: (payload_data, seq_offset, options_dict)"
+                    )
+
                 payload_data, seq_offset, options_dict = segment
-                
+
                 if not isinstance(payload_data, bytes):
                     raise ValueError(f"Segment {i} payload_data must be bytes")
-                
+
                 if not isinstance(seq_offset, int):
                     raise ValueError(f"Segment {i} seq_offset must be int")
-                
+
                 if not isinstance(options_dict, dict):
                     raise ValueError(f"Segment {i} options_dict must be dict")
-            
+
             self.metadata["segments"] = value
-    
-    def add_segment(self, payload_data: bytes, seq_offset: int = 0, options: Optional[Dict[str, Any]] = None) -> None:
+
+    def add_segment(
+        self,
+        payload_data: bytes,
+        seq_offset: int = 0,
+        options: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Add a segment to the segments list.
-        
+
         Args:
             payload_data: Raw bytes to send
             seq_offset: TCP sequence offset from original packet
@@ -682,20 +710,20 @@ class AttackResult:
         """
         if options is None:
             options = {}
-        
+
         segment = (payload_data, seq_offset, options)
-        
+
         if self.segments is None:
             self.segments = [segment]
         else:
             current_segments = list(self.segments)
             current_segments.append(segment)
             self.segments = current_segments
-    
+
     def has_segments(self) -> bool:
         """
         Check if attack result contains segments for orchestrated execution.
-        
+
         Returns:
             True if result has segments to execute
         """
@@ -703,20 +731,20 @@ class AttackResult:
         if self.metadata and "segments" in self.metadata:
             segments = self.metadata["segments"]
             return segments is not None and len(segments) > 0
-        
+
         # Check if there's a segments attribute
-        if hasattr(self, 'segments') and self.segments:
+        if hasattr(self, "segments") and self.segments:
             return len(self.segments) > 0
-        
+
         return False
-    
+
     @property
     def segments(self):
         """Get segments from result."""
         if self.metadata and "segments" in self.metadata:
             return self.metadata["segments"]
-        return getattr(self, '_segments', None)
-    
+        return getattr(self, "_segments", None)
+
     @segments.setter
     def segments(self, value):
         """Set segments in result."""
@@ -724,17 +752,17 @@ class AttackResult:
             self.metadata = {}
         self.metadata["segments"] = value
         self._segments = value
-    
+
     def get_segment_count(self) -> int:
         """
         Get the number of segments in this result.
-        
+
         Returns:
             Number of segments, 0 if no segments
         """
         segments = self.segments
         return len(segments) if segments else 0
-    
+
     def clear_segments(self) -> None:
         """Clear all segments from this result."""
         self.segments = None
@@ -742,7 +770,7 @@ class AttackResult:
     def validate_structure(self) -> bool:
         """
         Validate that the AttackResult has proper structure.
-        
+
         Returns:
             True if structure is valid, False otherwise
         """
@@ -750,15 +778,15 @@ class AttackResult:
             # Check required fields
             if not isinstance(self.status, AttackStatus):
                 return False
-            
+
             # Check metadata is dict or None
             if self.metadata is not None and not isinstance(self.metadata, dict):
                 return False
-                
+
             # Check numeric fields
             if not isinstance(self.latency_ms, (int, float)):
                 return False
-                
+
             return True
         except Exception:
             return False
@@ -766,27 +794,27 @@ class AttackResult:
 
 class AttackResultHelper:
     """Helper class for working with AttackResult objects safely."""
-    
+
     @staticmethod
     def validate_result(result: Any) -> bool:
         """Validate that object is a proper AttackResult."""
         return (
-            hasattr(result, 'status') and
-            hasattr(result, 'metadata') and
-            isinstance(result.status, AttackStatus)
+            hasattr(result, "status")
+            and hasattr(result, "metadata")
+            and isinstance(result.status, AttackStatus)
         )
-    
+
     @staticmethod
     def create_success_result(
         technique_used: str = "",
         metadata: Optional[Dict[str, Any]] = None,
         latency_ms: float = 0.0,
         packets_sent: int = 0,
-        segments: Optional[List[tuple]] = None
+        segments: Optional[List[tuple]] = None,
     ) -> AttackResult:
         """
         Create a successful AttackResult.
-        
+
         Args:
             technique_used: Name of the technique used
             metadata: Additional metadata
@@ -799,19 +827,19 @@ class AttackResultHelper:
             technique_used=technique_used,
             metadata=metadata or {},
             latency_ms=latency_ms,
-            packets_sent=packets_sent
+            packets_sent=packets_sent,
         )
-        
+
         if segments is not None:
             result.segments = segments
-        
+
         return result
-    
+
     @staticmethod
     def create_failure_result(
         error_message: str,
         technique_used: str = "",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> AttackResult:
         """Create a failed AttackResult."""
         return AttackResult(
@@ -819,20 +847,20 @@ class AttackResultHelper:
             technique_used=technique_used,
             error_message=error_message,
             metadata=metadata or {},
-            latency_ms=0.0
+            latency_ms=0.0,
         )
 
     @staticmethod
     def ensure_metadata(result: AttackResult) -> None:
         """
         Ensure metadata is initialized for an AttackResult.
-        
+
         Args:
             result: AttackResult object to check
         """
         if not isinstance(result, AttackResult):
             raise TypeError(f"Expected AttackResult, got {type(result)}")
-        
+
         if result.metadata is None:
             result.metadata = {}
 
@@ -840,7 +868,7 @@ class AttackResultHelper:
     def set_metadata(result: AttackResult, key: str, value: Any) -> None:
         """
         Safely set metadata value on an AttackResult.
-        
+
         Args:
             result: AttackResult object
             key: Metadata key
@@ -848,7 +876,7 @@ class AttackResultHelper:
         """
         if not isinstance(result, AttackResult):
             raise TypeError(f"Expected AttackResult, got {type(result)}")
-        
+
         AttackResultHelper.ensure_metadata(result)
         result.metadata[key] = value
 
@@ -856,18 +884,18 @@ class AttackResultHelper:
     def get_metadata(result: AttackResult, key: str, default: Any = None) -> Any:
         """
         Safely get metadata value from an AttackResult.
-        
+
         Args:
             result: AttackResult object
             key: Metadata key
             default: Default value if key not found
-            
+
         Returns:
             Metadata value or default
         """
         if not isinstance(result, AttackResult):
             raise TypeError(f"Expected AttackResult, got {type(result)}")
-        
+
         if result.metadata is None:
             return default
         return result.metadata.get(key, default)
@@ -876,17 +904,17 @@ class AttackResultHelper:
     def has_metadata(result: AttackResult, key: str) -> bool:
         """
         Check if AttackResult has a specific metadata key.
-        
+
         Args:
             result: AttackResult object
             key: Metadata key to check
-            
+
         Returns:
             True if key exists, False otherwise
         """
         if not isinstance(result, AttackResult):
             return False
-        
+
         if result.metadata is None:
             return False
         return key in result.metadata
@@ -895,14 +923,14 @@ class AttackResultHelper:
     def update_metadata(result: AttackResult, updates: Dict[str, Any]) -> None:
         """
         Safely update multiple metadata values on an AttackResult.
-        
+
         Args:
             result: AttackResult object
             updates: Dictionary of key-value pairs to update
         """
         if not isinstance(result, AttackResult):
             raise TypeError(f"Expected AttackResult, got {type(result)}")
-        
+
         AttackResultHelper.ensure_metadata(result)
         result.metadata.update(updates)
 
@@ -910,77 +938,77 @@ class AttackResultHelper:
     def create_segments_result(
         technique_used: str,
         segments: List[tuple],
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> AttackResult:
         """
         Create a successful AttackResult with segments for orchestration.
-        
+
         Args:
             technique_used: Name of the technique used
             segments: List of segment tuples (payload_data, seq_offset, options_dict)
             metadata: Additional metadata
-            
+
         Returns:
             AttackResult configured for segment orchestration
         """
         result_metadata = metadata or {}
-        
+
         result = AttackResult(
             status=AttackStatus.SUCCESS,
             technique_used=technique_used,
             metadata=result_metadata,
-            packets_sent=len(segments)
+            packets_sent=len(segments),
         )
-        
+
         result.segments = segments
         return result
-    
+
     @staticmethod
     def has_segments(result: AttackResult) -> bool:
         """
         Check if AttackResult has segments for orchestration.
-        
+
         Args:
             result: AttackResult object to check
-            
+
         Returns:
             True if result has segments, False otherwise
         """
         if not isinstance(result, AttackResult):
             return False
         return result.has_segments()
-    
+
     @staticmethod
     def get_segments(result: AttackResult) -> Optional[List[tuple]]:
         """
         Get segments from AttackResult.
-        
+
         Args:
             result: AttackResult object
-            
+
         Returns:
             List of segment tuples or None
         """
         if not isinstance(result, AttackResult):
             return None
         return result.segments
-    
+
     @staticmethod
     def add_segment(
-        result: AttackResult, 
-        payload_data: bytes, 
-        seq_offset: int = 0, 
-        options: Optional[Dict[str, Any]] = None
+        result: AttackResult,
+        payload_data: bytes,
+        seq_offset: int = 0,
+        options: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """
         Add a segment to AttackResult.
-        
+
         Args:
             result: AttackResult object
             payload_data: Raw bytes to send
             seq_offset: TCP sequence offset
             options: Transmission options
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -991,37 +1019,37 @@ class AttackResultHelper:
             return True
         except Exception:
             return False
-    
+
     @staticmethod
     def validate_segments(segments: List[tuple]) -> bool:
         """
         Validate segments format.
-        
+
         Args:
             segments: List of segment tuples to validate
-            
+
         Returns:
             True if valid, False otherwise
         """
         try:
             if not isinstance(segments, list):
                 return False
-            
+
             for segment in segments:
                 if not isinstance(segment, tuple) or len(segment) != 3:
                     return False
-                
+
                 payload_data, seq_offset, options_dict = segment
-                
+
                 if not isinstance(payload_data, bytes):
                     return False
-                
+
                 if not isinstance(seq_offset, int):
                     return False
-                
+
                 if not isinstance(options_dict, dict):
                     return False
-            
+
             return True
         except Exception:
             return False
@@ -1030,41 +1058,42 @@ class AttackResultHelper:
     def safe_access(result: Any, operation: str, *args, **kwargs) -> Any:
         """
         Safely perform operations on AttackResult objects with error handling.
-        
+
         Args:
             result: Object to operate on
             operation: Operation name ('get_metadata', 'set_metadata', 'get_segments', etc.)
             *args: Operation arguments
             **kwargs: Operation keyword arguments
-            
+
         Returns:
             Operation result or None if failed
         """
         try:
             if not AttackResultHelper.validate_result(result):
                 return None
-            
-            if operation == 'get_metadata':
+
+            if operation == "get_metadata":
                 return AttackResultHelper.get_metadata(result, *args, **kwargs)
-            elif operation == 'set_metadata':
+            elif operation == "set_metadata":
                 AttackResultHelper.set_metadata(result, *args, **kwargs)
                 return True
-            elif operation == 'has_metadata':
+            elif operation == "has_metadata":
                 return AttackResultHelper.has_metadata(result, *args, **kwargs)
-            elif operation == 'update_metadata':
+            elif operation == "update_metadata":
                 AttackResultHelper.update_metadata(result, *args, **kwargs)
                 return True
-            elif operation == 'get_segments':
+            elif operation == "get_segments":
                 return AttackResultHelper.get_segments(result)
-            elif operation == 'has_segments':
+            elif operation == "has_segments":
                 return AttackResultHelper.has_segments(result)
-            elif operation == 'add_segment':
+            elif operation == "add_segment":
                 return AttackResultHelper.add_segment(result, *args, **kwargs)
             else:
                 return None
         except Exception as e:
             # Log error but don't raise to maintain system stability
             import logging
+
             logger = logging.getLogger("AttackResultHelper")
             logger.error(f"Safe access operation '{operation}' failed: {e}")
             return None
@@ -1108,7 +1137,7 @@ class BaseAttack(ABC):
         only use the parameters it needs.
         """
         pass
-    
+
     @property
     def description(self) -> str:
         """Human-readable description of the attack."""
@@ -1239,13 +1268,14 @@ class BaseAttack(ABC):
 
             # ИЗМЕНЕНИЕ: Проверяем, является ли execute асинхронным
             import inspect
+
             if inspect.iscoroutinefunction(self.execute):
                 # Если execute асинхронный, вызываем его напрямую с await
                 result = await self.execute(context)
             else:
                 # Если execute синхронный, используем to_thread
                 result = await asyncio.to_thread(self.execute, context)
-            
+
             result.processing_time_ms = (time.time() - start_time) * 1000
             result.technique_used = self.name
             self._update_stats(result)
@@ -1438,42 +1468,43 @@ class ComboAttack(BaseAttack):
         for attack in self.attacks:
             protocols.update(attack.supported_protocols)
         return list(protocols)
-        
+
+
 class SegmentOrchestrationHelper:
     """Helper for creating segment orchestration plans."""
-    
+
     @staticmethod
-    def create_simple_segments(payload: bytes, chunk_size: int = 0) -> List[SegmentTuple]:
+    def create_simple_segments(
+        payload: bytes, chunk_size: int = 0
+    ) -> List[SegmentTuple]:
         """Create simple segments without modifications."""
         if chunk_size <= 0:
             return [(payload, 0, {})]
-        
+
         segments = []
         for i in range(0, len(payload), chunk_size):
-            chunk = payload[i:i + chunk_size]
+            chunk = payload[i : i + chunk_size]
             segments.append((chunk, i, {}))
         return segments
-    
+
     @staticmethod
     def create_timed_segments(
-        payload: bytes, 
-        chunk_size: int, 
-        delay_ms: float
+        payload: bytes, chunk_size: int, delay_ms: float
     ) -> List[SegmentTuple]:
         """Create segments with timing delays."""
         segments = []
         for i in range(0, len(payload), chunk_size):
-            chunk = payload[i:i + chunk_size]
+            chunk = payload[i : i + chunk_size]
             options = {"delay_ms": delay_ms} if i > 0 else {}
             segments.append((chunk, i, options))
         return segments
-    
+
     @staticmethod
     def apply_modifications_to_segments(
         segments: List[SegmentTuple],
         ttl: Optional[int] = None,
         bad_checksum: bool = False,
-        delay_ms: Optional[float] = None
+        delay_ms: Optional[float] = None,
     ) -> List[SegmentTuple]:
         """Apply modifications to existing segments."""
         modified = []
@@ -1488,11 +1519,14 @@ class SegmentOrchestrationHelper:
             modified.append((payload, offset, new_options))
         return modified
 
+
 # Additional data classes for effectiveness testing (unified from base_types.py)
+
 
 @dataclass
 class BaselineResult:
     """Result of baseline testing without bypass."""
+
     domain: str
     success: bool
     latency_ms: float
@@ -1502,19 +1536,20 @@ class BaselineResult:
     response_size: int = 0
     headers: Dict[str, str] = field(default_factory=dict)
     content_preview: str = ""
-    
+
     # Extended blocking analysis
     rst_ttl_distance: Optional[int] = None
     sni_consistency_blocked: Optional[bool] = None
     response_timing_pattern: Optional[str] = None
     server_ip: Optional[str] = None
-    
+
     timestamp: float = field(default_factory=time.time)
 
 
 @dataclass
 class BypassResult:
     """Result of testing with bypass applied."""
+
     domain: str
     success: bool
     latency_ms: float
@@ -1526,36 +1561,37 @@ class BypassResult:
     response_size: int = 0
     headers: Dict[str, str] = field(default_factory=dict)
     content_preview: str = ""
-    
+
     # Extended blocking analysis
     rst_ttl_distance: Optional[int] = None
     sni_consistency_blocked: Optional[bool] = None
     response_timing_pattern: Optional[str] = None
     server_ip: Optional[str] = None
-    
+
     timestamp: float = field(default_factory=time.time)
 
 
 @dataclass
 class EffectivenessResult:
     """Comprehensive effectiveness analysis result with enhanced failure analysis data."""
+
     domain: str
     baseline: BaselineResult
     bypass: BypassResult
-    
+
     # Effectiveness metrics
     effectiveness_score: float  # 0.0 - 1.0
     bypass_effective: bool
     improvement_type: str  # "access_gained", "latency_improved", "no_improvement"
-    
+
     # Performance comparison
     latency_improvement_ms: float = 0.0
     latency_improvement_percent: float = 0.0
-    
+
     # Analysis details
     analysis_notes: List[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
-    
+
     # Enhanced failure analysis data for FailureAnalyzer
     failure_patterns: Dict[str, Any] = field(default_factory=dict)
     block_classification: Dict[str, Any] = field(default_factory=dict)
@@ -1566,12 +1602,13 @@ class EffectivenessResult:
 @dataclass
 class TestRequest:
     """Request for testing a domain."""
+
     domain: str
     port: int = 443
     strategy: Optional[Dict[str, Any]] = None
     timeout: float = 10.0
     max_retries: int = 2
-    
+
     @property
     def url(self) -> str:
         """Get full URL for the request."""
@@ -1582,20 +1619,21 @@ class TestRequest:
 @dataclass
 class BatchTestResult:
     """Result of testing multiple sites."""
+
     total_sites: int
     successful_sites: int
     failed_sites: int
     results: Dict[str, BypassResult] = field(default_factory=dict)
     execution_time_ms: float = 0.0
     timestamp: float = field(default_factory=time.time)
-    
+
     @property
     def success_rate(self) -> float:
         """Calculate success rate."""
         if self.total_sites == 0:
             return 0.0
         return self.successful_sites / self.total_sites
-    
+
     @property
     def summary(self) -> str:
         """Get summary string."""
@@ -1605,11 +1643,12 @@ class BatchTestResult:
 @dataclass
 class EngineHealth:
     """Health status of a bypass engine."""
+
     engine_type: str
     is_healthy: bool
     error_message: Optional[str] = None
     details: Dict[str, Any] = field(default_factory=dict)
-    
+
     @property
     def status_emoji(self) -> str:
         """Get status emoji."""
@@ -1626,13 +1665,24 @@ LegacyBaseAttack = BaseAttack
 # Export all unified types
 __all__ = [
     # Core attack system
-    "AttackStatus", "AttackContext", "AttackResult", "BaseAttack",
-    "AttackResultHelper", "SegmentTuple",
-    
+    "AttackStatus",
+    "AttackContext",
+    "AttackResult",
+    "BaseAttack",
+    "AttackResultHelper",
+    "SegmentTuple",
     # Effectiveness testing types
-    "BlockType", "BypassMode", "BaselineResult", "BypassResult", 
-    "EffectivenessResult", "TestRequest", "BatchTestResult", "EngineHealth",
-    
+    "BlockType",
+    "BypassMode",
+    "BaselineResult",
+    "BypassResult",
+    "EffectivenessResult",
+    "TestRequest",
+    "BatchTestResult",
+    "EngineHealth",
     # Legacy compatibility
-    "LegacyAttackStatus", "LegacyAttackResult", "LegacyAttackContext", "LegacyBaseAttack"
+    "LegacyAttackStatus",
+    "LegacyAttackResult",
+    "LegacyAttackContext",
+    "LegacyBaseAttack",
 ]

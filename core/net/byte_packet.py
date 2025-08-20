@@ -1,8 +1,9 @@
 import struct
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import List
 from .base_packet import Packet
-from .tcp_options import TCPOption, TCPOptions
+from .tcp_options import TCPOption
+
 
 @dataclass
 class IPv4Packet(Packet):
@@ -25,23 +26,23 @@ class IPv4Packet(Packet):
     def parse(cls, raw: bytes) -> "IPv4Packet":
         if len(raw) < 20:
             raise ValueError("Packet too short for IPv4")
-        
+
         ver_ihl = raw[0]
         version = ver_ihl >> 4
-        ihl = (ver_ihl & 0x0F)
-        
+        ihl = ver_ihl & 0x0F
+
         if version != 4:
             raise ValueError(f"Not an IPv4 packet (version={version})")
-        
+
         header_length = ihl * 4
         if len(raw) < header_length:
             raise ValueError("Packet shorter than header length")
-            
+
         fields = struct.unpack("!BBHHHBBH4s4s", raw[:20])
-        
+
         options = raw[20:header_length] if header_length > 20 else b""
         payload = raw[header_length:]
-        
+
         return cls(
             version=version,
             ihl=ihl,
@@ -56,11 +57,12 @@ class IPv4Packet(Packet):
             src_addr=".".join(str(b) for b in fields[8]),
             dst_addr=".".join(str(b) for b in fields[9]),
             options=options,
-            payload=payload
+            payload=payload,
         )
 
     def serialize(self) -> bytes:
-        header = struct.pack("!BBHHHBBH4s4s",
+        header = struct.pack(
+            "!BBHHHBBH4s4s",
             (self.version << 4) + self.ihl,
             self.tos,
             self.total_length,
@@ -70,7 +72,7 @@ class IPv4Packet(Packet):
             self.protocol,
             self.checksum,
             bytes(map(int, self.src_addr.split("."))),
-            bytes(map(int, self.dst_addr.split(".")))
+            bytes(map(int, self.dst_addr.split("."))),
         )
         return header + self.options + self.payload
 
@@ -89,29 +91,30 @@ class IPv4Packet(Packet):
             src_addr=self.src_addr,
             dst_addr=self.dst_addr,
             options=self.options,
-            payload=self.payload
+            payload=self.payload,
         )
 
     def update_checksum(self):
         # Reset checksum for calculation
         self.checksum = 0
-        
+
         # Convert header to bytes
-        header = self.serialize()[:self.ihl*4]
-        
+        header = self.serialize()[: self.ihl * 4]
+
         # Calculate checksum
         if len(header) % 2 == 1:
-            header += b'\0'
-            
-        words = struct.unpack(f'!{len(header)//2}H', header)
+            header += b"\0"
+
+        words = struct.unpack(f"!{len(header)//2}H", header)
         checksum = sum(words)
-        
+
         # Add carry bits
         while checksum >> 16:
             checksum = (checksum & 0xFFFF) + (checksum >> 16)
-            
+
         # One's complement
         self.checksum = ~checksum & 0xFFFF
+
 
 @dataclass
 class TCPPacket(Packet):
@@ -136,18 +139,18 @@ class TCPPacket(Packet):
     def parse(cls, raw: bytes) -> "TCPPacket":
         if len(raw) < 20:
             raise ValueError("Packet too short for TCP")
-            
+
         fields = struct.unpack("!HHIIBBHHH", raw[:20])
-        
+
         data_offset = fields[4] >> 4
         header_length = data_offset * 4
-        
+
         if len(raw) < header_length:
             raise ValueError("Packet shorter than header length")
-            
+
         options = raw[20:header_length] if header_length > 20 else b""
         payload = raw[header_length:]
-        
+
         return cls(
             src_port=fields[0],
             dst_port=fields[1],
@@ -160,11 +163,12 @@ class TCPPacket(Packet):
             checksum=fields[7],
             urgent_ptr=fields[8],
             options=options,
-            payload=payload
+            payload=payload,
         )
 
     def serialize(self) -> bytes:
-        header = struct.pack("!HHIIBBHHH",
+        header = struct.pack(
+            "!HHIIBBHHH",
             self.src_port,
             self.dst_port,
             self.seq_num,
@@ -173,7 +177,7 @@ class TCPPacket(Packet):
             self.flags,
             self.window,
             self.checksum,
-            self.urgent_ptr
+            self.urgent_ptr,
         )
         return header + self.options + self.payload
 
@@ -190,35 +194,36 @@ class TCPPacket(Packet):
             checksum=self.checksum,
             urgent_ptr=self.urgent_ptr,
             options=self.options,
-            payload=self.payload
+            payload=self.payload,
         )
 
     def update_checksum(self, ip_packet: IPv4Packet):
         # Reset checksum for calculation
         self.checksum = 0
-        
+
         # Create pseudo header
         pseudo_header = struct.pack(
             "!4s4sHH",
             bytes(map(int, ip_packet.src_addr.split("."))),
             bytes(map(int, ip_packet.dst_addr.split("."))),
             ip_packet.protocol,
-            len(self.serialize())
+            len(self.serialize()),
         )
-        
+
         # Concatenate with TCP header and payload
         packet = pseudo_header + self.serialize()
-        
+
         if len(packet) % 2 == 1:
-            packet += b'\0'
-            
-        words = struct.unpack(f'!{len(packet)//2}H', packet)
+            packet += b"\0"
+
+        words = struct.unpack(f"!{len(packet)//2}H", packet)
         checksum = sum(words)
-        
+
         while checksum >> 16:
             checksum = (checksum & 0xFFFF) + (checksum >> 16)
-            
+
         self.checksum = ~checksum & 0xFFFF
+
 
 @dataclass
 class UDPPacket(Packet):
@@ -232,23 +237,20 @@ class UDPPacket(Packet):
     def parse(cls, raw: bytes) -> "UDPPacket":
         if len(raw) < 8:
             raise ValueError("Packet too short for UDP")
-            
+
         fields = struct.unpack("!HHHH", raw[:8])
-        
+
         return cls(
             src_port=fields[0],
             dst_port=fields[1],
             length=fields[2],
             checksum=fields[3],
-            payload=raw[8:]
+            payload=raw[8:],
         )
 
     def serialize(self) -> bytes:
-        header = struct.pack("!HHHH",
-            self.src_port,
-            self.dst_port,
-            self.length,
-            self.checksum
+        header = struct.pack(
+            "!HHHH", self.src_port, self.dst_port, self.length, self.checksum
         )
         return header + self.payload
 
@@ -258,35 +260,35 @@ class UDPPacket(Packet):
             dst_port=self.dst_port,
             length=self.length,
             checksum=self.checksum,
-            payload=self.payload
+            payload=self.payload,
         )
 
     def update_checksum(self, ip_packet: IPv4Packet):
         # Reset checksum for calculation
         self.checksum = 0
-        
+
         # Update length
         self.length = 8 + len(self.payload)
-        
+
         # Create pseudo header
         pseudo_header = struct.pack(
             "!4s4sHH",
             bytes(map(int, ip_packet.src_addr.split("."))),
             bytes(map(int, ip_packet.dst_addr.split("."))),
             17,  # UDP protocol number
-            self.length
+            self.length,
         )
-        
+
         # Concatenate with UDP header and payload
         packet = pseudo_header + self.serialize()
-        
+
         if len(packet) % 2 == 1:
-            packet += b'\0'
-            
-        words = struct.unpack(f'!{len(packet)//2}H', packet)
+            packet += b"\0"
+
+        words = struct.unpack(f"!{len(packet)//2}H", packet)
         checksum = sum(words)
-        
+
         while checksum >> 16:
             checksum = (checksum & 0xFFFF) + (checksum >> 16)
-            
+
         self.checksum = ~checksum & 0xFFFF

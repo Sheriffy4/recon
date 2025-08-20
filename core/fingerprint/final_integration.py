@@ -556,7 +556,7 @@ class FinalIntegrationTester:
                 error=str(e)
             )    
     
-async def _test_fingerprinting_performance(self) -> PerformanceResult:
+    async def _test_fingerprinting_performance(self) -> PerformanceResult:
         """Test fingerprinting performance."""
         from unittest.mock import patch
         

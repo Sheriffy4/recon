@@ -1,20 +1,17 @@
 # recon/ml/strategy_generator.py
 import random
 import logging
-import asyncio
 import time
 from typing import Dict, List, Optional, Any
 
 # FIX: Change imports to reflect the new architecture
 from core.fingerprint.models import Fingerprint
 from core.fingerprint.classifier import UltimateDPIClassifier
-from core.storage import Storage
-from core.zapret import synth
 from .strategy_predictor import StrategyPredictor, SKLEARN_AVAILABLE
 from core.domain_specific_strategies import DomainSpecificStrategies
 from core.bypass.attacks.registry import AttackRegistry
 from core.optimization.dynamic_parameter_optimizer import (
-    DynamicParameterOptimizer, # <-- Импортируем класс, даже если он может быть None
+    DynamicParameterOptimizer,  # <-- Импортируем класс, даже если он может быть None
     OptimizationStrategy,
 )
 from core.bypass.attacks.base import AttackContext
@@ -65,7 +62,7 @@ class AdvancedStrategyGenerator:
         self.fp_object = None
 
         # Initialize dependencies with fallbacks
-        
+
         self.attack_registry = attack_registry
         self.domain_strategies = domain_strategies
         self.strategy_predictor = strategy_predictor
@@ -110,9 +107,9 @@ class AdvancedStrategyGenerator:
             "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badseq",
             "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-repeats=2 --dpi-desync-fake-tls=0x160303",
             "--quic-frag=100",
-            "--dpi-desync=disorder --dpi-desync-split-pos=3 --hostcase" # tcp_http_combo
+            "--dpi-desync=disorder --dpi-desync-split-pos=3 --hostcase",  # tcp_http_combo
         ]
-        
+
         seeds = []
         for strategy_str in proven_zapret_strings:
             # Парсим строку в нашу новую структуру задачи
@@ -120,14 +117,16 @@ class AdvancedStrategyGenerator:
             task = self.parser.translate_to_engine_task(parsed)
             if task:
                 seeds.append(task)
-        
+
         # Добавляем несколько простых, но важных техник
         seeds.append({"type": "tcp_fakeddisorder", "params": {"split_pos": 1}})
         seeds.append({"type": "tlsrec_split", "params": {"split_pos": 5}})
 
         return seeds
-    
-    def generate_strategies(self, count: int = 20, use_parameter_ranges: bool = True) -> List[Dict]:
+
+    def generate_strategies(
+        self, count: int = 20, use_parameter_ranges: bool = True
+    ) -> List[Dict]:
         """
         Generates a list of unique attack tasks (dictionaries) using all available intelligence.
         Now supports parameter range generation for optimization.
@@ -185,7 +184,12 @@ class AdvancedStrategyGenerator:
             add_task({"name": "quic_fragmentation", "params": quic_params})
 
         # 3. ML Predictions using specialized models
-        if self.fp_object and SKLEARN_AVAILABLE and self.strategy_predictor and self.enable_ml_prediction:
+        if (
+            self.fp_object
+            and SKLEARN_AVAILABLE
+            and self.strategy_predictor
+            and self.enable_ml_prediction
+        ):
             try:
                 # First, create behavioral profile if we have enhanced fingerprint
                 if hasattr(self.fp_object, "technique_success_rates"):
@@ -746,20 +750,26 @@ class AdvancedStrategyGenerator:
         LOG.info(f"Generated {len(optimized_strategies)} optimized strategies")
         return optimized_strategies
 
-    def _generate_task_parameters(self, attack_name: str, use_parameter_ranges: bool = True) -> Dict[str, Any]:
+    def _generate_task_parameters(
+        self, attack_name: str, use_parameter_ranges: bool = True
+    ) -> Dict[str, Any]:
         if not use_parameter_ranges:
             return self._generate_fixed_parameters(attack_name)
 
         # >>>>> КЛЮЧЕВАЯ ПРОВЕРКА <<<<<
         if not self.parameter_optimizer or self.parameter_optimizer is None:
-            LOG.debug(f"Parameter optimizer not available. Using fixed parameters for {attack_name}.")
+            LOG.debug(
+                f"Parameter optimizer not available. Using fixed parameters for {attack_name}."
+            )
             return self._generate_fixed_parameters(attack_name)
-        
+
         # Additional safety check for the method
-        if not hasattr(self.parameter_optimizer, 'generate_parameter_ranges'):
-            LOG.warning(f"Parameter optimizer does not have generate_parameter_ranges method. Using fixed parameters for {attack_name}.")
+        if not hasattr(self.parameter_optimizer, "generate_parameter_ranges"):
+            LOG.warning(
+                f"Parameter optimizer does not have generate_parameter_ranges method. Using fixed parameters for {attack_name}."
+            )
             return self._generate_fixed_parameters(attack_name)
-        
+
         param_ranges = self.parameter_optimizer.generate_parameter_ranges(attack_name)
 
         if not param_ranges:
@@ -806,7 +816,11 @@ class AdvancedStrategyGenerator:
 
         attack_name = task.get("name", "")
 
-        if use_parameter_ranges and self.parameter_optimizer and hasattr(self.parameter_optimizer, 'generate_parameter_ranges'):
+        if (
+            use_parameter_ranges
+            and self.parameter_optimizer
+            and hasattr(self.parameter_optimizer, "generate_parameter_ranges")
+        ):
             # Use parameter ranges for mutation
             param_ranges = self.parameter_optimizer.generate_parameter_ranges(
                 attack_name
@@ -942,7 +956,9 @@ class AdvancedStrategyGenerator:
         Returns:
             Dictionary of parameter ranges
         """
-        if not self.parameter_optimizer or not hasattr(self.parameter_optimizer, 'generate_parameter_ranges'):
+        if not self.parameter_optimizer or not hasattr(
+            self.parameter_optimizer, "generate_parameter_ranges"
+        ):
             return {}
         return self.parameter_optimizer.generate_parameter_ranges(attack_name)
 
@@ -1032,5 +1048,7 @@ class AdvancedStrategyGenerator:
 
         # If no techniques are available, return the original list (they might be added later)
         return available_techniques if available_techniques else techniques
+
+
 # Export StrategyGenerator for backward compatibility
 StrategyGenerator = AdvancedStrategyGenerator
