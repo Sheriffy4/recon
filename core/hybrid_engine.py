@@ -421,9 +421,76 @@ class HybridEngine:
                 bypass_thread.join(timeout=2.0)
             await asyncio.sleep(0.5)
 
+    async def execute_strategy_real_world_from_dict(
+        self,
+        strategy_dict: Dict[str, Any],
+        test_sites: List[str],
+        target_ips: Set[str],
+        dns_cache: Dict[str, str],
+        target_port: int = 443,
+        initial_ttl: Optional[int] = None,
+        fingerprint: Optional[DPIFingerprint] = None,
+    ) -> Tuple[str, int, int, float]:
+        """
+        Реальное тестирование стратегии из словаря с использованием нового BypassEngine.
+        """
+        engine_task = strategy_dict.copy() # Avoid modifying the original dict
+        if not engine_task or 'name' not in engine_task:
+            return "INVALID_TASK", 0, len(test_sites), 0.0
+
+        # Rename "name" to "type" for the engine
+        if 'name' in engine_task:
+            engine_task['type'] = engine_task.pop('name')
+
+        bypass_engine = BypassEngine(debug=self.debug)
+        strategy_map = {"default": engine_task}
+        bypass_thread = bypass_engine.start(target_ips, strategy_map)
+
+        try:
+            wait_time = 1.5
+            if fingerprint:
+                if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
+                    wait_time = 1.0
+                elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI:
+                    wait_time = 2.0
+                elif fingerprint.connection_reset_timing > 0:
+                    wait_time = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
+            await asyncio.sleep(wait_time)
+
+            results = await self._test_sites_connectivity(test_sites, dns_cache)
+            successful_count = sum(1 for status, _, _, _ in results.values() if status == "WORKING")
+            successful_latencies = [latency for status, _, latency, _ in results.values() if status == "WORKING"]
+            avg_latency = sum(successful_latencies) / len(successful_latencies) if successful_latencies else 0.0
+
+            if successful_count == 0:
+                result_status = "NO_SITES_WORKING"
+            elif successful_count == len(test_sites):
+                result_status = "ALL_SITES_WORKING"
+            else:
+                result_status = "PARTIAL_SUCCESS"
+
+            LOG.info(f"Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms")
+            return result_status, successful_count, len(test_sites), avg_latency
+        except Exception as e:
+            LOG.error(f"Ошибка во время реального тестирования: {e}", exc_info=self.debug)
+            return "REAL_WORLD_ERROR", 0, len(test_sites), 0.0
+        finally:
+            bypass_engine.stop()
+            if bypass_thread:
+                bypass_thread.join(timeout=2.0)
+            await asyncio.sleep(0.5)
+
+    def _strategy_dict_to_str(self, strategy: Dict[str, Any]) -> str:
+        """Converts a strategy dictionary to a human-readable string."""
+        if not isinstance(strategy, dict):
+            return str(strategy)
+        name = strategy.get('name', 'unknown')
+        params = ", ".join(f"{k}={v}" for k, v in strategy.get('params', {}).items())
+        return f"{name}({params})" if params else name
+
     async def test_strategies_hybrid(
         self,
-        strategies: List[str],
+        strategies: List[Dict[str, Any]], # MODIFIED to accept dicts
         test_sites: List[str],
         ips: Set[str],
         dns_cache: Dict[str, str],
@@ -437,38 +504,18 @@ class HybridEngine:
         """
         Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
         1. Выполняет фингерпринтинг DPI для целевого домена
-        2. Адаптирует стратегии под обнаруженный тип DPI
+        2. Адаптирует стратегии под обнаруженный тип DPI (если переданы строки)
         3. Использует современный движок обхода если доступен
         4. Проводит реальное тестирование с помощью BypassEngine
         """
         results = []
         fingerprint = None
 
-        # Check if we should use modern bypass engine
-        use_modern = use_modern_engine and self.modern_bypass_enabled
-        if use_modern:
-            self.bypass_stats["modern_engine_tests"] += 1
-            LOG.info("Using modern bypass engine for strategy testing")
-        else:
-            self.bypass_stats["legacy_engine_tests"] += 1
-            LOG.info("Using legacy bypass engine for strategy testing")
-
-        # Check if domain is already managed by pool system
-        if use_modern and self.pool_manager:
-            existing_strategy = self.pool_manager.get_strategy_for_domain(domain, port)
-            if existing_strategy:
-                LOG.info(f"Found existing pool strategy for {domain}:{port}")
-                # Test the pool strategy first
-                pool_strategy_str = existing_strategy.to_zapret_format()
-                if pool_strategy_str not in strategies:
-                    strategies.insert(0, pool_strategy_str)
-
         # Perform DPI fingerprinting if enabled
         if enable_fingerprinting and self.advanced_fingerprinting_enabled:
             try:
                 LOG.info(f"Performing DPI fingerprinting for {domain}:{port}")
                 fingerprint = await self.fingerprint_target(domain, port)
-
                 if fingerprint:
                     self.fingerprint_stats["fingerprint_aware_tests"] += 1
                     LOG.info(
@@ -477,52 +524,33 @@ class HybridEngine:
                         f"reliability: {fingerprint.reliability_score:.2f})"
                     )
                 else:
-                    LOG.warning(
-                        "DPI fingerprinting failed, proceeding with standard testing"
-                    )
                     self.fingerprint_stats["fallback_tests"] += 1
             except Exception as e:
                 LOG.error(f"DPI fingerprinting error: {e}")
-                self.fingerprint_stats["fingerprint_failures"] += 1
                 self.fingerprint_stats["fallback_tests"] += 1
         else:
             self.fingerprint_stats["fallback_tests"] += 1
 
-        # Adapt strategies based on fingerprint and modern engine capabilities
-        if use_modern and self.attack_registry:
-            # Use modern attack registry to enhance strategies
-            strategies_to_test = self._enhance_strategies_with_registry(
-                strategies, fingerprint, domain, port
-            )
-            self.bypass_stats["attack_registry_queries"] += 1
-        elif fingerprint:
-            strategies_to_test = self._adapt_strategies_for_fingerprint(
-                strategies, fingerprint
-            )
-            LOG.info(f"Using {len(strategies_to_test)} fingerprint-adapted strategies")
-        else:
-            strategies_to_test = strategies
-            LOG.info(
-                f"Using {len(strategies_to_test)} standard strategies (no fingerprint)"
-            )
-
+        strategies_to_test = strategies
         LOG.info(
             f"Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine..."
         )
 
-        for i, strategy in enumerate(strategies_to_test):
-            LOG.info(f"--> Тест {i+1}/{len(strategies_to_test)}: {strategy}")
+        for i, strategy_dict in enumerate(strategies_to_test):
+            strategy_str_repr = self._strategy_dict_to_str(strategy_dict)
+            LOG.info(f"--> Тест {i+1}/{len(strategies_to_test)}: {strategy_str_repr}")
 
             result_status, successful_count, total_count, avg_latency = (
-                await self.execute_strategy_real_world(
-                    strategy, test_sites, ips, dns_cache, port, initial_ttl
+                await self.execute_strategy_real_world_from_dict(
+                    strategy_dict, test_sites, ips, dns_cache, port, initial_ttl, fingerprint
                 )
             )
 
             success_rate = successful_count / total_count if total_count > 0 else 0.0
 
             result_data = {
-                "strategy": strategy,
+                "strategy_dict": strategy_dict,
+                "strategy": strategy_str_repr,
                 "result_status": result_status,
                 "successful_sites": successful_count,
                 "total_sites": total_count,
@@ -541,25 +569,8 @@ class HybridEngine:
             else:
                 LOG.info("✗ Провал: ни один сайт не заработал.")
 
-        # Sort results with fingerprint-aware scoring
-        if fingerprint:
-            # Prioritize results that match expected DPI behavior
-            results.sort(
-                key=lambda x: (
-                    x["success_rate"],
-                    -x["avg_latency_ms"],
-                    (
-                        1 if x["fingerprint_used"] else 0
-                    ),  # Prefer fingerprint-aware results
-                ),
-                reverse=True,
-            )
-        else:
-            results.sort(
-                key=lambda x: (x["success_rate"], -x["avg_latency_ms"]), reverse=True
-            )
+        results.sort(key=lambda x: (x["success_rate"], -x["avg_latency_ms"]), reverse=True)
 
-        # Add fingerprint information to results summary
         if results and fingerprint:
             LOG.info(
                 f"Strategy testing completed with DPI fingerprint: "

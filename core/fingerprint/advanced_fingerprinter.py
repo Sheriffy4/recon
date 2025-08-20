@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 
+from scapy.all import IP, TCP, sr1
+
 from .advanced_models import (
     DPIFingerprint,
     DPIType,
@@ -198,6 +200,47 @@ class AdvancedFingerprinter:
             self.logger.error(f"Failed to initialize ML classifier: {e}")
             self.ml_classifier = None
 
+    async def _get_rst_ttl(self, target: str, port: int) -> Optional[int]:
+        """
+        Sends a SYN packet and captures the TTL of the responding RST packet.
+        This is a lightweight probe using Scapy.
+        """
+        def probe():
+            try:
+                ip_packet = IP(dst=target)
+                tcp_packet = TCP(dport=port, flags="S")
+                response = sr1(ip_packet / tcp_packet, timeout=2, verbose=0)
+                if response and response.haslayer(TCP) and response.getlayer(TCP).flags & 0x4: # Check for RST flag
+                    return response.ttl
+            except Exception as e:
+                self.logger.debug(f"Scapy RST TTL probe failed: {e}")
+            return None
+
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(self.executor, probe)
+
+    async def _run_shallow_probe(self, target: str, port: int) -> DPIFingerprint:
+        """
+        Performs a few quick tests to get a preliminary fingerprint for hashing.
+        """
+        self.logger.debug(f"Running shallow probe for {target}:{port}")
+        fp = DPIFingerprint(target=f"{target}:{port}")
+
+        # 1. Get basic connectivity info
+        connectivity = await self._check_basic_connectivity(target, port)
+        fp.block_type = connectivity.event.value
+        if connectivity.event == BlockingEvent.CONNECTION_RESET:
+            fp.rst_injection_detected = True
+
+        # 2. If RST was detected, try to get its TTL
+        if fp.rst_injection_detected:
+            fp.rst_ttl = await self._get_rst_ttl(target, port)
+            self.logger.debug(f"Detected RST TTL: {fp.rst_ttl}")
+
+        # tcp_options_filtering is too complex for a shallow probe, will be omitted.
+
+        return fp
+
     async def fingerprint_target(
         self,
         target: str,
@@ -206,52 +249,42 @@ class AdvancedFingerprinter:
         protocols: Optional[List[str]] = None,
     ) -> DPIFingerprint:
         """
-        Create detailed DPI fingerprint for target - IMPROVED with adaptive caching
+        Create detailed DPI fingerprint using the new cache-accelerated workflow.
         """
         start_time = time.time()
-        cache_key = f"{target}:{port}"
-
         self.logger.info(f"Starting fingerprinting for {target}:{port}")
 
         try:
-            # Check cache first (unless force refresh)
-            if not force_refresh and self.cache:
-                cached_fingerprint = self.get_cached_fingerprint(cache_key)
-                if cached_fingerprint:
-                    self.stats["cache_hits"] += 1
-                    self.logger.info(f"Using cached fingerprint for {target}:{port}")
-                    return cached_fingerprint
-                else:
-                    self.stats["cache_misses"] += 1
+            # 1. Shallow Probe
+            preliminary_fp = await self._run_shallow_probe(target, port)
+            dpi_hash = preliminary_fp.short_hash()
+            self.logger.info(f"Generated shallow fingerprint for {target}:{port} with hash {dpi_hash}")
 
-            # Perform comprehensive analysis
-            fingerprint = await self._perform_comprehensive_analysis(
+            # 2. Cache Check
+            if not force_refresh and self.cache:
+                cached_fp = self.cache.get(dpi_hash)
+                if cached_fp and cached_fp.reliability_score > 0.8:
+                    self.logger.info(f"Cache HIT for DPI hash {dpi_hash}. Loading full fingerprint.")
+                    self.stats["cache_hits"] += 1
+                    return cached_fp
+
+            self.stats["cache_misses"] += 1
+            self.logger.info(f"Cache MISS for DPI hash {dpi_hash}. Starting comprehensive analysis.")
+
+            # 3. Comprehensive Analysis (on cache miss)
+            final_fingerprint = await self._perform_comprehensive_analysis(
                 target, port, protocols
             )
 
-            # NEW: Adaptive caching based on analysis quality
-            if self.cache and fingerprint:
-                try:
-                    # Short TTL for poor quality results
-                    if (
-                        fingerprint.reliability_score < 0.5
-                        or len(fingerprint.analysis_methods_used) < 2
-                    ):
-                        cache_ttl = 300  # 5 minutes
-                    elif (
-                        fingerprint.analysis_duration < 0.5
-                        and fingerprint.raw_metrics.get("collection_errors")
-                    ):
-                        cache_ttl = 600  # 10 minutes
-                    else:
-                        cache_ttl = self.config.cache_ttl  # Default TTL
+            # Merge preliminary info into the final fingerprint, as the full analysis might miss it
+            final_fingerprint.rst_ttl = preliminary_fp.rst_ttl
+            if final_fingerprint.block_type == 'unknown':
+                 final_fingerprint.block_type = preliminary_fp.block_type
 
-                    self.cache.set(cache_key, fingerprint, ttl=cache_ttl)
-                    self.logger.debug(
-                        f"Cached fingerprint for {cache_key} with TTL={cache_ttl}s"
-                    )
-                except Exception as e:
-                    self.logger.warning(f"Failed to cache fingerprint: {e}")
+            # 4. Update Cache
+            if self.cache and final_fingerprint.reliability_score > 0.7:
+                self.cache.set(dpi_hash, final_fingerprint)
+                self.logger.info(f"Saved new fingerprint to cache with hash {dpi_hash}.")
 
             # Update statistics
             analysis_time = time.time() - start_time
@@ -260,9 +293,9 @@ class AdvancedFingerprinter:
 
             self.logger.info(
                 f"Fingerprinting completed for {target}:{port} in {analysis_time:.2f}s "
-                f"(reliability: {fingerprint.reliability_score:.2f})"
+                f"(reliability: {final_fingerprint.reliability_score:.2f})"
             )
-            return fingerprint
+            return final_fingerprint
 
         except Exception as e:
             self.stats["errors"] += 1
@@ -397,10 +430,37 @@ class AdvancedFingerprinter:
 
         # 5. Финальная классификация и завершение
         await self._classify_dpi_type(fingerprint)
+        self._populate_vulnerability_flags(fingerprint) # NEW
         fingerprint.analysis_duration = time.time() - analysis_start
         fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
 
         return fingerprint
+
+    def _populate_vulnerability_flags(self, fingerprint: DPIFingerprint):
+        """
+        Sets vulnerability flags on the fingerprint based on collected metrics.
+        This is a crucial step for the rule-based StrategyGenerator.
+        """
+        self.logger.debug("Populating vulnerability flags from raw metrics...")
+
+        tcp_analysis_results = fingerprint.raw_metrics.get('tcp_analysis', {})
+        if tcp_analysis_results:
+            # Check for statefulness
+            fingerprint.is_stateful = tcp_analysis_results.get('connection_state_tracking', False)
+
+            # Check for fragmentation vulnerability
+            if tcp_analysis_results.get('fragmentation_handling') == 'allowed':
+                fingerprint.vulnerable_to_fragmentation = True
+
+        # Check for bad checksum race vulnerability (using rst_injection as a proxy)
+        if fingerprint.rst_injection_detected:
+            fingerprint.vulnerable_to_bad_checksum_race = True
+
+        # Check for SNI case vulnerability (using host header manipulation as a proxy)
+        http_analysis_results = fingerprint.raw_metrics.get('http_analysis', {})
+        if http_analysis_results:
+            if http_analysis_results.get('host_header_manipulation', False):
+                 fingerprint.vulnerable_to_sni_case = True
 
     async def _tcp_analysis_with_blocking(
         self, target: str, port: int
