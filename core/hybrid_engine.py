@@ -5,10 +5,7 @@ import time
 import asyncio
 import aiohttp
 import socket
-import shutil
 import ssl
-import platform  # <--- ДОБАВЬ ЭТУ СТРОКУ
-import re 
 from typing import Dict, List, Tuple, Optional, Set, Any
 from urllib.parse import urlparse
 
@@ -61,15 +58,20 @@ HEADERS = {
 
 
 class HybridEngine:
+    """
+    Гибридный движок, который сочетает:
+    1. Парсинг zapret-стратегий.
+    2. Реальное тестирование через запущенный BypassEngine с синхронизированным DNS.
+    3. Продвинутый фингерпринтинг DPI для контекстно-зависимой генерации стратегий.
+    """
+
     def __init__(
         self,
         debug: bool = False,
         enable_advanced_fingerprinting: bool = True,
         enable_modern_bypass: bool = True,
-        timeout: float = 15.0,  # <--- ДОБАВЬ ЭТОТ ПАРАМЕТР
     ):
         self.debug = debug
-        self.timeout = timeout  # <--- И СОХРАНИ ЕГО
         self.parser = ZapretStrategyParser()
 
         # Initialize modern bypass engine components
@@ -153,9 +155,7 @@ class HybridEngine:
         task_type = "none"
         task_params = {}
 
-        # --- Логика определения типа атаки ---
-
-        # 1. Приоритет у сложных комбинированных атак
+        # Определяем основной тип сегментации
         if "fakeddisorder" in desync:
             task_type = "fakedisorder"
         elif "multidisorder" in desync:
@@ -164,52 +164,52 @@ class HybridEngine:
             task_type = "multisplit"
         elif "disorder" in desync or "disorder2" in desync:
             task_type = "fakedisorder"
-        elif params.get("dpi_desync_split_seqovl"):
-            task_type = "seqovl"
-        # 2. Затем "гоночные" атаки
-        elif "fake" in desync and "badsum" in fooling:
-            task_type = "badsum_race"
-        elif "fake" in desync and "md5sig" in fooling:
-            task_type = "md5sig_race"
-        # 3. Затем простые "fooling" атаки
-        elif "badsum" in fooling:
-            task_type = "badsum_fooling"
-        elif "md5sig" in fooling:
-            task_type = "md5sig_fooling"
-        # 4. Простая фрагментация
-        elif "split" in desync or "split2" in desync:
-            task_type = "simple_fragment"
-        # 5. Простой fake (как fallback для гоночных атак)
-        elif "fake" in desync:
-            # Это может быть гонка с TTL или просто фейковый пакет.
-            # Для простоты будем считать это badsum_race с низким TTL.
-            task_type = "badsum_race"
-            if "badsum" not in fooling:
-                 fooling.append("badsum") # Добавляем badsum по умолчанию для fake
 
-        # --- Логика извлечения параметров ---
-
-        # TTL
-        if params.get("dpi_desync_ttl"):
-            task_params["ttl"] = params.get("dpi_desync_ttl")
-        
-        # Split Position
-        split_pos_raw = params.get("dpi_desync_split_pos", [])
-        if any(p.get("type") == "midsld" for p in split_pos_raw):
-            task_params["split_pos"] = "midsld"
-        else:
-            positions = [p["value"] for p in split_pos_raw if p.get("type") == "absolute"]
-            if positions:
-                if task_type in ["fakedisorder", "seqovl", "simple_fragment"]:
-                    task_params["split_pos"] = positions[0]
+        # Обрабатываем параметры сегментации
+        if task_type in ["fakedisorder", "multidisorder", "multisplit"]:
+            split_pos_raw = params.get("dpi_desync_split_pos", [])
+            if any(p.get("type") == "midsld" for p in split_pos_raw):
+                task_params["split_pos"] = "midsld"
+            else:
+                positions = [
+                    p["value"] for p in split_pos_raw if p.get("type") == "absolute"
+                ]
+                if task_type == "fakedisorder":
+                    task_params["split_pos"] = positions[0] if positions else 3
                 else:
-                    task_params["positions"] = positions
+                    task_params["positions"] = positions if positions else [1, 5, 10]
 
-        # Overlap
+        # Обрабатываем "гоночные" атаки с фейковыми пакетами
+        if "fake" in desync:
+            if "badsum" in fooling:
+                # Если уже есть тип сегментации, делаем его гибридом
+                # Для простоты пока отдаем приоритет badsum_race
+                task_type = "badsum_race"
+            elif "md5sig" in fooling:
+                task_type = "md5sig_race"
+            # Если есть 'fake', но нет fooling, это может быть простая гонка с TTL или fake-tls
+            elif task_type == "none" and (
+                params.get("dpi_desync_ttl") or params.get("dpi_desync_fake_tls")
+            ):
+                task_type = "badsum_race"  # Похоже на badsum_race, но без badsum
+
+        # Обрабатываем seqovl, он имеет высокий приоритет
         if params.get("dpi_desync_split_seqovl"):
+            task_type = "seqovl"
+            split_pos_raw = params.get("dpi_desync_split_pos", [])
+            if any(p.get("type") == "midsld" for p in split_pos_raw):
+                task_params["split_pos"] = "midsld"
+            else:
+                positions = [
+                    p["value"] for p in split_pos_raw if p.get("type") == "absolute"
+                ]
+                task_params["split_pos"] = positions[0] if positions else 3
             task_params["overlap_size"] = params.get("dpi_desync_split_seqovl")
 
-        # Если тип так и не определился, возвращаем None
+        # Добавляем TTL в параметры, если он есть
+        if params.get("dpi_desync_ttl"):
+            task_params["ttl"] = params.get("dpi_desync_ttl")
+
         if task_type == "none":
             LOG.warning(
                 f"Не удалось транслировать zapret-стратегию в задачу для движка: {params}"
@@ -222,98 +222,86 @@ class HybridEngine:
         self, sites: List[str], dns_cache: Dict[str, str], max_concurrent: int = 10
     ) -> Dict[str, Tuple[str, str, float, int]]:
         """
-        Новая версия, использующая curl для надежного тестирования через системный перехватчик.
+        ИСПРАВЛЕНИЕ: Более устойчивый тестовый клиент на aiohttp с принудительным DNS и увеличенными таймаутами.
         """
         results = {}
-        tasks = []
-        
-        # Проверяем наличие curl один раз перед запуском
-        try:
-            await asyncio.create_subprocess_exec("curl", "--version", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        except FileNotFoundError:
-            if not shutil.which("curl"):
-                LOG.error("`curl` is not installed or not in PATH. Real-world testing is not possible.")
-                for site in sites:
-                    hostname = urlparse(site).hostname or site
-                    ip_used = dns_cache.get(hostname, "N/A")
-                    results[site] = ("CURL_NOT_FOUND", ip_used, 0, 0)
-                return results
+        semaphore = asyncio.Semaphore(max_concurrent)
 
-        for site in sites:
-            hostname = urlparse(site).hostname or site
-            ip = dns_cache.get(hostname)
-            if ip:
-                port = urlparse(site).port or 443
-                # Передаем self.timeout в задачу
-                tasks.append(self._probe_site_with_curl(site, ip, port, self.timeout))
+        class CustomResolver(aiohttp.resolver.AsyncResolver):
+            def __init__(self, cache):
+                super().__init__()
+                self._custom_cache = cache
 
-        task_results = await asyncio.gather(*tasks)
-        
-        for site, result_tuple in task_results:
-            results[site] = result_tuple
-            
+            async def resolve(self, host, port, family=socket.AF_INET):
+                if host in self._custom_cache:
+                    ip = self._custom_cache[host]
+                    LOG.debug(f"CustomResolver: Forcing {host} -> {ip}")
+                    return [
+                        {
+                            "hostname": host,
+                            "host": ip,
+                            "port": port,
+                            "family": family,
+                            "proto": 0,
+                            "flags": 0,
+                        }
+                    ]
+                # Fallback для редиректов и других доменов
+                LOG.debug(f"CustomResolver: Fallback for {host}")
+                return await super().resolve(host, port, family)
+
+        # Используем контекст SSL, который не проверяет сертификат, т.к. мы можем идти на IP
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
+        connector = aiohttp.TCPConnector(
+            ssl=ssl_context, limit_per_host=5, resolver=CustomResolver(dns_cache)
+        )
+
+        async def test_with_semaphore(session, site):
+            async with semaphore:
+                start_time = time.time()
+                hostname = urlparse(site).hostname or site
+                ip_used = dns_cache.get(hostname, "N/A")
+                try:
+                    # Увеличиваем таймауты, чтобы дать стратегии время сработать
+                    client_timeout = aiohttp.ClientTimeout(
+                        total=15.0, connect=5.0, sock_read=10.0
+                    )
+                    async with session.get(
+                        site,
+                        headers=HEADERS,
+                        allow_redirects=True,
+                        timeout=client_timeout,
+                    ) as response:
+                        # Читаем хотя бы один байт, чтобы убедиться, что соединение не сброшено
+                        await response.content.readexactly(1)
+                        latency = (time.time() - start_time) * 1000
+                        return site, ("WORKING", ip_used, latency, response.status)
+                except (
+                    asyncio.TimeoutError,
+                    aiohttp.ClientError,
+                    ConnectionResetError,
+                ) as e:
+                    latency = (time.time() - start_time) * 1000
+                    LOG.debug(
+                        f"Connectivity test for {site} failed with {type(e).__name__}"
+                    )
+                    return site, ("TIMEOUT", ip_used, latency, 0)
+                except Exception as e:
+                    latency = (time.time() - start_time) * 1000
+                    LOG.debug(f"Неожиданная ошибка при тестировании {site}: {e}")
+                    return site, ("ERROR", ip_used, latency, 0)
+
+        async with aiohttp.ClientSession(connector=connector) as session:
+            tasks = [test_with_semaphore(session, site) for site in sites]
+            task_results = await asyncio.gather(*tasks)
+            for site, result_tuple in task_results:
+                results[site] = result_tuple
+        await connector.close()  # Явно закрываем коннектор
         return results
 
-    async def _probe_site_with_curl(self, site: str, ip: str, port: int, timeout: float) -> Tuple[str, str, float, int]:
-        """
-        Проверяет доступность сайта с помощью внешнего процесса curl.
-        """
-        start_time = time.time()
-        hostname = urlparse(site).hostname or site
-        
-        output_device = "NUL" if platform.system() == "Windows" else "/dev/null"
-        command = [
-            "curl",
-            "-v", "-sS",
-            "--connect-to", f"::{hostname}:{port}:{ip}",
-            "--max-time", str(timeout), # <--- ИСПОЛЬЗУЙ ПЕРЕДАННЫЙ ТАЙМАУТ
-            "-k",
-            "-o", output_device,
-            site
-        ]
-
-        try:
-            process = await asyncio.create_subprocess_exec(
-                *command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            # Используем таймаут чуть больше, чем у curl, чтобы он успел завершиться сам
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout + 2)
-            
-            latency = (time.time() - start_time) * 1000
-            stderr_str = stderr.decode('utf-8', errors='ignore').lower()
-
-            # Анализируем вывод stderr от curl
-            if process.returncode == 0 and ("http/1.1 200 ok" in stderr_str or "http/2 200" in stderr_str):
-                status_code_match = re.search(r'< http/[\d\.]+ (\d+)', stderr_str)
-                status_code = int(status_code_match.group(1)) if status_code_match else 200
-                return site, ("WORKING", ip, latency, status_code)
-            else:
-                # Анализируем причину ошибки
-                if "timed out" in stderr_str:
-                    return site, ("TIMEOUT", ip, latency, 0)
-                if "connection refused" in stderr_str:
-                    return site, ("REFUSED", ip, latency, 0)
-                if "connection reset by peer" in stderr_str:
-                    return site, ("RESET", ip, latency, 0)
-                
-                return site, ("ERROR", ip, latency, 0)
-
-        except asyncio.TimeoutError:
-            latency = (time.time() - start_time) * 1000
-            return site, ("TIMEOUT", ip, latency, 0)
-        except FileNotFoundError:
-            # curl не найден
-            LOG.error("`curl` command not found. Please install curl and ensure it's in your system's PATH.")
-            # Возвращаем ошибку, которая остановит дальнейшие тесты
-            return site, ("CURL_NOT_FOUND", ip, 0, 0)
-        except Exception as e:
-            latency = (time.time() - start_time) * 1000
-            LOG.error(f"Unexpected error probing with curl for {site}: {e}")
-            return site, ("ERROR", ip, latency, 0)
-    
     async def test_baseline_connectivity(
         self, test_sites: List[str], dns_cache: Dict[str, str]
     ) -> Dict[str, Tuple[str, str, float, int]]:
@@ -343,10 +331,6 @@ class HybridEngine:
         if not engine_task:
             return "TRANSLATION_FAILED", 0, len(test_sites), 0.0
 
-        # --- ДОБАВЛЯЕМ ЛОГИРОВАНИЕ ЗАДАЧИ ---
-        LOG.info(f"Translated strategy '{strategy_str}' to engine task: {engine_task}")
-        # --- КОНЕЦ ЛОГИРОВАНИЯ ---
-
         bypass_engine = BypassEngine(debug=self.debug)
         strategy_map = {"default": engine_task}
         bypass_thread = bypass_engine.start(target_ips, strategy_map)
@@ -355,13 +339,16 @@ class HybridEngine:
             # Adjust wait time based on fingerprint information
             wait_time = 1.5
             if fingerprint:
-                dpi_name = str(getattr(fingerprint.dpi_type, "value", getattr(fingerprint, "dpi_type", "UNKNOWN"))).lower()
-                if dpi_name == DPIType.ROSKOMNADZOR_TSPU.value:
-                    wait_time = 1.0
-                elif dpi_name == DPIType.COMMERCIAL_DPI.value:
-                    wait_time = 2.0
-                elif getattr(fingerprint, "connection_reset_timing", 0) > 0:
-                    wait_time = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
+                # Adjust timing based on DPI characteristics
+                if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
+                    wait_time = 1.0  # TSPU responds quickly
+                elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI:
+                    wait_time = 2.0  # Commercial DPI may need more time
+                elif fingerprint.connection_reset_timing > 0:
+                    # Use detected timing characteristics
+                    wait_time = max(
+                        1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5
+                    )
 
             await asyncio.sleep(wait_time)
 
@@ -403,13 +390,10 @@ class HybridEngine:
 
             # Log additional context if fingerprint is available
             if fingerprint and self.debug:
-                dpi_label = str(getattr(fingerprint.dpi_type, "value", getattr(fingerprint, "dpi_type", "UNKNOWN")))
-                rst_inj = getattr(fingerprint, "rst_injection_detected", False)
-                tcp_manip = getattr(fingerprint, "tcp_window_manipulation", False)
                 LOG.debug(
-                    f"Strategy test with DPI context: {dpi_label}, "
-                    f"RST injection: {rst_inj}, "
-                    f"TCP manipulation: {tcp_manip}"
+                    f"Strategy test with DPI context: {fingerprint.dpi_type.value}, "
+                    f"RST injection: {fingerprint.rst_injection_detected}, "
+                    f"TCP manipulation: {fingerprint.tcp_window_manipulation}"
                 )
 
             LOG.info(
@@ -424,10 +408,14 @@ class HybridEngine:
 
             # Enhanced error handling with fingerprint context
             if fingerprint:
-                if getattr(fingerprint, "rst_injection_detected", False) and "reset" in str(e).lower():
-                    LOG.info("Connection reset detected - consistent with fingerprint analysis")
-                elif getattr(fingerprint, "dns_hijacking_detected", False) and "dns" in str(e).lower():
-                    LOG.info("DNS issues detected - consistent with fingerprint analysis")
+                if fingerprint.rst_injection_detected and "reset" in str(e).lower():
+                    LOG.info(
+                        "Connection reset detected - consistent with fingerprint analysis"
+                    )
+                elif fingerprint.dns_hijacking_detected and "dns" in str(e).lower():
+                    LOG.info(
+                        "DNS issues detected - consistent with fingerprint analysis"
+                    )
 
             return "REAL_WORLD_ERROR", 0, len(test_sites), 0.0
         finally:
@@ -499,12 +487,7 @@ class HybridEngine:
         """Converts a strategy dictionary to a human-readable string."""
         if not isinstance(strategy, dict):
             return str(strategy)
-        
-        # Если есть raw_string из cli, используем его - это самый точный вариант
-        if 'raw_string' in strategy:
-            return strategy['raw_string']
-            
-        name = strategy.get('type', 'unknown')
+        name = strategy.get('name', 'unknown')
         params = ", ".join(f"{k}={v}" for k, v in strategy.get('params', {}).items())
         return f"{name}({params})" if params else name
 
@@ -518,7 +501,7 @@ class HybridEngine:
         domain: str,
         fast_filter: bool = True,
         initial_ttl: Optional[int] = None,
-        enable_fingerprinting: bool = True,
+        enable_fingerprinting: bool = False,
         use_modern_engine: bool = True,
     ) -> List[Dict]:
         """
@@ -560,14 +543,6 @@ class HybridEngine:
             strategy_str_repr = self._strategy_dict_to_str(strategy_dict)
             LOG.info(f"--> Тест {i+1}/{len(strategies_to_test)}: {strategy_str_repr}")
 
-            # --- НОВОЕ ЛОГИРОВАНИЕ ---
-            # Мы уже делали это, но убедимся, что оно есть для каждого теста
-            if isinstance(strategy_dict, dict) and 'raw_string' in strategy_dict:
-                parsed_params = self.parser.parse(strategy_dict['raw_string'])
-                engine_task = self._translate_zapret_to_engine_task(parsed_params)
-                LOG.debug(f"Translated strategy to engine task: {engine_task}")
-            # --- КОНЕЦ ---
-
             result_status, successful_count, total_count, avg_latency = (
                 await self.execute_strategy_real_world_from_dict(
                     strategy_dict, test_sites, ips, dns_cache, port, initial_ttl, fingerprint
@@ -577,7 +552,7 @@ class HybridEngine:
             success_rate = successful_count / total_count if total_count > 0 else 0.0
 
             result_data = {
-                "strategy_dict": strategy_dict, # <--- Сохраняем словарь для обучения
+                "strategy_dict": strategy_dict,
                 "strategy": strategy_str_repr,
                 "result_status": result_status,
                 "successful_sites": successful_count,
