@@ -1592,6 +1592,7 @@ class EffectivenessResult:
     # Analysis details
     analysis_notes: List[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
+    fingerprint: Optional[Dict[str, Any]] = None # The DPI fingerprint associated with this test
 
     # Enhanced failure analysis data for FailureAnalyzer
     failure_patterns: Dict[str, Any] = field(default_factory=dict)

@@ -68,6 +68,22 @@ class FailureAnalyzer:
                 "timing_attacks",
             ],
         },
+        "MIDDLEBOX_RST_RECEIVED": {
+            "причины": [
+                "DPI (middlebox) активно вмешивается и отправляет RST пакеты.",
+                "Атака была обнаружена по сигнатуре или поведению.",
+            ],
+            "решения": [
+                "Используйте атаки, которые не похожи на известные сигнатуры (например, `pacing_attack`).",
+                "Попробуйте обфускацию полезной нагрузки или техники, меняющие 'форму' трафика.",
+                "Избегайте простых техник фрагментации, которые легко детектируются.",
+            ],
+            "strategic_focus": [
+                "payload_obfuscation",
+                "traffic_mimicry",
+                "stateful_tcp_manipulation",
+            ],
+        },
         "NO_SITES_WORKING": {
             "причины": [
                 "Выбранная стратегия не работает ни для одного из тестовых сайтов",
@@ -201,33 +217,44 @@ class FailureAnalyzer:
         failed_techniques = defaultdict(list)
         success_rates = []
         latency_patterns = defaultdict(list)
+        # Map to track failures per (dpi_type, attack_name)
+        fingerprint_failure_map = defaultdict(lambda: defaultdict(Counter))
 
         total_tests = len(effectiveness_results)
         failed_tests = 0
 
         for result in effectiveness_results:
             success_rates.append(result.effectiveness_score)
+            technique = getattr(result.bypass, "attack_name", "unknown")
 
             # Collect latency patterns for all results (not just failures)
             if hasattr(result, "bypass") and hasattr(result.bypass, "latency_ms"):
-                technique = getattr(result.bypass, "attack_name", "unknown")
                 latency_patterns[technique].append(result.bypass.latency_ms)
+
+            # Get fingerprint info if available
+            dpi_type = "unknown"
+            if result.fingerprint and isinstance(result.fingerprint, dict):
+                dpi_type = result.fingerprint.get("dpi_type", "unknown")
+
+            # Track total runs for this pair
+            fingerprint_failure_map[(dpi_type, technique)]["total_runs"] += 1
 
             # Classify as failure if effectiveness is very low
             if result.effectiveness_score < 0.2:
                 failed_tests += 1
 
-                # Determine failure type from result
+                # Determine failure type from result, passing fingerprint for more context
                 failure_type = self._classify_failure_type(result)
                 failure_types[failure_type] += 1
 
                 # Track which techniques failed
-                technique = getattr(result.bypass, "attack_name", "unknown")
                 failed_techniques[failure_type].append(technique)
+                fingerprint_failure_map[(dpi_type, technique)]["failures"] += 1
+
 
         # Detect patterns
         detected_patterns = self._detect_failure_patterns(
-            failure_types, failed_techniques, success_rates, latency_patterns
+            failure_types, failed_techniques, success_rates, latency_patterns, fingerprint_failure_map
         )
 
         # Generate strategic recommendations
@@ -275,6 +302,9 @@ class FailureAnalyzer:
                     "reset" in result.bypass_error.lower()
                     or "rst" in result.bypass_error.lower()
                 ):
+                    # Check for more specific RST cause from fingerprint
+                    if result.fingerprint and result.fingerprint.get("rst_source_analysis") == "middlebox":
+                        return "MIDDLEBOX_RST_RECEIVED"
                     return "RST_RECEIVED"
                 elif "handshake" in result.bypass_error.lower():
                     return "TLS_HANDSHAKE_FAILURE"
@@ -300,6 +330,7 @@ class FailureAnalyzer:
         failed_techniques: Dict[str, List[str]],
         success_rates: List[float],
         latency_patterns: Dict[str, List[float]],
+        fingerprint_failure_map: Dict,
     ) -> List[FailurePattern]:
         """
         Detect patterns in failures to provide insights.
@@ -375,6 +406,22 @@ class FailureAnalyzer:
                 affected_techniques=high_latency_techniques,
             )
             patterns.append(pattern)
+
+        # Pattern 4: Technique specifically ineffective against a DPI type
+        for (dpi_type, attack_name), stats in fingerprint_failure_map.items():
+            total_runs = stats.get("total_runs", 0)
+            failures = stats.get("failures", 0)
+            if total_runs > 3 and failures / total_runs > 0.8: # High failure rate after enough runs
+                pattern = FailurePattern(
+                    pattern_type="technique_ineffective_vs_dpi",
+                    frequency=failures,
+                    confidence=0.9,
+                    likely_causes=[f"Technique '{attack_name}' is consistently blocked by '{dpi_type}'."],
+                    recommended_actions=[f"Avoid using '{attack_name}' against '{dpi_type}'.", "Prioritize other attacks for this DPI signature."],
+                    affected_techniques=[attack_name],
+                )
+                patterns.append(pattern)
+
 
         return patterns
 

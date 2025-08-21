@@ -253,19 +253,19 @@ class BackwardCompatibilityLayer:
         # Try pickle first
         try:
             return self._load_pickle_cache(file_path)
-        except:
+        except (pickle.UnpicklingError, ValueError, EOFError, AttributeError):
             pass
 
         # Try JSON
         try:
             return self._load_json_cache(file_path)
-        except:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             pass
 
         # Try plain text format
         try:
             return self._load_text_cache(file_path)
-        except:
+        except Exception:
             pass
 
         raise LegacyFormatError(f"Unable to detect format of {file_path}")
@@ -314,6 +314,9 @@ class BackwardCompatibilityLayer:
 
     def _convert_legacy_entry(self, key: str, value: Any) -> Optional[DPIFingerprint]:
         """Convert a legacy cache entry to new DPIFingerprint format."""
+        if not isinstance(key, str) or value is None:
+            return None
+
         try:
             # Handle different legacy value formats
             if isinstance(value, dict):
@@ -323,8 +326,8 @@ class BackwardCompatibilityLayer:
             elif isinstance(value, (list, tuple)):
                 return self._convert_list_entry(key, value)
             else:
-                # Try to convert to string and parse
-                return self._convert_string_entry(key, str(value))
+                # Unsupported type, return None to signify failure
+                return None
 
         except Exception as e:
             logger.warning(f"Failed to convert legacy entry {key}: {e}")
@@ -336,7 +339,7 @@ class BackwardCompatibilityLayer:
         target = key.split("_")[0] if "_" in key else key
 
         # Map legacy DPI type
-        legacy_dpi_type = value.get("dpi_type", value.get("type", "UNKNOWN"))
+        legacy_dpi_type = str(value.get("dpi_type", value.get("type", "UNKNOWN"))).upper()
         dpi_type = self.legacy_dpi_type_mapping.get(legacy_dpi_type, DPIType.UNKNOWN)
 
         # Extract confidence
@@ -443,7 +446,7 @@ class BackwardCompatibilityLayer:
             from core.fingerprint.cache import FingerprintCache
 
             cache = FingerprintCache()
-            cache.store(fingerprint.target, fingerprint)
+            cache.set(fingerprint.target, fingerprint)
 
         except ImportError:
             # Fallback: save to JSON file

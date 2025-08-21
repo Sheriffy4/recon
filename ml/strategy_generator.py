@@ -9,16 +9,15 @@ from core.fingerprint.models import Fingerprint
 from core.fingerprint.classifier import UltimateDPIClassifier
 from .strategy_predictor import StrategyPredictor, SKLEARN_AVAILABLE
 from core.domain_specific_strategies import DomainSpecificStrategies
-from core.bypass.attacks.registry import AttackRegistry
 from core.optimization.dynamic_parameter_optimizer import (
-    DynamicParameterOptimizer,  # <-- Импортируем класс, даже если он может быть None
+    DynamicParameterOptimizer,
     OptimizationStrategy,
 )
 from core.bypass.attacks.base import AttackContext
+from core.integration.advanced_attack_registry import get_advanced_attack_registry, AdvancedAttackRegistry
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.bypass.attacks.registry import AttackRegistry
     from core.domain_specific_strategies import DomainSpecificStrategies
     from .strategy_predictor import StrategyPredictor
 
@@ -43,13 +42,12 @@ class AdvancedStrategyGenerator:
 
     def __init__(
         self,
-        attack_registry: AttackRegistry,
         domain_strategies: DomainSpecificStrategies,
         strategy_predictor: Optional[StrategyPredictor],
-        # >>>>> ИЗМЕНЕНИЕ 1: Указываем, что зависимость может быть None <<<<<
         parameter_optimizer: Optional[DynamicParameterOptimizer],
         fingerprint_dict: Dict,
         history: List,
+        attack_registry: Optional[AdvancedAttackRegistry] = None,
         doh_success: bool = False,
         max_strategies: int = 50,
         enable_ml_prediction: bool = True,
@@ -57,13 +55,12 @@ class AdvancedStrategyGenerator:
         self.fingerprint_dict = fingerprint_dict
         self.history = history
         self.doh_success = doh_success
-        self.max_strategies = max_strategies  # <-- ДОБАВЛЕНО
-        self.enable_ml_prediction = enable_ml_prediction  # <-- ДОБАВЛЕНО
+        self.max_strategies = max_strategies
+        self.enable_ml_prediction = enable_ml_prediction
         self.fp_object = None
 
         # Initialize dependencies with fallbacks
-
-        self.attack_registry = attack_registry
+        self.attack_registry = attack_registry or get_advanced_attack_registry()
         self.domain_strategies = domain_strategies
         self.strategy_predictor = strategy_predictor
         self.parameter_optimizer = parameter_optimizer
@@ -279,6 +276,21 @@ class AdvancedStrategyGenerator:
 
         # 4. Fingerprint-based recommendations (Rule-based)
         if self.fp_object:
+            # Prioritize based on specific fingerprint characteristics
+            if getattr(self.fp_object, 'is_stateful_dpi', False):
+                LOG.info("DPI fingerprint suggests stateful inspection. Prioritizing stateful attacks.")
+                stateful_techniques = self._map_category_to_techniques("stateful_tcp_manipulation")
+                for tech in stateful_techniques:
+                    params = self._generate_task_parameters(tech, use_parameter_ranges)
+                    add_task({"name": tech, "params": params, "priority": "high", "reason": "stateful_dpi"})
+
+            if getattr(self.fp_object, 'has_weak_tls_parser', False):
+                LOG.info("DPI fingerprint suggests a weak TLS parser. Prioritizing TLS record evasion.")
+                tls_evasion_techniques = self._map_category_to_techniques("tls_record_evasion")
+                for tech in tls_evasion_techniques:
+                    params = self._generate_task_parameters(tech, use_parameter_ranges)
+                    add_task({"name": tech, "params": params, "priority": "high", "reason": "weak_tls_parser"})
+
             try:
                 # FIX: Instantiate the classifier and use it to get recommendations
                 classifier = UltimateDPIClassifier(
@@ -499,13 +511,14 @@ class AdvancedStrategyGenerator:
             LOG.info("Prioritizing stateful DPI attacks for timeout blocks")
 
             timeout_priority_attacks = [
+                "pacing_attack",  # Specifically designed for timeout evasion
+                "stateful_fragment", # Can break DPIs that timeout on reassembly
+                "advanced_overlap", # Can break DPIs that timeout on reassembly
                 "tcp_fakeddisorder",  # Fake + disorder to confuse state tracking
                 "tcp_multidisorder",  # Multiple disorder packets
                 "tcp_seqovl",  # Sequence overlap for state confusion
                 "tcp_multisplit",  # Multiple splits to overwhelm state tracking
                 "tcp_timing_manipulation",  # Timing attacks for stateful DPI
-                "tcp_window_scaling",  # Window manipulation
-                "urgent_pointer_manipulation",  # Urgent pointer attacks
             ]
 
             for attack_name in timeout_priority_attacks:
@@ -539,13 +552,13 @@ class AdvancedStrategyGenerator:
             LOG.info("Prioritizing RST avoidance attacks for RST blocks")
 
             rst_avoidance_attacks = [
+                "client_hello_split", # Specifically designed for TLS RSTs
                 "tcp_fragmentation",  # Fragment to avoid signature detection
                 "tcp_multisplit",  # Split payloads to avoid pattern matching
                 "ip_fragmentation",  # IP-level fragmentation
                 "tcp_options_padding",  # TCP options manipulation
                 "tcp_timestamp_manipulation",  # Timestamp attacks
                 "payload_obfuscation",  # Payload encoding/encryption
-                "tls_record_manipulation",  # TLS record splitting
             ]
 
             for attack_name in rst_avoidance_attacks:
@@ -699,7 +712,7 @@ class AdvancedStrategyGenerator:
                 attack_name = strategy["name"]
 
                 # Skip optimization for attacks not in registry
-                if not AttackRegistry.get(attack_name):
+                if not self.attack_registry.get_attack_by_name(attack_name):
                     LOG.warning(
                         f"Attack {attack_name} not found in registry, skipping optimization"
                     )
@@ -873,14 +886,14 @@ class AdvancedStrategyGenerator:
         task1, task2 = random.sample(existing_tasks, 2)
 
         # --- НАЧАЛО ИЗМЕНЕНИЙ: Логическая проверка совместимости ---
-        attack_info1 = AttackRegistry().get(task1["name"])
-        attack_info2 = AttackRegistry().get(task2["name"])
+        attack_info1 = self.attack_registry.get_attack_by_name(task1["name"])
+        attack_info2 = self.attack_registry.get_attack_by_name(task2["name"])
 
         # Не комбинируем атаки, работающие по разным протоколам (например, TCP и UDP/QUIC)
         if attack_info1 and attack_info2:
             try:
-                protocols1 = set(attack_info1().supported_protocols)
-                protocols2 = set(attack_info2().supported_protocols)
+                protocols1 = set(attack_info1.supported_protocols)
+                protocols2 = set(attack_info2.supported_protocols)
                 if not protocols1.intersection(protocols2):
                     # Атаки несовместимы, возвращаем одну из них
                     return task1
@@ -979,6 +992,14 @@ class AdvancedStrategyGenerator:
                 "tcp_multidisorder",
                 "tcp_seqovl",
             ],
+            "stateful_tcp_manipulation": [
+                "stateful_fragment",
+                "advanced_overlap",
+            ],
+            "tls_record_evasion": [
+                "client_hello_split",
+                "tls_record_padding",
+            ],
             "ip_fragmentation": [
                 "ip_basic_fragmentation",
                 "ip_advanced_fragmentation",
@@ -988,6 +1009,7 @@ class AdvancedStrategyGenerator:
                 "tcp_timing_manipulation",
                 "tcp_drip_feed",
                 "tcp_burst_timing",
+                "pacing_attack",
             ],
             "payload_obfuscation": [
                 "payload_encryption",
@@ -1041,13 +1063,59 @@ class AdvancedStrategyGenerator:
         # Filter techniques to only include those available in the attack registry
         available_techniques = []
         for technique in techniques:
-            if self.attack_registry.get(technique):
+            if self.attack_registry.get_attack_by_name(technique):
                 available_techniques.append(technique)
             else:
                 LOG.debug(f"Technique {technique} not available in attack registry")
 
         # If no techniques are available, return the original list (they might be added later)
         return available_techniques if available_techniques else techniques
+
+
+    def generate_ab_test_variations(
+        self, base_task: Dict, param_to_test: str, count: int = 5
+    ) -> List[Dict]:
+        """
+        Generates a list of variations of a base task for A/B testing a specific parameter.
+
+        Args:
+            base_task: The base attack task dictionary (e.g., {'name': 'x', 'params': {'p': 1}})
+            param_to_test: The name of the parameter to vary.
+            count: The number of variations to generate.
+
+        Returns:
+            A list of attack task dictionaries, each with a different value for the tested parameter.
+        """
+        variations = []
+        attack_name = base_task.get("name")
+        if not attack_name:
+            LOG.warning("Cannot generate A/B test variations for a task without a name.")
+            return []
+
+        if not self.parameter_optimizer:
+            LOG.warning("Parameter optimizer not available, cannot generate A/B test variations.")
+            return []
+
+        param_ranges = self.parameter_optimizer.generate_parameter_ranges(attack_name)
+        if param_to_test not in param_ranges:
+            LOG.warning(f"Parameter '{param_to_test}' not found in ranges for attack '{attack_name}'.")
+            return []
+
+        param_range = param_ranges[param_to_test]
+
+        for i in range(count):
+            new_task = base_task.copy()
+            new_task["params"] = base_task.get("params", {}).copy()
+
+            # Sample a new value for the parameter
+            new_value = self.parameter_optimizer._sample_parameter_value(param_range)
+            new_task["params"][param_to_test] = new_value
+            new_task["ab_test_group"] = f"{param_to_test}_{new_value}" # Tag for analysis
+
+            variations.append(new_task)
+
+        LOG.info(f"Generated {len(variations)} A/B test variations for '{attack_name}' on parameter '{param_to_test}'.")
+        return variations
 
 
 # Export StrategyGenerator for backward compatibility
