@@ -14,13 +14,13 @@ from unittest.mock import Mock, AsyncMock, patch
 import ssl
 import socket
 
-from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig, BlockingEvent, ConnectivityResult
-from core.fingerprint.advanced_models import (
+from .advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig, BlockingEvent, ConnectivityResult
+from .advanced_models import (
     DPIFingerprint,
     DPIType,
     FingerprintingError,
 )
-from core.fingerprint.metrics_collector import ComprehensiveMetrics, TimingMetrics
+from .metrics_collector import ComprehensiveMetrics, TimingMetrics
 
 # Move fixtures to module level to be shared across test classes
 @pytest.fixture

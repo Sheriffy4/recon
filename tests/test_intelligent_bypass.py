@@ -6,43 +6,41 @@ from unittest.mock import Mock, patch, AsyncMock
 from core.fingerprint.advanced_models import DPIFingerprint
 from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
 from core.bypass.strategies.generator import StrategyGenerator
-from core.bypass.attacks.modern_registry import get_modern_registry, ModernAttackRegistry
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
 
 @pytest.fixture
 def mock_attack_registry():
-    # Create a mock registry to avoid dependency on the full registry content
+    """Provides a ModernAttackRegistry with mock attacks for testing."""
     registry = ModernAttackRegistry()
 
-    # Create mock attack definitions for the rules we want to test
-    mock_tcp_multisplit = Mock()
-    mock_tcp_multisplit.name = 'tcp_multisplit'
+    # A generic mock attack class
+    class MockAttack(BaseAttack):
+        def __init__(self, context: AttackContext):
+            super().__init__(context)
 
-    mock_ip_frag = Mock()
-    mock_ip_frag.name = 'ip_fragmentation_disorder'
+        def execute(self) -> AttackResult:
+            return AttackResult(status=AttackStatus.SUCCESS)
 
-    mock_sni = Mock()
-    mock_sni.name = 'sni_manipulation'
+    attacks_to_mock = [
+        "tcp_multisplit", "ip_fragmentation_disorder", "sni_manipulation",
+        "badsum_race", "faked_disorder", "seqovl", "dynamic_combo"
+    ]
 
-    mock_badsum = Mock()
-    mock_badsum.name = 'badsum_race'
-
-    mock_faked = Mock()
-    mock_faked.name = 'faked_disorder'
-
-    mock_seqovl = Mock()
-    mock_seqovl.name = 'seqovl'
-
-    mock_dynamic_combo = Mock()
-    mock_dynamic_combo.name = 'dynamic_combo'
-
-    # Register mock attacks
-    registry.register(mock_tcp_multisplit)
-    registry.register(mock_ip_frag)
-    registry.register(mock_sni)
-    registry.register(mock_badsum)
-    registry.register(mock_faked)
-    registry.register(mock_seqovl)
-    registry.register(mock_dynamic_combo)
+    for attack_name in attacks_to_mock:
+        definition = AttackDefinition(
+            id=attack_name,
+            name=attack_name,
+            description="A mock attack",
+            category=AttackCategory.EXPERIMENTAL,
+            complexity=AttackComplexity.SIMPLE,
+            stability=AttackStability.STABLE
+        )
+        # The registry's _initialize_from_legacy method already populates the class
+        # For this test, we can directly manipulate the internal dictionaries.
+        registry._definitions[attack_name] = definition
+        registry._attack_classes[attack_name] = MockAttack
 
     return registry
 

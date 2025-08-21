@@ -512,13 +512,8 @@ class BypassEngine:
                 success = self._send_segments(packet, w, segments)
             elif task_type == "multisplit":
                 # Определяем, является ли IP адрес Instagram или Twitter
-                is_meta_ip = any(
-                    packet.dst_addr.startswith(prefix)
-                    for prefix in ["157.240.", "69.171.", "31.13."]
-                )
-                is_twitter_ip = packet.dst_addr.startswith(
-                    "104.244."
-                ) or packet.dst_addr.startswith("199.59.")
+                is_meta_ip = any(packet.dst_addr.startswith(prefix) for prefix in ["157.240.", "69.171.", "31.13."])
+                is_twitter_ip = packet.dst_addr.startswith("104.244.") or packet.dst_addr.startswith("199.59.")
 
                 # Специальная обработка для Instagram/Twitter
                 if is_meta_ip or is_twitter_ip:
@@ -528,11 +523,9 @@ class BypassEngine:
                         time.sleep(0.002)
 
                     # Создаем больше сегментов для этих сервисов
-                    segments = self.techniques.apply_multisplit(
-                        payload, params.get("positions", [6, 14, 26, 42, 64])
-                    )
+                    segments = self.techniques.apply_multisplit(payload, params.get("positions", [6, 14, 26, 42, 64]))
                     success = self._send_segments(packet, w, segments)
-
+                    
                     # Отправляем дополнительные фейковые пакеты в конце
                     time.sleep(0.002)
                     self._send_fake_packet_with_badsum(packet, w, ttl=ttl + 2)

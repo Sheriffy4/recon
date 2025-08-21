@@ -1,11 +1,18 @@
 {
-  "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum",
+  "strategy_dict": {
+    "params": {
+      "split_pos": 1,
+      "ttl": 8
+    },
+    "name": "badsum_race"
+  },
+  "strategy": "badsum_race(split_pos=1, ttl=8)",
   "result_status": "PARTIAL_SUCCESS",
-  "successful_sites": 4,
+  "successful_sites": 3,
   "total_sites": 5,
-  "success_rate": 0.8,
-  "avg_latency_ms": 505.22929430007935,
-  "fingerprint_used": true,
-  "dpi_type": "government",
-  "dpi_confidence": 0.5
+  "success_rate": 0.6,
+  "avg_latency_ms": 273.9268143971761,
+  "fingerprint_used": false,
+  "dpi_type": null,
+  "dpi_confidence": null
 }

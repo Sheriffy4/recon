@@ -20,8 +20,8 @@ repos:
       name: isort (python)
 
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.5
+    rev: v0.5.5 # Используйте актуальную версию
     hooks:
-    -   id: ruff                  # Запускает ruff (супер-быстрый линтер, замена flake8)
-      args: [--fix]               # Автоматически исправляет простые ошибки
-    -   id: ruff-format           # Использует ruff для форматирования (альтернатива black)
+    -   id: ruff
+      args: [--fix] # Автоматически исправляет ошибки
+    -   id: ruff-format # Замена black
