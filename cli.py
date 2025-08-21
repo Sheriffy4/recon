@@ -118,6 +118,7 @@ from core.doh_resolver import DoHResolver
 from core.hybrid_engine import HybridEngine
 from ml.zapret_strategy_generator import ZapretStrategyGenerator
 from apply_bypass import apply_system_bypass
+from core.zapret_parser import ZapretStrategyParser
 
 # --- Настройка логирования ---
 logging.basicConfig(
@@ -1177,7 +1178,7 @@ async def run_hybrid_mode(args):
     console.print(f"Loaded {len(dm.domains)} domain(s) for testing.")
 
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug)
+    hybrid_engine = HybridEngine(debug=args.debug, timeout=args.timeout) # <--- ИЗМЕНЕНИЕ ЗДЕСЬ
     reporter = SimpleReporter(debug=args.debug)
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
     advanced_fingerprinter = None
@@ -1427,10 +1428,33 @@ async def run_hybrid_mode(args):
                 )
                 strategies = optimized_strategies
 
-    # Шаг 4: Гибридное тестирование
+    # --- Шаг 3.5: Преобразование строковых стратегий в словари ---
+    console.print("[dim]Parsing strategies into structured format...[/dim]")
+    parser = ZapretStrategyParser()
+    strategies_to_test_dicts = []
+    for strategy_str in strategies:
+        try:
+            # Парсим строку в словарь параметров zapret
+            parsed_params = parser.parse(strategy_str)
+            # Транслируем параметры в задачу для нашего движка
+            engine_task = hybrid_engine._translate_zapret_to_engine_task(parsed_params)
+            if engine_task:
+                # Добавляем оригинальную строку для отчетности
+                engine_task['raw_string'] = strategy_str
+                strategies_to_test_dicts.append(engine_task)
+            else:
+                console.print(f"[yellow]Warning: Could not translate strategy: {strategy_str}[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Error parsing strategy '{strategy_str}': {e}[/red]")
+
+    if not strategies_to_test_dicts:
+        console.print("[bold red]Fatal Error:[/bold red] No valid strategies could be prepared for testing.")
+        return
+
+    # --- Шаг 4: Гибридное тестирование ---
     console.print("\n[yellow]Step 4: Hybrid testing with forced DNS...[/yellow]")
     test_results = await hybrid_engine.test_strategies_hybrid(
-        strategies=strategies,
+        strategies=strategies_to_test_dicts, # <--- ПЕРЕДАЕМ СПИСОК СЛОВАРЕЙ
         test_sites=blocked_sites,
         ips=set(dns_cache.values()),
         dns_cache=dns_cache,
@@ -2141,6 +2165,13 @@ def main():
         action="store_true",
         help="Start monitoring mode after finding strategies.",
     )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="Connection timeout in seconds for tests (default: 15.0)."
+    )
+    
     parser.add_argument(
         "--monitor-interval",
         type=int,
