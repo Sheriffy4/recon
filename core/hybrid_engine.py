@@ -28,6 +28,10 @@ except ImportError as e:
     )
     MODERN_BYPASS_ENGINE_AVAILABLE = False
 
+from .fingerprint.advanced_models import (
+    DPIFingerprint,
+)
+
 # Import advanced fingerprinting system
 try:
     from .fingerprint.advanced_fingerprinter import (
@@ -35,7 +39,6 @@ try:
         FingerprintingConfig,
     )
     from .fingerprint.advanced_models import (
-        DPIFingerprint,
         DPIType,
         FingerprintingError,
     )
