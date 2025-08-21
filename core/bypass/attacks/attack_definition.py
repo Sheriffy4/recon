@@ -54,6 +54,7 @@ class CompatibilityMode(Enum):
     BYEBYEDPI = "byebyedpi"
     NATIVE = "native"
     UNIVERSAL = "universal"
+    EMULATED = "emulated"
 
 
 @dataclass

@@ -496,6 +496,18 @@ class ModernAttackRegistry:
                 LOG.error(f"Failed to create instance of attack {attack_id}")
                 return None
 
+            # Check if the attack is available
+            if hasattr(attack_instance, 'is_available') and not attack_instance.is_available:
+                LOG.info(f"Skipping test for disabled attack: {attack_id}")
+                return TestResult(
+                    attack_id=attack_id,
+                    test_case_id=test_case.id if test_case else "default",
+                    success=False,  # Skipped tests are not successful
+                    execution_time_ms=0,
+                    error_message="Attack is disabled or not available.",
+                    metadata={"status": "skipped"}
+                )
+
             # Run test
             start_time = time.time()
             try:

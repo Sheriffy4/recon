@@ -66,6 +66,7 @@ class AttackStatus(Enum):
     BLOCKED = "blocked"
     INVALID_PARAMS = "invalid_params"
     NOT_FOUND = "not_found"
+    SKIPPED = "skipped"
 
 
 @dataclass

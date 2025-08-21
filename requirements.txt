@@ -1,0 +1,5 @@
+psutil
+aiohttp
+requests
+dnspython
+scapy

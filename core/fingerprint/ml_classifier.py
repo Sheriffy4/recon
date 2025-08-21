@@ -40,7 +40,7 @@ class MLClassifier:
     Обучается на собранных метриках и классифицирует DPI-системы.
     """
 
-    def __init__(self, model_path: str = "dpi_classifier.joblib"):
+    def __init__(self, model_path: str = "demo_dpi_classifier.joblib"):
         self.model = None
         self.model_path = model_path
         self.feature_names = []
