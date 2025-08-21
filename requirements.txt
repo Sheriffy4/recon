@@ -3,3 +3,7 @@ aiohttp
 requests
 dnspython
 scapy
+
+pytest
+pyyaml
+numpy

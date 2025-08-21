@@ -74,7 +74,8 @@ class IPv4Packet(Packet):
             bytes(map(int, self.src_addr.split("."))),
             bytes(map(int, self.dst_addr.split("."))),
         )
-        return header + self.options + self.payload
+        options_bytes = b"".join(opt.serialize() for opt in self.options)
+        return header + options_bytes + self.payload
 
     def clone(self) -> "IPv4Packet":
         return IPv4Packet(

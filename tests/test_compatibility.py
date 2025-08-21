@@ -254,7 +254,7 @@ class TestBackwardCompatibilityLayer(unittest.TestCase):
 
         self.compatibility_layer._save_migrated_fingerprint(fingerprint)
 
-        mock_cache.store.assert_called_once_with("test.com", fingerprint)
+        mock_cache.set.assert_called_once_with("test.com", fingerprint)
 
     def test_save_migrated_fingerprint_fallback(self):
         """Test saving migrated fingerprints with fallback."""
@@ -579,25 +579,26 @@ class TestIntegrationScenarios(unittest.TestCase):
     def test_mixed_format_migration(self):
         """Test migration with mixed legacy formats."""
         # Create multiple legacy files with different formats
-        cache_dir = Path(self.temp_dir) / "cache"
+        cache_dir = Path(self.temp_dir)
         cache_dir.mkdir(exist_ok=True)
 
         # Pickle file
         pickle_data = {"site1.com": {"dpi_type": "ROSKOMNADZOR", "confidence": 0.8}}
-        with open(cache_dir / "cache.pkl", "wb") as f:
+        with open(cache_dir / "fingerprint_cache.pkl", "wb") as f:
             pickle.dump(pickle_data, f)
 
         # JSON file
         json_data = {"site2.com": "COMMERCIAL"}
-        with open(cache_dir / "cache.json", "w") as f:
+        with open(cache_dir / "simple_fingerprints.json", "w") as f:
             json.dump(json_data, f)
 
         # Text file
-        with open(cache_dir / "cache.txt", "w") as f:
+        with open(cache_dir / "text.fingerprint", "w") as f:
             f.write("site3.com=GOVERNMENT\n")
 
-        # Run migration
-        report = self.compatibility_layer.migrate_legacy_cache()
+        # Run migration from the temp directory
+        layer = BackwardCompatibilityLayer(cache_dir=str(cache_dir), backup_dir=str(Path(self.temp_dir) / "backup"))
+        report = layer.migrate_legacy_cache()
 
         # Should process all files
         self.assertEqual(report["files_processed"], 3)
@@ -641,20 +642,23 @@ class TestIntegrationScenarios(unittest.TestCase):
 
     def test_empty_cache_migration(self):
         """Test migration with empty cache files."""
-        # Create empty files
-        empty_pickle = Path(self.temp_dir) / "empty.pkl"
+        # Create empty files in the cache directory
+        cache_dir = Path(self.temp_dir)
+
+        empty_pickle = cache_dir / "fingerprint_cache.pkl"
         with open(empty_pickle, "wb") as f:
             pickle.dump({}, f)
 
-        empty_json = Path(self.temp_dir) / "empty.json"
+        empty_json = cache_dir / "simple_fingerprints.json"
         with open(empty_json, "w") as f:
             json.dump({}, f)
 
+        layer = BackwardCompatibilityLayer(cache_dir=str(cache_dir), backup_dir=str(Path(self.temp_dir) / "backup"))
         # Run migration
-        report = self.compatibility_layer.migrate_legacy_cache()
+        report = layer.migrate_legacy_cache()
 
         # Should process files but migrate no entries
-        self.assertGreater(report["files_processed"], 0)
+        self.assertEqual(report["files_processed"], 2)
         self.assertEqual(report["entries_migrated"], 0)
 
 

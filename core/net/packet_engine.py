@@ -1,3 +1,4 @@
+import struct
 from abc import ABC, abstractmethod
 from typing import Optional, List, Union
 from .tcp_options import TCPOption, TCPOptions
