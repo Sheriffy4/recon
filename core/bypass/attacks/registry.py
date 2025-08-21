@@ -158,6 +158,7 @@ def register_attack(arg=None):
                 f"Could not register attack class {attack_class.__name__}: {e}",
                 exc_info=True,
             )
+            raise
 
         return attack_class
 

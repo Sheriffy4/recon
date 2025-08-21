@@ -4,25 +4,19 @@
 Bypass attacks module.
 Includes all attack implementations for the modernized bypass engine.
 """
+import importlib
+import pkgutil
 
-# Import DNS attacks to trigger auto-registration
-try:
-    from .dns import dns_tunneling
-except ImportError as e:
-    print(f"Failed to import DNS attacks: {e}")
+# Discover and import all attack modules dynamically
+def import_submodules(package_name):
+    """ Import all submodules of a module, recursively """
+    package = importlib.import_module(package_name)
+    for _, module_name, is_pkg in pkgutil.walk_packages(package.__path__, package.__name__ + '.'):
+        if not is_pkg:
+            try:
+                importlib.import_module(module_name)
+            except ImportError as e:
+                print(f"Failed to import attack module {module_name}: {e}")
 
-# Import other attack modules
-try:
-    from . import tcp_fragmentation
-except ImportError:
-    pass
-
-try:
-    from . import http_manipulation
-except ImportError:
-    pass
-
-try:
-    from .tls import tls_evasion
-except ImportError:
-    pass
+# Import all attack modules to trigger auto-registration
+import_submodules(__name__)

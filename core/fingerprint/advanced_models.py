@@ -83,6 +83,19 @@ class DPIFingerprint:
     confidence: float = 0.0
     alternative_types: List[Tuple[DPIType, float]] = field(default_factory=list)
 
+    # Coherent Fingerprint Features
+    cipher_suites_order: Optional[List[int]] = None
+    extensions_order: Optional[List[int]] = None
+    supported_groups: Optional[List[int]] = None
+    signature_algorithms: Optional[List[int]] = None
+    ec_point_formats: Optional[List[int]] = None
+    alpn_protocols: Optional[List[str]] = None
+    tcp_window_size: Optional[int] = None
+    tcp_mss: Optional[int] = None
+    tcp_sack_permitted: bool = False
+    tcp_timestamps_enabled: bool = False
+    syn_ack_to_client_hello_delta: Optional[float] = None
+
     # TCP Behavior Metrics (11 metrics)
     rst_injection_detected: bool = False
     rst_ttl: Optional[int] = None  # TTL of detected RST packet
