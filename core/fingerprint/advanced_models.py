@@ -161,7 +161,7 @@ class DPIFingerprint:
         Generates a short, unique hash based on key, quickly determined
         characteristics of the DPI fingerprint.
         """
-        # Using a tuple of key-value pairs for consistent ordering
+        # >>>>> ЭКСПЕРТНОЕ ИСПРАВЛЕНИЕ: Используем новые быстрые метрики для хэша <<<<<
         key_features = (
             ("bt", self.block_type),
             ("rst", self.rst_injection_detected),

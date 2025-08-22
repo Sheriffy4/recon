@@ -1,14 +1,10 @@
-# recon/core/bypass/attacks/http/__init__.py
 """
 HTTP-based DPI bypass attacks.
 
 This package contains all HTTP-level attacks for bypassing DPI systems.
 """
-
-# Import all HTTP attack modules to ensure they are registered
-from . import header_attacks
-from . import method_attacks
-from . import http2_attacks
-from . import quic_attacks
-
+from recon.core.bypass.attacks import header_attacks
+from recon.core.bypass.attacks import method_attacks
+from recon.core.bypass.attacks import http2_attacks
+from recon.core.bypass.attacks import quic_attacks
 __all__ = []

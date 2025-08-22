@@ -1,67 +1,36 @@
-# recon/core/bypass/engines/enhanced_factory.py
 """
 Enhanced Engine Factory with comprehensive validation, error handling, and recovery.
 """
-
 from typing import Optional, Dict, Any, List, Union
 import logging
-
-from .base import BaseBypassEngine, EngineConfig, EngineType
-from .factory import create_engine as _original_create_engine
-from .engine_type_detector import get_engine_type_detector
-from .engine_validator import get_engine_validator
-from .engine_config_manager import get_engine_config_manager
-from .error_handling import (
-    get_error_handler,
-    ErrorContext,
-    BaseEngineError,
-    EngineCreationError as StructuredEngineCreationError,
-    create_error_from_exception,
-)
-
-
-LOG = logging.getLogger("EnhancedEngineFactory")
-
+from recon.core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineType
+from recon.core.bypass.engines.factory import create_engine as _original_create_engine
+from recon.core.bypass.engines.engine_type_detector import get_engine_type_detector
+from recon.core.bypass.engines.engine_validator import get_engine_validator
+from recon.core.bypass.engines.engine_config_manager import get_engine_config_manager
+from recon.core.bypass.engines.error_handling import get_error_handler, ErrorContext, BaseEngineError, EngineCreationError as StructuredEngineCreationError, create_error_from_exception
+LOG = logging.getLogger('EnhancedEngineFactory')
 
 class EngineCreationError(Exception):
     """Base exception for engine creation errors."""
-
     pass
-
 
 class MissingParameterError(EngineCreationError):
     """Raised when required parameters are missing."""
-
     pass
-
 
 class InvalidEngineTypeError(EngineCreationError):
     """Raised when an invalid engine type is provided."""
-
     pass
-
 
 class DependencyError(EngineCreationError):
     """Raised when required dependencies are missing."""
-
     pass
-
 
 class PermissionError(EngineCreationError):
     """Raised when insufficient permissions are available."""
-
     pass
-
-
-# Import enhanced models from config_models
-from .config_models import (
-    EngineCreationRequest,
-    EngineCreationResult,
-    EnhancedEngineConfig,
-    ValidationResult,
-    SerializationFormat,
-)
-
+from recon.core.bypass.engines.config_models import EngineCreationRequest, EngineCreationResult, EnhancedEngineConfig, ValidationResult, SerializationFormat
 
 class EnhancedEngineFactory:
     """
@@ -77,22 +46,13 @@ class EnhancedEngineFactory:
 
     def __init__(self):
         self.logger = LOG
-        self._supported_engines = {
-            EngineType.NATIVE_PYDIVERT,
-            EngineType.EXTERNAL_TOOL,
-            EngineType.NATIVE_NETFILTER,
-        }
+        self._supported_engines = {EngineType.NATIVE_PYDIVERT, EngineType.EXTERNAL_TOOL, EngineType.NATIVE_NETFILTER}
         self._detector = get_engine_type_detector()
         self._validator = get_engine_validator()
         self._config_manager = get_engine_config_manager()
         self._error_handler = get_error_handler()
 
-    def create_engine(
-        self,
-        engine_type: Optional[Union[str, EngineType]] = None,
-        config: Optional[EngineConfig] = None,
-        **kwargs,
-    ) -> BaseBypassEngine:
+    def create_engine(self, engine_type: Optional[Union[str, EngineType]]=None, config: Optional[EngineConfig]=None, **kwargs) -> BaseBypassEngine:
         """
         Create a bypass engine with comprehensive validation and error handling.
 
@@ -107,20 +67,13 @@ class EnhancedEngineFactory:
         Raises:
             EngineCreationError: If engine creation fails
         """
-        request = EngineCreationRequest(
-            engine_type=engine_type, config=config, parameters=kwargs
-        )
-
+        request = EngineCreationRequest(engine_type=engine_type, config=config, parameters=kwargs)
         result = self.create_engine_with_result(request)
-
         if not result.success:
-            raise EngineCreationError(result.error_message or "Engine creation failed")
-
+            raise EngineCreationError(result.error_message or 'Engine creation failed')
         return result.engine
 
-    def create_engine_with_result(
-        self, request: EngineCreationRequest
-    ) -> EngineCreationResult:
+    def create_engine_with_result(self, request: EngineCreationRequest) -> EngineCreationResult:
         """
         Create an engine and return detailed result information.
 
@@ -131,130 +84,60 @@ class EnhancedEngineFactory:
             Detailed creation result
         """
         result = EngineCreationResult()
-
         try:
-            # Step 1: Normalize and validate engine type
             normalized_type = self._normalize_engine_type(request.engine_type)
-            self._last_normalized_type = normalized_type  # Store for error handling
+            self._last_normalized_type = normalized_type
             if normalized_type is None:
                 if request.allow_fallback:
-                    # Use configuration manager's default engine type
                     normalized_type = self._config_manager.get_default_engine_type()
                     result.fallback_used = True
-                    result.warnings.append(
-                        f"Engine type not specified, using configured default: {normalized_type.value}"
-                    )
+                    result.warnings.append(f'Engine type not specified, using configured default: {normalized_type.value}')
                 else:
-                    result.error_message = (
-                        "Engine type is required when fallback is disabled"
-                    )
+                    result.error_message = 'Engine type is required when fallback is disabled'
                     return result
-
             result.engine_type = normalized_type
-
-            # Step 2: Validate engine requirements
             if request.validate_dependencies:
-                # Use the enhanced validator for comprehensive validation
-                validation_result = self._validator.validate_all(
-                    normalized_type, request.config, request.parameters
-                )
-
-                # Convert validation result to the expected format
-                result.validation_results = {
-                    "comprehensive_validation": validation_result.valid,
-                    "has_errors": validation_result.has_errors(),
-                    "has_warnings": validation_result.has_warnings(),
-                    "error_count": len(validation_result.errors),
-                    "warning_count": len(validation_result.warnings),
-                }
-
-                # Add validation warnings to result
+                validation_result = self._validator.validate_all(normalized_type, request.config, request.parameters)
+                result.validation_results = {'comprehensive_validation': validation_result.valid, 'has_errors': validation_result.has_errors(), 'has_warnings': validation_result.has_warnings(), 'error_count': len(validation_result.errors), 'warning_count': len(validation_result.warnings)}
                 result.warnings.extend(validation_result.warnings)
-
                 if not validation_result.valid:
                     if request.allow_fallback:
-                        # Try fallback engines
-                        fallback_result = self._try_fallback_engines(
-                            request, validation_result.errors
-                        )
+                        fallback_result = self._try_fallback_engines(request, validation_result.errors)
                         if fallback_result.success:
                             return fallback_result
-
                     result.error_message = f"Engine validation failed: {'; '.join(validation_result.errors)}"
                     return result
-
-            # Step 3: Create the engine
             if request.config:
-                # Convert EnhancedEngineConfig to EngineConfig if needed
-                if hasattr(request.config, "to_engine_config"):
+                if hasattr(request.config, 'to_engine_config'):
                     config = request.config.to_engine_config()
                 else:
                     config = request.config
             else:
-                # Get configuration from config manager
                 config = self._config_manager.get_engine_config_object(normalized_type)
-
-            # Apply any additional parameters to config
             if request.parameters:
                 for key, value in request.parameters.items():
                     if hasattr(config, key):
                         setattr(config, key, value)
                     else:
-                        result.warnings.append(f"Unknown parameter ignored: {key}")
-
-            # Use the original factory function
+                        result.warnings.append(f'Unknown parameter ignored: {key}')
             engine = _original_create_engine(normalized_type, config)
-
             result.engine = engine
             result.success = True
-
-            self.logger.info(f"Successfully created engine: {normalized_type.value}")
-
+            self.logger.info(f'Successfully created engine: {normalized_type.value}')
         except Exception as e:
-            # Create structured error with context
-            context = ErrorContext(
-                engine_type=getattr(self, "_last_normalized_type", None),
-                operation="engine_creation",
-                user_action="create_engine",
-                system_state={"request_id": getattr(request, "request_id", None)},
-                additional_info={"parameters": request.parameters},
-            )
-
-            # Convert to structured error
-            structured_error = create_error_from_exception(
-                e, StructuredEngineCreationError, context
-            )
-
-            # Handle the error
+            context = ErrorContext(engine_type=getattr(self, '_last_normalized_type', None), operation='engine_creation', user_action='create_engine', system_state={'request_id': getattr(request, 'request_id', None)}, additional_info={'parameters': request.parameters})
+            structured_error = create_error_from_exception(e, StructuredEngineCreationError, context)
             error_result = self._error_handler.handle_error(structured_error, context)
-
-            self.logger.error(
-                f"Engine creation failed: {structured_error.get_detailed_message()}"
-            )
-
+            self.logger.error(f'Engine creation failed: {structured_error.get_detailed_message()}')
             if request.allow_fallback:
-                # Try fallback as last resort
                 fallback_result = self._try_fallback_engines(request, [str(e)])
                 if fallback_result.success:
-                    fallback_result.warnings.append(
-                        f"Primary engine creation failed: {e}"
-                    )
-                    fallback_result.warnings.extend(
-                        [s.action for s in structured_error.suggestions[:3]]
-                    )
+                    fallback_result.warnings.append(f'Primary engine creation failed: {e}')
+                    fallback_result.warnings.extend([s.action for s in structured_error.suggestions[:3]])
                     return fallback_result
-
             result.error_message = structured_error.get_detailed_message()
-
-            # Add resolution suggestions to warnings
             if structured_error.suggestions:
-                result.warnings.extend(
-                    [
-                        f"Suggestion: {s.action}"
-                        for s in structured_error.suggestions[:3]
-                    ]
-                )
-
+                result.warnings.extend([f'Suggestion: {s.action}' for s in structured_error.suggestions[:3]])
         return result
 
     def detect_best_engine_type(self) -> EngineType:
@@ -277,38 +160,25 @@ class EnhancedEngineFactory:
             Dictionary of validation results
         """
         detection_result = self._detector.get_detection_details(engine_type)
-
-        # Convert detection result to validation format
-        results = {
-            "dependencies_met": detection_result.dependencies_met,
-            "available": detection_result.available,
-        }
-
-        # Add specific checks based on missing dependencies
+        results = {'dependencies_met': detection_result.dependencies_met, 'available': detection_result.available}
         if detection_result.missing_dependencies:
             for dep in detection_result.missing_dependencies:
-                # Convert dependency names to validation keys
-                if "platform" in dep.lower():
-                    results["platform"] = False
-                elif "pydivert" in dep.lower():
-                    results["pydivert_available"] = False
-                elif "admin" in dep.lower() or "privilege" in dep.lower():
-                    results["permissions"] = False
-                elif "netfilter" in dep.lower():
-                    results["netfilter_available"] = False
-                elif "tool" in dep.lower():
-                    results["tool_available"] = False
-        else:
-            # All dependencies met, set positive results
-            if engine_type == EngineType.NATIVE_PYDIVERT:
-                results.update(
-                    {"platform": True, "pydivert_available": True, "permissions": True}
-                )
-            elif engine_type == EngineType.EXTERNAL_TOOL:
-                results.update({"platform": True, "tool_available": True})
-            elif engine_type == EngineType.NATIVE_NETFILTER:
-                results.update({"platform": True, "netfilter_available": True})
-
+                if 'platform' in dep.lower():
+                    results['platform'] = False
+                elif 'pydivert' in dep.lower():
+                    results['pydivert_available'] = False
+                elif 'admin' in dep.lower() or 'privilege' in dep.lower():
+                    results['permissions'] = False
+                elif 'netfilter' in dep.lower():
+                    results['netfilter_available'] = False
+                elif 'tool' in dep.lower():
+                    results['tool_available'] = False
+        elif engine_type == EngineType.NATIVE_PYDIVERT:
+            results.update({'platform': True, 'pydivert_available': True, 'permissions': True})
+        elif engine_type == EngineType.EXTERNAL_TOOL:
+            results.update({'platform': True, 'tool_available': True})
+        elif engine_type == EngineType.NATIVE_NETFILTER:
+            results.update({'platform': True, 'netfilter_available': True})
         return results
 
     def get_available_engines(self) -> List[EngineType]:
@@ -320,9 +190,7 @@ class EnhancedEngineFactory:
         """
         return self._detector.detect_available_engines()
 
-    def create_with_fallback(
-        self, preferred_type: Optional[EngineType] = None
-    ) -> BaseBypassEngine:
+    def create_with_fallback(self, preferred_type: Optional[EngineType]=None) -> BaseBypassEngine:
         """
         Create an engine with automatic fallback to alternatives.
 
@@ -332,90 +200,49 @@ class EnhancedEngineFactory:
         Returns:
             Created engine instance
         """
-        request = EngineCreationRequest(
-            engine_type=preferred_type, allow_fallback=True, validate_dependencies=True
-        )
-
+        request = EngineCreationRequest(engine_type=preferred_type, allow_fallback=True, validate_dependencies=True)
         result = self.create_engine_with_result(request)
-
         if not result.success:
-            raise EngineCreationError(
-                result.error_message or "All engine creation attempts failed"
-            )
-
+            raise EngineCreationError(result.error_message or 'All engine creation attempts failed')
         return result.engine
 
-    def _normalize_engine_type(
-        self, engine_type: Optional[Union[str, EngineType]]
-    ) -> Optional[EngineType]:
+    def _normalize_engine_type(self, engine_type: Optional[Union[str, EngineType]]) -> Optional[EngineType]:
         """Normalize engine type from string or EngineType to EngineType."""
         if engine_type is None:
             return None
-
         if isinstance(engine_type, EngineType):
             return engine_type
-
         if isinstance(engine_type, str):
-            # Try to match by value
             for et in EngineType:
                 if et.value == engine_type.lower():
                     return et
-
-            # Try to match by name
             try:
                 return EngineType[engine_type.upper()]
             except KeyError:
                 pass
+        raise InvalidEngineTypeError(f'Unknown engine type: {engine_type}')
 
-        raise InvalidEngineTypeError(f"Unknown engine type: {engine_type}")
-
-    def _try_fallback_engines(
-        self, request: EngineCreationRequest, failed_reasons: List[str]
-    ) -> EngineCreationResult:
+    def _try_fallback_engines(self, request: EngineCreationRequest, failed_reasons: List[str]) -> EngineCreationResult:
         """Try fallback engines in order of preference."""
         result = EngineCreationResult()
-        result.warnings.extend(
-            [f"Fallback reason: {reason}" for reason in failed_reasons]
-        )
-
-        # Get available engines in order of preference
+        result.warnings.extend([f'Fallback reason: {reason}' for reason in failed_reasons])
         fallback_order = self._get_fallback_order()
-
         for engine_type in fallback_order:
             if engine_type == request.engine_type:
-                continue  # Skip the original failed type
-
+                continue
             try:
-                self.logger.info(f"Trying fallback engine: {engine_type.value}")
-
-                # Create new request for fallback
-                fallback_request = EngineCreationRequest(
-                    engine_type=engine_type,
-                    config=request.config,
-                    parameters=request.parameters,
-                    allow_fallback=False,  # Prevent infinite recursion
-                    validate_dependencies=True,
-                )
-
+                self.logger.info(f'Trying fallback engine: {engine_type.value}')
+                fallback_request = EngineCreationRequest(engine_type=engine_type, config=request.config, parameters=request.parameters, allow_fallback=False, validate_dependencies=True)
                 fallback_result = self.create_engine_with_result(fallback_request)
-
                 if fallback_result.success:
                     fallback_result.fallback_used = True
                     fallback_result.warnings.extend(result.warnings)
-                    fallback_result.warnings.append(
-                        f"Used fallback engine: {engine_type.value}"
-                    )
+                    fallback_result.warnings.append(f'Used fallback engine: {engine_type.value}')
                     return fallback_result
-
             except Exception as e:
-                self.logger.debug(
-                    f"Fallback engine {engine_type.value} also failed: {e}"
-                )
+                self.logger.debug(f'Fallback engine {engine_type.value} also failed: {e}')
                 continue
-
-        result.error_message = (
-            f"All fallback engines failed. Reasons: {'; '.join(failed_reasons)}"
-        )
+        result.error_message = f"All fallback engines failed. Reasons: {'; '.join(failed_reasons)}"
         return result
 
     def get_engine_detection_details(self, engine_type: EngineType) -> Dict[str, Any]:
@@ -429,16 +256,7 @@ class EnhancedEngineFactory:
             Detailed detection information
         """
         detection_result = self._detector.get_detection_details(engine_type)
-
-        return {
-            "engine_type": detection_result.engine_type.value,
-            "available": detection_result.available,
-            "score": detection_result.score,
-            "dependencies_met": detection_result.dependencies_met,
-            "missing_dependencies": detection_result.missing_dependencies,
-            "warnings": detection_result.warnings,
-            "installation_hints": detection_result.installation_hints,
-        }
+        return {'engine_type': detection_result.engine_type.value, 'available': detection_result.available, 'score': detection_result.score, 'dependencies_met': detection_result.dependencies_met, 'missing_dependencies': detection_result.missing_dependencies, 'warnings': detection_result.warnings, 'installation_hints': detection_result.installation_hints}
 
     def get_system_capabilities(self) -> Dict[str, Any]:
         """
@@ -448,17 +266,7 @@ class EnhancedEngineFactory:
             System capabilities information
         """
         capabilities = self._detector.check_system_capabilities()
-
-        return {
-            "platform": capabilities.platform,
-            "is_windows": capabilities.is_windows,
-            "is_linux": capabilities.is_linux,
-            "is_admin": capabilities.is_admin,
-            "python_version": capabilities.python_version,
-            "available_packages": capabilities.available_packages,
-            "network_interfaces": capabilities.network_interfaces,
-            "permissions": capabilities.permissions,
-        }
+        return {'platform': capabilities.platform, 'is_windows': capabilities.is_windows, 'is_linux': capabilities.is_linux, 'is_admin': capabilities.is_admin, 'python_version': capabilities.python_version, 'available_packages': capabilities.available_packages, 'network_interfaces': capabilities.network_interfaces, 'permissions': capabilities.permissions}
 
     def get_installation_recommendations(self) -> Dict[str, List[str]]:
         """
@@ -470,12 +278,7 @@ class EnhancedEngineFactory:
         recommendations = self._detector.get_installation_recommendations()
         return {et.value: hints for et, hints in recommendations.items()}
 
-    def validate_engine_configuration(
-        self,
-        engine_type: EngineType,
-        config: Optional[EngineConfig] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+    def validate_engine_configuration(self, engine_type: EngineType, config: Optional[EngineConfig]=None, params: Optional[Dict[str, Any]]=None) -> Dict[str, Any]:
         """
         Validate engine configuration and parameters.
 
@@ -488,22 +291,7 @@ class EnhancedEngineFactory:
             Validation result information
         """
         validation_result = self._validator.validate_all(engine_type, config, params)
-
-        return {
-            "valid": validation_result.valid,
-            "errors": validation_result.errors,
-            "warnings": validation_result.warnings,
-            "issues": [
-                {
-                    "severity": issue.severity.value,
-                    "message": issue.message,
-                    "field": issue.field,
-                    "suggestion": issue.suggestion,
-                    "error_code": issue.error_code,
-                }
-                for issue in validation_result.issues
-            ],
-        }
+        return {'valid': validation_result.valid, 'errors': validation_result.errors, 'warnings': validation_result.warnings, 'issues': [{'severity': issue.severity.value, 'message': issue.message, 'field': issue.field, 'suggestion': issue.suggestion, 'error_code': issue.error_code} for issue in validation_result.issues]}
 
     def check_engine_permissions(self, engine_type: EngineType) -> Dict[str, Any]:
         """
@@ -516,13 +304,7 @@ class EnhancedEngineFactory:
             Permission check results
         """
         permission_result = self._validator.check_permissions(engine_type)
-
-        return {
-            "valid": permission_result.valid,
-            "errors": permission_result.errors,
-            "warnings": permission_result.warnings,
-            "has_required_permissions": permission_result.valid,
-        }
+        return {'valid': permission_result.valid, 'errors': permission_result.errors, 'warnings': permission_result.warnings, 'has_required_permissions': permission_result.valid}
 
     def validate_engine_dependencies(self, engine_type: EngineType) -> Dict[str, Any]:
         """
@@ -535,18 +317,7 @@ class EnhancedEngineFactory:
             Dependency validation results
         """
         dependency_result = self._validator.validate_dependencies(engine_type)
-
-        return {
-            "valid": dependency_result.valid,
-            "errors": dependency_result.errors,
-            "warnings": dependency_result.warnings,
-            "missing_dependencies": [
-                issue.message
-                for issue in dependency_result.issues
-                if issue.severity.value in ["error", "critical"]
-                and "dependency" in issue.message.lower()
-            ],
-        }
+        return {'valid': dependency_result.valid, 'errors': dependency_result.errors, 'warnings': dependency_result.warnings, 'missing_dependencies': [issue.message for issue in dependency_result.issues if issue.severity.value in ['error', 'critical'] and 'dependency' in issue.message.lower()]}
 
     def get_configuration_info(self) -> Dict[str, Any]:
         """
@@ -567,7 +338,7 @@ class EnhancedEngineFactory:
         """
         self._config_manager.set_engine_priority(engine_type, priority)
 
-    def enable_engine(self, engine_type: EngineType, enabled: bool = True):
+    def enable_engine(self, engine_type: EngineType, enabled: bool=True):
         """
         Enable or disable an engine type.
 
@@ -577,9 +348,7 @@ class EnhancedEngineFactory:
         """
         self._config_manager.enable_engine(engine_type, enabled)
 
-    def set_engine_config_override(
-        self, engine_type: EngineType, config: Dict[str, Any]
-    ):
+    def set_engine_config_override(self, engine_type: EngineType, config: Dict[str, Any]):
         """
         Set configuration override for an engine type.
 
@@ -593,9 +362,7 @@ class EnhancedEngineFactory:
         """Reload configuration from files and environment."""
         self._config_manager.reload_configuration()
 
-    def create_engine_from_request(
-        self, request: EngineCreationRequest
-    ) -> EngineCreationResult:
+    def create_engine_from_request(self, request: EngineCreationRequest) -> EngineCreationResult:
         """
         Create an engine from an EngineCreationRequest object.
 
@@ -607,9 +374,7 @@ class EnhancedEngineFactory:
         """
         return self.create_engine_with_result(request)
 
-    def export_configuration(
-        self, file_path: str, format: SerializationFormat = SerializationFormat.JSON
-    ):
+    def export_configuration(self, file_path: str, format: SerializationFormat=SerializationFormat.JSON):
         """
         Export current configuration to a file.
 
@@ -620,7 +385,7 @@ class EnhancedEngineFactory:
         if format == SerializationFormat.JSON:
             self._config_manager.export_configuration(file_path)
         else:
-            raise NotImplementedError(f"Format {format} not supported")
+            raise NotImplementedError(f'Format {format} not supported')
 
     def validate_configuration_file(self, file_path: str) -> ValidationResult:
         """
@@ -632,8 +397,7 @@ class EnhancedEngineFactory:
         Returns:
             Validation result
         """
-        from .config_models import validate_config_file
-
+        from recon.core.bypass.engines.config_models import validate_config_file
         return validate_config_file(file_path)
 
     def create_enhanced_config(self, **kwargs) -> EnhancedEngineConfig:
@@ -655,26 +419,12 @@ class EnhancedEngineFactory:
         Returns:
             Serializable state information
         """
-        from .config_models import ConfigurationState
-
+        from recon.core.bypass.engines.config_models import ConfigurationState
         config_info = self.get_configuration_info()
-
-        # Create a serializable configuration state
-        state = ConfigurationState(
-            loaded_from=[],  # Will be populated from config_info
-            config_files=config_info.get("config_files", []),
-            validation_errors=config_info.get("validation_errors", []),
-            warnings=config_info.get("warnings", []),
-            profiles_count=len(config_info.get("profiles", {})),
-            global_config_keys=list(config_info.get("global_config", {}).keys()),
-            overrides_count=len(config_info.get("overrides", {})),
-        )
-
+        state = ConfigurationState(loaded_from=[], config_files=config_info.get('config_files', []), validation_errors=config_info.get('validation_errors', []), warnings=config_info.get('warnings', []), profiles_count=len(config_info.get('profiles', {})), global_config_keys=list(config_info.get('global_config', {}).keys()), overrides_count=len(config_info.get('overrides', {})))
         return state.to_dict()
 
-    def handle_engine_error(
-        self, error: BaseEngineError, context: Optional[ErrorContext] = None
-    ) -> Dict[str, Any]:
+    def handle_engine_error(self, error: BaseEngineError, context: Optional[ErrorContext]=None) -> Dict[str, Any]:
         """
         Handle an engine error with comprehensive error processing.
 
@@ -687,13 +437,7 @@ class EnhancedEngineFactory:
         """
         return self._error_handler.handle_error(error, context)
 
-    def create_error_context(
-        self,
-        engine_type: Optional[EngineType] = None,
-        operation: Optional[str] = None,
-        user_action: Optional[str] = None,
-        **kwargs,
-    ) -> ErrorContext:
+    def create_error_context(self, engine_type: Optional[EngineType]=None, operation: Optional[str]=None, user_action: Optional[str]=None, **kwargs) -> ErrorContext:
         """
         Create an error context for structured error handling.
 
@@ -706,17 +450,9 @@ class EnhancedEngineFactory:
         Returns:
             Error context object
         """
-        return ErrorContext(
-            engine_type=engine_type,
-            operation=operation,
-            user_action=user_action,
-            system_state=kwargs.get("system_state", {}),
-            additional_info=kwargs.get("additional_info", {}),
-        )
+        return ErrorContext(engine_type=engine_type, operation=operation, user_action=user_action, system_state=kwargs.get('system_state', {}), additional_info=kwargs.get('additional_info', {}))
 
-    def get_error_suggestions(
-        self, error_code: str, context: Optional[ErrorContext] = None
-    ) -> List[Dict[str, Any]]:
+    def get_error_suggestions(self, error_code: str, context: Optional[ErrorContext]=None) -> List[Dict[str, Any]]:
         """
         Get resolution suggestions for an error code.
 
@@ -727,36 +463,15 @@ class EnhancedEngineFactory:
         Returns:
             List of resolution suggestions
         """
-        suggestions = self._error_handler.get_resolution_suggestions(
-            error_code, context
-        )
-        return [
-            {
-                "action": s.action,
-                "description": s.description,
-                "priority": s.priority,
-                "automated": s.automated,
-                "command": s.command,
-                "url": s.url,
-            }
-            for s in suggestions
-        ]
+        suggestions = self._error_handler.get_resolution_suggestions(error_code, context)
+        return [{'action': s.action, 'description': s.description, 'priority': s.priority, 'automated': s.automated, 'command': s.command, 'url': s.url} for s in suggestions]
 
     def _get_fallback_order(self) -> List[EngineType]:
         """Get fallback engine order based on configuration and availability."""
-        # Use configuration manager's fallback order
         return self._config_manager.get_fallback_order()
-
-
-# Global instance for backward compatibility
 _enhanced_factory = EnhancedEngineFactory()
 
-
-def create_engine_enhanced(
-    engine_type: Optional[Union[str, EngineType]] = None,
-    config: Optional[EngineConfig] = None,
-    **kwargs,
-) -> BaseBypassEngine:
+def create_engine_enhanced(engine_type: Optional[Union[str, EngineType]]=None, config: Optional[EngineConfig]=None, **kwargs) -> BaseBypassEngine:
     """
     Enhanced engine creation function with validation and error handling.
 
@@ -776,7 +491,6 @@ def create_engine_enhanced(
         Configured engine instance
     """
     return _enhanced_factory.create_engine(engine_type, config, **kwargs)
-
 
 def get_enhanced_factory() -> EnhancedEngineFactory:
     """Get the global enhanced factory instance."""

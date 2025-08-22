@@ -12,20 +12,10 @@ The compatibility layer enables:
 - Automatic syntax detection
 - Bidirectional conversion to native format
 """
-
-from .tool_detector import ToolDetector, ExternalTool
-from .zapret_parser import ZapretConfigParser
-from .goodbyedpi_parser import GoodbyeDPIParser
-from .byebyedpi_parser import ByeByeDPIParser
-from .syntax_converter import SyntaxConverter
-from .compatibility_bridge import CompatibilityBridge
-
-__all__ = [
-    "ToolDetector",
-    "ExternalTool",
-    "ZapretConfigParser",
-    "GoodbyeDPIParser",
-    "ByeByeDPIParser",
-    "SyntaxConverter",
-    "CompatibilityBridge",
-]
+from recon.core.bypass.compatibility.tool_detector import ToolDetector, ExternalTool
+from recon.core.bypass.compatibility.zapret_parser import ZapretConfigParser
+from recon.core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser
+from recon.core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser
+from recon.core.bypass.compatibility.syntax_converter import SyntaxConverter
+from recon.core.bypass.compatibility.compatibility_bridge import CompatibilityBridge
+__all__ = ['ToolDetector', 'ExternalTool', 'ZapretConfigParser', 'GoodbyeDPIParser', 'ByeByeDPIParser', 'SyntaxConverter', 'CompatibilityBridge']

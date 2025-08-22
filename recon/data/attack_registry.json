@@ -1,62 +1,87 @@
 {
   "definitions": {
-    "dns_doh_tunneling": {
-      "id": "dns_doh_tunneling",
-      "name": "DNS over HTTPS Tunneling",
-      "description": "Bypass DNS filtering using DNS over HTTPS (DoH) tunneling",
-      "category": "dns_tunneling",
-      "complexity": 2,
+    "header_modification": {
+      "id": "header_modification",
+      "name": "HTTP Header Modification",
+      "description": "Modify HTTP headers to evade DPI detection",
+      "category": "http_manipulation",
+      "complexity": 1,
       "stability": "stable",
       "parameters": {
-        "provider": "cloudflare",
-        "query_type": "A",
-        "use_json": true
+        "custom_headers": {
+          "type": "dict",
+          "default": {},
+          "description": "Custom headers to add/modify"
+        },
+        "case_modification": {
+          "type": "bool",
+          "default": true,
+          "description": "Modify header name case"
+        },
+        "order_randomization": {
+          "type": "bool",
+          "default": false,
+          "description": "Randomize header order"
+        },
+        "space_manipulation": {
+          "type": "bool",
+          "default": false,
+          "description": "Add extra spaces around colons"
+        }
       },
       "default_parameters": {
-        "provider": "cloudflare",
-        "query_type": "A",
-        "use_json": true
+        "custom_headers": {},
+        "case_modification": true,
+        "order_randomization": false
       },
-      "required_parameters": [
-        "provider"
-      ],
+      "required_parameters": [],
       "compatibility": [
-        "native"
+        "native",
+        "zapret",
+        "goodbyedpi"
       ],
-      "external_tool_mappings": {},
-      "stability_score": 0.9,
-      "effectiveness_score": 0.8,
-      "performance_score": 0.7,
-      "overall_score": 0.83,
+      "external_tool_mappings": {
+        "zapret": "--dpi-desync=fake --dpi-desync-fake-http=0x11,0x22",
+        "goodbyedpi": "--fake-from-hex 474554202F20485454502F312E310D0A486F73743A20"
+      },
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "doh_basic_test",
-          "name": "Basic DoH Resolution",
-          "description": "Test basic DoH resolution functionality",
-          "target_domain": "example.com",
+          "id": "header_modification_basic",
+          "name": "Basic header modification test",
+          "description": "Test header modification with default parameters",
+          "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {
-            "provider": "cloudflare"
+            "case_modification": true
           },
           "timeout_seconds": 30,
           "validation_criteria": [
-            "dns_resolution",
-            "https_tunnel"
+            "http_response",
+            "content_check"
           ]
         },
         {
-          "id": "doh_provider_test",
-          "name": "Multiple Provider Test",
-          "description": "Test DoH with different providers",
-          "target_domain": "google.com",
+          "id": "header_modification_custom",
+          "name": "Custom headers test",
+          "description": "Test with custom headers",
+          "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {
-            "provider": "google"
+            "custom_headers": {
+              "X-Test": "bypass",
+              "X-Custom": "header"
+            },
+            "case_modification": true,
+            "order_randomization": true
           },
           "timeout_seconds": 30,
           "validation_criteria": [
-            "dns_resolution",
-            "provider_switch"
+            "http_response",
+            "content_check"
           ]
         }
       ],
@@ -67,14 +92,11 @@
       "deprecation_reason": null,
       "replacement_attack": null,
       "supported_protocols": [
-        "udp",
-        "tcp",
-        "https"
+        "tcp"
       ],
       "supported_ports": [
-        53,
-        443,
-        853
+        80,
+        443
       ],
       "requires_handshake": false,
       "dependencies": [],
@@ -84,56 +106,171 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "dns",
-        "tunneling",
-        "doh",
-        "https"
+        "stable",
+        "http",
+        "modification",
+        "headers"
       ],
-      "created_at": "2025-08-21T14:15:24.522950",
-      "updated_at": "2025-08-21T14:15:24.522955",
+      "created_at": "2025-08-22T11:25:38.481087",
+      "updated_at": "2025-08-22T11:25:38.481087",
       "version": "1.0.0",
       "author": null
     },
-    "dns_dot_tunneling": {
-      "id": "dns_dot_tunneling",
-      "name": "DNS over TLS Tunneling",
-      "description": "Bypass DNS filtering using DNS over TLS (DoT) tunneling",
-      "category": "dns_tunneling",
+    "method_manipulation": {
+      "id": "method_manipulation",
+      "name": "HTTP Method Manipulation",
+      "description": "Change HTTP method to evade method-based DPI filtering",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {
+        "target_method": {
+          "type": "str",
+          "default": "POST",
+          "description": "Target HTTP method"
+        },
+        "add_override_header": {
+          "type": "bool",
+          "default": true,
+          "description": "Add method override header"
+        },
+        "fake_headers": {
+          "type": "dict",
+          "default": {},
+          "description": "Additional fake headers"
+        }
+      },
+      "default_parameters": {
+        "target_method": "POST",
+        "add_override_header": true
+      },
+      "required_parameters": [],
+      "compatibility": [
+        "native",
+        "zapret"
+      ],
+      "external_tool_mappings": {
+        "zapret": "--dpi-desync=fake --dpi-desync-fake-http=method"
+      },
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "method_manipulation_basic",
+          "name": "Basic method manipulation test",
+          "description": "Test method change from GET to POST",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {
+            "target_method": "POST"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [
+        "manipulation",
+        "stable",
+        "http",
+        "method"
+      ],
+      "created_at": "2025-08-22T11:25:38.482891",
+      "updated_at": "2025-08-22T11:25:38.482891",
+      "version": "1.0.0",
+      "author": null
+    },
+    "chunked_encoding": {
+      "id": "chunked_encoding",
+      "name": "HTTP Chunked Encoding",
+      "description": "Use chunked transfer encoding to fragment HTTP body",
+      "category": "http_manipulation",
       "complexity": 2,
       "stability": "stable",
       "parameters": {
-        "provider": "cloudflare",
-        "query_type": "A"
+        "chunk_sizes": {
+          "type": "list",
+          "default": [
+            4,
+            8,
+            16,
+            32
+          ],
+          "description": "List of chunk sizes"
+        },
+        "randomize_sizes": {
+          "type": "bool",
+          "default": true,
+          "description": "Randomize chunk sizes"
+        },
+        "add_fake_chunks": {
+          "type": "bool",
+          "default": false,
+          "description": "Add fake chunks"
+        }
       },
       "default_parameters": {
-        "provider": "cloudflare",
-        "query_type": "A"
+        "chunk_sizes": [
+          4,
+          8,
+          16,
+          32
+        ],
+        "randomize_sizes": true
       },
-      "required_parameters": [
-        "provider"
-      ],
+      "required_parameters": [],
       "compatibility": [
-        "native"
+        "native",
+        "zapret"
       ],
-      "external_tool_mappings": {},
-      "stability_score": 0.85,
-      "effectiveness_score": 0.75,
-      "performance_score": 0.8,
-      "overall_score": 0.8099999999999999,
+      "external_tool_mappings": {
+        "zapret": "--dpi-desync=split --dpi-desync-split-http-req=method,host"
+      },
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "dot_basic_test",
-          "name": "Basic DoT Resolution",
-          "description": "Test basic DoT resolution functionality",
-          "target_domain": "example.com",
+          "id": "chunked_encoding_basic",
+          "name": "Basic chunked encoding test",
+          "description": "Test chunked encoding with default parameters",
+          "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {
-            "provider": "cloudflare"
+            "chunk_sizes": [
+              8,
+              16
+            ]
           },
           "timeout_seconds": 30,
           "validation_criteria": [
-            "dns_resolution",
-            "tls_tunnel"
+            "http_response",
+            "content_check"
           ]
         }
       ],
@@ -144,11 +281,11 @@
       "deprecation_reason": null,
       "replacement_attack": null,
       "supported_protocols": [
-        "tcp",
-        "tls"
+        "tcp"
       ],
       "supported_ports": [
-        853
+        80,
+        443
       ],
       "requires_handshake": false,
       "dependencies": [],
@@ -158,71 +295,71 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "tls",
-        "dns",
-        "tunneling",
-        "dot"
+        "chunked",
+        "fragmentation",
+        "http",
+        "encoding"
       ],
-      "created_at": "2025-08-21T14:15:24.522966",
-      "updated_at": "2025-08-21T14:15:24.522969",
+      "created_at": "2025-08-22T11:25:38.482891",
+      "updated_at": "2025-08-22T11:25:38.482891",
       "version": "1.0.0",
       "author": null
     },
-    "dns_query_manipulation": {
-      "id": "dns_query_manipulation",
-      "name": "DNS Query Manipulation",
-      "description": "Manipulate DNS queries to evade filtering",
-      "category": "dns_tunneling",
-      "complexity": 3,
+    "pipeline_manipulation": {
+      "id": "pipeline_manipulation",
+      "name": "HTTP Pipeline Manipulation",
+      "description": "Send multiple HTTP requests in a pipeline to confuse DPI",
+      "category": "http_manipulation",
+      "complexity": 2,
       "stability": "mostly_stable",
       "parameters": {
-        "technique": "case_randomization",
-        "subdomain": "www"
+        "pipeline_count": {
+          "type": "int",
+          "default": 3,
+          "min": 2,
+          "max": 10,
+          "description": "Number of pipelined requests"
+        },
+        "delay_between_requests": {
+          "type": "float",
+          "default": 5.0,
+          "min": 0.1,
+          "max": 50.0,
+          "description": "Delay between requests (ms)"
+        },
+        "randomize_headers": {
+          "type": "bool",
+          "default": true,
+          "description": "Randomize headers in each request"
+        }
       },
       "default_parameters": {
-        "technique": "case_randomization"
+        "pipeline_count": 3,
+        "delay_between_requests": 5.0
       },
-      "required_parameters": [
-        "technique"
-      ],
+      "required_parameters": [],
       "compatibility": [
         "native"
       ],
       "external_tool_mappings": {},
-      "stability_score": 0.75,
-      "effectiveness_score": 0.7,
-      "performance_score": 0.85,
-      "overall_score": 0.755,
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "case_randomization_test",
-          "name": "Case Randomization Test",
-          "description": "Test DNS case randomization technique",
-          "target_domain": "example.com",
+          "id": "pipeline_manipulation_basic",
+          "name": "Basic pipeline manipulation test",
+          "description": "Test HTTP pipelining with 3 requests",
+          "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {
-            "technique": "case_randomization"
+            "pipeline_count": 3
           },
           "timeout_seconds": 30,
           "validation_criteria": [
-            "dns_resolution",
-            "case_variation"
-          ]
-        },
-        {
-          "id": "subdomain_prepend_test",
-          "name": "Subdomain Prepending Test",
-          "description": "Test subdomain prepending technique",
-          "target_domain": "example.com",
-          "expected_success": true,
-          "test_parameters": {
-            "technique": "subdomain_prepending",
-            "subdomain": "www"
-          },
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "dns_resolution",
-            "subdomain_modification"
+            "http_response",
+            "content_check"
           ]
         }
       ],
@@ -233,11 +370,11 @@
       "deprecation_reason": null,
       "replacement_attack": null,
       "supported_protocols": [
-        "udp",
         "tcp"
       ],
       "supported_ports": [
-        53
+        80,
+        443
       ],
       "requires_handshake": false,
       "dependencies": [],
@@ -247,68 +384,71 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "dns",
-        "manipulation",
-        "evasion"
+        "pipeline",
+        "multiple",
+        "http",
+        "advanced"
       ],
-      "created_at": "2025-08-21T14:15:24.522981",
-      "updated_at": "2025-08-21T14:15:24.522983",
+      "created_at": "2025-08-22T11:25:38.482891",
+      "updated_at": "2025-08-22T11:25:38.482891",
       "version": "1.0.0",
       "author": null
     },
-    "dns_cache_poisoning_prevention": {
-      "id": "dns_cache_poisoning_prevention",
-      "name": "DNS Cache Poisoning Prevention",
-      "description": "Prevent DNS cache poisoning attacks through validation",
-      "category": "dns_tunneling",
-      "complexity": 4,
+    "header_splitting": {
+      "id": "header_splitting",
+      "name": "HTTP Header Splitting",
+      "description": "Split HTTP headers across multiple TCP segments",
+      "category": "http_manipulation",
+      "complexity": 3,
       "stability": "stable",
       "parameters": {
-        "technique": "multiple_server_validation"
+        "headers_per_segment": {
+          "type": "int",
+          "default": 2,
+          "min": 1,
+          "max": 5,
+          "description": "Headers per segment"
+        },
+        "delay_between_segments": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 10.0,
+          "description": "Delay between segments (ms)"
+        },
+        "randomize_order": {
+          "type": "bool",
+          "default": true,
+          "description": "Randomize header order"
+        }
       },
       "default_parameters": {
-        "technique": "multiple_server_validation"
+        "headers_per_segment": 2,
+        "delay_between_segments": 1.0
       },
-      "required_parameters": [
-        "technique"
-      ],
+      "required_parameters": [],
       "compatibility": [
         "native"
       ],
       "external_tool_mappings": {},
-      "stability_score": 0.9,
-      "effectiveness_score": 0.85,
-      "performance_score": 0.6,
-      "overall_score": 0.8250000000000001,
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "multi_server_validation_test",
-          "name": "Multiple Server Validation",
-          "description": "Test validation across multiple DNS servers",
-          "target_domain": "example.com",
+          "id": "header_splitting_basic",
+          "name": "Basic header splitting test",
+          "description": "Test header splitting across segments",
+          "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {
-            "technique": "multiple_server_validation"
+            "headers_per_segment": 2
           },
           "timeout_seconds": 30,
           "validation_criteria": [
-            "dns_resolution",
-            "server_consensus"
-          ]
-        },
-        {
-          "id": "dnssec_validation_test",
-          "name": "DNSSEC Validation Test",
-          "description": "Test DNSSEC validation functionality",
-          "target_domain": "cloudflare.com",
-          "expected_success": true,
-          "test_parameters": {
-            "technique": "dnssec_validation"
-          },
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "dns_resolution",
-            "dnssec_signature"
+            "http_response",
+            "content_check"
           ]
         }
       ],
@@ -319,11 +459,11 @@
       "deprecation_reason": null,
       "replacement_attack": null,
       "supported_protocols": [
-        "udp",
         "tcp"
       ],
       "supported_ports": [
-        53
+        80,
+        443
       ],
       "requires_handshake": false,
       "dependencies": [],
@@ -333,25 +473,122 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "security",
-        "dnssec",
-        "dns",
-        "validation"
+        "splitting",
+        "headers",
+        "segmentation",
+        "http"
       ],
-      "created_at": "2025-08-21T14:15:24.522993",
-      "updated_at": "2025-08-21T14:15:24.522995",
+      "created_at": "2025-08-22T11:25:38.482891",
+      "updated_at": "2025-08-22T11:25:38.482891",
+      "version": "1.0.0",
+      "author": null
+    },
+    "case_manipulation": {
+      "id": "case_manipulation",
+      "name": "HTTP Case Manipulation",
+      "description": "Modify case of HTTP headers and method to evade case-sensitive DPI",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {
+        "method_case": {
+          "type": "str",
+          "default": "mixed",
+          "choices": [
+            "upper",
+            "lower",
+            "mixed"
+          ],
+          "description": "Method case modification"
+        },
+        "header_case": {
+          "type": "str",
+          "default": "mixed",
+          "choices": [
+            "upper",
+            "lower",
+            "mixed"
+          ],
+          "description": "Header case modification"
+        },
+        "randomize_each_header": {
+          "type": "bool",
+          "default": true,
+          "description": "Randomize case for each header"
+        }
+      },
+      "default_parameters": {
+        "method_case": "mixed",
+        "header_case": "mixed"
+      },
+      "required_parameters": [],
+      "compatibility": [
+        "native",
+        "zapret"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "case_manipulation_basic",
+          "name": "Basic case manipulation test",
+          "description": "Test case manipulation with mixed case",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {
+            "method_case": "mixed",
+            "header_case": "mixed"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [
+        "evasion",
+        "manipulation",
+        "case",
+        "http"
+      ],
+      "created_at": "2025-08-22T11:25:38.482891",
+      "updated_at": "2025-08-22T11:25:38.482891",
       "version": "1.0.0",
       "author": null
     }
   },
   "test_results": {},
   "stats": {
-    "total_attacks": 4,
-    "enabled_attacks": 4,
+    "total_attacks": 6,
+    "enabled_attacks": 6,
     "deprecated_attacks": 0,
     "tests_run": 0,
-    "last_updated": "2025-08-21T14:15:24.525920"
+    "last_updated": "2025-08-22T11:25:38.499655"
   },
   "version": "1.0.0",
-  "saved_at": "2025-08-21T14:15:24.526158"
+  "saved_at": "2025-08-22T11:25:38.500328"
 }

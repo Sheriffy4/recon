@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "last_updated": "2025-08-21T15:24:52.577028",
+  "last_updated": "2025-08-22T10:38:51.965373",
   "domain_strategies": {
     "default": {
       "domain": "default",
@@ -12,11 +12,11 @@
     },
     "rutracker.org": {
       "domain": "rutracker.org",
-      "strategy": "badsum_race(split_pos=1, ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 290.12560844421387,
-      "last_tested": "2025-08-21T15:24:52.576507",
-      "test_count": 95
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "success_rate": 0.4,
+      "avg_latency_ms": 750.9589195251465,
+      "last_tested": "2025-08-22T10:38:51.964809",
+      "test_count": 128
     },
     "kinozal.tv": {
       "domain": "kinozal.tv",
@@ -28,43 +28,43 @@
     },
     "nnmclub.to": {
       "domain": "nnmclub.to",
-      "strategy": "badsum_race(split_pos=1, ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 290.12560844421387,
-      "last_tested": "2025-08-21T15:24:52.576507",
-      "test_count": 95
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "success_rate": 0.4,
+      "avg_latency_ms": 750.9589195251465,
+      "last_tested": "2025-08-22T10:38:51.964809",
+      "test_count": 128
     },
     "rutor.info": {
       "domain": "rutor.info",
-      "strategy": "badsum_race(split_pos=1, ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 290.12560844421387,
-      "last_tested": "2025-08-21T15:24:52.576507",
-      "test_count": 83
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "success_rate": 0.4,
+      "avg_latency_ms": 750.9589195251465,
+      "last_tested": "2025-08-22T10:38:51.964809",
+      "test_count": 116
     },
     "instagram.com": {
       "domain": "instagram.com",
-      "strategy": "badsum_race(split_pos=1, ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 290.12560844421387,
-      "last_tested": "2025-08-21T15:24:52.577028",
-      "test_count": 135
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "success_rate": 0.4,
+      "avg_latency_ms": 750.9589195251465,
+      "last_tested": "2025-08-22T10:38:51.964809",
+      "test_count": 168
     },
     "x.com": {
       "domain": "x.com",
-      "strategy": "badsum_race(split_pos=1, ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 290.12560844421387,
-      "last_tested": "2025-08-21T15:24:52.577028",
-      "test_count": 83
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "success_rate": 0.4,
+      "avg_latency_ms": 750.9589195251465,
+      "last_tested": "2025-08-22T10:38:51.964809",
+      "test_count": 116
     },
     "mail.ru": {
       "domain": "mail.ru",
-      "strategy": "badsum_race(split_pos=1, ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 290.12560844421387,
-      "last_tested": "2025-08-21T15:24:52.577028",
-      "test_count": 83
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "success_rate": 0.4,
+      "avg_latency_ms": 750.9589195251465,
+      "last_tested": "2025-08-22T10:38:51.965373",
+      "test_count": 116
     },
     "tapochek.net": {
       "domain": "tapochek.net",

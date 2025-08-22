@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 FakedDisorderAttack implementation using segments architecture.
 
@@ -14,48 +13,24 @@ Attack Strategy:
 The DPI system sees: [fake_packet] -> [part2] -> [part1]
 The destination sees: [part1] -> [part2] (fake packet is dropped)
 """
-
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
-
-from ..base import BaseAttack, AttackResult, AttackStatus, AttackContext
-
+from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
 
 @dataclass
 class FakedDisorderConfig:
     """Configuration for FakedDisorderAttack."""
-
-    # Split position (0.0 to 1.0, where to split the payload)
     split_pos: float = 0.5
-
-    # TTL for fake packet (should be low to be dropped)
     fake_ttl: int = 1
-
-    # Delay between fake packet and real packets (ms)
     fake_delay_ms: float = 20.0
-
-    # Delay between second part and first part (ms)
     part2_delay_ms: float = 8.0
-
-    # Delay for first part (ms)
     part1_delay_ms: float = 5.0
-
-    # Whether to use different fake payload or duplicate real payload
     use_different_fake_payload: bool = True
-
-    # Custom fake payload (if None, will generate based on real payload)
     custom_fake_payload: Optional[bytes] = None
-
-    # Whether to corrupt checksum on fake packet
     corrupt_fake_checksum: bool = False
-
-    # Whether to use different TCP flags for fake packet
     fake_tcp_flags: Optional[int] = None
-
-    # Whether to randomize fake packet content
     randomize_fake_content: bool = True
-
 
 class FakedDisorderAttack(BaseAttack):
     """
@@ -65,42 +40,24 @@ class FakedDisorderAttack(BaseAttack):
     used to bypass DPI systems that rely on packet order analysis.
     """
 
-    def __init__(
-        self, name: str = "faked_disorder", config: Optional[FakedDisorderConfig] = None
-    ):
+    def __init__(self, name: str='faked_disorder', config: Optional[FakedDisorderConfig]=None):
         super().__init__(name)
         self.config = config or FakedDisorderConfig()
-        self.logger = logging.getLogger(f"FakedDisorderAttack.{name}")
-
-        # Validate configuration
+        self.logger = logging.getLogger(f'FakedDisorderAttack.{name}')
         self._validate_config()
 
     def _validate_config(self):
         """Validate attack configuration."""
-        if not (0.0 < self.config.split_pos < 1.0):
-            raise ValueError(
-                f"split_pos must be between 0.0 and 1.0, got {self.config.split_pos}"
-            )
-
+        if not 0.0 < self.config.split_pos < 1.0:
+            raise ValueError(f'split_pos must be between 0.0 and 1.0, got {self.config.split_pos}')
         if self.config.fake_ttl < 1 or self.config.fake_ttl > 255:
-            raise ValueError(
-                f"fake_ttl must be between 1 and 255, got {self.config.fake_ttl}"
-            )
-
+            raise ValueError(f'fake_ttl must be between 1 and 255, got {self.config.fake_ttl}')
         if self.config.fake_delay_ms < 0:
-            raise ValueError(
-                f"fake_delay_ms must be non-negative, got {self.config.fake_delay_ms}"
-            )
-
+            raise ValueError(f'fake_delay_ms must be non-negative, got {self.config.fake_delay_ms}')
         if self.config.part2_delay_ms < 0:
-            raise ValueError(
-                f"part2_delay_ms must be non-negative, got {self.config.part2_delay_ms}"
-            )
-
+            raise ValueError(f'part2_delay_ms must be non-negative, got {self.config.part2_delay_ms}')
         if self.config.part1_delay_ms < 0:
-            raise ValueError(
-                f"part1_delay_ms must be non-negative, got {self.config.part1_delay_ms}"
-            )
+            raise ValueError(f'part1_delay_ms must be non-negative, got {self.config.part1_delay_ms}')
 
     def execute(self, context: AttackContext) -> AttackResult:
         """
@@ -113,85 +70,26 @@ class FakedDisorderAttack(BaseAttack):
             AttackResult with segments for fake packet + disordered real payload
         """
         try:
-            self.logger.info(
-                f"Executing FakedDisorderAttack on {context.connection_id}"
-            )
-
-            # Validate context
+            self.logger.info(f'Executing FakedDisorderAttack on {context.connection_id}')
             if not context.payload:
-                return AttackResult(
-                    status=AttackStatus.FAILED,
-                    modified_payload=None,
-                    metadata={"error": "Empty payload provided"},
-                )
-
-            # Calculate split position
+                return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': 'Empty payload provided'})
             payload_len = len(context.payload)
             split_byte_pos = int(payload_len * self.config.split_pos)
-
-            # Ensure we don't split at the very beginning or end
             split_byte_pos = max(1, min(split_byte_pos, payload_len - 1))
-
-            # Split payload into two parts
             part1 = context.payload[:split_byte_pos]
             part2 = context.payload[split_byte_pos:]
-
-            self.logger.debug(
-                f"Split payload: part1={len(part1)} bytes, part2={len(part2)} bytes at pos {split_byte_pos}"
-            )
-
-            # Generate fake payload
+            self.logger.debug(f'Split payload: part1={len(part1)} bytes, part2={len(part2)} bytes at pos {split_byte_pos}')
             fake_payload = self._generate_fake_payload(context.payload, part1, part2)
-
-            # Create segments in execution order: fake -> part2 -> part1
             segments = self._create_segments(fake_payload, part1, part2, split_byte_pos)
-
-            # Create attack result
-            result = AttackResult(
-                status=AttackStatus.SUCCESS,
-                modified_payload=None,  # Using segments instead
-                metadata={
-                    "attack_type": "faked_disorder",
-                    "segments": segments,
-                    "split_position": split_byte_pos,
-                    "split_ratio": self.config.split_pos,
-                    "fake_payload_size": len(fake_payload),
-                    "part1_size": len(part1),
-                    "part2_size": len(part2),
-                    "total_segments": len(segments),
-                    "config": {
-                        "fake_ttl": self.config.fake_ttl,
-                        "fake_delay_ms": self.config.fake_delay_ms,
-                        "part2_delay_ms": self.config.part2_delay_ms,
-                        "part1_delay_ms": self.config.part1_delay_ms,
-                        "use_different_fake_payload": self.config.use_different_fake_payload,
-                        "corrupt_fake_checksum": self.config.corrupt_fake_checksum,
-                        "randomize_fake_content": self.config.randomize_fake_content,
-                    },
-                },
-            )
-
-            # Set segments for engine processing
+            result = AttackResult(status=AttackStatus.SUCCESS, modified_payload=None, metadata={'attack_type': 'faked_disorder', 'segments': segments, 'split_position': split_byte_pos, 'split_ratio': self.config.split_pos, 'fake_payload_size': len(fake_payload), 'part1_size': len(part1), 'part2_size': len(part2), 'total_segments': len(segments), 'config': {'fake_ttl': self.config.fake_ttl, 'fake_delay_ms': self.config.fake_delay_ms, 'part2_delay_ms': self.config.part2_delay_ms, 'part1_delay_ms': self.config.part1_delay_ms, 'use_different_fake_payload': self.config.use_different_fake_payload, 'corrupt_fake_checksum': self.config.corrupt_fake_checksum, 'randomize_fake_content': self.config.randomize_fake_content}})
             result._segments = segments
-
-            self.logger.info(
-                f"FakedDisorderAttack created {len(segments)} segments: "
-                f"fake({len(fake_payload)}b) -> part2({len(part2)}b) -> part1({len(part1)}b)"
-            )
-
+            self.logger.info(f'FakedDisorderAttack created {len(segments)} segments: fake({len(fake_payload)}b) -> part2({len(part2)}b) -> part1({len(part1)}b)')
             return result
-
         except Exception as e:
-            self.logger.error(f"FakedDisorderAttack failed: {e}")
-            return AttackResult(
-                status=AttackStatus.FAILED,
-                modified_payload=None,
-                metadata={"error": str(e), "attack_type": "faked_disorder"},
-            )
+            self.logger.error(f'FakedDisorderAttack failed: {e}')
+            return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': str(e), 'attack_type': 'faked_disorder'})
 
-    def _generate_fake_payload(
-        self, original_payload: bytes, part1: bytes, part2: bytes
-    ) -> bytes:
+    def _generate_fake_payload(self, original_payload: bytes, part1: bytes, part2: bytes) -> bytes:
         """
         Generate fake payload for the fake packet.
 
@@ -205,17 +103,11 @@ class FakedDisorderAttack(BaseAttack):
         """
         if self.config.custom_fake_payload:
             return self.config.custom_fake_payload
-
         if not self.config.use_different_fake_payload:
-            # Use original payload as fake (will be dropped anyway)
             return original_payload
-
-        # Generate different fake payload based on original
         fake_payload = self._create_deceptive_fake_payload(original_payload)
-
         if self.config.randomize_fake_content:
             fake_payload = self._randomize_payload_content(fake_payload)
-
         return fake_payload
 
     def _create_deceptive_fake_payload(self, original_payload: bytes) -> bytes:
@@ -229,55 +121,34 @@ class FakedDisorderAttack(BaseAttack):
             Deceptive fake payload
         """
         try:
-            # Try to detect payload type and create appropriate fake
-            payload_str = original_payload.decode("utf-8", errors="ignore")
-
-            if payload_str.startswith("GET "):
-                # HTTP GET request - create fake GET for different resource
-                lines = payload_str.split("\r\n")
+            payload_str = original_payload.decode('utf-8', errors='ignore')
+            if payload_str.startswith('GET '):
+                lines = payload_str.split('\r\n')
                 if lines:
-                    # Change the request path to something innocuous
-                    fake_lines = [lines[0].replace(lines[0].split()[1], "/favicon.ico")]
+                    fake_lines = [lines[0].replace(lines[0].split()[1], '/favicon.ico')]
                     fake_lines.extend(lines[1:])
-                    return "\r\n".join(fake_lines).encode("utf-8")
-
-            elif payload_str.startswith("POST "):
-                # HTTP POST request - create fake GET instead
-                lines = payload_str.split("\r\n")
+                    return '\r\n'.join(fake_lines).encode('utf-8')
+            elif payload_str.startswith('POST '):
+                lines = payload_str.split('\r\n')
                 if lines:
-                    fake_lines = ["GET /robots.txt HTTP/1.1"]
-                    # Keep headers but remove content-length and body
+                    fake_lines = ['GET /robots.txt HTTP/1.1']
                     for line in lines[1:]:
-                        if (
-                            not line.lower().startswith("content-length:")
-                            and line.strip()
-                        ):
+                        if not line.lower().startswith('content-length:') and line.strip():
                             fake_lines.append(line)
-                        elif not line.strip():  # Empty line before body
+                        elif not line.strip():
                             break
-                    return "\r\n".join(fake_lines).encode("utf-8") + b"\r\n\r\n"
-
-            elif b"\\x16\\x03" in original_payload[:10]:  # TLS handshake
-                # Create fake TLS handshake with different SNI
+                    return '\r\n'.join(fake_lines).encode('utf-8') + b'\r\n\r\n'
+            elif b'\\x16\\x03' in original_payload[:10]:
                 fake_payload = bytearray(original_payload)
-                # Simple modification - change some bytes in the middle
                 if len(fake_payload) > 50:
-                    fake_payload[30:35] = b"fake\\x00"
+                    fake_payload[30:35] = b'fake\\x00'
                 return bytes(fake_payload)
-
-            elif b"Host:" in original_payload:
-                # Generic HTTP - change Host header
-                fake_str = payload_str.replace(
-                    "Host:", "Host: example.com\\r\\nX-Fake:"
-                )
-                return fake_str.encode("utf-8")
-
+            elif b'Host:' in original_payload:
+                fake_str = payload_str.replace('Host:', 'Host: example.com\\r\\nX-Fake:')
+                return fake_str.encode('utf-8')
             else:
-                # Generic payload - create simple fake
                 return self._create_generic_fake_payload(original_payload)
-
         except Exception:
-            # Fallback to generic fake payload
             return self._create_generic_fake_payload(original_payload)
 
     def _create_generic_fake_payload(self, original_payload: bytes) -> bytes:
@@ -290,26 +161,13 @@ class FakedDisorderAttack(BaseAttack):
         Returns:
             Generic fake payload
         """
-        # Create fake payload of similar size but different content
-        fake_size = min(len(original_payload), 200)  # Limit fake payload size
-
-        # Create fake HTTP-like payload
-        fake_payload = (
-            b"GET /index.html HTTP/1.1\\r\\n"
-            b"Host: example.com\\r\\n"
-            b"User-Agent: Mozilla/5.0\\r\\n"
-            b"Accept: text/html\\r\\n"
-            b"Connection: close\\r\\n"
-            b"\\r\\n"
-        )
-
-        # Pad or truncate to desired size
+        fake_size = min(len(original_payload), 200)
+        fake_payload = b'GET /index.html HTTP/1.1\\r\\nHost: example.com\\r\\nUser-Agent: Mozilla/5.0\\r\\nAccept: text/html\\r\\nConnection: close\\r\\n\\r\\n'
         if len(fake_payload) < fake_size:
-            padding = b"X" * (fake_size - len(fake_payload))
+            padding = b'X' * (fake_size - len(fake_payload))
             fake_payload += padding
         else:
             fake_payload = fake_payload[:fake_size]
-
         return fake_payload
 
     def _randomize_payload_content(self, payload: bytes) -> bytes:
@@ -323,24 +181,16 @@ class FakedDisorderAttack(BaseAttack):
             Randomized payload
         """
         import random
-
         payload_array = bytearray(payload)
-
-        # Randomize a few bytes in the middle (avoid headers/structure)
         start_pos = len(payload_array) // 4
         end_pos = 3 * len(payload_array) // 4
-
-        for _ in range(min(5, (end_pos - start_pos) // 10)):  # Randomize up to 5 bytes
+        for _ in range(min(5, (end_pos - start_pos) // 10)):
             if start_pos < end_pos:
                 pos = random.randint(start_pos, end_pos - 1)
-                # Use printable ASCII characters
-                payload_array[pos] = random.randint(65, 90)  # A-Z
-
+                payload_array[pos] = random.randint(65, 90)
         return bytes(payload_array)
 
-    def _create_segments(
-        self, fake_payload: bytes, part1: bytes, part2: bytes, split_pos: int
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    def _create_segments(self, fake_payload: bytes, part1: bytes, part2: bytes, split_pos: int) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """
         Create segments for the faked disorder attack.
 
@@ -354,39 +204,14 @@ class FakedDisorderAttack(BaseAttack):
             List of segment tuples (payload, seq_offset, options)
         """
         segments = []
-
-        # Segment 1: Fake packet with low TTL (will be dropped)
-        fake_options = {
-            "ttl": self.config.fake_ttl,
-            "delay_ms": self.config.fake_delay_ms,
-            "flags": (
-                self.config.fake_tcp_flags if self.config.fake_tcp_flags else 0x18
-            ),  # PSH+ACK
-        }
-
+        fake_options = {'ttl': self.config.fake_ttl, 'delay_ms': self.config.fake_delay_ms, 'flags': self.config.fake_tcp_flags if self.config.fake_tcp_flags else 24}
         if self.config.corrupt_fake_checksum:
-            fake_options["bad_checksum"] = True
-
+            fake_options['bad_checksum'] = True
         segments.append((fake_payload, 0, fake_options))
-
-        # Segment 2: Second part of real payload (sent first)
-        part2_options = {
-            "ttl": 64,  # Normal TTL
-            "delay_ms": self.config.part2_delay_ms,
-            "flags": 0x18,  # PSH+ACK
-        }
-
+        part2_options = {'ttl': 64, 'delay_ms': self.config.part2_delay_ms, 'flags': 24}
         segments.append((part2, split_pos, part2_options))
-
-        # Segment 3: First part of real payload (sent last)
-        part1_options = {
-            "ttl": 64,  # Normal TTL
-            "delay_ms": self.config.part1_delay_ms,
-            "flags": 0x18,  # PSH+ACK
-        }
-
+        part1_options = {'ttl': 64, 'delay_ms': self.config.part1_delay_ms, 'flags': 24}
         segments.append((part1, 0, part1_options))
-
         return segments
 
     def get_attack_info(self) -> Dict[str, Any]:
@@ -396,27 +221,7 @@ class FakedDisorderAttack(BaseAttack):
         Returns:
             Dictionary with attack information
         """
-        return {
-            "name": self.name,
-            "type": "faked_disorder",
-            "description": "Sends fake packet with low TTL followed by real payload in reverse order",
-            "technique": "packet_disorder",
-            "effectiveness": "high_against_order_dependent_dpi",
-            "config": {
-                "split_pos": self.config.split_pos,
-                "fake_ttl": self.config.fake_ttl,
-                "fake_delay_ms": self.config.fake_delay_ms,
-                "part2_delay_ms": self.config.part2_delay_ms,
-                "part1_delay_ms": self.config.part1_delay_ms,
-                "use_different_fake_payload": self.config.use_different_fake_payload,
-                "corrupt_fake_checksum": self.config.corrupt_fake_checksum,
-                "randomize_fake_content": self.config.randomize_fake_content,
-            },
-            "segments_created": 3,
-            "execution_order": ["fake_packet", "part2", "part1"],
-            "destination_sees": ["part1", "part2"],
-            "dpi_sees": ["fake_packet", "part2", "part1"],
-        }
+        return {'name': self.name, 'type': 'faked_disorder', 'description': 'Sends fake packet with low TTL followed by real payload in reverse order', 'technique': 'packet_disorder', 'effectiveness': 'high_against_order_dependent_dpi', 'config': {'split_pos': self.config.split_pos, 'fake_ttl': self.config.fake_ttl, 'fake_delay_ms': self.config.fake_delay_ms, 'part2_delay_ms': self.config.part2_delay_ms, 'part1_delay_ms': self.config.part1_delay_ms, 'use_different_fake_payload': self.config.use_different_fake_payload, 'corrupt_fake_checksum': self.config.corrupt_fake_checksum, 'randomize_fake_content': self.config.randomize_fake_content}, 'segments_created': 3, 'execution_order': ['fake_packet', 'part2', 'part1'], 'destination_sees': ['part1', 'part2'], 'dpi_sees': ['fake_packet', 'part2', 'part1']}
 
     def estimate_effectiveness(self, context: AttackContext) -> float:
         """
@@ -428,28 +233,17 @@ class FakedDisorderAttack(BaseAttack):
         Returns:
             Effectiveness score (0.0 to 1.0)
         """
-        effectiveness = 0.7  # Base effectiveness
-
-        # Higher effectiveness for HTTP traffic
-        if context.payload and b"HTTP/" in context.payload:
+        effectiveness = 0.7
+        if context.payload and b'HTTP/' in context.payload:
             effectiveness += 0.1
-
-        # Higher effectiveness for longer payloads (more room for confusion)
         if context.payload and len(context.payload) > 100:
             effectiveness += 0.1
-
-        # Lower effectiveness if split position is too extreme
         if self.config.split_pos < 0.2 or self.config.split_pos > 0.8:
             effectiveness -= 0.1
-
-        # Higher effectiveness with different fake payload
         if self.config.use_different_fake_payload:
             effectiveness += 0.05
-
-        # Higher effectiveness with checksum corruption
         if self.config.corrupt_fake_checksum:
             effectiveness += 0.05
-
         return min(1.0, max(0.0, effectiveness))
 
     def get_required_capabilities(self) -> List[str]:
@@ -459,14 +253,7 @@ class FakedDisorderAttack(BaseAttack):
         Returns:
             List of required capability names
         """
-        return [
-            "packet_construction",
-            "ttl_modification",
-            "timing_control",
-            "sequence_manipulation",
-            "checksum_corruption" if self.config.corrupt_fake_checksum else None,
-            "tcp_flags_modification" if self.config.fake_tcp_flags else None,
-        ]
+        return ['packet_construction', 'ttl_modification', 'timing_control', 'sequence_manipulation', 'checksum_corruption' if self.config.corrupt_fake_checksum else None, 'tcp_flags_modification' if self.config.fake_tcp_flags else None]
 
     def validate_context(self, context: AttackContext) -> Tuple[bool, Optional[str]]:
         """
@@ -479,42 +266,18 @@ class FakedDisorderAttack(BaseAttack):
             Tuple of (is_valid, error_message)
         """
         if not context.payload:
-            return False, "Empty payload provided"
-
+            return (False, 'Empty payload provided')
         if len(context.payload) < 10:
-            return (
-                False,
-                f"Payload too short for splitting: {len(context.payload)} bytes",
-            )
-
-        # Check if split position makes sense
+            return (False, f'Payload too short for splitting: {len(context.payload)} bytes')
         split_byte_pos = int(len(context.payload) * self.config.split_pos)
         if split_byte_pos <= 0 or split_byte_pos >= len(context.payload):
-            return (
-                False,
-                f"Invalid split position: {split_byte_pos} for payload length {len(context.payload)}",
-            )
-
-        # Check TCP context if available
-        if hasattr(context, "tcp_seq") and context.tcp_seq is not None:
+            return (False, f'Invalid split position: {split_byte_pos} for payload length {len(context.payload)}')
+        if hasattr(context, 'tcp_seq') and context.tcp_seq is not None:
             if context.tcp_seq < 0:
-                return False, f"Invalid TCP sequence number: {context.tcp_seq}"
+                return (False, f'Invalid TCP sequence number: {context.tcp_seq}')
+        return (True, None)
 
-        return True, None
-
-
-# Factory function for easy creation
-def create_faked_disorder_attack(
-    name: str = "faked_disorder",
-    split_pos: float = 0.5,
-    fake_ttl: int = 1,
-    fake_delay_ms: float = 20.0,
-    part2_delay_ms: float = 8.0,
-    part1_delay_ms: float = 5.0,
-    use_different_fake_payload: bool = True,
-    corrupt_fake_checksum: bool = False,
-    randomize_fake_content: bool = True,
-) -> FakedDisorderAttack:
+def create_faked_disorder_attack(name: str='faked_disorder', split_pos: float=0.5, fake_ttl: int=1, fake_delay_ms: float=20.0, part2_delay_ms: float=8.0, part1_delay_ms: float=5.0, use_different_fake_payload: bool=True, corrupt_fake_checksum: bool=False, randomize_fake_content: bool=True) -> FakedDisorderAttack:
     """
     Factory function to create FakedDisorderAttack with custom configuration.
 
@@ -532,61 +295,17 @@ def create_faked_disorder_attack(
     Returns:
         Configured FakedDisorderAttack instance
     """
-    config = FakedDisorderConfig(
-        split_pos=split_pos,
-        fake_ttl=fake_ttl,
-        fake_delay_ms=fake_delay_ms,
-        part2_delay_ms=part2_delay_ms,
-        part1_delay_ms=part1_delay_ms,
-        use_different_fake_payload=use_different_fake_payload,
-        corrupt_fake_checksum=corrupt_fake_checksum,
-        randomize_fake_content=randomize_fake_content,
-    )
-
+    config = FakedDisorderConfig(split_pos=split_pos, fake_ttl=fake_ttl, fake_delay_ms=fake_delay_ms, part2_delay_ms=part2_delay_ms, part1_delay_ms=part1_delay_ms, use_different_fake_payload=use_different_fake_payload, corrupt_fake_checksum=corrupt_fake_checksum, randomize_fake_content=randomize_fake_content)
     return FakedDisorderAttack(name=name, config=config)
 
-
-# Predefined attack variants
 def create_aggressive_faked_disorder() -> FakedDisorderAttack:
     """Create aggressive variant with maximum confusion."""
-    return create_faked_disorder_attack(
-        name="aggressive_faked_disorder",
-        split_pos=0.3,
-        fake_ttl=1,
-        fake_delay_ms=30.0,
-        part2_delay_ms=12.0,
-        part1_delay_ms=8.0,
-        use_different_fake_payload=True,
-        corrupt_fake_checksum=True,
-        randomize_fake_content=True,
-    )
-
+    return create_faked_disorder_attack(name='aggressive_faked_disorder', split_pos=0.3, fake_ttl=1, fake_delay_ms=30.0, part2_delay_ms=12.0, part1_delay_ms=8.0, use_different_fake_payload=True, corrupt_fake_checksum=True, randomize_fake_content=True)
 
 def create_subtle_faked_disorder() -> FakedDisorderAttack:
     """Create subtle variant with minimal delays."""
-    return create_faked_disorder_attack(
-        name="subtle_faked_disorder",
-        split_pos=0.6,
-        fake_ttl=2,
-        fake_delay_ms=10.0,
-        part2_delay_ms=3.0,
-        part1_delay_ms=2.0,
-        use_different_fake_payload=True,
-        corrupt_fake_checksum=False,
-        randomize_fake_content=False,
-    )
-
+    return create_faked_disorder_attack(name='subtle_faked_disorder', split_pos=0.6, fake_ttl=2, fake_delay_ms=10.0, part2_delay_ms=3.0, part1_delay_ms=2.0, use_different_fake_payload=True, corrupt_fake_checksum=False, randomize_fake_content=False)
 
 def create_http_optimized_faked_disorder() -> FakedDisorderAttack:
     """Create variant optimized for HTTP traffic."""
-    return create_faked_disorder_attack(
-        name="http_faked_disorder",
-        split_pos=0.4,  # Split after HTTP headers typically
-        fake_ttl=1,
-        fake_delay_ms=25.0,
-        part2_delay_ms=10.0,
-        part1_delay_ms=6.0,
-        use_different_fake_payload=True,
-        corrupt_fake_checksum=False,
-        randomize_fake_content=True,
-    )
+    return create_faked_disorder_attack(name='http_faked_disorder', split_pos=0.4, fake_ttl=1, fake_delay_ms=25.0, part2_delay_ms=10.0, part1_delay_ms=6.0, use_different_fake_payload=True, corrupt_fake_checksum=False, randomize_fake_content=True)
