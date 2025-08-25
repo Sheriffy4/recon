@@ -116,6 +116,41 @@ class AdvancedFingerprinter:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self.executor, probe)
 
+    def get_stats(self) -> Dict[str, Any]:
+    """Возвращает статистику работы фингерпринтера."""
+    # Пример реализации. Дополните по необходимости.
+    return {
+        "cache_stats": self.cache.get_stats(),
+        "probes_run": self.prober.get_stats().get('probes_run', 0),
+        "classifications_made": self.classifier.get_stats().get('classifications_made', 0),
+    }
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Проверяет работоспособность компонентов фингерпринтера."""
+        # Пример реализации.
+        return {
+            "cache_healthy": self.cache.is_healthy(),
+            "prober_healthy": await self.prober.is_healthy(),
+            "classifier_healthy": self.classifier.is_healthy(),
+        }
+
+    def __repr__(self) -> str:
+        """Информативное строковое представление."""
+        return (
+            f"AdvancedFingerprinter(config={self.config}, "
+            f"cache_size={self.cache.get_stats()['cache_size']})"
+        )
+        
+    async def __aenter__(self):
+        """Поддержка асинхронного контекстного менеджера."""
+        # Здесь может быть логика инициализации, если нужна
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Очистка при выходе из контекста."""
+        # Здесь может быть логика очистки, например, закрытие сессий
+        await self.cleanup()
+    
     def _populate_coherent_fingerprint_features(self, fingerprint: DPIFingerprint, client_hello_info: ClientHelloInfo):
         """Populates the DPIFingerprint with features for coherent mimicry."""
         if not client_hello_info:

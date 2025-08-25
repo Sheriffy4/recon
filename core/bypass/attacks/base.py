@@ -350,16 +350,16 @@ class AttackResult:
             self.metadata = {}
 
     def set_metadata(self, key: str, value: Any) -> None:
-        """
-        Safely set metadata value.
-
-        Args:
-            key: Metadata key
-            value: Metadata value
-        """
+        """Safely set a single metadata value."""
         if self.metadata is None:
             self.metadata = {}
         self.metadata[key] = value
+
+    def update_metadata(self, updates: Dict[str, Any]) -> None:
+        """Safely update multiple metadata values from a dictionary."""
+        if self.metadata is None:
+            self.metadata = {}
+        self.metadata.update(updates)
 
     def get_metadata(self, key: str, default: Any=None) -> Any:
         """
@@ -390,16 +390,7 @@ class AttackResult:
             return False
         return key in self.metadata
 
-    def update_metadata(self, updates: Dict[str, Any]) -> None:
-        """
-        Safely update multiple metadata values.
-
-        Args:
-            updates: Dictionary of key-value pairs to update
-        """
-        if self.metadata is None:
-            self.metadata = {}
-        self.metadata.update(updates)
+    
 
     def create_segments_from_modified_payload(self, modified_payload: bytes, original_payload: bytes) -> None:
         """

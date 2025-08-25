@@ -113,3 +113,24 @@ class ComprehensiveAttackCatalog:
         self.attacks[definition.id] = definition
         self.metadata[definition.id] = metadata
         self.compatibility_matrix[definition.id] = {ExternalTool.ZAPRET: bool(metadata.zapret_equivalent), ExternalTool.GOODBYEDPI: bool(metadata.goodbyedpi_equivalent), ExternalTool.BYEBYEDPI: bool(metadata.byebyedpi_equivalent), ExternalTool.NATIVE: True}
+        
+        
+# --- Добавьте этот код в конец файла attack_catalog.py ---
+
+# Глобальная переменная для хранения единственного экземпляра каталога
+_catalog_instance: Optional[ComprehensiveAttackCatalog] = None
+
+def get_attack_catalog() -> ComprehensiveAttackCatalog:
+    """
+    Возвращает глобальный синглтон-экземпляр каталога атак.
+    Создает его при первом вызове.
+    """
+    global _catalog_instance
+    if _catalog_instance is None:
+        # Здесь можно добавить потокобезопасную блокировку для продакшена,
+        # но для большинства случаев этого достаточно.
+        _catalog_instance = ComprehensiveAttackCatalog()
+    return _catalog_instance
+
+# Для обратной совместимости с кодом, который ищет get_catalog
+get_catalog = get_attack_catalog
