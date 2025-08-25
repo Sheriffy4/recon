@@ -30,11 +30,12 @@ class BaselineAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute the baseline test."""
         start_time = time.time()
         try:
             segments = [(context.payload, 0)]
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=1, bytes_sent=len(context.payload), connection_established=True, data_transmitted=True, metadata={'segments': segments if context.engine_type != 'local' else None, 'info': 'Payload sent without modification.'})
         except Exception as e:

@@ -4,6 +4,7 @@ PayloadObfuscationAttack implementation using segments architecture.
 This attack obfuscates payload content using various encoding and transformation
 techniques to bypass DPI systems that rely on content inspection and pattern matching.
 """
+import asyncio
 import logging
 import random
 import base64
@@ -62,13 +63,13 @@ class PayloadObfuscationAttack(BaseAttack):
         if self.config.noise_size_range[0] > self.config.noise_size_range[1]:
             raise ValueError('Invalid noise_size_range')
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute PayloadObfuscationAttack."""
         try:
             self.logger.info(f'Executing PayloadObfuscationAttack on {context.connection_id}')
             if not context.payload:
                 return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': 'Empty payload provided'})
-            segments = self._create_obfuscated_segments(context.payload)
+            segments = await self._create_obfuscated_segments(context.payload)
             result = AttackResult(status=AttackStatus.SUCCESS, modified_payload=None, metadata={'attack_type': 'payload_obfuscation', 'segments': segments, 'total_segments': len(segments), 'obfuscation_method': self.config.obfuscation_method.value, 'original_payload_size': len(context.payload), 'config': {'obfuscation_method': self.config.obfuscation_method.value, 'segment_count': self.config.segment_count, 'per_segment_obfuscation': self.config.per_segment_obfuscation, 'add_decoding_headers': self.config.add_decoding_headers, 'add_noise': self.config.add_noise, 'vary_tcp_flags': self.config.vary_tcp_flags, 'vary_window_size': self.config.vary_window_size}})
             result._segments = segments
             self.logger.info(f'PayloadObfuscationAttack created {len(segments)} segments with {self.config.obfuscation_method.value} obfuscation')

@@ -5,6 +5,7 @@ Advanced attacks that manipulate QUIC protocol features to evade DPI detection.
 Includes Connection ID manipulation, packet coalescing, migration techniques,
 and advanced packet number space confusion.
 """
+import asyncio
 import time
 import struct
 import random
@@ -238,7 +239,7 @@ class AdvancedQUICConnectionIDRotation(BaseQUICAttack):
     def supported_protocols(self) -> List[str]:
         return ['udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced CID rotation attack."""
         start_time = time.time()
         try:
@@ -250,7 +251,7 @@ class AdvancedQUICConnectionIDRotation(BaseQUICAttack):
             cid_pool = self._generate_cid_pool(pool_size, min_cid_length, max_cid_length, use_zero_length)
             packets = self._convert_to_quic_packets(context.payload)
             if rotation_strategy == 'aggressive':
-                rotated_packets = self._apply_aggressive_rotation(packets, cid_pool)
+                rotated_packets = await self._apply_aggressive_rotation(packets, cid_pool)
             elif rotation_strategy == 'entropy_based':
                 rotated_packets = self._apply_entropy_based_rotation(packets, cid_pool)
             elif rotation_strategy == 'coordinated':
@@ -284,7 +285,7 @@ class AdvancedQUICConnectionIDRotation(BaseQUICAttack):
                 cid_pool.append(cid)
         return cid_pool
 
-    def _apply_aggressive_rotation(self, packets: List[QUICPacket], cid_pool: List[bytes]) -> List[QUICPacket]:
+    async def _apply_aggressive_rotation(self, packets: List[QUICPacket], cid_pool: List[bytes]) -> List[QUICPacket]:
         """Apply aggressive CID rotation - change on every packet."""
         rotated_packets = []
         cid_sequence_number = 0
@@ -301,6 +302,7 @@ class AdvancedQUICConnectionIDRotation(BaseQUICAttack):
                 retire_frame = self._create_retire_connection_id_frame(max(0, cid_sequence_number - 3))
                 retire_packet = QUICPacket(packet_type=QUICPacketType.ONE_RTT, connection_id=new_cid, packet_number=packet.packet_number + 2000, payload=retire_frame)
                 rotated_packets.append(retire_packet)
+            await asyncio.sleep(0)
         return rotated_packets
 
     def _apply_entropy_based_rotation(self, packets: List[QUICPacket], cid_pool: List[bytes]) -> List[QUICPacket]:
@@ -406,7 +408,7 @@ class AdvancedPacketNumberSpaceConfusion(BaseQUICAttack):
     def supported_protocols(self) -> List[str]:
         return ['udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced packet number confusion attack."""
         start_time = time.time()
         try:
@@ -429,6 +431,7 @@ class AdvancedPacketNumberSpaceConfusion(BaseQUICAttack):
             else:
                 segments = [(packet.to_bytes(), 0) for packet in confused_packets]
             total_bytes = sum((len(seg[0]) for seg in segments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=len(segments), bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'confusion_strategy': confusion_strategy, 'original_packets': len(base_packets), 'confused_packets': len(confused_packets), 'coalesced': use_coalescing, 'pn_ranges': self._analyze_pn_distribution(confused_packets), 'segments': segments if context.engine_type != 'local' else None}, technique_used=f'QUIC PN Confusion ({confusion_strategy})')
         except Exception as e:
@@ -579,7 +582,7 @@ class QUICPacketCoalescingAttack(BaseQUICAttack):
     def supported_protocols(self) -> List[str]:
         return ['udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute packet coalescing attack."""
         start_time = time.time()
         try:
@@ -596,6 +599,7 @@ class QUICPacketCoalescingAttack(BaseQUICAttack):
             else:
                 segments = self._basic_coalescing(base_packets, target_size)
             total_bytes = sum((len(seg[0]) for seg in segments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=len(segments), bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'coalescing_strategy': coalescing_strategy, 'original_packets': len(base_packets), 'coalesced_datagrams': len(segments), 'avg_datagram_size': total_bytes / len(segments) if segments else 0, 'segments': segments if context.engine_type != 'local' else None}, technique_used=f'QUIC Coalescing ({coalescing_strategy})')
         except Exception as e:
@@ -699,7 +703,7 @@ class QUICMigrationSimulation(BaseQUICAttack):
     def supported_protocols(self) -> List[str]:
         return ['udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute migration simulation."""
         start_time = time.time()
         try:
@@ -717,6 +721,7 @@ class QUICMigrationSimulation(BaseQUICAttack):
                 migrated_packets = base_packets
             segments = [(packet.to_bytes(), 0) for packet in migrated_packets]
             total_bytes = sum((len(seg[0]) for seg in segments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=len(segments), bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'migration_type': migration_type, 'path_count': path_count, 'migrations_simulated': self._count_migrations(migrated_packets), 'path_validations': sum((1 for p in migrated_packets if self._is_path_validation_frame(p.payload))), 'segments': segments if context.engine_type != 'local' else None}, technique_used=f'QUIC Migration ({migration_type})')
         except Exception as e:
@@ -833,7 +838,7 @@ class QUICHTTP3FullSession(BaseQUICAttack):
     def supported_protocols(self) -> List[str]:
         return ['udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/3 session simulation."""
         start_time = time.time()
         try:
@@ -843,6 +848,7 @@ class QUICHTTP3FullSession(BaseQUICAttack):
             session_packets = self._create_http3_session(context.payload, context.domain, stream_count, use_qpack_dynamic, simulate_push)
             segments = [(packet.to_bytes(), 0) for packet in session_packets]
             total_bytes = sum((len(seg[0]) for seg in segments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=len(segments), bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'stream_count': stream_count, 'total_packets': len(session_packets), 'http3_frames': self._count_http3_frames(session_packets), 'segments': segments if context.engine_type != 'local' else None}, technique_used='QUIC/HTTP3 Full Session')
         except Exception as e:
@@ -983,7 +989,7 @@ class QUICZeroRTTEarlyDataAttack(BaseQUICAttack):
     def supported_protocols(self) -> List[str]:
         return ['udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute QUIC 0-RTT early data attack."""
         start_time = time.time()
         try:
@@ -996,7 +1002,7 @@ class QUICZeroRTTEarlyDataAttack(BaseQUICAttack):
             early_data = context.payload[:early_data_size]
             remaining_data = context.payload[early_data_size:]
             if early_data_strategy == 'legitimate_early':
-                packets = self._create_legitimate_0rtt_flow(early_data, remaining_data, session_ticket, context.domain)
+                packets = await self._create_legitimate_0rtt_flow(early_data, remaining_data, session_ticket, context.domain)
             elif early_data_strategy == 'garbage_injection':
                 packets = self._create_garbage_injected_0rtt(early_data, remaining_data, session_ticket, mix_with_garbage)
             elif early_data_strategy == 'overlapping_spaces':
@@ -1007,6 +1013,7 @@ class QUICZeroRTTEarlyDataAttack(BaseQUICAttack):
                 packets = self._create_simple_0rtt_flow(early_data, remaining_data, session_ticket)
             segments = [(packet.to_bytes(), 0) for packet in packets]
             total_bytes = sum((len(seg[0]) for seg in segments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=len(segments), bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'early_data_strategy': early_data_strategy, 'early_data_bytes': early_data_size, 'zero_rtt_packets': sum((1 for p in packets if p.packet_type == QUICPacketType.ZERO_RTT)), 'mix_with_garbage': mix_with_garbage, 'session_ticket_size': len(session_ticket), 'segments': segments if context.engine_type != 'local' else None}, technique_used=f'QUIC 0-RTT ({early_data_strategy})')
         except Exception as e:
@@ -1020,7 +1027,7 @@ class QUICZeroRTTEarlyDataAttack(BaseQUICAttack):
         ticket_data += struct.pack('>I', 3600)
         return ticket_data
 
-    def _create_legitimate_0rtt_flow(self, early_data: bytes, remaining_data: bytes, session_ticket: bytes, domain: str) -> List[QUICPacket]:
+    async def _create_legitimate_0rtt_flow(self, early_data: bytes, remaining_data: bytes, session_ticket: bytes, domain: str) -> List[QUICPacket]:
         """Create legitimate 0-RTT flow with proper handshake."""
         packets = []
         connection_id = secrets.token_bytes(8)
@@ -1032,10 +1039,12 @@ class QUICZeroRTTEarlyDataAttack(BaseQUICAttack):
             zero_rtt_packet = QUICPacket(packet_type=QUICPacketType.ZERO_RTT, connection_id=connection_id, packet_number=packet_number, payload=self._create_stream_frame(4, chunk))
             packets.append(zero_rtt_packet)
             packet_number += 1
+            await asyncio.sleep(0)
         for chunk in self._chunk_data(remaining_data, 1000):
             one_rtt_packet = QUICPacket(packet_type=QUICPacketType.ONE_RTT, connection_id=connection_id, packet_number=packet_number, payload=self._create_stream_frame(0, chunk))
             packets.append(one_rtt_packet)
             packet_number += 1
+            await asyncio.sleep(0)
         return packets
 
     def _create_garbage_injected_0rtt(self, early_data: bytes, remaining_data: bytes, session_ticket: bytes, mix_garbage: bool) -> List[QUICPacket]:
@@ -1196,7 +1205,7 @@ class QUICMixedEncryptionLevelAttack(BaseQUICAttack):
     def supported_protocols(self) -> List[str]:
         return ['udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute mixed encryption level attack."""
         start_time = time.time()
         try:
@@ -1219,6 +1228,7 @@ class QUICMixedEncryptionLevelAttack(BaseQUICAttack):
                 random.shuffle(mixed_packets)
             segments = self._create_mixed_datagrams(mixed_packets)
             total_bytes = sum((len(seg[0]) for seg in segments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=len(segments), bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'mixing_strategy': mixing_strategy, 'total_packets': len(mixed_packets), 'datagrams': len(segments), 'encryption_levels': self._count_encryption_levels(mixed_packets), 'segments': segments if context.engine_type != 'local' else None}, technique_used=f'QUIC Mixed Encryption ({mixing_strategy})')
         except Exception as e:

@@ -4,14 +4,15 @@ Protocol Mimicry Obfuscation Attacks
 Advanced protocol mimicry techniques that disguise traffic as legitimate
 protocols to evade DPI detection through protocol impersonation.
 """
+import asyncio
 import time
 import random
 import base64
 import struct
 import hashlib
 from typing import List
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 
 @register_attack
 class HTTPProtocolMimicryAttack(BaseAttack):
@@ -38,7 +39,7 @@ class HTTPProtocolMimicryAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP protocol mimicry attack."""
         start_time = time.time()
         try:
@@ -55,6 +56,7 @@ class HTTPProtocolMimicryAttack(BaseAttack):
             segments = []
             for i, packet in enumerate(packets):
                 delay = self._calculate_realistic_delay(i, mimicry_type)
+                await asyncio.sleep(delay / 1000.0)
                 segments.append((packet, delay, {'mimicry_type': mimicry_type, 'packet_type': 'request' if i == 0 else 'response', 'realistic_timing': True}))
             packets_sent = len(packets)
             bytes_sent = sum((len(packet) for packet in packets))
@@ -218,7 +220,7 @@ class TLSProtocolMimicryAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS protocol mimicry attack."""
         start_time = time.time()
         try:
@@ -238,7 +240,7 @@ class TLSProtocolMimicryAttack(BaseAttack):
             packets.append(encrypted_data)
             segments = []
             for i, packet in enumerate(packets):
-                delay = self._calculate_tls_delay(i, include_handshake)
+                delay = await self._calculate_tls_delay(i, include_handshake)
                 packet_type = self._get_packet_type(i, include_handshake)
                 segments.append((packet, delay, {'tls_version': tls_version, 'packet_type': packet_type, 'cipher_suite': cipher_suite}))
             packets_sent = len(packets)
@@ -374,21 +376,26 @@ class TLSProtocolMimicryAttack(BaseAttack):
         cert_body = b'0\x82\x02\x00' + b'\xa0\x03\x02\x01\x02' + b'\x02\x08' + random.randbytes(8) + b'0\r\x06\t*\x86H\x86\xf7\r\x01\x01\x0b\x05\x00' + b'0\x101\x0e0\x0c\x06\x03U\x04\x03\x0c\x05' + b'TestCA' + b'0\x1e\x17\r' + b'231201000000Z' + b'\x17\r' + b'241201000000Z' + b'0 1\x1e0\x1c\x06\x03U\x04\x03\x0c\x15' + server_name.encode('utf-8')[:21] + b'0\x82\x01"' + random.randbytes(290)
         return cert_header + cert_body
 
-    def _calculate_tls_delay(self, packet_index: int, include_handshake: bool) -> int:
+    async def _calculate_tls_delay(self, packet_index: int, include_handshake: bool) -> int:
         """Calculate realistic TLS timing delays."""
+        delay = 0
         if include_handshake:
             if packet_index == 0:
-                return 0
+                delay = 0
             elif packet_index == 1:
-                return random.randint(20, 80)
+                delay = random.randint(20, 80)
             elif packet_index == 2:
-                return random.randint(5, 20)
+                delay = random.randint(5, 20)
             elif packet_index == 3:
-                return random.randint(10, 30)
+                delay = random.randint(10, 30)
             else:
-                return random.randint(50, 200)
+                delay = random.randint(50, 200)
         else:
-            return random.randint(10, 50)
+            delay = random.randint(10, 50)
+
+        if delay > 0:
+            await asyncio.sleep(delay / 1000.0)
+        return delay
 
     def _get_packet_type(self, packet_index: int, include_handshake: bool) -> str:
         """Get packet type description."""
@@ -423,7 +430,7 @@ class SMTPProtocolMimicryAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute SMTP protocol mimicry attack."""
         start_time = time.time()
         try:
@@ -435,7 +442,7 @@ class SMTPProtocolMimicryAttack(BaseAttack):
             smtp_packets = self._generate_smtp_conversation(payload, smtp_server, sender_email, recipient_email, use_tls)
             segments = []
             for i, packet in enumerate(smtp_packets):
-                delay = self._calculate_smtp_delay(i)
+                delay = await self._calculate_smtp_delay(i)
                 packet_type = self._get_smtp_packet_type(i, len(smtp_packets))
                 segments.append((packet, delay, {'smtp_server': smtp_server, 'packet_type': packet_type, 'use_tls': use_tls}))
             packets_sent = len(smtp_packets)
@@ -484,14 +491,19 @@ class SMTPProtocolMimicryAttack(BaseAttack):
         email_content = f'''From: {sender}\nTo: {recipient}\nSubject: Document Attachment\nDate: {time.strftime('%a, %d %b %Y %H:%M:%S %z')}\nMIME-Version: 1.0\nContent-Type: multipart/mixed; boundary="{boundary}"\n\n--{boundary}\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 7bit\n\nPlease find the attached document.\n\nBest regards,\nUser\n\n--{boundary}\nContent-Type: application/octet-stream\nContent-Transfer-Encoding: base64\nContent-Disposition: attachment; filename="document.dat"\n\n{chr(10).join(encoded_lines)}\n\n--{boundary}--\n'''
         return email_content.encode('utf-8') + b'\r\n'
 
-    def _calculate_smtp_delay(self, packet_index: int) -> int:
+    async def _calculate_smtp_delay(self, packet_index: int) -> int:
         """Calculate realistic SMTP timing delays."""
+        delay = 0
         if packet_index == 0:
-            return 0
+            delay = 0
         elif packet_index < 5:
-            return random.randint(10, 50)
+            delay = random.randint(10, 50)
         else:
-            return random.randint(20, 100)
+            delay = random.randint(20, 100)
+
+        if delay > 0:
+            await asyncio.sleep(delay / 1000.0)
+        return delay
 
     def _get_smtp_packet_type(self, packet_index: int, total_packets: int) -> str:
         """Get SMTP packet type description."""
@@ -529,7 +541,7 @@ class FTPProtocolMimicryAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute FTP protocol mimicry attack."""
         start_time = time.time()
         try:
@@ -541,7 +553,7 @@ class FTPProtocolMimicryAttack(BaseAttack):
             ftp_packets = self._generate_ftp_conversation(payload, ftp_server, username, password, transfer_mode)
             segments = []
             for i, packet in enumerate(ftp_packets):
-                delay = self._calculate_ftp_delay(i, len(ftp_packets))
+                delay = await self._calculate_ftp_delay(i, len(ftp_packets))
                 packet_type = self._get_ftp_packet_type(i, len(ftp_packets))
                 segments.append((packet, delay, {'ftp_server': ftp_server, 'packet_type': packet_type, 'transfer_mode': transfer_mode}))
             packets_sent = len(ftp_packets)
@@ -585,16 +597,21 @@ class FTPProtocolMimicryAttack(BaseAttack):
         packets.append(b'221 Goodbye\r\n')
         return packets
 
-    def _calculate_ftp_delay(self, packet_index: int, total_packets: int) -> int:
+    async def _calculate_ftp_delay(self, packet_index: int, total_packets: int) -> int:
         """Calculate realistic FTP timing delays."""
+        delay = 0
         if packet_index == 0:
-            return 0
+            delay = 0
         elif packet_index < 6:
-            return random.randint(20, 100)
+            delay = random.randint(20, 100)
         elif packet_index < total_packets - 3:
-            return random.randint(50, 200)
+            delay = random.randint(50, 200)
         else:
-            return random.randint(10, 50)
+            delay = random.randint(10, 50)
+
+        if delay > 0:
+            await asyncio.sleep(delay / 1000.0)
+        return delay
 
     def _get_ftp_packet_type(self, packet_index: int, total_packets: int) -> str:
         """Get FTP packet type description."""

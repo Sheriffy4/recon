@@ -7,10 +7,11 @@ Uses variable delays, burst patterns, and timing obfuscation techniques.
 """
 import logging
 import random
+import asyncio
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
-from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
 
 class TimingPattern(Enum):
     """Different timing patterns for manipulation."""
@@ -71,7 +72,7 @@ class TCPTimingManipulationAttack(BaseAttack):
         if not 0.0 <= self.config.congestion_probability <= 1.0:
             raise ValueError('congestion_probability must be between 0.0 and 1.0')
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute TCPTimingManipulationAttack.
 
@@ -85,7 +86,7 @@ class TCPTimingManipulationAttack(BaseAttack):
             self.logger.info(f'Executing TCPTimingManipulationAttack on {context.connection_id}')
             if not context.payload:
                 return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': 'Empty payload provided'})
-            segments = self._create_timing_segments(context.payload)
+            segments = await self._create_timing_segments(context.payload)
             result = AttackResult(status=AttackStatus.SUCCESS, modified_payload=None, metadata={'attack_type': 'tcp_timing_manipulation', 'segments': segments, 'total_segments': len(segments), 'timing_pattern': self.config.timing_pattern.value, 'original_payload_size': len(context.payload), 'config': {'timing_pattern': self.config.timing_pattern.value, 'base_delay_ms': self.config.base_delay_ms, 'max_delay_ms': self.config.max_delay_ms, 'min_delay_ms': self.config.min_delay_ms, 'segment_count': self.config.segment_count, 'add_jitter': self.config.add_jitter, 'jitter_ms': self.config.jitter_ms, 'vary_window_size': self.config.vary_window_size, 'vary_ttl': self.config.vary_ttl, 'simulate_congestion': self.config.simulate_congestion}})
             result._segments = segments
             self.logger.info(f'TCPTimingManipulationAttack created {len(segments)} segments with {self.config.timing_pattern.value} pattern')
@@ -94,7 +95,7 @@ class TCPTimingManipulationAttack(BaseAttack):
             self.logger.error(f'TCPTimingManipulationAttack failed: {e}')
             return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': str(e), 'attack_type': 'tcp_timing_manipulation'})
 
-    def _create_timing_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    async def _create_timing_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """
         Create segments with timing manipulation.
 

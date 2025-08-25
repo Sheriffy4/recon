@@ -4,6 +4,7 @@ Traffic Profiles for Popular Applications
 Implements realistic traffic patterns for popular applications to enable
 effective traffic mimicry and behavioral DPI evasion.
 """
+import asyncio
 import random
 import re
 from typing import List, Tuple
@@ -39,7 +40,7 @@ class ZoomTrafficProfile(TrafficProfile):
         domain_lower = domain.lower()
         return any((re.match(pattern, domain_lower) for pattern in video_patterns))
 
-    def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
+    async def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
         """Generate Zoom-like packet sequence."""
         sequence = []
         remaining_payload = payload
@@ -58,9 +59,11 @@ class ZoomTrafficProfile(TrafficProfile):
                 remaining_payload = remaining_payload[chunk_size:]
                 packet_data = self._create_zoom_packet(chunk)
                 delay = self.get_random_delay()
+                await asyncio.sleep(delay / 1000.0)
                 sequence.append((packet_data, delay))
             if remaining_payload:
                 burst_delay = random.uniform(*self.pattern.burst_interval_range)
+                await asyncio.sleep(burst_delay / 1000.0)
                 sequence.append((b'', burst_delay))
         sequence.extend(self._generate_keep_alive_packets())
         return sequence
@@ -114,14 +117,16 @@ class TelegramTrafficProfile(TrafficProfile):
         domain_lower = domain.lower()
         return any((re.match(pattern, domain_lower) for pattern in messaging_patterns))
 
-    def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
+    async def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
         """Generate Telegram-like packet sequence."""
         sequence = []
         remaining_payload = payload
         sequence.extend(self._generate_telegram_handshake())
         while remaining_payload:
             if random.random() < 0.3:
-                sequence.append((b'TG_TYPING\x00\x01', random.uniform(100, 500)))
+                delay = random.uniform(100, 500)
+                await asyncio.sleep(delay / 1000.0)
+                sequence.append((b'TG_TYPING\x00\x01', delay))
             burst_size = random.randint(*self.pattern.burst_size_range)
             for _ in range(burst_size):
                 if not remaining_payload:
@@ -132,9 +137,11 @@ class TelegramTrafficProfile(TrafficProfile):
                 remaining_payload = remaining_payload[chunk_size:]
                 packet_data = self._create_telegram_packet(chunk)
                 delay = self.get_random_delay()
+                await asyncio.sleep(delay / 1000.0)
                 sequence.append((packet_data, delay))
             if remaining_payload:
                 thinking_delay = random.uniform(1000.0, 10000.0)
+                await asyncio.sleep(thinking_delay / 1000.0)
                 sequence.append((b'', thinking_delay))
         return sequence
 
@@ -183,12 +190,12 @@ class WhatsAppTrafficProfile(TrafficProfile):
         domain_lower = domain.lower()
         return any((re.match(pattern, domain_lower) for pattern in whatsapp_patterns))
 
-    def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
+    async def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
         """Generate WhatsApp-like packet sequence."""
         sequence = []
         remaining_payload = payload
         sequence.extend(self._generate_whatsapp_connection())
-        sequence.extend(self._generate_status_updates())
+        sequence.extend(await self._generate_status_updates())
         while remaining_payload:
             packet_size = random.randint(100, 400)
             chunk_size = min(len(remaining_payload), packet_size - 25)
@@ -196,11 +203,15 @@ class WhatsAppTrafficProfile(TrafficProfile):
             remaining_payload = remaining_payload[chunk_size:]
             packet_data = self._create_whatsapp_packet(chunk)
             delay = self.get_random_delay()
+            await asyncio.sleep(delay / 1000.0)
             sequence.append((packet_data, delay))
             if random.random() < 0.8:
+                await asyncio.sleep(0.05)
                 sequence.append((b'WA_DELIVERED\x00\x01', 50.0))
             if random.random() < 0.6:
-                sequence.append((b'WA_READ\x00\x02', random.uniform(100, 2000)))
+                delay = random.uniform(100, 2000)
+                await asyncio.sleep(delay / 1000.0)
+                sequence.append((b'WA_READ\x00\x02', delay))
         return sequence
 
     def _generate_whatsapp_connection(self) -> List[Tuple[bytes, float]]:
@@ -208,9 +219,15 @@ class WhatsAppTrafficProfile(TrafficProfile):
         connection = [(b'WA_HELLO\x00\x01', 0.0), (b'WA_AUTH\x00\x02', 80.0), (b'WA_PRESENCE\x00\x03', 50.0)]
         return connection
 
-    def _generate_status_updates(self) -> List[Tuple[bytes, float]]:
+    async def _generate_status_updates(self) -> List[Tuple[bytes, float]]:
         """Generate status update packets."""
-        status_updates = [(b'WA_ONLINE\x00\x04', 100.0), (b'WA_TYPING\x00\x05', 200.0), (b'WA_STOP_TYPING\x00\x06', 1000.0)]
+        status_updates = []
+        await asyncio.sleep(0.1)
+        status_updates.append((b'WA_ONLINE\x00\x04', 100.0))
+        await asyncio.sleep(0.2)
+        status_updates.append((b'WA_TYPING\x00\x05', 200.0))
+        await asyncio.sleep(1.0)
+        status_updates.append((b'WA_STOP_TYPING\x00\x06', 1000.0))
         return status_updates
 
     def _create_whatsapp_packet(self, payload_chunk: bytes) -> bytes:
@@ -248,7 +265,7 @@ class GenericBrowsingProfile(TrafficProfile):
         """Use as fallback for any domain."""
         return True
 
-    def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
+    async def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
         """Generate generic browsing packet sequence."""
         sequence = []
         remaining_payload = payload
@@ -260,6 +277,7 @@ class GenericBrowsingProfile(TrafficProfile):
             remaining_payload = remaining_payload[chunk_size:]
             packet_data = self._create_http_packet(chunk)
             delay = self.get_random_delay()
+            await asyncio.sleep(delay / 1000.0)
             sequence.append((packet_data, delay))
         return sequence
 

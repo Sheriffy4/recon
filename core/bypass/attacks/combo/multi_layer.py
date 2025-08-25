@@ -3,6 +3,7 @@ Multi-Layer Combo Attacks
 
 Attacks that combine multiple bypass techniques in layers.
 """
+import asyncio
 import time
 import random
 from typing import List, Dict, Any, Optional
@@ -31,7 +32,7 @@ class TCPHTTPComboAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TCP + HTTP combo attack."""
         start_time = time.time()
         try:
@@ -40,7 +41,7 @@ class TCPHTTPComboAttack(BaseAttack):
             header_case = context.params.get('header_case', 'random')
             http_modified = self._apply_http_manipulation(payload, header_case)
             segments = self._apply_tcp_segmentation(http_modified, segment_size)
-            timed_segments = self._add_timing_delays(segments)
+            timed_segments = await self._add_timing_delays(segments)
             total_bytes = sum((len(seg[0]) for seg in timed_segments))
             packets_sent = len(timed_segments)
             latency = (time.time() - start_time) * 1000
@@ -108,11 +109,13 @@ class TCPHTTPComboAttack(BaseAttack):
             command_parts.append('--hostcase')
         return ' '.join(command_parts)
 
-    def _add_timing_delays(self, segments: List[tuple]) -> List[tuple]:
+    async def _add_timing_delays(self, segments: List[tuple]) -> List[tuple]:
         """Add timing delays between segments."""
         timed_segments = []
         for i, (segment, _) in enumerate(segments):
             delay = random.randint(10, 100) if i > 0 else 0
+            if delay > 0:
+                await asyncio.sleep(delay / 1000.0)
             timed_segments.append((segment, delay))
         return timed_segments
 
@@ -138,7 +141,7 @@ class TLSFragmentationComboAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS + Fragmentation combo attack."""
         start_time = time.time()
         try:
@@ -150,6 +153,7 @@ class TLSFragmentationComboAttack(BaseAttack):
             randomized_fragments = self._randomize_fragment_order(fragments)
             total_bytes = sum((len(frag[0]) for frag in randomized_fragments))
             packets_sent = len(randomized_fragments)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'layers_applied': ['tls_manipulation', 'ip_fragmentation', 'order_randomization'], 'fragment_count': len(randomized_fragments), 'fragment_size': fragment_size, 'tls_record_split': tls_record_split, 'original_size': len(payload), 'final_size': total_bytes, 'segments': randomized_fragments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -231,7 +235,7 @@ class PayloadTunnelingComboAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute Payload + Tunneling combo attack."""
         start_time = time.time()
         try:
@@ -245,6 +249,7 @@ class PayloadTunnelingComboAttack(BaseAttack):
             segments = [(final_payload, 0)]
             packets_sent = 1
             bytes_sent = len(final_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'layers_applied': ['payload_obfuscation', 'protocol_tunneling', 'noise_padding'], 'obfuscation_type': obfuscation_type, 'tunnel_protocol': tunnel_protocol, 'original_size': len(payload), 'obfuscated_size': len(obfuscated_payload), 'tunneled_size': len(tunneled_payload), 'final_size': len(final_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -369,7 +374,7 @@ class AdaptiveMultiLayerAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute adaptive multi-layer attack."""
         start_time = time.time()
         try:
@@ -385,6 +390,7 @@ class AdaptiveMultiLayerAttack(BaseAttack):
             segments = self._create_adaptive_segments(modified_payload, analysis)
             total_bytes = sum((len(seg[0]) for seg in segments))
             packets_sent = len(segments)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'adaptation_level': adaptation_level, 'payload_analysis': analysis, 'applied_techniques': applied_techniques, 'technique_count': len(applied_techniques), 'original_size': len(payload), 'final_size': total_bytes, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:

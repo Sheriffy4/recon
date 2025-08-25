@@ -4,12 +4,13 @@ ICMP Obfuscation Attacks
 Advanced ICMP-based obfuscation techniques that use ICMP protocol features
 to tunnel data and evade DPI detection through legitimate-looking ICMP traffic.
 """
+import asyncio
 import time
 import random
 import struct
 from typing import List, Dict, Any, Tuple
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 
 @register_attack
 class ICMPDataTunnelingObfuscationAttack(BaseAttack):
@@ -36,7 +37,7 @@ class ICMPDataTunnelingObfuscationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP data tunneling attack."""
         start_time = time.time()
         try:
@@ -48,6 +49,7 @@ class ICMPDataTunnelingObfuscationAttack(BaseAttack):
             segments = []
             for i, packet in enumerate(icmp_packets):
                 delay = random.randint(100, 1000)
+                await asyncio.sleep(delay / 1000.0)
                 packet_type = 'echo_reply' if use_replies and i % 2 == 1 else 'echo_request'
                 segments.append((packet, delay, {'packet_type': packet_type, 'packet_size': packet_size, 'sequence': i}))
             packets_sent = len(icmp_packets)
@@ -125,7 +127,7 @@ class ICMPTimestampTunnelingObfuscationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP timestamp tunneling attack."""
         start_time = time.time()
         try:
@@ -135,6 +137,7 @@ class ICMPTimestampTunnelingObfuscationAttack(BaseAttack):
             segments = []
             for i, packet in enumerate(icmp_packets):
                 delay = random.randint(500, 2000)
+                await asyncio.sleep(delay / 1000.0)
                 packet_type = 'timestamp_reply' if use_replies and i % 2 == 1 else 'timestamp_request'
                 segments.append((packet, delay, {'packet_type': packet_type, 'sequence': i // 2 if use_replies else i}))
             packets_sent = len(icmp_packets)
@@ -212,7 +215,7 @@ class ICMPRedirectTunnelingObfuscationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP redirect tunneling attack."""
         start_time = time.time()
         try:
@@ -223,6 +226,7 @@ class ICMPRedirectTunnelingObfuscationAttack(BaseAttack):
             segments = []
             for i, packet in enumerate(icmp_packets):
                 delay = random.randint(1000, 5000)
+                await asyncio.sleep(delay / 1000.0)
                 segments.append((packet, delay, {'packet_type': 'redirect', 'redirect_code': redirect_code, 'sequence': i}))
             packets_sent = len(icmp_packets)
             bytes_sent = sum((len(packet) for packet in icmp_packets))
@@ -309,7 +313,7 @@ class ICMPCovertChannelObfuscationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP covert channel attack."""
         start_time = time.time()
         try:
@@ -319,11 +323,11 @@ class ICMPCovertChannelObfuscationAttack(BaseAttack):
             if channel_type not in ['timing', 'size', 'sequence']:
                 raise ValueError(f'Invalid channel_type: {channel_type}')
             if channel_type == 'timing':
-                icmp_packets, segments = self._create_timing_covert_channel(payload, base_interval)
+                icmp_packets, segments = await self._create_timing_covert_channel(payload, base_interval)
             elif channel_type == 'size':
-                icmp_packets, segments = self._create_size_covert_channel(payload)
+                icmp_packets, segments = await self._create_size_covert_channel(payload)
             elif channel_type == 'sequence':
-                icmp_packets, segments = self._create_sequence_covert_channel(payload)
+                icmp_packets, segments = await self._create_sequence_covert_channel(payload)
             packets_sent = len(icmp_packets)
             bytes_sent = sum((len(packet) for packet in icmp_packets))
             latency = (time.time() - start_time) * 1000
@@ -331,7 +335,7 @@ class ICMPCovertChannelObfuscationAttack(BaseAttack):
         except Exception as e:
             return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=(time.time() - start_time) * 1000, technique_used='icmp_covert_channel_obfuscation')
 
-    def _create_timing_covert_channel(self, payload: bytes, base_interval: int) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
+    async def _create_timing_covert_channel(self, payload: bytes, base_interval: int) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
         """Create timing-based covert channel."""
         packets = []
         segments = []
@@ -341,10 +345,11 @@ class ICMPCovertChannelObfuscationAttack(BaseAttack):
             for bit_pos in range(8):
                 bit = byte >> 7 - bit_pos & 1
                 delay = base_interval if bit == 0 else base_interval * 2
+                await asyncio.sleep(delay / 1000.0)
                 segments.append((packet, delay, {'channel_type': 'timing', 'byte_index': i, 'bit_position': bit_pos, 'bit_value': bit, 'delay': delay}))
         return (packets, segments)
 
-    def _create_size_covert_channel(self, payload: bytes) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
+    async def _create_size_covert_channel(self, payload: bytes) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
         """Create size-based covert channel."""
         packets = []
         segments = []
@@ -353,10 +358,11 @@ class ICMPCovertChannelObfuscationAttack(BaseAttack):
             packet = self._create_variable_size_icmp_echo(i, padding_size)
             packets.append(packet)
             delay = random.randint(500, 1500)
+            await asyncio.sleep(delay / 1000.0)
             segments.append((packet, delay, {'channel_type': 'size', 'byte_index': i, 'byte_value': byte, 'padding_size': padding_size, 'packet_size': len(packet)}))
         return (packets, segments)
 
-    def _create_sequence_covert_channel(self, payload: bytes) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
+    async def _create_sequence_covert_channel(self, payload: bytes) -> Tuple[List[bytes], List[Tuple[bytes, int, Dict[str, Any]]]]:
         """Create sequence-based covert channel."""
         packets = []
         segments = []
@@ -365,6 +371,7 @@ class ICMPCovertChannelObfuscationAttack(BaseAttack):
             packet = self._create_icmp_echo_with_sequence(sequence)
             packets.append(packet)
             delay = random.randint(800, 1200)
+            await asyncio.sleep(delay / 1000.0)
             segments.append((packet, delay, {'channel_type': 'sequence', 'byte_index': i, 'byte_value': byte, 'sequence_number': sequence}))
         return (packets, segments)
 

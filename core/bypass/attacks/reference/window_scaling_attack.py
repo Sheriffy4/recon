@@ -7,11 +7,12 @@ patterns for traffic classification.
 """
 import logging
 import random
+import asyncio
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
-from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext
-from recon.core.bypass.attacks.safe_result_utils import create_success_result, create_failed_result
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext
+from core.bypass.attacks.safe_result_utils import create_success_result, create_failed_result
 
 class WindowPattern(Enum):
     """Different window scaling patterns."""
@@ -70,13 +71,13 @@ class WindowScalingAttack(BaseAttack):
         if self.config.base_delay_ms < 0:
             raise ValueError('base_delay_ms must be non-negative')
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute WindowScalingAttack."""
         try:
             self.logger.info(f'Executing WindowScalingAttack on {context.connection_id}')
             if not context.payload:
                 return create_failed_result(error_message='Empty payload provided', modified_payload=None, metadata={'error': 'Empty payload provided'})
-            segments = self._create_window_segments(context.payload)
+            segments = await self._create_window_segments(context.payload)
             result = create_success_result(modified_payload=None, metadata={'attack_type': 'window_scaling', 'segments': segments, 'total_segments': len(segments), 'window_pattern': self.config.window_pattern.value, 'original_payload_size': len(context.payload), 'config': {'window_pattern': self.config.window_pattern.value, 'segment_count': self.config.segment_count, 'min_window_size': self.config.min_window_size, 'max_window_size': self.config.max_window_size, 'use_zero_window': self.config.use_zero_window, 'zero_window_probability': self.config.zero_window_probability, 'use_extreme_values': self.config.use_extreme_values, 'add_window_scaling': self.config.add_window_scaling, 'window_scale_factor': self.config.window_scale_factor, 'vary_tcp_flags': self.config.vary_tcp_flags, 'vary_ttl': self.config.vary_ttl}})
             result._segments = segments
             self.logger.info(f'WindowScalingAttack created {len(segments)} segments with {self.config.window_pattern.value} pattern')
@@ -85,7 +86,7 @@ class WindowScalingAttack(BaseAttack):
             self.logger.error(f'WindowScalingAttack failed: {e}')
             return create_failed_result(error_message=str(e), modified_payload=None, metadata={'error': str(e), 'attack_type': 'window_scaling'})
 
-    def _create_window_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    async def _create_window_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Create segments with window scaling manipulation."""
         segments = []
         segment_size = len(payload) // self.config.segment_count

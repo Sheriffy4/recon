@@ -3,6 +3,7 @@ aiohttp
 requests
 dnspython
 scapy
+future
 
 pytest
 pyyaml

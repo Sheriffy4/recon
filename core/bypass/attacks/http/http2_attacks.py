@@ -3,6 +3,7 @@ HTTP/2 Protocol Attacks
 
 Attacks that manipulate HTTP/2 frames and HPACK compression to evade DPI detection.
 """
+import asyncio
 import time
 import struct
 import random
@@ -86,7 +87,7 @@ class H2FrameSplittingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/2 frame splitting attack."""
         start_time = time.time()
         try:
@@ -111,6 +112,7 @@ class H2FrameSplittingAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'split_strategy': split_strategy, 'original_frames': len(http2_frames), 'modified_frames': len(modified_frames), 'original_size': len(payload), 'modified_size': len(modified_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -243,7 +245,7 @@ class H2HPACKManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HPACK manipulation attack."""
         start_time = time.time()
         try:
@@ -267,6 +269,7 @@ class H2HPACKManipulationAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'manipulation_type': manipulation_type, 'original_size': len(payload), 'modified_size': len(modified_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -351,7 +354,7 @@ class H2PriorityManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/2 priority manipulation attack."""
         start_time = time.time()
         try:
@@ -374,6 +377,7 @@ class H2PriorityManipulationAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'priority_strategy': priority_strategy, 'original_frames': len(http2_frames), 'modified_frames': len(modified_frames), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -444,7 +448,7 @@ class H2ClearTextUpgradeAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute h2c upgrade attack."""
         start_time = time.time()
         try:
@@ -457,6 +461,7 @@ class H2ClearTextUpgradeAttack(BaseAttack):
             segments = [(h2c_payload, 0)]
             packets_sent = 1
             bytes_sent = len(h2c_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'upgrade_method': upgrade_method, 'original_size': len(payload), 'h2c_size': len(h2c_payload), 'bypass_technique': 'h2c_cleartext', 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -505,7 +510,7 @@ class H2HPACKBombAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HPACK bomb attack."""
         start_time = time.time()
         try:
@@ -517,6 +522,7 @@ class H2HPACKBombAttack(BaseAttack):
             segments = [(h2_payload, 0)]
             packets_sent = 1
             bytes_sent = len(h2_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'compression_ratio': compression_ratio, 'header_count': header_count, 'original_size': len(payload), 'bomb_size': len(h2_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -572,7 +578,7 @@ class H2HPACKIndexManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HPACK index manipulation attack."""
         start_time = time.time()
         try:
@@ -583,6 +589,7 @@ class H2HPACKIndexManipulationAttack(BaseAttack):
             segments = [(manipulated_payload, 0)]
             packets_sent = 1
             bytes_sent = len(manipulated_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'manipulation_type': manipulation_type, 'index_confusion': index_confusion, 'original_size': len(payload), 'manipulated_size': len(manipulated_payload), 'bypass_technique': 'hpack_index_manipulation', 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -725,7 +732,7 @@ class H2SmugglingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/2 smuggling attack."""
         start_time = time.time()
         try:
@@ -743,6 +750,7 @@ class H2SmugglingAttack(BaseAttack):
             segments = [(smuggled_payload, 0)]
             packets_sent = 1
             bytes_sent = len(smuggled_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'smuggling_type': smuggling_type, 'hidden_request_size': len(hidden_request), 'original_size': len(payload), 'smuggled_size': len(smuggled_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -811,7 +819,7 @@ class H2StreamMultiplexingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/2 stream multiplexing attack."""
         start_time = time.time()
         try:
@@ -823,6 +831,7 @@ class H2StreamMultiplexingAttack(BaseAttack):
             segments = [(multiplexed_payload, 0)]
             packets_sent = 1
             bytes_sent = len(multiplexed_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'stream_count': stream_count, 'interleave_frames': interleave_frames, 'use_priorities': use_priorities, 'original_size': len(payload), 'multiplexed_size': len(multiplexed_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -926,7 +935,7 @@ class H2CSmugglingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute h2c smuggling attack."""
         start_time = time.time()
         try:
@@ -938,6 +947,7 @@ class H2CSmugglingAttack(BaseAttack):
             segments = [(smuggled_payload, 0)]
             packets_sent = 1
             bytes_sent = len(smuggled_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'smuggling_method': smuggling_method, 'use_chunked': use_chunked, 'add_te_header': add_te_header, 'original_size': len(payload), 'smuggled_size': len(smuggled_payload), 'bypass_technique': 'h2c_smuggling', 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -1032,7 +1042,7 @@ class H2HPACKAdvancedManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced HPACK manipulation attack."""
         start_time = time.time()
         try:
@@ -1045,6 +1055,7 @@ class H2HPACKAdvancedManipulationAttack(BaseAttack):
             segments = [(manipulated_payload, 0)]
             packets_sent = 1
             bytes_sent = len(manipulated_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'manipulation_technique': manipulation_technique, 'compression_level': compression_level, 'use_huffman': use_huffman, 'table_size_update': table_size_update, 'original_size': len(payload), 'manipulated_size': len(manipulated_payload), 'compression_ratio': len(payload) / len(manipulated_payload) if manipulated_payload else 1, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:

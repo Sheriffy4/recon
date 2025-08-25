@@ -4,12 +4,13 @@ QUIC Obfuscation Attacks
 Advanced QUIC protocol obfuscation techniques that use QUIC protocol features
 to fragment and obfuscate traffic while evading DPI detection.
 """
+import asyncio
 import time
 import random
 import struct
 from typing import List, Optional
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 
 @register_attack
 class QUICFragmentationObfuscationAttack(BaseAttack):
@@ -36,7 +37,7 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute QUIC fragmentation obfuscation attack."""
         start_time = time.time()
         try:
@@ -59,7 +60,7 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
                 quic_packets.extend(fragment_packets)
             segments = []
             for i, packet in enumerate(quic_packets):
-                delay = self._calculate_quic_delay(i, add_version_negotiation)
+                delay = await self._calculate_quic_delay(i, add_version_negotiation)
                 packet_type = self._get_quic_packet_type(i, add_version_negotiation)
                 segments.append((packet, delay, {'packet_type': packet_type, 'fragment_index': i, 'packet_size': len(packet)}))
             packets_sent = len(quic_packets)
@@ -196,14 +197,19 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
         auth_tag = random.randbytes(16)
         return bytes(encrypted) + auth_tag
 
-    def _calculate_quic_delay(self, packet_index: int, has_version_negotiation: bool) -> int:
+    async def _calculate_quic_delay(self, packet_index: int, has_version_negotiation: bool) -> int:
         """Calculate realistic QUIC packet delay."""
+        delay = 0
         if has_version_negotiation and packet_index == 0:
-            return 0
+            delay = 0
         elif packet_index <= (1 if has_version_negotiation else 0):
-            return random.randint(10, 50)
+            delay = random.randint(10, 50)
         else:
-            return random.randint(5, 25)
+            delay = random.randint(5, 25)
+
+        if delay > 0:
+            await asyncio.sleep(delay / 1000.0)
+        return delay
 
     def _get_quic_packet_type(self, packet_index: int, has_version_negotiation: bool) -> str:
         """Get QUIC packet type description."""

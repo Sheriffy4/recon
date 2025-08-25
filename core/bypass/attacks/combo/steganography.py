@@ -3,6 +3,7 @@ Steganography Combo Attacks
 
 Attacks that use steganographic techniques to hide data within legitimate traffic.
 """
+import asyncio
 import time
 import random
 import struct
@@ -32,7 +33,7 @@ class ImageSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute image steganography attack."""
         start_time = time.time()
         try:
@@ -44,6 +45,7 @@ class ImageSteganographyAttack(BaseAttack):
             segments = [(http_response, 0)]
             packets_sent = 1
             bytes_sent = len(http_response)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'image_format': image_format, 'steganography_method': steganography_method, 'original_payload_size': len(payload), 'fake_image_size': len(fake_image), 'total_size': len(http_response), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -172,7 +174,7 @@ class TCPTimestampSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TCP timestamp steganography attack."""
         start_time = time.time()
         try:
@@ -188,6 +190,7 @@ class TCPTimestampSteganographyAttack(BaseAttack):
             segments = [(packet, i * 10) for i, packet in enumerate(stego_packets)]
             packets_sent = len(stego_packets)
             bytes_sent = len(combined_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'encoding_method': encoding_method, 'chunk_count': len(chunks), 'original_size': len(payload), 'total_size': len(combined_payload), 'timestamp_base': timestamp_base, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -298,7 +301,7 @@ class IPIDSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP ID steganography attack."""
         start_time = time.time()
         try:
@@ -314,6 +317,7 @@ class IPIDSteganographyAttack(BaseAttack):
             segments = [(packet, i * 5) for i, packet in enumerate(stego_packets)]
             packets_sent = len(stego_packets)
             bytes_sent = len(combined_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'encoding_method': encoding_method, 'chunk_count': len(chunks), 'original_size': len(payload), 'total_size': len(combined_payload), 'base_id': base_id, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -423,7 +427,7 @@ class CombinedFieldSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute combined field steganography attack."""
         start_time = time.time()
         try:
@@ -440,6 +444,7 @@ class CombinedFieldSteganographyAttack(BaseAttack):
             segments = [(packet, i * 8) for i, packet in enumerate(stego_packets)]
             packets_sent = len(stego_packets)
             bytes_sent = len(combined_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'fields_used': fields, 'redundancy': redundancy, 'field_distribution': {field: len(chunks) for field, chunks in field_chunks.items()}, 'original_size': len(payload), 'total_size': len(combined_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -555,7 +560,7 @@ class NetworkProtocolSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute network protocol steganography attack."""
         start_time = time.time()
         try:
@@ -571,6 +576,7 @@ class NetworkProtocolSteganographyAttack(BaseAttack):
             segments = [(packet, i * 100) for i, packet in enumerate(stego_packets)]
             packets_sent = len(stego_packets)
             bytes_sent = len(combined_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'protocol': protocol, 'steganography_fields': steganography_fields, 'chunk_count': len(chunks), 'original_size': len(payload), 'total_size': len(combined_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -723,7 +729,7 @@ class TimingChannelSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute timing channel steganography attack."""
         start_time = time.time()
         try:
@@ -731,7 +737,7 @@ class TimingChannelSteganographyAttack(BaseAttack):
             encoding_method = context.params.get('encoding_method', 'binary')
             base_delay = context.params.get('base_delay', 100)
             bit_delay = context.params.get('bit_delay', 50)
-            timing_segments = self._encode_payload_in_timing(payload, encoding_method, base_delay, bit_delay)
+            timing_segments = await self._encode_payload_in_timing(payload, encoding_method, base_delay, bit_delay)
             total_bytes = sum((len(seg[0]) for seg in timing_segments))
             packets_sent = len(timing_segments)
             latency = (time.time() - start_time) * 1000
@@ -739,20 +745,20 @@ class TimingChannelSteganographyAttack(BaseAttack):
         except Exception as e:
             return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=(time.time() - start_time) * 1000)
 
-    def _encode_payload_in_timing(self, payload: bytes, method: str, base_delay: int, bit_delay: int) -> List[tuple]:
+    async def _encode_payload_in_timing(self, payload: bytes, method: str, base_delay: int, bit_delay: int) -> List[tuple]:
         """Encode payload data in timing patterns."""
         segments = []
         if method == 'binary':
-            segments = self._encode_binary_timing(payload, base_delay, bit_delay)
+            segments = await self._encode_binary_timing(payload, base_delay, bit_delay)
         elif method == 'morse':
-            segments = self._encode_morse_timing(payload, base_delay, bit_delay)
+            segments = await self._encode_morse_timing(payload, base_delay, bit_delay)
         elif method == 'interval':
-            segments = self._encode_interval_timing(payload, base_delay, bit_delay)
+            segments = await self._encode_interval_timing(payload, base_delay, bit_delay)
         else:
-            segments = self._encode_binary_timing(payload, base_delay, bit_delay)
+            segments = await self._encode_binary_timing(payload, base_delay, bit_delay)
         return segments
 
-    def _encode_binary_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
+    async def _encode_binary_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
         """Encode payload using binary timing (short delay = 0, long delay = 1)."""
         segments = []
         dummy_packet = b'\\x00\\x01\\x02\\x03'
@@ -765,12 +771,14 @@ class TimingChannelSteganographyAttack(BaseAttack):
                     delay = base_delay
                 else:
                     delay = base_delay + bit_delay
+                await asyncio.sleep(delay / 1000.0)
                 segments.append((dummy_packet, delay))
         end_packet = b'\\xff\\xfe\\xfd\\xfc'
+        await asyncio.sleep(base_delay * 2 / 1000.0)
         segments.append((end_packet, base_delay * 2))
         return segments
 
-    def _encode_morse_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
+    async def _encode_morse_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
         """Encode payload using Morse code timing patterns."""
         morse_map = {'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..', '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.', ' ': '/'}
         segments = []
@@ -791,11 +799,13 @@ class TimingChannelSteganographyAttack(BaseAttack):
                         delay = base_delay + bit_delay
                     else:
                         delay = base_delay + bit_delay * 2
+                    await asyncio.sleep(delay / 1000.0)
                     segments.append((dummy_packet, delay))
+                await asyncio.sleep(base_delay // 2 / 1000.0)
                 segments.append((random.randbytes(4), base_delay // 2))
         return segments
 
-    def _encode_interval_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
+    async def _encode_interval_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
         """Encode payload using interval timing (delay represents byte value)."""
         segments = []
         dummy_packet = b'\\x00\\x01\\x02\\x03'
@@ -803,8 +813,10 @@ class TimingChannelSteganographyAttack(BaseAttack):
         for byte in payload:
             dummy_packet = random.randbytes(4)
             delay = base_delay + byte * bit_delay // 10
+            await asyncio.sleep(delay / 1000.0)
             segments.append((dummy_packet, delay))
         end_packet = b'\\xff\\xfe\\xfd\\xfc'
+        await asyncio.sleep(base_delay / 1000.0)
         segments.append((end_packet, base_delay))
         return segments
 
@@ -830,7 +842,7 @@ class CovertChannelComboAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute covert channel combo attack."""
         start_time = time.time()
         try:
@@ -841,14 +853,14 @@ class CovertChannelComboAttack(BaseAttack):
             all_segments = []
             channel_results = {}
             for channel, channel_payload in channel_payloads.items():
-                channel_segments = self._create_covert_channel_packets(channel_payload, channel)
+                channel_segments = await self._create_covert_channel_packets(channel_payload, channel)
                 all_segments.extend(channel_segments)
                 channel_results[channel] = {'payload_size': len(channel_payload), 'packet_count': len(channel_segments)}
             interleaved_segments = self._interleave_channel_segments(all_segments, channels)
             total_bytes = sum((len(seg[0]) for seg in interleaved_segments))
             packets_sent = len(interleaved_segments)
             latency = (time.time() - start_time) * 1000
-            return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'channels_used': channels, 'redundancy_level': redundancy_level, 'channel_results': channel_results, 'original_size': len(payload), 'total_size': total_bytes, 'interleaved_packets': len(interleaved_segments), 'segments': interleaved_segments if context.engine_type != 'local' else None})
+            return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'channels_used': channels, 'redundancy_level': redundancy_level, 'channel_results': channel_results, 'original_size': len(payload), 'total_size': len(total_bytes), 'interleaved_packets': len(interleaved_segments), 'segments': interleaved_segments if context.engine_type != 'local' else None})
         except Exception as e:
             return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=(time.time() - start_time) * 1000)
 
@@ -868,10 +880,10 @@ class CovertChannelComboAttack(BaseAttack):
                 offset += size
         return channel_payloads
 
-    def _create_covert_channel_packets(self, payload: bytes, channel: str) -> List[tuple]:
+    async def _create_covert_channel_packets(self, payload: bytes, channel: str) -> List[tuple]:
         """Create packets for specific covert channel."""
         if channel == 'timing':
-            return self._create_timing_channel_packets(payload)
+            return await self._create_timing_channel_packets(payload)
         elif channel == 'protocol_fields':
             return self._create_protocol_field_packets(payload)
         elif channel == 'payload_lsb':
@@ -885,13 +897,14 @@ class CovertChannelComboAttack(BaseAttack):
                 segments.append((segment, random.randint(50, 150)))
             return segments
 
-    def _create_timing_channel_packets(self, payload: bytes) -> List[tuple]:
+    async def _create_timing_channel_packets(self, payload: bytes) -> List[tuple]:
         """Create timing-based covert channel packets."""
         segments = []
         base_delay = 100
         for byte in payload:
             dummy_packet = random.randbytes(8)
             delay = base_delay + byte * 2
+            await asyncio.sleep(delay / 1000.0)
             segments.append((dummy_packet, delay))
         return segments
 
@@ -963,10 +976,10 @@ class CovertChannelComboAttack(BaseAttack):
                 offset += size
         return channel_payloads
 
-    def _create_covert_channel_packets(self, payload: bytes, channel: str) -> List[tuple]:
+    async def _create_covert_channel_packets(self, payload: bytes, channel: str) -> List[tuple]:
         """Create covert channel packets for specific channel type."""
         if channel == 'timing':
-            return self._create_timing_channel_packets(payload)
+            return await self._create_timing_channel_packets(payload)
         elif channel == 'protocol_fields':
             return self._create_protocol_field_packets(payload)
         elif channel == 'payload_lsb':
@@ -1079,7 +1092,7 @@ class AdvancedImageSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'http']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced image steganography attack."""
         start_time = time.time()
         try:
@@ -1092,6 +1105,7 @@ class AdvancedImageSteganographyAttack(BaseAttack):
             segments = [(http_response, 0)]
             packets_sent = 1
             bytes_sent = len(http_response)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'image_format': image_format, 'steganography_method': steganography_method, 'image_size': image_size, 'original_payload_size': len(payload), 'stego_image_size': len(stego_image), 'total_size': len(http_response), 'capacity_used': len(payload) / self._calculate_image_capacity(image_size), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -1219,7 +1233,7 @@ class AdvancedProtocolFieldSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp', 'ip']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced protocol field steganography attack."""
         start_time = time.time()
         try:
@@ -1230,6 +1244,7 @@ class AdvancedProtocolFieldSteganographyAttack(BaseAttack):
             stego_packets = self._create_advanced_stego_packets(payload, protocol, fields, encoding)
             total_bytes = sum((len(packet) for packet, _ in stego_packets))
             packets_sent = len(stego_packets)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=total_bytes, connection_established=True, data_transmitted=True, metadata={'protocol': protocol, 'fields_used': fields, 'encoding_method': encoding, 'original_size': len(payload), 'packets_created': len(stego_packets), 'total_size': total_bytes, 'segments': stego_packets if context.engine_type != 'local' else None})
         except Exception as e:
@@ -1418,7 +1433,7 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced timing channel steganography attack."""
         start_time = time.time()
         try:
@@ -1427,7 +1442,7 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
             base_delay = context.params.get('base_delay', 100)
             bit_delay = context.params.get('bit_delay', 50)
             precision = context.params.get('precision', 'high')
-            timing_segments = self._encode_payload_with_advanced_timing(payload, encoding_method, base_delay, bit_delay, precision)
+            timing_segments = await self._encode_payload_with_advanced_timing(payload, encoding_method, base_delay, bit_delay, precision)
             total_bytes = sum((len(seg[0]) for seg in timing_segments))
             packets_sent = len(timing_segments)
             total_time = sum((seg[1] for seg in timing_segments))
@@ -1436,20 +1451,20 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
         except Exception as e:
             return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=(time.time() - start_time) * 1000)
 
-    def _encode_payload_with_advanced_timing(self, payload: bytes, method: str, base_delay: int, bit_delay: int, precision: str) -> List[tuple]:
+    async def _encode_payload_with_advanced_timing(self, payload: bytes, method: str, base_delay: int, bit_delay: int, precision: str) -> List[tuple]:
         """Encode payload using advanced timing patterns."""
         if method == 'binary':
-            return self._encode_advanced_binary_timing(payload, base_delay, bit_delay, precision)
+            return await self._encode_advanced_binary_timing(payload, base_delay, bit_delay, precision)
         elif method == 'differential':
-            return self._encode_differential_timing(payload, base_delay, bit_delay)
+            return await self._encode_differential_timing(payload, base_delay, bit_delay)
         elif method == 'frequency':
-            return self._encode_frequency_timing(payload, base_delay, bit_delay)
+            return await self._encode_frequency_timing(payload, base_delay, bit_delay)
         elif method == 'burst':
-            return self._encode_burst_timing(payload, base_delay, bit_delay)
+            return await self._encode_burst_timing(payload, base_delay, bit_delay)
         else:
-            return self._encode_advanced_binary_timing(payload, base_delay, bit_delay, precision)
+            return await self._encode_advanced_binary_timing(payload, base_delay, bit_delay, precision)
 
-    def _encode_advanced_binary_timing(self, payload: bytes, base_delay: int, bit_delay: int, precision: str) -> List[tuple]:
+    async def _encode_advanced_binary_timing(self, payload: bytes, base_delay: int, bit_delay: int, precision: str) -> List[tuple]:
         """Encode using advanced binary timing with jitter compensation."""
         segments = []
         if precision == 'high':
@@ -1469,12 +1484,14 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
                 else:
                     delay = base_delay + bit_delay + random.randint(-jitter_range, jitter_range)
                 delay = max(delay, 10)
+                await asyncio.sleep(delay / 1000.0)
                 segments.append((b'TIMING_BIT:' + carrier_data, delay))
         end_packet = b'SYNC_END___' + bytes([85, 170, 85, 170])
+        await asyncio.sleep(base_delay / 1000.0)
         segments.append((end_packet, base_delay))
         return segments
 
-    def _encode_differential_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
+    async def _encode_differential_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
         """Encode using differential timing (delay differences encode data)."""
         segments = []
         previous_delay = base_delay
@@ -1489,11 +1506,12 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
                     current_delay = previous_delay + bit_delay
                 current_delay = max(20, min(current_delay, 500))
                 carrier_packet = b'DIFF_BIT:' + bytes([random.randint(0, 255) for _ in range(8)])
+                await asyncio.sleep(current_delay / 1000.0)
                 segments.append((carrier_packet, current_delay))
                 previous_delay = current_delay
         return segments
 
-    def _encode_frequency_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
+    async def _encode_frequency_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
         """Encode using frequency-based timing patterns."""
         segments = []
         cal_packet = b'FREQ_CAL:' + bytes([170] * 8)
@@ -1505,10 +1523,11 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
             for i in range(frequency):
                 freq_packet = b'FREQ_DATA:' + bytes([byte, i]) + bytes([random.randint(0, 255) for _ in range(6)])
                 delay = packet_interval if i > 0 else base_delay
+                await asyncio.sleep(delay / 1000.0)
                 segments.append((freq_packet, delay))
         return segments
 
-    def _encode_burst_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
+    async def _encode_burst_timing(self, payload: bytes, base_delay: int, bit_delay: int) -> List[tuple]:
         """Encode using burst timing patterns."""
         segments = []
         start_packet = b'BURST_START' + bytes([187] * 4)
@@ -1522,6 +1541,7 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
                     delay = inter_burst_delay
                 else:
                     delay = 5
+                await asyncio.sleep(delay / 1000.0)
                 segments.append((burst_packet, delay))
         return segments
 

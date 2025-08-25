@@ -3,6 +3,7 @@ HTTP Header Manipulation Attacks
 
 Attacks that manipulate HTTP headers to evade DPI detection.
 """
+import asyncio
 import time
 import random
 from typing import List
@@ -31,7 +32,7 @@ class HTTPHeaderCaseAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP header case attack."""
         start_time = time.time()
         try:
@@ -59,6 +60,7 @@ class HTTPHeaderCaseAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'case_strategy': case_strategy, 'original_size': len(payload), 'modified_size': len(modified_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -110,7 +112,7 @@ class HTTPHeaderOrderAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP header order attack."""
         start_time = time.time()
         try:
@@ -136,6 +138,7 @@ class HTTPHeaderOrderAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'headers_count': len(headers), 'headers_shuffled': True, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -163,7 +166,7 @@ class HTTPHeaderInjectionAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP header injection attack."""
         start_time = time.time()
         try:
@@ -185,6 +188,7 @@ class HTTPHeaderInjectionAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'fake_headers_count': len(fake_headers), 'original_size': len(payload), 'modified_size': len(modified_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -212,7 +216,7 @@ class HTTPHostHeaderAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP Host header attack."""
         start_time = time.time()
         try:
@@ -244,6 +248,7 @@ class HTTPHostHeaderAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'manipulation_type': manipulation_type, 'host_found': host_found, 'fake_host': fake_host.decode('utf-8', errors='ignore'), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:

@@ -5,6 +5,7 @@ Migrated from:
 - apply_noise_injection (core/fast_bypass.py)
 - apply_decoy_packets (core/fast_bypass.py)
 """
+import asyncio
 import time
 import random
 from recon.core.bypass.attacks.base import PayloadAttack, AttackContext, AttackResult, AttackStatus
@@ -27,7 +28,7 @@ class NoiseInjectionAttack(PayloadAttack):
     def description(self) -> str:
         return 'Injects random noise bytes into payload'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute noise injection attack."""
         start_time = time.time()
         try:
@@ -45,6 +46,7 @@ class NoiseInjectionAttack(PayloadAttack):
                 segments = [(noisy1, 0, {'noise_injected': True}), (noisy2, split_pos, {'noise_injected': True})]
             packets_sent = len(segments)
             bytes_sent = sum((len(seg[0]) for seg in segments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'noise_ratio': noise_ratio, 'original_size': len(payload), 'final_size': bytes_sent, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -78,7 +80,7 @@ class DecoyPacketsAttack(PayloadAttack):
     def description(self) -> str:
         return 'Generates decoy packets to confuse DPI systems'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute decoy packets attack."""
         start_time = time.time()
         try:
@@ -100,6 +102,7 @@ class DecoyPacketsAttack(PayloadAttack):
                 segments.append((part2, split_pos, {'decoy': False}))
             packets_sent = len(segments)
             bytes_sent = sum((len(seg[0]) for seg in segments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'decoy_count': decoy_count, 'real_packets': len([s for s in segments if not s[2].get('decoy', False)]), 'decoy_packets': len([s for s in segments if s[2].get('decoy', False)]), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -123,7 +126,7 @@ class PayloadPaddingAttack(PayloadAttack):
     def description(self) -> str:
         return 'Adds padding to payload to change its size'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute payload padding attack."""
         start_time = time.time()
         try:
@@ -143,6 +146,7 @@ class PayloadPaddingAttack(PayloadAttack):
             segments = [(padded_payload, 0, {'padded': True, 'padding_size': padding_size})]
             packets_sent = 1
             bytes_sent = len(padded_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'padding_size': padding_size, 'padding_type': padding_type, 'original_size': len(payload), 'padded_size': len(padded_payload), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
