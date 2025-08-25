@@ -7,9 +7,9 @@ with the enhanced factory for improved error handling and validation.
 from typing import Optional, Union
 import platform
 import logging
-from recon.core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineType
-from recon.core.bypass.engines.external_tool_engine import ExternalToolEngine
-from recon.core.bypass.engines.native_pydivert_engine import NativePydivertEngine
+from core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineType
+from core.bypass.engines.external_tool_engine import ExternalToolEngine
+from core.bypass.engines.native_pydivert_engine import NativePydivertEngine
 LOG = logging.getLogger('EngineFactory')
 
 def create_engine(engine_type: EngineType, config: Optional[EngineConfig]=None) -> BaseBypassEngine:
@@ -57,7 +57,7 @@ def detect_best_engine() -> EngineType:
         Best available engine type
     """
     try:
-        from recon.core.bypass.engines.engine_type_detector import get_recommended_engine
+        from core.bypass.engines.engine_type_detector import get_recommended_engine
         return get_recommended_engine()
     except ImportError:
         LOG.debug('Enhanced detector not available, using fallback detection')
@@ -108,7 +108,7 @@ def create_engine_with_validation(engine_type: Optional[Union[str, EngineType]]=
         Various engine creation errors with detailed messages
     """
     try:
-        from recon.core.bypass.engines.enhanced_factory import create_engine_enhanced
+        from core.bypass.engines.enhanced_factory import create_engine_enhanced
         return create_engine_enhanced(engine_type, config, **kwargs)
     except ImportError:
         LOG.warning('Enhanced factory not available, falling back to original implementation')

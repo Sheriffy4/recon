@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, asdict, fields
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from recon.core.bypass.engines.base import EngineType, EngineConfig, BaseBypassEngine
+from core.bypass.engines.base import EngineType, EngineConfig, BaseBypassEngine
 LOG = logging.getLogger('ConfigModels')
 
 class SerializationFormat(Enum):

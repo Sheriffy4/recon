@@ -10,8 +10,8 @@ Migrated and unified from:
 import time
 import os
 import random
-from recon.core.bypass.attacks.base import ManipulationAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import ManipulationAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 
 @register_attack
 class TCPWindowScalingAttack(ManipulationAttack):

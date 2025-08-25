@@ -14,7 +14,7 @@ except ImportError as e:
     logging.warning(f'Full performance optimizer not available: {e}')
 if not PERFORMANCE_OPTIMIZER_AVAILABLE:
     try:
-        from recon.core.integration.simple_performance_optimizer import SimplePerformanceOptimizer, SimplePerformanceProfile
+        from core.integration.simple_performance_optimizer import SimplePerformanceOptimizer, SimplePerformanceProfile
         SIMPLE_PERFORMANCE_OPTIMIZER_AVAILABLE = True
     except ImportError as e:
         SIMPLE_PERFORMANCE_OPTIMIZER_AVAILABLE = False
@@ -178,13 +178,13 @@ class BypassPerformanceIntegrator:
         """Optimize bypass-specific caches."""
         try:
             try:
-                from recon.core.integration.strategy_prediction_integration import get_strategy_integrator
+                from core.integration.strategy_prediction_integration import get_strategy_integrator
                 strategy_integrator = get_strategy_integrator()
                 strategy_integrator.clear_cache()
             except Exception as e:
                 LOG.debug(f'Could not clear strategy cache: {e}')
             try:
-                from recon.core.integration.fingerprint_integration import get_fingerprint_integrator
+                from core.integration.fingerprint_integration import get_fingerprint_integrator
                 fingerprint_integrator = get_fingerprint_integrator()
                 fingerprint_integrator.clear_cache()
             except Exception as e:

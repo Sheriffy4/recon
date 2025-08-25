@@ -8,11 +8,11 @@ Tests all timing attack implementations:
 - Burst traffic generation attacks
 """
 import pytest
-from recon.base import AttackContext, AttackResult, AttackStatus
-from recon.tests.timing_base import TimingAttackBase, TimingConfiguration, TimingResult, TimingPattern
-from recon.tests.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
-from recon.tests.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
-from recon.tests.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType, BurstTiming
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from tests.timing_base import TimingAttackBase, TimingConfiguration, TimingResult, TimingPattern
+from tests.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
+from tests.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
+from tests.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType, BurstTiming
 from recon.timing_controller import TimingStrategy, PreciseTimingController
 
 class TestTimingBase:

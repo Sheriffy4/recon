@@ -1,8 +1,8 @@
 # tests/fingerprint/test_dpi_behavior_analyzer.py
 import pytest
 from unittest.mock import patch, AsyncMock
-from recon.core.fingerprint.dpi_behavior_analyzer import DPIBehaviorAnalyzer
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
+from core.fingerprint.dpi_behavior_analyzer import DPIBehaviorAnalyzer
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 
 pytest_plugins = ("pytest_asyncio",)
 

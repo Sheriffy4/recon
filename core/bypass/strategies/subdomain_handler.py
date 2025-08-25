@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from enum import Enum
 from pathlib import Path
 try:
-    from recon.core.bypass.strategies.pool_management import BypassStrategy, StrategyPool, StrategyPoolManager
+    from core.bypass.strategies.pool_management import BypassStrategy, StrategyPool, StrategyPoolManager
 except ImportError:
     import sys
     import os

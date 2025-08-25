@@ -9,8 +9,8 @@ from abc import abstractmethod
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from enum import Enum
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.timing_controller import PreciseTimingController, TimingStrategy, TimingMeasurement
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.timing_controller import PreciseTimingController, TimingStrategy, TimingMeasurement
 
 class TimingPattern(Enum):
     """Types of timing patterns for attacks."""

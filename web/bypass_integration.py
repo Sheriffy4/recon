@@ -144,7 +144,7 @@ if __name__ == '__main__':
         try:
             integration = create_bypass_integration()
             pool_manager = integration.get_pool_manager()
-            from recon.core.bypass.strategies.pool_management import BypassStrategy
+            from core.bypass.strategies.pool_management import BypassStrategy
             test_strategy = BypassStrategy(id='test_strategy', name='Test Strategy', attacks=['tcp_fragmentation', 'http_manipulation'], parameters={'split_pos': 3})
             pool = pool_manager.create_pool(name='Test Pool', strategy=test_strategy, description='Test pool for web integration')
             pool_manager.add_domain_to_pool(pool.id, 'example.com')

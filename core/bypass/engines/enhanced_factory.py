@@ -3,12 +3,12 @@ Enhanced Engine Factory with comprehensive validation, error handling, and recov
 """
 from typing import Optional, Dict, Any, List, Union
 import logging
-from recon.core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineType
-from recon.core.bypass.engines.factory import create_engine as _original_create_engine
-from recon.core.bypass.engines.engine_type_detector import get_engine_type_detector
-from recon.core.bypass.engines.engine_validator import get_engine_validator
-from recon.core.bypass.engines.engine_config_manager import get_engine_config_manager
-from recon.core.bypass.engines.error_handling import get_error_handler, ErrorContext, BaseEngineError, EngineCreationError as StructuredEngineCreationError, create_error_from_exception
+from core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineType
+from core.bypass.engines.factory import create_engine as _original_create_engine
+from core.bypass.engines.engine_type_detector import get_engine_type_detector
+from core.bypass.engines.engine_validator import get_engine_validator
+from core.bypass.engines.engine_config_manager import get_engine_config_manager
+from core.bypass.engines.error_handling import get_error_handler, ErrorContext, BaseEngineError, EngineCreationError as StructuredEngineCreationError, create_error_from_exception
 LOG = logging.getLogger('EnhancedEngineFactory')
 
 class EngineCreationError(Exception):
@@ -30,7 +30,7 @@ class DependencyError(EngineCreationError):
 class PermissionError(EngineCreationError):
     """Raised when insufficient permissions are available."""
     pass
-from recon.core.bypass.engines.config_models import EngineCreationRequest, EngineCreationResult, EnhancedEngineConfig, ValidationResult, SerializationFormat
+from core.bypass.engines.config_models import EngineCreationRequest, EngineCreationResult, EnhancedEngineConfig, ValidationResult, SerializationFormat
 
 class EnhancedEngineFactory:
     """
@@ -397,7 +397,7 @@ class EnhancedEngineFactory:
         Returns:
             Validation result
         """
-        from recon.core.bypass.engines.config_models import validate_config_file
+        from core.bypass.engines.config_models import validate_config_file
         return validate_config_file(file_path)
 
     def create_enhanced_config(self, **kwargs) -> EnhancedEngineConfig:
@@ -419,7 +419,7 @@ class EnhancedEngineFactory:
         Returns:
             Serializable state information
         """
-        from recon.core.bypass.engines.config_models import ConfigurationState
+        from core.bypass.engines.config_models import ConfigurationState
         config_info = self.get_configuration_info()
         state = ConfigurationState(loaded_from=[], config_files=config_info.get('config_files', []), validation_errors=config_info.get('validation_errors', []), warnings=config_info.get('warnings', []), profiles_count=len(config_info.get('profiles', {})), global_config_keys=list(config_info.get('global_config', {}).keys()), overrides_count=len(config_info.get('overrides', {})))
         return state.to_dict()

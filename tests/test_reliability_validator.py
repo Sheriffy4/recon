@@ -15,7 +15,7 @@ import pytest
 import time
 from unittest.mock import Mock, patch, AsyncMock
 
-from reliability_validator import (
+from core.bypass.validation.reliability_validator import (
     ReliabilityValidator,
     ValidationMethod,
     ValidationResult,

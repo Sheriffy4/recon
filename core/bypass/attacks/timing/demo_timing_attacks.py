@@ -10,11 +10,11 @@ Demonstrates all timing attack implementations:
 import asyncio
 import time
 import logging
-from recon.core.bypass.attacks.base import AttackContext
-from recon.core.bypass.attacks.timing.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
-from recon.core.bypass.attacks.timing.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
-from recon.core.bypass.attacks.timing.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType, BurstTiming
-from recon.core.bypass.attacks.timing_controller import TimingStrategy, get_timing_controller
+from core.bypass.attacks.base import AttackContext
+from core.bypass.attacks.timing.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
+from core.bypass.attacks.timing.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
+from core.bypass.attacks.timing.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType, BurstTiming
+from core.bypass.attacks.timing_controller import TimingStrategy, get_timing_controller
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 

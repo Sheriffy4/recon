@@ -6,8 +6,8 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock
-from recon.core.bypass.sharing.sharing_manager import SharingManager
-from recon.core.bypass.sharing.sharing_models import SharedStrategy, ShareLevel, ValidationStatus, TrustLevel
+from core.bypass.sharing.sharing_manager import SharingManager
+from core.bypass.sharing.sharing_models import SharedStrategy, ShareLevel, ValidationStatus, TrustLevel
 
 class SharingSystemDemo:
     """Demonstrates the complete strategy sharing system."""
@@ -83,7 +83,7 @@ class SharingSystemDemo:
         """Demonstrate strategy validation system."""
         print('\n🔒 Strategy Validation System')
         print('-' * 30)
-        from recon.core.bypass.sharing.strategy_validator import StrategyValidator
+        from core.bypass.sharing.strategy_validator import StrategyValidator
         validator = StrategyValidator()
         valid_strategy = SharedStrategy(id='demo_valid', name='Valid Demo Strategy', description='A properly formatted strategy', strategy_data={'attacks': ['tcp_fragment', 'http_header_modify'], 'parameters': {'mss': 1200, 'header': 'User-Agent'}}, author='demo_user', version='1.0.0', share_level=ShareLevel.COMMUNITY, validation_status=ValidationStatus.PENDING, trust_score=0.0, success_reports=15, failure_reports=3)
         print('Validating a well-formed strategy...')

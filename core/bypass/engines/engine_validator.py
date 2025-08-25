@@ -7,8 +7,8 @@ import platform
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from recon.core.bypass.engines.base import EngineType, EngineConfig
-from recon.core.bypass.engines.engine_type_detector import get_engine_type_detector
+from core.bypass.engines.base import EngineType, EngineConfig
+from core.bypass.engines.engine_type_detector import get_engine_type_detector
 LOG = logging.getLogger('EngineValidator')
 
 class ValidationSeverity(Enum):

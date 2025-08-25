@@ -13,8 +13,8 @@ from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 from enum import Enum
 try:
-    from recon.core.bypass.strategies.pool_management import StrategyPool, StrategyPoolManager, BypassStrategy, DomainRule
-    from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.strategies.pool_management import StrategyPool, StrategyPoolManager, BypassStrategy, DomainRule
+    from core.bypass.attacks.modern_registry import ModernAttackRegistry
 except ImportError:
     import sys
     import os

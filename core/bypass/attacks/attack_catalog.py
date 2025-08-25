@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from enum import Enum
-from recon.core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
+from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
 LOG = logging.getLogger('AttackCatalog')
 
 class ExternalTool(Enum):

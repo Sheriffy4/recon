@@ -22,7 +22,7 @@ try:
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
-from recon.core.fingerprint.ml_classifier import MLClassifier
+from core.fingerprint.ml_classifier import MLClassifier
 LOG = logging.getLogger('online_learning')
 
 class LearningMode(Enum):
@@ -216,7 +216,7 @@ class OnlineLearningSystem:
                 LOG.debug('No training data for incremental update')
                 return
             pre_update_performance = self._evaluate_current_performance()
-            from recon.core.fingerprint.model_trainer import ModelTrainer
+            from core.fingerprint.model_trainer import ModelTrainer
             trainer = ModelTrainer(self.ml_classifier.model_path)
             try:
                 existing_data = trainer.prepare_training_data(include_synthetic=False)
@@ -268,7 +268,7 @@ class OnlineLearningSystem:
         """Trigger full model retraining due to performance degradation."""
         LOG.info('Triggering full model retraining due to performance degradation')
         try:
-            from recon.core.fingerprint.model_trainer import ModelTrainer
+            from core.fingerprint.model_trainer import ModelTrainer
             trainer = ModelTrainer(self.ml_classifier.model_path)
             recent_examples = []
             for example in self.learning_buffer:

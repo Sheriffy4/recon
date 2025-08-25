@@ -7,7 +7,7 @@ import pytest
 import time
 from datetime import datetime
 from unittest.mock import Mock
-from recon.core.fingerprint.dpi_behavior_monitor import MonitoringConfig, PerformanceMonitor, BehaviorAnalyzer, AlertSeverity, MonitoringState, BehaviorChange, MonitoringAlert
+from core.fingerprint.dpi_behavior_monitor import MonitoringConfig, PerformanceMonitor, BehaviorAnalyzer, AlertSeverity, MonitoringState, BehaviorChange, MonitoringAlert
 
 def test_monitoring_config_creation():
     """Test monitoring configuration creation"""

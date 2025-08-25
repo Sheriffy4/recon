@@ -14,7 +14,7 @@ if __name__ == "__main__" and __package__ is None:
 
     __package__ = "recon"
 
-from recon.core.signature_manager import SignatureManager
+from core.signature_manager import SignatureManager
 from recon.web.dashboard import ReconDashboard
 from recon.recon_service import ReconService
 

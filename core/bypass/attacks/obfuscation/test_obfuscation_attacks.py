@@ -5,13 +5,13 @@ Tests all obfuscation attack implementations to ensure they work correctly
 and provide the expected obfuscation capabilities.
 """
 import time
-from recon.core.bypass.attacks.base import AttackContext, AttackStatus
-from recon.core.bypass.attacks.obfuscation.protocol_tunneling import HTTPTunnelingObfuscationAttack, DNSOverHTTPSTunnelingAttack, WebSocketTunnelingObfuscationAttack, SSHTunnelingObfuscationAttack, VPNTunnelingObfuscationAttack
-from recon.core.bypass.attacks.obfuscation.payload_encryption import XORPayloadEncryptionAttack, AESPayloadEncryptionAttack, ChaCha20PayloadEncryptionAttack, MultiLayerEncryptionAttack
-from recon.core.bypass.attacks.obfuscation.protocol_mimicry import HTTPProtocolMimicryAttack, TLSProtocolMimicryAttack, SMTPProtocolMimicryAttack, FTPProtocolMimicryAttack
-from recon.core.bypass.attacks.obfuscation.icmp_obfuscation import ICMPDataTunnelingObfuscationAttack, ICMPTimestampTunnelingObfuscationAttack, ICMPRedirectTunnelingObfuscationAttack, ICMPCovertChannelObfuscationAttack
-from recon.core.bypass.attacks.obfuscation.quic_obfuscation import QUICFragmentationObfuscationAttack
-from recon.core.bypass.attacks.obfuscation.traffic_obfuscation import TrafficPatternObfuscationAttack, PacketSizeObfuscationAttack, TimingObfuscationAttack, FlowObfuscationAttack
+from core.bypass.attacks.base import AttackContext, AttackStatus
+from core.bypass.attacks.obfuscation.protocol_tunneling import HTTPTunnelingObfuscationAttack, DNSOverHTTPSTunnelingAttack, WebSocketTunnelingObfuscationAttack, SSHTunnelingObfuscationAttack, VPNTunnelingObfuscationAttack
+from core.bypass.attacks.obfuscation.payload_encryption import XORPayloadEncryptionAttack, AESPayloadEncryptionAttack, ChaCha20PayloadEncryptionAttack, MultiLayerEncryptionAttack
+from core.bypass.attacks.obfuscation.protocol_mimicry import HTTPProtocolMimicryAttack, TLSProtocolMimicryAttack, SMTPProtocolMimicryAttack, FTPProtocolMimicryAttack
+from core.bypass.attacks.obfuscation.icmp_obfuscation import ICMPDataTunnelingObfuscationAttack, ICMPTimestampTunnelingObfuscationAttack, ICMPRedirectTunnelingObfuscationAttack, ICMPCovertChannelObfuscationAttack
+from core.bypass.attacks.obfuscation.quic_obfuscation import QUICFragmentationObfuscationAttack
+from core.bypass.attacks.obfuscation.traffic_obfuscation import TrafficPatternObfuscationAttack, PacketSizeObfuscationAttack, TimingObfuscationAttack, FlowObfuscationAttack
 
 class TestProtocolTunnelingAttacks:
     """Test protocol tunneling obfuscation attacks."""

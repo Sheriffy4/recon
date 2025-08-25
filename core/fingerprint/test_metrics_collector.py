@@ -9,8 +9,8 @@ import asyncio
 import time
 from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any
-from recon.core.fingerprint.metrics_collector import MetricsCollector, TimingMetricsCollector, NetworkMetricsCollector, ProtocolMetricsCollector, BaseMetricsCollector, TimingMetrics, NetworkMetrics, ProtocolMetrics, ComprehensiveMetrics
-from recon.core.fingerprint.advanced_models import MetricsCollectionError
+from core.fingerprint.metrics_collector import MetricsCollector, TimingMetricsCollector, NetworkMetricsCollector, ProtocolMetricsCollector, BaseMetricsCollector, TimingMetrics, NetworkMetrics, ProtocolMetrics, ComprehensiveMetrics
+from core.fingerprint.advanced_models import MetricsCollectionError
 
 class TestTimingMetrics(unittest.TestCase):
     """Test TimingMetrics data structure"""

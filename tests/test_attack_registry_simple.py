@@ -7,9 +7,9 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
-from recon.tests.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, TestCase
-from recon.tests.modern_registry import ModernAttackRegistry, TestResult
-from recon.tests.base import BaseAttack, AttackResult, AttackContext, AttackStatus
+from tests.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, TestCase
+from tests.modern_registry import ModernAttackRegistry, TestResult
+from tests.base import BaseAttack, AttackResult, AttackContext, AttackStatus
 
 class MockAttack(BaseAttack):
     """Mock attack class for testing."""

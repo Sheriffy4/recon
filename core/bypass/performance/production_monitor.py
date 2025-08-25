@@ -7,7 +7,7 @@ import time
 from typing import Dict, List, Optional, Any, Callable
 from datetime import datetime, timedelta
 from collections import deque
-from recon.core.bypass.performance.performance_models import SystemHealth, PerformanceMetrics, Alert, AlertSeverity, ProductionConfig
+from core.bypass.performance.performance_models import SystemHealth, PerformanceMetrics, Alert, AlertSeverity, ProductionConfig
 
 class ProductionMonitor:
     """Production monitoring and health checking system."""
@@ -44,7 +44,7 @@ class ProductionMonitor:
         """Monitor system health continuously."""
         while self.monitoring_active:
             try:
-                from recon.core.bypass.performance.performance_optimizer import PerformanceOptimizer
+                from core.bypass.performance.performance_optimizer import PerformanceOptimizer
                 optimizer = PerformanceOptimizer()
                 health = await optimizer.get_system_health()
                 self.health_history.append(health)
@@ -58,7 +58,7 @@ class ProductionMonitor:
         """Monitor performance metrics continuously."""
         while self.monitoring_active:
             try:
-                from recon.core.bypass.performance.performance_optimizer import PerformanceOptimizer
+                from core.bypass.performance.performance_optimizer import PerformanceOptimizer
                 optimizer = PerformanceOptimizer()
                 metrics = await optimizer.collect_performance_metrics()
                 await self._check_performance_alerts(metrics)

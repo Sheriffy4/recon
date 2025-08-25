@@ -6,8 +6,8 @@ import pydivert
 import logging
 import random
 from typing import Tuple, Dict, Any, Union
-from recon.core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
-from recon.core.packet_builder import EnhancedPacketBuilder
+from core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
+from core.packet_builder import EnhancedPacketBuilder
 from core.windivert_filter import WinDivertFilterGenerator
 LOG = logging.getLogger('PacketExecutor')
 

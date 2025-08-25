@@ -12,7 +12,7 @@ import zlib
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
-from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
 
 class ObfuscationMethod(Enum):
     """Different obfuscation methods."""

@@ -5,7 +5,7 @@ import threading
 from typing import Dict, Type, Optional, List, Any, Set
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from recon.core.bypass.attacks.base import BaseAttack
+    from core.bypass.attacks.base import BaseAttack
 LOG = logging.getLogger('AttackRegistry')
 
 class AttackRegistry:
@@ -45,7 +45,7 @@ class AttackRegistry:
         try:
             sig = inspect.signature(attack_class.__init__)
             if 'attack_adapter' in sig.parameters:
-                from recon.integration.attack_adapter import AttackAdapter
+                from core.integration.attack_adapter import AttackAdapter
                 adapter_instance = AttackAdapter()
                 return attack_class(attack_adapter=adapter_instance)
             else:

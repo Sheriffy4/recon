@@ -99,7 +99,7 @@ class FingerprintIntegrator:
             behavior_profile = fingerprint.behavior_profile
         result = FingerprintResult(domain=domain, target_ip=target_ip, dpi_type=getattr(fingerprint, 'dpi_type', 'unknown'), behavior_profile=behavior_profile, confidence=getattr(fingerprint, 'confidence', 0.5), fingerprint_data=self._extract_fingerprint_data(fingerprint), timestamp=datetime.now())
         try:
-            from recon.core.integration.performance_integration import get_performance_integrator
+            from core.integration.performance_integration import get_performance_integrator
             perf_integrator = get_performance_integrator()
             perf_integrator.record_fingerprint_created()
         except Exception:

@@ -9,9 +9,9 @@ import time
 import ssl
 import logging
 from typing import Optional, Tuple
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.domain_tester import test_domain_accessibility_sync
-from recon.core.bypass.attacks.bypass_tester import test_bypass_effectiveness_sync
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.domain_tester import test_domain_accessibility_sync
+from core.bypass.attacks.bypass_tester import test_bypass_effectiveness_sync
 LOG = logging.getLogger('NetworkTester')
 
 class NetworkTester:

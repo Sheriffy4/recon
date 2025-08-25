@@ -5,8 +5,8 @@ import asyncio
 import tempfile
 from pathlib import Path
 try:
-    from recon.core.bypass.analytics.analytics_engine import AnalyticsEngine
-    from recon.core.bypass.analytics.analytics_models import MetricType
+    from core.bypass.analytics.analytics_engine import AnalyticsEngine
+    from core.bypass.analytics.analytics_models import MetricType
 except ImportError:
     import sys
     import os

@@ -5,12 +5,12 @@ Shows how to use all safety components together for secure attack execution.
 import time
 import logging
 import asyncio
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.safety.safety_controller import SafetyController, SafetyConfiguration
-from recon.core.bypass.safety.resource_manager import ResourceLimits
-from recon.core.bypass.safety.attack_sandbox import SandboxConstraints
-from recon.core.bypass.safety.safety_validator import ValidationLevel
-from recon.core.bypass.safety.exceptions import SafetyError, AttackTimeoutError, SandboxViolationError
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.safety.safety_controller import SafetyController, SafetyConfiguration
+from core.bypass.safety.resource_manager import ResourceLimits
+from core.bypass.safety.attack_sandbox import SandboxConstraints
+from core.bypass.safety.safety_validator import ValidationLevel
+from core.bypass.safety.exceptions import SafetyError, AttackTimeoutError, SandboxViolationError
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 LOG = logging.getLogger('SafetyDemo')
 

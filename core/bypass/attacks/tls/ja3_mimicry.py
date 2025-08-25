@@ -1,10 +1,10 @@
 import time
 import hashlib
 from typing import List, Dict, Optional
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
-from recon.core.protocols.tls import TLSParser
-from recon.core.fingerprint.profiles import CoherentProfile, get_profile as get_coherent_profile
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
+from core.protocols.tls import TLSParser
+from core.fingerprint.profiles import CoherentProfile, get_profile as get_coherent_profile
 try:
     from scapy.layers.tls.all import TLS, TLSClientHello, TLSExtension, TLSExtServerName, ServerName, TLSExtECPointsFormats, TLSExtSupportedGroups, TLSExtALPN, ALPNProtocol, TLSExtSignatureAlgs, TLSExtKeyShare, KeyShareEntry, TLSExtRenegotiationInfo, TLSExtExtendedMasterSecret, TLSExtSessionTicket, TLSExtStatusRequest, TLSExtSignedCertificateTimestamp, TLSExtSupportedVersions, TLSExtPSKKeyExchangeModes
     from scapy.config import conf

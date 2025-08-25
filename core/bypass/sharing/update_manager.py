@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import logging
-from recon.core.bypass.sharing.sharing_models import TrustedSource, SharedStrategy, SyncResult, TrustLevel, ValidationStatus, ShareLevel
-from recon.core.bypass.sharing.strategy_validator import StrategyValidator
-from recon.core.bypass.sharing.community_database import CommunityDatabase
+from core.bypass.sharing.sharing_models import TrustedSource, SharedStrategy, SyncResult, TrustLevel, ValidationStatus, ShareLevel
+from core.bypass.sharing.strategy_validator import StrategyValidator
+from core.bypass.sharing.community_database import CommunityDatabase
 
 class UpdateManager:
     """Manages automatic updates from trusted strategy sources."""

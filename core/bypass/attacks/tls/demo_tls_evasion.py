@@ -12,8 +12,8 @@ import struct
 # Add the recon directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../../.."))
 
-from recon.core.bypass.attacks.base import AttackContext, AttackStatus
-from recon.core.bypass.attacks.tls.tls_evasion import (
+from core.bypass.attacks.base import AttackContext, AttackStatus
+from core.bypass.attacks.tls.tls_evasion import (
     TLSHandshakeManipulationAttack,
     TLSVersionDowngradeAttack,
     TLSExtensionManipulationAttack,

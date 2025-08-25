@@ -5,8 +5,8 @@ import logging
 import asyncio
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field, asdict
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.packet_builder import EnhancedPacketBuilder
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.packet_builder import EnhancedPacketBuilder
 LOG = logging.getLogger('ZapretStrategy')
 
 @dataclass
@@ -84,7 +84,7 @@ class ZapretStrategy(BaseAttack):
             basic_result = await asyncio.to_thread(self.execute, context)
             if basic_result.status != AttackStatus.SUCCESS:
                 return basic_result
-            from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+            from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
             tester = RealEffectivenessTester(timeout=context.timeout)
             try:
                 baseline = await tester.test_baseline(context.domain or context.dst_ip, context.dst_port)
@@ -251,7 +251,7 @@ def create_zapret_strategy(split_seqovl: int=297, ttl: int=51, repeats: int=10, 
     config = ZapretConfig(split_seqovl=split_seqovl, base_ttl=ttl, repeats=repeats, auto_ttl=auto_ttl, **kwargs)
     return ZapretStrategy(config)
 try:
-    from recon.core.bypass.attacks.registry import register_attack
+    from core.bypass.attacks.registry import register_attack
     register_attack(ZapretStrategy)
     LOG.info('ZapretStrategy registered successfully')
 except ImportError:

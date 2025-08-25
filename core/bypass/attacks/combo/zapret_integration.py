@@ -9,9 +9,9 @@ import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 try:
-    from recon.core.bypass.attacks.combo.zapret_strategy import ZapretStrategy, ZapretConfig, create_zapret_strategy
-    from recon.core.bypass.attacks.combo.native_combo_engine import get_global_combo_engine, ComboRule, ComboMode, ComboTiming
-    from recon.core.bypass.attacks.base import AttackContext, AttackResult
+    from core.bypass.attacks.combo.zapret_strategy import ZapretStrategy, ZapretConfig, create_zapret_strategy
+    from core.bypass.attacks.combo.native_combo_engine import get_global_combo_engine, ComboRule, ComboMode, ComboTiming
+    from core.bypass.attacks.base import AttackContext, AttackResult
 except ImportError:
     from enum import Enum
     from dataclasses import dataclass

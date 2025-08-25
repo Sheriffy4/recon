@@ -9,7 +9,7 @@ import logging
 import platform
 from enum import Enum
 from dataclasses import dataclass, field
-from recon.core.bypass.engines.base import EngineType
+from core.bypass.engines.base import EngineType
 LOG = logging.getLogger('EngineErrorHandling')
 
 class ErrorCategory(Enum):

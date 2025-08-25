@@ -4,7 +4,7 @@ import time
 from unittest.mock import Mock, AsyncMock, patch
 from core.hybrid_engine import HybridEngine
 from core.bypass.strategies.pool_management import BypassStrategy
-from recon.fingerprint.advanced_models import DPIFingerprint
+from core.fingerprint.advanced_models import DPIFingerprint
 import logging
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger(__name__)

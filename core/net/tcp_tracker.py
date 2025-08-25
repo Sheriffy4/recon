@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Dict, Tuple, Optional
 import time
-from recon.core.net.byte_packet import TCPPacket, IPv4Packet
+from core.net.byte_packet import TCPPacket, IPv4Packet
 
 class TCPState(Enum):
     """Состояния TCP-соединения"""

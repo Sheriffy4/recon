@@ -100,7 +100,7 @@ class MonitoringWebServer:
 
     async def api_get_config(self, request: Request) -> Response:
         """API: Получить конфигурацию."""
-        from recon.core.monitoring_system import asdict
+        from core.monitoring_system import asdict
         config_dict = asdict(self.monitoring_system.config)
         return web.json_response(config_dict)
 

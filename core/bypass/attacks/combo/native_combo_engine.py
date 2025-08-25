@@ -13,8 +13,8 @@ from enum import Enum
 import importlib
 import inspect
 try:
-    from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-    from recon.core.bypass.attacks.combo.zapret_strategy import ZapretStrategy, ZapretConfig
+    from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+    from core.bypass.attacks.combo.zapret_strategy import ZapretStrategy, ZapretConfig
 except ImportError:
     from enum import Enum
     from dataclasses import dataclass

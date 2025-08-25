@@ -12,8 +12,8 @@ import math
 import time
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult
 
 class JitterType:
     """Types of jitter patterns."""

@@ -7,9 +7,9 @@ actual bypass effectiveness on blocked domains.
 import asyncio
 import logging
 from typing import Dict, Any, Tuple, Optional
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.domain_tester import DomainTester
-from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.domain_tester import DomainTester
+from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
 LOG = logging.getLogger('BypassTester')
 
 class BypassTester:

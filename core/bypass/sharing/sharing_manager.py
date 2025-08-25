@@ -8,10 +8,10 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import logging
 import uuid
-from recon.core.bypass.sharing.sharing_models import SharedStrategy, StrategyPackage, StrategyFeedback, SharingConfig, ShareLevel, ValidationStatus, TrustedSource, TrustLevel
-from recon.core.bypass.sharing.strategy_validator import StrategyValidator
-from recon.core.bypass.sharing.community_database import CommunityDatabase
-from recon.core.bypass.sharing.update_manager import UpdateManager
+from core.bypass.sharing.sharing_models import SharedStrategy, StrategyPackage, StrategyFeedback, SharingConfig, ShareLevel, ValidationStatus, TrustedSource, TrustLevel
+from core.bypass.sharing.strategy_validator import StrategyValidator
+from core.bypass.sharing.community_database import CommunityDatabase
+from core.bypass.sharing.update_manager import UpdateManager
 
 class SharingManager:
     """Main manager for strategy sharing and collaboration features."""

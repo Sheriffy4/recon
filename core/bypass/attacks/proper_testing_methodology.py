@@ -15,7 +15,7 @@ import socket
 from typing import Dict, Any, Optional, Set
 from dataclasses import dataclass
 from enum import Enum
-from recon.core.bypass.attacks.base import BaselineResult, BypassResult, EffectivenessResult, BlockType
+from core.bypass.attacks.base import BaselineResult, BypassResult, EffectivenessResult, BlockType
 LOG = logging.getLogger('ProperTestingMethodology')
 
 class TestingMode(Enum):
@@ -84,7 +84,7 @@ class ProperTestingMethodology:
 
     async def _test_baseline(self, domain: str, port: int) -> SystemTestResult:
         """Test domain without any interceptor (baseline)."""
-        from recon.core.optimization.http_client_pool import get_global_http_pool
+        from core.optimization.http_client_pool import get_global_http_pool
         protocol = 'https' if port == 443 else 'http'
         url = f'{protocol}://{domain}/'
         self.logger.debug(f'Testing baseline for {domain}:{port}')
@@ -106,9 +106,9 @@ class ProperTestingMethodology:
 
     async def _test_with_system_interceptor(self, domain: str, port: int, strategy: Dict[str, Any], tool_name: str) -> SystemTestResult:
         """Test domain with system interceptor enabled using internal engines."""
-        from recon.core.bypass.engines.factory import create_engine, detect_best_engine, EngineType
-        from recon.core.bypass.engines.base import EngineConfig
-        from recon.core.optimization.http_client_pool import get_global_http_pool
+        from core.bypass.engines.factory import create_engine, detect_best_engine, EngineType
+        from core.bypass.engines.base import EngineConfig
+        from core.optimization.http_client_pool import get_global_http_pool
         protocol = 'https' if port == 443 else 'http'
         url = f'{protocol}://{domain}/'
         target_ip = await self._resolve_ip(domain)

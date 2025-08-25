@@ -7,7 +7,7 @@ import shutil
 import time
 from typing import Dict, Any, Set, Optional, List
 from pathlib import Path
-from recon.core.bypass.engines.base import BaseBypassEngine, EngineConfig
+from core.bypass.engines.base import BaseBypassEngine, EngineConfig
 
 class ExternalToolEngine(BaseBypassEngine):
     """Engine that manages external bypass tools like zapret or goodbyedpi."""
@@ -61,7 +61,7 @@ class ExternalToolEngine(BaseBypassEngine):
     def _convert_strategy_to_args(self, strategy: Dict[str, Any]) -> List[str]:
         """Convert strategy dict to tool-specific arguments."""
         args = []
-        from recon.core.zapret import synth
+        from core.zapret import synth
         strategy_string = synth(strategy)
         if strategy_string:
             args.extend(strategy_string.split())

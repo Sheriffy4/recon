@@ -3,9 +3,9 @@ Demonstration of the modernized attack registry infrastructure.
 Shows how to register attacks, manage them, and use the comprehensive metadata system.
 """
 import logging
-from recon.core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
-from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus
+from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger('AttackRegistryDemo')
 

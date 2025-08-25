@@ -13,8 +13,8 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult
 
 class BurstType(Enum):
     """Types of burst patterns."""

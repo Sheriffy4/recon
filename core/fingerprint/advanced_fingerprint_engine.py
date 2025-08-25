@@ -17,11 +17,11 @@ try:
 except ImportError:
     SKLEARN_AVAILABLE = False
     check_is_fitted = None
-from recon.core.fingerprint.models import EnhancedFingerprint, DPIBehaviorProfile
-from recon.core.fingerprint.analyzer import PacketAnalyzer
-from recon.core.bypass.attacks.registry import AttackRegistry
-from recon.core.bypass.attacks.base import AttackResult, AttackStatus
-from recon.core.interfaces import IProber, IClassifier, IAttackAdapter, IFingerprintEngine
+from core.fingerprint.models import EnhancedFingerprint, DPIBehaviorProfile
+from core.fingerprint.analyzer import PacketAnalyzer
+from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.base import AttackResult, AttackStatus
+from core.interfaces import IProber, IClassifier, IAttackAdapter, IFingerprintEngine
 LOG = logging.getLogger('ultimate_fingerprint_engine')
 
 class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
@@ -279,7 +279,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
             Dictionary containing extended metrics for fingerprint enhancement
         """
         LOG.info(f'Collecting extended fingerprint metrics for {domain}')
-        from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+        from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
         extended_metrics = {}
         try:
             effectiveness_tester = RealEffectivenessTester(timeout=10.0)
@@ -424,7 +424,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
             elif 'long_timeout' in unique_patterns:
                 fingerprint.connection_timeout_ms = 10000
         if block_types:
-            from recon.core.bypass.attacks.real_effectiveness_tester import BlockType
+            from core.bypass.attacks.real_effectiveness_tester import BlockType
             rst_count = sum((1 for bt in block_types if bt == BlockType.RST))
             timeout_count = sum((1 for bt in block_types if bt == BlockType.TIMEOUT))
             if rst_count > timeout_count:
@@ -473,7 +473,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         for result in test_results:
             if hasattr(result, 'baseline'):
                 if hasattr(result.baseline, 'block_type'):
-                    from recon.core.bypass.attacks.real_effectiveness_tester import BlockType
+                    from core.bypass.attacks.real_effectiveness_tester import BlockType
                     if result.baseline.block_type == BlockType.RST:
                         rst_responses += 1
                     elif result.baseline.block_type == BlockType.TIMEOUT:
@@ -595,7 +595,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
                 self.effectiveness_model = None
                 self.is_effectiveness_model_fitted = False
             try:
-                from recon.core.ml.strategy_predictor import StrategyPredictor
+                from core.ml.strategy_predictor import StrategyPredictor
                 self.strategy_predictor = StrategyPredictor(train_on_init=False)
             except ImportError:
                 LOG.warning('Strategy predictor not available')
@@ -866,7 +866,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
     async def _probe_with_timing_delay(self, domain: str, delay_type: str, delay: float) -> float:
         """Probe with specific timing delay and return success rate"""
         try:
-            from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+            from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
             tester = RealEffectivenessTester(timeout=10.0)
             baseline = await tester.test_baseline(domain, 443)
             await asyncio.sleep(delay)

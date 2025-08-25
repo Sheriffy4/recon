@@ -25,12 +25,12 @@ try:
     from ml.zapret_strategy_generator import ZapretStrategyGenerator
     from core.hybrid_engine import HybridEngine
 except ImportError:
-    from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
-    from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
-    from recon.core.fingerprint.config import AdvancedFingerprintingConfig, get_config_manager
-    from recon.core.fingerprint.diagnostics import get_diagnostic_system
-    from recon.ml.zapret_strategy_generator import ZapretStrategyGenerator
-    from recon.core.hybrid_engine import HybridEngine
+    from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
+    from core.fingerprint.advanced_models import DPIFingerprint, DPIType
+    from core.fingerprint.config import AdvancedFingerprintingConfig, get_config_manager
+    from core.fingerprint.diagnostics import get_diagnostic_system
+    from ml.zapret_strategy_generator import ZapretStrategyGenerator
+    from core.hybrid_engine import HybridEngine
 
 
 @dataclass

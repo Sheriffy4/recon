@@ -10,13 +10,13 @@ import inspect
 from typing import Dict, List, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
-from recon.core.bypass.attacks.registry import AttackRegistry
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.async_utils import ensure_attack_execution_context
-from recon.core.integration.strategy_mapper import StrategyMapper
-from recon.core.integration.result_processor import ResultProcessor
-from recon.core.integration.integration_config import IntegrationConfig, AttackExecutionError, CompatibilityError
-from recon.core.bypass.engines.packet_executor import IntelligentPacketExecutor
+from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.async_utils import ensure_attack_execution_context
+from core.integration.strategy_mapper import StrategyMapper
+from core.integration.result_processor import ResultProcessor
+from core.integration.integration_config import IntegrationConfig, AttackExecutionError, CompatibilityError
+from core.bypass.engines.packet_executor import IntelligentPacketExecutor
 LOG = logging.getLogger('AttackAdapter')
 
 class AttackAdapter:
@@ -36,7 +36,7 @@ class AttackAdapter:
     def _cache_attack_imports(self):
         """Cache attack imports for safe access."""
         try:
-            from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+            from core.bypass.attacks.base import AttackResult, AttackStatus
             self._cached_attack_result = AttackResult
             self._cached_attack_status = AttackStatus
         except Exception as e:
@@ -53,7 +53,7 @@ class AttackAdapter:
         except Exception:
             pass
         try:
-            from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+            from core.bypass.attacks.base import AttackResult, AttackStatus
             status = getattr(AttackStatus, status_name)
             return AttackResult(status=status, error_message=error_message, technique_used=technique_used, **kwargs)
         except Exception as e:
@@ -242,7 +242,7 @@ class AttackAdapter:
             try:
                 is_success = stage_result.status == AttackStatus.SUCCESS
             except NameError:
-                from recon.core.bypass.attacks.base import AttackStatus as AS
+                from core.bypass.attacks.base import AttackStatus as AS
                 is_success = stage_result.status == AS.SUCCESS
             if is_success:
                 successful_stages.append(stage_name)
@@ -261,7 +261,7 @@ class AttackAdapter:
             try:
                 final_result.status = AttackStatus.ERROR
             except NameError:
-                from recon.core.bypass.attacks.base import AttackStatus as AS
+                from core.bypass.attacks.base import AttackStatus as AS
                 final_result.status = AS.ERROR
             failed_stage_info = all_stages[len(successful_stages)]
             failed_stage_name = failed_stage_info.get('name') or failed_stage_info.get('type', 'unknown_stage')
@@ -664,7 +664,7 @@ class AttackAdapter:
                 try:
                     result.status = AttackStatus.FAILED
                 except NameError:
-                    from recon.core.bypass.attacks.base import AttackStatus as AS
+                    from core.bypass.attacks.base import AttackStatus as AS
                     result.status = AS.FAILED
                 result.error_message = f'Simulation error: {e}'
                 result.metadata['simulation_error'] = str(e)
@@ -718,7 +718,7 @@ class AttackAdapter:
         """
         validation_result = {'segments_validated': True, 'validation_errors': [], 'segment_analysis': {}}
         try:
-            from recon.core.bypass.attacks.segment_packet_builder import validate_segments_for_building
+            from core.bypass.attacks.segment_packet_builder import validate_segments_for_building
             is_valid, error_msg = validate_segments_for_building(segments, context)
             validation_result['segments_valid'] = is_valid
             if not is_valid:

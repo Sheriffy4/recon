@@ -1,9 +1,9 @@
 import struct
 from abc import ABC, abstractmethod
 from typing import Optional, List, Union
-from recon.core.net.tcp_options import TCPOption, TCPOptions
-from recon.core.net.quic_packet import QUICPacket, QUICHeader, QUICPacketType, QUICVersion
-from recon.core.net.ech import ECHConfig, ECHClientHello, ECHCipherSuite, ECHVersion
+from core.net.tcp_options import TCPOption, TCPOptions
+from core.net.quic_packet import QUICPacket, QUICHeader, QUICPacketType, QUICVersion
+from core.net.ech import ECHConfig, ECHClientHello, ECHCipherSuite, ECHVersion
 
 class Packet(ABC):
 

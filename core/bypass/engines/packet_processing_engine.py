@@ -11,23 +11,23 @@ try:
     PYDIVERT_AVAILABLE = True
 except ImportError:
     PYDIVERT_AVAILABLE = False
-from recon.core.bypass.engines.base import BaseBypassEngine, EngineConfig
-from recon.core.bypass.engines.health_check import EngineHealthCheck, SystemHealthReport, HealthStatus
-from recon.core.bypass.types import EngineStatus
-from recon.core.bypass.exceptions import EngineError
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.diagnostics.metrics import MetricsCollector
-from recon.core.robust_packet_processor import RobustPacketProcessor
-from recon.core.packet_builder import EnhancedPacketBuilder
-from recon.core.integration.strategy_mapper import StrategyMapper
-from recon.core.integration.result_processor import ResultProcessor
-from recon.core.bypass.types import PacketInfo, StrategyResult
-from recon.core.packet_modification_validator import PacketModificationValidator
+from core.bypass.engines.base import BaseBypassEngine, EngineConfig
+from core.bypass.engines.health_check import EngineHealthCheck, SystemHealthReport, HealthStatus
+from core.bypass.types import EngineStatus
+from core.bypass.exceptions import EngineError
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.diagnostics.metrics import MetricsCollector
+from core.robust_packet_processor import RobustPacketProcessor
+from core.packet_builder import EnhancedPacketBuilder
+from core.integration.strategy_mapper import StrategyMapper
+from core.integration.result_processor import ResultProcessor
+from core.bypass.types import PacketInfo, StrategyResult
+from core.packet_modification_validator import PacketModificationValidator
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 try:
-    from recon.core.optimization.performance_optimizer import PerformanceOptimizer, performance_timer
+    from core.optimization.performance_optimizer import PerformanceOptimizer, performance_timer
     PERFORMANCE_OPTIMIZATION_AVAILABLE = True
 except ImportError:
     PERFORMANCE_OPTIMIZATION_AVAILABLE = False
@@ -35,7 +35,7 @@ except ImportError:
     def performance_timer(func):
         return func
 try:
-    from recon.core.combo_attacker import ComboAttacker
+    from core.combo_attacker import ComboAttacker
     COMBO_ATTACKER_AVAILABLE = True
 except ImportError:
     COMBO_ATTACKER_AVAILABLE = False

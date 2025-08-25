@@ -8,9 +8,9 @@ import time
 import random
 import hashlib
 from typing import List, Dict, Any, Optional
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
-from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester, EffectivenessResult
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester, EffectivenessResult
 
 @register_attack
 class DPIResponseAdaptiveAttack(BaseAttack):
@@ -419,7 +419,7 @@ class LearningAdaptiveAttack(BaseAttack):
 
     def __init__(self):
         super().__init__()
-        from recon.core.bypass.attacks.learning_memory import LearningMemory
+        from core.bypass.attacks.learning_memory import LearningMemory
         self._learning_memory = LearningMemory()
         self._effectiveness_tester = None
         self._current_fingerprint_hash = None
@@ -518,7 +518,7 @@ class LearningAdaptiveAttack(BaseAttack):
             return await tester.compare_results(baseline, bypass_result)
         except Exception as e:
             self.logger.error(f'Real effectiveness test failed within LearningAdaptiveAttack: {e}')
-            from recon.core.bypass.attacks.real_effectiveness_tester import EffectivenessResult, BaselineResult, BypassResult
+            from core.bypass.attacks.real_effectiveness_tester import EffectivenessResult, BaselineResult, BypassResult
             timeout = getattr(context, 'timeout', tester.timeout)
             baseline = BaselineResult(domain='unknown', success=False, latency_ms=timeout * 1000.0)
             bypass = BypassResult(domain='unknown', success=False, latency_ms=timeout * 1000.0, bypass_applied=True)
@@ -531,7 +531,7 @@ class LearningAdaptiveAttack(BaseAttack):
                 return
             await self._learning_memory.save_learning_result(fingerprint_hash=self._current_fingerprint_hash, attack_name=strategy.get('attack_name', 'learning_adaptive'), effectiveness_score=effectiveness_result.effectiveness_score, parameters=strategy['parameters'], success=effectiveness_result.bypass_effective, latency_ms=effectiveness_result.bypass.latency_ms, metadata={'payload_pattern': payload_pattern, 'confidence': strategy.get('confidence', 0.5), 'improvement_type': effectiveness_result.improvement_type, 'learning_rate': learning_rate})
             if strategy.get('confidence', 0.5) > 0.7:
-                from recon.core.bypass.attacks.learning_memory import AdaptationRecord
+                from core.bypass.attacks.learning_memory import AdaptationRecord
                 from datetime import datetime
                 adaptation_record = AdaptationRecord(timestamp=datetime.now(), fingerprint_hash=self._current_fingerprint_hash, original_strategy='default', adapted_strategy=strategy.get('attack_name', 'learning_adaptive'), adaptation_reason=f'learned_from_pattern_{payload_pattern}', effectiveness_before=0.5, effectiveness_after=effectiveness_result.effectiveness_score, parameters_before={'segment_size': 64, 'delay': 50}, parameters_after=strategy['parameters'])
                 await self._learning_memory.save_adaptation_record(adaptation_record)

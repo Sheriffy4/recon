@@ -12,12 +12,12 @@ import os
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 
-from recon.core.bypass.protocols.multi_port_handler import (
+from core.bypass.protocols.multi_port_handler import (
     MultiPortHandler,
     ProtocolFamily,
     PortStrategy,
 )
-from recon.core.bypass.attacks.attack_definition import (
+from core.bypass.attacks.attack_definition import (
     AttackDefinition,
     AttackCategory,
     AttackComplexity,
@@ -193,8 +193,8 @@ async def test_domain_accessibility():
     # we'll test the logic with mock data
 
     # Simulate test results
-    from recon.core.bypass.protocols.multi_port_handler import PortTestResult
-    from recon.core.bypass.types import BlockType
+    from core.bypass.protocols.multi_port_handler import PortTestResult
+    from core.bypass.types import BlockType
 
     mock_results = {
         80: PortTestResult(
@@ -257,8 +257,8 @@ async def test_strategy_application():
     original_test_method = handler._test_single_port
 
     async def mock_test_single_port(domain, port):
-        from recon.core.bypass.protocols.multi_port_handler import PortTestResult
-        from recon.core.bypass.types import BlockType
+        from core.bypass.protocols.multi_port_handler import PortTestResult
+        from core.bypass.types import BlockType
 
         # Simulate successful bypass after strategy application
         return PortTestResult(
@@ -311,8 +311,8 @@ def test_statistics_and_cache():
     handler.stats["cache_hits"] = 3
 
     # Add some cache entries
-    from recon.core.bypass.protocols.multi_port_handler import PortTestResult
-    from recon.core.bypass.types import BlockType
+    from core.bypass.protocols.multi_port_handler import PortTestResult
+    from core.bypass.types import BlockType
 
     handler.port_test_cache["example.com:80"] = PortTestResult(
         port=80, accessible=True, response_time_ms=100.0, block_type=BlockType.NONE

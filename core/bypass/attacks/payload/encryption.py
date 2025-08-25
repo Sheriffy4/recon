@@ -6,8 +6,8 @@ Migrated from:
 """
 import asyncio
 import time
-from recon.core.bypass.attacks.base import PayloadAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import PayloadAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 
 @register_attack
 class PayloadEncryptionAttack(PayloadAttack):

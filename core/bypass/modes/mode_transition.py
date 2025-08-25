@@ -7,8 +7,8 @@ from typing import Dict, Any, Optional, Callable, List
 from dataclasses import dataclass
 from enum import Enum
 try:
-    from recon.core.bypass.modes.exceptions import ModeTransitionError, ModeNotAvailableError
-    from recon.core.bypass.modes.capability_detector import CapabilityDetector
+    from core.bypass.modes.exceptions import ModeTransitionError, ModeNotAvailableError
+    from core.bypass.modes.capability_detector import CapabilityDetector
 except ImportError:
     from exceptions import ModeTransitionError, ModeNotAvailableError
     from capability_detector import CapabilityDetector

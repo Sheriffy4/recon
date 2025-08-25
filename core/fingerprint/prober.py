@@ -63,10 +63,10 @@ except ImportError:
 
     def send(*args, **kwargs):
         pass
-from recon.core.fingerprint.models import ProbeConfig, ProbeResult
-from recon.core.protocols.tls import TLSHandler
+from core.fingerprint.models import ProbeConfig, ProbeResult
+from core.protocols.tls import TLSHandler
 import config
-from recon.core.protocols.http import HTTPHandler
+from core.protocols.http import HTTPHandler
 LOG = logging.getLogger('ultimate_dpi_prober')
 
 def probe_timeout(timeout: float):
@@ -553,8 +553,8 @@ class UltimateDPIProber:
         """Test if ECH GREASE (Encrypted Client Hello) is blocked using advanced ECH GREASE attack"""
         LOG.debug(f'Probing ECH GREASE on {self.config.target_ip}')
         try:
-            from recon.core.bypass.attacks.tls.ech_attacks import ECHGreaseAttack
-            from recon.core.bypass.attacks.base import AttackContext
+            from core.bypass.attacks.tls.ech_attacks import ECHGreaseAttack
+            from core.bypass.attacks.base import AttackContext
             base_hello = self.tls_handler.build_client_hello('example.com')
             context = AttackContext(target_ip=self.config.target_ip, target_port=self.config.port, payload=base_hello, params={'grease_count': 2, 'use_fake_ech': True, 'randomize_values': True, 'add_regular_grease': False})
             attack = ECHGreaseAttack()
@@ -583,8 +583,8 @@ class UltimateDPIProber:
         """Test if real ECH (Encrypted Client Hello) is blocked using fragmentation attack"""
         LOG.debug(f'Probing ECH support on {self.config.target_ip}')
         try:
-            from recon.core.bypass.attacks.tls.ech_attacks import ECHFragmentationAttack
-            from recon.core.bypass.attacks.base import AttackContext
+            from core.bypass.attacks.tls.ech_attacks import ECHFragmentationAttack
+            from core.bypass.attacks.base import AttackContext
             base_hello = self.tls_handler.build_client_hello('example.com')
             context = AttackContext(target_ip=self.config.target_ip, target_port=self.config.port, payload=base_hello, params={'fragment_count': 3, 'use_padding': True, 'randomize_order': False, 'inner_sni': 'hidden.example.com'})
             attack = ECHFragmentationAttack()
@@ -623,8 +623,8 @@ class UltimateDPIProber:
         """Test ECH fragmentation attack effectiveness"""
         LOG.debug(f'Probing ECH fragmentation effectiveness on {self.config.target_ip}')
         try:
-            from recon.core.bypass.attacks.tls.ech_attacks import ECHFragmentationAttack
-            from recon.core.bypass.attacks.base import AttackContext
+            from core.bypass.attacks.tls.ech_attacks import ECHFragmentationAttack
+            from core.bypass.attacks.base import AttackContext
             base_hello = self.tls_handler.build_client_hello('example.com')
             normal_resp = await self._send_client_hello(base_hello)
             context = AttackContext(target_ip=self.config.target_ip, target_port=self.config.port, payload=base_hello, params={'fragment_count': 4, 'use_padding': True, 'randomize_order': True})

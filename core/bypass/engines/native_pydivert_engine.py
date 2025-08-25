@@ -5,17 +5,17 @@ import asyncio
 import struct
 from typing import Dict, Any, Set, Optional, List, Union
 from dataclasses import dataclass
-from recon.core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineStats
-from recon.core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext, SegmentTuple
-from recon.core.bypass.attacks.segment_packet_builder import SegmentPacketBuilder, SegmentPacketInfo, validate_segments_for_building
-from recon.core.bypass.attacks.timing_controller import get_timing_controller
-from recon.core.bypass.diagnostics.segment_diagnostics import get_segment_diagnostic_logger
-from recon.core.bypass.monitoring.segment_execution_stats import get_segment_stats_collector, ExecutionPhase, ExecutionStatus
-from recon.core.integration.attack_adapter import AttackAdapter
-from recon.core.packet_builder import EnhancedPacketBuilder
+from core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineStats
+from core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext, SegmentTuple
+from core.bypass.attacks.segment_packet_builder import SegmentPacketBuilder, SegmentPacketInfo, validate_segments_for_building
+from core.bypass.attacks.timing_controller import get_timing_controller
+from core.bypass.diagnostics.segment_diagnostics import get_segment_diagnostic_logger
+from core.bypass.monitoring.segment_execution_stats import get_segment_stats_collector, ExecutionPhase, ExecutionStatus
+from core.integration.attack_adapter import AttackAdapter
+from core.packet_builder import EnhancedPacketBuilder
 from core.windivert_filter import WinDivertFilterGenerator
-from recon.core.integration.strategy_prediction_integration import get_strategy_integrator
-from recon.core.integration.performance_integration import get_performance_integrator
+from core.integration.strategy_prediction_integration import get_strategy_integrator
+from core.integration.performance_integration import get_performance_integrator
 try:
     import pydivert
     HAS_PYDIVERT = True
@@ -249,7 +249,7 @@ class NativePydivertEngine(BaseBypassEngine):
         context = self._create_enhanced_attack_context(packet)
         if not context or not self.segments_recipe:
             return False
-        from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+        from core.bypass.attacks.base import AttackResult, AttackStatus
         recipe_result = AttackResult(status=AttackStatus.SUCCESS, segments=self.segments_recipe)
         return self._execute_segments_orchestration(recipe_result, context, packet)
 
@@ -261,7 +261,7 @@ class NativePydivertEngine(BaseBypassEngine):
             context = self._create_enhanced_attack_context(packet)
             if not context:
                 return False
-            from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+            from core.bypass.attacks.base import AttackResult, AttackStatus
             recipe_result = AttackResult(status=AttackStatus.SUCCESS, segments=strategy.get('segments'))
             return self._execute_segments_orchestration(recipe_result, context, packet)
         if not strategy:
@@ -802,7 +802,7 @@ class NativePydivertEngine(BaseBypassEngine):
             return result
         except Exception as e:
             self.logger.error(f"Dry run test failed for '{attack_name}': {e}")
-            from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+            from core.bypass.attacks.base import AttackResult, AttackStatus
             return AttackResult(status=AttackStatus.FAILED, technique_used=attack_name, error_message=f'Dry run test failed: {e}', metadata={'engine_dry_run': True, 'engine_type': 'native_pydivert', 'dry_run_error': str(e)})
 
     def _log_dry_run_results(self, result: AttackResult, attack_name: str, context: AttackContext):

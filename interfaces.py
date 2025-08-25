@@ -4,7 +4,7 @@
 """
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Set, Union
-from recon.fingerprint.models import EnhancedFingerprint
+from core.fingerprint.models import EnhancedFingerprint
 from recon.bypass.attacks.base import AttackContext, AttackResult
 
 class IProber(ABC):

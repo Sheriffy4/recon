@@ -1,9 +1,9 @@
 import time
 import random
 from typing import Optional
-from recon.core.bypass.attacks.tcp.race_attacks import RaceAttackConfig
-from recon.core.bypass.attacks.base import BaseAttack, TimingAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.tcp.race_attacks import RaceAttackConfig
+from core.bypass.attacks.base import BaseAttack, TimingAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 try:
     from scapy.all import IP, TCP, Raw, send, sr1
     SCAPY_AVAILABLE = True

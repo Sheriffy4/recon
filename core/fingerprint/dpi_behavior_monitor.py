@@ -18,8 +18,8 @@ from pathlib import Path
 from enum import Enum
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
-from recon.core.fingerprint.advanced_models import DPIFingerprint
-from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
+from core.fingerprint.advanced_models import DPIFingerprint
+from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
 
 class AlertSeverity(Enum):
     """Alert severity levels"""

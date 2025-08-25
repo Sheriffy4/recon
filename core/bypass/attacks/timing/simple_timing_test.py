@@ -2,10 +2,10 @@
 Simple test for timing attacks to verify implementation.
 """
 import time
-from recon.core.bypass.attacks.base import AttackContext
-from recon.core.bypass.attacks.timing.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
-from recon.core.bypass.attacks.timing.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
-from recon.core.bypass.attacks.timing.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType
+from core.bypass.attacks.base import AttackContext
+from core.bypass.attacks.timing.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
+from core.bypass.attacks.timing.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
+from core.bypass.attacks.timing.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType
 
 def test_timing_attacks():
     """Test all timing attacks with basic configurations."""

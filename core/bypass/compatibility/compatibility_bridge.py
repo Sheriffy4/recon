@@ -8,11 +8,11 @@ import logging
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 from pathlib import Path
-from recon.core.bypass.compatibility.tool_detector import ToolDetector, ExternalTool, DetectionResult
-from recon.core.bypass.compatibility.zapret_parser import ZapretConfigParser
-from recon.core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser
-from recon.core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser
-from recon.core.bypass.compatibility.syntax_converter import SyntaxConverter, ConversionResult
+from core.bypass.compatibility.tool_detector import ToolDetector, ExternalTool, DetectionResult
+from core.bypass.compatibility.zapret_parser import ZapretConfigParser
+from core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser
+from core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser
+from core.bypass.compatibility.syntax_converter import SyntaxConverter, ConversionResult
 LOG = logging.getLogger(__name__)
 
 @dataclass

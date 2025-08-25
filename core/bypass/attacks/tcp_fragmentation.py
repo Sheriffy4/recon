@@ -21,7 +21,7 @@ import logging
 from typing import Optional, List
 from dataclasses import dataclass
 
-from base import BaseAttack, AttackContext, AttackResult, AttackStatus, SegmentTuple
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus, SegmentTuple
 from attack_definition import (
     AttackDefinition,
     AttackCategory,

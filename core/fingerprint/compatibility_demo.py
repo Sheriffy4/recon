@@ -24,12 +24,12 @@ try:
     )
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 except ImportError:
-    from recon.core.fingerprint.compatibility import (
+    from core.fingerprint.compatibility import (
         BackwardCompatibilityLayer,
         LegacyFingerprintWrapper,
         create_legacy_wrapper,
     )
-    from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
+    from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 
 
 def demo_create_legacy_data():

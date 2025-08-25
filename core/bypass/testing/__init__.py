@@ -17,12 +17,12 @@ Main Components:
 
 Usage:
     # Quick test of all attacks
-    from recon.core.bypass.testing import run_quick_test_suite
+    from core.bypass.testing import run_quick_test_suite
     report = await run_quick_test_suite()
 
     # Comprehensive testing
-    from recon.core.bypass.testing import ComprehensiveTestSuite
-    from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.testing import ComprehensiveTestSuite
+    from core.bypass.attacks.modern_registry import ModernAttackRegistry
 
     registry = ModernAttackRegistry()
     suite = ComprehensiveTestSuite(registry)

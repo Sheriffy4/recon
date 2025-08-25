@@ -10,7 +10,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from base import AttackContext, AttackResult
+from core.bypass.attacks.base import AttackContext, AttackResult
 from http_manipulation import (
     HeaderModificationAttack,
     MethodManipulationAttack,

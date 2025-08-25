@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 def test_advanced_models_import():
     """Test that advanced models can be imported correctly"""
     try:
-        from recon.core.fingerprint.advanced_models import (
+        from core.fingerprint.advanced_models import (
             DPIFingerprint,
             DPIType,
             ConfidenceLevel,
@@ -31,7 +31,7 @@ def test_advanced_models_import():
 def test_basic_functionality():
     """Test basic functionality of the advanced models"""
     try:
-        from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
+        from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 
         # Create a basic fingerprint
         fp = DPIFingerprint(
@@ -65,7 +65,7 @@ def test_basic_functionality():
 def test_exception_hierarchy():
     """Test that exception hierarchy works correctly"""
     try:
-        from recon.core.fingerprint.advanced_models import (
+        from core.fingerprint.advanced_models import (
             FingerprintingError,
             NetworkAnalysisError,
             MLClassificationError,

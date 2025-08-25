@@ -5,8 +5,8 @@ import asyncio
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock
-from recon.core.bypass.sharing.sharing_manager import SharingManager
-from recon.core.bypass.sharing.sharing_models import SharedStrategy, ShareLevel, ValidationStatus
+from core.bypass.sharing.sharing_manager import SharingManager
+from core.bypass.sharing.sharing_models import SharedStrategy, ShareLevel, ValidationStatus
 
 async def test_basic_sharing():
     """Test basic strategy sharing functionality."""
@@ -49,7 +49,7 @@ async def test_basic_sharing():
 async def test_strategy_validation():
     """Test strategy validation system."""
     print('\nTesting strategy validation...')
-    from recon.core.bypass.sharing.strategy_validator import StrategyValidator
+    from core.bypass.sharing.strategy_validator import StrategyValidator
     validator = StrategyValidator()
     valid_strategy = SharedStrategy(id='valid_test', name='Valid Test Strategy', description='A valid strategy for testing', strategy_data={'attacks': ['tcp_fragment', 'http_header_modify'], 'parameters': {'mss': 1200, 'header': 'User-Agent'}}, author='test_user', version='1.0.0', share_level=ShareLevel.COMMUNITY, validation_status=ValidationStatus.PENDING, trust_score=0.0, success_reports=10, failure_reports=2)
     print('Validating valid strategy...')
@@ -75,7 +75,7 @@ async def test_strategy_validation():
 async def test_community_database():
     """Test community database functionality."""
     print('\nTesting community database...')
-    from recon.core.bypass.sharing.community_database import CommunityDatabase
+    from core.bypass.sharing.community_database import CommunityDatabase
     with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
         db_path = f.name
     try:

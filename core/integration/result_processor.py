@@ -9,9 +9,9 @@ import logging
 from typing import Dict, List, Any, Optional
 from statistics import mean, median
 from collections import defaultdict
-from recon.core.bypass.attacks.base import AttackResult, AttackStatus
-from recon.core.integration.integration_config import PerformanceMetrics
-from recon.core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.base import AttackResult, AttackStatus
+from core.integration.integration_config import PerformanceMetrics
+from core.bypass.attacks.registry import AttackRegistry
 LOG = logging.getLogger('ResultProcessor')
 
 class ResultProcessor:

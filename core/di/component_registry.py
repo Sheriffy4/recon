@@ -6,8 +6,8 @@ in the dependency injection container, including interfaces and implementations.
 """
 import logging
 from typing import Type, TypeVar, Optional, Dict, Any
-from recon.core.di.container import DIContainer, ServiceLifetime
-from recon.core.bypass.engines.packet_processing_engine import PacketProcessingEngine
+from core.di.container import DIContainer, ServiceLifetime
+from core.bypass.engines.packet_processing_engine import PacketProcessingEngine
 LOG = logging.getLogger('ComponentRegistry')
 T = TypeVar('T')
 
