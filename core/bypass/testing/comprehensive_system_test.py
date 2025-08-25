@@ -24,26 +24,26 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 import psutil
 import gc
-from recon.core.bypass.testing.integration_tests import WorkflowIntegrationTester, ComponentIntegrationTester
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.testing.integration_tests import WorkflowIntegrationTester, ComponentIntegrationTester
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
 try:
-    from recon.core.bypass.strategies.pool_management import StrategyPoolManager
+    from core.bypass.strategies.pool_management import StrategyPoolManager
 except ImportError:
     StrategyPoolManager = None
 try:
-    from recon.core.bypass.strategies.strategy_application import EnhancedStrategySelector
+    from core.bypass.strategies.strategy_application import EnhancedStrategySelector
 except ImportError:
     EnhancedStrategySelector = None
 try:
-    from recon.core.bypass.validation.reliability_validator import ReliabilityValidator
+    from core.bypass.validation.reliability_validator import ReliabilityValidator
 except ImportError:
     ReliabilityValidator = None
 try:
-    from recon.core.bypass.safety.safety_controller import SafetyController
+    from core.bypass.safety.safety_controller import SafetyController
 except ImportError:
     SafetyController = None
 try:
-    from recon.core.hybrid_engine import HybridEngine
+    from core.hybrid_engine import HybridEngine
 except ImportError:
     HybridEngine = None
 LOG = logging.getLogger('ComprehensiveSystemTest')
@@ -229,7 +229,7 @@ class ComprehensiveSystemValidator:
 
     def __init__(self, results_dir: Optional[Path]=None):
         """Initialize the comprehensive system validator."""
-        self.results_dir = results_dir or Path('recon/data/system_validation')
+        self.results_dir = results_dir or Path('data/system_validation')
         self.results_dir.mkdir(parents=True, exist_ok=True)
         self.attack_registry = ModernAttackRegistry()
         self.metrics_collector = SystemMetricsCollector()

@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 import random
-from recon.core.fingerprint.advanced_models import MetricsCollectionError
+from core.fingerprint.advanced_models import MetricsCollectionError
 LOG = logging.getLogger(__name__)
 
 @dataclass

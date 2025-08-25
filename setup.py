@@ -49,8 +49,7 @@ if __name__ == '__main__' and __package__ is None:
     project_root = os.path.dirname(recon_dir)
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-    __package__ = 'recon'
-from recon.core.signature_manager import SignatureManager
+from core.signature_manager import SignatureManager
 console = Console()
 IS_DEBUG_MODE = '--debug' in sys.argv
 SITES_FILE = 'sites.txt'

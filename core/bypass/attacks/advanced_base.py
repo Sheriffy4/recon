@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Literal, Type
 from abc import ABC, abstractmethod
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult
 AttackComplexity = Literal['Low', 'Medium', 'High']
 'Defines the complexity level of an attack. Used for matching against DPI sophistication.'
 Protocol = Literal['tcp', 'udp', 'http', 'tls', 'quic', 'dns']

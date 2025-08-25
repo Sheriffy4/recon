@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 from urllib.parse import urljoin
-from recon.core.fingerprint.advanced_models import NetworkAnalysisError
+from core.fingerprint.advanced_models import NetworkAnalysisError
 LOG = logging.getLogger(__name__)
 
 class HTTPBlockingMethod(Enum):

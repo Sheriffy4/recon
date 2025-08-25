@@ -1,72 +1,105 @@
 import os
-import ast
-from pathlib import Path
+import sys
 
-PROJECT_ROOT_NAME = "recon"
+# The list of replacements to be made
+# Order matters, more specific should come first.
+REPLACEMENTS = [
+    # Remove __package__ declarations
+    ("__package__ = 'recon'", ""),
 
-class ImportTransformer(ast.NodeTransformer):
-    def __init__(self, file_path: Path, project_root: Path):
-        self.file_path = file_path
-        self.project_root = project_root
-        self.changed = False
+    # Specific recon imports
+    ("from recon.core.", "from core."),
+    ("import recon.core.", "import core."),
+    ("from recon.tests.", "from tests."),
+    ("import recon.tests.", "import tests."),
+    ("from recon.base ", "from core.bypass.attacks.base "),
+    ("from recon.attacks.base ", "from core.bypass.attacks.base "),
+    ("from recon.ml.", "from ml."),
+    ("from recon.dns.", "from core.dns."),
+    ("from recon.fingerprint.", "from core.fingerprint."),
+    ("from recon.integration.", "from core.integration."),
+    ("from recon.net.", "from core.net."),
+    ("from recon.cli", "from cli"),
 
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom:
-        if node.level > 0:  # Это относительный импорт (from . import ..., from .. import ...)
-            try:
-                # Вычисляем абсолютный путь к модулю
-                current_dir = self.file_path.parent
-                resolve_path = (current_dir / ("../" * (node.level - 1)) / (node.module or "")).resolve()
-                
-                # Преобразуем в относительный путь от корня проекта
-                relative_to_root = resolve_path.relative_to(self.project_root)
-                
-                # Собираем новый абсолютный путь модуля
-                new_module_path_parts = [PROJECT_ROOT_NAME] + list(relative_to_root.parts)
-                
-                # Если импорт был из __init__.py, убираем лишнюю часть
-                if node.module is None:
-                    # from . import X -> убираем последний элемент пути
-                    if new_module_path_parts[-1] == self.file_path.parent.name:
-                         new_module_path_parts.pop()
+    # Root level modules
+    ("from recon.quic_handler", "from quic_handler"),
+    ("from recon.signature_manager", "from signature_manager"),
+    ("from recon.apply_bypass", "from apply_bypass"),
+    ("from recon import config", "import config"),
 
-                new_module_str = ".".join(new_module_path_parts)
-                
-                print(f"  [FIX] {self.file_path.name}: Rewriting '{'.' * node.level}{node.module or ''}' -> '{new_module_str}'")
+    # Broken relative imports in tests
+    ("from base import", "from core.bypass.attacks.base import"),
+    ("from advanced_models import", "from core.fingerprint.advanced_models import"),
+    ("from mode_controller import", "from core.bypass.modes.mode_controller import"),
+    ("from online_learning import", "from core.fingerprint.online_learning import"),
+    ("from reliability_validator import", "from core.bypass.validation.reliability_validator import"),
+    ("from social_media_handler import", "from core.bypass.strategies.social_media_handler import"),
+    ("from subdomain_handler import", "from core.bypass.strategies.subdomain_handler import"),
+    ("from tcp_fragmentation import", "from core.bypass.attacks.tcp_fragmentation import"),
+    ("from attack_catalog import", "from core.bypass.attacks.attack_catalog import"),
+    ("import pool_management", "from core.bypass.strategies import pool_management"),
+]
 
-                node.module = new_module_str
-                node.level = 0  # Устанавливаем уровень в 0 для абсолютного импорта
-                self.changed = True
-            except Exception as e:
-                print(f"  [ERROR] Could not resolve import in {self.file_path.name}: {e}")
+def get_all_python_files(scan_path):
+    """Returns a list of all python files in the given path."""
+    py_files = []
+    excluded_dirs = ['__pycache__', '.git', '.idea', 'venv', 'env', 'build', 'dist', 'eggs', '.eggs', 'lib', 'lib64', 'parts', 'sdist', 'var', 'wheels', 'share/python-wheels', '.tox', '.nox', '.hypothesis', '.pytest_cache', 'site']
 
-        return node
+    if os.path.isfile(scan_path) and scan_path.endswith(".py"):
+        if os.path.basename(scan_path) != "fix_imports.py":
+            return [scan_path]
+        return []
 
-def fix_imports_in_project(root_dir: str):
-    project_root = Path(root_dir).resolve()
-    print(f"Scanning project at: {project_root}")
+    if os.path.isdir(scan_path):
+        for root, dirs, files in os.walk(scan_path):
+            # Exclude directories
+            dirs[:] = [d for d in dirs if d not in excluded_dirs]
+            for file in files:
+                if file.endswith(".py"):
+                    # ignore self
+                    if file == "fix_imports.py":
+                        continue
+                    py_files.append(os.path.join(root, file))
+    return py_files
 
-    for path in project_root.rglob("*.py"):
-        if "venv" in path.parts or ".git" in path.parts:
-            continue
-
+def fix_imports_in_file(filepath):
+    """Reads a file, applies replacements, and writes it back."""
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except UnicodeDecodeError:
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                source_code = f.read()
-            
-            tree = ast.parse(source_code)
-            transformer = ImportTransformer(path, project_root)
-            new_tree = transformer.visit(tree)
-
-            if transformer.changed:
-                # Сохраняем изменения
-                new_source = ast.unparse(new_tree)
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(new_source)
-                print(f"  -> Patched {path.relative_to(project_root)}")
-
+            with open(filepath, 'r', encoding='latin-1') as f:
+                content = f.read()
         except Exception as e:
-            print(f"Could not process {path}: {e}")
+            print(f"Could not read file {filepath}: {e}")
+            return
+
+
+    original_content = content
+    changed = False
+    for old, new in REPLACEMENTS:
+        if old in content:
+            content = content.replace(old, new)
+            changed = True
+
+
+    if changed:
+        print(f"Fixing imports in {filepath}")
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
 
 if __name__ == "__main__":
-    fix_imports_in_project(".")
-    print("\nImport fixing process complete.")
+    if len(sys.argv) < 2:
+        print("Usage: python fix_imports.py <path_to_scan>")
+        sys.exit(1)
+
+    path_to_scan = sys.argv[1]
+    if path_to_scan == 'all':
+        path_to_scan = '.'
+
+    all_files = get_all_python_files(path_to_scan)
+    print(f"Found {len(all_files)} python files to check in {path_to_scan}.")
+    for f in all_files:
+        fix_imports_in_file(f)
+    print("Import fixing script finished.")

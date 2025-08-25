@@ -20,7 +20,6 @@ if __name__ == '__main__' and __package__ is None:
     project_root = os.path.dirname(recon_dir)
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-    __package__ = 'recon'
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -68,13 +67,13 @@ except ImportError:
         @staticmethod
         def ask(text, *args, **kwargs):
             return input(f'{text} (y/n): ').lower() == 'y'
-from  import config
-from recon.core.domain_manager import DomainManager
+import config
+from core.domain_manager import DomainManager
 try:
-    from recon.core.doh_resolver import DoHResolver
-    from recon.core.hybrid_engine import HybridEngine
-    from recon.ml.zapret_strategy_generator import ZapretStrategyGenerator
-    from recon.apply_bypass import apply_system_bypass
+    from core.doh_resolver import DoHResolver
+    from core.hybrid_engine import HybridEngine
+    from ml.zapret_strategy_generator import ZapretStrategyGenerator
+    from apply_bypass import apply_system_bypass
     OLD_STRUCTURE_AVAILABLE = True
 except ImportError:
     OLD_STRUCTURE_AVAILABLE = False

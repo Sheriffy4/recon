@@ -2,7 +2,7 @@ import random
 from typing import Optional, List, Dict, Set
 import logging
 from dataclasses import dataclass
-from recon.dns.robust_dns_handler import RobustDNSHandler
+from core.dns.robust_dns_handler import RobustDNSHandler
 LOG = logging.getLogger('CDNResolver')
 
 @dataclass

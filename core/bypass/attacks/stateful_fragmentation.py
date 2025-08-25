@@ -2,8 +2,8 @@ import time
 import random
 import logging
 from typing import List
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
 from core.integration.advanced_attack_registry import get_advanced_attack_registry
 LOG = logging.getLogger(__name__)
 

@@ -4,8 +4,8 @@
 """
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any, Set, Union
-from recon.core.fingerprint.models import EnhancedFingerprint
-from recon.core.bypass.attacks.base import AttackContext, AttackResult
+from core.fingerprint.models import EnhancedFingerprint
+from core.bypass.attacks.base import AttackContext, AttackResult
 
 class IProber(ABC):
     """Interface for DPI probing functionality."""

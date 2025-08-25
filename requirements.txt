@@ -8,3 +8,5 @@ future
 pytest
 pyyaml
 numpy
+pydivert
+pytest-asyncio
