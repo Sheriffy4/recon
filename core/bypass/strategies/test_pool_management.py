@@ -4,7 +4,7 @@ Comprehensive tests for Strategy Pool Management System
 import pytest
 import tempfile
 import os
-from recon.core.bypass.strategies.pool_management import StrategyPoolManager, StrategyPool, BypassStrategy, DomainRule, PoolPriority, analyze_domain_patterns, suggest_pool_strategies
+from core.bypass.strategies.pool_management import StrategyPoolManager, StrategyPool, BypassStrategy, DomainRule, PoolPriority, analyze_domain_patterns, suggest_pool_strategies
 
 class TestBypassStrategy:
     """Test BypassStrategy functionality"""

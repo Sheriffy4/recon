@@ -4,19 +4,19 @@ import struct
 import os
 import secrets
 from typing import List, Optional, Dict, Any, Tuple
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
-from recon.core.protocols.tls import TLSParser
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
+from core.protocols.tls import TLSParser
 ECH_EXTENSION_TYPE = 65037
 
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
     try:
-        from recon.core.bypass.attacks.safe_result_utils import safe_create_attack_result
+        from core.bypass.attacks.safe_result_utils import safe_create_attack_result
         return safe_create_attack_result(status_name, **kwargs)
     except Exception:
         try:
-            from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+            from core.bypass.attacks.base import AttackResult, AttackStatus
             status = getattr(AttackStatus, status_name)
             return AttackResult(status=status, **kwargs)
         except Exception:
@@ -158,7 +158,7 @@ def test_ech_attack_effectiveness(domain: str, attack_type: str='fragmentation')
     Returns:
         Dictionary with test results
     """
-    from recon.core.protocols.tls import TLSHandler
+    from core.protocols.tls import TLSHandler
     import config
     tls_handler = TLSHandler(config.TLS_CLIENT_HELLO_TEMPLATE)
     base_hello = tls_handler.build_client_hello(domain)

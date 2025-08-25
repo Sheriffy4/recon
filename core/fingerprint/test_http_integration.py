@@ -6,8 +6,8 @@ import pytest
 import asyncio
 import aiohttp
 from unittest.mock import AsyncMock, MagicMock, patch
-from recon.core.fingerprint.http_analyzer import HTTPAnalyzer
-from recon.core.fingerprint.advanced_models import NetworkAnalysisError
+from core.fingerprint.http_analyzer import HTTPAnalyzer
+from core.fingerprint.advanced_models import NetworkAnalysisError
 
 class TestHTTPAnalyzerIntegration:
     """Integration tests for HTTP analyzer with realistic DPI scenarios"""

@@ -13,13 +13,13 @@ except ImportError as e:
     ML_PREDICTION_AVAILABLE = False
     logging.warning(f'ML prediction not available: {e}')
 try:
-    from recon.core.integration.fingerprint_integration import get_fingerprint_integrator
+    from core.integration.fingerprint_integration import get_fingerprint_integrator
     FINGERPRINT_INTEGRATION_AVAILABLE = True
 except ImportError as e:
     FINGERPRINT_INTEGRATION_AVAILABLE = False
     logging.warning(f'Fingerprint integration not available: {e}')
 try:
-    from recon.core.integration.evolutionary_optimization_integration import get_evolutionary_integrator
+    from core.integration.evolutionary_optimization_integration import get_evolutionary_integrator
     EVOLUTIONARY_OPTIMIZATION_AVAILABLE = True
 except ImportError as e:
     EVOLUTIONARY_OPTIMIZATION_AVAILABLE = False
@@ -121,7 +121,7 @@ class StrategyPredictionIntegrator:
         if self.enable_ml and self.predictor and enhanced_dpi_profile:
             try:
                 try:
-                    from recon.core.integration.performance_integration import get_performance_integrator
+                    from core.integration.performance_integration import get_performance_integrator
                     perf_integrator = get_performance_integrator()
                     perf_integrator.record_ml_prediction()
                 except Exception:

@@ -17,8 +17,8 @@ import dns.message
 import dns.query
 import dns.rdatatype
 try:
-    from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus
-    from recon.core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, TestCase
+    from core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus
+    from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, TestCase
 except ImportError:
     from dns_base import BaseAttack, AttackResult
     from dataclasses import dataclass, field
@@ -475,7 +475,7 @@ class DNSCachePoisoningPrevention(DNSTunnelingAttack):
 def register_dns_attacks():
     """Register all DNS attacks with their definitions."""
     try:
-        from recon.core.bypass.attacks.modern_registry import get_modern_registry
+        from core.bypass.attacks.modern_registry import get_modern_registry
         registry = get_modern_registry()
     except ImportError as e:
         print(f'Failed to auto-register DNS attacks: {e}')

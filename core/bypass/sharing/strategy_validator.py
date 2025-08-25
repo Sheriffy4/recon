@@ -6,7 +6,7 @@ import json
 from typing import Dict, List, Any
 from datetime import datetime, timedelta
 import logging
-from recon.core.bypass.sharing.sharing_models import SharedStrategy, ValidationResult
+from core.bypass.sharing.sharing_models import SharedStrategy, ValidationResult
 
 class StrategyValidator:
     """Validates shared strategies for security and effectiveness."""

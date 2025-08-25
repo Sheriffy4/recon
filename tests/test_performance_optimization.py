@@ -5,11 +5,11 @@ import pytest
 import tempfile
 import os
 from unittest.mock import Mock, patch
-from recon.tests.performance_optimizer import PerformanceOptimizer
-from recon.tests.strategy_optimizer import StrategyOptimizer
-from recon.tests.production_monitor import ProductionMonitor
-from recon.tests.alerting_system import AlertingSystem
-from recon.tests.performance_models import OptimizationLevel, ProductionConfig, AlertSeverity, PerformanceMetrics, SystemHealth, Alert
+from tests.performance_optimizer import PerformanceOptimizer
+from tests.strategy_optimizer import StrategyOptimizer
+from tests.production_monitor import ProductionMonitor
+from tests.alerting_system import AlertingSystem
+from tests.performance_models import OptimizationLevel, ProductionConfig, AlertSeverity, PerformanceMetrics, SystemHealth, Alert
 
 class TestPerformanceOptimizer:
     """Test cases for PerformanceOptimizer."""

@@ -11,15 +11,15 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock
 try:
-    from recon.tests.social_media_handler import SocialMediaBypassHandler, MediaType, BlockingPattern, PlatformType, YouTubeSpecificConfig, TwitterSpecificConfig, InstagramSpecificConfig, TikTokSpecificConfig, PlatformSpecificStrategy
-    from recon.tests.subdomain_handler import SubdomainStrategyHandler, SubdomainType
-    from recon.tests.pool_management import BypassStrategy, StrategyPoolManager
+    from tests.social_media_handler import SocialMediaBypassHandler, MediaType, BlockingPattern, PlatformType, YouTubeSpecificConfig, TwitterSpecificConfig, InstagramSpecificConfig, TikTokSpecificConfig, PlatformSpecificStrategy
+    from tests.subdomain_handler import SubdomainStrategyHandler, SubdomainType
+    from tests.pool_management import BypassStrategy, StrategyPoolManager
 except ImportError:
     import sys
     import os
     sys.path.append(os.path.dirname(__file__))
-    from social_media_handler import SocialMediaBypassHandler, MediaType, BlockingPattern, PlatformType, PlatformSpecificStrategy
-    from subdomain_handler import SubdomainStrategyHandler
+    from core.bypass.strategies.social_media_handler import SocialMediaBypassHandler, MediaType, BlockingPattern, PlatformType, PlatformSpecificStrategy
+    from core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler
     from pool_management import BypassStrategy, StrategyPoolManager
 
 class TestSocialMediaBypassHandler:

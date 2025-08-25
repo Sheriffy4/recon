@@ -7,8 +7,8 @@ from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, Future
-from recon.core.diagnostics.logger import get_logger
-from recon.core.diagnostics.metrics import MetricsCollector
+from core.diagnostics.logger import get_logger
+from core.diagnostics.metrics import MetricsCollector
 
 @dataclass
 class PerformanceProfile:

@@ -8,12 +8,12 @@ Tests all components of the compatibility layer including:
 - Compatibility bridge functionality
 """
 import json
-from recon.core.bypass.compatibility.tool_detector import ToolDetector, ExternalTool
-from recon.core.bypass.compatibility.zapret_parser import ZapretConfigParser
-from recon.core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser
-from recon.core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser
-from recon.core.bypass.compatibility.syntax_converter import SyntaxConverter
-from recon.core.bypass.compatibility.compatibility_bridge import CompatibilityBridge
+from core.bypass.compatibility.tool_detector import ToolDetector, ExternalTool
+from core.bypass.compatibility.zapret_parser import ZapretConfigParser
+from core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser
+from core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser
+from core.bypass.compatibility.syntax_converter import SyntaxConverter
+from core.bypass.compatibility.compatibility_bridge import CompatibilityBridge
 
 class TestToolDetector:
     """Test tool detection functionality."""
@@ -307,7 +307,7 @@ class TestCompatibilityBridge:
 
     def test_migration_summary(self):
         """Test migration summary generation."""
-        from recon.core.bypass.compatibility.syntax_converter import ConversionResult
+        from core.bypass.compatibility.syntax_converter import ConversionResult
         results = [ConversionResult(True, {}, ExternalTool.ZAPRET, ExternalTool.NATIVE, [], [], {}), ConversionResult(False, None, ExternalTool.ZAPRET, ExternalTool.NATIVE, [], ['Error'], {})]
         summary = self.bridge._get_migration_summary(results)
         assert summary['total_configurations'] == 2

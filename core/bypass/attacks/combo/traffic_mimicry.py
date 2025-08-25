@@ -12,8 +12,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 LOG = logging.getLogger(__name__)
 
 class TrafficType(Enum):
@@ -291,7 +291,7 @@ class TrafficMimicryAttack(BaseAttack):
 
         def _register_default_profiles(self):
             """Register default traffic profiles."""
-            from recon.core.bypass.attacks.combo.traffic_profiles import ZoomTrafficProfile, TelegramTrafficProfile, WhatsAppTrafficProfile, GenericBrowsingProfile
+            from core.bypass.attacks.combo.traffic_profiles import ZoomTrafficProfile, TelegramTrafficProfile, WhatsAppTrafficProfile, GenericBrowsingProfile
             profiles = [ZoomTrafficProfile(), TelegramTrafficProfile(), WhatsAppTrafficProfile(), GenericBrowsingProfile()]
             for profile in profiles:
                 self.register_profile(profile)

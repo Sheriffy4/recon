@@ -9,7 +9,7 @@ import platform
 from pathlib import Path
 from dataclasses import dataclass, field
 from enum import Enum
-from recon.core.bypass.engines.base import EngineType, EngineConfig
+from core.bypass.engines.base import EngineType, EngineConfig
 LOG = logging.getLogger('EngineConfigManager')
 
 class ConfigSource(Enum):

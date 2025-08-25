@@ -6,7 +6,7 @@ import asyncio
 import json
 import sys
 from typing import Dict, Any
-from recon.core.fingerprint.tcp_analyzer import TCPAnalyzer
+from core.fingerprint.tcp_analyzer import TCPAnalyzer
 
 async def demo_tcp_analysis(target: str, port: int=443) -> Dict[str, Any]:
     """

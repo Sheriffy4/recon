@@ -27,7 +27,7 @@ def safe_create_attack_result(status_name: str, error_message: str='', technique
         AttackResult object or None if creation fails
     """
     try:
-        from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+        from core.bypass.attacks.base import AttackResult, AttackStatus
         status = getattr(AttackStatus, status_name)
         return AttackResult(status=status, error_message=error_message, technique_used=technique_used, latency_ms=latency_ms, packets_sent=packets_sent, bytes_sent=bytes_sent, modified_payload=modified_payload, metadata=metadata or {}, **kwargs)
     except (ImportError, NameError, AttributeError) as e:
@@ -54,7 +54,7 @@ def safe_get_attack_status(status_name: str):
         AttackStatus enum value or None if not found
     """
     try:
-        from recon.core.bypass.attacks.base import AttackStatus
+        from core.bypass.attacks.base import AttackStatus
         return getattr(AttackStatus, status_name)
     except (ImportError, NameError, AttributeError) as e:
         LOG.warning(f'Failed to get AttackStatus with direct import: {e}')

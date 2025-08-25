@@ -13,7 +13,7 @@ This script shows how to use the ReliabilityValidator for:
 import asyncio
 import logging
 
-from reliability_validator import (
+from core.bypass.validation.reliability_validator import (
     ReliabilityValidator,
     validate_domain_accessibility,
     validate_strategy_reliability,

@@ -18,8 +18,8 @@ try:
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
-from recon.core.fingerprint.training_data import TrainingDataGenerator, FeatureEngineer
-from recon.core.fingerprint.ml_classifier import MLClassifier
+from core.fingerprint.training_data import TrainingDataGenerator, FeatureEngineer
+from core.fingerprint.ml_classifier import MLClassifier
 LOG = logging.getLogger('model_trainer')
 
 @dataclass

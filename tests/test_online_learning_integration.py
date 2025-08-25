@@ -13,13 +13,13 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from recon.core.fingerprint.online_learning import OnlineLearningSystem, LearningMode
-from recon.core.fingerprint.online_learning_integration import (
+from core.fingerprint.online_learning import OnlineLearningSystem, LearningMode
+from core.fingerprint.online_learning_integration import (
     OnlineLearningIntegrator,
     FeedbackData,
 )
-from recon.core.fingerprint.ml_classifier import MLClassifier
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
+from core.fingerprint.ml_classifier import MLClassifier
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 
 
 class TestOnlineLearningIntegrator(unittest.TestCase):

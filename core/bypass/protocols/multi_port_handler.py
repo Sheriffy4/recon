@@ -8,8 +8,8 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Any
-from recon.core.bypass.types import BlockType
-from recon.core.bypass.attacks.attack_definition import AttackDefinition
+from core.bypass.types import BlockType
+from core.bypass.attacks.attack_definition import AttackDefinition
 logger = logging.getLogger(__name__)
 
 class PortType(Enum):

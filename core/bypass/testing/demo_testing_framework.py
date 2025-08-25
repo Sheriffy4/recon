@@ -4,10 +4,10 @@ Shows how to use the comprehensive testing suite.
 """
 import asyncio
 import logging
-from recon.core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
-from recon.core.bypass.testing.integration_tests import run_integration_tests
-from recon.core.bypass.testing.test_runner import TestRunner, TestConfiguration
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
+from core.bypass.testing.integration_tests import run_integration_tests
+from core.bypass.testing.test_runner import TestRunner, TestConfiguration
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 LOG = logging.getLogger('TestingFrameworkDemo')
 
@@ -126,7 +126,7 @@ async def demo_error_handling():
     registry = ModernAttackRegistry()
     suite = ComprehensiveTestSuite(registry)
     try:
-        from recon.core.bypass.testing.test_models import TestCase, ValidationMethod
+        from core.bypass.testing.test_models import TestCase, ValidationMethod
         fake_test_case = TestCase(id='fake_test', name='Fake Test', description='Test for non-existent attack', attack_id='non_existent_attack', test_domain='example.com', expected_result=True, validation_methods=[ValidationMethod.HTTP_RESPONSE])
         result = await suite.test_executor.execute_test(fake_test_case, registry)
         LOG.info(f'Error Handling Test: Status={result.status.value}')

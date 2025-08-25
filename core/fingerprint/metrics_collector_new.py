@@ -13,7 +13,7 @@ import random
 from typing import Dict, Any
 from collections import deque
 try:
-    from recon.core.fingerprint.advanced_models import MetricsCollectionError, FingerprintingError
+    from core.fingerprint.advanced_models import MetricsCollectionError, FingerprintingError
 except ImportError:
     pass
 

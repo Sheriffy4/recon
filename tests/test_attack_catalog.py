@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from attack_catalog import (
+    from core.bypass.attacks.attack_catalog import (
         get_catalog,
         AttackCategory,
         AttackComplexity,

@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import the module directly
-import pool_management
+from core.bypass.strategies import pool_management
 
 
 # Test basic functionality

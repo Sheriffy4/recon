@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any, List
 from dataclasses import dataclass
 from pathlib import Path
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackStatus
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackStatus
 
 @dataclass
 class MigrationTemplate:

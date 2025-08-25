@@ -18,9 +18,9 @@ import hashlib
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
-from recon.core.dns.robust_dns_handler import RobustDNSHandler
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
+from core.dns.robust_dns_handler import RobustDNSHandler
 LOG = logging.getLogger(__name__)
 
 class SessionPhase(Enum):

@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
-from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus
 
 class CompatibilityMode(Enum):
     """Compatibility modes for attack execution."""

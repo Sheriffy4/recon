@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
-from recon.core.doh_resolver import DoHResolver
+from core.doh_resolver import DoHResolver
 LOG = logging.getLogger('RobustDNSHandler')
 
 @dataclass

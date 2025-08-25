@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional
 import uuid
-from recon.core.bypass.config.config_models import LegacyConfiguration, PoolConfiguration, BypassStrategy, StrategyPool, DomainRule, ConfigurationVersion, MigrationResult
+from core.bypass.config.config_models import LegacyConfiguration, PoolConfiguration, BypassStrategy, StrategyPool, DomainRule, ConfigurationVersion, MigrationResult
 
 class ConfigurationMigrator:
     """Migrates configurations between different formats."""

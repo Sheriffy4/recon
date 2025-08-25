@@ -13,7 +13,7 @@ from pathlib import Path
 import time
 
 try:
-    from recon.core.fingerprint.advanced_models import (
+    from core.fingerprint.advanced_models import (
         DPIFingerprint,
         DPIType,
         ConfidenceLevel,

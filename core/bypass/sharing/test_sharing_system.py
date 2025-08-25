@@ -6,11 +6,11 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
-from recon.core.bypass.sharing.sharing_models import SharedStrategy, StrategyFeedback, TrustedSource, ShareLevel, ValidationStatus, TrustLevel
-from recon.core.bypass.sharing.strategy_validator import StrategyValidator
-from recon.core.bypass.sharing.community_database import CommunityDatabase
-from recon.core.bypass.sharing.update_manager import UpdateManager
-from recon.core.bypass.sharing.sharing_manager import SharingManager
+from core.bypass.sharing.sharing_models import SharedStrategy, StrategyFeedback, TrustedSource, ShareLevel, ValidationStatus, TrustLevel
+from core.bypass.sharing.strategy_validator import StrategyValidator
+from core.bypass.sharing.community_database import CommunityDatabase
+from core.bypass.sharing.update_manager import UpdateManager
+from core.bypass.sharing.sharing_manager import SharingManager
 
 class TestSharingModels:
     """Test sharing data models."""

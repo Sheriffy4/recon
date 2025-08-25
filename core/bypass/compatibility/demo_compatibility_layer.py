@@ -3,8 +3,8 @@ Demonstration of External Tool Compatibility Layer
 
 Shows practical usage of the compatibility layer with real-world examples.
 """
-from recon.core.bypass.compatibility.compatibility_bridge import get_compatibility_bridge
-from recon.core.bypass.compatibility.tool_detector import ExternalTool
+from core.bypass.compatibility.compatibility_bridge import get_compatibility_bridge
+from core.bypass.compatibility.tool_detector import ExternalTool
 
 def demo_tool_detection():
     """Demonstrate automatic tool detection."""

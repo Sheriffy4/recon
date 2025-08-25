@@ -9,12 +9,12 @@ import logging
 import time
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
-from recon.core.fingerprint.models import EnhancedFingerprint
+from core.fingerprint.models import EnhancedFingerprint
 from ml.strategy_generator import AdvancedStrategyGenerator
-from recon.core.bypass.attacks.real_effectiveness_tester import EffectivenessResult
-from recon.core.bypass.attacks.combo.adaptive_combo import LearningAdaptiveAttack
-from recon.core.failure_analyzer import FailureAnalyzer, FailureAnalysisResult
-from recon.core.interfaces import IFingerprintEngine, IStrategyGenerator, IEffectivenessTester, ILearningMemory, IAttackAdapter, IStrategySaver, IClosedLoopManager
+from core.bypass.attacks.real_effectiveness_tester import EffectivenessResult
+from core.bypass.attacks.combo.adaptive_combo import LearningAdaptiveAttack
+from core.failure_analyzer import FailureAnalyzer, FailureAnalysisResult
+from core.interfaces import IFingerprintEngine, IStrategyGenerator, IEffectivenessTester, ILearningMemory, IAttackAdapter, IStrategySaver, IClosedLoopManager
 LOG = logging.getLogger('ClosedLoopManager')
 
 @dataclass
@@ -354,7 +354,7 @@ class ClosedLoopManager(IClosedLoopManager):
         """
         try:
             baseline_result = await self.effectiveness_tester.test_baseline(domain, port)
-            from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+            from core.bypass.attacks.base import AttackResult, AttackStatus
             mock_attack_result = AttackResult(status=AttackStatus.SUCCESS, technique_used=strategy['name'], packets_sent=1, latency_ms=100.0)
             bypass_result = await self.effectiveness_tester.test_with_bypass(domain, port, mock_attack_result)
             effectiveness_result = await self.effectiveness_tester.compare_results(baseline_result, bypass_result)

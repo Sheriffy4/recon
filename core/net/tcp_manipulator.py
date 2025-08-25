@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 import random
-from recon.core.net.byte_packet import IPv4Packet, TCPPacket
+from core.net.byte_packet import IPv4Packet, TCPPacket
 
 @dataclass
 class SegmentConfig:

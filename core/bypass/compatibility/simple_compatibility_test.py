@@ -11,12 +11,12 @@ def test_basic_functionality():
     print('Testing External Tool Compatibility Layer...')
     try:
         print('1. Testing imports...')
-        from recon.core.bypass.compatibility.tool_detector import ToolDetector, ExternalTool
-        from recon.core.bypass.compatibility.zapret_parser import ZapretConfigParser
-        from recon.core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser
-        from recon.core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser
-        from recon.core.bypass.compatibility.syntax_converter import SyntaxConverter
-        from recon.core.bypass.compatibility.compatibility_bridge import CompatibilityBridge
+        from core.bypass.compatibility.tool_detector import ToolDetector, ExternalTool
+        from core.bypass.compatibility.zapret_parser import ZapretConfigParser
+        from core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser
+        from core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser
+        from core.bypass.compatibility.syntax_converter import SyntaxConverter
+        from core.bypass.compatibility.compatibility_bridge import CompatibilityBridge
         print('   ✓ All imports successful')
         print('2. Testing tool detection...')
         detector = ToolDetector()
@@ -73,8 +73,8 @@ def test_real_world_scenarios():
     """Test with real-world configuration examples."""
     print('\nTesting real-world scenarios...')
     try:
-        from recon.core.bypass.compatibility.compatibility_bridge import CompatibilityBridge
-        from recon.core.bypass.compatibility.tool_detector import ExternalTool
+        from core.bypass.compatibility.compatibility_bridge import CompatibilityBridge
+        from core.bypass.compatibility.tool_detector import ExternalTool
         bridge = CompatibilityBridge()
         zapret_configs = ['--dpi-desync=split --dpi-desync-split-pos=2', '--dpi-desync=fake,disorder --dpi-desync-ttl=8', '--dpi-desync=split --dpi-desync-split-pos=midsld --hostcase']
         goodbyedpi_configs = ['-f 2', '-f 2 -e -m', '-p -r -s --max-payload 1024']

@@ -14,17 +14,17 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from recon.core.fingerprint.monitoring_integration import (
+from core.fingerprint.monitoring_integration import (
     MonitoringIntegration,
     default_alert_handler,
 )
-from recon.core.fingerprint.dpi_behavior_monitor import (
+from core.fingerprint.dpi_behavior_monitor import (
     MonitoringConfig,
     MonitoringAlert,
     AlertSeverity,
 )
-from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
+from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 
 
 class TestMonitoringIntegration(unittest.TestCase):

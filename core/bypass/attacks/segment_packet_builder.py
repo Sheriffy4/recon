@@ -11,7 +11,7 @@ import time
 from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from core.packet_builder import PacketBuilder
-from recon.core.bypass.attacks.base import AttackContext, SegmentTuple
+from core.bypass.attacks.base import AttackContext, SegmentTuple
 
 @dataclass
 class SegmentPacketInfo:

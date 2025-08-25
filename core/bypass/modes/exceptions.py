@@ -2,7 +2,7 @@
 Exceptions for mode management system.
 """
 try:
-    from recon.core.bypass.exceptions import BypassError
+    from core.bypass.exceptions import BypassError
 except ImportError:
 
     class BypassError(Exception):

@@ -7,9 +7,9 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
-from recon.tests.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
-from recon.tests.modern_registry import ModernAttackRegistry, TestResult, get_modern_registry
-from recon.tests.base import BaseAttack, AttackResult, AttackContext, AttackStatus
+from tests.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
+from tests.modern_registry import ModernAttackRegistry, TestResult, get_modern_registry
+from tests.base import BaseAttack, AttackResult, AttackContext, AttackStatus
 
 class MockAttack(BaseAttack):
     """Mock attack class for testing."""
@@ -334,7 +334,7 @@ class TestGlobalRegistryFunctions(unittest.TestCase):
     @patch('recon.core.bypass.attacks.modern_registry.get_modern_registry')
     def test_global_functions(self, mock_get_registry):
         """Test global convenience functions."""
-        from recon.tests.modern_registry import register_modern_attack, get_attack_definition, list_modern_attacks
+        from tests.modern_registry import register_modern_attack, get_attack_definition, list_modern_attacks
         mock_registry = Mock()
         mock_get_registry.return_value = mock_registry
         definition = Mock()

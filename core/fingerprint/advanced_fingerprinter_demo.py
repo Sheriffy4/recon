@@ -6,8 +6,8 @@ import asyncio
 import logging
 import tempfile
 import os
-from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
+from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 

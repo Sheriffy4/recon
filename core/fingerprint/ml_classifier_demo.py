@@ -13,7 +13,7 @@ import logging
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
-from recon.core.fingerprint.ml_classifier import MLClassifier, MLClassificationError
+from core.fingerprint.ml_classifier import MLClassifier, MLClassificationError
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

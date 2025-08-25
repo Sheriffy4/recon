@@ -2,7 +2,7 @@
 Migration helper for converting old-style attacks to new segment-based format.
 """
 from typing import List, Optional
-from recon.core.bypass.attacks.base import AttackResult, SegmentTuple
+from core.bypass.attacks.base import AttackResult, SegmentTuple
 
 class AttackMigrationHelper:
     """Helps migrate old attacks to new segment-based architecture."""

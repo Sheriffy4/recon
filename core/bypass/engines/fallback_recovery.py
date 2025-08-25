@@ -10,9 +10,9 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from abc import ABC, abstractmethod
-from recon.core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineType
-from recon.core.bypass.engines.error_handling import BaseEngineError, EngineCreationError, EngineDependencyError, ErrorContext, ErrorSeverity, get_error_handler
-from recon.core.bypass.engines.config_models import EngineCreationRequest
+from core.bypass.engines.base import BaseBypassEngine, EngineConfig, EngineType
+from core.bypass.engines.error_handling import BaseEngineError, EngineCreationError, EngineDependencyError, ErrorContext, ErrorSeverity, get_error_handler
+from core.bypass.engines.config_models import EngineCreationRequest
 LOG = logging.getLogger('FallbackRecovery')
 
 class FallbackStrategy(Enum):
@@ -323,7 +323,7 @@ class FallbackRecoveryManager:
 
     def _create_error_context(self, request: EngineCreationRequest) -> ErrorContext:
         """Create error context from request."""
-        from recon.core.bypass.engines.error_handling import ErrorContext
+        from core.bypass.engines.error_handling import ErrorContext
         return ErrorContext(operation='fallback_engine_creation', user_action='create_engine_with_fallback', additional_info={'request_id': getattr(request, 'request_id', None), 'allow_fallback': request.allow_fallback, 'validate_dependencies': request.validate_dependencies})
 
     def _attempt_engine_creation(self, engine_type: EngineType, request: EngineCreationRequest, engine_creator: Callable, attempt_num: int) -> FallbackAttempt:
@@ -341,7 +341,7 @@ class FallbackRecoveryManager:
         except Exception as e:
             context = self._create_error_context(request)
             context.engine_type = engine_type
-            from recon.core.bypass.engines.error_handling import create_error_from_exception
+            from core.bypass.engines.error_handling import create_error_from_exception
             structured_error = create_error_from_exception(e, EngineCreationError, context)
             attempt.error = structured_error
             self.logger.warning(f'Failed to create {engine_type.value} engine: {structured_error.message}')
@@ -361,7 +361,7 @@ class FallbackRecoveryManager:
             attempt.engine = mock_engine
         except Exception as e:
             context = self._create_error_context(request)
-            from recon.core.bypass.engines.error_handling import create_error_from_exception
+            from core.bypass.engines.error_handling import create_error_from_exception
             attempt.error = create_error_from_exception(e, EngineCreationError, context)
         attempt.end_time = time.time()
         return attempt

@@ -16,7 +16,7 @@ import logging
 import random
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
-from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
 
 @dataclass
 class MultisplitConfig:

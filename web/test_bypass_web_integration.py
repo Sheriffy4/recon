@@ -17,10 +17,10 @@ except ImportError:
 from recon.web.bypass_api import BypassEngineAPI
 from recon.web.bypass_dashboard import BypassDashboard
 from recon.web.bypass_integration import BypassWebIntegration, create_bypass_integration
-from recon.core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy, PoolPriority
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
-from recon.core.bypass.testing.test_runner import AttackTestRunner
-from recon.core.bypass.validation.reliability_validator import ReliabilityValidator
+from core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy, PoolPriority
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.testing.test_runner import AttackTestRunner
+from core.bypass.validation.reliability_validator import ReliabilityValidator
 
 class TestBypassEngineAPI(AioHTTPTestCase):
     """Test suite for bypass engine API endpoints."""

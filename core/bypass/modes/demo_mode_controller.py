@@ -10,7 +10,7 @@ import time
 # Add the current directory to the path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from mode_controller import ModeController, OperationMode
+from core.bypass.modes.mode_controller import ModeController, OperationMode
 from capability_detector import CapabilityDetector
 from exceptions import UnsupportedModeError
 

@@ -7,9 +7,9 @@ This module provides:
 - Configuration validation and error checking
 - Configuration backup and restore functionality
 """
-from recon.core.bypass.config.config_models import PoolConfiguration, LegacyConfiguration, ConfigurationVersion, MigrationResult
-from recon.core.bypass.config.config_migrator import ConfigurationMigrator
-from recon.core.bypass.config.config_validator import ConfigurationValidator
-from recon.core.bypass.config.config_manager import ConfigurationManager
-from recon.core.bypass.config.backup_manager import BackupManager
+from core.bypass.config.config_models import PoolConfiguration, LegacyConfiguration, ConfigurationVersion, MigrationResult
+from core.bypass.config.config_migrator import ConfigurationMigrator
+from core.bypass.config.config_validator import ConfigurationValidator
+from core.bypass.config.config_manager import ConfigurationManager
+from core.bypass.config.backup_manager import BackupManager
 __all__ = ['PoolConfiguration', 'LegacyConfiguration', 'ConfigurationVersion', 'MigrationResult', 'ConfigurationMigrator', 'ConfigurationValidator', 'ConfigurationManager', 'BackupManager']

@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from recon.core.bypass.attacks.base import AttackContext
-    from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+    from core.bypass.attacks.base import AttackContext
+    from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
 LOG = logging.getLogger('DynamicParameterOptimizer')
 
 class OptimizationStrategy(Enum):
@@ -72,7 +72,7 @@ class DynamicParameterOptimizer:
         if attack_name in self._parameter_ranges:
             return self._parameter_ranges[attack_name].copy()
         try:
-            from recon.core.bypass.attacks.registry import AttackRegistry
+            from core.bypass.attacks.registry import AttackRegistry
             attack_class = AttackRegistry.get(attack_name)
             if attack_class:
                 try:
@@ -168,8 +168,8 @@ class DynamicParameterOptimizer:
             Effectiveness score (0.0 - 1.0)
         """
         try:
-            from recon.core.bypass.attacks.registry import AttackRegistry
-            from recon.core.bypass.attacks.base import AttackContext, AttackStatus
+            from core.bypass.attacks.registry import AttackRegistry
+            from core.bypass.attacks.base import AttackContext, AttackStatus
             attack = AttackRegistry.create(attack_name)
             if not attack:
                 raise ValueError(f'Could not create attack instance for {attack_name}')

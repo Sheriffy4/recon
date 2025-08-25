@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
 from collections import defaultdict
-from recon.core.bypass.attacks.combo.traffic_mimicry import TrafficPattern
-from recon.core.bypass.attacks.combo.steganographic_engine import SteganographicManager, SteganographicConfig
+from core.bypass.attacks.combo.traffic_mimicry import TrafficPattern
+from core.bypass.attacks.combo.steganographic_engine import SteganographicManager, SteganographicConfig
 try:
     from scapy.all import rdpcap
     SCAPY_AVAILABLE = True

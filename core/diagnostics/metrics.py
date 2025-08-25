@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from collections import defaultdict, deque
 from threading import Lock
 import statistics
-from recon.core.diagnostics.logger import get_logger
+from core.diagnostics.logger import get_logger
 
 @dataclass
 class MetricPoint:

@@ -957,7 +957,7 @@ class BaseAttack(ABC):
             return result
         if result.status != AttackStatus.SUCCESS:
             return result
-        from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+        from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
         tester = RealEffectivenessTester(timeout=context.timeout)
         try:
             baseline = await tester.test_baseline(context.domain, context.dst_port)

@@ -4,7 +4,7 @@ import random
 from typing import Optional, List, Any
 
 try:
-    from recon.core.fingerprint.advanced_models import (
+    from core.fingerprint.advanced_models import (
         DPIFingerprint,
         DPIType,
         ConfidenceLevel,
@@ -18,8 +18,8 @@ except ImportError:
 
 # Import modern attack registry for enhanced strategy generation
 try:
-    from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
-    from recon.core.bypass.attacks.attack_definition import (
+    from core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.attacks.attack_definition import (
         AttackCategory,
         AttackComplexity,
     )

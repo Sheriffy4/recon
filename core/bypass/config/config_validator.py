@@ -6,7 +6,7 @@ import json
 from typing import List, Dict, Any, Set
 from pathlib import Path
 from datetime import datetime
-from recon.core.bypass.config.config_models import PoolConfiguration, StrategyPool, BypassStrategy, DomainRule, ConfigurationVersion
+from core.bypass.config.config_models import PoolConfiguration, StrategyPool, BypassStrategy, DomainRule, ConfigurationVersion
 
 class ValidationError:
     """Represents a configuration validation error."""

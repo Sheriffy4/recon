@@ -4,8 +4,8 @@ Demonstration of configuration migration and management functionality.
 import json
 import tempfile
 from pathlib import Path
-from recon.core.bypass.config.config_models import BypassStrategy
-from recon.core.bypass.config.config_manager import ConfigurationManager
+from core.bypass.config.config_models import BypassStrategy
+from core.bypass.config.config_manager import ConfigurationManager
 
 def demo_legacy_migration():
     """Demonstrate migration from legacy best_strategy.json format."""

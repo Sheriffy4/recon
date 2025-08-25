@@ -5,14 +5,14 @@ Tests the integration between HybridEngine, strategy generation, pool management
 import unittest
 from unittest.mock import patch, AsyncMock
 import tempfile
-from recon.tests.hybrid_engine import HybridEngine
-from recon.tests.monitoring_system import MonitoringSystem, MonitoringConfig
-from recon.ml.zapret_strategy_generator import ZapretStrategyGenerator
+from tests.hybrid_engine import HybridEngine
+from tests.monitoring_system import MonitoringSystem, MonitoringConfig
+from ml.zapret_strategy_generator import ZapretStrategyGenerator
 try:
-    from recon.tests.bypass.attacks.modern_registry import ModernAttackRegistry
-    from recon.tests.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
-    from recon.tests.bypass.modes.mode_controller import ModeController, OperationMode
-    from recon.tests.bypass.validation.reliability_validator import ReliabilityValidator
+    from tests.bypass.attacks.modern_registry import ModernAttackRegistry
+    from tests.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
+    from tests.bypass.modes.mode_controller import ModeController, OperationMode
+    from tests.bypass.validation.reliability_validator import ReliabilityValidator
     MODERN_COMPONENTS_AVAILABLE = True
 except ImportError:
     MODERN_COMPONENTS_AVAILABLE = False

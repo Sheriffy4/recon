@@ -142,7 +142,7 @@ class ServiceFactory:
         """
         Create DI container configured for production use.
         """
-        from recon.core.di.typed_config import create_production_config
+        from core.di.typed_config import create_production_config
         config = create_production_config()
         return ServiceFactory.create_container_from_typed_config(config)
 
@@ -151,7 +151,7 @@ class ServiceFactory:
         """
         Create DI container configured for development use.
         """
-        from recon.core.di.typed_config import create_development_config
+        from core.di.typed_config import create_development_config
         config = create_development_config()
         return ServiceFactory.create_container_from_typed_config(config)
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid
-from recon.core.bypass.config.config_models import ConfigurationBackup, ConfigurationVersion
+from core.bypass.config.config_models import ConfigurationBackup, ConfigurationVersion
 
 class BackupManager:
     """Manages configuration backups and restore operations."""

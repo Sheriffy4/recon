@@ -7,8 +7,8 @@ from typing import List, Dict, Optional, Any, Tuple
 from collections import defaultdict, deque
 from datetime import datetime
 from scapy.all import Packet, IP, IPv6, TCP, ICMP
-from recon.core.fingerprint.models import Fingerprint, EnhancedFingerprint, DPIBehaviorProfile, ProbeConfig
-from recon.core.fingerprint.prober import UltimateDPIProber
+from core.fingerprint.models import Fingerprint, EnhancedFingerprint, DPIBehaviorProfile, ProbeConfig
+from core.fingerprint.prober import UltimateDPIProber
 LOG = logging.getLogger(__name__)
 
 class PacketAnalyzer:

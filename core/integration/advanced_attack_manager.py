@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from abc import ABC, abstractmethod
 try:
-    from recon.core.integration.strategy_prediction_integration import get_strategy_integrator, StrategyRecommendation
-    from recon.core.integration.fingerprint_integration import get_fingerprint_integrator, FingerprintResult
-    from recon.core.integration.performance_integration import get_performance_integrator
-    from recon.core.integration.evolutionary_optimization_integration import get_evolutionary_integrator
+    from core.integration.strategy_prediction_integration import get_strategy_integrator, StrategyRecommendation
+    from core.integration.fingerprint_integration import get_fingerprint_integrator, FingerprintResult
+    from core.integration.performance_integration import get_performance_integrator
+    from core.integration.evolutionary_optimization_integration import get_evolutionary_integrator
     PHASE1_INTEGRATIONS_AVAILABLE = True
 except ImportError as e:
     PHASE1_INTEGRATIONS_AVAILABLE = False
@@ -204,7 +204,7 @@ class AdvancedAttackManager:
         LOG.info('Initializing advanced attacks system')
         try:
             try:
-                from recon.core.integration.advanced_attack_registry import get_advanced_attack_registry
+                from core.integration.advanced_attack_registry import get_advanced_attack_registry
                 self.attack_registry = get_advanced_attack_registry()
             except ImportError as e:
                 LOG.warning(f'Advanced attack registry not available: {e}')
@@ -221,35 +221,35 @@ class AdvancedAttackManager:
     async def _register_available_attacks(self):
         """Register all available advanced attacks."""
         try:
-            from recon.core.integration.adaptive_combo_integration import create_adaptive_combo_integration
+            from core.integration.adaptive_combo_integration import create_adaptive_combo_integration
             attack = create_adaptive_combo_integration()
             self.registered_attacks['adaptive_combo'] = attack
             LOG.info('Registered Adaptive Combo Attack')
         except ImportError as e:
             LOG.debug(f'Adaptive Combo Attack not available: {e}')
         try:
-            from recon.core.integration.learning_memory_integration import create_learning_memory_integration
+            from core.integration.learning_memory_integration import create_learning_memory_integration
             attack = create_learning_memory_integration()
             self.registered_attacks['learning_memory'] = attack
             LOG.info('Registered Learning Memory System')
         except ImportError as e:
             LOG.debug(f'Learning Memory System not available: {e}')
         try:
-            from recon.core.integration.ech_attack_integration import create_ech_attack_integration
+            from core.integration.ech_attack_integration import create_ech_attack_integration
             attack = create_ech_attack_integration()
             self.registered_attacks['ech_attack'] = attack
             LOG.info('Registered ECH Attack Integration')
         except ImportError as e:
             LOG.debug(f'ECH Attack Integration not available: {e}')
         try:
-            from recon.core.integration.quic_attack_integration import create_quic_attack_integration
+            from core.integration.quic_attack_integration import create_quic_attack_integration
             attack = create_quic_attack_integration()
             self.registered_attacks['quic_attack'] = attack
             LOG.info('Registered QUIC Attack Integration')
         except ImportError as e:
             LOG.debug(f'QUIC Attack Integration not available: {e}')
         try:
-            from recon.core.integration.traffic_mimicry_integration import create_traffic_mimicry_integration
+            from core.integration.traffic_mimicry_integration import create_traffic_mimicry_integration
             attack = create_traffic_mimicry_integration()
             self.registered_attacks['traffic_mimicry'] = attack
             LOG.info('Registered Traffic Mimicry Integration')

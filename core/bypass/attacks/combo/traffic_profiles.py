@@ -8,8 +8,8 @@ import asyncio
 import random
 import re
 from typing import List, Tuple
-from recon.core.bypass.attacks.combo.traffic_mimicry import TrafficProfile, TrafficPattern, TrafficType
-from recon.core.bypass.attacks.base import AttackContext
+from core.bypass.attacks.combo.traffic_mimicry import TrafficProfile, TrafficPattern, TrafficType
+from core.bypass.attacks.base import AttackContext
 
 class ZoomTrafficProfile(TrafficProfile):
     """

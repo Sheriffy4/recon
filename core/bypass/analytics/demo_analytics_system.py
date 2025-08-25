@@ -4,8 +4,8 @@ Demo of the advanced analytics and reporting system
 import asyncio
 import random
 from datetime import datetime, timedelta
-from recon.core.bypass.analytics.analytics_engine import AnalyticsEngine
-from recon.core.bypass.analytics.analytics_models import MetricType
+from core.bypass.analytics.analytics_engine import AnalyticsEngine
+from core.bypass.analytics.analytics_models import MetricType
 
 async def simulate_bypass_activity(engine: AnalyticsEngine, duration_minutes: int=5):
     """Simulate realistic bypass engine activity"""

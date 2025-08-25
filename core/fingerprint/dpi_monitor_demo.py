@@ -12,8 +12,8 @@ Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
 import asyncio
 import logging
 from typing import List
-from recon.core.fingerprint.dpi_behavior_monitor import DPIBehaviorMonitor, MonitoringConfig, MonitoringAlert, AlertSeverity
-from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+from core.fingerprint.dpi_behavior_monitor import DPIBehaviorMonitor, MonitoringConfig, MonitoringAlert, AlertSeverity
+from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
