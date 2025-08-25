@@ -4,14 +4,15 @@ Payload Encryption Obfuscation Attacks
 Advanced payload encryption techniques that encrypt and obfuscate data
 to evade DPI content inspection and pattern matching.
 """
+import asyncio
 import time
 import random
 import hashlib
 import struct
 import json
 from typing import List, Dict, Any, Tuple
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 
 @register_attack
 class XORPayloadEncryptionAttack(BaseAttack):
@@ -38,7 +39,7 @@ class XORPayloadEncryptionAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute XOR payload encryption attack."""
         start_time = time.time()
         try:
@@ -55,7 +56,7 @@ class XORPayloadEncryptionAttack(BaseAttack):
                 final_packet = encrypted_payload
             segments = []
             if key_rotation and len(payload) > 100:
-                segments = self._create_key_rotation_segments(payload, key_strategy, key_length)
+                segments = await self._create_key_rotation_segments(payload, key_strategy, key_length)
             else:
                 segments = [(final_packet, 0, {'encrypted': True, 'key_strategy': key_strategy})]
             packets_sent = len(segments)
@@ -103,7 +104,7 @@ class XORPayloadEncryptionAttack(BaseAttack):
         header = magic + bytes([version, strategy_code]) + struct.pack('!H', key_length) + key_hint
         return header + encrypted_payload
 
-    def _create_key_rotation_segments(self, payload: bytes, strategy: str, key_length: int) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    async def _create_key_rotation_segments(self, payload: bytes, strategy: str, key_length: int) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Create segments with key rotation."""
         segments = []
         chunk_size = random.randint(50, 150)
@@ -112,6 +113,7 @@ class XORPayloadEncryptionAttack(BaseAttack):
             segment_key = self._generate_rotation_key(strategy, key_length, i)
             encrypted_chunk = self._xor_encrypt(chunk, segment_key)
             segment_packet = self._create_packet_with_header(encrypted_chunk, segment_key, strategy)
+            await asyncio.sleep(i * 10 / 1000.0)
             segments.append((segment_packet, i * 10, {'encrypted': True, 'key_strategy': strategy, 'segment_index': i // chunk_size, 'key_rotated': True}))
         return segments
 
@@ -151,7 +153,7 @@ class AESPayloadEncryptionAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute AES payload encryption attack."""
         start_time = time.time()
         try:
@@ -167,6 +169,7 @@ class AESPayloadEncryptionAttack(BaseAttack):
             segments = [(final_packet, 0, {'encrypted': True, 'algorithm': 'AES', 'mode': mode, 'key_size': key_size})]
             packets_sent = 1
             bytes_sent = len(final_packet)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, technique_used='aes_payload_encryption', metadata={'mode': mode, 'key_size': key_size, 'include_iv': include_iv, 'padding_scheme': padding_scheme, 'original_size': len(payload), 'encrypted_size': len(encrypted_payload), 'final_size': len(final_packet), 'segments': segments})
         except Exception as e:
@@ -237,7 +240,7 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ChaCha20 payload encryption attack."""
         start_time = time.time()
         try:
@@ -257,6 +260,7 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
             segments = [(final_packet, 0, {'encrypted': True, 'algorithm': 'ChaCha20', 'authenticated': use_poly1305})]
             packets_sent = 1
             bytes_sent = len(final_packet)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, technique_used='chacha20_payload_encryption', metadata={'use_poly1305': use_poly1305, 'nonce_strategy': nonce_strategy, 'original_size': len(payload), 'encrypted_size': len(encrypted_payload), 'auth_tag_size': len(auth_tag), 'final_size': len(final_packet), 'segments': segments})
         except Exception as e:
@@ -334,7 +338,7 @@ class MultiLayerEncryptionAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute multi-layer encryption attack."""
         start_time = time.time()
         try:
@@ -357,6 +361,7 @@ class MultiLayerEncryptionAttack(BaseAttack):
             segments = [(final_packet, 0, {'encrypted': True, 'layers': layers, 'layer_count': len(layers), 'randomized': randomize_order, 'noise_added': add_noise})]
             packets_sent = 1
             bytes_sent = len(final_packet)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, technique_used='multi_layer_encryption', metadata={'layers': layers, 'layer_count': len(layers), 'randomize_order': randomize_order, 'add_noise': add_noise, 'layer_info': layer_info, 'original_size': len(payload), 'final_size': len(final_packet), 'expansion_ratio': len(final_packet) / len(payload) if payload else 1.0, 'segments': segments})
         except Exception as e:

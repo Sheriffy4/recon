@@ -17,7 +17,7 @@ try:
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
-from recon.core.fingerprint.advanced_models import NetworkAnalysisError
+from core.fingerprint.advanced_models import NetworkAnalysisError
 LOG = logging.getLogger(__name__)
 
 @dataclass

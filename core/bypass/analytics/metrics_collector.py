@@ -5,7 +5,7 @@ import json
 import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-from recon.core.bypass.analytics.analytics_models import AttackMetrics, StrategyMetrics, DomainAnalytics, MetricType, TrendDirection, RealtimeMetrics
+from core.bypass.analytics.analytics_models import AttackMetrics, StrategyMetrics, DomainAnalytics, MetricType, TrendDirection, RealtimeMetrics
 
 class MetricsCollector:
     """Collects and stores metrics for analytics"""

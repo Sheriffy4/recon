@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Set, Optional, Any
 import threading
 from dataclasses import dataclass
-from recon.core.bypass.diagnostics.metrics import MetricsCollector
-from recon.core.bypass.diagnostics.logger import get_logger
+from core.bypass.diagnostics.metrics import MetricsCollector
+from core.diagnostics.logger import get_logger
 
 @dataclass
 class EngineConfig:

@@ -16,14 +16,14 @@ from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 from scapy.all import IP, TCP, sr1, Raw
 from scapy.layers.tls.all import TLS, TLSClientHello
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
-from recon.core.fingerprint.cache import FingerprintCache
-from recon.core.fingerprint.metrics_collector import MetricsCollector
-from recon.core.fingerprint.tcp_analyzer import TCPAnalyzer
-from recon.core.fingerprint.http_analyzer import HTTPAnalyzer
-from recon.core.fingerprint.dns_analyzer import DNSAnalyzer
-from recon.core.fingerprint.ml_classifier import MLClassifier
-from recon.protocols.tls import TLSParser, ClientHelloInfo
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
+from core.fingerprint.cache import FingerprintCache
+from core.fingerprint.metrics_collector import MetricsCollector
+from core.fingerprint.tcp_analyzer import TCPAnalyzer
+from core.fingerprint.http_analyzer import HTTPAnalyzer
+from core.fingerprint.dns_analyzer import DNSAnalyzer
+from core.fingerprint.ml_classifier import MLClassifier
+from core.protocols.tls import TLSParser, ClientHelloInfo
 
 class BlockingEvent(Enum):
     """Типы событий, приводящих к блокировке или ее обнаружению."""

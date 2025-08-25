@@ -4,6 +4,7 @@ Traffic Mimicry Attack System
 Implements traffic pattern mimicry to blend bypass attempts with legitimate application traffic.
 This helps evade behavioral DPI analysis by making bypass traffic look like popular applications.
 """
+import asyncio
 import time
 import random
 import logging
@@ -78,7 +79,7 @@ class TrafficProfile(ABC):
         pass
 
     @abstractmethod
-    def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
+    async def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
         """
         Generate a sequence of packets with timing that mimics the application.
 
@@ -250,7 +251,7 @@ class TrafficMimicryAttack(BaseAttack):
                 return self._profiles[best_profile_name]
         return None
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute traffic mimicry attack.
 
@@ -267,14 +268,14 @@ class TrafficMimicryAttack(BaseAttack):
             profile = self.select_profile_for_domain(domain, fingerprint)
             if not profile:
                 return AttackResult(status=AttackStatus.ERROR, error_message='No suitable traffic profile found', latency_ms=(time.time() - start_time) * 1000)
-            packet_sequence = profile.generate_packet_sequence(context.payload, context)
+            packet_sequence = await profile.generate_packet_sequence(context.payload, context)
             if not packet_sequence:
                 return AttackResult(status=AttackStatus.ERROR, error_message='Failed to generate packet sequence', latency_ms=(time.time() - start_time) * 1000)
             total_bytes_sent = 0
             packets_sent = 0
             for packet_data, delay in packet_sequence:
                 if delay > 0:
-                    time.sleep(delay / 1000.0)
+                    await asyncio.sleep(delay / 1000.0)
                 total_bytes_sent += len(packet_data)
                 packets_sent += 1
                 if time.time() - start_time > context.timeout:

@@ -4,6 +4,7 @@ Payload Obfuscation Attacks
 Migrated from:
 - apply_payload_obfuscation (core/fast_bypass.py)
 """
+import asyncio
 import time
 import random
 from recon.core.bypass.attacks.base import PayloadAttack, AttackContext, AttackResult, AttackStatus
@@ -26,7 +27,7 @@ class PayloadObfuscationAttack(PayloadAttack):
     def description(self) -> str:
         return 'Obfuscates payload using byte rotation'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute payload obfuscation attack."""
         start_time = time.time()
         try:
@@ -44,6 +45,7 @@ class PayloadObfuscationAttack(PayloadAttack):
                 segments = [(obfuscated1, 0, {'obfuscated': True, 'shift': shift}), (obfuscated2, split_pos, {'obfuscated': True, 'shift': shift})]
             packets_sent = len(segments)
             bytes_sent = len(payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'split_pos': split_pos, 'shift': shift, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -63,7 +65,7 @@ class PayloadByteSwapAttack(PayloadAttack):
     def description(self) -> str:
         return 'Swaps adjacent bytes in payload to obfuscate content'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute payload byte swap attack."""
         start_time = time.time()
         try:
@@ -78,6 +80,7 @@ class PayloadByteSwapAttack(PayloadAttack):
             segments = [(bytes(swapped), 0, {'byte_swapped': True})]
             packets_sent = 1
             bytes_sent = len(swapped)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'original_size': len(payload), 'swapped_size': len(swapped), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -97,7 +100,7 @@ class PayloadBitFlipAttack(PayloadAttack):
     def description(self) -> str:
         return 'Flips random bits in payload to create variations'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute payload bit flip attack."""
         start_time = time.time()
         try:
@@ -113,6 +116,7 @@ class PayloadBitFlipAttack(PayloadAttack):
             segments = [(bytes(flipped), 0, {'bits_flipped': bits_flipped})]
             packets_sent = 1
             bytes_sent = len(flipped)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'flip_probability': flip_probability, 'bits_flipped': bits_flipped, 'total_bits': len(payload) * 8, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:

@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
-from recon.core.bypass.safety.exceptions import ResourceLimitExceededError
+from core.bypass.safety.exceptions import ResourceLimitExceededError
 LOG = logging.getLogger('ResourceManager')
 
 @dataclass

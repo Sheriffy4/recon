@@ -13,6 +13,7 @@ Attack Strategy:
 The DPI system sees: [fake_packet] -> [part2] -> [part1]
 The destination sees: [part1] -> [part2] (fake packet is dropped)
 """
+import asyncio
 import logging
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
@@ -59,7 +60,7 @@ class FakedDisorderAttack(BaseAttack):
         if self.config.part1_delay_ms < 0:
             raise ValueError(f'part1_delay_ms must be non-negative, got {self.config.part1_delay_ms}')
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute FakedDisorderAttack.
 
@@ -80,7 +81,7 @@ class FakedDisorderAttack(BaseAttack):
             part2 = context.payload[split_byte_pos:]
             self.logger.debug(f'Split payload: part1={len(part1)} bytes, part2={len(part2)} bytes at pos {split_byte_pos}')
             fake_payload = self._generate_fake_payload(context.payload, part1, part2)
-            segments = self._create_segments(fake_payload, part1, part2, split_byte_pos)
+            segments = await self._create_segments(fake_payload, part1, part2, split_byte_pos)
             result = AttackResult(status=AttackStatus.SUCCESS, modified_payload=None, metadata={'attack_type': 'faked_disorder', 'segments': segments, 'split_position': split_byte_pos, 'split_ratio': self.config.split_pos, 'fake_payload_size': len(fake_payload), 'part1_size': len(part1), 'part2_size': len(part2), 'total_segments': len(segments), 'config': {'fake_ttl': self.config.fake_ttl, 'fake_delay_ms': self.config.fake_delay_ms, 'part2_delay_ms': self.config.part2_delay_ms, 'part1_delay_ms': self.config.part1_delay_ms, 'use_different_fake_payload': self.config.use_different_fake_payload, 'corrupt_fake_checksum': self.config.corrupt_fake_checksum, 'randomize_fake_content': self.config.randomize_fake_content}})
             result._segments = segments
             self.logger.info(f'FakedDisorderAttack created {len(segments)} segments: fake({len(fake_payload)}b) -> part2({len(part2)}b) -> part1({len(part1)}b)')
@@ -190,7 +191,7 @@ class FakedDisorderAttack(BaseAttack):
                 payload_array[pos] = random.randint(65, 90)
         return bytes(payload_array)
 
-    def _create_segments(self, fake_payload: bytes, part1: bytes, part2: bytes, split_pos: int) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    async def _create_segments(self, fake_payload: bytes, part1: bytes, part2: bytes, split_pos: int) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """
         Create segments for the faked disorder attack.
 
@@ -207,10 +208,13 @@ class FakedDisorderAttack(BaseAttack):
         fake_options = {'ttl': self.config.fake_ttl, 'delay_ms': self.config.fake_delay_ms, 'flags': self.config.fake_tcp_flags if self.config.fake_tcp_flags else 24}
         if self.config.corrupt_fake_checksum:
             fake_options['bad_checksum'] = True
+        await asyncio.sleep(self.config.fake_delay_ms / 1000.0)
         segments.append((fake_payload, 0, fake_options))
         part2_options = {'ttl': 64, 'delay_ms': self.config.part2_delay_ms, 'flags': 24}
+        await asyncio.sleep(self.config.part2_delay_ms / 1000.0)
         segments.append((part2, split_pos, part2_options))
         part1_options = {'ttl': 64, 'delay_ms': self.config.part1_delay_ms, 'flags': 24}
+        await asyncio.sleep(self.config.part1_delay_ms / 1000.0)
         segments.append((part1, 0, part1_options))
         return segments
 

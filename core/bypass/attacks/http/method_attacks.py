@@ -3,11 +3,12 @@ HTTP Method Manipulation Attacks
 
 Attacks that manipulate HTTP methods and request lines.
 """
+import asyncio
 import time
 import random
 from typing import List
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 
 @register_attack
 class HTTPMethodCaseAttack(BaseAttack):
@@ -31,7 +32,7 @@ class HTTPMethodCaseAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP method case attack."""
         start_time = time.time()
         try:
@@ -59,6 +60,7 @@ class HTTPMethodCaseAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'case_strategy': case_strategy, 'original_method': parts[0].decode('utf-8', errors='ignore'), 'modified_method': method.decode('utf-8', errors='ignore'), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -110,7 +112,7 @@ class HTTPMethodSubstitutionAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP method substitution attack."""
         start_time = time.time()
         try:
@@ -131,6 +133,7 @@ class HTTPMethodSubstitutionAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'original_method': original_method.decode('utf-8', errors='ignore'), 'substitute_method': substitute_method, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -158,7 +161,7 @@ class HTTPVersionManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP version manipulation attack."""
         start_time = time.time()
         try:
@@ -179,6 +182,7 @@ class HTTPVersionManipulationAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'original_version': original_version.decode('utf-8', errors='ignore'), 'new_version': new_version, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -206,7 +210,7 @@ class HTTPPathObfuscationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP path obfuscation attack."""
         start_time = time.time()
         try:
@@ -234,6 +238,7 @@ class HTTPPathObfuscationAttack(BaseAttack):
             segments = [(modified_payload, 0)]
             packets_sent = 1
             bytes_sent = len(modified_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'obfuscation_type': obfuscation_type, 'original_path': path.decode('utf-8', errors='ignore'), 'obfuscated_path': obfuscated_path.decode('utf-8', errors='ignore'), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:

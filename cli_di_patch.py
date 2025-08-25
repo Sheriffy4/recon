@@ -7,7 +7,7 @@ This replaces the manual service creation patterns in cli.py with proper DI.
 import logging
 import asyncio
 from typing import Dict, Any
-from recon.core.di.cli_integration import create_cli_integration, create_fallback_services
+from core.di.cli_integration import create_cli_integration, create_fallback_services
 LOG = logging.getLogger('CLI_DI')
 
 async def initialize_cli_services(args):
@@ -40,7 +40,7 @@ def create_fingerprint_engine_from_di(cli_integration, domain_ip: str, port: int
     This replaces the manual fingerprint engine creation patterns.
     """
     if cli_integration and cli_integration.services:
-        from recon.core.fingerprint.models import ProbeConfig
+        from core.fingerprint.models import ProbeConfig
         probe_config = ProbeConfig(target_ip=domain_ip, port=port)
         if hasattr(cli_integration.services.prober, 'config'):
             cli_integration.services.prober.config = probe_config
@@ -49,13 +49,13 @@ def create_fingerprint_engine_from_di(cli_integration, domain_ip: str, port: int
 
 def create_manual_fingerprint_engine(domain_ip: str, port: int):
     """Fallback manual fingerprint engine creation."""
-    from recon.core.fingerprint.models import ProbeConfig
-    from recon.core.fingerprint.prober import UltimateDPIProber
-    from recon.core.fingerprint.classifier import UltimateDPIClassifier
-    from recon.core.fingerprint.advanced_fingerprint_engine import UltimateAdvancedFingerprintEngine
-    from recon.core.integration.attack_adapter import AttackAdapter
-    from recon.core.integration.integration_config import IntegrationConfig
-    from recon.ml.strategy_predictor import SKLEARN_AVAILABLE
+    from core.fingerprint.models import ProbeConfig
+    from core.fingerprint.prober import UltimateDPIProber
+    from core.fingerprint.classifier import UltimateDPIClassifier
+    from core.fingerprint.advanced_fingerprint_engine import UltimateAdvancedFingerprintEngine
+    from core.integration.attack_adapter import AttackAdapter
+    from core.integration.integration_config import IntegrationConfig
+    from ml.strategy_predictor import SKLEARN_AVAILABLE
     probe_config = ProbeConfig(target_ip=domain_ip, port=port)
     prober = UltimateDPIProber(probe_config)
     classifier = UltimateDPIClassifier(ml_enabled=SKLEARN_AVAILABLE)
@@ -73,9 +73,9 @@ async def create_strategy_generator_from_di(cli_integration, fingerprint_dict: D
             return await cli_integration.create_strategy_generator_for_fingerprint(fingerprint_dict)
         except Exception as e:
             LOG.warning(f'Failed to create strategy generator from DI: {e}')
-    from recon.ml.strategy_generator import AdvancedStrategyGenerator
-    from recon.core.optimization.dynamic_parameter_optimizer import DynamicParameterOptimizer
-    from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+    from ml.strategy_generator import AdvancedStrategyGenerator
+    from core.optimization.dynamic_parameter_optimizer import DynamicParameterOptimizer
+    from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
     parameter_optimizer = None
     if hasattr(args, 'optimize_parameters') and args.optimize_parameters:
         effectiveness_tester = RealEffectivenessTester(timeout=10.0)
@@ -90,7 +90,7 @@ def create_effectiveness_tester_from_di(cli_integration, timeout: float=10.0):
     """
     if cli_integration and cli_integration.services:
         return cli_integration.services.effectiveness_tester
-    from recon.core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+    from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
     return RealEffectivenessTester(timeout=timeout)
 
 def create_learning_memory_from_di(cli_integration):
@@ -101,7 +101,7 @@ def create_learning_memory_from_di(cli_integration):
     """
     if cli_integration and cli_integration.services:
         return cli_integration.services.learning_memory
-    from recon.core.bypass.attacks.learning_memory import LearningMemory
+    from core.bypass.attacks.learning_memory import LearningMemory
     return LearningMemory()
 
 def create_strategy_saver_from_di(cli_integration):
@@ -112,7 +112,7 @@ def create_strategy_saver_from_di(cli_integration):
     """
     if cli_integration and cli_integration.services:
         return cli_integration.services.strategy_saver
-    from recon.core.integration.strategy_saver import StrategySaver
+    from core.integration.strategy_saver import StrategySaver
     return StrategySaver()
 
 def create_closed_loop_manager_from_di(cli_integration, fingerprint_engine, strategy_generator, effectiveness_tester, learning_memory):
@@ -123,7 +123,7 @@ def create_closed_loop_manager_from_di(cli_integration, fingerprint_engine, stra
     """
     if cli_integration and cli_integration.services and cli_integration.services.closed_loop_manager:
         return cli_integration.services.closed_loop_manager
-    from recon.core.integration.closed_loop_manager import ClosedLoopManager
+    from core.integration.closed_loop_manager import ClosedLoopManager
     return ClosedLoopManager(fingerprint_engine=fingerprint_engine, strategy_generator=strategy_generator, effectiveness_tester=effectiveness_tester, learning_memory=learning_memory)
 
 def get_cli_services_with_di(args):

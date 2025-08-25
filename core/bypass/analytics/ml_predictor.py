@@ -15,8 +15,8 @@ try:
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
-from recon.core.bypass.analytics.analytics_models import PredictionResult, MetricType, AttackMetrics
-from recon.core.bypass.analytics.metrics_collector import MetricsCollector
+from core.bypass.analytics.analytics_models import PredictionResult, MetricType, AttackMetrics
+from core.bypass.analytics.metrics_collector import MetricsCollector
 
 class SimplePredictor:
     """Simple predictor using moving averages when sklearn is not available"""

@@ -9,7 +9,7 @@ import asyncio
 import time
 import logging
 
-from dns_tunneling import (
+from .dns_tunneling import (
     DoHAttack,
     DoTAttack,
     DNSQueryManipulation,

@@ -7,7 +7,7 @@ Tests for data models, serialization, and error handling.
 import unittest
 import json
 
-from advanced_models import (
+from core.fingerprint.advanced_models import (
     DPIFingerprint,
     DPIType,
     ConfidenceLevel,

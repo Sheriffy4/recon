@@ -3,6 +3,7 @@ IP Header Manipulation Attacks
 
 New attacks for IP header manipulation to evade DPI.
 """
+import asyncio
 import time
 import random
 from typing import List
@@ -33,7 +34,7 @@ class IPTTLManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP TTL manipulation attack."""
         start_time = time.time()
         try:
@@ -44,6 +45,7 @@ class IPTTLManipulationAttack(BaseAttack):
                 segments.append((payload, 0, {'ttl': ttl, 'packet_id': i}))
             packets_sent = len(segments)
             bytes_sent = len(payload) * len(segments)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'ttl_values': ttl_values, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -71,7 +73,7 @@ class IPIDManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP ID manipulation attack."""
         start_time = time.time()
         try:
@@ -88,6 +90,7 @@ class IPIDManipulationAttack(BaseAttack):
             segments = [(payload, 0, {'ip_id': ip_id})]
             packets_sent = 1
             bytes_sent = len(payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'id_strategy': id_strategy, 'ip_id': ip_id, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -115,7 +118,7 @@ class IPTOSManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP TOS manipulation attack."""
         start_time = time.time()
         try:
@@ -124,6 +127,7 @@ class IPTOSManipulationAttack(BaseAttack):
             segments = [(payload, 0, {'tos': tos_value})]
             packets_sent = 1
             bytes_sent = len(payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'tos_value': tos_value, 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:

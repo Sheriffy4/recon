@@ -2018,7 +2018,35 @@ async def run_closed_loop_mode(args):
     await run_hybrid_mode(args)
 
 
+def load_all_attacks():
+    """
+    Explicitly imports all attack modules to ensure they are registered
+    exactly once with the AttackRegistry.
+    """
+    import importlib
+    import pkgutil
+    import core.bypass.attacks
+
+    print("[dim]Loading and registering all available attacks...[/dim]")
+
+    # Путь к пакету с атаками
+    package = core.bypass.attacks
+
+    # Рекурсивно обходим все подмодули
+    for _, module_name, _ in pkgutil.walk_packages(package.__path__, package.__name__ + '.'):
+        try:
+            importlib.import_module(module_name)
+        except ImportError as e:
+            # Игнорируем демо-файлы и тесты, которые могут вызывать ошибки
+            if 'demo_' in module_name or 'test_' in module_name:
+                continue
+            print(f"[yellow]Warning: Could not import attack module {module_name}: {e}[/yellow]")
+
+
 def main():
+    # Вызываем загрузчик в самом начале
+    load_all_attacks()
+
     parser = argparse.ArgumentParser(
         description="Recon: An autonomous tool to find and apply working bypass strategies against DPI.",
         formatter_class=argparse.RawTextHelpFormatter,

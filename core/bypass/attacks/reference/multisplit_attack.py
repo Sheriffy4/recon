@@ -11,6 +11,7 @@ Attack Strategy:
 3. Send segments with varying delays to confuse timing analysis
 4. Use different TCP options for each segment to avoid pattern detection
 """
+import asyncio
 import logging
 import random
 from typing import Dict, Any, Optional, List, Tuple
@@ -77,7 +78,7 @@ class MultisplitAttack(BaseAttack):
         if self.config.padding_range[0] > self.config.padding_range[1]:
             raise ValueError(f'Invalid padding range: {self.config.padding_range}')
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute MultisplitAttack.
 
@@ -94,7 +95,7 @@ class MultisplitAttack(BaseAttack):
             min_required_size = self.config.min_segment_size * self.config.split_count
             if len(context.payload) < min_required_size:
                 return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': f'Payload too small for {self.config.split_count} segments. Required: {min_required_size}, got: {len(context.payload)}'})
-            segments = self._create_segments(context.payload)
+            segments = await self._create_segments(context.payload)
             if self.config.randomize_order:
                 segments = self._randomize_segment_order(segments)
             result = AttackResult(status=AttackStatus.SUCCESS, modified_payload=None, metadata={'attack_type': 'multisplit', 'segments': segments, 'total_segments': len(segments), 'original_payload_size': len(context.payload), 'config': {'split_count': self.config.split_count, 'min_segment_size': self.config.min_segment_size, 'max_segment_size': self.config.max_segment_size, 'overlap_bytes': self.config.overlap_bytes, 'base_delay_ms': self.config.base_delay_ms, 'delay_variation_ms': self.config.delay_variation_ms, 'randomize_order': self.config.randomize_order, 'vary_ttl': self.config.vary_ttl, 'vary_tcp_flags': self.config.vary_tcp_flags, 'vary_window_size': self.config.vary_window_size, 'add_padding': self.config.add_padding, 'corrupt_some_checksums': self.config.corrupt_some_checksums}})
@@ -105,7 +106,7 @@ class MultisplitAttack(BaseAttack):
             self.logger.error(f'MultisplitAttack failed: {e}')
             return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': str(e), 'attack_type': 'multisplit'})
 
-    def _create_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    async def _create_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """
         Create segments from payload with configured options.
 
@@ -123,7 +124,7 @@ class MultisplitAttack(BaseAttack):
             if self.config.add_padding:
                 segment_data = self._add_padding(segment_data)
             seq_offset = start_pos
-            options = self._create_segment_options(i, len(segment_boundaries))
+            options = await self._create_segment_options(i, len(segment_boundaries))
             segments.append((segment_data, seq_offset, options))
         return segments
 
@@ -195,7 +196,7 @@ class MultisplitAttack(BaseAttack):
             overlapped_boundaries.append((new_start, new_end))
         return overlapped_boundaries
 
-    def _create_segment_options(self, segment_index: int, total_segments: int) -> Dict[str, Any]:
+    async def _create_segment_options(self, segment_index: int, total_segments: int) -> Dict[str, Any]:
         """
         Create options for a segment.
 
@@ -207,7 +208,7 @@ class MultisplitAttack(BaseAttack):
             Dictionary of segment options
         """
         options = {}
-        delay = self._calculate_segment_delay(segment_index, total_segments)
+        delay = await self._calculate_segment_delay(segment_index, total_segments)
         options['delay_ms'] = delay
         if self.config.vary_ttl:
             ttl = random.randint(self.config.ttl_range[0], self.config.ttl_range[1])
@@ -227,7 +228,7 @@ class MultisplitAttack(BaseAttack):
                 options['bad_checksum'] = True
         return options
 
-    def _calculate_segment_delay(self, segment_index: int, total_segments: int) -> float:
+    async def _calculate_segment_delay(self, segment_index: int, total_segments: int) -> float:
         """
         Calculate delay for a segment.
 
@@ -246,7 +247,11 @@ class MultisplitAttack(BaseAttack):
         if self.config.delay_variation_ms > 0:
             variation = random.uniform(-self.config.delay_variation_ms, self.config.delay_variation_ms)
             delay += variation
-        return max(0.0, delay)
+
+        delay = max(0.0, delay)
+        if delay > 0:
+            await asyncio.sleep(delay / 1000.0)
+        return delay
 
     def _add_padding(self, segment_data: bytes) -> bytes:
         """

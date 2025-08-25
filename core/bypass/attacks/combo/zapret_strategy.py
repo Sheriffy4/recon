@@ -48,7 +48,7 @@ class ZapretStrategy(BaseAttack):
         self.disorder_packets_sent = 0
         LOG.info(f'Zapret strategy initialized: methods={self.config.desync_methods}, split={self.config.split_seqovl}, ttl={self.config.base_ttl}')
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         LOG.info(f'Executing zapret strategy for {context.dst_ip}:{context.dst_port}')
         start_time = time.time()
         try:
@@ -65,6 +65,7 @@ class ZapretStrategy(BaseAttack):
                 final_packets.append(packet)
             self.packets_sent = len(final_packets)
             success = self.packets_sent > 0
+            await asyncio.sleep(0)
             execution_time = (time.time() - start_time) * 1000
             segments = [(packet, 0) for packet in final_packets]
             return AttackResult(status=AttackStatus.SUCCESS if success else AttackStatus.ERROR, latency_ms=execution_time, packets_sent=self.packets_sent, bytes_sent=sum((len(p) for p in final_packets)), connection_established=success, data_transmitted=success, metadata={'segments': segments, 'config': asdict(self.config), 'info': 'Zapret strategy generated raw packets for execution.', 'is_raw': True})

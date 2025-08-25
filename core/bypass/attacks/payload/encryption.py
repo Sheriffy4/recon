@@ -4,6 +4,7 @@ Payload Encryption Attacks
 Migrated from:
 - apply_payload_encryption (core/fast_bypass.py)
 """
+import asyncio
 import time
 from recon.core.bypass.attacks.base import PayloadAttack, AttackContext, AttackResult, AttackStatus
 from recon.core.bypass.attacks.registry import register_attack
@@ -25,7 +26,7 @@ class PayloadEncryptionAttack(PayloadAttack):
     def description(self) -> str:
         return 'Encrypts payload using XOR encryption to evade DPI'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute payload encryption attack."""
         start_time = time.time()
         try:
@@ -45,6 +46,7 @@ class PayloadEncryptionAttack(PayloadAttack):
                 segments = [(encrypted1, 0, {'encrypted': True, 'key': key1}), (encrypted2, split_pos, {'encrypted': True, 'key': key2})]
             packets_sent = len(segments)
             bytes_sent = len(payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'split_pos': split_pos, 'key_length': len(key), 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -64,7 +66,7 @@ class PayloadBase64Attack(PayloadAttack):
     def description(self) -> str:
         return 'Encodes payload using Base64 encoding'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute payload Base64 attack."""
         start_time = time.time()
         try:
@@ -74,6 +76,7 @@ class PayloadBase64Attack(PayloadAttack):
             segments = [(encoded_payload, 0, {'encoded': 'base64'})]
             packets_sent = 1
             bytes_sent = len(encoded_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'original_size': len(payload), 'encoded_size': len(encoded_payload), 'encoding': 'base64', 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -93,7 +96,7 @@ class PayloadROT13Attack(PayloadAttack):
     def description(self) -> str:
         return 'Applies ROT13 transformation to payload'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute payload ROT13 attack."""
         start_time = time.time()
         try:
@@ -109,6 +112,7 @@ class PayloadROT13Attack(PayloadAttack):
             segments = [(bytes(rot13_payload), 0, {'transformed': 'rot13'})]
             packets_sent = 1
             bytes_sent = len(rot13_payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'transformation': 'rot13', 'segments': segments if context.engine_type != 'local' else None})
         except Exception as e:

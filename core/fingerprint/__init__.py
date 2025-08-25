@@ -1,12 +1,12 @@
 """
 Enhanced DPI Fingerprinting Module with ML-powered classification and advanced probing.
 """
-from recon.core.fingerprint.models import Fingerprint, EnhancedFingerprint, DPIBehaviorProfile, DPIClassification, ProbeResult
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType, ConfidenceLevel, FingerprintingError, NetworkAnalysisError, MLClassificationError, CacheError, MetricsCollectionError
+from core.fingerprint.models import Fingerprint, EnhancedFingerprint, DPIBehaviorProfile, DPIClassification, ProbeResult
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType, ConfidenceLevel, FingerprintingError, NetworkAnalysisError, MLClassificationError, CacheError, MetricsCollectionError
 try:
-    from recon.core.fingerprint.prober import UltimateDPIProber
-    from recon.core.fingerprint.classifier import UltimateDPIClassifier
-    from recon.core.fingerprint.analyzer import PacketAnalyzer, BehaviorAnalyzer
+    from core.fingerprint.prober import UltimateDPIProber
+    from core.fingerprint.classifier import UltimateDPIClassifier
+    from core.fingerprint.analyzer import PacketAnalyzer, BehaviorAnalyzer
     DPIProber = UltimateDPIProber
     DPIClassifier = UltimateDPIClassifier
     _legacy_imports_available = True
@@ -19,8 +19,8 @@ except ImportError:
     DPIProber = None
     DPIClassifier = None
 try:
-    from recon.core.fingerprint.tcp_analyzer import TCPAnalyzer
-    from recon.core.fingerprint.metrics_collector import MetricsCollector
+    from core.fingerprint.tcp_analyzer import TCPAnalyzer
+    from core.fingerprint.metrics_collector import MetricsCollector
     _specialized_analyzers_available = True
 except ImportError:
     _specialized_analyzers_available = False
@@ -32,7 +32,7 @@ if _legacy_imports_available:
 if _specialized_analyzers_available:
     __all__.extend(['TCPAnalyzer', 'MetricsCollector'])
 try:
-    from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+    from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
     _advanced_fingerprinter_available = True
 except ImportError:
     _advanced_fingerprinter_available = False

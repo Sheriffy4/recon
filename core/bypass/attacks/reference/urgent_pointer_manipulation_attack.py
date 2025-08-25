@@ -6,9 +6,10 @@ that don't properly handle urgent data or make assumptions about normal TCP beha
 """
 import logging
 import random
+import asyncio
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
-from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
 
 @dataclass
 class UrgentPointerConfig:
@@ -54,13 +55,13 @@ class UrgentPointerManipulationAttack(BaseAttack):
             if not 0 <= seg_idx < self.config.segment_count:
                 raise ValueError(f'urgent_segments index {seg_idx} out of range for {self.config.segment_count} segments')
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute UrgentPointerManipulationAttack."""
         try:
             self.logger.info(f'Executing UrgentPointerManipulationAttack on {context.connection_id}')
             if not context.payload:
                 return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': 'Empty payload provided'})
-            segments = self._create_urgent_segments(context.payload)
+            segments = await self._create_urgent_segments(context.payload)
             result = AttackResult(status=AttackStatus.SUCCESS, modified_payload=None, metadata={'attack_type': 'urgent_pointer_manipulation', 'segments': segments, 'total_segments': len(segments), 'urgent_segments': self.config.urgent_segments, 'original_payload_size': len(context.payload), 'config': {'segment_count': self.config.segment_count, 'urgent_segments': self.config.urgent_segments, 'use_invalid_pointers': self.config.use_invalid_pointers, 'add_fake_urgent_data': self.config.add_fake_urgent_data, 'fake_urgent_size': self.config.fake_urgent_size, 'vary_window_size': self.config.vary_window_size}})
             result._segments = segments
             self.logger.info(f'UrgentPointerManipulationAttack created {len(segments)} segments with urgent manipulation')
@@ -69,7 +70,7 @@ class UrgentPointerManipulationAttack(BaseAttack):
             self.logger.error(f'UrgentPointerManipulationAttack failed: {e}')
             return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': str(e), 'attack_type': 'urgent_pointer_manipulation'})
 
-    def _create_urgent_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    async def _create_urgent_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Create segments with urgent pointer manipulation."""
         segments = []
         segment_size = len(payload) // self.config.segment_count

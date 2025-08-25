@@ -8,6 +8,7 @@ that analyze complete session behavior.
 
 Enhanced for maximum realism and behavioral DPI evasion.
 """
+import asyncio
 import time
 import random
 import socket
@@ -114,7 +115,7 @@ class FullSessionSimulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute full session simulation attack with maximum realism.
 
@@ -131,36 +132,36 @@ class FullSessionSimulationAttack(BaseAttack):
             self._session_state = {'domain': context.domain or f'{context.dst_ip}:{context.dst_port}', 'target_ip': context.dst_ip, 'target_port': context.dst_port, 'session_id': self._generate_realistic_session_id(), 'tcp_seq': self._generate_realistic_tcp_seq(), 'tcp_ack': 0, 'tls_session_id': self._generate_tls_session_id(), 'phase_results': {}, 'browser_fingerprint': self._generate_browser_fingerprint(), 'connection_start_time': start_time, 'packet_sequence': 0, 'bytes_transferred': 0}
             LOG.debug(f"Starting enhanced full session simulation for {self._session_state['domain']} (Browser: {self.config.browser_type}, OS: {self.config.os_type})")
             if self.config.simulate_dns:
-                dns_result = self._simulate_enhanced_dns_phase(context)
+                dns_result = await self._simulate_enhanced_dns_phase(context)
                 session_packets.extend(dns_result['packets'])
                 total_bytes_sent += dns_result['bytes_sent']
                 self._session_state['phase_results']['dns'] = dns_result
             if self.config.simulate_tcp_handshake:
-                tcp_result = self._simulate_enhanced_tcp_handshake_phase(context)
+                tcp_result = await self._simulate_enhanced_tcp_handshake_phase(context)
                 session_packets.extend(tcp_result['packets'])
                 total_bytes_sent += tcp_result['bytes_sent']
                 self._session_state['phase_results']['tcp_handshake'] = tcp_result
             if self.config.simulate_tls_handshake:
-                tls_result = self._simulate_enhanced_tls_handshake_phase(context)
+                tls_result = await self._simulate_enhanced_tls_handshake_phase(context)
                 session_packets.extend(tls_result['packets'])
                 total_bytes_sent += tls_result['bytes_sent']
                 self._session_state['phase_results']['tls_handshake'] = tls_result
-            app_result = self._simulate_enhanced_application_data_phase(context)
+            app_result = await self._simulate_enhanced_application_data_phase(context)
             session_packets.extend(app_result['packets'])
             total_bytes_sent += app_result['bytes_sent']
             self._session_state['phase_results']['application_data'] = app_result
             if self.config.simulate_resource_loading:
-                resource_result = self._simulate_resource_loading_phase(context)
+                resource_result = await self._simulate_resource_loading_phase(context)
                 session_packets.extend(resource_result['packets'])
                 total_bytes_sent += resource_result['bytes_sent']
                 self._session_state['phase_results']['resource_loading'] = resource_result
             if self.config.simulate_keep_alive:
-                keepalive_result = self._simulate_enhanced_keep_alive_phase(context)
+                keepalive_result = await self._simulate_enhanced_keep_alive_phase(context)
                 session_packets.extend(keepalive_result['packets'])
                 total_bytes_sent += keepalive_result['bytes_sent']
                 self._session_state['phase_results']['keep_alive'] = keepalive_result
             if self.config.simulate_teardown:
-                teardown_result = self._simulate_enhanced_teardown_phase(context)
+                teardown_result = await self._simulate_enhanced_teardown_phase(context)
                 session_packets.extend(teardown_result['packets'])
                 total_bytes_sent += teardown_result['bytes_sent']
                 self._session_state['phase_results']['teardown'] = teardown_result
@@ -170,7 +171,7 @@ class FullSessionSimulationAttack(BaseAttack):
             LOG.error(f'Enhanced full session simulation failed: {e}')
             return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=(time.time() - start_time) * 1000)
 
-    def _simulate_enhanced_dns_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_enhanced_dns_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced DNS resolution phase with realistic behavior.
 
@@ -184,36 +185,36 @@ class FullSessionSimulationAttack(BaseAttack):
         packets = []
         domain = context.domain or f'{context.dst_ip}'
         cache_check_delay = random.uniform(*self.config.timing.dns_cache_check_delay) / 1000.0
-        time.sleep(cache_check_delay)
+        await asyncio.sleep(cache_check_delay)
         base_delay = random.uniform(*self.config.timing.dns_resolution_delay)
         if self.config.add_jitter_to_timing:
             jitter = random.uniform(-5.0, 5.0)
             dns_delay = max(1.0, base_delay + jitter) / 1000.0
         else:
             dns_delay = base_delay / 1000.0
-        time.sleep(dns_delay)
+        await asyncio.sleep(dns_delay)
         dns_query = self._create_enhanced_dns_query_packet(domain)
         packets.append((dns_query, cache_check_delay * 1000))
         network_rtt = random.uniform(10.0, 80.0)
         processing_delay = random.uniform(5.0, 20.0)
         response_delay = (network_rtt + processing_delay) / 1000.0
-        time.sleep(response_delay)
+        await asyncio.sleep(response_delay)
         dns_response = self._create_enhanced_dns_response_packet(domain, context.dst_ip)
         packets.append((dns_response, response_delay * 1000))
         if self.config.simulate_real_user_patterns:
             ipv6_delay = random.uniform(5.0, 15.0) / 1000.0
-            time.sleep(ipv6_delay)
+            await asyncio.sleep(ipv6_delay)
             dns_aaaa_query = self._create_dns_aaaa_query_packet(domain)
             packets.append((dns_aaaa_query, ipv6_delay * 1000))
             aaaa_response_delay = random.uniform(10.0, 50.0) / 1000.0
-            time.sleep(aaaa_response_delay)
+            await asyncio.sleep(aaaa_response_delay)
             dns_aaaa_response = self._create_dns_aaaa_response_packet(domain)
             packets.append((dns_aaaa_response, aaaa_response_delay * 1000))
         bytes_sent = sum((len(packet) for packet, _ in packets))
         LOG.debug(f'Enhanced DNS phase completed: {len(packets)} packets, {bytes_sent} bytes')
         return {'phase': SessionPhase.DNS_RESOLUTION.value, 'packets': packets, 'bytes_sent': bytes_sent, 'duration_ms': (time.time() - start_time) * 1000, 'domain_resolved': domain, 'resolved_ip': context.dst_ip, 'queries_sent': len([p for p in packets if b'DNS_QUERY' in p[0] or b'DNS_AAAA_QUERY' in p[0]]), 'cache_behavior': 'miss' if len(packets) > 2 else 'hit'}
 
-    def _simulate_enhanced_tcp_handshake_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_enhanced_tcp_handshake_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced TCP three-way handshake with realistic network behavior.
 
@@ -233,14 +234,14 @@ class FullSessionSimulationAttack(BaseAttack):
             syn_ack_delay = base_rtt * network_load
         else:
             syn_ack_delay = base_rtt
-        time.sleep(syn_ack_delay / 1000.0)
+        await asyncio.sleep(syn_ack_delay / 1000.0)
         syn_ack_packet = self._create_enhanced_tcp_syn_ack_packet(context)
         packets.append((syn_ack_packet, syn_ack_delay))
         ack_delay = random.uniform(*self.config.timing.tcp_ack_delay)
         if self.config.add_jitter_to_timing:
             jitter = random.uniform(-2.0, 2.0)
             ack_delay = max(1.0, ack_delay + jitter)
-        time.sleep(ack_delay / 1000.0)
+        await asyncio.sleep(ack_delay / 1000.0)
         ack_packet = self._create_enhanced_tcp_ack_packet(context)
         packets.append((ack_packet, ack_delay))
         self._session_state['tcp_seq'] += 1
@@ -251,7 +252,7 @@ class FullSessionSimulationAttack(BaseAttack):
         LOG.debug(f'Enhanced TCP handshake completed: {len(packets)} packets, {bytes_sent} bytes, RTT: {syn_ack_delay:.1f}ms')
         return {'phase': SessionPhase.TCP_HANDSHAKE.value, 'packets': packets, 'bytes_sent': bytes_sent, 'duration_ms': (time.time() - start_time) * 1000, 'connection_established': True, 'rtt_ms': syn_ack_delay, 'mss': self._session_state['mss'], 'window_size': self._session_state['tcp_window']}
 
-    def _simulate_enhanced_tls_handshake_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_enhanced_tls_handshake_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced TLS handshake phase with browser-like behavior.
 
@@ -267,52 +268,52 @@ class FullSessionSimulationAttack(BaseAttack):
         if self.config.add_jitter_to_timing:
             jitter = random.uniform(-10.0, 10.0)
             client_hello_delay = max(5.0, client_hello_delay + jitter)
-        time.sleep(client_hello_delay / 1000.0)
+        await asyncio.sleep(client_hello_delay / 1000.0)
         client_hello = self._create_enhanced_tls_client_hello(context)
         packets.append((client_hello, client_hello_delay))
         server_hello_delay = random.uniform(*self.config.timing.server_hello_delay)
         if self.config.simulate_network_conditions:
             processing_load = random.uniform(0.9, 1.3)
             server_hello_delay *= processing_load
-        time.sleep(server_hello_delay / 1000.0)
+        await asyncio.sleep(server_hello_delay / 1000.0)
         server_hello = self._create_enhanced_tls_server_hello(context)
         packets.append((server_hello, server_hello_delay))
         cert_delay = random.uniform(*self.config.timing.certificate_delay)
-        time.sleep(cert_delay / 1000.0)
+        await asyncio.sleep(cert_delay / 1000.0)
         certificate_chain = self._create_enhanced_tls_certificate_chain(context)
         packets.append((certificate_chain, cert_delay))
         hello_done_delay = random.uniform(5.0, 20.0)
-        time.sleep(hello_done_delay / 1000.0)
+        await asyncio.sleep(hello_done_delay / 1000.0)
         hello_done = self._create_tls_server_hello_done(context)
         packets.append((hello_done, hello_done_delay))
         key_exchange_delay = random.uniform(*self.config.timing.key_exchange_delay)
         if self.config.add_protocol_compliance:
             crypto_delay = random.uniform(10.0, 30.0)
             key_exchange_delay += crypto_delay
-        time.sleep(key_exchange_delay / 1000.0)
+        await asyncio.sleep(key_exchange_delay / 1000.0)
         key_exchange = self._create_enhanced_tls_key_exchange(context)
         packets.append((key_exchange, key_exchange_delay))
         ccs_delay = random.uniform(2.0, 10.0)
-        time.sleep(ccs_delay / 1000.0)
+        await asyncio.sleep(ccs_delay / 1000.0)
         change_cipher_spec = self._create_tls_change_cipher_spec(context)
         packets.append((change_cipher_spec, ccs_delay))
         finished_delay = random.uniform(*self.config.timing.finished_delay)
-        time.sleep(finished_delay / 1000.0)
+        await asyncio.sleep(finished_delay / 1000.0)
         client_finished = self._create_enhanced_tls_finished(context, is_client=True)
         packets.append((client_finished, finished_delay))
         server_ccs_delay = random.uniform(10.0, 40.0)
-        time.sleep(server_ccs_delay / 1000.0)
+        await asyncio.sleep(server_ccs_delay / 1000.0)
         server_ccs = self._create_tls_change_cipher_spec(context, is_server=True)
         packets.append((server_ccs, server_ccs_delay))
         server_finished_delay = random.uniform(5.0, 20.0)
-        time.sleep(server_finished_delay / 1000.0)
+        await asyncio.sleep(server_finished_delay / 1000.0)
         server_finished = self._create_enhanced_tls_finished(context, is_client=False)
         packets.append((server_finished, server_finished_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
         LOG.debug(f'Enhanced TLS handshake completed: {len(packets)} packets, {bytes_sent} bytes, Total time: {(time.time() - start_time) * 1000:.1f}ms')
         return {'phase': SessionPhase.TLS_HANDSHAKE.value, 'packets': packets, 'bytes_sent': bytes_sent, 'duration_ms': (time.time() - start_time) * 1000, 'tls_established': True, 'session_id': self._session_state['tls_session_id'], 'tls_version': '1.2', 'cipher_suite': 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256', 'certificate_chain_length': 3}
 
-    def _simulate_enhanced_application_data_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_enhanced_application_data_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced application data exchange with realistic browser behavior.
 
@@ -328,14 +329,14 @@ class FullSessionSimulationAttack(BaseAttack):
         if self.config.add_jitter_to_timing:
             jitter = random.uniform(-20.0, 20.0)
             first_request_delay = max(10.0, first_request_delay + jitter)
-        time.sleep(first_request_delay / 1000.0)
+        await asyncio.sleep(first_request_delay / 1000.0)
         http_request = self._create_enhanced_http_request_with_payload(context)
         packets.append((http_request, first_request_delay))
         response_delay = random.uniform(*self.config.timing.response_delay)
         if self.config.simulate_network_conditions:
             server_load = random.uniform(0.8, 1.5)
             response_delay *= server_load
-        time.sleep(response_delay / 1000.0)
+        await asyncio.sleep(response_delay / 1000.0)
         http_response = self._create_enhanced_http_response(context)
         packets.append((http_response, response_delay))
         request_count = random.randint(*self.config.application_requests_count)
@@ -344,14 +345,14 @@ class FullSessionSimulationAttack(BaseAttack):
                 think_time = random.uniform(*self.config.timing.user_think_time) * 1000
             else:
                 think_time = random.uniform(*self.config.timing.subsequent_request_delay)
-            time.sleep(think_time / 1000.0)
+            await asyncio.sleep(think_time / 1000.0)
             additional_request = self._create_enhanced_additional_http_request(context, i)
             packets.append((additional_request, think_time))
             add_response_delay = random.uniform(*self.config.timing.response_delay)
             if self.config.add_jitter_to_timing:
                 jitter = random.uniform(-50.0, 50.0)
                 add_response_delay = max(50.0, add_response_delay + jitter)
-            time.sleep(add_response_delay / 1000.0)
+            await asyncio.sleep(add_response_delay / 1000.0)
             additional_response = self._create_enhanced_http_response(context, request_id=i)
             packets.append((additional_response, add_response_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
@@ -360,7 +361,7 @@ class FullSessionSimulationAttack(BaseAttack):
         LOG.debug(f'Enhanced application data phase completed: {len(packets)} packets, {bytes_sent} bytes, Requests: {request_count}')
         return {'phase': SessionPhase.APPLICATION_DATA.value, 'packets': packets, 'bytes_sent': bytes_sent, 'duration_ms': (time.time() - start_time) * 1000, 'requests_sent': request_count, 'main_payload_sent': True, 'user_behavior_simulated': self.config.simulate_real_user_patterns, 'average_think_time_ms': sum((p[1] for p in packets[2::2])) / max(len(packets[2::2]), 1)}
 
-    def _simulate_resource_loading_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_resource_loading_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate resource loading phase (CSS, JS, images) for maximum realism.
 
@@ -380,11 +381,11 @@ class FullSessionSimulationAttack(BaseAttack):
                 resource_delay = random.uniform(*self.config.timing.page_load_delay)
             else:
                 resource_delay = random.uniform(*self.config.timing.resource_fetch_delay)
-            time.sleep(resource_delay / 1000.0)
+            await asyncio.sleep(resource_delay / 1000.0)
             resource_request = self._create_resource_request(context, path, content_type)
             packets.append((resource_request, resource_delay))
             resource_response_delay = random.uniform(50.0, 200.0)
-            time.sleep(resource_response_delay / 1000.0)
+            await asyncio.sleep(resource_response_delay / 1000.0)
             resource_response = self._create_resource_response(context, content_type, size)
             packets.append((resource_response, resource_response_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
@@ -393,7 +394,7 @@ class FullSessionSimulationAttack(BaseAttack):
         LOG.debug(f'Resource loading phase completed: {len(packets)} packets, {bytes_sent} bytes, Resources: {len(resources)}')
         return {'phase': 'resource_loading', 'packets': packets, 'bytes_sent': bytes_sent, 'duration_ms': (time.time() - start_time) * 1000, 'resources_loaded': len(resources), 'resource_types': [r[1] for r in resources]}
 
-    def _simulate_enhanced_keep_alive_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_enhanced_keep_alive_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced keep-alive phase with realistic connection maintenance.
 
@@ -413,11 +414,11 @@ class FullSessionSimulationAttack(BaseAttack):
                 ka_interval = max(30.0, base_interval + jitter)
             else:
                 ka_interval = base_interval
-            time.sleep(ka_interval)
+            await asyncio.sleep(ka_interval)
             keep_alive_packet = self._create_enhanced_keep_alive_packet(context, i)
             packets.append((keep_alive_packet, ka_interval * 1000))
             ka_response_delay = random.uniform(*self.config.timing.keep_alive_response_delay)
-            time.sleep(ka_response_delay / 1000.0)
+            await asyncio.sleep(ka_response_delay / 1000.0)
             keep_alive_response = self._create_enhanced_keep_alive_response(context, i)
             packets.append((keep_alive_response, ka_response_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
@@ -426,7 +427,7 @@ class FullSessionSimulationAttack(BaseAttack):
         LOG.debug(f'Enhanced keep-alive phase completed: {len(packets)} packets, {bytes_sent} bytes, Keep-alives: {keep_alive_count}')
         return {'phase': SessionPhase.KEEP_ALIVE.value, 'packets': packets, 'bytes_sent': bytes_sent, 'duration_ms': (time.time() - start_time) * 1000, 'keep_alive_count': keep_alive_count, 'average_interval_seconds': sum((p[1] for p in packets[::2])) / max(len(packets[::2]), 1) / 1000}
 
-    def _simulate_enhanced_teardown_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_enhanced_teardown_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced session teardown with graceful connection closure.
 
@@ -442,15 +443,15 @@ class FullSessionSimulationAttack(BaseAttack):
         if self.config.add_jitter_to_timing:
             jitter = random.uniform(-20.0, 20.0)
             fin_delay = max(10.0, fin_delay + jitter)
-        time.sleep(fin_delay / 1000.0)
+        await asyncio.sleep(fin_delay / 1000.0)
         fin_packet = self._create_enhanced_tcp_fin_packet(context)
         packets.append((fin_packet, fin_delay))
         fin_ack_delay = random.uniform(*self.config.timing.fin_ack_delay)
-        time.sleep(fin_ack_delay / 1000.0)
+        await asyncio.sleep(fin_ack_delay / 1000.0)
         fin_ack_packet = self._create_enhanced_tcp_fin_ack_packet(context)
         packets.append((fin_ack_packet, fin_ack_delay))
         final_ack_delay = random.uniform(*self.config.timing.final_ack_delay)
-        time.sleep(final_ack_delay / 1000.0)
+        await asyncio.sleep(final_ack_delay / 1000.0)
         final_ack_packet = self._create_enhanced_tcp_final_ack_packet(context)
         packets.append((final_ack_packet, final_ack_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
@@ -459,7 +460,7 @@ class FullSessionSimulationAttack(BaseAttack):
         LOG.debug(f'Enhanced teardown phase completed: {len(packets)} packets, {bytes_sent} bytes')
         return {'phase': SessionPhase.SESSION_TEARDOWN.value, 'packets': packets, 'bytes_sent': bytes_sent, 'duration_ms': (time.time() - start_time) * 1000, 'connection_closed': True, 'teardown_type': 'graceful'}
 
-    def _simulate_keep_alive_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_keep_alive_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate keep-alive packets to maintain session.
 
@@ -474,18 +475,18 @@ class FullSessionSimulationAttack(BaseAttack):
         keep_alive_count = random.randint(*self.config.keep_alive_count)
         for i in range(keep_alive_count):
             ka_interval = random.uniform(*self.config.timing.keep_alive_interval)
-            time.sleep(ka_interval)
+            await asyncio.sleep(ka_interval)
             keep_alive_packet = self._create_keep_alive_packet(context, i)
             packets.append((keep_alive_packet, ka_interval * 1000))
             ka_response_delay = random.uniform(*self.config.timing.keep_alive_response_delay)
-            time.sleep(ka_response_delay / 1000.0)
+            await asyncio.sleep(ka_response_delay / 1000.0)
             keep_alive_response = self._create_keep_alive_response(context, i)
             packets.append((keep_alive_response, ka_response_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
         LOG.debug(f'Keep-alive phase completed: {len(packets)} packets, {bytes_sent} bytes')
         return {'phase': SessionPhase.KEEP_ALIVE.value, 'packets': packets, 'bytes_sent': bytes_sent, 'duration_ms': (time.time() - start_time) * 1000, 'keep_alive_count': keep_alive_count}
 
-    def _simulate_teardown_phase(self, context: AttackContext) -> Dict[str, Any]:
+    async def _simulate_teardown_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate session teardown (FIN/ACK sequence).
 
@@ -498,15 +499,15 @@ class FullSessionSimulationAttack(BaseAttack):
         start_time = time.time()
         packets = []
         fin_delay = random.uniform(*self.config.timing.fin_delay)
-        time.sleep(fin_delay / 1000.0)
+        await asyncio.sleep(fin_delay / 1000.0)
         fin_packet = self._create_tcp_fin_packet(context)
         packets.append((fin_packet, fin_delay))
         fin_ack_delay = random.uniform(*self.config.timing.fin_ack_delay)
-        time.sleep(fin_ack_delay / 1000.0)
+        await asyncio.sleep(fin_ack_delay / 1000.0)
         fin_ack_packet = self._create_tcp_fin_ack_packet(context)
         packets.append((fin_ack_packet, fin_ack_delay))
         final_ack_delay = random.uniform(*self.config.timing.fin_ack_delay)
-        time.sleep(final_ack_delay / 1000.0)
+        await asyncio.sleep(final_ack_delay / 1000.0)
         final_ack_packet = self._create_tcp_final_ack_packet(context)
         packets.append((final_ack_packet, final_ack_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))

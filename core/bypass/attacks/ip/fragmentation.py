@@ -6,6 +6,7 @@ Migrated and unified from:
 - apply_ip_fragmentation_disorder (core/fast_bypass.py)
 - PacketBuilder.fragment_packet methods
 """
+import asyncio
 import time
 import random
 from typing import List
@@ -37,7 +38,7 @@ class IPFragmentationAdvancedAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced IP fragmentation attack."""
         start_time = time.time()
         try:
@@ -61,6 +62,7 @@ class IPFragmentationAdvancedAttack(BaseAttack):
                     offset += current_frag_size
             packets_sent = len(fragments)
             bytes_sent = sum((len(frag[0]) for frag in fragments))
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'frag_size': frag_size, 'overlap_bytes': overlap_bytes, 'fragments_count': len(fragments), 'fragments': fragments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -91,7 +93,7 @@ class IPFragmentationDisorderAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP fragmentation disorder attack."""
         start_time = time.time()
         try:
@@ -110,6 +112,7 @@ class IPFragmentationDisorderAttack(BaseAttack):
                 fragments = fragments[::-1]
             packets_sent = len(fragments)
             bytes_sent = len(payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'frag_size': frag_size, 'fragments_count': len(fragments), 'reversed': True, 'fragments': fragments if context.engine_type != 'local' else None})
         except Exception as e:
@@ -137,7 +140,7 @@ class IPFragmentationRandomAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp', 'icmp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute random IP fragmentation attack."""
         start_time = time.time()
         try:
@@ -158,6 +161,7 @@ class IPFragmentationRandomAttack(BaseAttack):
                     offset += frag_size
             packets_sent = len(fragments)
             bytes_sent = len(payload)
+            await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(status=AttackStatus.SUCCESS, latency_ms=latency, packets_sent=packets_sent, bytes_sent=bytes_sent, connection_established=True, data_transmitted=True, metadata={'min_frag_size': min_frag_size, 'max_frag_size': max_frag_size, 'fragments_count': len(fragments), 'fragments': fragments if context.engine_type != 'local' else None})
         except Exception as e:

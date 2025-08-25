@@ -6,6 +6,7 @@ This attack generates parallel sessions that look like normal application traffi
 while the main bypass is being executed, making it harder for DPI systems
 to correlate and detect the bypass attempt.
 """
+import asyncio
 import time
 import random
 import logging
@@ -17,6 +18,7 @@ from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResu
 from recon.core.bypass.attacks.registry import register_attack
 from recon.core.bypass.attacks.combo.advanced_traffic_profiler import AdvancedTrafficProfiler, TrafficSignature
 from recon.core.bypass.attacks.combo.full_session_simulation import FullSessionSimulationAttack
+from recon.core.bypass.attacks.combo.traffic_mimicry import TrafficProfile
 LOG = logging.getLogger(__name__)
 
 @dataclass
@@ -59,6 +61,8 @@ class MultiFlowCorrelationAttack(BaseAttack):
         self._stop_event = threading.Event()
         self.traffic_profiler = AdvancedTrafficProfiler()
         self.session_simulator = FullSessionSimulationAttack()
+        self._profiles: Dict[str, "TrafficProfile"] = {}
+        self._register_default_profiles()
 
     @property
     def name(self) -> str:
@@ -76,7 +80,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ['tcp', 'udp']
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute multi-flow correlation attack.
 
@@ -88,28 +92,36 @@ class MultiFlowCorrelationAttack(BaseAttack):
         """
         start_time = time.time()
         try:
-            background_flows = self._create_background_flows(context)
+            background_flows = await self._create_background_flows(context)
             if not background_flows:
                 return AttackResult(status=AttackStatus.ERROR, error_message='Failed to create background flows', latency_ms=(time.time() - start_time) * 1000)
-            background_futures = []
-            for flow in background_flows:
-                future = self._executor.submit(self._execute_background_flow, flow)
-                background_futures.append(future)
+
+            async def run_and_collect_flow(flow):
+                return await self._execute_background_flow(flow)
+
+            background_tasks = [run_and_collect_flow(flow) for flow in background_flows]
+
             LOG.debug(f'Waiting {self.config.pre_attack_delay}s for background traffic to establish')
-            time.sleep(self.config.pre_attack_delay)
-            main_attack_result = self._execute_main_attack(context)
+            await asyncio.sleep(self.config.pre_attack_delay)
+
+            main_attack_result = await self._execute_main_attack(context)
+
             LOG.debug(f'Maintaining background traffic for {self.config.post_attack_delay}s after main attack')
-            time.sleep(self.config.post_attack_delay)
+            await asyncio.sleep(self.config.post_attack_delay)
+
             self._stop_event.set()
+
+            background_results = await asyncio.gather(*background_tasks, return_exceptions=True)
+
             total_background_bytes = 0
             total_background_packets = 0
-            for future in as_completed(background_futures, timeout=10):
-                try:
-                    flow_result = future.result()
-                    total_background_bytes += flow_result.get('bytes_sent', 0)
-                    total_background_packets += flow_result.get('packets_sent', 0)
-                except Exception as e:
-                    LOG.warning(f'Background flow failed: {e}')
+            for result in background_results:
+                if isinstance(result, Exception):
+                    LOG.warning(f'Background flow failed: {result}')
+                else:
+                    total_background_bytes += result.get('bytes_sent', 0)
+                    total_background_packets += result.get('packets_sent', 0)
+
             execution_time = (time.time() - start_time) * 1000
             return AttackResult(status=main_attack_result.status, latency_ms=execution_time, packets_sent=main_attack_result.packets_sent + total_background_packets, bytes_sent=main_attack_result.bytes_sent + total_background_bytes, connection_established=main_attack_result.connection_established, data_transmitted=main_attack_result.data_transmitted, metadata={'main_attack': main_attack_result.metadata, 'background_flows_count': len(background_flows), 'background_bytes_sent': total_background_bytes, 'background_packets_sent': total_background_packets, 'correlation_effectiveness': self._calculate_correlation_effectiveness(main_attack_result, total_background_bytes, total_background_packets)})
         except Exception as e:
@@ -119,7 +131,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
         finally:
             self._cleanup()
 
-    def _create_background_flows(self, main_context: AttackContext) -> List[BackgroundFlow]:
+    async def _create_background_flows(self, main_context: AttackContext) -> List[BackgroundFlow]:
         """
         Create background traffic flows using the AdvancedTrafficProfiler.
         """
@@ -141,26 +153,26 @@ class MultiFlowCorrelationAttack(BaseAttack):
             duration = random.uniform(*self.config.background_duration_range)
             pps = random.uniform(*self.config.background_pps_range)
             port = random.choice(profile_signature.port_patterns) if profile_signature.port_patterns else 443
-            flow = BackgroundFlow(profile=profile_signature, target_domain=domain, target_ip=self._resolve_domain_ip(domain), target_port=port, duration_seconds=duration, packets_per_second=pps)
+            flow = BackgroundFlow(profile=profile_signature, target_domain=domain, target_ip=await self._resolve_domain_ip(domain), target_port=port, duration_seconds=duration, packets_per_second=pps)
             flows.append(flow)
             LOG.debug(f"Created background flow {i + 1}: {domain}:{port} using profile '{profile_name}'")
         return flows
 
-    def _execute_background_flow(self, flow: BackgroundFlow) -> Dict[str, Any]:
+    async def _execute_background_flow(self, flow: BackgroundFlow) -> Dict[str, Any]:
         """
         Execute a single background traffic flow using FullSessionSimulationAttack.
         """
         start_time = time.time()
         try:
             bg_context = AttackContext(dst_ip=flow.target_ip, dst_port=flow.target_port, domain=flow.target_domain, payload=b'', timeout=flow.duration_seconds, params={'browser_type': flow.profile.application_name.lower()})
-            result = self.session_simulator.execute(bg_context)
+            result = await self.session_simulator.execute(bg_context)
             LOG.debug(f'Background flow to {flow.target_domain} completed: {result.packets_sent} packets, {result.bytes_sent} bytes')
             return {'domain': flow.target_domain, 'profile': flow.profile.application_name, 'bytes_sent': result.bytes_sent, 'packets_sent': result.packets_sent, 'duration': time.time() - start_time, 'success': result.status == AttackStatus.SUCCESS}
         except Exception as e:
             LOG.error(f'Background flow to {flow.target_domain} failed: {e}', exc_info=True)
             return {'domain': flow.target_domain, 'profile': flow.profile.application_name, 'bytes_sent': 0, 'packets_sent': 0, 'duration': time.time() - start_time, 'success': False, 'error': str(e)}
 
-    def _execute_main_attack(self, context: AttackContext) -> AttackResult:
+    async def _execute_main_attack(self, context: AttackContext) -> AttackResult:
         """
         Execute the main bypass attack (simulated).
 
@@ -176,7 +188,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
         start_time = time.time()
         try:
             LOG.debug(f'Executing main bypass attack to {context.domain or context.dst_ip}:{context.dst_port}')
-            time.sleep(random.uniform(0.1, 0.5))
+            await asyncio.sleep(random.uniform(0.1, 0.5))
             main_bytes_sent = len(context.payload)
             main_packets_sent = max(1, len(context.payload) // 1000)
             execution_time = (time.time() - start_time) * 1000
@@ -185,7 +197,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
             LOG.error(f'Main attack execution failed: {e}')
             return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=(time.time() - start_time) * 1000)
 
-    def _resolve_domain_ip(self, domain: str) -> str:
+    async def _resolve_domain_ip(self, domain: str) -> str:
         """
         Resolve domain to IP address.
 
@@ -197,7 +209,8 @@ class MultiFlowCorrelationAttack(BaseAttack):
         """
         try:
             import socket
-            return socket.gethostbyname(domain)
+            loop = asyncio.get_event_loop()
+            return (await loop.getaddrinfo(domain, None))[0][4][0]
         except Exception:
             return domain
 
@@ -239,7 +252,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
         rate_score = min(1.0, avg_pps / 2.0)
         return (duration_score + rate_score) / 2.0
 
-    def _create_advanced_background_flows(self, main_context: AttackContext) -> List[BackgroundFlow]:
+    async def _create_advanced_background_flows(self, main_context: AttackContext) -> List[BackgroundFlow]:
         """
         Create advanced background flows with anti-correlation features.
 
@@ -261,7 +274,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
             duration = self._calculate_optimal_duration(main_context, i)
             pps = self._calculate_optimal_packet_rate(pattern_name, i)
             port = self._select_realistic_port(profile)
-            flow = BackgroundFlow(profile=profile, target_domain=domain, target_ip=self._resolve_domain_ip(domain), target_port=port, duration_seconds=duration, packets_per_second=pps)
+            flow = BackgroundFlow(profile=profile, target_domain=domain, target_ip=await self._resolve_domain_ip(domain), target_port=port, duration_seconds=duration, packets_per_second=pps)
             flow.timing_pattern = pattern_name
             flow.flow_id = i
             flows.append(flow)
@@ -303,7 +316,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
         ports = profile_ports.get(profile.name, [80, 443])
         return random.choice(ports)
 
-    def _execute_advanced_background_flow(self, flow: BackgroundFlow) -> Dict[str, Any]:
+    async def _execute_advanced_background_flow(self, flow: BackgroundFlow) -> Dict[str, Any]:
         """Execute background flow with advanced timing patterns."""
         start_time = time.time()
         bytes_sent = 0
@@ -311,14 +324,14 @@ class MultiFlowCorrelationAttack(BaseAttack):
         try:
             background_payload = self._generate_background_payload(flow.profile)
             bg_context = AttackContext(dst_ip=flow.target_ip, dst_port=flow.target_port, domain=flow.target_domain, payload=background_payload, timeout=flow.duration_seconds)
-            packet_sequence = self._generate_advanced_packet_sequence(flow, bg_context)
+            packet_sequence = await self._generate_advanced_packet_sequence(flow, bg_context)
             for packet_data, delay_ms in packet_sequence:
                 if self._stop_event.is_set():
                     break
                 if time.time() - start_time > flow.duration_seconds:
                     break
                 if delay_ms > 0:
-                    time.sleep(delay_ms / 1000.0)
+                    await asyncio.sleep(delay_ms / 1000.0)
                 bytes_sent += len(packet_data)
                 packets_sent += 1
             flow.bytes_sent = bytes_sent
@@ -328,11 +341,11 @@ class MultiFlowCorrelationAttack(BaseAttack):
             LOG.error(f'Advanced background flow to {flow.target_domain} failed: {e}')
             return {'domain': flow.target_domain, 'profile': flow.profile.name, 'bytes_sent': bytes_sent, 'packets_sent': packets_sent, 'duration': time.time() - start_time, 'success': False, 'error': str(e)}
 
-    def _generate_advanced_packet_sequence(self, flow: BackgroundFlow, context: AttackContext) -> List[Tuple[bytes, float]]:
+    async def _generate_advanced_packet_sequence(self, flow: BackgroundFlow, context: AttackContext) -> List[Tuple[bytes, float]]:
         """Generate advanced packet sequence with sophisticated timing."""
         sequence = []
         timing_pattern = getattr(flow, 'timing_pattern', 'constant')
-        base_sequence = flow.profile.generate_packet_sequence(context.payload, context)
+        base_sequence = await flow.profile.generate_packet_sequence(context.payload, context)
         if timing_pattern == 'constant':
             interval = 1000.0 / flow.packets_per_second
             for i, (packet, _) in enumerate(base_sequence):
@@ -397,6 +410,14 @@ class MultiFlowCorrelationAttack(BaseAttack):
         for flow in self._background_flows:
             status.append({'domain': flow.target_domain, 'profile': flow.profile.name, 'active': flow.active, 'bytes_sent': flow.bytes_sent, 'packets_sent': flow.packets_sent, 'duration': flow.duration_seconds, 'pps': flow.packets_per_second})
         return status
+
+    def _register_default_profiles(self):
+        """Register default traffic profiles."""
+        from recon.core.bypass.attacks.combo.traffic_profiles import ZoomTrafficProfile, TelegramTrafficProfile, WhatsAppTrafficProfile, GenericBrowsingProfile
+        profiles = [ZoomTrafficProfile(), TelegramTrafficProfile(), WhatsAppTrafficProfile(), GenericBrowsingProfile()]
+        for profile in profiles:
+            self._profiles[profile.name] = profile
+        LOG.info(f'Registered {len(profiles)} default traffic profiles')
 
     def to_zapret_command(self, params: Optional[Dict[str, Any]]=None) -> str:
         """
