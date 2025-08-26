@@ -242,7 +242,7 @@ class TestBackwardCompatibilityLayer(unittest.TestCase):
         self.assertIsInstance(list_fp, DPIFingerprint)
         self.assertEqual(list_fp.dpi_type, DPIType.GOVERNMENT_CENSORSHIP)
 
-    @patch("core.fingerprint.compatibility.FingerprintCache")
+    @patch("core.fingerprint.cache.FingerprintCache")
     def test_save_migrated_fingerprint(self, mock_cache_class):
         """Test saving migrated fingerprints."""
         mock_cache = Mock()
@@ -263,7 +263,8 @@ class TestBackwardCompatibilityLayer(unittest.TestCase):
         )
 
         # This should use JSON fallback when cache import fails
-        self.compatibility_layer._save_migrated_fingerprint(fingerprint)
+        with patch.dict('sys.modules', {'core.fingerprint.cache': None}):
+            self.compatibility_layer._save_migrated_fingerprint(fingerprint)
 
         # Check if JSON file was created
         expected_file = Path(self.cache_dir) / "migrated_test_com.json"
@@ -359,7 +360,7 @@ class TestLegacyFingerprintWrapper(unittest.TestCase):
         self.assertEqual(self.wrapper.compatibility_layer, self.compatibility_layer)
         self.assertIsNone(self.wrapper._advanced_fingerprinter)
 
-    @patch("core.fingerprint.compatibility.AdvancedFingerprinter")
+    @patch("core.fingerprint.advanced_fingerprinter.AdvancedFingerprinter")
     def test_get_advanced_fingerprint_success(self, mock_fingerprinter_class):
         """Test getting advanced fingerprint successfully."""
         # Mock advanced fingerprinter
@@ -383,8 +384,16 @@ class TestLegacyFingerprintWrapper(unittest.TestCase):
         self.assertEqual(fingerprint.target, "test.com")
         self.assertEqual(fingerprint.dpi_type, DPIType.COMMERCIAL_DPI)
 
-    def test_get_advanced_fingerprint_failure(self):
+    @patch("core.fingerprint.advanced_fingerprinter.AdvancedFingerprinter")
+    def test_get_advanced_fingerprint_failure(self, mock_fingerprinter_class):
         """Test handling advanced fingerprinting failure."""
+        # Mock advanced fingerprinter to raise an exception
+        mock_fingerprinter = Mock()
+        mock_fingerprinter_class.return_value = mock_fingerprinter
+        mock_fingerprinter.fingerprint_target = AsyncMock(
+            side_effect=Exception("Test Exception")
+        )
+
         # This should fail gracefully and return None
         fingerprint = self.wrapper._get_advanced_fingerprint("test.com")
         self.assertIsNone(fingerprint)

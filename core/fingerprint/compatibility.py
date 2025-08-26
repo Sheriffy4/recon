@@ -253,19 +253,30 @@ class BackwardCompatibilityLayer:
         # Try pickle first
         try:
             return self._load_pickle_cache(file_path)
-        except (pickle.UnpicklingError, ValueError, EOFError, AttributeError):
+        except (pickle.UnpicklingError, ValueError, EOFError, AttributeError, LegacyFormatError):
             pass
 
         # Try JSON
         try:
             return self._load_json_cache(file_path)
-        except (json.JSONDecodeError, UnicodeDecodeError):
+        except (json.JSONDecodeError, UnicodeDecodeError, LegacyFormatError):
             pass
 
         # Try plain text format
         try:
-            return self._load_text_cache(file_path)
-        except Exception:
+            data = self._load_text_cache(file_path)
+            if not data and file_path.stat().st_size > 0:
+                # Heuristic: if file has content but we parsed nothing, it's probably not a text file.
+                is_effectively_empty = True
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    for line in f:
+                        if line.strip() and not line.strip().startswith('#'):
+                            is_effectively_empty = False
+                            break
+                if not is_effectively_empty:
+                    raise LegacyFormatError("File has non-comment content but produced no data.")
+            return data
+        except LegacyFormatError:
             pass
 
         raise LegacyFormatError(f"Unable to detect format of {file_path}")

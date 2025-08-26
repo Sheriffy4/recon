@@ -16,11 +16,14 @@ class MockAttack(BaseAttack):
 
     def __init__(self):
         self._name = 'mock_attack'
-        self.category = 'tcp_fragmentation'
 
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def category(self) -> str:
+        return 'tcp_fragmentation'
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Mock execute method."""
@@ -134,11 +137,14 @@ class TestAttackDefinition(unittest.TestCase):
         self.assertEqual(restored.tags, self.definition.tags)
         self.assertEqual(len(restored.test_cases), 1)
 
+from core.bypass.attacks.registry import AttackRegistry as LegacyAttackRegistry
+
 class TestModernAttackRegistry(unittest.TestCase):
     """Test cases for ModernAttackRegistry class."""
 
     def setUp(self):
         """Set up test fixtures."""
+        LegacyAttackRegistry.clear()
         self.temp_dir = tempfile.mkdtemp()
         self.storage_path = Path(self.temp_dir) / 'test_registry.json'
         self.registry = ModernAttackRegistry(storage_path=self.storage_path)
@@ -286,6 +292,7 @@ class TestModernAttackRegistry(unittest.TestCase):
         self.assertTrue(success)
         self.assertTrue(export_path.exists())
         new_registry = ModernAttackRegistry()
+        new_registry.clear()
         new_registry._auto_save = False
         with patch('core.bypass.attacks.modern_registry.LegacyAttackRegistry') as mock_legacy:
             mock_legacy.get.return_value = self.mock_attack_class

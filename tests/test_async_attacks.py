@@ -3,8 +3,8 @@ import asyncio
 
 from core.bypass.attacks.base import AttackContext, AttackStatus
 from core.bypass.attacks.http.header_attacks import HTTPHeaderCaseAttack as HTTPHeaderAttack
-from core.bypass.attacks.dns.demo_dns_attacks import DNSAAttack
-from core.bypass.attacks.tcp.fooling import TCPRstAttack
+from core.bypass.attacks.dns.dns_tunneling import DoHAttack
+from core.bypass.attacks.tcp.fooling import BadSumFoolingAttack
 
 class TestAsyncAttacks(unittest.TestCase):
 
@@ -29,7 +29,7 @@ class TestAsyncAttacks(unittest.TestCase):
     def test_dns_a_attack_async(self):
         """Tests that the DNSAAttack runs asynchronously."""
         async def run_test():
-            attack = DNSAAttack()
+            attack = DoHAttack()
             context = AttackContext(
                 dst_ip="8.8.8.8",
                 dst_port=53,
@@ -47,7 +47,7 @@ class TestAsyncAttacks(unittest.TestCase):
     def test_tcp_rst_attack_async(self):
         """Tests that the TCPRstAttack runs asynchronously."""
         async def run_test():
-            attack = TCPRstAttack()
+            attack = BadSumFoolingAttack()
             context = AttackContext(
                 dst_ip="192.168.1.100",
                 dst_port=443,
