@@ -9,9 +9,9 @@ import time
 from typing import Dict, Any, Optional, List, Tuple, Set
 from dataclasses import dataclass, field
 from enum import Enum
-from recon.fingerprint.models import EnhancedFingerprint
-from recon.integration.attack_adapter import AttackAdapter
-from recon.integration.result_processor import ResultProcessor
+from core.fingerprint.models import EnhancedFingerprint
+from core.integration.attack_adapter import AttackAdapter
+from core.integration.result_processor import ResultProcessor
 LOG = logging.getLogger(__name__)
 
 class ExecutionMode(Enum):

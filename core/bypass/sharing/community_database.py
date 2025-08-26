@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import logging
-from recon.core.bypass.sharing.sharing_models import SharedStrategy, StrategyPackage, StrategyFeedback, ShareLevel, ValidationStatus
-from recon.core.bypass.sharing.strategy_validator import StrategyValidator
+from core.bypass.sharing.sharing_models import SharedStrategy, StrategyPackage, StrategyFeedback, ShareLevel, ValidationStatus
+from core.bypass.sharing.strategy_validator import StrategyValidator
 
 class CommunityDatabase:
     """Manages community-driven strategy database."""

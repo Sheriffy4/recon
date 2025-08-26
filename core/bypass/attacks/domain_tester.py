@@ -10,7 +10,7 @@ import time
 import logging
 import ssl
 from typing import Optional, Tuple, Dict, Any
-from recon.core.bypass.attacks.base import AttackContext
+from core.bypass.attacks.base import AttackContext
 LOG = logging.getLogger('DomainTester')
 
 class DomainTester:

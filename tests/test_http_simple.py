@@ -3,7 +3,7 @@ Simple test to verify HTTP analyzer is working correctly
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from recon.tests.http_analyzer import HTTPAnalyzer
+from tests.http_analyzer import HTTPAnalyzer
 
 class TestHTTPAnalyzerSimple:
     """Simple tests for HTTP analyzer"""

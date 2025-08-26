@@ -3,7 +3,7 @@ Simple attack executor for testing purposes.
 Converts strategies to AttackResult objects.
 """
 import logging
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackResultHelper
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackResultHelper
 LOG = logging.getLogger('SimpleAttackExecutor')
 
 class SimpleAttackExecutor:

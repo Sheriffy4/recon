@@ -5,11 +5,11 @@ import json
 import tempfile
 import pytest
 from pathlib import Path
-from recon.tests.config_models import PoolConfiguration, BypassStrategy, StrategyPool, ConfigurationVersion
-from recon.tests.config_migrator import ConfigurationMigrator
-from recon.tests.config_validator import ConfigurationValidator
-from recon.tests.config_manager import ConfigurationManager
-from recon.tests.backup_manager import BackupManager
+from tests.config_models import PoolConfiguration, BypassStrategy, StrategyPool, ConfigurationVersion
+from tests.config_migrator import ConfigurationMigrator
+from tests.config_validator import ConfigurationValidator
+from tests.config_manager import ConfigurationManager
+from tests.backup_manager import BackupManager
 
 class TestConfigurationMigrator:
     """Test configuration migration functionality."""

@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 try:
-    from recon.core.bypass.modes.exceptions import CapabilityDetectionError
+    from core.bypass.modes.exceptions import CapabilityDetectionError
 except ImportError:
     pass
 LOG = logging.getLogger(__name__)

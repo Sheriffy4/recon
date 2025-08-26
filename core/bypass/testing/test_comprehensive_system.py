@@ -12,7 +12,7 @@ from pathlib import Path
 # Add the recon directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from recon.core.bypass.testing.comprehensive_system_test import (
+from core.bypass.testing.comprehensive_system_test import (
     ComprehensiveSystemValidator,
     SystemMetricsCollector,
 )
@@ -153,7 +153,7 @@ async def test_report_generation():
     validator = ComprehensiveSystemValidator()
 
     # Create mock data for report
-    from recon.core.bypass.testing.comprehensive_system_test import (
+    from core.bypass.testing.comprehensive_system_test import (
         AttackValidationResult,
         StrategyEffectivenessResult,
         StabilityTestResult,

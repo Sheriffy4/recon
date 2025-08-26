@@ -4,7 +4,7 @@ import socket
 import random
 from typing import List, Optional, Dict, Any, Union
 import logging
-from recon.core.bypass.exceptions import InvalidPacketError
+from core.bypass.exceptions import InvalidPacketError
 
 class PacketBuilder:
     """High-performance packet builder without Scapy dependency."""

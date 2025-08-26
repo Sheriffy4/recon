@@ -5,8 +5,8 @@ import time
 import random
 import logging
 from typing import List
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
 from core.integration.advanced_attack_registry import get_advanced_attack_registry
 LOG = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ class PacingAttack(AdvancedAttack):
                 is_first_segment = False
             result = AttackResult(status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=len(segments), bytes_sent=len(payload), processing_time_ms=(time.time() - start_time) * 1000)
             result.segments = segments
-            result.set_metadata({'attack_type': 'pacing_with_jitter', 'chunk_size': chunk_size, 'base_delay_ms': base_delay_ms, 'jitter_ms': jitter_ms, 'segment_count': len(segments)})
+            result.update_metadata({'attack_type': 'pacing_with_jitter', 'chunk_size': chunk_size, 'base_delay_ms': base_delay_ms, 'jitter_ms': jitter_ms, 'segment_count': len(segments)})
             return result
         except Exception as e:
             LOG.error(f'Pacing attack failed: {e}', exc_info=context.debug)

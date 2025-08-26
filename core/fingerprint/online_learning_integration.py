@@ -7,9 +7,9 @@ import logging
 import time
 from typing import Dict, Any, Tuple, List
 from dataclasses import dataclass
-from recon.core.fingerprint.online_learning import OnlineLearningSystem, LearningMode, ABTestConfig
-from recon.core.fingerprint.ml_classifier import MLClassifier
-from recon.core.fingerprint.advanced_models import DPIFingerprint
+from core.fingerprint.online_learning import OnlineLearningSystem, LearningMode, ABTestConfig
+from core.fingerprint.ml_classifier import MLClassifier
+from core.fingerprint.advanced_models import DPIFingerprint
 LOG = logging.getLogger('online_learning_integration')
 
 @dataclass

@@ -8,8 +8,8 @@ from typing import Dict, Any, Optional, List, Callable, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult
-from recon.core.bypass.attacks.attack_definition import AttackStability, AttackComplexity
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult
+from core.bypass.attacks.attack_definition import AttackStability, AttackComplexity
 LOG = logging.getLogger('SafetyValidator')
 
 class ValidationLevel(Enum):

@@ -8,8 +8,8 @@ import os
 import struct
 import random
 from typing import List, Optional, Dict, Any
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
 
 def encode_variable_length(value: int) -> bytes:
     """Encode integer in QUIC variable-length format."""

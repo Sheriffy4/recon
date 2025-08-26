@@ -8,12 +8,12 @@ Tests all timing attack implementations:
 - Burst traffic generation attacks
 """
 import pytest
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult, TimingPattern
-from recon.core.bypass.attacks.timing.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
-from recon.core.bypass.attacks.timing.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
-from recon.core.bypass.attacks.timing.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType, BurstTiming
-from recon.core.bypass.attacks.timing_controller import TimingStrategy, PreciseTimingController
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult, TimingPattern
+from core.bypass.attacks.timing.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
+from core.bypass.attacks.timing.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
+from core.bypass.attacks.timing.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType, BurstTiming
+from core.bypass.attacks.timing_controller import TimingStrategy, PreciseTimingController
 
 class TestTimingBase:
     """Test timing attack base functionality."""

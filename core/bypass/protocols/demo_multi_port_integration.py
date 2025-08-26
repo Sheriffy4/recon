@@ -13,19 +13,19 @@ from typing import List
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 
-from recon.core.bypass.protocols.multi_port_handler import (
+from core.bypass.protocols.multi_port_handler import (
     MultiPortHandler,
     PortStrategy,
     ProtocolFamily,
     PortTestResult,
 )
-from recon.core.bypass.attacks.attack_definition import (
+from core.bypass.attacks.attack_definition import (
     AttackDefinition,
     AttackCategory,
     AttackComplexity,
     AttackStability,
 )
-from recon.core.bypass.types import BlockType
+from core.bypass.types import BlockType
 
 
 class MultiPortBypassDemo:
@@ -432,7 +432,7 @@ class MultiPortBypassDemo:
         self.handler.stats["cache_hits"] = 8
 
         # Add cache entries
-        from recon.core.bypass.protocols.multi_port_handler import PortTestResult
+        from core.bypass.protocols.multi_port_handler import PortTestResult
 
         cache_entries = [
             (

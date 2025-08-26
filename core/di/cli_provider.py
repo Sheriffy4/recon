@@ -6,12 +6,12 @@ Provides DI container setup and service resolution for CLI operations.
 import logging
 import argparse
 from typing import Dict, Any, Optional
-from recon.core.di.container import DIContainer
-from recon.core.di.factory import ServiceFactory
-from recon.core.di.config import DIConfiguration, DIMode
-from recon.core.di.typed_config import TypedDIConfiguration, ConfigurationBuilder, DIMode
-from recon.core.interfaces import IFingerprintEngine, IProber, IClassifier, IAttackAdapter, IEffectivenessTester, ILearningMemory, IStrategySaver, IClosedLoopManager, IEvolutionarySearcher
-from recon.core.bypass.engines.packet_processing_engine import PacketProcessingEngine
+from core.di.container import DIContainer
+from core.di.factory import ServiceFactory
+from core.di.config import DIConfiguration, DIMode
+from core.di.typed_config import TypedDIConfiguration, ConfigurationBuilder, DIMode
+from core.interfaces import IFingerprintEngine, IProber, IClassifier, IAttackAdapter, IEffectivenessTester, ILearningMemory, IStrategySaver, IClosedLoopManager, IEvolutionarySearcher
+from core.bypass.engines.packet_processing_engine import PacketProcessingEngine
 LOG = logging.getLogger('CLIProvider')
 
 class CLIServiceProvider:
@@ -135,7 +135,7 @@ class CLIServiceProvider:
             Dictionary of configured services for the domain
         """
         try:
-            from recon.core.fingerprint.models import ProbeConfig
+            from core.fingerprint.models import ProbeConfig
             probe_config = ProbeConfig(target_ip=domain_ip, port=port)
             services = {'fingerprint_engine': self.get_fingerprint_engine(), 'prober': self.get_prober(), 'classifier': self.get_classifier(), 'attack_adapter': self.get_attack_adapter(), 'effectiveness_tester': self.get_effectiveness_tester(), 'learning_memory': self.get_learning_memory(), 'strategy_generator': self.get_strategy_generator(), 'strategy_saver': self.get_strategy_saver()}
             if hasattr(self.args, 'closed_loop') and self.args.closed_loop:

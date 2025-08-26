@@ -6,8 +6,8 @@ import pytest
 import asyncio
 import aiohttp
 from unittest.mock import AsyncMock, MagicMock, patch
-from recon.tests.http_analyzer import HTTPAnalyzer
-from recon.tests.advanced_models import NetworkAnalysisError
+from tests.http_analyzer import HTTPAnalyzer
+from tests.advanced_models import NetworkAnalysisError
 
 class TestHTTPAnalyzerIntegration:
     """Integration tests for HTTP analyzer with realistic DPI scenarios"""

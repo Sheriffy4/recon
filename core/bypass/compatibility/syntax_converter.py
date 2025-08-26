@@ -7,10 +7,10 @@ Provides bidirectional conversion capabilities with validation.
 import logging
 from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass
-from recon.core.bypass.compatibility.tool_detector import ExternalTool, ToolDetector
-from recon.core.bypass.compatibility.zapret_parser import ZapretConfigParser, ZapretConfig
-from recon.core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser, GoodbyeDPIConfig
-from recon.core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser, ByeByeDPIConfig
+from core.bypass.compatibility.tool_detector import ExternalTool, ToolDetector
+from core.bypass.compatibility.zapret_parser import ZapretConfigParser, ZapretConfig
+from core.bypass.compatibility.goodbyedpi_parser import GoodbyeDPIParser, GoodbyeDPIConfig
+from core.bypass.compatibility.byebyedpi_parser import ByeByeDPIParser, ByeByeDPIConfig
 LOG = logging.getLogger(__name__)
 
 @dataclass

@@ -8,7 +8,7 @@ import logging
 import statistics
 import time
 from typing import Dict, List, Any, Union
-from recon.core.fingerprint.advanced_models import DPIFingerprint
+from core.fingerprint.advanced_models import DPIFingerprint
 LOG = logging.getLogger(__name__)
 
 class DPIBehaviorAnalyzer:

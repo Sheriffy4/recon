@@ -4,7 +4,7 @@ Demonstrates the DNS behavior analysis capabilities for DPI fingerprinting.
 """
 import asyncio
 import logging
-from recon.core.fingerprint.dns_analyzer import DNSAnalyzer
+from core.fingerprint.dns_analyzer import DNSAnalyzer
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 LOG = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ def demo_response_analysis():
     print('DNS Response Analysis Demo')
     print(f"{'=' * 60}")
     analyzer = DNSAnalyzer()
-    from recon.core.fingerprint.dns_analyzer import DNSResponse, DNSQuery, DNSRecordType
+    from core.fingerprint.dns_analyzer import DNSResponse, DNSQuery, DNSRecordType
     import time
     test_query = DNSQuery(timestamp=time.time(), domain='test.com', record_type=DNSRecordType.A, query_id=12345, resolver='8.8.8.8')
     normal_response = DNSResponse(timestamp=time.time(), query=test_query, response_time=0.1, status_code=0, answers=['8.8.8.8'], flags={'qr': True, 'aa': False})

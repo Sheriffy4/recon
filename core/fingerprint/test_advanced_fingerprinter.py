@@ -11,9 +11,9 @@ import time
 from unittest.mock import Mock, AsyncMock, patch
 import ssl
 import socket
-from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig, BlockingEvent, ConnectivityResult
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
-from recon.core.fingerprint.metrics_collector import ComprehensiveMetrics, TimingMetrics
+from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig, BlockingEvent, ConnectivityResult
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
+from core.fingerprint.metrics_collector import ComprehensiveMetrics, TimingMetrics
 
 @pytest.fixture
 def temp_cache_file():

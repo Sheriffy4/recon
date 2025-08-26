@@ -8,7 +8,7 @@ import logging
 import json
 from typing import Dict, List, Optional, Any
 from pathlib import Path
-from recon.core.integration.integration_config import AttackMapping, StrategyMappingError
+from core.integration.integration_config import AttackMapping, StrategyMappingError
 LOG = logging.getLogger('StrategyMapper')
 
 class StrategyMapper:

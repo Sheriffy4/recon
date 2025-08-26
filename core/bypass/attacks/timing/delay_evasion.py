@@ -6,8 +6,8 @@ import random
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult
 
 class DelayPattern(Enum):
     """Types of delay patterns for evasion."""

@@ -15,7 +15,7 @@ try:
 except ImportError:
     SCAPY_AVAILABLE = False
     IP = IPv6 = TCP = UDP = Raw = Packet = ICMP = None
-from recon.core.interfaces import IPacketBuilder
+from core.interfaces import IPacketBuilder
 
 @dataclass
 class PacketParams:

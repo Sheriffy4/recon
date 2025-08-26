@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 import struct
-from recon.core.net.byte_packet import Packet
+from core.net.byte_packet import Packet
 
 class QUICPacketType(IntEnum):
     INITIAL = 0

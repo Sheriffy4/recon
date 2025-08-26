@@ -7,7 +7,7 @@ import json
 from typing import Dict, Any
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from recon.core.bypass.performance.performance_models import Alert, AlertSeverity
+from core.bypass.performance.performance_models import Alert, AlertSeverity
 
 class AlertingSystem:
     """Advanced alerting system with multiple notification channels."""

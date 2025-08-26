@@ -17,24 +17,24 @@ Main Components:
 
 Usage:
     # Quick test of all attacks
-    from recon.core.bypass.testing import run_quick_test_suite
+    from core.bypass.testing import run_quick_test_suite
     report = await run_quick_test_suite()
 
     # Comprehensive testing
-    from recon.core.bypass.testing import ComprehensiveTestSuite
-    from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.testing import ComprehensiveTestSuite
+    from core.bypass.attacks.modern_registry import ModernAttackRegistry
 
     registry = ModernAttackRegistry()
     suite = ComprehensiveTestSuite(registry)
     report = await suite.run_comprehensive_tests()
 
     # CLI usage
-    python -m recon.core.bypass.testing.test_runner quick --verbose
+    python -m core.bypass.testing.test_runner quick --verbose
 """
-from recon.core.bypass.testing.test_models import TestCase, TestResult, TestStatus, TestSeverity, ValidationMethod, BenchmarkResult, StabilityResult, TestSuite, TestReport
-from recon.core.bypass.testing.attack_test_suite import ComprehensiveTestSuite, TestExecutor, StabilityTester, PerformanceBenchmarker, RegressionTester, run_attack_test, run_quick_test_suite
+from core.bypass.testing.test_models import TestCase, TestResult, TestStatus, TestSeverity, ValidationMethod, BenchmarkResult, StabilityResult, TestSuite, TestReport
+from core.bypass.testing.attack_test_suite import ComprehensiveTestSuite, TestExecutor, StabilityTester, PerformanceBenchmarker, RegressionTester, run_attack_test, run_quick_test_suite
 try:
-    from recon.core.bypass.testing.integration_tests import WorkflowIntegrationTester, ComponentIntegrationTester, run_integration_tests, run_component_integration_tests, run_full_integration_suite
+    from core.bypass.testing.integration_tests import WorkflowIntegrationTester, ComponentIntegrationTester, run_integration_tests, run_component_integration_tests, run_full_integration_suite
     _integration_available = True
 except ImportError:
 
@@ -49,7 +49,7 @@ except ImportError:
     WorkflowIntegrationTester = None
     ComponentIntegrationTester = None
     _integration_available = False
-from recon.core.bypass.testing.test_runner import TestRunner, TestConfiguration
+from core.bypass.testing.test_runner import TestRunner, TestConfiguration
 __all__ = ['TestCase', 'TestResult', 'TestStatus', 'TestSeverity', 'ValidationMethod', 'BenchmarkResult', 'StabilityResult', 'TestSuite', 'TestReport', 'ComprehensiveTestSuite', 'TestExecutor', 'StabilityTester', 'PerformanceBenchmarker', 'RegressionTester', 'WorkflowIntegrationTester', 'ComponentIntegrationTester', 'TestRunner', 'TestConfiguration', 'run_attack_test', 'run_quick_test_suite', 'run_integration_tests', 'run_component_integration_tests', 'run_full_integration_suite']
 __version__ = '1.0.0'
 __author__ = 'Bypass Engine Team'

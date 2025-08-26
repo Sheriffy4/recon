@@ -14,7 +14,7 @@ if __name__ == "__main__" and __package__ is None:
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
-from recon.core.monitoring_system import (
+from core.monitoring_system import (
     MonitoringSystem,
     MonitoringConfig,
     load_monitoring_config,
@@ -82,7 +82,7 @@ class MonitoringCLI:
         # Загружаем кэш обучения если доступен
         if not args.disable_learning:
             try:
-                from recon.cli import AdaptiveLearningCache
+                from cli import AdaptiveLearningCache
 
                 self.learning_cache = AdaptiveLearningCache()
                 console.print("[dim]🧠 Adaptive learning cache loaded[/dim]")
@@ -285,7 +285,7 @@ async def main():
         )
 
         # Сохраняем конфигурацию по умолчанию
-        from recon.core.monitoring_system import save_monitoring_config
+        from core.monitoring_system import save_monitoring_config
 
         save_monitoring_config(config, args.config)
         console.print(f"[green]Created default configuration: {args.config}[/green]")

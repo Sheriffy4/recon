@@ -10,12 +10,12 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime
 from contextlib import asynccontextmanager, contextmanager
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.safety.resource_manager import ResourceManager, ResourceLimits, ResourceMonitor
-from recon.core.bypass.safety.attack_sandbox import AttackSandbox, SandboxConstraints, SandboxMonitor
-from recon.core.bypass.safety.emergency_stop import EmergencyStopManager, StopReason, StopPriority
-from recon.core.bypass.safety.safety_validator import SafetyValidator, ValidationLevel, ValidationReport
-from recon.core.bypass.safety.exceptions import ResourceLimitExceededError, AttackTimeoutError, SandboxViolationError, EmergencyStopError, AttackValidationError
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.safety.resource_manager import ResourceManager, ResourceLimits, ResourceMonitor
+from core.bypass.safety.attack_sandbox import AttackSandbox, SandboxConstraints, SandboxMonitor
+from core.bypass.safety.emergency_stop import EmergencyStopManager, StopReason, StopPriority
+from core.bypass.safety.safety_validator import SafetyValidator, ValidationLevel, ValidationReport
+from core.bypass.safety.exceptions import ResourceLimitExceededError, AttackTimeoutError, SandboxViolationError, EmergencyStopError, AttackValidationError
 LOG = logging.getLogger('SafetyController')
 
 @dataclass

@@ -11,7 +11,7 @@ import hashlib
 import random
 from typing import Dict, List, Any, Optional
 from pathlib import Path
-from recon.core.zapret import synth
+from core.zapret import synth
 LOG = logging.getLogger('StrategySaver')
 
 class StrategySaver:

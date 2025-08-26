@@ -2,18 +2,18 @@ import time
 import random
 import struct
 from typing import List, Optional, Tuple
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
-from recon.core.protocols.tls import TLSParser
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
+from core.protocols.tls import TLSParser
 
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
     try:
-        from recon.core.bypass.attacks.safe_result_utils import safe_create_attack_result
+        from core.bypass.attacks.safe_result_utils import safe_create_attack_result
         return safe_create_attack_result(status_name, **kwargs)
     except Exception:
         try:
-            from recon.core.bypass.attacks.base import AttackResult, AttackStatus
+            from core.bypass.attacks.base import AttackResult, AttackStatus
             status = getattr(AttackStatus, status_name)
             return AttackResult(status=status, **kwargs)
         except Exception:

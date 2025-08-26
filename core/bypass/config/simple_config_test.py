@@ -4,8 +4,8 @@ Simple test script for configuration migration functionality.
 import json
 import tempfile
 from pathlib import Path
-from recon.core.bypass.config.config_models import ConfigurationVersion, BypassStrategy
-from recon.core.bypass.config.config_manager import ConfigurationManager
+from core.bypass.config.config_models import ConfigurationVersion, BypassStrategy
+from core.bypass.config.config_manager import ConfigurationManager
 
 def test_basic_functionality():
     """Test basic configuration migration functionality."""

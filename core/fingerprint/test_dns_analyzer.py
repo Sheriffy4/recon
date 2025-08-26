@@ -8,7 +8,7 @@ import asyncio
 import time
 import socket
 from unittest.mock import Mock, patch, AsyncMock
-from recon.core.fingerprint.dns_analyzer import DNSAnalyzer, DNSQuery, DNSResponse, DNSBlockingMethod, DNSRecordType
+from core.fingerprint.dns_analyzer import DNSAnalyzer, DNSQuery, DNSResponse, DNSBlockingMethod, DNSRecordType
 
 class TestDNSAnalyzer:
     """Test suite for DNSAnalyzer class"""

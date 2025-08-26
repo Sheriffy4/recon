@@ -5,8 +5,8 @@ import time
 import struct
 import logging
 from typing import List
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
 from core.integration.advanced_attack_registry import get_advanced_attack_registry
 LOG = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class ClientHelloSplitAttack(AdvancedAttack):
             modified_payload = record1 + record2
             result = AttackResult(status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=1, bytes_sent=len(modified_payload), processing_time_ms=(time.time() - start_time) * 1000)
             result.segments = [(modified_payload, 0, {})]
-            result.set_metadata({'split_pos': split_pos, 'original_size': len(payload), 'modified_size': len(modified_payload), 'record1_size': len(record1), 'record2_size': len(record2)})
+            result.update_metadata({'split_pos': split_pos, 'original_size': len(payload), 'modified_size': len(modified_payload), 'record1_size': len(record1), 'record2_size': len(record2)})
             return result
         except Exception as e:
             LOG.error(f'ClientHello split attack failed: {e}', exc_info=context.debug)
@@ -62,7 +62,7 @@ class TLSRecordPaddingAttack(AdvancedAttack):
                 modified_payload = payload[:3] + struct.pack('!H', new_length) + payload[5:] + padding
             result = AttackResult(status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=1, bytes_sent=len(modified_payload), processing_time_ms=(time.time() - start_time) * 1000)
             result.segments = [(modified_payload, 0, {})]
-            result.set_metadata({'padding_size': padding_size, 'original_size': len(payload), 'modified_size': len(modified_payload)})
+            result.update_metadata({'padding_size': padding_size, 'original_size': len(payload), 'modified_size': len(modified_payload)})
             return result
         except Exception as e:
             LOG.error(f'TLS record padding attack failed: {e}', exc_info=context.debug)

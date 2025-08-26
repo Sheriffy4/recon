@@ -7,8 +7,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    print("Attempting to import pool_management...")
-    import pool_management
+    print("Attempting to from core.bypass.strategies import pool_management...")
+    from core.bypass.strategies import pool_management
 
     print("Import successful!")
 

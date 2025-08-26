@@ -6,22 +6,22 @@ import socket
 import ssl
 from typing import Dict, List, Tuple, Optional, Set, Any
 from urllib.parse import urlparse
-from recon.core.bypass_engine import BypassEngine
-from recon.core.zapret_parser import ZapretStrategyParser
+from bypass_engine import BypassEngine
+from zapret_parser import ZapretStrategyParser
 try:
-    from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
-    from recon.core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
-    from recon.core.bypass.modes.mode_controller import ModeController, OperationMode
-    from recon.core.bypass.validation.reliability_validator import ReliabilityValidator
-    from recon.core.bypass.protocols.multi_port_handler import MultiPortHandler
+    from core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
+    from core.bypass.modes.mode_controller import ModeController, OperationMode
+    from core.bypass.validation.reliability_validator import ReliabilityValidator
+    from core.bypass.protocols.multi_port_handler import MultiPortHandler
     MODERN_BYPASS_ENGINE_AVAILABLE = True
 except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Modern bypass engine not available: {e}')
     MODERN_BYPASS_ENGINE_AVAILABLE = False
-from recon.core.fingerprint.advanced_models import DPIFingerprint
+from core.fingerprint.advanced_models import DPIFingerprint
 try:
-    from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
-    from recon.core.fingerprint.advanced_models import DPIType, FingerprintingError
+    from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+    from core.fingerprint.advanced_models import DPIType, FingerprintingError
     ADVANCED_FINGERPRINTING_AVAILABLE = True
 except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Advanced fingerprinting not available: {e}')
@@ -471,7 +471,7 @@ class HybridEngine:
             registry_strategies.extend(['--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10', '--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum'])
         return registry_strategies[:5]
 
-    def assign_domain_to_pool(self, domain: str, port: int=443, strategy: Optional[BypassStrategy]=None) -> bool:
+    def assign_domain_to_pool(self, domain: str, port: int=443, strategy: Optional['BypassStrategy']=None) -> bool:
         """
         Assign a domain to a strategy pool.
 
@@ -500,13 +500,13 @@ class HybridEngine:
             LOG.error(f'Failed to assign domain to pool: {e}')
             return False
 
-    def get_pool_strategy_for_domain(self, domain: str, port: int=443) -> Optional[BypassStrategy]:
+    def get_pool_strategy_for_domain(self, domain: str, port: int=443) -> Optional['BypassStrategy']:
         """Get the pool strategy for a domain."""
         if not self.modern_bypass_enabled or not self.pool_manager:
             return None
         return self.pool_manager.get_strategy_for_domain(domain, port)
 
-    def switch_bypass_mode(self, mode: OperationMode) -> bool:
+    def switch_bypass_mode(self, mode: 'OperationMode') -> bool:
         """
         Switch the bypass engine operation mode.
 
@@ -528,7 +528,7 @@ class HybridEngine:
             LOG.error(f'Failed to switch bypass mode: {e}')
             return False
 
-    def validate_strategy_reliability(self, domain: str, strategy: BypassStrategy, port: int=443) -> Optional[float]:
+    def validate_strategy_reliability(self, domain: str, strategy: 'BypassStrategy', port: int=443) -> Optional[float]:
         """
         Validate strategy reliability using the modern validation system.
 

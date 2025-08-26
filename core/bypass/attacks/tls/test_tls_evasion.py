@@ -9,8 +9,8 @@ Tests all TLS evasion attacks implemented in task 7:
 """
 import struct
 import os
-from recon.core.bypass.attacks.base import AttackContext, AttackStatus
-from recon.core.bypass.attacks.tls.tls_evasion import TLSHandshakeManipulationAttack, TLSVersionDowngradeAttack, TLSExtensionManipulationAttack, TLSRecordFragmentationAttack
+from core.bypass.attacks.base import AttackContext, AttackStatus
+from core.bypass.attacks.tls.tls_evasion import TLSHandshakeManipulationAttack, TLSVersionDowngradeAttack, TLSExtensionManipulationAttack, TLSRecordFragmentationAttack
 
 class TestTLSEvasionAttacks:
     """Test suite for TLS evasion attacks."""

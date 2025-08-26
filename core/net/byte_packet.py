@@ -1,8 +1,8 @@
 import struct
 from dataclasses import dataclass
 from typing import List
-from recon.core.net.base_packet import Packet
-from recon.core.net.tcp_options import TCPOption
+from core.net.base_packet import Packet
+from core.net.tcp_options import TCPOption
 
 @dataclass
 class IPv4Packet(Packet):

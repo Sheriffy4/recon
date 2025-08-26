@@ -5,9 +5,9 @@ Tests all aspects of multi-port and protocol support functionality.
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from recon.core.bypass.protocols.multi_port_handler import MultiPortHandler, ProtocolFamily, PortStrategy, PortTestResult, BypassResult
-from recon.core.bypass.types import BlockType
-from recon.core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability
+from core.bypass.protocols.multi_port_handler import MultiPortHandler, ProtocolFamily, PortStrategy, PortTestResult, BypassResult
+from core.bypass.types import BlockType
+from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability
 
 class TestMultiPortHandler:
     """Test suite for MultiPortHandler functionality."""

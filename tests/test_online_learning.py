@@ -8,8 +8,8 @@ import tempfile
 import os
 import time
 from unittest.mock import Mock, patch
-from recon.tests.online_learning import OnlineLearningSystem, LearningMode, LearningExample, PerformanceMetrics, ABTestConfig
-from recon.tests.ml_classifier import MLClassifier
+from tests.online_learning import OnlineLearningSystem, LearningMode, LearningExample, PerformanceMetrics, ABTestConfig
+from tests.ml_classifier import MLClassifier
 
 class TestOnlineLearningSystem(unittest.TestCase):
     """Test suite for OnlineLearningSystem."""

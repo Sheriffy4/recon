@@ -8,7 +8,7 @@ import subprocess
 import sys
 import os
 from dataclasses import dataclass, field
-from recon.core.bypass.engines.base import EngineType
+from core.bypass.engines.base import EngineType
 LOG = logging.getLogger('EngineTypeDetector')
 
 @dataclass

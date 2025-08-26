@@ -6,10 +6,10 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock
-from recon.core.bypass.strategies.strategy_application import EnhancedStrategySelector, SelectionCriteria, ConflictResolution, StrategyScore, UserPreference, DomainAnalysis
-from recon.core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy, PoolPriority
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
-from recon.core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability
+from core.bypass.strategies.strategy_application import EnhancedStrategySelector, SelectionCriteria, ConflictResolution, StrategyScore, UserPreference, DomainAnalysis
+from core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy, PoolPriority
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability
 
 class TestEnhancedStrategySelector:
     """Test suite for EnhancedStrategySelector."""
@@ -393,7 +393,7 @@ class TestStrategyApplicationIntegration:
 if __name__ == '__main__':
     print('Running strategy application tests...')
     try:
-        from recon.core.bypass.strategies.strategy_application import EnhancedStrategySelector
+        from core.bypass.strategies.strategy_application import EnhancedStrategySelector
         print('✅ All imports successful')
         mock_registry = Mock()
         pool_manager = StrategyPoolManager()

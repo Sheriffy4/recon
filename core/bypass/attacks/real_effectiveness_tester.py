@@ -7,11 +7,11 @@ import ssl as ssl_module
 from typing import Dict, Any, Optional, Union, List, Tuple
 from contextlib import asynccontextmanager
 from aiohttp.abc import AbstractResolver
-from recon.core.bypass.attacks.base import AttackResult, AttackStatus
-from recon.core.bypass.engines.factory import create_engine, detect_best_engine
-from recon.core.bypass.engines.base import EngineConfig
-from recon.core.bypass.attacks.base import BaselineResult, BypassResult, EffectivenessResult
-from recon.core.bypass.types import BlockType
+from core.bypass.attacks.base import AttackResult, AttackStatus
+from core.bypass.engines.factory import create_engine, detect_best_engine
+from core.bypass.engines.base import EngineConfig
+from core.bypass.attacks.base import BaselineResult, BypassResult, EffectivenessResult
+from core.bypass.types import BlockType
 from core.dns.pinned_resolver import StaticResolver
 LOG = logging.getLogger('RealEffectivenessTester')
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6753.0 Safari/537.36'}
@@ -314,7 +314,7 @@ class RealEffectivenessTester:
             result.setdefault('target_port', port)
             return result
         elif isinstance(strategy, str):
-            from recon.core.bypass.strategies.parser import UnifiedStrategyParser
+            from core.bypass.strategies.parser import UnifiedStrategyParser
             parser = UnifiedStrategyParser()
             parsed = parser.parse(strategy)
             task = parser.translate_to_engine_task(strategy)

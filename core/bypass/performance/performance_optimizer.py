@@ -7,7 +7,7 @@ import psutil
 import logging
 from typing import List
 from collections import deque
-from recon.core.bypass.performance.performance_models import PerformanceMetrics, OptimizationResult, OptimizationLevel, SystemHealth
+from core.bypass.performance.performance_models import PerformanceMetrics, OptimizationResult, OptimizationLevel, SystemHealth
 
 class PerformanceOptimizer:
     """Optimizes bypass engine performance based on testing results."""

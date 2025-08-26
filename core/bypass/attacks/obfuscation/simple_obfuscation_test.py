@@ -8,37 +8,37 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 
-from recon.core.bypass.attacks.base import AttackContext, AttackStatus
-from recon.core.bypass.attacks.obfuscation.protocol_tunneling import (
+from core.bypass.attacks.base import AttackContext, AttackStatus
+from core.bypass.attacks.obfuscation.protocol_tunneling import (
     HTTPTunnelingObfuscationAttack,
     DNSOverHTTPSTunnelingAttack,
     WebSocketTunnelingObfuscationAttack,
     SSHTunnelingObfuscationAttack,
     VPNTunnelingObfuscationAttack,
 )
-from recon.core.bypass.attacks.obfuscation.payload_encryption import (
+from core.bypass.attacks.obfuscation.payload_encryption import (
     XORPayloadEncryptionAttack,
     AESPayloadEncryptionAttack,
     ChaCha20PayloadEncryptionAttack,
     MultiLayerEncryptionAttack,
 )
-from recon.core.bypass.attacks.obfuscation.protocol_mimicry import (
+from core.bypass.attacks.obfuscation.protocol_mimicry import (
     HTTPProtocolMimicryAttack,
     TLSProtocolMimicryAttack,
 )
-from recon.core.bypass.attacks.obfuscation.traffic_obfuscation import (
+from core.bypass.attacks.obfuscation.traffic_obfuscation import (
     TrafficPatternObfuscationAttack,
     PacketSizeObfuscationAttack,
     TimingObfuscationAttack,
     FlowObfuscationAttack,
 )
-from recon.core.bypass.attacks.obfuscation.icmp_obfuscation import (
+from core.bypass.attacks.obfuscation.icmp_obfuscation import (
     ICMPDataTunnelingObfuscationAttack,
     ICMPTimestampTunnelingObfuscationAttack,
     ICMPRedirectTunnelingObfuscationAttack,
     ICMPCovertChannelObfuscationAttack,
 )
-from recon.core.bypass.attacks.obfuscation.quic_obfuscation import (
+from core.bypass.attacks.obfuscation.quic_obfuscation import (
     QUICFragmentationObfuscationAttack,
 )
 

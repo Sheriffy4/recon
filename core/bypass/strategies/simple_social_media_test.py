@@ -9,15 +9,15 @@ import tempfile
 import logging
 from pathlib import Path
 try:
-    from recon.core.bypass.strategies.social_media_handler import SocialMediaBypassHandler, PlatformType
-    from recon.core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler
-    from recon.core.bypass.strategies.pool_management import BypassStrategy, StrategyPoolManager
+    from core.bypass.strategies.social_media_handler import SocialMediaBypassHandler, PlatformType
+    from core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler
+    from core.bypass.strategies.pool_management import BypassStrategy, StrategyPoolManager
 except ImportError:
     import sys
     import os
     sys.path.append(os.path.dirname(__file__))
-    from social_media_handler import SocialMediaBypassHandler, PlatformType
-    from subdomain_handler import SubdomainStrategyHandler
+    from core.bypass.strategies.social_media_handler import SocialMediaBypassHandler, PlatformType
+    from core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler
     from pool_management import BypassStrategy
 logging.basicConfig(level=logging.INFO)
 LOG = logging.getLogger('SimpleSocialMediaTest')

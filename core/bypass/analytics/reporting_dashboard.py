@@ -5,10 +5,10 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
 from pathlib import Path
-from recon.core.bypass.analytics.analytics_models import AnalyticsReport, RealtimeMetrics, MetricType, TrendDirection
-from recon.core.bypass.analytics.metrics_collector import MetricsCollector
-from recon.core.bypass.analytics.performance_tracker import PerformanceTracker
-from recon.core.bypass.analytics.ml_predictor import MLPredictor
+from core.bypass.analytics.analytics_models import AnalyticsReport, RealtimeMetrics, MetricType, TrendDirection
+from core.bypass.analytics.metrics_collector import MetricsCollector
+from core.bypass.analytics.performance_tracker import PerformanceTracker
+from core.bypass.analytics.ml_predictor import MLPredictor
 
 class ReportingDashboard:
     """Comprehensive reporting and dashboard system"""

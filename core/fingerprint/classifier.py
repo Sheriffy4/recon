@@ -12,7 +12,7 @@ except ImportError:
 
     class RandomForestClassifier:
         pass
-from recon.core.fingerprint.models import Fingerprint, DPIClassification, DPIFamily
+from core.fingerprint.models import Fingerprint, DPIClassification, DPIFamily
 LOG = logging.getLogger('ultimate_classifier')
 
 class UltimateDPIClassifier:

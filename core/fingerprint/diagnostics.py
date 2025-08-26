@@ -22,8 +22,8 @@ try:
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType
     from core.fingerprint.config import get_config
 except ImportError:
-    from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
-    from recon.core.fingerprint.config import get_config
+    from core.fingerprint.advanced_models import DPIFingerprint, DPIType
+    from core.fingerprint.config import get_config
 
 
 # Configure structured logging

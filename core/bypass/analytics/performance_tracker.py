@@ -6,8 +6,8 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from collections import defaultdict, deque
-from recon.core.bypass.analytics.analytics_models import PerformanceTrend, MetricType, TrendDirection
-from recon.core.bypass.analytics.metrics_collector import MetricsCollector
+from core.bypass.analytics.analytics_models import PerformanceTrend, MetricType, TrendDirection
+from core.bypass.analytics.metrics_collector import MetricsCollector
 
 class PerformanceTracker:
     """Tracks performance trends and analyzes patterns"""

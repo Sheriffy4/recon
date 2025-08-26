@@ -10,11 +10,11 @@ import statistics
 from typing import Dict, List, Optional, Any, Callable
 from datetime import datetime
 from pathlib import Path
-from recon.core.bypass.testing.test_models import TestCase, TestResult, TestStatus, ValidationMethod, BenchmarkResult, StabilityResult, TestReport
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
-from recon.core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity
-from recon.core.bypass.validation.reliability_validator import ReliabilityValidator
-from recon.core.bypass.safety.safety_controller import SafetyController
+from core.bypass.testing.test_models import TestCase, TestResult, TestStatus, ValidationMethod, BenchmarkResult, StabilityResult, TestReport
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity
+from core.bypass.validation.reliability_validator import ReliabilityValidator
+from core.bypass.safety.safety_controller import SafetyController
 LOG = logging.getLogger('AttackTestSuite')
 
 class TestExecutor:

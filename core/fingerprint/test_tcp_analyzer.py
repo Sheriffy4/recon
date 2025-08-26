@@ -10,7 +10,7 @@ import time
 import socket
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 pytest_plugins = ('pytest_asyncio',)
-from recon.core.fingerprint.tcp_analyzer import TCPAnalyzer, TCPAnalysisResult, TCPConnectionAttempt, RSTSource, NetworkAnalysisError
+from core.fingerprint.tcp_analyzer import TCPAnalyzer, TCPAnalysisResult, TCPConnectionAttempt, RSTSource, NetworkAnalysisError
 
 class MockSocket:
     """Mock socket for testing"""

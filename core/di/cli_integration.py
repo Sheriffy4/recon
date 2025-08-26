@@ -2,8 +2,8 @@ import logging
 import asyncio
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
-from recon.core.di.cli_provider import CLIServiceProvider
-from recon.core.interfaces import IFingerprintEngine, IProber, IClassifier, IAttackAdapter, IEffectivenessTester, ILearningMemory, IStrategyGenerator, IStrategySaver, IClosedLoopManager, IEvolutionarySearcher
+from core.di.cli_provider import CLIServiceProvider
+from core.interfaces import IFingerprintEngine, IProber, IClassifier, IAttackAdapter, IEffectivenessTester, ILearningMemory, IStrategyGenerator, IStrategySaver, IClosedLoopManager, IEvolutionarySearcher
 from ml.strategy_generator import AdvancedStrategyGenerator
 from core.bypass.attacks.registry import AttackRegistry
 from core.domain_specific_strategies import DomainSpecificStrategies

@@ -19,8 +19,8 @@ except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Modern bypass engine not available: {e}')
     MODERN_BYPASS_ENGINE_AVAILABLE = False
 try:
-    from recon.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
-    from recon.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
+    from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+    from core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
     ADVANCED_FINGERPRINTING_AVAILABLE = True
 except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Advanced fingerprinting not available: {e}')

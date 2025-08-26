@@ -16,14 +16,14 @@ from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 from scapy.all import IP, TCP, sr1, Raw
 from scapy.layers.tls.all import TLS, TLSClientHello
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
-from recon.core.fingerprint.cache import FingerprintCache
-from recon.core.fingerprint.metrics_collector import MetricsCollector
-from recon.core.fingerprint.tcp_analyzer import TCPAnalyzer
-from recon.core.fingerprint.http_analyzer import HTTPAnalyzer
-from recon.core.fingerprint.dns_analyzer import DNSAnalyzer
-from recon.core.fingerprint.ml_classifier import MLClassifier
-from recon.protocols.tls import TLSParser, ClientHelloInfo
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
+from core.fingerprint.cache import FingerprintCache
+from core.fingerprint.metrics_collector import MetricsCollector
+from core.fingerprint.tcp_analyzer import TCPAnalyzer
+from core.fingerprint.http_analyzer import HTTPAnalyzer
+from core.fingerprint.dns_analyzer import DNSAnalyzer
+from core.fingerprint.ml_classifier import MLClassifier
+from core.protocols.tls import TLSParser, ClientHelloInfo
 
 class BlockingEvent(Enum):
     """Типы событий, приводящих к блокировке или ее обнаружению."""
@@ -115,6 +115,36 @@ class AdvancedFingerprinter:
                 return None
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self.executor, probe)
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Возвращает статистику работы фингерпринтера."""
+        pass
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Проверяет работоспособность компонентов фингерпринтера."""
+        # Пример реализации.
+        return {
+            "cache_healthy": self.cache.is_healthy(),
+            "prober_healthy": await self.prober.is_healthy(),
+            "classifier_healthy": self.classifier.is_healthy(),
+        }
+
+    def __repr__(self) -> str:
+        """Информативное строковое представление."""
+        return (
+            f"AdvancedFingerprinter(config={self.config}, "
+            f"cache_size={self.cache.get_stats()['cache_size']})"
+        )
+
+    async def __aenter__(self):
+        """Поддержка асинхронного контекстного менеджера."""
+        # Здесь может быть логика инициализации, если нужна
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Очистка при выходе из контекста."""
+        # Здесь может быть логика очистки, например, закрытие сессий
+        await self.cleanup()
 
     def _populate_coherent_fingerprint_features(self, fingerprint: DPIFingerprint, client_hello_info: ClientHelloInfo):
         """Populates the DPIFingerprint with features for coherent mimicry."""

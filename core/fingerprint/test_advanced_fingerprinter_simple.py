@@ -6,8 +6,8 @@ import pytest
 import tempfile
 import os
 from unittest.mock import Mock, AsyncMock, patch
-from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
-from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
+from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 
 class TestAdvancedFingerprinteSimple:
     """Simple test suite for AdvancedFingerprinter core functionality"""

@@ -5,7 +5,7 @@ from .. import config
 from recon.storage import Storage
 from ..ml.strategy_predictor import StrategyPredictor
 from recon.bypass.attacks.registry import AttackRegistry
-from recon.integration.attack_adapter import AttackAdapter
+from core.integration.attack_adapter import AttackAdapter
 from typing import TYPE_CHECKING
 from typing_extensions import Protocol
 LOG = logging.getLogger('AdaptivePlanner')

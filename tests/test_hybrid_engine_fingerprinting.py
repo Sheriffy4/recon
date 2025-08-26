@@ -13,8 +13,8 @@ import time
 from unittest.mock import Mock, AsyncMock, patch
 
 # Import the components to test
-from recon.core.hybrid_engine import HybridEngine
-from recon.core.fingerprint.advanced_models import (
+from core.hybrid_engine import HybridEngine
+from core.fingerprint.advanced_models import (
     DPIFingerprint,
     DPIType,
 )

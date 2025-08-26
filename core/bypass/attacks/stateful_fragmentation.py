@@ -2,8 +2,8 @@ import time
 import random
 import logging
 from typing import List
-from recon.core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
 from core.integration.advanced_attack_registry import get_advanced_attack_registry
 LOG = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class StatefulFragmentationAttack(AdvancedAttack):
             segments = [segment1, segment2, segment3]
             result = AttackResult(status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=len(segments), bytes_sent=sum((len(s[0]) for s in segments)), processing_time_ms=(time.time() - start_time) * 1000)
             result.segments = segments
-            result.set_metadata({'fragmentation_type': 'stateful_garbage_injection', 'split_position': split_pos, 'garbage_size': len(garbage_data)})
+            result.update_metadata({'fragmentation_type': 'stateful_garbage_injection', 'split_position': split_pos, 'garbage_size': len(garbage_data)})
             return result
         except Exception as e:
             LOG.error(f'Stateful fragmentation attack failed: {e}', exc_info=context.debug)
@@ -72,7 +72,7 @@ class AdvancedOverlapAttack(AdvancedAttack):
             segments = [segment1, segment2]
             result = AttackResult(status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=len(segments), bytes_sent=sum((len(s[0]) for s in segments)), processing_time_ms=(time.time() - start_time) * 1000)
             result.segments = segments
-            result.set_metadata({'fragmentation_type': 'advanced_overlap', 'dpi_payload_size': len(dpi_payload), 'real_payload_size': len(real_payload)})
+            result.update_metadata({'fragmentation_type': 'advanced_overlap', 'dpi_payload_size': len(dpi_payload), 'real_payload_size': len(real_payload)})
             return result
         except Exception as e:
             LOG.error(f'Advanced overlap attack failed: {e}', exc_info=context.debug)

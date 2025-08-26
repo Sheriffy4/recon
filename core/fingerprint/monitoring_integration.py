@@ -9,9 +9,9 @@ Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
 import logging
 from typing import Dict, List, Optional, Callable, Any
 from datetime import datetime
-from recon.core.fingerprint.dpi_behavior_monitor import DPIBehaviorMonitor, MonitoringConfig, MonitoringAlert
-from recon.core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
-from recon.core.fingerprint.advanced_models import DPIFingerprint
+from core.fingerprint.dpi_behavior_monitor import DPIBehaviorMonitor, MonitoringConfig, MonitoringAlert
+from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
+from core.fingerprint.advanced_models import DPIFingerprint
 logger = logging.getLogger(__name__)
 
 class MonitoringIntegration:

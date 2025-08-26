@@ -7,7 +7,7 @@ import os
 import tempfile
 import shutil
 from unittest.mock import patch
-from recon.core.fingerprint.ml_classifier import MLClassifier, MLClassificationError
+from core.fingerprint.ml_classifier import MLClassifier, MLClassificationError
 
 class TestMLClassifier:
     """Test suite for MLClassifier."""

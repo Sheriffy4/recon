@@ -17,14 +17,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     import reliability_validator
-    from reliability_validator import ValidationMethod
-    from reliability_validator import ReliabilityLevel
-    from reliability_validator import AccessibilityStatus
-    from reliability_validator import ValidationResult
-    from reliability_validator import AccessibilityResult
-    from reliability_validator import StrategyEffectivenessResult
-    from reliability_validator import ReliabilityValidator
-    from reliability_validator import get_global_reliability_validator
+    from core.bypass.validation.reliability_validator import ValidationMethod
+    from core.bypass.validation.reliability_validator import ReliabilityLevel
+    from core.bypass.validation.reliability_validator import AccessibilityStatus
+    from core.bypass.validation.reliability_validator import ValidationResult
+    from core.bypass.validation.reliability_validator import AccessibilityResult
+    from core.bypass.validation.reliability_validator import StrategyEffectivenessResult
+    from core.bypass.validation.reliability_validator import ReliabilityValidator
+    from core.bypass.validation.reliability_validator import get_global_reliability_validator
 
     print("✓ Successfully imported ReliabilityValidator")
 except ImportError as e:

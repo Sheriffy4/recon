@@ -20,8 +20,8 @@ try:
     )
 except ImportError:
     # Fallback for different import paths
-    from recon.ml.zapret_strategy_generator import ZapretStrategyGenerator
-    from recon.core.fingerprint.advanced_models import (
+    from ml.zapret_strategy_generator import ZapretStrategyGenerator
+    from core.fingerprint.advanced_models import (
         DPIFingerprint,
         DPIType,
     )

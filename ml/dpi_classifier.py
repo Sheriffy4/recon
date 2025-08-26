@@ -15,7 +15,7 @@ try:
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
-from recon.core.fingerprint.models import DPIBehaviorProfile
+from core.fingerprint.models import DPIBehaviorProfile
 LOG = logging.getLogger('dpi_classifier')
 
 @dataclass

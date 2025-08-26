@@ -9,9 +9,9 @@ import time
 import random
 from typing import Dict, Any
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from recon.core.fingerprint.online_learning import OnlineLearningSystem, LearningMode, ABTestConfig
-from recon.core.fingerprint.ml_classifier import MLClassifier
-from recon.core.fingerprint.model_trainer import ModelTrainer
+from core.fingerprint.online_learning import OnlineLearningSystem, LearningMode, ABTestConfig
+from core.fingerprint.ml_classifier import MLClassifier
+from core.fingerprint.model_trainer import ModelTrainer
 
 def create_sample_metrics(dpi_type: str='ROSKOMNADZOR_TSPU') -> Dict[str, Any]:
     """Create sample DPI metrics for testing."""

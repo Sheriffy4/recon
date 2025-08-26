@@ -1,22 +1,16 @@
 {
   "strategy_dict": {
     "params": {
-      "positions": [
-        1,
-        5,
-        10
-      ],
-      "split_pos": 3,
-      "overlap_size": 20
+      "split_pos": 15
     },
-    "name": "seqovl"
+    "name": "fakedisorder"
   },
-  "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=20)",
+  "strategy": "fakedisorder(split_pos=15)",
   "result_status": "PARTIAL_SUCCESS",
   "successful_sites": 3,
   "total_sites": 5,
   "success_rate": 0.6,
-  "avg_latency_ms": 254.43021456400552,
+  "avg_latency_ms": 264.8776372273763,
   "fingerprint_used": false,
   "dpi_type": null,
   "dpi_confidence": null

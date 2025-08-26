@@ -10,9 +10,9 @@ import sys
 
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
-from recon.core.bypass.testing.test_models import TestCase, ValidationMethod
-from recon.core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.testing.test_models import TestCase, ValidationMethod
+from core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -111,7 +111,7 @@ async def test_configuration():
     LOG.info("Testing configuration system")
 
     try:
-        from recon.core.bypass.testing.test_runner import TestConfiguration
+        from core.bypass.testing.test_runner import TestConfiguration
 
         # Create default config
         config = TestConfiguration()

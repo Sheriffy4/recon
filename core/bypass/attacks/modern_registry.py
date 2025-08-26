@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Dict, Type, Optional, List, Any, Set, Callable
 from datetime import datetime
 from collections import defaultdict
-from recon.core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
-from recon.core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus
-from recon.core.bypass.attacks.registry import AttackRegistry as LegacyAttackRegistry
+from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus
+from core.bypass.attacks.registry import AttackRegistry as LegacyAttackRegistry
 LOG = logging.getLogger('ModernAttackRegistry')
 
 class TestResult:
@@ -52,7 +52,7 @@ class ModernAttackRegistry:
         self._stability_index: Dict[AttackStability, Set[str]] = defaultdict(set)
         self._tag_index: Dict[str, Set[str]] = defaultdict(set)
         self._compatibility_index: Dict[CompatibilityMode, Set[str]] = defaultdict(set)
-        self._storage_path = storage_path or Path('recon/data/attack_registry.json')
+        self._storage_path = storage_path or Path('data/attack_registry.json')
         self._auto_save = True
         self._test_results: Dict[str, List[TestResult]] = defaultdict(list)
         self._test_callbacks: List[Callable[[TestResult], None]] = []

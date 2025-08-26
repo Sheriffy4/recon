@@ -9,11 +9,11 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from recon.core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
-from recon.core.bypass.testing.integration_tests import run_integration_tests
-from recon.core.bypass.testing.test_models import TestReport, TestStatus
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
-from recon.core.bypass.attacks.attack_definition import AttackCategory, AttackComplexity
+from core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
+from core.bypass.testing.integration_tests import run_integration_tests
+from core.bypass.testing.test_models import TestReport, TestStatus
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.attacks.attack_definition import AttackCategory, AttackComplexity
 LOG = logging.getLogger('TestRunner')
 
 class TestConfiguration:
@@ -27,7 +27,7 @@ class TestConfiguration:
 
     def _load_default_config(self) -> Dict[str, Any]:
         """Load default test configuration."""
-        return {'test_settings': {'max_parallel_tests': 5, 'default_timeout': 30, 'retry_count': 3, 'results_dir': 'recon/data/test_results'}, 'stability_settings': {'duration_minutes': 10, 'interval_seconds': 60, 'min_success_rate': 0.8}, 'benchmark_settings': {'iterations': 50, 'warmup_iterations': 5, 'max_execution_time': 300}, 'integration_settings': {'test_domains': ['httpbin.org', 'example.com', 'google.com'], 'test_ports': [80, 443], 'enable_network_tests': True}, 'reporting': {'save_detailed_results': True, 'generate_html_report': False, 'send_notifications': False}, 'filters': {'categories': [], 'complexities': [], 'tags': [], 'enabled_only': True}}
+        return {'test_settings': {'max_parallel_tests': 5, 'default_timeout': 30, 'retry_count': 3, 'results_dir': 'data/test_results'}, 'stability_settings': {'duration_minutes': 10, 'interval_seconds': 60, 'min_success_rate': 0.8}, 'benchmark_settings': {'iterations': 50, 'warmup_iterations': 5, 'max_execution_time': 300}, 'integration_settings': {'test_domains': ['httpbin.org', 'example.com', 'google.com'], 'test_ports': [80, 443], 'enable_network_tests': True}, 'reporting': {'save_detailed_results': True, 'generate_html_report': False, 'send_notifications': False}, 'filters': {'categories': [], 'complexities': [], 'tags': [], 'enabled_only': True}}
 
     def _load_config_file(self):
         """Load configuration from file."""

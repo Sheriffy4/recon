@@ -5,26 +5,26 @@ Tests the entire bypass engine pipeline from strategy selection to execution.
 import logging
 from typing import Dict
 from datetime import datetime
-from recon.core.bypass.testing.test_models import TestResult, TestStatus, TestReport
-from recon.core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.testing.test_models import TestResult, TestStatus, TestReport
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
 try:
-    from recon.core.bypass.strategies.pool_management import StrategyPoolManager
+    from core.bypass.strategies.pool_management import StrategyPoolManager
 except ImportError:
     StrategyPoolManager = None
 try:
-    from recon.core.bypass.strategies.strategy_application import EnhancedStrategySelector as StrategyApplicationEngine
+    from core.bypass.strategies.strategy_application import EnhancedStrategySelector as StrategyApplicationEngine
 except ImportError:
     StrategyApplicationEngine = None
 try:
-    from recon.core.bypass.protocols.multi_port_handler import MultiPortHandler
+    from core.bypass.protocols.multi_port_handler import MultiPortHandler
 except ImportError:
     MultiPortHandler = None
 try:
-    from recon.core.bypass.validation.reliability_validator import ReliabilityValidator
+    from core.bypass.validation.reliability_validator import ReliabilityValidator
 except ImportError:
     ReliabilityValidator = None
 try:
-    from recon.core.bypass.safety.safety_controller import SafetyController
+    from core.bypass.safety.safety_controller import SafetyController
 except ImportError:
     SafetyController = None
 LOG = logging.getLogger('IntegrationTests')

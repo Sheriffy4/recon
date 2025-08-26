@@ -10,8 +10,8 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
 try:
-    from recon.core.integration.advanced_attack_manager import AdvancedAttack, AdvancedAttackConfig, AdvancedAttackResult, AttackContext, MLFeedback, LearningData, PerformanceMetrics, AdaptationSuggestion
-    from recon.core.integration.advanced_attack_errors import get_error_handler, create_execution_error, ErrorContext
+    from core.integration.advanced_attack_manager import AdvancedAttack, AdvancedAttackConfig, AdvancedAttackResult, AttackContext, MLFeedback, LearningData, PerformanceMetrics, AdaptationSuggestion
+    from core.integration.advanced_attack_errors import get_error_handler, create_execution_error, ErrorContext
     PHASE2_INFRASTRUCTURE_AVAILABLE = True
 except ImportError as e:
     PHASE2_INFRASTRUCTURE_AVAILABLE = False

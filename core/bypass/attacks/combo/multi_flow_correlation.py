@@ -14,11 +14,11 @@ import threading
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
-from recon.core.bypass.attacks.combo.advanced_traffic_profiler import AdvancedTrafficProfiler, TrafficSignature
-from recon.core.bypass.attacks.combo.full_session_simulation import FullSessionSimulationAttack
-from recon.core.bypass.attacks.combo.traffic_mimicry import TrafficProfile
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.combo.advanced_traffic_profiler import AdvancedTrafficProfiler, TrafficSignature
+from core.bypass.attacks.combo.full_session_simulation import FullSessionSimulationAttack
+from core.bypass.attacks.combo.traffic_mimicry import TrafficProfile
 LOG = logging.getLogger(__name__)
 
 @dataclass
@@ -413,7 +413,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
 
     def _register_default_profiles(self):
         """Register default traffic profiles."""
-        from recon.core.bypass.attacks.combo.traffic_profiles import ZoomTrafficProfile, TelegramTrafficProfile, WhatsAppTrafficProfile, GenericBrowsingProfile
+        from core.bypass.attacks.combo.traffic_profiles import ZoomTrafficProfile, TelegramTrafficProfile, WhatsAppTrafficProfile, GenericBrowsingProfile
         profiles = [ZoomTrafficProfile(), TelegramTrafficProfile(), WhatsAppTrafficProfile(), GenericBrowsingProfile()]
         for profile in profiles:
             self._profiles[profile.name] = profile

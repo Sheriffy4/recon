@@ -11,9 +11,9 @@ except (ImportError, PermissionError, OSError) as e:
     SCAPY_AVAILABLE = False
     import logging
     logging.getLogger('ScapyEngine').warning(f'Scapy not available: {e}')
-from recon.core.bypass.engines.base import BaseBypassEngine, EngineConfig
-from recon.core.bypass.types import EngineStatus
-from recon.core.bypass.exceptions import EngineError
+from core.bypass.engines.base import BaseBypassEngine, EngineConfig
+from core.bypass.types import EngineStatus
+from core.bypass.exceptions import EngineError
 LOG = logging.getLogger('ScapyEngine')
 
 class ScapyEngine(BaseBypassEngine):

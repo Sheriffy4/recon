@@ -9,7 +9,7 @@ from typing import Dict, Optional, Any, List
 from dataclasses import dataclass
 from pathlib import Path
 import logging
-from recon.core.fingerprint.advanced_models import DPIFingerprint, CacheError
+from core.fingerprint.advanced_models import DPIFingerprint, CacheError
 logger = logging.getLogger(__name__)
 
 @dataclass

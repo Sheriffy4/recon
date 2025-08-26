@@ -7,9 +7,9 @@ Dynamic Combo Attack - заглушка для совместимости.
 import logging
 import asyncio
 from typing import Dict, List, Any, Tuple
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.attacks.registry import register_attack
-from recon.core.integration.attack_adapter import AttackAdapter
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.registry import register_attack
+from core.integration.attack_adapter import AttackAdapter
 LOG = logging.getLogger('DynamicComboAttack')
 
 @register_attack('dynamic_combo')

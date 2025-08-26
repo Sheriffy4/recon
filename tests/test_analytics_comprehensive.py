@@ -5,12 +5,12 @@ import pytest
 import asyncio
 import tempfile
 from pathlib import Path
-from recon.tests.analytics_engine import AnalyticsEngine
-from recon.tests.metrics_collector import MetricsCollector
-from recon.tests.performance_tracker import PerformanceTracker
-from recon.tests.ml_predictor import MLPredictor
-from recon.tests.reporting_dashboard import ReportingDashboard
-from recon.tests.analytics_models import MetricType
+from core.bypass.analytics.analytics_engine import AnalyticsEngine
+from core.bypass.analytics.metrics_collector import MetricsCollector
+from core.bypass.analytics.performance_tracker import PerformanceTracker
+from core.bypass.analytics.ml_predictor import MLPredictor
+from core.bypass.analytics.reporting_dashboard import ReportingDashboard
+from core.bypass.analytics.analytics_models import MetricType
 
 class TestMetricsCollector:
     """Test metrics collection functionality"""

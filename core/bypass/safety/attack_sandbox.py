@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List, Callable, Set
 from dataclasses import dataclass, field
 from contextlib import contextmanager
-from recon.core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from recon.core.bypass.safety.exceptions import SandboxViolationError, AttackValidationError
+from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.safety.exceptions import SandboxViolationError, AttackValidationError
 LOG = logging.getLogger('AttackSandbox')
 
 @dataclass

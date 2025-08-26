@@ -6,7 +6,7 @@ import pytest
 import time
 import logging
 from unittest.mock import Mock, patch, AsyncMock
-from recon.tests.dns_analyzer import DNSAnalyzer, DNSResponse, DNSQuery, DNSRecordType
+from tests.dns_analyzer import DNSAnalyzer, DNSResponse, DNSQuery, DNSRecordType
 logging.basicConfig(level=logging.DEBUG)
 
 class TestDNSIntegration:

@@ -7,7 +7,7 @@ for use with the native PyDivert engine.
 import time
 import logging
 from typing import Dict, Any
-from recon.core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
+from core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
 LOG = logging.getLogger('SimpleAttackExecutor')
 
 class SimpleAttackExecutor:

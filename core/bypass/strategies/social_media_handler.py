@@ -13,14 +13,14 @@ from typing import Dict, List, Optional, Any, Tuple, Set
 from enum import Enum
 from pathlib import Path
 try:
-    from recon.core.bypass.strategies.pool_management import BypassStrategy, StrategyPool, StrategyPoolManager
-    from recon.core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler, PlatformType, SubdomainType
+    from core.bypass.strategies.pool_management import BypassStrategy, StrategyPool, StrategyPoolManager
+    from core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler, PlatformType, SubdomainType
 except ImportError:
     import sys
     import os
     sys.path.append(os.path.dirname(__file__))
     from pool_management import BypassStrategy
-    from subdomain_handler import SubdomainStrategyHandler, PlatformType
+    from core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler, PlatformType
 LOG = logging.getLogger('SocialMediaHandler')
 
 class MediaType(Enum):

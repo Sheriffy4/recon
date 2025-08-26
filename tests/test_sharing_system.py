@@ -6,11 +6,11 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
-from recon.tests.sharing_models import SharedStrategy, StrategyFeedback, TrustedSource, ShareLevel, ValidationStatus, TrustLevel
-from recon.tests.strategy_validator import StrategyValidator
-from recon.tests.community_database import CommunityDatabase
-from recon.tests.update_manager import UpdateManager
-from recon.tests.sharing_manager import SharingManager
+from tests.sharing_models import SharedStrategy, StrategyFeedback, TrustedSource, ShareLevel, ValidationStatus, TrustLevel
+from tests.strategy_validator import StrategyValidator
+from tests.community_database import CommunityDatabase
+from tests.update_manager import UpdateManager
+from tests.sharing_manager import SharingManager
 
 class TestSharingModels:
     """Test sharing data models."""

@@ -8,8 +8,8 @@ import time
 import threading
 import os
 from pathlib import Path
-from recon.tests.cache import FingerprintCache, CachedFingerprint
-from recon.tests.advanced_models import DPIFingerprint, DPIType, CacheError
+from tests.cache import FingerprintCache, CachedFingerprint
+from tests.advanced_models import DPIFingerprint, DPIType, CacheError
 
 class TestCachedFingerprint:
     """Test CachedFingerprint dataclass functionality"""

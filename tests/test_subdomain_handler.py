@@ -5,12 +5,12 @@ import unittest
 import tempfile
 import os
 try:
-    from recon.tests.subdomain_handler import SubdomainStrategyHandler, EnhancedPoolManager, SubdomainType, PlatformType, SubdomainPattern, SubdomainStrategy, PlatformConfiguration, analyze_subdomain_structure, suggest_subdomain_tests
-    from recon.tests.pool_management import BypassStrategy, StrategyPoolManager
+    from tests.subdomain_handler import SubdomainStrategyHandler, EnhancedPoolManager, SubdomainType, PlatformType, SubdomainPattern, SubdomainStrategy, PlatformConfiguration, analyze_subdomain_structure, suggest_subdomain_tests
+    from tests.pool_management import BypassStrategy, StrategyPoolManager
 except ImportError:
     import sys
     sys.path.append(os.path.dirname(__file__))
-    from subdomain_handler import SubdomainStrategyHandler, EnhancedPoolManager, SubdomainType, PlatformType, SubdomainPattern, SubdomainStrategy, analyze_subdomain_structure, suggest_subdomain_tests
+    from core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler, EnhancedPoolManager, SubdomainType, PlatformType, SubdomainPattern, SubdomainStrategy, analyze_subdomain_structure, suggest_subdomain_tests
     from pool_management import BypassStrategy, StrategyPoolManager
 
 class TestSubdomainPattern(unittest.TestCase):

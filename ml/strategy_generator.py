@@ -4,7 +4,7 @@ import time
 from typing import Dict, List, Optional, Any
 from core.fingerprint.models import Fingerprint
 from core.fingerprint.classifier import UltimateDPIClassifier
-from recon.ml.strategy_predictor import StrategyPredictor, SKLEARN_AVAILABLE
+from ml.strategy_predictor import StrategyPredictor, SKLEARN_AVAILABLE
 from core.domain_specific_strategies import DomainSpecificStrategies
 from core.optimization.dynamic_parameter_optimizer import DynamicParameterOptimizer, OptimizationStrategy
 from core.bypass.attacks.base import AttackContext
@@ -12,7 +12,7 @@ from core.integration.advanced_attack_registry import get_advanced_attack_regist
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from core.domain_specific_strategies import DomainSpecificStrategies
-    from recon.ml.strategy_predictor import StrategyPredictor
+    from ml.strategy_predictor import StrategyPredictor
 LOG = logging.getLogger('AdvancedStrategyGenerator')
 
 class AdvancedStrategyGenerator:

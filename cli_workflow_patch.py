@@ -5,8 +5,8 @@ This patch integrates the workflow optimizer into the CLI to avoid
 fingerprinting duplication and provide mutually exclusive execution modes.
 """
 import logging
-from recon.cli import console
-from recon.core.cli_workflow_optimizer import create_workflow_optimizer, detect_execution_mode
+from cli import console
+from core.cli_workflow_optimizer import create_workflow_optimizer, detect_execution_mode
 LOG = logging.getLogger(__name__)
 
 class OptimizedCLIWorkflow:
