@@ -11,11 +11,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
-from .attack_test_suite import ComprehensiveTestSuite
-from .integration_tests import run_integration_tests
-from .test_models import TestReport, TestStatus
-from ..attacks.modern_registry import ModernAttackRegistry
-from ..attacks.attack_definition import AttackCategory, AttackComplexity
+from core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
+from core.bypass.testing.integration_tests import run_integration_tests
+from tests.test_models import TestReport, TestStatus
+from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.attacks.attack_definition import AttackCategory, AttackComplexity
 
 LOG = logging.getLogger("TestRunner")
 

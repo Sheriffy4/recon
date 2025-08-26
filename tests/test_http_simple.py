@@ -3,7 +3,7 @@ Simple test to verify HTTP analyzer is working correctly
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from tests.http_analyzer import HTTPAnalyzer
+from core.fingerprint.http_analyzer import HTTPAnalyzer
 
 class TestHTTPAnalyzerSimple:
     """Simple tests for HTTP analyzer"""

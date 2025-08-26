@@ -2,7 +2,7 @@ import unittest
 import asyncio
 
 from core.bypass.attacks.base import AttackContext, AttackStatus
-from core.bypass.attacks.http.header_attacks import HTTPHeaderAttack
+from core.bypass.attacks.http.header_attacks import HTTPHeaderCaseAttack as HTTPHeaderAttack
 from core.bypass.attacks.dns.demo_dns_attacks import DNSAAttack
 from core.bypass.attacks.tcp.fooling import TCPRstAttack
 

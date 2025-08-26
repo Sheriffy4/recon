@@ -25,7 +25,7 @@ from core.bypass.performance.segment_performance_optimizer import (
     SegmentPerformanceOptimizer,
     OptimizationConfig,
 )
-from tests.run_final_system_validation import FinalSystemValidator
+from final_system_validation import FinalSystemValidator
 
 
 @dataclass

@@ -7,8 +7,8 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 import time
-from tests.http_analyzer import HTTPAnalyzer, HTTPAnalysisResult, HTTPRequest, HTTPBlockingMethod
-from tests.advanced_models import NetworkAnalysisError
+from core.fingerprint.http_analyzer import HTTPAnalyzer, HTTPAnalysisResult, HTTPRequest, HTTPBlockingMethod
+from core.fingerprint.advanced_models import NetworkAnalysisError
 
 class TestHTTPAnalyzer:
     """Test suite for HTTPAnalyzer class"""

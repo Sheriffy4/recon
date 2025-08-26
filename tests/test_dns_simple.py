@@ -3,7 +3,7 @@ Simple integration tests for DNS Behavior Analyzer - Task 6 Implementation
 """
 import pytest
 from unittest.mock import patch, AsyncMock
-from tests.dns_analyzer import DNSAnalyzer
+from core.fingerprint.dns_analyzer import DNSAnalyzer
 
 class TestDNSSimpleIntegration:
     """Simple integration tests for DNS analyzer"""

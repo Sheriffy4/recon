@@ -15,9 +15,9 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock, patch
-from tests.dpi_behavior_monitor import DPIBehaviorMonitor, MonitoringConfig, BehaviorAnalyzer, PerformanceMonitor, BehaviorChange, MonitoringAlert, AlertSeverity, MonitoringState
-from tests.advanced_models import DPIFingerprint, DPIType
-from tests.advanced_fingerprinter import AdvancedFingerprinter
+from core.fingerprint.dpi_behavior_monitor import DPIBehaviorMonitor, MonitoringConfig, BehaviorAnalyzer, PerformanceMonitor, BehaviorChange, MonitoringAlert, AlertSeverity, MonitoringState
+from core.fingerprint.advanced_models import DPIFingerprint, DPIType
+from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
 
 @pytest.fixture
 def mock_fingerprinter():

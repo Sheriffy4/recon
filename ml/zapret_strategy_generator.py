@@ -130,30 +130,32 @@ class ZapretStrategyGenerator:
         """Генерирует стратегии с учетом детального фингерпринта DPI."""
         strategies = set()
 
-        # Получаем DPI-специфичные стратегии
-        dpi_specific = self._get_dpi_type_strategies(fingerprint.dpi_type)
-        strategies.update(dpi_specific)
+        if fingerprint.confidence > 0.8:
+            # High confidence: use specific and aggressive strategies
+            dpi_specific = self._get_dpi_type_strategies(fingerprint.dpi_type)
+            strategies.update(dpi_specific)
+            characteristic_strategies = self._get_characteristic_based_strategies(fingerprint)
+            strategies.update(characteristic_strategies)
+            # Fill up with proven working strategies if needed
+            if len(strategies) < count:
+                strategies.update(self.PROVEN_WORKING)
+        else:
+            # Low confidence: use more generic and safe strategies
+            strategies.update(self.PROVEN_WORKING)
+            # Add some variations to have more options
+            if len(strategies) < count:
+                 base = random.choice(self.PROVEN_WORKING)
+                 variations = self._generate_variations(base)
+                 strategies.update(variations)
 
-        # Добавляем стратегии на основе конкретных характеристик DPI
-        characteristic_strategies = self._get_characteristic_based_strategies(
-            fingerprint
-        )
-        strategies.update(characteristic_strategies)
 
-        # Добавляем базовые проверенные стратегии
-        strategies.update(self.PROVEN_WORKING)
-
-        # Генерируем дополнительные вариации если нужно больше стратегий
+        # Generate additional variations if we still don't have enough
         while len(strategies) < count:
-            base = random.choice(list(strategies))
+            base = random.choice(list(strategies) or self.PROVEN_WORKING)
             variations = self._generate_variations(base)
             strategies.update(variations)
 
-            if len(strategies) < count:
-                new_strategies = self._generate_new_combinations()
-                strategies.update(new_strategies)
-
-        # Ранжируем стратегии по уверенности и релевантности
+        # Rank strategies by confidence and relevance
         strategy_list = list(strategies)
         ranked_strategies = self._rank_strategies_by_confidence(
             strategy_list, fingerprint
@@ -509,49 +511,42 @@ class ZapretStrategyGenerator:
         # Шаблоны стратегий для каждого типа DPI
         dpi_strategies = {
             DPIType.ROSKOMNADZOR_TSPU: [
-                # ТСПУ часто использует простую фильтрацию по SNI и Host заголовкам
-                "--dpi-desync=fake --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=5",
-                "--dpi-desync=fake,disorder --dpi-desync-split-pos=midsld --dpi-desync-fooling=badseq --dpi-desync-ttl=4",
-                "--dpi-desync=multisplit --dpi-desync-split-count=2 --dpi-desync-split-seqovl=5 --dpi-desync-fooling=badsum",
-                "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=3 --dpi-desync-repeats=2",
+                "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=midsld --dpi-desync-ttl=3",
+                "--dpi-desync=fake --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=4",
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=midsld,10 --dpi-desync-fooling=badseq --dpi-desync-ttl=2"
             ],
             DPIType.ROSKOMNADZOR_DPI: [
-                # Более продвинутые DPI системы РКН требуют агрессивных методов
                 "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=2",
                 "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
                 "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=1",
                 "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-repeats=5 --dpi-desync-fooling=badsum,badseq",
             ],
             DPIType.COMMERCIAL_DPI: [
-                # Коммерческие DPI системы (Cisco, Fortinet, etc.)
+                "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20",
+                "--dpi-desync=fake,seqovl --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=15",
                 "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=md5sig --dpi-desync-ttl=64",
                 "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=datanoack",
-                "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=128 --dpi-desync-repeats=2",
-                "--dpi-desync=disorder2 --dpi-desync-split-pos=5,15 --dpi-desync-fooling=badsum",
             ],
             DPIType.FIREWALL_BASED: [
-                # Файрволы с DPI функциональностью
                 "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-fooling=badseq --dpi-desync-ttl=64",
                 "--dpi-desync=multidisorder --dpi-desync-split-pos=1,3,7 --dpi-desync-fooling=badsum",
                 "--dpi-desync=fake,disorder --dpi-desync-split-pos=midsld --dpi-desync-ttl=127",
                 "--dpi-desync=fake --dpi-desync-repeats=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=32",
             ],
             DPIType.ISP_TRANSPARENT_PROXY: [
-                # Прозрачные прокси провайдеров
                 "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=8",
                 "--dpi-desync=multisplit --dpi-desync-split-count=2 --dpi-desync-split-seqovl=3 --dpi-desync-fooling=badseq",
                 "--dpi-desync=disorder --dpi-desync-split-pos=3,8 --dpi-desync-fooling=badsum --dpi-desync-ttl=16",
                 "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
             ],
             DPIType.CLOUDFLARE_PROTECTION: [
-                # Cloudflare и подобные CDN с защитой
                 "--dpi-desync=fake --dpi-desync-split-pos=5 --dpi-desync-fooling=badsum --dpi-desync-ttl=10",
                 "--dpi-desync=multidisorder --dpi-desync-split-pos=2,6,12 --dpi-desync-fooling=badseq",
                 "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=midsld --dpi-desync-ttl=15",
                 "--dpi-desync=fake --dpi-desync-repeats=2 --dpi-desync-fooling=md5sig --dpi-desync-ttl=20",
             ],
             DPIType.GOVERNMENT_CENSORSHIP: [
-                # Государственные системы цензуры (Китай, Иран, etc.)
                 "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,3,5,7 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=1",
                 "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum",
                 "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=2 --dpi-desync-repeats=3",

@@ -7,12 +7,12 @@ import threading
 import pytest
 from unittest.mock import Mock, patch
 from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from tests.safety_controller import SafetyController, SafetyConfiguration
-from tests.resource_manager import ResourceManager, ResourceLimits
-from tests.attack_sandbox import AttackSandbox, SandboxConstraints
-from tests.emergency_stop import EmergencyStopManager, StopReason, StopPriority
-from tests.safety_validator import SafetyValidator, ValidationLevel
-from tests.exceptions import ResourceLimitExceededError, AttackTimeoutError, SandboxViolationError, EmergencyStopError, AttackValidationError
+from core.bypass.safety.safety_controller import SafetyController, SafetyConfiguration
+from core.bypass.safety.resource_manager import ResourceManager, ResourceLimits
+from core.bypass.safety.attack_sandbox import AttackSandbox, SandboxConstraints
+from core.bypass.safety.emergency_stop import EmergencyStopManager, StopReason, StopPriority
+from core.bypass.safety.safety_validator import SafetyValidator, ValidationLevel
+from core.bypass.safety.exceptions import ResourceLimitExceededError, AttackTimeoutError, SandboxViolationError, EmergencyStopError, AttackValidationError
 
 class MockAttack(BaseAttack):
     """Mock attack for testing."""
@@ -222,7 +222,7 @@ class TestEmergencyStopManager:
         def test_condition():
             trigger_count[0] += 1
             return trigger_count[0] >= 3
-        from tests.emergency_stop import StopCondition
+        from core.bypass.safety.emergency_stop import StopCondition
         condition = StopCondition(name='test_condition', check_function=test_condition, reason=StopReason.CRITICAL_ERROR, priority=StopPriority.HIGH, description='Test condition', check_interval_seconds=0.1, consecutive_failures_required=1)
         manager.add_stop_condition(condition)
         controller = manager.create_controller('test_attack')
@@ -279,11 +279,11 @@ class TestSafetyValidator:
         validator = SafetyValidator()
 
         def custom_check(attack, context, result):
-            from tests.safety_validator import ValidationResult
+            from core.bypass.safety.safety_validator import ValidationResult
             if context.dst_port == 1337:
                 return (ValidationResult.FAIL, 'Port 1337 is forbidden')
             return (ValidationResult.PASS, 'Custom check passed')
-        from tests.safety_validator import ValidationCheck
+        from core.bypass.safety.safety_validator import ValidationCheck
         custom_validation = ValidationCheck(name='custom_port_check', description='Check for forbidden port 1337', check_function=custom_check, level=ValidationLevel.STANDARD, category='custom')
         validator.add_check(custom_validation)
         attack = MockAttack()
