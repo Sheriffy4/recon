@@ -138,6 +138,10 @@ class DNSTunnelingAttack(BaseAttack):
 class DoHAttack(DNSTunnelingAttack):
     """DNS over HTTPS tunneling attack."""
 
+    @property
+    def name(self) -> str:
+        return 'dns_doh_tunneling'
+
     def __init__(self, provider: DoHProvider=DoHProvider.CLOUDFLARE):
         super().__init__()
         self.provider = provider
@@ -206,6 +210,10 @@ class DoHAttack(DNSTunnelingAttack):
 class DoTAttack(DNSTunnelingAttack):
     """DNS over TLS tunneling attack."""
 
+    @property
+    def name(self) -> str:
+        return 'dns_dot_tunneling'
+
     def __init__(self, provider: DoTProvider=DoTProvider.CLOUDFLARE):
         super().__init__()
         self.provider = provider
@@ -244,6 +252,10 @@ class DoTAttack(DNSTunnelingAttack):
 
 class DNSQueryManipulation(DNSTunnelingAttack):
     """DNS query manipulation techniques."""
+
+    @property
+    def name(self) -> str:
+        return 'dns_query_manipulation'
 
     def __init__(self):
         super().__init__()
