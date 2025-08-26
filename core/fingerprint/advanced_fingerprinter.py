@@ -117,13 +117,13 @@ class AdvancedFingerprinter:
         return await loop.run_in_executor(self.executor, probe)
 
     def get_stats(self) -> Dict[str, Any]:
-    """Возвращает статистику работы фингерпринтера."""
-    # Пример реализации. Дополните по необходимости.
-    return {
-        "cache_stats": self.cache.get_stats(),
-        "probes_run": self.prober.get_stats().get('probes_run', 0),
-        "classifications_made": self.classifier.get_stats().get('classifications_made', 0),
-    }
+        """Возвращает статистику работы фингерпринтера."""
+        # Пример реализации. Дополните по необходимости.
+        return {
+            "cache_stats": self.cache.get_stats(),
+            "probes_run": self.prober.get_stats().get('probes_run', 0),
+            "classifications_made": self.classifier.get_stats().get('classifications_made', 0),
+        }
 
     async def health_check(self) -> Dict[str, Any]:
         """Проверяет работоспособность компонентов фингерпринтера."""

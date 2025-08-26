@@ -1,3 +1,3 @@
-from core.protocols.tls import TLSHandler
+from core.protocols.tls import TLSParser
 from core.protocols.http import HTTPHandler
-__all__ = ['TLSHandler', 'HTTPHandler']
+__all__ = ['TLSParser', 'HTTPHandler']

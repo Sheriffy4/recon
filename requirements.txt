@@ -10,3 +10,4 @@ pyyaml
 numpy
 pydivert
 pytest-asyncio
+cryptography

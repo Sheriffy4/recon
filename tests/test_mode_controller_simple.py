@@ -10,8 +10,8 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from core.bypass.modes.mode_controller import ModeController, OperationMode
-from capability_detector import CapabilityDetector
-from mode_transition import ModeTransitionManager
+from core.bypass.modes.capability_detector import CapabilityDetector
+from core.bypass.modes.mode_transition import ModeTransitionManager
 
 
 def test_capability_detector():

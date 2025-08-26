@@ -91,7 +91,16 @@ class TCPPacket(Packet):
 
     def serialize(self) -> bytes:
         header = struct.pack('!HHIIBBHHH', self.src_port, self.dst_port, self.seq_num, self.ack_num, (self.data_offset << 4) + (self.reserved << 1), self.flags, self.window, self.checksum, self.urgent_ptr)
-        return header + self.options + self.payload
+
+        options_bytes = b''
+        if self.options:
+            options_bytes = b''.join(opt.serialize() for opt in self.options)
+
+        # Ensure options length is a multiple of 4
+        while len(options_bytes) % 4 != 0:
+            options_bytes += b'\x01' # NOP option
+
+        return header + options_bytes + self.payload
 
     def clone(self) -> 'TCPPacket':
         return TCPPacket(src_port=self.src_port, dst_port=self.dst_port, seq_num=self.seq_num, ack_num=self.ack_num, data_offset=self.data_offset, reserved=self.reserved, flags=self.flags, window=self.window, checksum=self.checksum, urgent_ptr=self.urgent_ptr, options=self.options, payload=self.payload)

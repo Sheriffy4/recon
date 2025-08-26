@@ -3,10 +3,10 @@ Comprehensive tests for the mode controller system.
 """
 import pytest
 from unittest.mock import Mock, patch
-from tests.mode_controller import ModeController, OperationMode
-from tests.capability_detector import CapabilityDetector, CapabilityInfo, CapabilityLevel
-from tests.mode_transition import ModeTransitionManager, TransitionState
-from tests.exceptions import ModeTransitionError, UnsupportedModeError
+from core.bypass.modes.mode_controller import ModeController, OperationMode
+from core.bypass.modes.capability_detector import CapabilityDetector, CapabilityInfo, CapabilityLevel
+from core.bypass.modes.mode_transition import ModeTransitionManager, TransitionState
+from core.bypass.modes.exceptions import ModeTransitionError, UnsupportedModeError
 
 class TestCapabilityDetector:
     """Test capability detection functionality."""

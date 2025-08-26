@@ -22,7 +22,7 @@ from typing import Optional, List
 from dataclasses import dataclass
 
 from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus, SegmentTuple
-from attack_definition import (
+from core.bypass.attacks.attack_definition import (
     AttackDefinition,
     AttackCategory,
     AttackComplexity,
@@ -30,7 +30,7 @@ from attack_definition import (
     CompatibilityMode,
     TestCase,
 )
-from registry import register_attack
+from core.bypass.attacks.registry import register_attack
 
 LOG = logging.getLogger("TCPFragmentationAttacks")
 
@@ -599,7 +599,7 @@ class TCPOptionsModificationAttack(BaseTCPFragmentationAttack):
 def register_tcp_fragmentation_attacks():
     """Register all TCP fragmentation attacks with their definitions."""
     try:
-        from modern_registry import get_modern_registry
+        from core.bypass.attacks.modern_registry import get_modern_registry
 
         registry = get_modern_registry()
     except ImportError as e:

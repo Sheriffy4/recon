@@ -145,7 +145,7 @@ class SubdomainStrategyHandler:
         if strategy:
             self._cache_subdomain_strategy(domain, platform, subdomain_type, strategy)
             return strategy
-        return self.pool_manager.get_strategy_for_domain(domain, port)
+        return None
 
     def set_subdomain_strategy(self, domain: str, strategy: BypassStrategy, platform: PlatformType=None, subdomain_type: SubdomainType=None) -> bool:
         """

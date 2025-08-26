@@ -14,9 +14,9 @@ try:
 except ImportError:
     AIOHTTP_AVAILABLE = False
     pytest.skip('aiohttp not available', allow_module_level=True)
-from tests.bypass_api import BypassEngineAPI
-from tests.bypass_dashboard import BypassDashboard
-from tests.bypass_integration import BypassWebIntegration, create_bypass_integration
+from web.bypass_api import BypassEngineAPI
+from web.bypass_dashboard import BypassDashboard
+from web.bypass_integration import BypassWebIntegration, create_bypass_integration
 from core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy, PoolPriority
 from core.bypass.attacks.modern_registry import ModernAttackRegistry
 from core.bypass.testing.test_runner import AttackTestRunner

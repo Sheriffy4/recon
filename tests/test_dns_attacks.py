@@ -5,7 +5,7 @@ Tests all DNS attack implementations for functionality and reliability.
 import pytest
 import asyncio
 import time
-from tests.dns_tunneling import DoHAttack, DoTAttack, DNSQueryManipulation, DNSCachePoisoningPrevention, DoHProvider, DoTProvider, get_dns_attack_definitions
+from core.bypass.attacks.dns.dns_tunneling import DoHAttack, DoTAttack, DNSQueryManipulation, DNSCachePoisoningPrevention, DoHProvider, DoTProvider, get_dns_attack_definitions
 from core.bypass.attacks.base import AttackResult
 
 class TestDoHAttack:
