@@ -1,5 +1,1480 @@
 {
   "definitions": {
+    "http_header_case": {
+      "id": "http_header_case",
+      "name": "Http Header Case",
+      "description": "HTTP Header Case Attack - changes case of HTTP headers.",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "http_header_case_basic_test",
+          "name": "Basic test for http_header_case",
+          "description": "Basic functionality test for http_header_case",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.110673",
+      "updated_at": "2025-08-26T13:40:45.110700",
+      "version": "1.0.0",
+      "author": null
+    },
+    "http_header_order": {
+      "id": "http_header_order",
+      "name": "Http Header Order",
+      "description": "HTTP Header Order Attack - randomizes order of HTTP headers.",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "http_header_order_basic_test",
+          "name": "Basic test for http_header_order",
+          "description": "Basic functionality test for http_header_order",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.110780",
+      "updated_at": "2025-08-26T13:40:45.110792",
+      "version": "1.0.0",
+      "author": null
+    },
+    "http_header_injection": {
+      "id": "http_header_injection",
+      "name": "Http Header Injection",
+      "description": "HTTP Header Injection Attack - injects fake headers.",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "http_header_injection_basic_test",
+          "name": "Basic test for http_header_injection",
+          "description": "Basic functionality test for http_header_injection",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.110841",
+      "updated_at": "2025-08-26T13:40:45.110849",
+      "version": "1.0.0",
+      "author": null
+    },
+    "http_host_header": {
+      "id": "http_host_header",
+      "name": "Http Host Header",
+      "description": "HTTP Host Header Attack - manipulates Host header.",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "http_host_header_basic_test",
+          "name": "Basic test for http_host_header",
+          "description": "Basic functionality test for http_host_header",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.110890",
+      "updated_at": "2025-08-26T13:40:45.110897",
+      "version": "1.0.0",
+      "author": null
+    },
+    "http_method_case": {
+      "id": "http_method_case",
+      "name": "Http Method Case",
+      "description": "HTTP Method Case Attack - changes case of HTTP method.",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "http_method_case_basic_test",
+          "name": "Basic test for http_method_case",
+          "description": "Basic functionality test for http_method_case",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.110935",
+      "updated_at": "2025-08-26T13:40:45.110942",
+      "version": "1.0.0",
+      "author": null
+    },
+    "http_method_substitution": {
+      "id": "http_method_substitution",
+      "name": "Http Method Substitution",
+      "description": "HTTP Method Substitution Attack - replaces HTTP method with alternative.",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "http_method_substitution_basic_test",
+          "name": "Basic test for http_method_substitution",
+          "description": "Basic functionality test for http_method_substitution",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.110980",
+      "updated_at": "2025-08-26T13:40:45.110986",
+      "version": "1.0.0",
+      "author": null
+    },
+    "http_version_manipulation": {
+      "id": "http_version_manipulation",
+      "name": "Http Version Manipulation",
+      "description": "HTTP Version Manipulation Attack - modifies HTTP version.",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "http_version_manipulation_basic_test",
+          "name": "Basic test for http_version_manipulation",
+          "description": "Basic functionality test for http_version_manipulation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111024",
+      "updated_at": "2025-08-26T13:40:45.111030",
+      "version": "1.0.0",
+      "author": null
+    },
+    "http_path_obfuscation": {
+      "id": "http_path_obfuscation",
+      "name": "Http Path Obfuscation",
+      "description": "HTTP Path Obfuscation Attack - obfuscates request path.",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "http_path_obfuscation_basic_test",
+          "name": "Basic test for http_path_obfuscation",
+          "description": "Basic functionality test for http_path_obfuscation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111066",
+      "updated_at": "2025-08-26T13:40:45.111072",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2_frame_splitting": {
+      "id": "h2_frame_splitting",
+      "name": "H2 Frame Splitting",
+      "description": "HTTP/2 Frame Splitting Attack - splits HTTP/2 frames to evade DPI detection.",
+      "category": "tcp_fragmentation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2_frame_splitting_basic_test",
+          "name": "Basic test for h2_frame_splitting",
+          "description": "Basic functionality test for h2_frame_splitting",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111106",
+      "updated_at": "2025-08-26T13:40:45.111112",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2_hpack_manipulation": {
+      "id": "h2_hpack_manipulation",
+      "name": "H2 Hpack Manipulation",
+      "description": "HTTP/2 HPACK Header Compression Manipulation Attack.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2_hpack_manipulation_basic_test",
+          "name": "Basic test for h2_hpack_manipulation",
+          "description": "Basic functionality test for h2_hpack_manipulation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111157",
+      "updated_at": "2025-08-26T13:40:45.111163",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2_priority_manipulation": {
+      "id": "h2_priority_manipulation",
+      "name": "H2 Priority Manipulation",
+      "description": "HTTP/2 Priority Manipulation Attack - manipulates stream priorities.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2_priority_manipulation_basic_test",
+          "name": "Basic test for h2_priority_manipulation",
+          "description": "Basic functionality test for h2_priority_manipulation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111203",
+      "updated_at": "2025-08-26T13:40:45.111209",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2c_upgrade": {
+      "id": "h2c_upgrade",
+      "name": "H2C Upgrade",
+      "description": "HTTP/2 Clear Text (h2c) Upgrade Attack - uses h2c upgrade to bypass HTTPS inspection.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2c_upgrade_basic_test",
+          "name": "Basic test for h2c_upgrade",
+          "description": "Basic functionality test for h2c_upgrade",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111331",
+      "updated_at": "2025-08-26T13:40:45.111344",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2_hpack_bomb": {
+      "id": "h2_hpack_bomb",
+      "name": "H2 Hpack Bomb",
+      "description": "HTTP/2 HPACK Bomb Attack - uses HPACK compression to hide payload in headers.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2_hpack_bomb_basic_test",
+          "name": "Basic test for h2_hpack_bomb",
+          "description": "Basic functionality test for h2_hpack_bomb",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111416",
+      "updated_at": "2025-08-26T13:40:45.111422",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2_hpack_index_manipulation": {
+      "id": "h2_hpack_index_manipulation",
+      "name": "H2 Hpack Index Manipulation",
+      "description": "HTTP/2 HPACK Index Manipulation Attack - manipulates HPACK dynamic table indexing.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2_hpack_index_manipulation_basic_test",
+          "name": "Basic test for h2_hpack_index_manipulation",
+          "description": "Basic functionality test for h2_hpack_index_manipulation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111464",
+      "updated_at": "2025-08-26T13:40:45.111471",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2_smuggling": {
+      "id": "h2_smuggling",
+      "name": "H2 Smuggling",
+      "description": "HTTP/2 Request Smuggling Attack - exploits h2c upgrade and frame parsing differences.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2_smuggling_basic_test",
+          "name": "Basic test for h2_smuggling",
+          "description": "Basic functionality test for h2_smuggling",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111512",
+      "updated_at": "2025-08-26T13:40:45.111518",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2_stream_multiplexing": {
+      "id": "h2_stream_multiplexing",
+      "name": "H2 Stream Multiplexing",
+      "description": "HTTP/2 Stream Multiplexing Attack - uses multiple concurrent streams to evade detection.",
+      "category": "combo_attack",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2_stream_multiplexing_basic_test",
+          "name": "Basic test for h2_stream_multiplexing",
+          "description": "Basic functionality test for h2_stream_multiplexing",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111607",
+      "updated_at": "2025-08-26T13:40:45.111614",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2c_smuggling": {
+      "id": "h2c_smuggling",
+      "name": "H2C Smuggling",
+      "description": "HTTP/2 Clear Text Smuggling Attack - uses h2c to smuggle HTTP/2 requests\n    through HTTP/1.1 proxies and bypass DPI inspection.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2c_smuggling_basic_test",
+          "name": "Basic test for h2c_smuggling",
+          "description": "Basic functionality test for h2c_smuggling",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111657",
+      "updated_at": "2025-08-26T13:40:45.111663",
+      "version": "1.0.0",
+      "author": null
+    },
+    "h2_hpack_advanced": {
+      "id": "h2_hpack_advanced",
+      "name": "H2 Hpack Advanced",
+      "description": "Advanced HTTP/2 HPACK Manipulation Attack - uses sophisticated HPACK\n    compression techniques to hide payloads and evade DPI detection.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "h2_hpack_advanced_basic_test",
+          "name": "Basic test for h2_hpack_advanced",
+          "description": "Basic functionality test for h2_hpack_advanced",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111702",
+      "updated_at": "2025-08-26T13:40:45.111708",
+      "version": "1.0.0",
+      "author": null
+    },
+    "quic_advanced_cid_rotation": {
+      "id": "quic_advanced_cid_rotation",
+      "name": "Quic Advanced Cid Rotation",
+      "description": "Advanced QUIC Connection ID Rotation Attack.\n\n    Implements sophisticated CID rotation strategies including:\n    - Rapid rotation with proper NEW_CONNECTION_ID/RETIRE_CONNECTION_ID frames\n    - Variable-length CIDs to confuse tracking\n    - CID pools with entropy analysis evasion\n    - Coordinated rotation with packet number spaces",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "quic_advanced_cid_rotation_basic_test",
+          "name": "Basic test for quic_advanced_cid_rotation",
+          "description": "Basic functionality test for quic_advanced_cid_rotation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111749",
+      "updated_at": "2025-08-26T13:40:45.111755",
+      "version": "1.0.0",
+      "author": null
+    },
+    "quic_advanced_pn_confusion": {
+      "id": "quic_advanced_pn_confusion",
+      "name": "Quic Advanced Pn Confusion",
+      "description": "Advanced QUIC Packet Number Space Confusion Attack.\n\n    Implements sophisticated confusion techniques:\n    - Mixed encryption levels in single datagram\n    - Overlapping packet numbers across spaces\n    - Out-of-order packet number sequences\n    - Phantom packet number spaces",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "quic_advanced_pn_confusion_basic_test",
+          "name": "Basic test for quic_advanced_pn_confusion",
+          "description": "Basic functionality test for quic_advanced_pn_confusion",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111797",
+      "updated_at": "2025-08-26T13:40:45.111803",
+      "version": "1.0.0",
+      "author": null
+    },
+    "quic_advanced_coalescing": {
+      "id": "quic_advanced_coalescing",
+      "name": "Quic Advanced Coalescing",
+      "description": "Advanced QUIC Packet Coalescing Attack.\n\n    Combines multiple QUIC packets in sophisticated ways:\n    - Mixed encryption levels in single datagram\n    - Strategic padding placement\n    - Frame reordering within packets\n    - Datagram size manipulation",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "quic_advanced_coalescing_basic_test",
+          "name": "Basic test for quic_advanced_coalescing",
+          "description": "Basic functionality test for quic_advanced_coalescing",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.111944",
+      "updated_at": "2025-08-26T13:40:45.111951",
+      "version": "1.0.0",
+      "author": null
+    },
+    "quic_migration_simulation": {
+      "id": "quic_migration_simulation",
+      "name": "Quic Migration Simulation",
+      "description": "QUIC Connection Migration Simulation.\n\n    Simulates complex migration scenarios:\n    - Path validation with challenges/responses\n    - Multi-path simulation\n    - NAT rebinding simulation\n    - Coordinated CID and path changes",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "quic_migration_simulation_basic_test",
+          "name": "Basic test for quic_migration_simulation",
+          "description": "Basic functionality test for quic_migration_simulation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.112164",
+      "updated_at": "2025-08-26T13:40:45.112171",
+      "version": "1.0.0",
+      "author": null
+    },
+    "quic_http3_full_session": {
+      "id": "quic_http3_full_session",
+      "name": "Quic Http3 Full Session",
+      "description": "QUIC/HTTP3 Full Session Simulation.\n\n    Simulates a complete HTTP/3 session including:\n    - SETTINGS exchange\n    - QPACK dynamic table updates\n    - Multiple concurrent streams\n    - Server push simulation\n    - Priority updates",
+      "category": "http_manipulation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "quic_http3_full_session_basic_test",
+          "name": "Basic test for quic_http3_full_session",
+          "description": "Basic functionality test for quic_http3_full_session",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.112216",
+      "updated_at": "2025-08-26T13:40:45.112222",
+      "version": "1.0.0",
+      "author": null
+    },
+    "quic_0rtt_early_data": {
+      "id": "quic_0rtt_early_data",
+      "name": "Quic 0Rtt Early Data",
+      "description": "QUIC 0-RTT Early Data Attack.\n\n    Implements sophisticated 0-RTT techniques:\n    - Sending legitimate data in 0-RTT packets before handshake\n    - Mixing 0-RTT with garbage data to confuse DPI\n    - Overlapping 0-RTT and 1-RTT packet number spaces\n    - Using 0-RTT for protocol obfuscation",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "quic_0rtt_early_data_basic_test",
+          "name": "Basic test for quic_0rtt_early_data",
+          "description": "Basic functionality test for quic_0rtt_early_data",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.112264",
+      "updated_at": "2025-08-26T13:40:45.112270",
+      "version": "1.0.0",
+      "author": null
+    },
+    "quic_mixed_encryption": {
+      "id": "quic_mixed_encryption",
+      "name": "Quic Mixed Encryption",
+      "description": "QUIC Mixed Encryption Level Attack.\n\n    Sends packets with different encryption levels (0-RTT, 1-RTT) in the same\n    UDP datagram to confuse DPI packet parsers.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "quic_mixed_encryption_basic_test",
+          "name": "Basic test for quic_mixed_encryption",
+          "description": "Basic functionality test for quic_mixed_encryption",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-08-26T13:40:45.112310",
+      "updated_at": "2025-08-26T13:40:45.112316",
+      "version": "1.0.0",
+      "author": null
+    },
     "header_modification": {
       "id": "header_modification",
       "name": "HTTP Header Modification",
@@ -107,12 +1582,12 @@
       "examples": [],
       "tags": [
         "headers",
-        "stable",
         "modification",
+        "stable",
         "http"
       ],
-      "created_at": "2025-08-26T09:54:05.108273",
-      "updated_at": "2025-08-26T09:54:05.108276",
+      "created_at": "2025-08-26T13:40:45.113437",
+      "updated_at": "2025-08-26T13:40:45.113440",
       "version": "1.0.0",
       "author": null
     },
@@ -194,13 +1669,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "manipulation",
         "method",
+        "http",
         "stable",
-        "http"
+        "manipulation"
       ],
-      "created_at": "2025-08-26T09:54:05.108286",
-      "updated_at": "2025-08-26T09:54:05.108288",
+      "created_at": "2025-08-26T13:40:45.113450",
+      "updated_at": "2025-08-26T13:40:45.113452",
       "version": "1.0.0",
       "author": null
     },
@@ -295,13 +1770,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "chunked",
-        "fragmentation",
         "encoding",
-        "http"
+        "chunked",
+        "http",
+        "fragmentation"
       ],
-      "created_at": "2025-08-26T09:54:05.108297",
-      "updated_at": "2025-08-26T09:54:05.108299",
+      "created_at": "2025-08-26T13:40:45.113462",
+      "updated_at": "2025-08-26T13:40:45.113464",
       "version": "1.0.0",
       "author": null
     },
@@ -384,13 +1859,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "advanced",
         "multiple",
-        "http",
-        "pipeline"
+        "advanced",
+        "pipeline",
+        "http"
       ],
-      "created_at": "2025-08-26T09:54:05.108308",
-      "updated_at": "2025-08-26T09:54:05.108310",
+      "created_at": "2025-08-26T13:40:45.113474",
+      "updated_at": "2025-08-26T13:40:45.113476",
       "version": "1.0.0",
       "author": null
     },
@@ -475,11 +1950,11 @@
       "tags": [
         "splitting",
         "headers",
-        "segmentation",
-        "http"
+        "http",
+        "segmentation"
       ],
-      "created_at": "2025-08-26T09:54:05.108318",
-      "updated_at": "2025-08-26T09:54:05.108320",
+      "created_at": "2025-08-26T13:40:45.113485",
+      "updated_at": "2025-08-26T13:40:45.113487",
       "version": "1.0.0",
       "author": null
     },
@@ -570,25 +2045,25 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "manipulation",
         "evasion",
+        "http",
         "case",
-        "http"
+        "manipulation"
       ],
-      "created_at": "2025-08-26T09:54:05.108328",
-      "updated_at": "2025-08-26T09:54:05.108330",
+      "created_at": "2025-08-26T13:40:45.113495",
+      "updated_at": "2025-08-26T13:40:45.113497",
       "version": "1.0.0",
       "author": null
     }
   },
   "test_results": {},
   "stats": {
-    "total_attacks": 6,
-    "enabled_attacks": 6,
+    "total_attacks": 31,
+    "enabled_attacks": 31,
     "deprecated_attacks": 0,
     "tests_run": 0,
-    "last_updated": "2025-08-26T09:54:05.114481"
+    "last_updated": "2025-08-26T13:40:45.134595"
   },
   "version": "1.0.0",
-  "saved_at": "2025-08-26T09:54:05.114666"
+  "saved_at": "2025-08-26T13:40:45.135099"
 }

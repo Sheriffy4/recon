@@ -33,11 +33,11 @@
         }
       },
       "success_rate": 1.0,
-      "avg_latency_ms": 307.634183883667,
-      "test_count": 4,
+      "avg_latency_ms": 322.823426990509,
+      "test_count": 6,
       "failure_count": 0,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:28.819660"
+      "last_tested": "2025-08-26T13:41:24.031239"
     },
     "www.instagram.com": {
       "subdomain_type": "web_interface",
@@ -55,11 +55,11 @@
         }
       },
       "success_rate": 1.0,
-      "avg_latency_ms": 417.46363639831543,
-      "test_count": 2,
+      "avg_latency_ms": 393.3860969543457,
+      "test_count": 3,
       "failure_count": 0,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:27.013627"
+      "last_tested": "2025-08-26T13:41:21.849958"
     },
     "scontent.cdninstagram.com": {
       "subdomain_type": "media_content",
@@ -78,12 +78,12 @@
           "fake_sni": true
         }
       },
-      "success_rate": 1.0,
-      "avg_latency_ms": 122.7273941040039,
-      "test_count": 2,
-      "failure_count": 0,
+      "success_rate": 0.6666666666666666,
+      "avg_latency_ms": 166.94750785827637,
+      "test_count": 3,
+      "failure_count": 1,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:27.143759"
+      "last_tested": "2025-08-26T13:41:22.121422"
     },
     "i.instagram.com": {
       "subdomain_type": "api_endpoint",
@@ -100,12 +100,12 @@
           "ttl": 1
         }
       },
-      "success_rate": 0.5,
-      "avg_latency_ms": 462.36603260040283,
-      "test_count": 2,
+      "success_rate": 0.6666666666666666,
+      "avg_latency_ms": 368.49467515945435,
+      "test_count": 3,
       "failure_count": 1,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:27.554401"
+      "last_tested": "2025-08-26T13:41:22.272104"
     },
     "twitter.com": {
       "subdomain_type": "web_interface",
@@ -123,11 +123,11 @@
         }
       },
       "success_rate": 1.0,
-      "avg_latency_ms": 132.88729190826416,
-      "test_count": 2,
+      "avg_latency_ms": 235.99107027053833,
+      "test_count": 3,
       "failure_count": 0,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:27.673376"
+      "last_tested": "2025-08-26T13:41:22.750405"
     },
     "mobile.twitter.com": {
       "subdomain_type": "web_interface",
@@ -145,11 +145,11 @@
         }
       },
       "success_rate": 1.0,
-      "avg_latency_ms": 317.8521394729614,
-      "test_count": 2,
+      "avg_latency_ms": 285.3859305381775,
+      "test_count": 3,
       "failure_count": 0,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:27.813400"
+      "last_tested": "2025-08-26T13:41:22.961324"
     },
     "pbs.twimg.com": {
       "subdomain_type": "media_content",
@@ -168,12 +168,12 @@
           "fake_sni": true
         }
       },
-      "success_rate": 0.5,
-      "avg_latency_ms": 340.11688232421875,
-      "test_count": 2,
+      "success_rate": 0.6666666666666666,
+      "avg_latency_ms": 332.4280548095703,
+      "test_count": 3,
       "failure_count": 1,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:28.161614"
+      "last_tested": "2025-08-26T13:41:23.277133"
     },
     "api.twitter.com": {
       "subdomain_type": "api_endpoint",
@@ -190,12 +190,12 @@
           "ttl": 1
         }
       },
-      "success_rate": 1.0,
-      "avg_latency_ms": 434.5186233520508,
-      "test_count": 2,
-      "failure_count": 0,
+      "success_rate": 0.6666666666666666,
+      "avg_latency_ms": 452.13428497314453,
+      "test_count": 3,
+      "failure_count": 1,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:28.531388"
+      "last_tested": "2025-08-26T13:41:23.771584"
     },
     "m.youtube.com": {
       "subdomain_type": "web_interface",
@@ -213,11 +213,11 @@
         }
       },
       "success_rate": 1.0,
-      "avg_latency_ms": 245.57764530181885,
-      "test_count": 2,
+      "avg_latency_ms": 233.9494252204895,
+      "test_count": 3,
       "failure_count": 0,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:29.148561"
+      "last_tested": "2025-08-26T13:41:24.239884"
     },
     "r1---sn-4g5e6nls.googlevideo.com": {
       "subdomain_type": "media_content",
@@ -237,11 +237,11 @@
         }
       },
       "success_rate": 1.0,
-      "avg_latency_ms": 181.91404342651367,
-      "test_count": 2,
+      "avg_latency_ms": 184.59283351898193,
+      "test_count": 3,
       "failure_count": 0,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:29.335462"
+      "last_tested": "2025-08-26T13:41:24.431923"
     },
     "i.ytimg.com": {
       "subdomain_type": "static_assets",
@@ -258,13 +258,13 @@
           "ttl": 1
         }
       },
-      "success_rate": 0.5,
-      "avg_latency_ms": 293.51799488067627,
-      "test_count": 2,
+      "success_rate": 0.6666666666666666,
+      "avg_latency_ms": 265.767023563385,
+      "test_count": 3,
       "failure_count": 1,
       "notes": "",
-      "last_tested": "2025-08-26T09:19:29.713250"
+      "last_tested": "2025-08-26T13:41:24.634129"
     }
   },
-  "last_updated": "2025-08-26T09:19:29.713261"
+  "last_updated": "2025-08-26T13:41:24.634141"
 }
