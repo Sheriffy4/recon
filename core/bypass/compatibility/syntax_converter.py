@@ -134,7 +134,9 @@ class SyntaxConverter:
         attack_type = native_config.get('attack_type', '')
         parameters = native_config.get('parameters', {})
         zapret_parts = []
-        if attack_type in self.native_to_zapret:
+        if 'desync_methods' in parameters and parameters['desync_methods']:
+            zapret_parts.append(f"--dpi-desync={','.join(parameters['desync_methods'])}")
+        elif attack_type in self.native_to_zapret:
             methods = self.native_to_zapret[attack_type].split(',')
             zapret_parts.append(f"--dpi-desync={','.join(methods)}")
         if 'ttl' in parameters and parameters['ttl']:
@@ -166,25 +168,33 @@ class SyntaxConverter:
         """Convert native format to goodbyedpi command."""
         attack_type = native_config.get('attack_type', '')
         parameters = native_config.get('parameters', {})
+        converted_parameters = {}
         goodbyedpi_parts = []
         methods = parameters.get('methods', [])
-        for method in methods:
-            if method in self.native_to_goodbyedpi:
-                flag = self.native_to_goodbyedpi[method]
-                goodbyedpi_parts.append(flag)
+        if methods:
+            converted_parameters['methods'] = methods
+            for method in methods:
+                if method in self.native_to_goodbyedpi:
+                    flag = self.native_to_goodbyedpi[method]
+                    goodbyedpi_parts.append(flag)
         fragment_positions = parameters.get('fragment_positions', [])
         if fragment_positions:
+            converted_parameters['fragment_positions'] = fragment_positions
             for pos in fragment_positions:
                 goodbyedpi_parts.append(f'-f {pos}')
         if 'set_ttl' in parameters and parameters['set_ttl']:
+            converted_parameters['set_ttl'] = parameters['set_ttl']
             goodbyedpi_parts.append(f"--set-ttl {parameters['set_ttl']}")
         if 'max_payload' in parameters and parameters['max_payload']:
+            converted_parameters['max_payload'] = parameters['max_payload']
             goodbyedpi_parts.append(f"--max-payload {parameters['max_payload']}")
         if parameters.get('auto_ttl'):
+            converted_parameters['auto_ttl'] = True
             goodbyedpi_parts.append('--auto-ttl')
         if parameters.get('wrong_checksum'):
+            converted_parameters['wrong_checksum'] = True
             goodbyedpi_parts.append('--wrong-chksum')
-        return {'command': ' '.join(goodbyedpi_parts), 'parameters': parameters, 'tool': 'goodbyedpi'}
+        return {'command': ' '.join(goodbyedpi_parts), 'parameters': converted_parameters, 'tool': 'goodbyedpi'}
 
     def _native_to_byebyedpi(self, native_config: Dict[str, Any]) -> Dict[str, Any]:
         """Convert native format to byebyedpi command."""

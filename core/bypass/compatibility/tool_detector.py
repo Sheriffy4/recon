@@ -162,7 +162,7 @@ class ToolDetector:
         for pattern in self.zapret_patterns:
             if pattern.search(input_string):
                 features.append(pattern.pattern)
-                score += 0.15  # Each zapret pattern adds confidence
+                score += 0.3  # Each zapret pattern adds confidence
 
         # Bonus for zapret-specific combinations
         if "--dpi-desync=" in input_string:
@@ -180,13 +180,13 @@ class ToolDetector:
         for pattern in self.goodbyedpi_patterns:
             if pattern.search(input_string):
                 features.append(pattern.pattern)
-                score += 0.12  # Each goodbyedpi pattern adds confidence
+                score += 0.25  # Each goodbyedpi pattern adds confidence
 
         # Bonus for goodbyedpi-specific indicators
         if "goodbyedpi" in input_string.lower():
             score += 0.4
         if re.search(r"-[fmeprsw]\s", input_string):
-            score += 0.2
+            score += 0.25
 
         return min(score, 1.0), features
 
@@ -198,12 +198,12 @@ class ToolDetector:
         for pattern in self.byebyedpi_patterns:
             if pattern.search(input_string):
                 features.append(pattern.pattern)
-                score += 0.15  # Each byebyedpi pattern adds confidence
+                score += 0.4  # Each byebyedpi pattern adds confidence
 
         # Bonus for byebyedpi-specific indicators
         if "byebyedpi" in input_string.lower():
             score += 0.4
-        if "--split-pos=" in input_string:
+        if re.search(r"--split-pos(?:=|$|\s)", input_string):
             score += 0.2
 
         return min(score, 1.0), features
@@ -216,7 +216,7 @@ class ToolDetector:
         for pattern in self.native_patterns:
             if pattern.search(input_string):
                 features.append(pattern.pattern)
-                score += 0.2  # Each native pattern adds confidence
+                score += 0.25  # Each native pattern adds confidence
 
         # Bonus for JSON structure
         if input_string.strip().startswith("{") and input_string.strip().endswith("}"):

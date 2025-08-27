@@ -19,7 +19,7 @@ from web.bypass_dashboard import BypassDashboard
 from web.bypass_integration import BypassWebIntegration, create_bypass_integration
 from core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy, PoolPriority
 from core.bypass.attacks.modern_registry import ModernAttackRegistry
-from core.bypass.testing.test_runner import AttackTestRunner
+from core.bypass.testing.test_runner import TestRunner
 from core.bypass.validation.reliability_validator import ReliabilityValidator
 
 class TestBypassEngineAPI(AioHTTPTestCase):
@@ -29,7 +29,7 @@ class TestBypassEngineAPI(AioHTTPTestCase):
         """Create test application."""
         self.pool_manager = StrategyPoolManager()
         self.attack_registry = ModernAttackRegistry()
-        self.test_runner = Mock(spec=AttackTestRunner)
+        self.test_runner = Mock(spec=TestRunner)
         self.reliability_validator = Mock(spec=ReliabilityValidator)
         self.api = BypassEngineAPI(pool_manager=self.pool_manager, attack_registry=self.attack_registry, test_runner=self.test_runner, reliability_validator=self.reliability_validator)
         app = web.Application()

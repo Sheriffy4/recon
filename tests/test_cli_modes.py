@@ -4,22 +4,22 @@ import sys
 from unittest.mock import patch, MagicMock
 
 # We need to import main from cli, but avoid running it directly
-from recon import cli
+import cli
 
 
 @pytest.fixture(autouse=True)
 def mock_async_main_runners():
     """Mock all main async runner functions from cli.py."""
     with patch(
-        "recon.cli.run_hybrid_mode", new_callable=MagicMock
+        "cli.run_hybrid_mode", new_callable=MagicMock
     ) as mock_hybrid, patch(
-        "recon.cli.run_evolutionary_mode", new_callable=MagicMock
+        "cli.run_evolutionary_mode", new_callable=MagicMock
     ) as mock_evolve, patch(
-        "recon.cli.run_single_strategy_mode", new_callable=MagicMock
+        "cli.run_single_strategy_mode", new_callable=MagicMock
     ) as mock_single, patch(
-        "recon.cli.run_per_domain_mode", new_callable=MagicMock
+        "cli.run_per_domain_mode", new_callable=MagicMock
     ) as mock_per_domain, patch(
-        "recon.cli.run_profiling_mode", new_callable=MagicMock
+        "cli.run_profiling_mode", new_callable=MagicMock
     ) as mock_profiling:
 
         # We need to mock asyncio.run to just call the function

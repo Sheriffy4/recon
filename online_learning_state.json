@@ -1,9 +1,9 @@
 {
   "learning_mode": "moderate",
-  "buffer_size": 5,
+  "buffer_size": 10,
   "min_confidence_threshold": 0.7,
-  "performance_window_size": 100,
-  "retraining_threshold": 0.05,
+  "performance_window_size": 5,
+  "retraining_threshold": 0.1,
   "learning_buffer": [
     {
       "metrics": {
@@ -15,9 +15,39 @@
         "tcp_option_len_limit": 40
       },
       "predicted_type": "ROSKOMNADZOR_TSPU",
-      "actual_type": "COMMERCIAL_DPI",
+      "actual_type": "ROSKOMNADZOR_TSPU",
       "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
+      "timestamp": 1756308888.217294,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "ROSKOMNADZOR_TSPU",
+      "confidence": 0.8,
+      "timestamp": 1756308888.2173085,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "ROSKOMNADZOR_TSPU",
+      "confidence": 0.8,
+      "timestamp": 1756308888.217314,
       "source": "automatic"
     },
     {
@@ -32,7 +62,7 @@
       "predicted_type": "ROSKOMNADZOR_TSPU",
       "actual_type": "COMMERCIAL_DPI",
       "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
+      "timestamp": 1756308888.2173188,
       "source": "automatic"
     },
     {
@@ -47,7 +77,7 @@
       "predicted_type": "ROSKOMNADZOR_TSPU",
       "actual_type": "COMMERCIAL_DPI",
       "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
+      "timestamp": 1756308888.2173228,
       "source": "automatic"
     },
     {
@@ -62,21 +92,8 @@
       "predicted_type": "ROSKOMNADZOR_TSPU",
       "actual_type": "COMMERCIAL_DPI",
       "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
+      "timestamp": 1756308888.2173269,
       "source": "automatic"
-    },
-    {
-      "metrics": {
-        "rst_latency_ms": 50.0,
-        "connection_latency_ms": 100.0,
-        "rst_ttl": 63,
-        "stateful_inspection": true
-      },
-      "predicted_type": "ROSKOMNADZOR_TSPU",
-      "actual_type": "COMMERCIAL_DPI",
-      "confidence": 0.75,
-      "timestamp": 1755158648.8043838,
-      "source": "test"
     }
   ],
   "performance_history": [
@@ -90,9 +107,24 @@
         "tcp_option_len_limit": 40
       },
       "predicted_type": "ROSKOMNADZOR_TSPU",
-      "actual_type": "COMMERCIAL_DPI",
+      "actual_type": "ROSKOMNADZOR_TSPU",
       "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
+      "timestamp": 1756308888.2173085,
+      "source": "automatic"
+    },
+    {
+      "metrics": {
+        "rst_latency_ms": 50.0,
+        "connection_latency_ms": 100.0,
+        "rst_ttl": 63,
+        "rst_from_target": false,
+        "stateful_inspection": true,
+        "tcp_option_len_limit": 40
+      },
+      "predicted_type": "ROSKOMNADZOR_TSPU",
+      "actual_type": "ROSKOMNADZOR_TSPU",
+      "confidence": 0.8,
+      "timestamp": 1756308888.217314,
       "source": "automatic"
     },
     {
@@ -107,7 +139,7 @@
       "predicted_type": "ROSKOMNADZOR_TSPU",
       "actual_type": "COMMERCIAL_DPI",
       "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
+      "timestamp": 1756308888.2173188,
       "source": "automatic"
     },
     {
@@ -122,7 +154,7 @@
       "predicted_type": "ROSKOMNADZOR_TSPU",
       "actual_type": "COMMERCIAL_DPI",
       "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
+      "timestamp": 1756308888.2173228,
       "source": "automatic"
     },
     {
@@ -137,52 +169,28 @@
       "predicted_type": "ROSKOMNADZOR_TSPU",
       "actual_type": "COMMERCIAL_DPI",
       "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
+      "timestamp": 1756308888.2173269,
       "source": "automatic"
-    },
-    {
-      "metrics": {
-        "rst_latency_ms": 50.0,
-        "connection_latency_ms": 100.0,
-        "rst_ttl": 63,
-        "rst_from_target": false,
-        "stateful_inspection": true,
-        "tcp_option_len_limit": 40
-      },
-      "predicted_type": "ROSKOMNADZOR_TSPU",
-      "actual_type": "COMMERCIAL_DPI",
-      "confidence": 0.8,
-      "timestamp": 1755158447.9778652,
-      "source": "automatic"
-    },
-    {
-      "metrics": {
-        "rst_latency_ms": 50.0,
-        "connection_latency_ms": 100.0,
-        "rst_ttl": 63,
-        "stateful_inspection": true
-      },
-      "predicted_type": "ROSKOMNADZOR_TSPU",
-      "actual_type": "COMMERCIAL_DPI",
-      "confidence": 0.75,
-      "timestamp": 1755158648.8043838,
-      "source": "test"
     }
   ],
   "baseline_performance": {
-    "accuracy": 0.9,
-    "f1_score": 0.85,
-    "confidence_distribution": {},
-    "prediction_counts": {},
-    "timestamp": 1755158447.9778652,
-    "sample_size": 10
+    "accuracy": 0.6,
+    "f1_score": 0.0,
+    "confidence_distribution": {
+      "80-90%": 5
+    },
+    "prediction_counts": {
+      "ROSKOMNADZOR_TSPU": 5
+    },
+    "timestamp": 1756308888.2173548,
+    "sample_size": 5
   },
   "stats": {
-    "total_examples_received": 11,
-    "examples_learned_from": 11,
-    "retraining_events": 5,
+    "total_examples_received": 6,
+    "examples_learned_from": 6,
+    "retraining_events": 0,
     "ab_tests_completed": 0,
-    "last_retraining_time": 1755158447.9778652,
+    "last_retraining_time": null,
     "learning_mode_changes": 0
   }
 }

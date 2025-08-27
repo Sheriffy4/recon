@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 
 # We need to import main from cli, but avoid running it directly
 # This structure assumes tests are run from the project root
-from recon import cli
+import cli
 
 
 @pytest.fixture(autouse=True)
@@ -16,15 +16,15 @@ def mock_async_main_runners():
     """Mock all main async runner functions from cli.py to prevent actual execution."""
     # Using MagicMock to allow both sync and async calls if needed
     with patch(
-        "recon.cli.run_hybrid_mode", new_callable=MagicMock
+        "cli.run_hybrid_mode", new_callable=MagicMock
     ) as mock_hybrid, patch(
-        "recon.cli.run_evolutionary_mode", new_callable=MagicMock
+        "cli.run_evolutionary_mode", new_callable=MagicMock
     ) as mock_evolve, patch(
-        "recon.cli.run_single_strategy_mode", new_callable=MagicMock
+        "cli.run_single_strategy_mode", new_callable=MagicMock
     ) as mock_single, patch(
-        "recon.cli.run_per_domain_mode", new_callable=MagicMock
+        "cli.run_per_domain_mode", new_callable=MagicMock
     ) as mock_per_domain, patch(
-        "recon.cli.run_profiling_mode", new_callable=MagicMock
+        "cli.run_profiling_mode", new_callable=MagicMock
     ) as mock_profiling:
 
         # We need to mock asyncio.run to just call the coroutine's close() method
@@ -95,7 +95,7 @@ def test_profile_pcap_mode_flag(mock_async_main_runners):
 def test_cache_stats_mode_exits(mock_async_main_runners):
     """Test that --cache-stats flag runs and exits without calling main modes."""
     # Mock the AdaptiveLearningCache to prevent file I/O
-    with patch("recon.cli.AdaptiveLearningCache") as mock_cache:
+    with patch("cli.AdaptiveLearningCache") as mock_cache:
         mock_cache.return_value.get_cache_stats.return_value = {
             "total_strategy_records": 10
         }

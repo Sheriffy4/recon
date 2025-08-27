@@ -12,7 +12,7 @@ Tests all TCP fragmentation attack implementations according to task 5 requireme
 import unittest
 import time
 
-from tcp_fragmentation import (
+from core.bypass.attacks.tcp_fragmentation import (
     SimpleTCPFragmentationAttack,
     FakeDisorderAttack,
     MultiSplitAttack,
@@ -21,7 +21,7 @@ from tcp_fragmentation import (
     TCPOptionsModificationAttack,
     TCPFragmentationConfig,
 )
-from base import AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
 
 
 class TestTCPFragmentationConfig(unittest.TestCase):

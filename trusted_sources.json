@@ -1,0 +1,24 @@
+{
+  "sources": [
+    {
+      "id": "official_recon",
+      "name": "Official Recon Repository",
+      "url": "https://api.recon-strategies.org/v1/strategies",
+      "public_key": "default_public_key_placeholder",
+      "trust_level": 4,
+      "auto_update": false,
+      "sync_interval": 3600,
+      "enabled": false
+    },
+    {
+      "id": "community_verified",
+      "name": "Community Verified Strategies",
+      "url": "https://community.recon-strategies.org/api/verified",
+      "public_key": "community_public_key_placeholder",
+      "trust_level": 3,
+      "auto_update": false,
+      "sync_interval": 7200,
+      "enabled": false
+    }
+  ]
+}

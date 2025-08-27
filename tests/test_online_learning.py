@@ -8,8 +8,8 @@ import tempfile
 import os
 import time
 from unittest.mock import Mock, patch
-from recon.тесты.online_learning import OnlineLearningSystem, LearningMode, LearningExample, PerformanceMetrics, ABTestConfig
-from recon.тесты.ml_classifier import MLClassifier
+from core.fingerprint.online_learning import OnlineLearningSystem, LearningMode, LearningExample, PerformanceMetrics, ABTestConfig
+from core.fingerprint.ml_classifier import MLClassifier
 
 class TestOnlineLearningSystem(unittest.TestCase):
     """Test suite for OnlineLearningSystem."""
@@ -97,7 +97,7 @@ class TestOnlineLearningSystem(unittest.TestCase):
         expected_accuracy = 3 / 5
         self.assertAlmostEqual(self.online_learning.baseline_performance.accuracy, expected_accuracy, places=2)
 
-    @patch('recon.core.fingerprint.online_learning.ModelTrainer')
+    @patch('core.fingerprint.online_learning.ModelTrainer')
     def test_incremental_update_trigger(self, mock_trainer_class):
         """Test incremental update triggering."""
         self.online_learning.set_learning_mode(LearningMode.AGGRESSIVE)
@@ -111,7 +111,7 @@ class TestOnlineLearningSystem(unittest.TestCase):
         mock_trainer.train_model_with_evaluation.assert_called_once()
         self.assertEqual(len(self.online_learning.learning_buffer), 0)
 
-    @patch('recon.core.fingerprint.online_learning.ModelTrainer')
+    @patch('core.fingerprint.online_learning.ModelTrainer')
     def test_retraining_trigger(self, mock_trainer_class):
         """Test automatic retraining trigger due to performance degradation."""
         mock_trainer = Mock()
@@ -130,7 +130,7 @@ class TestOnlineLearningSystem(unittest.TestCase):
     def test_ab_test_start(self):
         """Test starting A/B test."""
         test_model_path = os.path.join(self.temp_dir, 'test_model.joblib')
-        with patch('recon.core.fingerprint.online_learning.MLClassifier') as mock_ml_class:
+        with patch('core.fingerprint.online_learning.MLClassifier') as mock_ml_class:
             mock_test_model = Mock()
             mock_test_model.load_model.return_value = True
             mock_ml_class.return_value = mock_test_model
@@ -143,7 +143,7 @@ class TestOnlineLearningSystem(unittest.TestCase):
 
     def test_ab_test_classification(self):
         """Test classification during A/B test."""
-        with patch('recon.core.fingerprint.online_learning.MLClassifier') as mock_ml_class:
+        with patch('core.fingerprint.online_learning.MLClassifier') as mock_ml_class:
             mock_test_model = Mock()
             mock_test_model.load_model.return_value = True
             mock_test_model.classify_dpi.return_value = ('COMMERCIAL_DPI', 0.9)
@@ -161,7 +161,7 @@ class TestOnlineLearningSystem(unittest.TestCase):
 
     def test_ab_test_conclusion(self):
         """Test A/B test conclusion and results."""
-        with patch('recon.core.fingerprint.online_learning.MLClassifier') as mock_ml_class:
+        with patch('core.fingerprint.online_learning.MLClassifier') as mock_ml_class:
             mock_test_model = Mock()
             mock_test_model.load_model.return_value = True
             mock_ml_class.return_value = mock_test_model

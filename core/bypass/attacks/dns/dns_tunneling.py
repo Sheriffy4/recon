@@ -355,6 +355,10 @@ class DNSQueryManipulation(DNSTunnelingAttack):
 class DNSCachePoisoningPrevention(DNSTunnelingAttack):
     """DNS cache poisoning prevention techniques."""
 
+    @property
+    def name(self) -> str:
+        return 'dns_cache_poisoning_prevention'
+
     def __init__(self):
         super().__init__()
         self.prevention_techniques = ['query_id_randomization', 'source_port_randomization', 'multiple_server_validation', 'dnssec_validation', 'response_verification']
@@ -377,7 +381,9 @@ class DNSCachePoisoningPrevention(DNSTunnelingAttack):
             else:
                 return AttackResult(status=AttackStatus.FAILURE, error_message=f'Unknown prevention technique: {technique}')
             if result:
-                return AttackResult(status=AttackStatus.SUCCESS, metadata={'prevention_technique': technique, 'result_data': result})
+                final_metadata = result
+                final_metadata['technique'] = technique
+                return AttackResult(status=AttackStatus.SUCCESS, metadata=final_metadata)
             else:
                 return AttackResult(status=AttackStatus.FAILURE, error_message=f'DNS prevention failed with technique: {technique}')
         except Exception as e:

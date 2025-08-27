@@ -681,9 +681,18 @@ class TLSRecordFragmentationAttack(BaseAttack):
         offset = 0
         while offset < len(payload):
             if randomize_sizes:
-                current_fragment_size = random.randint(max(1, fragment_size // 2), min(len(payload) - offset, fragment_size * 2))
+                min_rand_size = max(1, fragment_size // 2)
+                max_rand_size = min(len(payload) - offset, fragment_size * 2)
+                if min_rand_size >= max_rand_size:
+                    current_fragment_size = max_rand_size
+                else:
+                    current_fragment_size = random.randint(min_rand_size, max_rand_size)
             else:
                 current_fragment_size = min(fragment_size, len(payload) - offset)
+
+            if current_fragment_size <= 0:
+                break
+
             chunk = payload[offset:offset + current_fragment_size]
             segments.append((chunk, offset))
             offset += current_fragment_size

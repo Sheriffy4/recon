@@ -33,6 +33,7 @@ class ZapretConfig:
     desync_methods: List[str] = field(default_factory=list)
     fooling_methods: List[str] = field(default_factory=list)
     split_positions: List[Dict[str, Any]] = field(default_factory=list)
+    unknown_parameters: List[str] = field(default_factory=list)
 
     def to_native_format(self) -> Dict[str, Any]:
         """Convert to native bypass engine format."""
@@ -43,43 +44,43 @@ class ZapretConfig:
                 "fooling_methods": self.fooling_methods,
                 "split_positions": self.split_positions,
                 "ttl": (
-                    self.parameters.get("dpi_desync_ttl", {}).value
-                    if "dpi_desync_ttl" in self.parameters
+                    self.parameters.get("dpi-desync-ttl").value
+                    if "dpi-desync-ttl" in self.parameters
                     else None
                 ),
                 "repeats": (
-                    self.parameters.get("dpi_desync_repeats", {}).value
-                    if "dpi_desync_repeats" in self.parameters
+                    self.parameters.get("dpi-desync-repeats").value
+                    if "dpi-desync-repeats" in self.parameters
                     else 1
                 ),
                 "window_size": (
-                    self.parameters.get("wssize", {}).value
+                    self.parameters.get("wssize").value
                     if "wssize" in self.parameters
                     else None
                 ),
                 "auto_ttl": (
-                    self.parameters.get("dpi_desync_autottl", {}).value
-                    if "dpi_desync_autottl" in self.parameters
+                    self.parameters.get("dpi-desync-autottl").value
+                    if "dpi-desync-autottl" in self.parameters
                     else None
                 ),
                 "fake_tls": (
-                    self.parameters.get("dpi_desync_fake_tls", {}).value
-                    if "dpi_desync_fake_tls" in self.parameters
+                    self.parameters.get("dpi-desync-fake-tls").value
+                    if "dpi-desync-fake-tls" in self.parameters
                     else None
                 ),
                 "fake_http": (
-                    self.parameters.get("dpi_desync_fake_http", {}).value
-                    if "dpi_desync_fake_http" in self.parameters
+                    self.parameters.get("dpi-desync-fake-http").value
+                    if "dpi-desync-fake-http" in self.parameters
                     else None
                 ),
                 "seqovl": (
-                    self.parameters.get("dpi_desync_split_seqovl", {}).value
-                    if "dpi_desync_split_seqovl" in self.parameters
+                    self.parameters.get("dpi-desync-split-seqovl").value
+                    if "dpi-desync-split-seqovl" in self.parameters
                     else None
                 ),
                 "badseq_increment": (
-                    self.parameters.get("dpi_desync_badseq_increment", {}).value
-                    if "dpi_desync_badseq_increment" in self.parameters
+                    self.parameters.get("dpi-desync-badseq-increment").value
+                    if "dpi-desync-badseq-increment" in self.parameters
                     else None
                 ),
             },
@@ -233,22 +234,25 @@ class ZapretConfigParser:
             param_value = match.group(2)
 
             # Get parameter definition
-            param_def = self.parameter_defs.get(param_name, {})
-            param_type = param_def.get("type", "unknown")
+            if param_name in self.parameter_defs:
+                param_def = self.parameter_defs[param_name]
+                param_type = param_def.get("type", "unknown")
 
-            # Parse value based on type
-            parsed_value = self._parse_parameter_value(
-                param_value, param_type, param_def
-            )
+                # Parse value based on type
+                parsed_value = self._parse_parameter_value(
+                    param_value, param_type, param_def
+                )
 
-            # Store parameter
-            config.parameters[param_name] = ZapretParameter(
-                name=param_name,
-                value=parsed_value,
-                raw_value=param_value or "",
-                parameter_type=param_type,
-                description=param_def.get("description", ""),
-            )
+                # Store parameter
+                config.parameters[param_name] = ZapretParameter(
+                    name=param_name,
+                    value=parsed_value,
+                    raw_value=param_value or "",
+                    parameter_type=param_type,
+                    description=param_def.get("description", ""),
+                )
+            else:
+                config.unknown_parameters.append(param_name)
 
     def _parse_parameter_value(
         self, value: Optional[str], param_type: str, param_def: Dict[str, Any]
@@ -399,6 +403,11 @@ class ZapretConfigParser:
                         issues.append(
                             f"Invalid value '{value}' for parameter {param_name}"
                         )
+
+        # Check for unknown parameters
+        if config.unknown_parameters:
+            for param_name in config.unknown_parameters:
+                issues.append(f"Unknown parameter '--{param_name}'")
 
         return issues
 

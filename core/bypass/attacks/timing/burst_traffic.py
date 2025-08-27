@@ -9,6 +9,7 @@ Implements various burst patterns to overwhelm DPI analysis:
 """
 import time
 import random
+import threading
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -133,6 +134,7 @@ class BurstTrafficAttack(TimingAttackBase):
         self.current_burst_size = config.default_burst_size
         self.last_response_time = 0.0
         self.executor = ThreadPoolExecutor(max_workers=config.concurrent_streams)
+        self.metrics_lock = threading.Lock()
 
     @property
     def name(self) -> str:
@@ -307,9 +309,6 @@ class BurstTrafficAttack(TimingAttackBase):
             try:
                 stream_results = future.result()
                 results.extend(stream_results)
-                for result in stream_results:
-                    timing_result.packets_sent += getattr(result, 'packets_sent', 0)
-                    timing_result.bytes_sent += getattr(result, 'bytes_sent', 0)
             except Exception as e:
                 self.logger.error(f'Stream execution failed: {e}')
                 results.append(AttackResult(status=AttackStatus.ERROR, error_message=str(e), technique_used='burst_stream_error'))
@@ -334,6 +333,8 @@ class BurstTrafficAttack(TimingAttackBase):
         for i, (burst_size, interval_ms) in enumerate(burst_sequence):
             burst_result = self._execute_single_burst(context, burst_size, i, stream_id)
             results.append(burst_result)
+            with self.metrics_lock:
+                self.metrics.update_burst_metrics(burst_size, interval_ms, burst_result.status == AttackStatus.SUCCESS, getattr(burst_result, 'latency_ms', 0.0))
             if i < len(burst_sequence) - 1 and interval_ms > 0:
                 time.sleep(interval_ms / 1000.0)
         return results
