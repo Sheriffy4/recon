@@ -32,7 +32,7 @@ try:
     )
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 except ImportError:
-    from core.fingerprint.diagnostics import (
+    from recon.core.fingerprint.diagnostics import (
         MetricsCollector,
         HealthChecker,
         DiagnosticLogger,
@@ -42,7 +42,7 @@ except ImportError:
         get_diagnostic_system,
         monitor_operation,
     )
-    from core.fingerprint.advanced_models import DPIFingerprint, DPIType
+    from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
 
 
 class TestMetricsCollector(unittest.TestCase):

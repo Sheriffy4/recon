@@ -2,8 +2,8 @@ import threading
 from queue import Queue
 from typing import List, Optional, Dict, Tuple
 from dataclasses import dataclass
-from core.net.packet_engine import PacketEngine
-from core.net.byte_packet import IPv4Packet, TCPPacket, UDPPacket
+from recon.core.net.packet_engine import PacketEngine
+from recon.core.net.byte_packet import IPv4Packet, TCPPacket, UDPPacket
 
 @dataclass
 class TestConnection:

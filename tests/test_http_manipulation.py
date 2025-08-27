@@ -14,8 +14,8 @@ import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from core.bypass.attacks.http_manipulation import (
+from base import AttackContext, AttackResult, AttackStatus
+from http_manipulation import (
     HeaderModificationAttack,
     MethodManipulationAttack,
     ChunkedEncodingAttack,

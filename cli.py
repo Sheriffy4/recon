@@ -23,11 +23,17 @@ if platform.system() == "Windows":
         from scapy.config import conf
 
         conf.L3socket = L3RawSocket
-    except ImportError:
+    except (ImportError, PermissionError) as e:
         print(
-            "[WARNING] Could not configure Scapy for Windows. Network tests may fail."
+            f"[WARNING] Could not configure Scapy for Windows: {e}. Network tests may fail."
         )
-        pass
+        # Try without L3RawSocket configuration
+        try:
+            import scapy.all
+        except (ImportError, PermissionError):
+            print(
+                "[WARNING] Scapy import failed completely. Some network functionality may be unavailable."
+            )
 
 # --- Блок для запуска скрипта напрямую ---
 if __name__ == "__main__" and __package__ is None:
@@ -87,10 +93,16 @@ except ImportError:
 # --- Scapy (для захвата/pcap-парсинга) ---
 try:
     from scapy.all import sniff, PcapWriter, Raw, IP, IPv6, TCP, UDP
-
     SCAPY_AVAILABLE = True
-except ImportError:
+except (ImportError, PermissionError) as e:
+    print(f"[WARNING] Scapy not available: {e}")
     SCAPY_AVAILABLE = False
+    # Create dummy classes for graceful degradation
+    class DummyPcapWriter:
+        def __init__(self, *args, **kwargs): pass
+        def write(self, *args, **kwargs): pass
+        def close(self, *args, **kwargs): pass
+    PcapWriter = DummyPcapWriter
 
 # --- Advanced Fingerprinter + Traffic Profiler ---
 try:

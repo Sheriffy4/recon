@@ -157,15 +157,15 @@ class DoHAttack(DNSTunnelingAttack):
         try:
             server = self.dns_servers.get(provider)
             if not server or not server.supports_doh:
-                return AttackResult(success=False, error=f'DoH not supported for provider: {provider}')
+                return AttackResult(status=AttackStatus.FAILURE, error_message=f'DoH not supported for provider: {provider}')
             result = await self._doh_resolve(target, server, query_type, use_json)
             if result:
-                return AttackResult(success=True, data={'resolved_ip': result, 'provider': provider, 'method': 'DoH'}, metadata={'query_type': query_type, 'use_json': use_json})
+                return AttackResult(status=AttackStatus.SUCCESS, metadata={'resolved_ip': result, 'provider': provider, 'method': 'DoH', 'query_type': query_type, 'use_json': use_json})
             else:
-                return AttackResult(success=False, error='DoH resolution failed')
+                return AttackResult(status=AttackStatus.FAILURE, error_message='DoH resolution failed')
         except Exception as e:
             LOG.error(f'DoH attack failed: {e}')
-            return AttackResult(success=False, error=str(e))
+            return AttackResult(status=AttackStatus.ERROR, error_message=str(e))
 
     async def _doh_resolve(self, domain: str, server: DNSServer, query_type: str, use_json: bool) -> Optional[str]:
         """Perform DoH resolution."""
@@ -226,15 +226,15 @@ class DoTAttack(DNSTunnelingAttack):
         try:
             server = self.dns_servers.get(provider)
             if not server or not server.supports_dot:
-                return AttackResult(success=False, error=f'DoT not supported for provider: {provider}')
+                return AttackResult(status=AttackStatus.FAILURE, error_message=f'DoT not supported for provider: {provider}')
             result = await self._dot_resolve(target, server, query_type)
             if result:
-                return AttackResult(success=True, data={'resolved_ip': result, 'provider': provider, 'method': 'DoT'}, metadata={'query_type': query_type})
+                return AttackResult(status=AttackStatus.SUCCESS, metadata={'resolved_ip': result, 'provider': provider, 'method': 'DoT', 'query_type': query_type})
             else:
-                return AttackResult(success=False, error='DoT resolution failed')
+                return AttackResult(status=AttackStatus.FAILURE, error_message='DoT resolution failed')
         except Exception as e:
             LOG.error(f'DoT attack failed: {e}')
-            return AttackResult(success=False, error=str(e))
+            return AttackResult(status=AttackStatus.ERROR, error_message=str(e))
 
     async def _dot_resolve(self, domain: str, server: DNSServer, query_type: str) -> Optional[str]:
         """Perform DoT resolution."""
@@ -277,14 +277,14 @@ class DNSQueryManipulation(DNSTunnelingAttack):
             elif technique == 'edns_padding':
                 result = await self._edns_padding(target)
             else:
-                return AttackResult(success=False, error=f'Unknown manipulation technique: {technique}')
+                return AttackResult(status=AttackStatus.FAILURE, error_message=f'Unknown manipulation technique: {technique}')
             if result:
-                return AttackResult(success=True, data={'resolved_ip': result, 'technique': technique}, metadata={'manipulation_applied': True})
+                return AttackResult(status=AttackStatus.SUCCESS, metadata={'resolved_ip': result, 'technique': technique, 'manipulation_applied': True})
             else:
-                return AttackResult(success=False, error=f'DNS manipulation failed with technique: {technique}')
+                return AttackResult(status=AttackStatus.FAILURE, error_message=f'DNS manipulation failed with technique: {technique}')
         except Exception as e:
             LOG.error(f'DNS manipulation attack failed: {e}')
-            return AttackResult(success=False, error=str(e))
+            return AttackResult(status=AttackStatus.ERROR, error_message=str(e))
 
     async def _case_randomization(self, domain: str) -> Optional[str]:
         """Randomize case of domain name."""
@@ -375,14 +375,14 @@ class DNSCachePoisoningPrevention(DNSTunnelingAttack):
             elif technique == 'response_verification':
                 result = await self._response_verification(target)
             else:
-                return AttackResult(success=False, error=f'Unknown prevention technique: {technique}')
+                return AttackResult(status=AttackStatus.FAILURE, error_message=f'Unknown prevention technique: {technique}')
             if result:
-                return AttackResult(success=True, data=result, metadata={'prevention_technique': technique})
+                return AttackResult(status=AttackStatus.SUCCESS, metadata={'prevention_technique': technique, 'result_data': result})
             else:
-                return AttackResult(success=False, error=f'DNS prevention failed with technique: {technique}')
+                return AttackResult(status=AttackStatus.FAILURE, error_message=f'DNS prevention failed with technique: {technique}')
         except Exception as e:
             LOG.error(f'DNS cache poisoning prevention failed: {e}')
-            return AttackResult(success=False, error=str(e))
+            return AttackResult(status=AttackStatus.ERROR, error_message=str(e))
 
     async def _query_id_randomization(self, domain: str) -> Optional[Dict[str, Any]]:
         """Randomize DNS query IDs."""

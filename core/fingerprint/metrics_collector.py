@@ -513,6 +513,16 @@ class MetricsCollector:
             errors.append('Reliability score must be between 0.0 and 1.0')
         return errors
 
+    def get_stats(self) -> Dict[str, Any]:
+        """Get statistics about the collector."""
+        # This is a placeholder. A real implementation would track calls, errors, etc.
+        return {"collections_run": 0, "errors": 0}
+
+    def is_healthy(self) -> bool:
+        """Check if the collector is healthy."""
+        # For now, we'll consider it always healthy.
+        return True
+
     def aggregate_metrics(self, metrics_list: List[ComprehensiveMetrics]) -> ComprehensiveMetrics:
         """Aggregate multiple metrics collections into a single comprehensive result"""
         if not metrics_list:

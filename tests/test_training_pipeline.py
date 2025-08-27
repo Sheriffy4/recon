@@ -6,8 +6,8 @@ import unittest
 import tempfile
 import os
 from unittest.mock import patch
-from core.fingerprint.training_data import TrainingDataGenerator, FeatureEngineer, TrainingExample
-from core.fingerprint.model_trainer import ModelTrainer, ModelEvaluationMetrics
+from recon.тесты.training_data import TrainingDataGenerator, FeatureEngineer, TrainingExample
+from recon.тесты.model_trainer import ModelTrainer, ModelEvaluationMetrics
 try:
     import sklearn
     SKLEARN_AVAILABLE = True

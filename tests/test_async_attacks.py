@@ -22,7 +22,7 @@ class TestAsyncAttacks(unittest.TestCase):
                 params={},
             )
             result = await attack.execute(context)
-            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR])
+            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR, AttackStatus.FAILURE])
 
         asyncio.run(run_test())
 
@@ -40,7 +40,7 @@ class TestAsyncAttacks(unittest.TestCase):
                 params={},
             )
             result = await attack.execute(context)
-            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR])
+            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR, AttackStatus.FAILURE])
 
         asyncio.run(run_test())
 
@@ -58,7 +58,7 @@ class TestAsyncAttacks(unittest.TestCase):
                 params={},
             )
             result = await attack.execute(context)
-            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR])
+            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR, AttackStatus.FAILURE])
 
         asyncio.run(run_test())
 

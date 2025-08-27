@@ -7,23 +7,16 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
-from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
-from core.bypass.attacks.modern_registry import ModernAttackRegistry, TestResult, get_modern_registry
-from core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus
+from recon.тесты.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, CompatibilityMode, TestCase
+from recon.тесты.modern_registry import ModernAttackRegistry, TestResult, get_modern_registry
+from recon.тесты.base import BaseAttack, AttackResult, AttackContext, AttackStatus
 
 class MockAttack(BaseAttack):
     """Mock attack class for testing."""
 
     def __init__(self):
-        self._name = 'mock_attack'
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def category(self) -> str:
-        return 'tcp_fragmentation'
+        self.name = 'mock_attack'
+        self.category = 'tcp_fragmentation'
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Mock execute method."""
@@ -137,14 +130,11 @@ class TestAttackDefinition(unittest.TestCase):
         self.assertEqual(restored.tags, self.definition.tags)
         self.assertEqual(len(restored.test_cases), 1)
 
-from core.bypass.attacks.registry import AttackRegistry as LegacyAttackRegistry
-
 class TestModernAttackRegistry(unittest.TestCase):
     """Test cases for ModernAttackRegistry class."""
 
     def setUp(self):
         """Set up test fixtures."""
-        LegacyAttackRegistry.clear()
         self.temp_dir = tempfile.mkdtemp()
         self.storage_path = Path(self.temp_dir) / 'test_registry.json'
         self.registry = ModernAttackRegistry(storage_path=self.storage_path)
@@ -219,7 +209,7 @@ class TestModernAttackRegistry(unittest.TestCase):
         results = self.registry.search_attacks('nonexistent')
         self.assertEqual(len(results), 0)
 
-    @patch('core.bypass.attacks.modern_registry.LegacyAttackRegistry')
+    @patch('recon.core.bypass.attacks.modern_registry.LegacyAttackRegistry')
     def test_attack_instance_creation(self, mock_legacy_registry):
         """Test attack instance creation."""
         mock_instance = Mock()
@@ -276,7 +266,7 @@ class TestModernAttackRegistry(unittest.TestCase):
         self.assertTrue(self.storage_path.exists())
         new_registry = ModernAttackRegistry(storage_path=self.storage_path)
         new_registry._auto_save = False
-        with patch('core.bypass.attacks.modern_registry.LegacyAttackRegistry') as mock_legacy:
+        with patch('recon.core.bypass.attacks.modern_registry.LegacyAttackRegistry') as mock_legacy:
             mock_legacy.get.return_value = self.mock_attack_class
             success = new_registry.load_from_storage()
             self.assertTrue(success)
@@ -292,9 +282,8 @@ class TestModernAttackRegistry(unittest.TestCase):
         self.assertTrue(success)
         self.assertTrue(export_path.exists())
         new_registry = ModernAttackRegistry()
-        new_registry.clear()
         new_registry._auto_save = False
-        with patch('core.bypass.attacks.modern_registry.LegacyAttackRegistry') as mock_legacy:
+        with patch('recon.core.bypass.attacks.modern_registry.LegacyAttackRegistry') as mock_legacy:
             mock_legacy.get.return_value = self.mock_attack_class
             imported_count = new_registry.import_definitions(export_path)
             self.assertEqual(imported_count, 1)
@@ -342,10 +331,10 @@ class TestGlobalRegistryFunctions(unittest.TestCase):
         registry2 = get_modern_registry()
         self.assertIs(registry1, registry2)
 
-    @patch('core.bypass.attacks.modern_registry.get_modern_registry')
+    @patch('recon.core.bypass.attacks.modern_registry.get_modern_registry')
     def test_global_functions(self, mock_get_registry):
         """Test global convenience functions."""
-        from core.bypass.attacks.modern_registry import register_modern_attack, get_attack_definition, list_modern_attacks
+        from recon.тесты.modern_registry import register_modern_attack, get_attack_definition, list_modern_attacks
         mock_registry = Mock()
         mock_get_registry.return_value = mock_registry
         definition = Mock()

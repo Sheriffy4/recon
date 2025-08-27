@@ -15,7 +15,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from core.fingerprint.model_trainer import ModelTrainer, ModelEvaluationMetrics
+from recon.core.fingerprint.model_trainer import ModelTrainer, ModelEvaluationMetrics
 
 # Check if sklearn is available, skip tests if not
 try:

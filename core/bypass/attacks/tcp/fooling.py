@@ -31,7 +31,7 @@ class BadSumFoolingAttack(ManipulationAttack):
     def description(self) -> str:
         return 'Corrupts TCP checksum to fool DPI systems'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute bad checksum fooling attack."""
         start_time = time.time()
         try:
@@ -67,7 +67,7 @@ class MD5SigFoolingAttack(ManipulationAttack):
     def description(self) -> str:
         return 'Adds fake MD5 signature to TCP options to fool DPI systems'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute MD5 signature fooling attack."""
         start_time = time.time()
         try:
@@ -104,7 +104,7 @@ class BadSeqFoolingAttack(ManipulationAttack):
     def description(self) -> str:
         return 'Corrupts TCP sequence numbers to fool DPI systems'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute bad sequence fooling attack."""
         start_time = time.time()
         try:
@@ -140,7 +140,7 @@ class TTLManipulationAttack(ManipulationAttack):
     def description(self) -> str:
         return 'Manipulates IP TTL values to fool DPI systems'
 
-    def execute(self, context: AttackContext) -> AttackResult:
+    async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TTL manipulation attack."""
         start_time = time.time()
         try:

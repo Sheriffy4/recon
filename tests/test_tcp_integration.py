@@ -3,8 +3,8 @@ Integration test for TCP Analyzer with the existing fingerprinting system
 """
 import pytest
 from unittest.mock import patch
-from core.fingerprint.tcp_analyzer import TCPAnalyzer
-from core.fingerprint.tcp_analyzer import TCPAnalyzer as ImportedTCPAnalyzer
+from recon.тесты.tcp_analyzer import TCPAnalyzer
+from recon import TCPAnalyzer as ImportedTCPAnalyzer
 
 class TestTCPAnalyzerIntegration:
     """Integration tests for TCP Analyzer"""
@@ -87,7 +87,7 @@ class TestTCPAnalyzerIntegration:
 
     def test_tcp_analysis_result_serialization(self):
         """Test that TCP analysis results can be serialized"""
-        from core.fingerprint.tcp_analyzer import TCPAnalysisResult
+        from recon.тесты.tcp_analyzer import TCPAnalysisResult
         result = TCPAnalysisResult(target='test.com')
         result.rst_injection_detected = True
         result.rst_source_analysis = 'middlebox'

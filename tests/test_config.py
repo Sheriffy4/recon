@@ -37,7 +37,7 @@ try:
         create_default_config,
     )
 except ImportError:
-    from core.fingerprint.config import (
+    from recon.core.fingerprint.config import (
         AdvancedFingerprintingConfig,
         ConfigurationManager,
         NetworkConfig,

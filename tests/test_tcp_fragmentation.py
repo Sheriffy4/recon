@@ -12,7 +12,7 @@ Tests all TCP fragmentation attack implementations according to task 5 requireme
 import unittest
 import time
 
-from core.bypass.attacks.tcp_fragmentation import (
+from tcp_fragmentation import (
     SimpleTCPFragmentationAttack,
     FakeDisorderAttack,
     MultiSplitAttack,
@@ -21,7 +21,7 @@ from core.bypass.attacks.tcp_fragmentation import (
     TCPOptionsModificationAttack,
     TCPFragmentationConfig,
 )
-from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
+from base import AttackContext, AttackResult, AttackStatus
 
 
 class TestTCPFragmentationConfig(unittest.TestCase):
@@ -489,7 +489,7 @@ class TestTCPFragmentationRegistration(unittest.TestCase):
         """Test registration of all TCP fragmentation attacks."""
         # Test that the registration function exists and can be called
         try:
-            from core.bypass.attacks.tcp_fragmentation import register_tcp_fragmentation_attacks
+            from tcp_fragmentation import register_tcp_fragmentation_attacks
 
             # Just test that the function exists and doesn't crash
             # The actual registration is tested in integration tests

@@ -1,16 +1,16 @@
 {
   "strategy_dict": {
     "params": {
-      "split_pos": 15
+      "split_pos": 3
     },
     "name": "fakedisorder"
   },
-  "strategy": "fakedisorder(split_pos=15)",
+  "strategy": "fakedisorder(split_pos=3)",
   "result_status": "PARTIAL_SUCCESS",
   "successful_sites": 3,
   "total_sites": 5,
   "success_rate": 0.6,
-  "avg_latency_ms": 264.8776372273763,
+  "avg_latency_ms": 568.2953198750814,
   "fingerprint_used": false,
   "dpi_type": null,
   "dpi_confidence": null

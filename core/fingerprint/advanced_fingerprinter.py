@@ -119,26 +119,50 @@ class AdvancedFingerprinter:
     def get_stats(self) -> Dict[str, Any]:
         """Возвращает статистику работы фингерпринтера."""
         # Пример реализации. Дополните по необходимости.
-        return {
-            "cache_stats": self.cache.get_stats(),
-            "probes_run": self.prober.get_stats().get('probes_run', 0),
-            "classifications_made": self.classifier.get_stats().get('classifications_made', 0),
-        }
+        stats = self.stats.copy()
+        if self.cache:
+            stats['cache_stats'] = self.cache.get_stats()
+        if self.metrics_collector:
+            stats['metrics_stats'] = self.metrics_collector.get_stats()
+        if self.ml_classifier:
+            stats['ml_stats'] = self.ml_classifier.get_stats()
+        
+        # For backward compatibility with the test
+        stats['cache_hit_rate'] = stats.get('cache_stats', {}).get('hit_rate_percent', 0.0)
+
+        if 'total_analysis_time' in stats and stats['fingerprints_created'] > 0:
+            stats['avg_analysis_time'] = stats['total_analysis_time'] / stats['fingerprints_created']
+        else:
+            stats['avg_analysis_time'] = 0
+        
+        return stats
 
     async def health_check(self) -> Dict[str, Any]:
         """Проверяет работоспособность компонентов фингерпринтера."""
         # Пример реализации.
+        components = {
+            "cache": {'status': 'healthy' if self.cache.is_healthy() else 'unhealthy'} if self.cache else {'status': 'disabled'},
+            "metrics_collector": {'status': 'healthy' if self.metrics_collector.is_healthy() else 'unhealthy'} if self.metrics_collector else {'status': 'disabled'},
+            "ml_classifier": {'status': 'healthy' if self.ml_classifier.is_healthy() else 'unhealthy'} if self.ml_classifier else {'status': 'disabled'},
+            "tcp_analyzer": {'status': 'healthy' if self.tcp_analyzer else 'disabled'},
+            "http_analyzer": {'status': 'healthy' if self.http_analyzer else 'disabled'},
+            "dns_analyzer": {'status': 'healthy' if self.dns_analyzer else 'disabled'},
+        }
+        overall_status = 'healthy' if all(components.values()) else 'unhealthy'
         return {
-            "cache_healthy": self.cache.is_healthy(),
-            "prober_healthy": await self.prober.is_healthy(),
-            "classifier_healthy": self.classifier.is_healthy(),
+            "status": overall_status,
+            "components": components,
+            "timestamp": time.time(),
         }
 
     def __repr__(self) -> str:
         """Информативное строковое представление."""
+        analyzers = [name for name, analyzer in [('tcp', self.tcp_analyzer), ('http', self.http_analyzer), ('dns', self.dns_analyzer)] if analyzer is not None]
         return (
             f"AdvancedFingerprinter(config={self.config}, "
-            f"cache_size={self.cache.get_stats()['cache_size']})"
+            f"cache_size={self.cache.get_stats().get('entries', 0) if self.cache else 0}, "
+            f"ml={'enabled' if self.ml_classifier else 'disabled'}, "
+            f"analyzers={','.join(analyzers)})"
         )
         
     async def __aenter__(self):
@@ -149,7 +173,11 @@ class AdvancedFingerprinter:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Очистка при выходе из контекста."""
         # Здесь может быть логика очистки, например, закрытие сессий
-        await self.cleanup()
+        await self.close()
+
+    async def cleanup(self):
+        """Alias for close() for backward compatibility."""
+        await self.close()
     
     def _populate_coherent_fingerprint_features(self, fingerprint: DPIFingerprint, client_hello_info: ClientHelloInfo):
         """Populates the DPIFingerprint with features for coherent mimicry."""
@@ -246,7 +274,10 @@ class AdvancedFingerprinter:
         """Integrates analysis results into the fingerprint."""
         if task_name == 'tcp_analysis' and result:
             fingerprint.rst_injection_detected = result.get('rst_injection_detected', False)
+            fingerprint.rst_source_analysis = result.get('rst_source_analysis', 'unknown')
             fingerprint.tcp_window_manipulation = result.get('tcp_window_manipulation', False)
+            fingerprint.sequence_number_anomalies = result.get('sequence_number_anomalies', False)
+            fingerprint.handshake_anomalies = result.get('handshake_anomalies', [])
             fingerprint.tcp_options_filtering = bool(result.get('tcp_options_filtering', []))
             fingerprint.tcp_window_size = result.get('window_size')
             fingerprint.tcp_mss = result.get('mss')
@@ -262,10 +293,26 @@ class AdvancedFingerprinter:
         pass
 
     def _calculate_reliability_score(self, fingerprint: DPIFingerprint) -> float:
-        return 0.8
+        score = fingerprint.confidence * 0.5
+        score += len(fingerprint.analysis_methods_used) * 0.1
+        
+        positive_indicators = [
+            fingerprint.rst_injection_detected,
+            fingerprint.tcp_window_manipulation,
+            fingerprint.sequence_number_anomalies,
+            fingerprint.http_header_filtering,
+            fingerprint.dns_hijacking_detected,
+        ]
+        
+        score += sum(0.05 for indicator in positive_indicators if indicator)
+        
+        return min(1.0, score)
 
     def _create_fallback_fingerprint(self, target: str, error_msg: str) -> DPIFingerprint:
-        return DPIFingerprint(target=target)
+        fp = DPIFingerprint(target=target, analysis_duration=0.0, reliability_score=0.0)
+        fp.analysis_methods_used.append('fallback')
+        fp.raw_metrics['error'] = error_msg
+        return fp
 
     async def close(self):
         self.executor.shutdown()
@@ -277,9 +324,50 @@ class AdvancedFingerprinter:
         pass
 
     def _extract_ml_features(self, fingerprint: DPIFingerprint) -> Dict[str, Any]:
-        return {}
+        features = {
+            'rst_injection_detected': 1 if fingerprint.rst_injection_detected else 0,
+            'tcp_window_manipulation': 1 if fingerprint.tcp_window_manipulation else 0,
+            'sequence_number_anomalies': 1 if fingerprint.sequence_number_anomalies else 0,
+            'tcp_options_filtering': 1 if fingerprint.tcp_options_filtering else 0,
+            'connection_reset_timing': fingerprint.connection_reset_timing or 0.0,
+            'handshake_anomalies_count': len(fingerprint.handshake_anomalies or []),
+            'mss_clamping_detected': 1 if fingerprint.mss_clamping_detected else 0,
+            'tcp_timestamp_manipulation': 1 if fingerprint.tcp_timestamp_manipulation else 0,
+            'http_header_filtering': 1 if fingerprint.http_header_filtering else 0,
+            'content_inspection_depth': fingerprint.content_inspection_depth or 0,
+            'user_agent_filtering': 1 if fingerprint.user_agent_filtering else 0,
+            'host_header_manipulation': 1 if fingerprint.host_header_manipulation else 0,
+            'http_method_restrictions_count': len(fingerprint.http_method_restrictions or []),
+            'content_type_filtering': 1 if fingerprint.content_type_filtering else 0,
+            'redirect_injection': 1 if fingerprint.redirect_injection else 0,
+            'http_response_modification': 1 if fingerprint.http_response_modification else 0,
+            'keep_alive_manipulation': 1 if fingerprint.keep_alive_manipulation else 0,
+            'dns_hijacking_detected': 1 if fingerprint.dns_hijacking_detected else 0,
+            'dns_response_modification': 1 if fingerprint.dns_response_modification else 0,
+            'dns_query_filtering': 1 if fingerprint.dns_query_filtering else 0,
+            'doh_blocking': 1 if fingerprint.doh_blocking else 0,
+            'dot_blocking': 1 if fingerprint.dot_blocking else 0,
+            'dns_cache_poisoning': 1 if fingerprint.dns_cache_poisoning else 0,
+            'dns_timeout_manipulation': 1 if fingerprint.dns_timeout_manipulation else 0,
+            'recursive_resolver_blocking': 1 if fingerprint.recursive_resolver_blocking else 0,
+            'dns_over_tcp_blocking': 1 if fingerprint.dns_over_tcp_blocking else 0,
+            'edns_support': 1 if fingerprint.edns_support else 0,
+            'supports_ipv6': 1 if fingerprint.supports_ipv6 else 0,
+            'geographic_restrictions': 1 if fingerprint.geographic_restrictions else 0,
+            'time_based_filtering': 1 if fingerprint.time_based_filtering else 0,
+            'packet_size_limitations': fingerprint.packet_size_limitations or 0,
+            'protocol_whitelist_count': len(fingerprint.protocol_whitelist or []),
+            'analysis_duration': fingerprint.analysis_duration or 0.0,
+        }
+        return features
 
     def _heuristic_classification(self, fingerprint: DPIFingerprint) -> Tuple[DPIType, float]:
+        if fingerprint.rst_injection_detected and fingerprint.dns_hijacking_detected and fingerprint.http_header_filtering:
+            return (DPIType.ROSKOMNADZOR_TSPU, 0.7)
+        if fingerprint.content_inspection_depth and fingerprint.content_inspection_depth > 0 and fingerprint.user_agent_filtering:
+            return (DPIType.COMMERCIAL_DPI, 0.6)
+        if fingerprint.redirect_injection:
+            return (DPIType.ISP_TRANSPARENT_PROXY, 0.6)
         return (DPIType.UNKNOWN, 0.1)
 
     async def _safe_async_call(self, task_name: str, coro) -> Tuple[str, Any]:

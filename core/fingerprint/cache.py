@@ -257,6 +257,13 @@ class FingerprintCache:
                 self._stats['errors'] += 1
                 self._cache = {}
 
+    def is_healthy(self) -> bool:
+        """Check if the cache is healthy."""
+        # For now, we'll consider the cache healthy if the cleanup thread is alive or not needed.
+        if self.cleanup_interval > 0:
+            return self._cleanup_thread is not None and self._cleanup_thread.is_alive()
+        return True
+
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         with self._lock:

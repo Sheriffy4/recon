@@ -2,7 +2,5 @@
 IP-based DPI bypass attacks.
 
 This package contains all IP-level attacks for bypassing DPI systems.
+Attack modules are loaded explicitly by the main application entry point.
 """
-from core.bypass.attacks import fragmentation
-from core.bypass.attacks import header_manipulation
-__all__ = []
