@@ -8,11 +8,8 @@ import sys
 import os
 from unittest.mock import Mock
 
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from core.fingerprint.online_learning import OnlineLearningSystem, LearningMode, ABTestConfig
-from ml_classifier import MLClassifier
+from core.fingerprint.ml_classifier import MLClassifier
 
 
 def test_basic_functionality():

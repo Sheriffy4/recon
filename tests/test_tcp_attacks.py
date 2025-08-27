@@ -1,7 +1,7 @@
 import unittest
 import asyncio
-from recon.base import AttackContext, AttackStatus
-from recon.тесты.manipulation import TCPFragmentationAttack, TCPWindowManipulationAttack, TCPSequenceNumberManipulationAttack, TCPOptionsModificationAttack, TCPWindowScalingAttack, UrgentPointerAttack, TCPOptionsPaddingAttack, TCPMultiSplitAttack, TCPTimestampAttack, TCPWindowSizeLimitAttack
+from core.bypass.attacks.base import AttackContext, AttackStatus
+from core.bypass.attacks.tcp.manipulation import TCPFragmentationAttack, TCPWindowManipulationAttack, TCPSequenceNumberManipulationAttack, TCPOptionsModificationAttack, TCPWindowScalingAttack, UrgentPointerAttack, TCPOptionsPaddingAttack, TCPMultiSplitAttack, TCPTimestampAttack, TCPWindowSizeLimitAttack
 
 class TestTCPManipulationAttacks(unittest.TestCase):
 
@@ -75,7 +75,7 @@ class TestTCPManipulationAttacks(unittest.TestCase):
         result = attack.execute(self.context)
         self.assertEqual(result.status, AttackStatus.SUCCESS)
         self.assertIn('window_size', result.metadata)
-from recon.тесты.timing import DripFeedAttack, TimingBasedEvasionAttack, BurstTimingEvasionAttack
+from core.bypass.attacks.tcp.timing import DripFeedAttack, TimingBasedEvasionAttack, BurstTimingEvasionAttack
 
 class TestTCPTimingAttacks(unittest.TestCase):
 
@@ -102,7 +102,7 @@ class TestTCPTimingAttacks(unittest.TestCase):
         self.assertIn('burst_size', result.metadata)
 if __name__ == '__main__':
     unittest.main()
-from recon.тесты.fooling import BadSumFoolingAttack, MD5SigFoolingAttack, BadSeqFoolingAttack, TTLManipulationAttack
+from core.bypass.attacks.tcp.fooling import BadSumFoolingAttack, MD5SigFoolingAttack, BadSeqFoolingAttack, TTLManipulationAttack
 
 class TestTCPFoolingAttacks(unittest.TestCase):
 

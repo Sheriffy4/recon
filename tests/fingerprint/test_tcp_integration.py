@@ -4,7 +4,7 @@ Integration test for TCP Analyzer with the existing fingerprinting system
 import pytest
 from unittest.mock import patch
 from core.fingerprint.tcp_analyzer import TCPAnalyzer
-from recon.core import TCPAnalyzer as ImportedTCPAnalyzer
+from core.fingerprint.tcp_analyzer import TCPAnalyzer as ImportedTCPAnalyzer
 
 class TestTCPAnalyzerIntegration:
     """Integration tests for TCP Analyzer"""

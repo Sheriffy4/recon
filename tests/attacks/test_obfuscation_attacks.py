@@ -294,9 +294,10 @@ class TestICMPObfuscationAttacks:
         result = await attack.execute(context)
         assert result.status == AttackStatus.SUCCESS
         assert result.technique_used == 'icmp_timestamp_tunneling_obfuscation'
-        # The implementation sends (len(payload) + 7) // 8 packets
-        # For 'hide this' (9 bytes): (9 + 7) // 8 = 2 packets
-        assert result.packets_sent == 2
+        # The implementation sends a request and reply for each data chunk.
+        # Payload 'hide this' (9 bytes) with 4 bytes/packet -> 3 chunks.
+        # 3 chunks * 2 packets/chunk (req+reply) = 6 packets.
+        assert result.packets_sent == 6
 
     async def test_icmp_redirect_tunneling(self):
         """Test ICMP redirect tunneling."""
@@ -349,7 +350,8 @@ class TestQUICObfuscationAttacks:
         result = await attack.execute(context)
         assert result.status == AttackStatus.SUCCESS
         assert result.metadata['version_negotiation_added'] is True
-        assert result.packets_sent == result.metadata['fragment_count'] + 1
+        # Packets = 1 (VN) + 1 (Initial) + fragment_count
+        assert result.packets_sent == result.metadata['fragment_count'] + 2
 
     async def test_quic_fragmentation_with_payload(self):
         """Test QUIC fragmentation with data tunneling."""

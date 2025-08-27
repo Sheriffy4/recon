@@ -7,7 +7,7 @@ import os
 import tempfile
 import shutil
 from unittest.mock import patch
-from recon.тесты.ml_classifier import MLClassifier, MLClassificationError
+from core.fingerprint.ml_classifier import MLClassifier, MLClassificationError
 
 class TestMLClassifier:
     """Test suite for MLClassifier."""
@@ -26,7 +26,7 @@ class TestMLClassifier:
 
     def test_init_with_sklearn_available(self):
         """Test MLClassifier initialization when sklearn is available."""
-        with patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True):
+        with patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True):
             classifier = MLClassifier(model_path=self.test_model_path)
             assert classifier.sklearn_available is True
             assert classifier.model is not None
@@ -36,13 +36,13 @@ class TestMLClassifier:
 
     def test_init_without_sklearn(self):
         """Test MLClassifier initialization when sklearn is not available."""
-        with patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False):
+        with patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False):
             classifier = MLClassifier(model_path=self.test_model_path)
             assert classifier.sklearn_available is False
             assert classifier.model is None
             assert classifier.is_trained is False
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_train_model_success(self):
         """Test successful model training."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -52,21 +52,21 @@ class TestMLClassifier:
         assert classifier.is_trained is True
         assert len(classifier.feature_names) > 0
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
     def test_train_model_without_sklearn(self):
         """Test model training when sklearn is not available."""
         classifier = MLClassifier(model_path=self.test_model_path)
         with pytest.raises(MLClassificationError, match='sklearn not available'):
             classifier.train_model(self.sample_training_data)
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_train_model_empty_data(self):
         """Test model training with empty data."""
         classifier = MLClassifier(model_path=self.test_model_path)
         with pytest.raises(MLClassificationError, match='No training data provided'):
             classifier.train_model([])
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_train_model_invalid_data(self):
         """Test model training with invalid data."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -74,7 +74,7 @@ class TestMLClassifier:
         with pytest.raises(MLClassificationError, match='No valid training examples'):
             classifier.train_model(invalid_data)
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_classify_dpi_trained_model(self):
         """Test DPI classification with trained model."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -85,7 +85,7 @@ class TestMLClassifier:
         assert isinstance(confidence, float)
         assert 0.0 <= confidence <= 1.0
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_classify_dpi_untrained_model(self):
         """Test DPI classification with untrained model (should use fallback)."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -94,7 +94,7 @@ class TestMLClassifier:
         assert isinstance(confidence, float)
         assert 0.0 <= confidence <= 1.0
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
     def test_classify_dpi_without_sklearn(self):
         """Test DPI classification when sklearn is not available (should use fallback)."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -135,7 +135,7 @@ class TestMLClassifier:
         assert dpi_type == 'UNKNOWN'
         assert confidence == 0.3
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_save_and_load_model(self):
         """Test model persistence (save and load)."""
         classifier1 = MLClassifier(model_path=self.test_model_path)
@@ -149,14 +149,14 @@ class TestMLClassifier:
         assert len(classifier2.feature_names) > 0
         assert classifier2.dpi_types == classifier1.dpi_types
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
     def test_save_model_without_sklearn(self):
         """Test model saving when sklearn is not available."""
         classifier = MLClassifier(model_path=self.test_model_path)
         classifier.save_model()
         assert not os.path.exists(self.test_model_path)
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
     def test_load_model_without_sklearn(self):
         """Test model loading when sklearn is not available."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -170,7 +170,7 @@ class TestMLClassifier:
         loaded = classifier.load_model()
         assert loaded is False
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_update_model(self):
         """Test model update with new data."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -178,7 +178,7 @@ class TestMLClassifier:
         new_data = {'metrics': {'rst_ttl': 100, 'stateful_inspection': False, 'ml_detection_blocked': True}}
         classifier.update_model(new_data, 'FIREWALL_BASED')
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', False)
     def test_update_model_without_sklearn(self):
         """Test model update when sklearn is not available."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -246,7 +246,7 @@ class TestMLClassifier:
         assert isinstance(info['dpi_types'], list)
         assert len(info['dpi_types']) == 8
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_get_model_info_trained(self):
         """Test getting model information for trained model."""
         classifier = MLClassifier(model_path=self.test_model_path)
@@ -256,7 +256,7 @@ class TestMLClassifier:
         assert info['feature_count'] > 0
         assert info['model_exists'] is True
 
-    @patch('recon.core.fingerprint.ml_classifier.joblib.load')
+    @patch('core.fingerprint.ml_classifier.joblib.load')
     def test_load_model_corrupted_file(self, mock_load):
         """Test loading corrupted model file."""
         mock_load.side_effect = Exception('Corrupted file')
@@ -267,7 +267,7 @@ class TestMLClassifier:
         assert loaded is False
         assert classifier.is_trained is False
 
-    @patch('recon.core.fingerprint.ml_classifier.joblib.dump')
+    @patch('core.fingerprint.ml_classifier.joblib.dump')
     def test_save_model_write_error(self, mock_dump):
         """Test model saving with write error."""
         mock_dump.side_effect = Exception('Write error')
@@ -289,7 +289,7 @@ class TestMLClassifierIntegration:
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)
 
-    @patch('recon.core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
+    @patch('core.fingerprint.ml_classifier.SKLEARN_AVAILABLE', True)
     def test_full_ml_lifecycle(self):
         """Test complete ML lifecycle: train, save, load, classify."""
         training_data = []

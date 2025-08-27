@@ -8,14 +8,7 @@ import os
 from unittest.mock import patch
 import numpy as np
 
-# Add project root to path to allow imports
-import sys
-
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-from recon.core.fingerprint.model_trainer import ModelTrainer, ModelEvaluationMetrics
+from core.fingerprint.model_trainer import ModelTrainer, ModelEvaluationMetrics
 
 # Check if sklearn is available, skip tests if not
 try:

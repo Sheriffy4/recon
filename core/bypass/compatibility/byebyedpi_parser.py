@@ -32,6 +32,7 @@ class ByeByeDPIConfig:
     raw_command: str = ""
     active_methods: Set[str] = field(default_factory=set)
     split_positions: List[int] = field(default_factory=list)
+    unknown_parameters: List[str] = field(default_factory=list)
 
     def to_native_format(self) -> Dict[str, Any]:
         """Convert to native bypass engine format."""
@@ -206,22 +207,25 @@ class ByeByeDPIParser:
             )  # Either =value or space value
 
             # Get parameter definition
-            param_def = self.parameter_defs.get(param_name, {})
-            param_type = param_def.get("type", "unknown")
+            if param_name in self.parameter_defs:
+                param_def = self.parameter_defs[param_name]
+                param_type = param_def.get("type", "unknown")
 
-            # Parse value based on type
-            parsed_value = self._parse_parameter_value(
-                param_value, param_type, param_def
-            )
+                # Parse value based on type
+                parsed_value = self._parse_parameter_value(
+                    param_value, param_type, param_def
+                )
 
-            # Store parameter
-            config.parameters[param_name] = ByeByeDPIParameter(
-                name=param_name,
-                value=parsed_value,
-                raw_value=param_value or "",
-                parameter_type=param_type,
-                description=param_def.get("description", ""),
-            )
+                # Store parameter
+                config.parameters[param_name] = ByeByeDPIParameter(
+                    name=param_name,
+                    value=parsed_value,
+                    raw_value=param_value or "",
+                    parameter_type=param_type,
+                    description=param_def.get("description", ""),
+                )
+            else:
+                config.unknown_parameters.append(param_name)
 
     def _parse_parameter_value(
         self, value: Optional[str], param_type: str, param_def: Dict[str, Any]
@@ -322,6 +326,11 @@ class ByeByeDPIParser:
         for pos in config.split_positions:
             if pos < 1:
                 issues.append(f"Split position {pos} must be positive")
+
+        # Check for unknown parameters
+        if config.unknown_parameters:
+            for param_name in config.unknown_parameters:
+                issues.append(f"Unknown parameter '--{param_name}'")
 
         return issues
 

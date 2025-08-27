@@ -12,10 +12,8 @@ from typing import Dict, Any
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from http_manipulation import (
+from core.bypass.attacks.http_manipulation import (
     HeaderModificationAttack,
     MethodManipulationAttack,
     ChunkedEncodingAttack,
@@ -562,12 +560,22 @@ class TestHTTPManipulationConfig:
         assert config.fake_headers == {"X-Fake": "header"}
 
 
-class TestBaseHTTPManipulationAttack:
+class TestBaseHTTPManipulationAttack(TestHTTPManipulationBase):
     """Test base HTTP manipulation attack functionality."""
+
+    class _ConcreteAttack(BaseHTTPManipulationAttack):
+        """A concrete class for testing the abstract base class."""
+        @property
+        def name(self) -> str:
+            return "dummy_concrete_attack"
+
+        def execute(self, context: AttackContext) -> AttackResult:
+            # This method is not needed for testing the base class's helper methods.
+            return AttackResult(status=AttackStatus.SUCCESS)
 
     def test_http_parsing(self):
         """Test HTTP request parsing."""
-        attack = BaseHTTPManipulationAttack()
+        attack = self._ConcreteAttack()
         payload = b"GET /test?param=value HTTP/1.1\r\nHost: example.com\r\nUser-Agent: TestAgent\r\n\r\nBody content"
 
         parsed = attack._parse_http_request(payload)
@@ -582,7 +590,7 @@ class TestBaseHTTPManipulationAttack:
 
     def test_invalid_http_parsing(self):
         """Test parsing of invalid HTTP request."""
-        attack = BaseHTTPManipulationAttack()
+        attack = self._ConcreteAttack()
         payload = b"invalid http request"
 
         parsed = attack._parse_http_request(payload)
@@ -591,7 +599,7 @@ class TestBaseHTTPManipulationAttack:
 
     def test_http_building(self):
         """Test HTTP request building."""
-        attack = BaseHTTPManipulationAttack()
+        attack = self._ConcreteAttack()
         parsed = {
             "method": "GET",
             "path": "/test",
@@ -612,7 +620,7 @@ class TestBaseHTTPManipulationAttack:
 
     def test_chunked_encoding_application(self):
         """Test chunked encoding application."""
-        attack = BaseHTTPManipulationAttack()
+        attack = self._ConcreteAttack()
         body = "Hello, World! This is a test body for chunking."
         chunk_sizes = [5, 10, 15]
 
@@ -623,7 +631,7 @@ class TestBaseHTTPManipulationAttack:
 
     def test_header_case_modification(self):
         """Test header case modification."""
-        attack = BaseHTTPManipulationAttack()
+        attack = self._ConcreteAttack()
         headers = {"Content-Type": "application/json", "User-Agent": "TestAgent"}
 
         modified = attack._modify_header_case(headers)

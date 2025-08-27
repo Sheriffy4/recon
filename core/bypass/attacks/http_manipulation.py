@@ -17,6 +17,7 @@ All attacks follow the modern attack architecture with segments orchestration.
 import time
 import random
 import logging
+import itertools
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
@@ -84,6 +85,9 @@ class BaseHTTPManipulationAttack(BaseAttack):
                 return {}
 
             method, path, version = parts
+
+            if not version.startswith("HTTP/"):
+                return {}
 
             # Parse headers
             headers = {}
@@ -227,9 +231,11 @@ class BaseHTTPManipulationAttack(BaseAttack):
         body_bytes = body.encode("utf-8")
         offset = 0
 
+        # Use itertools.cycle to iterate through chunk sizes deterministically
+        size_cycler = itertools.cycle(chunk_sizes)
+
         while offset < len(body_bytes):
-            # Choose random chunk size
-            chunk_size = random.choice(chunk_sizes)
+            chunk_size = next(size_cycler)
             chunk_data = body_bytes[offset : offset + chunk_size]
 
             if chunk_data:

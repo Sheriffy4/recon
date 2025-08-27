@@ -9,7 +9,10 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.hybrid_engine import HybridEngine
-from core.bypass_engine import BypassEngine
+if sys.platform == "win32":
+    from core.bypass_engine import BypassEngine
+else:
+    BypassEngine = MagicMock()
 from core.fingerprint.advanced_models import DPIType
 # --- Моделирование зависимостей ---
 # Нам не нужен полный фингерпринт для этого теста
@@ -26,6 +29,7 @@ class MockDPIFingerprint:
 
 # --- Тестовый класс ---
 
+@pytest.mark.skipif(sys.platform != "win32", reason="pydivert requires Windows")
 @pytest.mark.asyncio
 class TestHybridEngineIntegration:
 

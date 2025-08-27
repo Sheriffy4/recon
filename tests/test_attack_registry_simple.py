@@ -7,9 +7,9 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
-from recon.тесты.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, TestCase
-from recon.тесты.modern_registry import ModernAttackRegistry, TestResult
-from recon.тесты.base import BaseAttack, AttackResult, AttackContext, AttackStatus
+from core.bypass.attacks.attack_definition import AttackDefinition, AttackCategory, AttackComplexity, AttackStability, TestCase
+from core.bypass.attacks.modern_registry import ModernAttackRegistry, TestResult
+from core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus
 
 class MockAttack(BaseAttack):
     """Mock attack class for testing."""
@@ -67,7 +67,7 @@ class TestModernAttackRegistrySimple(unittest.TestCase):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
         self.storage_path = Path(self.temp_dir) / 'test_registry.json'
-        with patch('recon.core.bypass.attacks.modern_registry.LegacyAttackRegistry') as mock_legacy:
+        with patch('core.bypass.attacks.modern_registry.LegacyAttackRegistry') as mock_legacy:
             mock_legacy.get_all.return_value = {}
             self.registry = ModernAttackRegistry(storage_path=self.storage_path)
             self.registry._auto_save = False
