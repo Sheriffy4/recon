@@ -593,6 +593,12 @@ if platform.system() == "Windows":
                     f"🎯 Применяем обход для {packet.dst_addr} -> Тип: {task_type}, Параметры: {params}"
                 )
                 self.logger.info(f"🔍 TTL ANALYSIS: ttl={ttl}, autottl={autottl}")
+
+                # Нормализация алиасов для fakeddisorder
+                # (исключаем «экзотические» названия, приводим к единому типу)
+                if task_type in ("fake_fakeddisorder", "tcp_fakeddisorder", "fakeddisorder_seqovl"):
+                    self.logger.debug(f"Normalizing task_type '{task_type}' -> 'fakedisorder'")
+                    task_type = "fakedisorder"
                 
                 # CRITICAL TTL FIX: Validate TTL parameter
                 if ttl is not None:
@@ -630,63 +636,36 @@ if platform.system() == "Windows":
                             "Could not resolve 'midsld', falling back to default position 3."
                         )
                         params["split_pos"] = 3
-                if task_type in ["fake_fakeddisorder", "fakedisorder", "fakeddisorder"]:
-                    # ИСПРАВЛЕНО: Используем зарегистрированную исправленную атаку
-                    self.logger.info(f"✅ Обрабатываем ИСПРАВЛЕННУЮ fakeddisorder атаку с параметрами: {params}")
-                    
+                if task_type == "fakedisorder":
+                    # +++ УПРОЩЁННЫЙ И СТАБИЛЬНЫЙ ПУТЬ ДЛЯ fakeddisorder +++
+                    self.logger.info(f"✅ Применяем стабильную fakeddisorder атаку с параметрами: {params}")
+                    # Предварительный фейк-пакет с нужным fooling
+                    fooling_list = params.get("fooling", []) or []
                     try:
-                        # Импортируем registry и создаем атаку
-                        from core.bypass.attacks.registry import AttackRegistry
-                        from core.bypass.attacks.tcp.fake_disorder_attack import create_fixed_fakeddisorder_from_config
-                        from core.bypass.attacks.base import AttackContext
-                        
-                        # Создаем контекст атаки
-                        context = AttackContext(
-                            dst_ip=packet.dst_addr,
-                            dst_port=packet.dst_port,
-                            payload=payload,
-                            domain=getattr(packet, 'domain', None)
-                        )
-                        
-                        # Создаем исправленную атаку с параметрами из стратегии
-                        attack = create_fixed_fakeddisorder_from_config(params)
-                        
-                        # Выполняем атаку
-                        import asyncio
-                        try:
-                            # Проверяем, есть ли активный event loop
-                            loop = asyncio.get_running_loop()
-                            # Если есть, создаем task
-                            result = loop.run_until_complete(attack.execute(context))
-                        except RuntimeError:
-                            # Нет активного loop, создаем новый
-                            result = asyncio.run(attack.execute(context))
-                        
-                        # Обрабатываем результат
-                        if result.segments and len(result.segments) > 0:
-                            if hasattr(self, "_send_attack_segments"):
-                                success = self._send_attack_segments(packet, w, result.segments)
-                                self.logger.info(f"✅ ИСПРАВЛЕННАЯ fakeddisorder атака выполнена, сегментов: {len(result.segments)}, успех: {success}")
-                            else:
-                                self.logger.warning("send_attack_segments not found; using legacy sending")
-                                # Legacy sending requires a different segment format
-                                segments = [(seg[0], seg[1]) for seg in result.segments]
-                                success = self._send_segments(packet, w, segments)
+                        if "badsum" in fooling_list:
+                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl)
+                            time.sleep(0.003)
+                        elif "md5sig" in fooling_list:
+                            self._send_fake_packet_with_md5sig(packet, w, ttl=ttl)
+                            time.sleep(0.005)
+                        elif "badseq" in fooling_list:
+                            self._send_fake_packet_with_badseq(packet, w, ttl=ttl)
+                            time.sleep(0.003)
                         else:
-                            self.logger.warning("⚠️  ИСПРАВЛЕННАЯ fakeddisorder атака не создала сегментов")
-                            success = False
-                            
+                            # Без специальных фулингов — обычный фейк
+                            self._send_fake_packet(packet, w, ttl=ttl)
+                            time.sleep(0.002)
                     except Exception as e:
-                        self.logger.error(f"❌ Ошибка в ИСПРАВЛЕННОЙ fakeddisorder атаке: {e}")
-                        # Fallback к старой реализации
-                        self.logger.info("🔄 Fallback к старой реализации fakeddisorder")
-                        segments = self.techniques.apply_fakeddisorder(
-                            payload, 
-                            params.get("split_pos", 76),
-                            params.get("overlap_size", 1)
-                        )
-                        success = self._send_segments(packet, w, segments)
-                        self.logger.info(f"✅ Fallback fakeddisorder выполнена, успех: {success}")
+                        self.logger.debug(f"Fake pre-packet send error (ignored): {e}")
+
+                    # Разбиение полезной нагрузки в стиле zapret
+                    split_pos = params.get("split_pos", 76)          # zapret default
+                    overlap = params.get("overlap_size", 336)        # zapret default
+                    segments = self.techniques.apply_fakeddisorder(payload, split_pos, overlap)
+
+                    # Отправка сегментов через «тяжёлую» реализацию с пересчётом checksum-ов
+                    success = self._send_segments(packet, w, segments)
+                    # +++ КОНЕЦ УПРОЩЁННОГО ПУТИ +++
                 elif task_type == "multisplit":
                     is_meta_ip = any(
                         (
