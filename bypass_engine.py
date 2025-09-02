@@ -50,23 +50,11 @@ class BypassTechniques:
         part1, part2 = (payload[:split_pos], payload[split_pos:])
         
         if overlap_size > 0:
-            # ZAPRET ALGORITHM: Sequence overlap disorder
-            # Part2 goes first with positive offset (after split position)
-            # Part1 goes second with negative offset (creates overlap)
-            
-            # Calculate effective overlap (can't be larger than segments)
-            effective_overlap = min(overlap_size, len(part1), len(part2))
-            
-            # Zapret sequence calculation:
-            # - part2: seq = original_seq + split_pos (normal position)
-            # - part1: seq = original_seq - effective_overlap (creates overlap)
-            
-            segments = [
-                (part2, split_pos),           # Send part2 first (disorder)
-                (part1, -effective_overlap)   # Send part1 with overlap (zapret algorithm)
-            ]
-            
-            return segments
+            # Корректная формула overlap: part1 должен начинаться ДО part2, но не выходить в отрицательный SEQ
+            effective_overlap = min(overlap_size, len(part1), len(part2), split_pos)
+            offset_part2 = split_pos
+            offset_part1 = split_pos - effective_overlap  # не отрицательный!
+            return [(part2, offset_part2), (part1, offset_part1)]
         else:
             # Simple disorder without overlap (fallback)
             return [(part2, split_pos), (part1, 0)]
@@ -192,6 +180,9 @@ if platform.system() == "Windows":
             self.flow_table = {}
             self._lock = threading.Lock()
             self._inbound_thread = None
+            # Guard: чтобы не инжектить один и тот же поток многократно
+            self._active_flows: Set[Tuple[str,int,str,int]] = set()
+            self._flow_ttl_sec = 3.0
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -662,30 +653,60 @@ if platform.system() == "Windows":
                         )
                         params["split_pos"] = 3
                 if task_type == "fakeddisorder":
-                    # +++ УПРОЩЁННЫЙ И СТАБИЛЬНЫЙ ПУТЬ ДЛЯ fakeddisorder +++
-                    self.logger.info(f"✅ Применяем стабильную fakeddisorder атаку с параметрами: {params}")
-                    # По умолчанию для fakeddisorder используем низкий TTL (zapret-like)
-                    if ttl is None or ttl == 64 and autottl is None:
-                        ttl = 1
-                        self.logger.debug("fakeddisorder: default TTL overridden to 1 (zapret-compat)")
-                    self.current_params["ttl"] = ttl
-                    # Предварительный fake пакет по списку fooling
-                    fooling_list = params.get("fooling", [])
-                    try:
-                        if "badsum" in fooling_list:
-                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl); time.sleep(0.003)
-                        elif "md5sig" in fooling_list:
-                            self._send_fake_packet_with_md5sig(packet, w, ttl=ttl); time.sleep(0.005)
-                        elif "badseq" in fooling_list:
-                            self._send_fake_packet_with_badseq(packet, w, ttl=ttl); time.sleep(0.003)
+                    # Flow guard: не инжектим повторно тот же поток в течение короткого окна
+                    flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
+                    if flow_id in self._active_flows:
+                        self.logger.debug("Flow already processed recently, forwarding original")
+                        w.send(packet)
+                        return
+                    self._active_flows.add(flow_id)
+                    # таймер очистки
+                    threading.Timer(self._flow_ttl_sec, lambda: self._active_flows.discard(flow_id)).start()
+
+                    # Heuristics для TLS ClientHello
+                    is_tls_ch = (len(payload) > 6 and payload[0] == 22 and payload[5] == 1)
+                    if is_tls_ch:
+                        sp = params.get("split_pos")
+                        ov = params.get("overlap_size") or params.get("split_seqovl")
+                        if sp is None or sp < 20:
+                            params["split_pos"] = 76
+                            self.logger.info("TLS heuristic: split_pos -> 76")
+                        try:
+                            ov_int = int(ov) if ov is not None else None
+                        except Exception:
+                            ov_int = None
+                        if ov_int is None or ov_int < 8:
+                            params["overlap_size"] = 336
+                            self.logger.info("TLS heuristic: overlap_size -> 336")
                         else:
-                            self._send_fake_packet(packet, w, ttl=ttl); time.sleep(0.002)
-                    except Exception as e:
-                        self.logger.debug(f"Fake pre-packet send error (ignored): {e}")
-                    # Разбиение полезной нагрузки (zapret defaults)
-                    split_pos = params.get("split_pos", 76)
-                    overlap = params.get("overlap_size", 336)
-                    segments = self.techniques.apply_fakeddisorder(payload, split_pos, overlap)
+                            params["overlap_size"] = ov_int
+                    self.logger.info(f"✅ Применяем fakeddisorder (zapret-like) с параметрами: {params}")
+                    split_pos = int(params.get("split_pos", 76))
+                    overlap = int(params.get("overlap_size", 336))
+                    # Готовим части
+                    part1 = payload[:split_pos] if split_pos <= len(payload) else payload
+                    part2 = payload[split_pos:] if split_pos <= len(payload) else b""
+                    eff_ov = min(overlap, len(part1), len(part2), split_pos) if part2 else 0
+                    offset_part2 = split_pos
+                    offset_part1 = split_pos - eff_ov if part2 else 0
+                    # 1) aligned fake по part2 с autottl
+                    fooling_list = params.get("fooling", []) or []
+                    if autottl and isinstance(autottl, int) and autottl > 0:
+                        for fake_ttl in range(1, min(autottl, 8) + 1):
+                            self._send_aligned_fake_segment(packet, w, offset_part2, part2[:100] if part2 else part1[:100], fake_ttl, fooling_list)
+                            time.sleep(0.003)
+                    else:
+                        self._send_aligned_fake_segment(packet, w, offset_part2, part2[:100] if part2 else part1[:100], 1, fooling_list)
+                        time.sleep(0.003)
+                    # 2) реальные сегменты: part2, затем part1 (disorder), оба с PSH+ACK и нормальным TTL
+                    segments = []
+                    if part2:
+                        segments.append((part2, offset_part2))
+                    if part1:
+                        segments.append((part1, offset_part1))
+                    # Нормальный TTL для real
+                    base_ttl = bytearray(packet.raw)[8]
+                    self.current_params["real_ttl"] = base_ttl if 1 <= base_ttl <= 255 else 64
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "multisplit":
                     is_meta_ip = any(
@@ -816,10 +837,8 @@ if platform.system() == "Windows":
                     tcp_hdr[4:8] = struct.pack("!I", new_seq)
                     tcp_hdr[8:12] = struct.pack("!I", base_ack)
 
-                    flags = 0x10  # ACK
-                    if i == len(segments) - 1:
-                        flags |= 0x08  # PSH на последний
-                    tcp_hdr[13] = flags & 0xFF
+                    # Стабильно даём PSH+ACK на обоих сегментах для flush
+                    tcp_hdr[13] = 0x18
 
                     tcp_hdr[14:16] = struct.pack("!H", reduced_win)
 
@@ -1270,6 +1289,71 @@ if platform.system() == "Windows":
             except Exception as e:
                 self.logger.error(f"Ошибка в _send_attack_segments: {e}", exc_info=self.debug)
                 return False
+
+    def _send_aligned_fake_segment(self, original_packet, w, seq_offset: int, data: bytes, ttl: int, fooling: List[str]) -> bool:
+        """
+        Fake сегмент, выровненный по реальному SEQ (base_seq + seq_offset) с данными data.
+        Применяем fooling (badseq/md5sig/badsum) к ЭТОМУ сегменту (как в zapret).
+        """
+        try:
+            raw = bytearray(original_packet.raw)
+            ip_hl = (raw[0] & 0x0F) * 4
+            tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+            if tcp_hl < 20:
+                tcp_hl = 20
+            base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
+            base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
+
+            ip_hdr = bytearray(raw[:ip_hl])
+            tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
+
+            # Устанавливаем SEQ = base_seq + seq_offset
+            seq = (base_seq + seq_offset) & 0xFFFFFFFF
+            tcp_hdr[4:8] = struct.pack("!I", seq)
+            tcp_hdr[8:12] = struct.pack("!I", base_ack)
+            # PSH+ACK для стабильности
+            tcp_hdr[13] = 0x18
+
+            # TTL для fake
+            ip_hdr[8] = ttl if 1 <= ttl <= 255 else 1
+
+            # Применяем fooling
+            fake_raw = bytearray(ip_hdr + tcp_hdr + data)
+            # md5sig
+            if "md5sig" in (fooling or []):
+                tcp_hdr_with_opt = bytearray(self._inject_md5sig_option(bytes(fake_raw[ip_hl:ip_hl+tcp_hl])))
+                fake_raw = bytearray(ip_hdr + tcp_hdr_with_opt + data)
+            # badseq
+            if "badseq" in (fooling or []):
+                # Сдвиг SEQ ещё на -10000, как «плохой»
+                bad_seq = (seq - 10000) & 0xFFFFFFFF
+                fake_raw[ip_hl+4:ip_hl+8] = struct.pack("!I", bad_seq)
+            # badsum
+            if "badsum" in (fooling or []):
+                # Портим TCP checksum позже инвертированием
+                pass
+
+            # Обновляем Total Length
+            fake_raw[2:4] = struct.pack("!H", len(fake_raw))
+            # Пересчёт IP/TCP checksum
+            fake_raw[10:12] = b"\x00\x00"
+            ip_csum = self._ip_header_checksum(fake_raw[:ip_hl])
+            fake_raw[10:12] = struct.pack("!H", ip_csum)
+            # TCP checksum
+            tcp_hl_new = ((fake_raw[ip_hl+12] >> 4) & 0x0F) * 4
+            tcp_start = ip_hl
+            tcp_end = ip_hl + tcp_hl_new
+            tcp_hdr_bytes = bytes(fake_raw[tcp_start:tcp_end])
+            payload_bytes = bytes(fake_raw[tcp_end:])
+            tcp_csum = self._tcp_checksum(fake_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
+            if "badsum" in (fooling or []):
+                tcp_csum ^= 0xFFFF
+            fake_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", tcp_csum)
+
+            return self._safe_send_packet(w, bytes(fake_raw), original_packet)
+        except Exception as e:
+            self.logger.debug(f"_send_aligned_fake_segment error: {e}")
+            return False
 
         def _safe_send_packet(self, w: "pydivert.WinDivert", pkt_bytes: bytes, original_packet: "pydivert.Packet") -> bool:
             """
