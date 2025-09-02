@@ -179,9 +179,7 @@ class TLSParser:
         if TLSExtensionType.EC_POINT_FORMATS in info.extensions:
             data = info.extensions[TLSExtensionType.EC_POINT_FORMATS].data
             list_len = data[0]
-            info.ec_point_formats = [
-                data[1 + i] for i in range(list_len)
-            ]
+            info.ec_point_formats = [data[1 + i] for i in range(list_len)]
 
         if TLSExtensionType.ALPN in info.extensions:
             data = info.extensions[TLSExtensionType.ALPN].data
@@ -219,10 +217,13 @@ class TLSParser:
             if len(data) < 5:
                 return None
             list_len = struct.unpack("!H", data[0:2])[0]
-            if list_len > len(data) - 2: return None
-            if data[2] != 0: return None
+            if list_len > len(data) - 2:
+                return None
+            if data[2] != 0:
+                return None
             name_len = struct.unpack("!H", data[3:5])[0]
-            if name_len > len(data) - 5: return None
+            if name_len > len(data) - 5:
+                return None
             if len(data) >= 5 + name_len:
                 return data[5 : 5 + name_len].decode("utf-8", errors="ignore")
         except Exception as e:
@@ -232,7 +233,51 @@ class TLSParser:
     @staticmethod
     def _is_valid_tls_record(payload: bytes) -> bool:
         """Проверяет, является ли payload валидным TLS записью."""
-        if len(payload) < 9: return False
-        if not payload.startswith(b"\x16\x03"): return False
-        if payload[5] != 0x01: return False
+        if len(payload) < 9:
+            return False
+        if not payload.startswith(b"\x16\x03"):
+            return False
+        if payload[5] != 0x01:
+            return False
         return True
+
+
+class TLSHandler:
+    """
+    Обработчик TLS пакетов для интеграции с системой обхода.
+    Предоставляет высокоуровневый интерфейс для работы с TLS.
+    """
+    
+    def __init__(self):
+        self.parser = TLSParser()
+        
+    def parse_client_hello(self, payload: bytes) -> Optional[ClientHelloInfo]:
+        """Парсит ClientHello пакет."""
+        return self.parser.parse_client_hello(payload)
+    
+    def extract_sni(self, payload: bytes) -> Optional[str]:
+        """Извлекает SNI из TLS пакета."""
+        return self.parser.get_sni(payload)
+    
+    def find_extension(self, payload: bytes, ext_type: int) -> Optional[TLSExtension]:
+        """Находит расширение в TLS пакете."""
+        return self.parser.find_extension(payload, ext_type)
+    
+    def is_tls_handshake(self, payload: bytes) -> bool:
+        """Проверяет, является ли пакет TLS handshake."""
+        return self.parser._is_valid_tls_record(payload)
+    
+    def get_cipher_suites(self, payload: bytes) -> Optional[List[int]]:
+        """Получает список cipher suites из ClientHello."""
+        info = self.parse_client_hello(payload)
+        return info.cipher_suites if info else None
+    
+    def get_supported_groups(self, payload: bytes) -> Optional[List[int]]:
+        """Получает поддерживаемые группы из ClientHello."""
+        info = self.parse_client_hello(payload)
+        return info.supported_groups if info else None
+    
+    def get_alpn_protocols(self, payload: bytes) -> Optional[List[str]]:
+        """Получает ALPN протоколы из ClientHello."""
+        info = self.parse_client_hello(payload)
+        return info.alpn_protocols if info else None

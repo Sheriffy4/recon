@@ -1,0 +1,61 @@
+# Copyright (c) 1993-2009 Microsoft Corp.
+#
+# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
+#
+# This file contains the mappings of IP addresses to host names. Each
+# entry should be kept on an individual line. The IP address should
+# be placed in the first column followed by the corresponding host name.
+# The IP address and the host name should be separated by at least one
+# space.
+#
+# Additionally, comments (such as these) may be inserted on individual
+# lines or following the machine name denoted by a '#' symbol.
+#
+# For example:
+#
+#      102.54.94.97     rhino.acme.com          # source server
+#       38.25.63.10     x.acme.com              # x client host
+
+# localhost name resolution is handled within DNS itself.
+#	127.0.0.1       localhost
+#	::1             localhost
+157.240.245.174 instagram.com www.instagram.com
+178.208.83.39 анталекс.рф
+2001:470:1f0a:1505::2 ipv6.nnm-club.name
+192.168.18.60	ANTALEKS-SRV
+192.168.18.55	SQLSRV
+192.168.18.251	server-ad
+127.0.0.1	partitionwizard.com
+127.0.0.1	www.partitionwizard.com
+127.0.0.1	resize-partition.com
+127.0.0.1	www.resize-partition.com
+127.0.0.1	mac-data-recover.com
+127.0.0.1	www.mac-data-recover.com
+127.0.0.1	162-215-249-35.unifiedlayer.com
+127.0.0.1	photo-recovery.biz
+127.0.0.1	www.photo-recovery.biz
+127.0.0.1	162-215-248-231.unifiedlayer.com
+127.0.0.1	minitool-partitionrecovery.com
+127.0.0.1	www.minitool-partitionrecovery.com
+127.0.0.1	ip-107-180-50-184.ip.secureserver.net
+127.0.0.1	partitionmagicserver.com
+127.0.0.1	www.partitionmagicserver.com
+127.0.0.1	50-87-234-221.unifiedlayer.com
+127.0.0.1	minitool.com
+127.0.0.1	www.minitool.com
+127.0.0.1	powerdatarecovery.com
+127.0.0.1	www.powerdatarecovery.com
+127.0.0.1	74-220-192-236.unifiedlayer.com
+127.0.0.1	pas2.partitionwizard.com
+127.0.0.1	pas2.minitool.com
+127.0.0.1	pas2.eofsoft.com
+127.0.0.1	tracking.minitool.com
+127.0.0.1	cdn2.minitool.com
+
+# === Smart Bypass Entries START ===
+# Оптимизированные записи на основе анализа PCAP
+172.67.182.196  rutracker.org
+172.67.182.196  www.rutracker.org
+172.67.182.196  nnmclub.to
+172.67.182.196  www.nnmclub.to
+# === Smart Bypass Entries END ===

@@ -1,0 +1,11 @@
+/Put websites to test in this list
+/Don't worry about the exact url format, script will clean it
+
+
+/---unsta---/
+
+www.instagram.com
+instagram.com
+facebook.com
+cloudflare-ech.com
+cdninstagram.com

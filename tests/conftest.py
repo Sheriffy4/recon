@@ -15,6 +15,7 @@ tests_dir = Path(__file__).parent
 project_root = tests_dir.parent
 sys.path.insert(0, str(project_root))
 
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for the test session."""
@@ -22,15 +23,18 @@ def event_loop():
     yield loop
     loop.close()
 
+
 @pytest.fixture
 def project_root_path():
     """Return the project root path."""
     return project_root
 
+
 @pytest.fixture
 def attack_context():
     """Create a basic AttackContext for testing."""
     from core.bypass.attacks.base import AttackContext
+
     return AttackContext(
         dst_ip="192.168.1.100",
         dst_port=443,

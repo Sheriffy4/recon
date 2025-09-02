@@ -1,0 +1,297 @@
+{
+  "version": "3.0",
+  "description": "Enhanced strategy configuration with wildcard support and priorities",
+  "strategy_priority": [
+    "domain_exact",
+    "domain_wildcard",
+    "ip",
+    "global"
+  ],
+  "domain_strategies": {
+    "abs-0.twimg.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for abs-0.twimg.com"
+    },
+    "abs.twimg.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for abs.twimg.com"
+    },
+    "api.fastly.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for api.fastly.com"
+    },
+    "api.x.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for api.x.com"
+    },
+    "cloudflare-ech.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for cloudflare-ech.com"
+    },
+    "default": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for default"
+    },
+    "edge-chat.instagram.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for edge-chat.instagram.com"
+    },
+    "external.xx.fbcdn.net": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for external.xx.fbcdn.net"
+    },
+    "facebook.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for facebook.com"
+    },
+    "googlevideo.com": {
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for googlevideo.com"
+    },
+    "i.ytimg.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for i.ytimg.com"
+    },
+    "i1.ytimg.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for i1.ytimg.com"
+    },
+    "i2.ytimg.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for i2.ytimg.com"
+    },
+    "instagram.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for instagram.com"
+    },
+    "kinozal.tv": {
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for kinozal.tv"
+    },
+    "lh3.ggpht.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for lh3.ggpht.com"
+    },
+    "lh4.ggpht.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for lh4.ggpht.com"
+    },
+    "mail.ru": {
+      "strategy": "fakedisorder(split_pos=midsld, ttl=4)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for mail.ru"
+    },
+    "mobile.x.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for mobile.x.com"
+    },
+    "nnmclub.to": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for nnmclub.to"
+    },
+    "pbs.twimg.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for pbs.twimg.com"
+    },
+    "rutor.info": {
+      "strategy": "fakedisorder(split_pos=midsld, ttl=4)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for rutor.info"
+    },
+    "rutracker.org": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for rutracker.org"
+    },
+    "scontent-arn2-1.cdninstagram.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for scontent-arn2-1.cdninstagram.com"
+    },
+    "static.cdninstagram.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for static.cdninstagram.com"
+    },
+    "static.xx.fbcdn.net": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for static.xx.fbcdn.net"
+    },
+    "tapochek.net": {
+      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for tapochek.net"
+    },
+    "telegram.org": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for telegram.org"
+    },
+    "ton.twimg.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for ton.twimg.com"
+    },
+    "video.twimg.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for video.twimg.com"
+    },
+    "www.facebook.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for www.facebook.com"
+    },
+    "www.fastly.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for www.fastly.com"
+    },
+    "www.instagram.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for www.instagram.com"
+    },
+    "www.x.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for www.x.com"
+    },
+    "www.youtube.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for www.youtube.com"
+    },
+    "x.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for x.com"
+    },
+    "youtube.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for youtube.com"
+    },
+    "youtubei.googleapis.com": {
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "priority": 1,
+      "is_wildcard": false,
+      "success_rate": 0.0,
+      "description": "Exact match for youtubei.googleapis.com"
+    },
+    "*.googleapis.com": {
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "priority": 1,
+      "is_wildcard": true,
+      "success_rate": 0.0,
+      "description": "Wildcard match for *.googleapis.com"
+    },
+    "*.twimg.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+      "priority": 1,
+      "is_wildcard": true,
+      "success_rate": 0.0,
+      "description": "Wildcard match for *.twimg.com"
+    }
+  },
+  "ip_strategies": {},
+  "global_strategy": {
+    "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+    "description": "Fallback strategy when no specific rules match"
+  }
+}

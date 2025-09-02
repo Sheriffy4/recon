@@ -1,0 +1,62 @@
+{
+  "analysis_summary": {
+    "total_issues_found": 14,
+    "critical_issues": 0,
+    "recommendations_count": 5
+  },
+  "issues_found": [
+    "TTL по умолчанию может быть неправильным для разных атак",
+    "Недостаточная валидация совместимости параметров",
+    "Простой алгоритм разделения payload может быть неэффективным",
+    "Fake payload может не соответствовать ожиданиям DPI",
+    "Неправильная реализация sequence overlap",
+    "Неправильная реализация badsum fooling",
+    "Неправильная реализация badseq fooling",
+    "Неполная реализация md5sig fooling",
+    "Неправильный порядок применения fooling методов",
+    "Неправильный порядок отправки пакетов",
+    "Неправильные задержки между пакетами",
+    "Отсутствие синхронизации между пакетами",
+    "Неправильная реализация AutoTTL",
+    "Неправильное распределение TTL между типами пакетов"
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "issue": "Неправильная генерация fake payload",
+      "solution": "Использовать точные fake payload шаблоны из zapret",
+      "implementation": "Переписать _generate_fake_payload_for_dpi() с zapret-совместимыми шаблонами"
+    },
+    {
+      "priority": "HIGH",
+      "issue": "Неправильная sequence overlap логика",
+      "solution": "Реализовать точную zapret sequence overlap логику",
+      "implementation": "Изучить zapret код и переписать _create_fakeddisorder_segments()"
+    },
+    {
+      "priority": "HIGH",
+      "issue": "Неправильные fooling методы",
+      "solution": "Исправить badsum, badseq, md5sig реализации",
+      "implementation": "Сравнить с zapret и исправить _apply_fooling_to_options()"
+    },
+    {
+      "priority": "MEDIUM",
+      "issue": "Неправильный timing пакетов",
+      "solution": "Оптимизировать задержки и порядок отправки",
+      "implementation": "Убрать лишние задержки, синхронизировать отправку"
+    },
+    {
+      "priority": "MEDIUM",
+      "issue": "Неправильная AutoTTL логика",
+      "solution": "Реализовать zapret-совместимый AutoTTL",
+      "implementation": "Переписать _calculate_ttl() и autottl тестирование"
+    }
+  ],
+  "next_steps": [
+    "1. Исправить генерацию fake payload",
+    "2. Переписать sequence overlap логику",
+    "3. Исправить fooling методы",
+    "4. Оптимизировать timing пакетов",
+    "5. Протестировать с zapret параметрами"
+  ]
+}

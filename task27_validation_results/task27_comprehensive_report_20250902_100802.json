@@ -1,0 +1,69 @@
+{
+  "task": "27. Validate effectiveness improvement with fixed interpreter",
+  "validation_timestamp": "2025-09-02T10:08:02.911904",
+  "requirements_addressed": [
+    "8.1",
+    "8.2",
+    "8.3",
+    "8.4",
+    "8.5",
+    "8.6",
+    "10.1",
+    "10.2",
+    "10.3",
+    "10.4",
+    "10.5"
+  ],
+  "validation_phases": {
+    "parsing": {
+      "critical_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-seqovl=336 --dpi-desync-autottl=2 --dpi-desync-fooling=md5sig,badsum,badseq --dpi-desync-repeats=1 --dpi-desync-split-pos=76 --dpi-desync-ttl=1",
+      "fixed_parsing": {
+        "methods": [
+          "fake",
+          "fakeddisorder"
+        ],
+        "split_seqovl": 336,
+        "split_pos": 76,
+        "ttl": 1,
+        "autottl": 2,
+        "fooling": [
+          "md5sig",
+          "badsum",
+          "badseq"
+        ],
+        "repeats": 1
+      },
+      "legacy_parsing": {
+        "type": "fakeddisorder",
+        "params": {
+          "overlap_size": 336,
+          "split_pos": 76,
+          "ttl": 1,
+          "autottl": 2,
+          "repeats": 1,
+          "fooling": [
+            "md5sig",
+            "badsum",
+            "badseq"
+          ]
+        },
+        "attack_class": "fake_disorder",
+        "_parser_used": "fixed",
+        "_original_strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-seqovl=336 --dpi-desync-autottl=2 --dpi-desync-fooling=md5sig,badsum,badseq --dpi-desync-repeats=1 --dpi-desync-split-pos=76 --dpi-desync-ttl=1"
+      },
+      "parsing_fixes_validated": true,
+      "critical_fixes": [
+        "\u2713 fake,fakeddisorder correctly parsed as fakeddisorder attack",
+        "\u2713 split-seqovl=336 correctly extracted",
+        "\u2713 split-pos=76 correctly extracted",
+        "\u2713 ttl=1 correctly extracted",
+        "\u2713 autottl=2 correctly extracted",
+        "\u2713 fooling methods correctly extracted: md5sig,badsum,badseq"
+      ]
+    }
+  },
+  "overall_results": {},
+  "recommendations": [],
+  "validation_passed": false,
+  "error": "ComparisonResult.__init__() missing 3 required positional arguments: 'improvement_percentage', 'success_rate_delta', and 'meets_target'"
+}

@@ -335,7 +335,10 @@ class GoodbyeDPIParser:
                 issues.append(f"Fragment position {pos} must be positive")
 
         # Validate TTL values
-        if "set-ttl" in config.parameters and config.parameters["set-ttl"].value is not None:
+        if (
+            "set-ttl" in config.parameters
+            and config.parameters["set-ttl"].value is not None
+        ):
             ttl = config.parameters["set-ttl"].value
             if ttl < 1 or ttl > 255:
                 issues.append(f"TTL value {ttl} must be between 1 and 255")

@@ -4,12 +4,14 @@ import sys
 import os
 import warnings
 
+
 def setup_python_path():
     """Add the project root directory to Python path"""
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
         print(f"Added {project_root} to PYTHONPATH")
+
 
 def run_tests():
     # Setup proper Python path for imports
@@ -30,7 +32,7 @@ def run_tests():
     start_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(start_dir)
 
-    excluded_dirs = ['тесты']
+    excluded_dirs = ["тесты"]
 
     for dirpath, dirnames, filenames in os.walk(start_dir):
         # Exclude directories by modifying dirnames in-place
@@ -69,6 +71,7 @@ def run_tests():
     print("=" * 80)
 
     return 0 if overall_result.wasSuccessful() else 1
+
 
 if __name__ == "__main__":
     sys.exit(run_tests())

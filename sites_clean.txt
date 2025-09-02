@@ -1,0 +1,11 @@
+# Список заблокированных доменов для обхода DPI
+# Каждый домен на новой строке. Строки с # игнорируются.
+
+x.com
+instagram.com
+nnmclub.to
+rutracker.org
+abs.twimg.com
+abs-0.twimg.com
+googlevideo.com
+youtube.com

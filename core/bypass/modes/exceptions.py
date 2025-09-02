@@ -1,17 +1,22 @@
 """
 Exceptions for mode management system.
 """
+
 try:
     from core.bypass.exceptions import BypassError
 except ImportError:
 
     class BypassError(Exception):
         """Base exception for bypass system."""
+
         pass
+
 
 class ModeError(BypassError):
     """Base exception for mode-related errors."""
+
     pass
+
 
 class ModeTransitionError(ModeError):
     """Raised when mode transition fails."""
@@ -20,16 +25,24 @@ class ModeTransitionError(ModeError):
         self.from_mode = from_mode
         self.to_mode = to_mode
         self.reason = reason
-        super().__init__(f'Failed to transition from {from_mode} to {to_mode}: {reason}')
+        super().__init__(
+            f"Failed to transition from {from_mode} to {to_mode}: {reason}"
+        )
+
 
 class CapabilityDetectionError(ModeError):
     """Raised when capability detection fails."""
+
     pass
+
 
 class UnsupportedModeError(ModeError):
     """Raised when trying to use an unsupported mode."""
+
     pass
+
 
 class ModeNotAvailableError(ModeError):
     """Raised when requested mode is not available."""
+
     pass

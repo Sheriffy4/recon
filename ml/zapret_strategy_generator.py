@@ -1,6 +1,7 @@
 # recon/ml/zapret_strategy_generator.py
 import re
 import random
+import logging
 from typing import Optional, List, Any
 
 try:
@@ -39,6 +40,9 @@ class ZapretStrategyGenerator:
         Args:
             use_modern_registry: Whether to use modern attack registry for enhanced generation
         """
+        # Add logger initialization
+        self.logger = logging.getLogger(__name__)
+        
         self.use_modern_registry = use_modern_registry and MODERN_REGISTRY_AVAILABLE
         self.attack_registry = None
 
@@ -99,30 +103,71 @@ class ZapretStrategyGenerator:
 
         return None
 
-    def generate_strategies(
-        self, fingerprint: Optional[DPIFingerprint] = None, count: int = 20
-    ) -> List[str]:
+    def generate_strategies(self, fingerprint=None, count=20):
         """
-        Генерирует список zapret стратегий с учетом DPI фингерпринта.
-
+        Generate DPI bypass strategies, enhanced to use fingerprint data.
+        
         Args:
-            fingerprint: DPI фингерпринт для целевой системы (DPIFingerprint или dict для обратной совместимости)
-            count: Количество стратегий для генерации
-
+            fingerprint: DPIFingerprint object with detected characteristics
+            count: Number of strategies to generate
+            
         Returns:
-            Список zapret стратегий, отсортированных по вероятности успеха
+            List of strategy strings
         """
-        # Use modern registry if available
-        if self.use_modern_registry and self.attack_registry:
-            return self._generate_registry_enhanced_strategies(fingerprint, count)
-
-        # Handle backward compatibility with old dict format
-        if isinstance(fingerprint, dict):
-            return self._generate_legacy_strategies(fingerprint, count)
-        elif fingerprint:
-            return self._generate_fingerprint_aware_strategies(fingerprint, count)
-        else:
-            return self._generate_generic_strategies(count)
+        strategies = []
+        
+        # Use fingerprint data to generate targeted strategies
+        if fingerprint:
+            # Extract strategy hints from fingerprint
+            raw_metrics = getattr(fingerprint, 'raw_metrics', {})
+            hints = raw_metrics.get('strategy_hints', [])
+            
+            self.logger.info(f"Generating strategies using fingerprint hints: {hints}")
+            
+            # Generate strategies based on detected DPI characteristics
+            if 'disable_quic' in hints:
+                strategies.extend([
+                    "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4",
+                    "--dpi-desync=fake,split --dpi-desync-split-pos=5 --dpi-desync-ttl=3",
+                    "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq"
+                ])
+            
+            if 'tcp_segment_reordering' in hints:
+                strategies.extend([
+                    "--dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10",
+                    "--dpi-desync=multidisorder --dpi-desync-split-pos=2,7,15",
+                    "--dpi-desync=multisplit --dpi-desync-split-pos=3,8,12"
+                ])
+            
+            if 'prefer_http11' in hints:
+                strategies.extend([
+                    "--dpi-desync=fake,split --dpi-desync-split-pos=10 --dpi-desync-http-protocol=1.1",
+                    "--dpi-desync=fake --dpi-desync-ttl=3 --dpi-desync-http-protocol=1.1"
+                ])
+            
+            # Add general strategies based on fingerprint confidence
+            confidence = getattr(fingerprint, 'confidence', 0)
+            if confidence > 0.5:
+                strategies.extend([
+                    "--dpi-desync=fake,disorder --dpi-desync-split-pos=2",
+                    "--dpi-desync=multisplit --dpi-desync-split-pos=1,5,10"
+                ])
+        
+        # If no fingerprint or not enough strategies, add generic ones
+        if len(strategies) < count:
+            generic_strategies = self._generate_generic_strategies(count - len(strategies))
+            strategies.extend(generic_strategies)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_strategies = []
+        for strategy in strategies:
+            if strategy not in seen:
+                seen.add(strategy)
+                unique_strategies.append(strategy)
+        
+        self.logger.info(f"Generated {len(unique_strategies)} unique strategies")
+        return unique_strategies[:count]
 
     def _generate_fingerprint_aware_strategies(
         self, fingerprint: DPIFingerprint, count: int
@@ -134,7 +179,9 @@ class ZapretStrategyGenerator:
             # High confidence: use specific and aggressive strategies
             dpi_specific = self._get_dpi_type_strategies(fingerprint.dpi_type)
             strategies.update(dpi_specific)
-            characteristic_strategies = self._get_characteristic_based_strategies(fingerprint)
+            characteristic_strategies = self._get_characteristic_based_strategies(
+                fingerprint
+            )
             strategies.update(characteristic_strategies)
             # Fill up with proven working strategies if needed
             if len(strategies) < count:
@@ -144,10 +191,9 @@ class ZapretStrategyGenerator:
             strategies.update(self.PROVEN_WORKING)
             # Add some variations to have more options
             if len(strategies) < count:
-                 base = random.choice(self.PROVEN_WORKING)
-                 variations = self._generate_variations(base)
-                 strategies.update(variations)
-
+                base = random.choice(self.PROVEN_WORKING)
+                variations = self._generate_variations(base)
+                strategies.update(variations)
 
         # Generate additional variations if we still don't have enough
         while len(strategies) < count:
@@ -514,7 +560,7 @@ class ZapretStrategyGenerator:
                 "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum",
                 "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=midsld --dpi-desync-ttl=3",
                 "--dpi-desync=fake --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=4",
-                "--dpi-desync=multidisorder --dpi-desync-split-pos=midsld,10 --dpi-desync-fooling=badseq --dpi-desync-ttl=2"
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=midsld,10 --dpi-desync-fooling=badseq --dpi-desync-ttl=2",
             ],
             DPIType.ROSKOMNADZOR_DPI: [
                 "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=2",

@@ -4,6 +4,7 @@ CLI Workflow Optimizer
 Optimizes CLI workflow to avoid fingerprinting duplication and provides
 mutually exclusive execution modes for better performance.
 """
+
 import logging
 import time
 from typing import Dict, Any, Optional, List, Tuple, Set
@@ -12,19 +13,24 @@ from enum import Enum
 from core.fingerprint.models import EnhancedFingerprint
 from core.integration.attack_adapter import AttackAdapter
 from core.integration.result_processor import ResultProcessor
+
 LOG = logging.getLogger(__name__)
+
 
 class ExecutionMode(Enum):
     """CLI execution modes that are mutually exclusive."""
-    SINGLE_STRATEGY = 'single_strategy'
-    HYBRID_DISCOVERY = 'hybrid_discovery'
-    CLOSED_LOOP = 'closed_loop'
-    EVOLUTIONARY_SEARCH = 'evolutionary_search'
-    PARAMETER_OPTIMIZATION = 'parameter_optimization'
+
+    SINGLE_STRATEGY = "single_strategy"
+    HYBRID_DISCOVERY = "hybrid_discovery"
+    CLOSED_LOOP = "closed_loop"
+    EVOLUTIONARY_SEARCH = "evolutionary_search"
+    PARAMETER_OPTIMIZATION = "parameter_optimization"
+
 
 @dataclass
 class FingerprintCache:
     """Cache for fingerprinting results to avoid duplication."""
+
     fingerprints: Dict[str, EnhancedFingerprint] = field(default_factory=dict)
     domain_to_fingerprint: Dict[str, str] = field(default_factory=dict)
     ip_to_fingerprint: Dict[str, str] = field(default_factory=dict)
@@ -53,7 +59,7 @@ class FingerprintCache:
         self.domain_to_fingerprint[domain] = fp_hash
         self.ip_to_fingerprint[ip] = fp_hash
         self.creation_times[fp_hash] = current_time
-        LOG.debug(f'Cached fingerprint {fp_hash} for domain {domain} and IP {ip}')
+        LOG.debug(f"Cached fingerprint {fp_hash} for domain {domain} and IP {ip}")
 
     def _is_valid(self, fp_hash: str) -> bool:
         """Check if cached fingerprint is still valid."""
@@ -63,22 +69,36 @@ class FingerprintCache:
     def clear_expired(self):
         """Clear expired fingerprints from cache."""
         current_time = time.time()
-        expired_hashes = [fp_hash for fp_hash, creation_time in self.creation_times.items() if current_time - creation_time > self.cache_ttl]
+        expired_hashes = [
+            fp_hash
+            for fp_hash, creation_time in self.creation_times.items()
+            if current_time - creation_time > self.cache_ttl
+        ]
         for fp_hash in expired_hashes:
             self.fingerprints.pop(fp_hash, None)
             self.creation_times.pop(fp_hash, None)
-            domains_to_remove = [domain for domain, cached_hash in self.domain_to_fingerprint.items() if cached_hash == fp_hash]
-            ips_to_remove = [ip for ip, cached_hash in self.ip_to_fingerprint.items() if cached_hash == fp_hash]
+            domains_to_remove = [
+                domain
+                for domain, cached_hash in self.domain_to_fingerprint.items()
+                if cached_hash == fp_hash
+            ]
+            ips_to_remove = [
+                ip
+                for ip, cached_hash in self.ip_to_fingerprint.items()
+                if cached_hash == fp_hash
+            ]
             for domain in domains_to_remove:
                 self.domain_to_fingerprint.pop(domain, None)
             for ip in ips_to_remove:
                 self.ip_to_fingerprint.pop(ip, None)
         if expired_hashes:
-            LOG.debug(f'Cleared {len(expired_hashes)} expired fingerprints from cache')
+            LOG.debug(f"Cleared {len(expired_hashes)} expired fingerprints from cache")
+
 
 @dataclass
 class WorkflowState:
     """State management for CLI workflow optimization."""
+
     execution_mode: ExecutionMode
     fingerprint_cache: FingerprintCache = field(default_factory=FingerprintCache)
     processed_domains: Set[str] = field(default_factory=set)
@@ -89,7 +109,7 @@ class WorkflowState:
     def mark_domain_processed(self, domain: str):
         """Mark domain as processed to avoid reprocessing."""
         self.processed_domains.add(domain)
-        LOG.debug(f'Marked domain {domain} as processed')
+        LOG.debug(f"Marked domain {domain} as processed")
 
     def is_domain_processed(self, domain: str) -> bool:
         """Check if domain has already been processed."""
@@ -99,12 +119,15 @@ class WorkflowState:
         """Get list of domains that haven't been processed yet."""
         return [domain for domain in domains if not self.is_domain_processed(domain)]
 
+
 class CLIWorkflowOptimizer:
     """
     Optimizes CLI workflow to avoid duplication and improve performance.
     """
 
-    def __init__(self, attack_adapter: AttackAdapter, result_processor: ResultProcessor):
+    def __init__(
+        self, attack_adapter: AttackAdapter, result_processor: ResultProcessor
+    ):
         self.attack_adapter = attack_adapter
         self.result_processor = result_processor
         self.workflow_state: Optional[WorkflowState] = None
@@ -120,10 +143,12 @@ class CLIWorkflowOptimizer:
             Initialized workflow state
         """
         self.workflow_state = WorkflowState(execution_mode=execution_mode)
-        LOG.info(f'Initialized CLI workflow in {execution_mode.value} mode')
+        LOG.info(f"Initialized CLI workflow in {execution_mode.value} mode")
         return self.workflow_state
 
-    def should_skip_fingerprinting(self, domain: str, ip: str) -> Tuple[bool, Optional[EnhancedFingerprint]]:
+    def should_skip_fingerprinting(
+        self, domain: str, ip: str
+    ) -> Tuple[bool, Optional[EnhancedFingerprint]]:
         """
         Determine if fingerprinting should be skipped for a domain/IP.
 
@@ -136,17 +161,21 @@ class CLIWorkflowOptimizer:
         """
         if not self.workflow_state:
             return (False, None)
-        cached_fp = self.workflow_state.fingerprint_cache.get_fingerprint_for_domain(domain)
+        cached_fp = self.workflow_state.fingerprint_cache.get_fingerprint_for_domain(
+            domain
+        )
         if cached_fp:
-            LOG.debug(f'Found cached fingerprint for domain {domain}')
+            LOG.debug(f"Found cached fingerprint for domain {domain}")
             return (True, cached_fp)
         cached_fp = self.workflow_state.fingerprint_cache.get_fingerprint_for_ip(ip)
         if cached_fp:
-            LOG.debug(f'Found cached fingerprint for IP {ip}')
+            LOG.debug(f"Found cached fingerprint for IP {ip}")
             return (True, cached_fp)
         return (False, None)
 
-    def cache_fingerprint_result(self, domain: str, ip: str, fingerprint: EnhancedFingerprint):
+    def cache_fingerprint_result(
+        self, domain: str, ip: str, fingerprint: EnhancedFingerprint
+    ):
         """
         Cache fingerprint result to avoid future duplication.
 
@@ -159,7 +188,9 @@ class CLIWorkflowOptimizer:
             return
         self.workflow_state.fingerprint_cache.cache_fingerprint(domain, ip, fingerprint)
 
-    def optimize_domain_grouping(self, domains: List[str], dns_cache: Dict[str, str]) -> Dict[str, List[str]]:
+    def optimize_domain_grouping(
+        self, domains: List[str], dns_cache: Dict[str, str]
+    ) -> Dict[str, List[str]]:
         """
         Optimize domain grouping to minimize redundant fingerprinting.
 
@@ -188,11 +219,15 @@ class CLIWorkflowOptimizer:
                     optimized_groups[fp_hash] = []
                 optimized_groups[fp_hash].extend(ip_domains)
                 for domain in ip_domains:
-                    self.workflow_state.fingerprint_cache.domain_to_fingerprint[domain] = fp_hash
-                LOG.debug(f'Reused cached fingerprint {fp_hash} for {len(ip_domains)} domains with IP {ip}')
+                    self.workflow_state.fingerprint_cache.domain_to_fingerprint[
+                        domain
+                    ] = fp_hash
+                LOG.debug(
+                    f"Reused cached fingerprint {fp_hash} for {len(ip_domains)} domains with IP {ip}"
+                )
             else:
                 representative_domain = ip_domains[0]
-                optimized_groups[f'pending_{ip}'] = ip_domains
+                optimized_groups[f"pending_{ip}"] = ip_domains
         self.workflow_state.domain_groups = optimized_groups
         return optimized_groups
 
@@ -209,13 +244,17 @@ class CLIWorkflowOptimizer:
         if not self.workflow_state:
             return False
         if current_effectiveness > 0.95:
-            LOG.info(f'Skipping evolutionary search - current effectiveness {current_effectiveness:.2f} is already very high')
+            LOG.info(
+                f"Skipping evolutionary search - current effectiveness {current_effectiveness:.2f} is already very high"
+            )
             return True
         if self.workflow_state.execution_mode == ExecutionMode.SINGLE_STRATEGY:
             return True
         return False
 
-    def optimize_parameter_testing_order(self, attack_names: List[str], fingerprint: EnhancedFingerprint) -> List[str]:
+    def optimize_parameter_testing_order(
+        self, attack_names: List[str], fingerprint: EnhancedFingerprint
+    ) -> List[str]:
         """
         Optimize the order of parameter testing based on fingerprint characteristics.
 
@@ -231,31 +270,40 @@ class CLIWorkflowOptimizer:
         attack_scores = {}
         for attack_name in attack_names:
             score = 0.0
-            if hasattr(fingerprint, 'dpi_type') and fingerprint.dpi_type:
-                if 'tcp' in attack_name and 'tcp' in fingerprint.dpi_type.lower():
+            if hasattr(fingerprint, "dpi_type") and fingerprint.dpi_type:
+                if "tcp" in attack_name and "tcp" in fingerprint.dpi_type.lower():
                     score += 0.3
-                if 'tls' in attack_name and fingerprint.tls_inspection:
+                if "tls" in attack_name and fingerprint.tls_inspection:
                     score += 0.3
-                if 'http' in attack_name and fingerprint.http_inspection:
+                if "http" in attack_name and fingerprint.http_inspection:
                     score += 0.3
-            if hasattr(fingerprint, 'rst_injection') and fingerprint.rst_injection:
-                if 'timing' in attack_name or 'delay' in attack_name:
+            if hasattr(fingerprint, "rst_injection") and fingerprint.rst_injection:
+                if "timing" in attack_name or "delay" in attack_name:
                     score += 0.2
-            if hasattr(fingerprint, 'payload_inspection') and fingerprint.payload_inspection:
-                if 'obfuscation' in attack_name or 'encryption' in attack_name:
+            if (
+                hasattr(fingerprint, "payload_inspection")
+                and fingerprint.payload_inspection
+            ):
+                if "obfuscation" in attack_name or "encryption" in attack_name:
                     score += 0.2
-            if hasattr(fingerprint, 'http2_support') and fingerprint.http2_support:
-                if 'http2' in attack_name:
+            if hasattr(fingerprint, "http2_support") and fingerprint.http2_support:
+                if "http2" in attack_name:
                     score += 0.4
-            if hasattr(fingerprint, 'quic_support') and fingerprint.quic_support:
-                if 'quic' in attack_name:
+            if hasattr(fingerprint, "quic_support") and fingerprint.quic_support:
+                if "quic" in attack_name:
                     score += 0.4
             attack_scores[attack_name] = score
-        optimized_order = sorted(attack_names, key=lambda x: attack_scores.get(x, 0), reverse=True)
-        LOG.debug(f'Optimized attack testing order based on fingerprint: {optimized_order[:5]}...')
+        optimized_order = sorted(
+            attack_names, key=lambda x: attack_scores.get(x, 0), reverse=True
+        )
+        LOG.debug(
+            f"Optimized attack testing order based on fingerprint: {optimized_order[:5]}..."
+        )
         return optimized_order
 
-    def should_use_fast_mode(self, domain_count: int, time_budget_seconds: Optional[int]=None) -> bool:
+    def should_use_fast_mode(
+        self, domain_count: int, time_budget_seconds: Optional[int] = None
+    ) -> bool:
         """
         Determine if fast mode should be used based on domain count and time budget.
 
@@ -269,10 +317,12 @@ class CLIWorkflowOptimizer:
         if not self.workflow_state:
             return False
         if domain_count > 50:
-            LOG.info(f'Using fast mode due to large domain count ({domain_count})')
+            LOG.info(f"Using fast mode due to large domain count ({domain_count})")
             return True
         if time_budget_seconds and time_budget_seconds < 300:
-            LOG.info(f'Using fast mode due to tight time budget ({time_budget_seconds}s)')
+            LOG.info(
+                f"Using fast mode due to tight time budget ({time_budget_seconds}s)"
+            )
             return True
         if self.workflow_state.execution_mode in [ExecutionMode.SINGLE_STRATEGY]:
             return True
@@ -288,7 +338,15 @@ class CLIWorkflowOptimizer:
         if not self.workflow_state:
             return {}
         cache = self.workflow_state.fingerprint_cache
-        return {'execution_mode': self.workflow_state.execution_mode.value, 'cached_fingerprints': len(cache.fingerprints), 'processed_domains': len(self.workflow_state.processed_domains), 'domain_groups': len(self.workflow_state.domain_groups), 'dns_cache_size': len(self.workflow_state.dns_cache), 'cache_hit_rate': self._calculate_cache_hit_rate(), 'optimization_results': len(self.workflow_state.optimization_results)}
+        return {
+            "execution_mode": self.workflow_state.execution_mode.value,
+            "cached_fingerprints": len(cache.fingerprints),
+            "processed_domains": len(self.workflow_state.processed_domains),
+            "domain_groups": len(self.workflow_state.domain_groups),
+            "dns_cache_size": len(self.workflow_state.dns_cache),
+            "cache_hit_rate": self._calculate_cache_hit_rate(),
+            "optimization_results": len(self.workflow_state.optimization_results),
+        }
 
     def _calculate_cache_hit_rate(self) -> float:
         """Calculate fingerprint cache hit rate."""
@@ -304,7 +362,7 @@ class CLIWorkflowOptimizer:
         """Clean up workflow state and resources."""
         if self.workflow_state:
             self.workflow_state.fingerprint_cache.clear_expired()
-            LOG.info('Cleaned up workflow state')
+            LOG.info("Cleaned up workflow state")
 
     def export_workflow_state(self) -> Dict[str, Any]:
         """
@@ -315,7 +373,25 @@ class CLIWorkflowOptimizer:
         """
         if not self.workflow_state:
             return {}
-        return {'execution_mode': self.workflow_state.execution_mode.value, 'processed_domains': list(self.workflow_state.processed_domains), 'dns_cache': self.workflow_state.dns_cache.copy(), 'domain_groups': self.workflow_state.domain_groups.copy(), 'optimization_results': self.workflow_state.optimization_results.copy(), 'cache_statistics': {'fingerprint_count': len(self.workflow_state.fingerprint_cache.fingerprints), 'domain_mappings': len(self.workflow_state.fingerprint_cache.domain_to_fingerprint), 'ip_mappings': len(self.workflow_state.fingerprint_cache.ip_to_fingerprint)}}
+        return {
+            "execution_mode": self.workflow_state.execution_mode.value,
+            "processed_domains": list(self.workflow_state.processed_domains),
+            "dns_cache": self.workflow_state.dns_cache.copy(),
+            "domain_groups": self.workflow_state.domain_groups.copy(),
+            "optimization_results": self.workflow_state.optimization_results.copy(),
+            "cache_statistics": {
+                "fingerprint_count": len(
+                    self.workflow_state.fingerprint_cache.fingerprints
+                ),
+                "domain_mappings": len(
+                    self.workflow_state.fingerprint_cache.domain_to_fingerprint
+                ),
+                "ip_mappings": len(
+                    self.workflow_state.fingerprint_cache.ip_to_fingerprint
+                ),
+            },
+        }
+
 
 def detect_execution_mode(args) -> ExecutionMode:
     """
@@ -327,18 +403,21 @@ def detect_execution_mode(args) -> ExecutionMode:
     Returns:
         Detected execution mode
     """
-    if hasattr(args, 'strategy') and args.strategy:
+    if hasattr(args, "strategy") and args.strategy:
         return ExecutionMode.SINGLE_STRATEGY
-    elif hasattr(args, 'closed_loop') and args.closed_loop:
+    elif hasattr(args, "closed_loop") and args.closed_loop:
         return ExecutionMode.CLOSED_LOOP
-    elif hasattr(args, 'evolve') and args.evolve:
+    elif hasattr(args, "evolve") and args.evolve:
         return ExecutionMode.EVOLUTIONARY_SEARCH
-    elif hasattr(args, 'optimize_parameters') and args.optimize_parameters:
+    elif hasattr(args, "optimize_parameters") and args.optimize_parameters:
         return ExecutionMode.PARAMETER_OPTIMIZATION
     else:
         return ExecutionMode.HYBRID_DISCOVERY
 
-def create_workflow_optimizer(attack_adapter: AttackAdapter, result_processor: ResultProcessor, args) -> CLIWorkflowOptimizer:
+
+def create_workflow_optimizer(
+    attack_adapter: AttackAdapter, result_processor: ResultProcessor, args
+) -> CLIWorkflowOptimizer:
     """
     Create and initialize workflow optimizer.
 
@@ -353,5 +432,5 @@ def create_workflow_optimizer(attack_adapter: AttackAdapter, result_processor: R
     optimizer = CLIWorkflowOptimizer(attack_adapter, result_processor)
     execution_mode = detect_execution_mode(args)
     optimizer.initialize_workflow(execution_mode)
-    LOG.info(f'Created workflow optimizer in {execution_mode.value} mode')
+    LOG.info(f"Created workflow optimizer in {execution_mode.value} mode")
     return optimizer

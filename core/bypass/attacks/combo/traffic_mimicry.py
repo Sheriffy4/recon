@@ -4,6 +4,7 @@ Traffic Mimicry Attack System
 Implements traffic pattern mimicry to blend bypass attempts with legitimate application traffic.
 This helps evade behavioral DPI analysis by making bypass traffic look like popular applications.
 """
+
 import asyncio
 import time
 import random
@@ -12,32 +13,45 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
-from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
+from core.bypass.attacks.base import (
+    BaseAttack,
+    AttackContext,
+    AttackResult,
+    AttackStatus,
+)
 from core.bypass.attacks.registry import register_attack
+
 LOG = logging.getLogger(__name__)
+
 
 class TrafficType(Enum):
     """Types of traffic patterns that can be mimicked."""
-    VIDEO_CALL = 'video_call'
-    MESSAGING = 'messaging'
-    FILE_TRANSFER = 'file_transfer'
-    STREAMING = 'streaming'
-    BROWSING = 'browsing'
-    GAMING = 'gaming'
+
+    VIDEO_CALL = "video_call"
+    MESSAGING = "messaging"
+    FILE_TRANSFER = "file_transfer"
+    STREAMING = "streaming"
+    BROWSING = "browsing"
+    GAMING = "gaming"
+
 
 @dataclass
 class TrafficPattern:
     """Represents a traffic pattern with timing and size characteristics."""
+
     packet_sizes: Tuple[int, int, int] = (64, 1500, 800)
     inter_packet_delays: Tuple[float, float, float] = (10.0, 100.0, 50.0)
     burst_size_range: Tuple[int, int] = (1, 5)
     burst_interval_range: Tuple[float, float] = (100.0, 500.0)
     session_duration_range: Tuple[float, float] = (30.0, 300.0)
-    idle_periods: List[Tuple[float, float]] = field(default_factory=lambda: [(1.0, 5.0)])
+    idle_periods: List[Tuple[float, float]] = field(
+        default_factory=lambda: [(1.0, 5.0)]
+    )
     bidirectional_ratio: float = 0.7
     keep_alive_interval: float = 30.0
     protocol_headers: Dict[str, bytes] = field(default_factory=dict)
     content_patterns: List[bytes] = field(default_factory=list)
+
 
 class TrafficProfile(ABC):
     """
@@ -79,7 +93,9 @@ class TrafficProfile(ABC):
         pass
 
     @abstractmethod
-    async def generate_packet_sequence(self, payload: bytes, context: AttackContext) -> List[Tuple[bytes, float]]:
+    async def generate_packet_sequence(
+        self, payload: bytes, context: AttackContext
+    ) -> List[Tuple[bytes, float]]:
         """
         Generate a sequence of packets with timing that mimics the application.
 
@@ -107,10 +123,15 @@ class TrafficProfile(ABC):
     def create_padding(self, target_size: int, current_size: int) -> bytes:
         """Create padding to reach target packet size."""
         if target_size <= current_size:
-            return b''
+            return b""
         padding_size = target_size - current_size
-        padding_patterns = [b'\x00' * padding_size, bytes([random.randint(0, 255) for _ in range(padding_size)]), (b'PADDING' * (padding_size // 7 + 1))[:padding_size]]
+        padding_patterns = [
+            b"\x00" * padding_size,
+            bytes([random.randint(0, 255) for _ in range(padding_size)]),
+            (b"PADDING" * (padding_size // 7 + 1))[:padding_size],
+        ]
         return random.choice(padding_patterns)
+
 
 @register_attack
 class TrafficMimicryAttack(BaseAttack):
@@ -130,19 +151,19 @@ class TrafficMimicryAttack(BaseAttack):
 
     @property
     def name(self) -> str:
-        return 'traffic_mimicry'
+        return "traffic_mimicry"
 
     @property
     def description(self) -> str:
-        return 'Mimics traffic patterns of popular applications to evade behavioral DPI analysis'
+        return "Mimics traffic patterns of popular applications to evade behavioral DPI analysis"
 
     @property
     def category(self) -> str:
-        return 'combo'
+        return "combo"
 
     @property
     def supported_protocols(self) -> List[str]:
-        return ['tcp', 'udp']
+        return ["tcp", "udp"]
 
     def register_profile(self, profile: TrafficProfile):
         """
@@ -152,7 +173,7 @@ class TrafficMimicryAttack(BaseAttack):
             profile: Traffic profile to register
         """
         self._profiles[profile.name] = profile
-        LOG.debug(f'Registered traffic profile: {profile.name}')
+        LOG.debug(f"Registered traffic profile: {profile.name}")
 
     def get_profile(self, name: str) -> Optional[TrafficProfile]:
         """
@@ -166,7 +187,9 @@ class TrafficMimicryAttack(BaseAttack):
         """
         return self._profiles.get(name)
 
-    def select_profile_for_domain(self, domain: str, fingerprint: Optional[Any]=None) -> Optional[TrafficProfile]:
+    def select_profile_for_domain(
+        self, domain: str, fingerprint: Optional[Any] = None
+    ) -> Optional[TrafficProfile]:
         """
         Select the most appropriate traffic profile for a domain.
 
@@ -186,17 +209,21 @@ class TrafficMimicryAttack(BaseAttack):
             selected = self._select_profile_by_fingerprint(domain, fingerprint)
             if selected:
                 self._domain_profile_cache[cache_key] = selected.name
-                LOG.debug(f"Selected profile '{selected.name}' for domain '{domain}' based on fingerprint")
+                LOG.debug(
+                    f"Selected profile '{selected.name}' for domain '{domain}' based on fingerprint"
+                )
                 return selected
         suitable_profiles = []
         for profile in self._profiles.values():
             if profile.should_use_for_domain(domain):
                 suitable_profiles.append(profile)
         if not suitable_profiles:
-            if 'generic_browsing' in self._profiles:
-                selected = self._profiles['generic_browsing']
+            if "generic_browsing" in self._profiles:
+                selected = self._profiles["generic_browsing"]
             else:
-                selected = next(iter(self._profiles.values())) if self._profiles else None
+                selected = (
+                    next(iter(self._profiles.values())) if self._profiles else None
+                )
         else:
             selected = random.choice(suitable_profiles)
         if selected:
@@ -204,7 +231,9 @@ class TrafficMimicryAttack(BaseAttack):
             LOG.debug(f"Selected profile '{selected.name}' for domain '{domain}'")
         return selected
 
-    def _select_profile_by_fingerprint(self, domain: str, fingerprint: Any) -> Optional[TrafficProfile]:
+    def _select_profile_by_fingerprint(
+        self, domain: str, fingerprint: Any
+    ) -> Optional[TrafficProfile]:
         """
         Select profile based on DPI fingerprint characteristics.
 
@@ -218,26 +247,47 @@ class TrafficMimicryAttack(BaseAttack):
         profile_scores = {}
         for profile_name, profile in self._profiles.items():
             score = 0.0
-            if hasattr(fingerprint, 'ml_detection_blocked') and fingerprint.ml_detection_blocked:
-                if profile.traffic_type in [TrafficType.VIDEO_CALL, TrafficType.MESSAGING]:
+            if (
+                hasattr(fingerprint, "ml_detection_blocked")
+                and fingerprint.ml_detection_blocked
+            ):
+                if profile.traffic_type in [
+                    TrafficType.VIDEO_CALL,
+                    TrafficType.MESSAGING,
+                ]:
                     score += 0.3
                 else:
                     score += 0.1
-            if hasattr(fingerprint, 'stateful_inspection') and fingerprint.stateful_inspection:
+            if (
+                hasattr(fingerprint, "stateful_inspection")
+                and fingerprint.stateful_inspection
+            ):
                 if profile.traffic_type == TrafficType.VIDEO_CALL:
                     score += 0.2
                 elif profile.traffic_type == TrafficType.MESSAGING:
                     score += 0.15
-            if hasattr(fingerprint, 'payload_entropy_sensitivity') and fingerprint.payload_entropy_sensitivity:
-                if profile.traffic_type in [TrafficType.MESSAGING, TrafficType.BROWSING]:
+            if (
+                hasattr(fingerprint, "payload_entropy_sensitivity")
+                and fingerprint.payload_entropy_sensitivity
+            ):
+                if profile.traffic_type in [
+                    TrafficType.MESSAGING,
+                    TrafficType.BROWSING,
+                ]:
                     score += 0.25
-            if hasattr(fingerprint, 'http2_detection') and fingerprint.http2_detection:
+            if hasattr(fingerprint, "http2_detection") and fingerprint.http2_detection:
                 if profile.traffic_type == TrafficType.BROWSING:
                     score += 0.2
-            if hasattr(fingerprint, 'quic_udp_blocked') and fingerprint.quic_udp_blocked:
+            if (
+                hasattr(fingerprint, "quic_udp_blocked")
+                and fingerprint.quic_udp_blocked
+            ):
                 if profile.traffic_type == TrafficType.VIDEO_CALL:
                     score -= 0.1
-            if hasattr(fingerprint, 'rate_limiting_detected') and fingerprint.rate_limiting_detected:
+            if (
+                hasattr(fingerprint, "rate_limiting_detected")
+                and fingerprint.rate_limiting_detected
+            ):
                 if profile.traffic_type == TrafficType.MESSAGING:
                     score += 0.2
             if profile.should_use_for_domain(domain):
@@ -247,7 +297,9 @@ class TrafficMimicryAttack(BaseAttack):
             best_profile_name = max(profile_scores.items(), key=lambda x: x[1])[0]
             best_score = profile_scores[best_profile_name]
             if best_score > 0.4:
-                LOG.debug(f'Fingerprint-based selection: {best_profile_name} (score: {best_score:.2f})')
+                LOG.debug(
+                    f"Fingerprint-based selection: {best_profile_name} (score: {best_score:.2f})"
+                )
                 return self._profiles[best_profile_name]
         return None
 
@@ -263,14 +315,24 @@ class TrafficMimicryAttack(BaseAttack):
         """
         start_time = time.time()
         try:
-            fingerprint = context.params.get('fingerprint') if context.params else None
-            domain = context.domain or f'{context.dst_ip}:{context.dst_port}'
+            fingerprint = context.params.get("fingerprint") if context.params else None
+            domain = context.domain or f"{context.dst_ip}:{context.dst_port}"
             profile = self.select_profile_for_domain(domain, fingerprint)
             if not profile:
-                return AttackResult(status=AttackStatus.ERROR, error_message='No suitable traffic profile found', latency_ms=(time.time() - start_time) * 1000)
-            packet_sequence = await profile.generate_packet_sequence(context.payload, context)
+                return AttackResult(
+                    status=AttackStatus.ERROR,
+                    error_message="No suitable traffic profile found",
+                    latency_ms=(time.time() - start_time) * 1000,
+                )
+            packet_sequence = await profile.generate_packet_sequence(
+                context.payload, context
+            )
             if not packet_sequence:
-                return AttackResult(status=AttackStatus.ERROR, error_message='Failed to generate packet sequence', latency_ms=(time.time() - start_time) * 1000)
+                return AttackResult(
+                    status=AttackStatus.ERROR,
+                    error_message="Failed to generate packet sequence",
+                    latency_ms=(time.time() - start_time) * 1000,
+                )
             total_bytes_sent = 0
             packets_sent = 0
             for packet_data, delay in packet_sequence:
@@ -281,21 +343,50 @@ class TrafficMimicryAttack(BaseAttack):
                 if time.time() - start_time > context.timeout:
                     break
             execution_time = (time.time() - start_time) * 1000
-            return AttackResult(status=AttackStatus.SUCCESS, latency_ms=execution_time, packets_sent=packets_sent, bytes_sent=total_bytes_sent, connection_established=True, data_transmitted=packets_sent > 0, metadata={'profile_used': profile.name, 'traffic_type': profile.traffic_type.value, 'sequence_length': len(packet_sequence), 'total_delay_ms': sum((delay for _, delay in packet_sequence)), 'fingerprint_based_selection': fingerprint is not None})
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=execution_time,
+                packets_sent=packets_sent,
+                bytes_sent=total_bytes_sent,
+                connection_established=True,
+                data_transmitted=packets_sent > 0,
+                metadata={
+                    "profile_used": profile.name,
+                    "traffic_type": profile.traffic_type.value,
+                    "sequence_length": len(packet_sequence),
+                    "total_delay_ms": sum((delay for _, delay in packet_sequence)),
+                    "fingerprint_based_selection": fingerprint is not None,
+                },
+            )
         except Exception as e:
-            LOG.error(f'Traffic mimicry execution failed: {e}')
-            return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=(time.time() - start_time) * 1000)
+            LOG.error(f"Traffic mimicry execution failed: {e}")
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                latency_ms=(time.time() - start_time) * 1000,
+            )
 
     def _register_default_profiles(self):
         """Register default traffic profiles."""
 
         def _register_default_profiles(self):
             """Register default traffic profiles."""
-            from core.bypass.attacks.combo.traffic_profiles import ZoomTrafficProfile, TelegramTrafficProfile, WhatsAppTrafficProfile, GenericBrowsingProfile
-            profiles = [ZoomTrafficProfile(), TelegramTrafficProfile(), WhatsAppTrafficProfile(), GenericBrowsingProfile()]
+            from core.bypass.attacks.combo.traffic_profiles import (
+                ZoomTrafficProfile,
+                TelegramTrafficProfile,
+                WhatsAppTrafficProfile,
+                GenericBrowsingProfile,
+            )
+
+            profiles = [
+                ZoomTrafficProfile(),
+                TelegramTrafficProfile(),
+                WhatsAppTrafficProfile(),
+                GenericBrowsingProfile(),
+            ]
             for profile in profiles:
                 self.register_profile(profile)
-            LOG.info(f'Registered {len(profiles)} default traffic profiles')
+            LOG.info(f"Registered {len(profiles)} default traffic profiles")
 
     def get_available_profiles(self) -> List[str]:
         """Get list of available profile names."""
@@ -303,10 +394,14 @@ class TrafficMimicryAttack(BaseAttack):
 
     def get_profile_stats(self) -> Dict[str, Any]:
         """Get statistics about registered profiles."""
-        stats = {'total_profiles': len(self._profiles), 'profiles_by_type': {}, 'domain_cache_size': len(self._domain_profile_cache)}
+        stats = {
+            "total_profiles": len(self._profiles),
+            "profiles_by_type": {},
+            "domain_cache_size": len(self._domain_profile_cache),
+        }
         for profile in self._profiles.values():
             traffic_type = profile.traffic_type.value
-            if traffic_type not in stats['profiles_by_type']:
-                stats['profiles_by_type'][traffic_type] = 0
-            stats['profiles_by_type'][traffic_type] += 1
+            if traffic_type not in stats["profiles_by_type"]:
+                stats["profiles_by_type"][traffic_type] = 0
+            stats["profiles_by_type"][traffic_type] += 1
         return stats

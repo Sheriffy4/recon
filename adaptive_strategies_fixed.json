@@ -1,0 +1,17 @@
+{
+  "version": "4.2_adaptive_fixed",
+  "generated_at": 1756726679.3324342,
+  "generator": "AdaptiveStrategyFinderFixed",
+  "strategies": {
+    "x.com": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3",
+    "instagram.com": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3",
+    "rutracker.org": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
+  },
+  "learned_patterns": {},
+  "summary": {
+    "total_domains": 3,
+    "successful_domains": 0,
+    "success_rate": 0.0,
+    "learned_patterns_count": 0
+  }
+}

@@ -4,6 +4,7 @@ Real Domain Accessibility Tester
 Uses aiohttp to perform real HTTP requests to test domain accessibility
 and measure actual network latency. Replaces basic socket testing.
 """
+
 import asyncio
 import aiohttp
 import time
@@ -11,14 +12,16 @@ import logging
 import ssl
 from typing import Optional, Tuple, Dict, Any
 from core.bypass.attacks.base import AttackContext
-LOG = logging.getLogger('DomainTester')
+
+LOG = logging.getLogger("DomainTester")
+
 
 class DomainTester:
     """
     Tests real domain accessibility using HTTP requests.
     """
 
-    def __init__(self, timeout: float=10.0):
+    def __init__(self, timeout: float = 10.0):
         self.timeout = timeout
         self.logger = LOG
         self.session = None
@@ -29,12 +32,26 @@ class DomainTester:
             ssl_context = ssl.create_default_context()
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
-            connector = aiohttp.TCPConnector(ssl=ssl_context, limit=10, limit_per_host=5, ttl_dns_cache=300, use_dns_cache=True)
+            connector = aiohttp.TCPConnector(
+                ssl=ssl_context,
+                limit=10,
+                limit_per_host=5,
+                ttl_dns_cache=300,
+                use_dns_cache=True,
+            )
             timeout = aiohttp.ClientTimeout(total=self.timeout)
-            self.session = aiohttp.ClientSession(connector=connector, timeout=timeout, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'})
+            self.session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                },
+            )
         return self.session
 
-    async def test_domain_accessibility(self, domain: str, use_https: bool=True) -> Tuple[bool, float, Optional[str], Optional[Dict]]:
+    async def test_domain_accessibility(
+        self, domain: str, use_https: bool = True
+    ) -> Tuple[bool, float, Optional[str], Optional[Dict]]:
         """
         Test domain accessibility using HTTP request.
 
@@ -48,25 +65,37 @@ class DomainTester:
         start_time = time.time()
         try:
             session = await self._get_session()
-            protocol = 'https' if use_https else 'http'
-            url = f'{protocol}://{domain}/'
+            protocol = "https" if use_https else "http"
+            url = f"{protocol}://{domain}/"
             async with session.get(url) as response:
                 content = await response.read()
                 latency_ms = (time.time() - start_time) * 1000
-                response_info = {'status_code': response.status, 'headers': dict(response.headers), 'content_length': len(content), 'url': str(response.url), 'content_preview': content[:200].decode('utf-8', errors='ignore') if content else ''}
+                response_info = {
+                    "status_code": response.status,
+                    "headers": dict(response.headers),
+                    "content_length": len(content),
+                    "url": str(response.url),
+                    "content_preview": (
+                        content[:200].decode("utf-8", errors="ignore")
+                        if content
+                        else ""
+                    ),
+                }
                 success = self._analyze_response_for_blocking(response, content)
                 return (success, latency_ms, None, response_info)
         except asyncio.TimeoutError:
             latency_ms = (time.time() - start_time) * 1000
-            return (False, latency_ms, 'Request timeout', None)
+            return (False, latency_ms, "Request timeout", None)
         except aiohttp.ClientError as e:
             latency_ms = (time.time() - start_time) * 1000
-            return (False, latency_ms, f'HTTP client error: {e}', None)
+            return (False, latency_ms, f"HTTP client error: {e}", None)
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
-            return (False, latency_ms, f'Unexpected error: {e}', None)
+            return (False, latency_ms, f"Unexpected error: {e}", None)
 
-    def _analyze_response_for_blocking(self, response: aiohttp.ClientResponse, content: bytes) -> bool:
+    def _analyze_response_for_blocking(
+        self, response: aiohttp.ClientResponse, content: bytes
+    ) -> bool:
         """
         Analyze HTTP response to detect DPI blocking.
 
@@ -84,19 +113,39 @@ class DomainTester:
         elif response.status >= 500:
             return False
         if content:
-            content_str = content.decode('utf-8', errors='ignore').lower()
-            blocking_indicators = ['blocked', 'forbidden', 'access denied', 'dpi', 'censored', 'restricted', 'not available', 'blocked by', 'access restricted', 'this site is blocked', 'site blocked', 'content blocked']
+            content_str = content.decode("utf-8", errors="ignore").lower()
+            blocking_indicators = [
+                "blocked",
+                "forbidden",
+                "access denied",
+                "dpi",
+                "censored",
+                "restricted",
+                "not available",
+                "blocked by",
+                "access restricted",
+                "this site is blocked",
+                "site blocked",
+                "content blocked",
+            ]
             for indicator in blocking_indicators:
                 if indicator in content_str:
                     return False
             if len(content) < 100 and response.status != 204:
                 return False
-        server_header = response.headers.get('Server', '').lower()
-        if any((block_server in server_header for block_server in ['block', 'filter', 'proxy'])):
+        server_header = response.headers.get("Server", "").lower()
+        if any(
+            (
+                block_server in server_header
+                for block_server in ["block", "filter", "proxy"]
+            )
+        ):
             return False
         return True
 
-    async def test_domain_with_bypass(self, context: AttackContext) -> Tuple[bool, float, Optional[str], Optional[Dict]]:
+    async def test_domain_with_bypass(
+        self, context: AttackContext
+    ) -> Tuple[bool, float, Optional[str], Optional[Dict]]:
         """
         Test domain accessibility with bypass strategy applied.
 
@@ -109,7 +158,9 @@ class DomainTester:
         Returns:
             Tuple of (success, latency_ms, error_message, response_info)
         """
-        use_https = context.dst_port == 443 or (context.domain and 'https' in context.domain)
+        use_https = context.dst_port == 443 or (
+            context.domain and "https" in context.domain
+        )
         return await self.test_domain_accessibility(context.domain, use_https)
 
     async def compare_blocked_vs_unblocked(self, domain: str) -> Dict[str, Any]:
@@ -122,9 +173,33 @@ class DomainTester:
         Returns:
             Dictionary with comparison results
         """
-        baseline_success, baseline_latency, baseline_error, baseline_info = await self.test_domain_accessibility(domain)
-        bypass_success, bypass_latency, bypass_error, bypass_info = await self.test_domain_accessibility(domain)
-        return {'domain': domain, 'baseline': {'success': baseline_success, 'latency_ms': baseline_latency, 'error': baseline_error, 'info': baseline_info}, 'bypass': {'success': bypass_success, 'latency_ms': bypass_latency, 'error': bypass_error, 'info': bypass_info}, 'bypass_effective': bypass_success and (not baseline_success), 'improvement': bypass_latency - baseline_latency if baseline_success and bypass_success else 0}
+        baseline_success, baseline_latency, baseline_error, baseline_info = (
+            await self.test_domain_accessibility(domain)
+        )
+        bypass_success, bypass_latency, bypass_error, bypass_info = (
+            await self.test_domain_accessibility(domain)
+        )
+        return {
+            "domain": domain,
+            "baseline": {
+                "success": baseline_success,
+                "latency_ms": baseline_latency,
+                "error": baseline_error,
+                "info": baseline_info,
+            },
+            "bypass": {
+                "success": bypass_success,
+                "latency_ms": bypass_latency,
+                "error": bypass_error,
+                "info": bypass_info,
+            },
+            "bypass_effective": bypass_success and (not baseline_success),
+            "improvement": (
+                bypass_latency - baseline_latency
+                if baseline_success and bypass_success
+                else 0
+            ),
+        }
 
     async def close(self):
         """Close the aiohttp session."""
@@ -141,7 +216,10 @@ class DomainTester:
             except:
                 pass
 
-async def test_domain_accessibility_async(domain: str, timeout: float=10.0) -> Tuple[bool, float, Optional[str]]:
+
+async def test_domain_accessibility_async(
+    domain: str, timeout: float = 10.0
+) -> Tuple[bool, float, Optional[str]]:
     """
     Async function to test domain accessibility.
 
@@ -159,7 +237,10 @@ async def test_domain_accessibility_async(domain: str, timeout: float=10.0) -> T
     finally:
         await tester.close()
 
-def test_domain_accessibility_sync(domain: str, timeout: float=10.0) -> Tuple[bool, float, Optional[str]]:
+
+def test_domain_accessibility_sync(
+    domain: str, timeout: float = 10.0
+) -> Tuple[bool, float, Optional[str]]:
     """
     Synchronous wrapper for domain accessibility testing.
 
@@ -179,18 +260,25 @@ def test_domain_accessibility_sync(domain: str, timeout: float=10.0) -> Tuple[bo
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
                 try:
-                    return new_loop.run_until_complete(test_domain_accessibility_async(domain, timeout))
+                    return new_loop.run_until_complete(
+                        test_domain_accessibility_async(domain, timeout)
+                    )
                 finally:
                     new_loop.close()
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(run_in_thread)
                 return future.result(timeout=timeout + 5)
         else:
-            return loop.run_until_complete(test_domain_accessibility_async(domain, timeout))
+            return loop.run_until_complete(
+                test_domain_accessibility_async(domain, timeout)
+            )
     except:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            return loop.run_until_complete(test_domain_accessibility_async(domain, timeout))
+            return loop.run_until_complete(
+                test_domain_accessibility_async(domain, timeout)
+            )
         finally:
             loop.close()

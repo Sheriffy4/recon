@@ -147,7 +147,9 @@ class DPIFingerprint:
     reliability_score: float = 0.0
 
     # >>>>> НОВЫЙ КОД: Поле для хранения типа блокировки <<<<<
-    block_type: str = "unknown"  # 'rst', 'timeout', 'ssl_block', 'dns_hijack', 'content_block', 'none'
+    block_type: str = (
+        "unknown"  # 'rst', 'timeout', 'ssl_block', 'dns_hijack', 'content_block', 'none'
+    )
     # >>>>> КОНЕЦ НОВОГО КОДА <<<<<
 
     # Behavioral Vulnerabilities

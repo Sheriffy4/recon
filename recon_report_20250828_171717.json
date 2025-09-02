@@ -1,0 +1,1795 @@
+{
+  "timestamp": "2025-08-28T17:17:17.171627",
+  "target": "sites.txt",
+  "port": 443,
+  "total_strategies_tested": 20,
+  "working_strategies_found": 17,
+  "success_rate": 0.85,
+  "best_strategy": {
+    "strategy_dict": {
+      "params": {
+        "positions": [
+          5
+        ],
+        "split_pos": 5,
+        "overlap_size": 20
+      },
+      "name": "seqovl"
+    },
+    "strategy": "seqovl(positions=[5], split_pos=5, overlap_size=20)",
+    "result_status": "PARTIAL_SUCCESS",
+    "successful_sites": 3,
+    "total_sites": 7,
+    "success_rate": 0.42857142857142855,
+    "avg_latency_ms": 557.9328536987305,
+    "fingerprint_used": false,
+    "dpi_type": null,
+    "dpi_confidence": null
+  },
+  "execution_time_seconds": 476.23680329322815,
+  "domain_status": {
+    "https://x.com": "BLOCKED",
+    "https://instagram.com": "BLOCKED",
+    "https://nnmclub.to": "BLOCKED",
+    "https://rutracker.org": "BLOCKED",
+    "https://abs.twimg.com": "BLOCKED",
+    "https://abs-0.twimg.com": "BLOCKED",
+    "https://youtube.com": "BLOCKED"
+  },
+  "fingerprints": {
+    "x.com": {
+      "target": "x.com:443",
+      "timestamp": 1756390169.2538025,
+      "analysis_duration": 138.23087310791016,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 1400,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 41.43679999833694,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "x.com",
+          "timestamp": 1756390169.2573135,
+          "timing": {
+            "latency_ms": 68.36440000042785,
+            "jitter_ms": 19.783157112875134,
+            "packet_timing": [
+              121.19019999954617,
+              55.39100000169128,
+              62.895800001570024,
+              68.41770000028191,
+              77.95400000031805,
+              54.710299998987466,
+              59.61150000075577,
+              61.07540000084555,
+              57.82600000020466,
+              64.57210000007763
+            ],
+            "connection_time_ms": 37.67254999875149,
+            "first_byte_time_ms": 30.688969999391702,
+            "total_time_ms": 68.36440000042785,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 1.0,
+              "error_codes": [
+                400,
+                400,
+                400,
+                400,
+                400
+              ],
+              "response_sizes": [
+                414,
+                414,
+                414,
+                414,
+                414
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 5
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 1
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756390307.4841907,
+            "target": "x.com",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 0.9299999999999999
+        },
+        "tcp_analysis": {
+          "target": "x.com",
+          "timestamp": 1756390169.2573135,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1400,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 41.43679999833694
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    },
+    "instagram.com": {
+      "target": "instagram.com:443",
+      "timestamp": 1756390307.4864511,
+      "analysis_duration": 30.19044828414917,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 1392,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 159.13609999915934,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "instagram.com",
+          "timestamp": 1756390307.4885948,
+          "timing": {
+            "latency_ms": 294.77024000007077,
+            "jitter_ms": 19.16680935312002,
+            "packet_timing": [
+              339.4802000002528,
+              282.8917000006186,
+              277.6680999995733,
+              302.21700000038254,
+              306.9790000008652,
+              287.3858000020846,
+              283.8878000002296,
+              283.9784999996482,
+              278.19449999879,
+              305.0197999982629
+            ],
+            "connection_time_ms": 150.19938999903388,
+            "first_byte_time_ms": 144.56866000000446,
+            "total_time_ms": 294.77024000007077,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [
+                7,
+                7,
+                7,
+                7,
+                7
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 0
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 1
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756390336.4008038,
+            "target": "instagram.com",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 0.78
+        },
+        "tcp_analysis": {
+          "target": "instagram.com",
+          "timestamp": 1756390307.489595,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1392,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 159.13609999915934
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    },
+    "nnmclub.to": {
+      "target": "nnmclub.to:443",
+      "timestamp": 1756390337.681002,
+      "analysis_duration": 30.208154678344727,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 1400,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 38.15319999921485,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "nnmclub.to",
+          "timestamp": 1756390337.6834943,
+          "timing": {
+            "latency_ms": 109.5934999990277,
+            "jitter_ms": 19.44119190952961,
+            "packet_timing": [
+              149.51319999818224,
+              102.39680000086082,
+              113.96699999750126,
+              97.1599000004062,
+              96.11239999867394,
+              98.59969999888563,
+              96.47159999803989,
+              98.11659999832045,
+              140.21209999918938,
+              103.38570000021718
+            ],
+            "connection_time_ms": 57.68730999916443,
+            "first_byte_time_ms": 51.90398000049754,
+            "total_time_ms": 109.5934999990277,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 1.0,
+              "error_codes": [
+                400,
+                400,
+                400,
+                400,
+                400
+              ],
+              "response_sizes": [
+                414,
+                414,
+                414,
+                414,
+                414
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 5
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 1
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756390357.0158193,
+            "target": "nnmclub.to",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 0.9299999999999999
+        },
+        "tcp_analysis": {
+          "target": "nnmclub.to",
+          "timestamp": 1756390337.6837075,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1400,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 38.15319999921485
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    },
+    "rutracker.org": {
+      "target": "rutracker.org:443",
+      "timestamp": 1756390367.8926463,
+      "analysis_duration": 30.180657148361206,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 1400,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 56.08100000245031,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "rutracker.org",
+          "timestamp": 1756390367.8983202,
+          "timing": {
+            "latency_ms": 106.26039000053424,
+            "jitter_ms": 21.693827067127227,
+            "packet_timing": [
+              141.6553000017302,
+              97.80200000022887,
+              112.8032999986317,
+              136.61689999935334,
+              101.9155000030878,
+              105.33450000002631,
+              98.79800000271644,
+              105.04439999931492,
+              63.62970000191126,
+              99.0042999983416
+            ],
+            "connection_time_ms": 57.034110000313376,
+            "first_byte_time_ms": 49.224109999704524,
+            "total_time_ms": 106.26039000053424,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 1.0,
+              "error_codes": [
+                400,
+                400,
+                400,
+                400,
+                400
+              ],
+              "response_sizes": [
+                414,
+                414,
+                414,
+                414,
+                414
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 5
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 1
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756390387.2456057,
+            "target": "rutracker.org",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 0.9299999999999999
+        },
+        "tcp_analysis": {
+          "target": "rutracker.org",
+          "timestamp": 1756390367.8983202,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1400,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 56.08100000245031
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    },
+    "abs.twimg.com": {
+      "target": "abs.twimg.com:443",
+      "timestamp": 1756390398.0759704,
+      "analysis_duration": 30.219040155410767,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 1440,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 65.89959999837447,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "abs.twimg.com",
+          "timestamp": 1756390398.0807703,
+          "timing": {
+            "latency_ms": 110.60548000023118,
+            "jitter_ms": 29.65345031773529,
+            "packet_timing": [
+              193.61399999979767,
+              102.99850000228616,
+              111.58179999983986,
+              95.77989999888814,
+              102.74109999954817,
+              101.28500000064378,
+              98.64250000100583,
+              93.77909999966505,
+              107.74669999955222,
+              97.88620000108494
+            ],
+            "connection_time_ms": 59.66658999932406,
+            "first_byte_time_ms": 50.93611000047531,
+            "total_time_ms": 110.60548000023118,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 0
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 1
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756390417.4315786,
+            "target": "abs.twimg.com",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 0.78
+        },
+        "tcp_analysis": {
+          "target": "abs.twimg.com",
+          "timestamp": 1756390398.0807703,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1440,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 65.89959999837447
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    },
+    "abs-0.twimg.com": {
+      "target": "abs-0.twimg.com:443",
+      "timestamp": 1756390428.2974894,
+      "analysis_duration": 30.218987703323364,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 1440,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 73.85929999873042,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "abs-0.twimg.com",
+          "timestamp": 1756390428.300702,
+          "timing": {
+            "latency_ms": 129.53810000071826,
+            "jitter_ms": 14.775487103385341,
+            "packet_timing": [
+              171.44790000020294,
+              124.23380000109319,
+              124.85750000269036,
+              124.91990000125952,
+              123.77800000103889,
+              124.40419999984442,
+              125.34249999953317,
+              123.01120000120136,
+              125.95000000146683,
+              127.43599999885191
+            ],
+            "connection_time_ms": 68.17445999949996,
+            "first_byte_time_ms": 61.36115000008431,
+            "total_time_ms": 129.53810000071826,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 0
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 1
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756390447.6599877,
+            "target": "abs-0.twimg.com",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 0.78
+        },
+        "tcp_analysis": {
+          "target": "abs-0.twimg.com",
+          "timestamp": 1756390428.3012803,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1440,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 73.85929999873042
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    },
+    "youtube.com": {
+      "target": "youtube.com:443",
+      "timestamp": 1756390458.5198743,
+      "analysis_duration": 33.57520771026611,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 1412,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 58.600600001227576,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "youtube.com",
+          "timestamp": 1756390458.5221632,
+          "timing": {
+            "latency_ms": 106.51526000001468,
+            "jitter_ms": 21.8225543401897,
+            "packet_timing": [
+              165.25539999929606,
+              108.03409999789437,
+              98.5326999980316,
+              97.75150000132271,
+              86.09010000145645,
+              90.78240000235382,
+              107.85440000108792,
+              104.34249999889289,
+              102.87190000235569,
+              103.63759999745525
+            ],
+            "connection_time_ms": 57.0791599999211,
+            "first_byte_time_ms": 49.43308999936562,
+            "total_time_ms": 106.51526000001468,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 0
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 0.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 1
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756390492.095082,
+            "target": "youtube.com",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 0.78
+        },
+        "tcp_analysis": {
+          "target": "youtube.com",
+          "timestamp": 1756390458.5223663,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1412,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 58.600600001227576
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    }
+  },
+  "all_results": [
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            5
+          ],
+          "split_pos": 5,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[5], split_pos=5, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 557.9328536987305,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            6
+          ],
+          "split_pos": 6,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[6], split_pos=6, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 560.694138209025,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            8
+          ],
+          "split_pos": 8,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[8], split_pos=8, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 564.8369789123535,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 20,
+          "ttl": 1
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=20, ttl=1)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 566.8790340423584,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 20,
+          "ttl": 128
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=20, ttl=128)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 579.5693397521973,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            7
+          ],
+          "split_pos": 7,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[7], split_pos=7, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 583.5665861765543,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 584.666887919108,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 588.9726479848226,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 590.7021363576254,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1
+          ],
+          "split_pos": 1,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1], split_pos=1, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 591.545820236206,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 20,
+          "ttl": 127
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=20, ttl=127)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 596.2771574656168,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            2
+          ],
+          "split_pos": 2,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[2], split_pos=2, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 611.9225025177002,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 20,
+          "ttl": 64
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=20, ttl=64)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 613.0439440409342,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            10
+          ],
+          "split_pos": 10,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[10], split_pos=10, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 614.0745480855306,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 20,
+          "ttl": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=20, ttl=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 632.1054299672445,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            15
+          ],
+          "split_pos": 15,
+          "overlap_size": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[15], split_pos=15, overlap_size=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 7,
+      "success_rate": 0.42857142857142855,
+      "avg_latency_ms": 846.5690612792969,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 3,
+          "ttl": 5
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 2,
+      "total_sites": 7,
+      "success_rate": 0.2857142857142857,
+      "avg_latency_ms": 289.9125814437866,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 1,
+          "ttl": 2
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(split_pos=1, ttl=2)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 7,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "ttl": 3
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(positions=[1, 5, 10], ttl=3)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 7,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 3
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=3)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 7,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    }
+  ],
+  "learning_cache_stats": {
+    "total_strategy_records": 1470,
+    "total_tests_performed": 2504,
+    "domains_learned": 10,
+    "dpi_patterns_learned": 6,
+    "average_success_rate": 0.2147488194480329
+  }
+}

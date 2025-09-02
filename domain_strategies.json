@@ -1,102 +1,254 @@
 {
   "version": "2.0",
-  "last_updated": "2025-08-27T10:57:06.637078",
+  "last_updated": "2025-09-02T10:12:13.668683",
   "domain_strategies": {
     "default": {
       "domain": "default",
-      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
-      "success_rate": 1.0,
-      "avg_latency_ms": 291.6807333628337,
-      "last_tested": "2025-08-13T15:09:30.236991",
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=8)",
+      "success_rate": 0.38461538461538464,
+      "avg_latency_ms": 260.62638759613037,
+      "last_tested": "2025-09-01T17:04:02.658864",
       "test_count": 1
-    },
-    "rutracker.org": {
-      "domain": "rutracker.org",
-      "strategy": "badsum_race(ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 328.68146896362305,
-      "last_tested": "2025-08-27T10:57:06.637078",
-      "test_count": 150
-    },
-    "kinozal.tv": {
-      "domain": "kinozal.tv",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.590372",
-      "test_count": 11
-    },
-    "nnmclub.to": {
-      "domain": "nnmclub.to",
-      "strategy": "badsum_race(ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 328.68146896362305,
-      "last_tested": "2025-08-27T10:57:06.637078",
-      "test_count": 150
-    },
-    "rutor.info": {
-      "domain": "rutor.info",
-      "strategy": "badsum_race(ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 328.68146896362305,
-      "last_tested": "2025-08-27T10:57:06.637078",
-      "test_count": 138
-    },
-    "instagram.com": {
-      "domain": "instagram.com",
-      "strategy": "badsum_race(ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 328.68146896362305,
-      "last_tested": "2025-08-27T10:57:06.637078",
-      "test_count": 190
     },
     "x.com": {
       "domain": "x.com",
-      "strategy": "badsum_race(ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 328.68146896362305,
-      "last_tested": "2025-08-27T10:57:06.637078",
-      "test_count": 138
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.666658",
+      "test_count": 5
     },
-    "mail.ru": {
-      "domain": "mail.ru",
-      "strategy": "badsum_race(ttl=12)",
-      "success_rate": 0.2,
-      "avg_latency_ms": 328.68146896362305,
-      "last_tested": "2025-08-27T10:57:06.637078",
-      "test_count": 138
+    "instagram.com": {
+      "domain": "instagram.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.666658",
+      "test_count": 5
     },
-    "tapochek.net": {
-      "domain": "tapochek.net",
-      "strategy": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=8 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-      "success_rate": 0.42857142857142855,
-      "avg_latency_ms": 411.5554491678874,
-      "last_tested": "2025-08-13T15:35:36.590372",
-      "test_count": 10
+    "nnmclub.to": {
+      "domain": "nnmclub.to",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
     },
-    "www.instagram.com": {
-      "domain": "www.instagram.com",
-      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
-      "success_rate": 0.25,
-      "avg_latency_ms": 791.9576168060303,
-      "last_tested": "2025-08-16T18:53:44.905049",
-      "test_count": 52
+    "rutracker.org": {
+      "domain": "rutracker.org",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "youtube.com": {
+      "domain": "youtube.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
     },
     "facebook.com": {
       "domain": "facebook.com",
-      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
-      "success_rate": 0.25,
-      "avg_latency_ms": 791.9576168060303,
-      "last_tested": "2025-08-16T18:53:44.906329",
-      "test_count": 52
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
     },
-    "cloudflare-ech.com": {
-      "domain": "cloudflare-ech.com",
-      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=4",
-      "success_rate": 0.25,
-      "avg_latency_ms": 791.9576168060303,
-      "last_tested": "2025-08-16T18:53:44.906329",
-      "test_count": 52
+    "telegram.org": {
+      "domain": "telegram.org",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "www.x.com": {
+      "domain": "www.x.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "api.x.com": {
+      "domain": "api.x.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "mobile.x.com": {
+      "domain": "mobile.x.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "www.youtube.com": {
+      "domain": "www.youtube.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "www.facebook.com": {
+      "domain": "www.facebook.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "pbs.twimg.com": {
+      "domain": "pbs.twimg.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "abs.twimg.com": {
+      "domain": "abs.twimg.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "abs-0.twimg.com": {
+      "domain": "abs-0.twimg.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "video.twimg.com": {
+      "domain": "video.twimg.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "ton.twimg.com": {
+      "domain": "ton.twimg.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "static.cdninstagram.com": {
+      "domain": "static.cdninstagram.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "scontent-arn2-1.cdninstagram.com": {
+      "domain": "scontent-arn2-1.cdninstagram.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "edge-chat.instagram.com": {
+      "domain": "edge-chat.instagram.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "static.xx.fbcdn.net": {
+      "domain": "static.xx.fbcdn.net",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.667651",
+      "test_count": 5
+    },
+    "external.xx.fbcdn.net": {
+      "domain": "external.xx.fbcdn.net",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
+    },
+    "youtubei.googleapis.com": {
+      "domain": "youtubei.googleapis.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
+    },
+    "i.ytimg.com": {
+      "domain": "i.ytimg.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
+    },
+    "i1.ytimg.com": {
+      "domain": "i1.ytimg.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
+    },
+    "i2.ytimg.com": {
+      "domain": "i2.ytimg.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
+    },
+    "lh3.ggpht.com": {
+      "domain": "lh3.ggpht.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
+    },
+    "lh4.ggpht.com": {
+      "domain": "lh4.ggpht.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
+    },
+    "www.fastly.com": {
+      "domain": "www.fastly.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
+    },
+    "api.fastly.com": {
+      "domain": "api.fastly.com",
+      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
+      "success_rate": 0.34615384615384615,
+      "avg_latency_ms": 234.90341504414877,
+      "last_tested": "2025-09-02T10:12:13.668683",
+      "test_count": 5
     }
   }
 }

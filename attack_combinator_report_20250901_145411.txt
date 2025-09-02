@@ -1,0 +1,61 @@
+================================================================================
+ATTACK COMBINATOR COMPREHENSIVE TEST REPORT
+Task 17: Intelligent Attack Combination System
+================================================================================
+Test Suite: Comprehensive Attack Combinator Test Suite
+Timestamp: 2025-09-01T14:54:11.206001
+Duration: 19.7 seconds
+
+EXECUTIVE SUMMARY
+----------------------------------------
+Scenarios Tested: 3
+Total Attacks: 25
+Successful Attacks: 18
+Overall Success Rate: 72.0%
+Average Latency: 173.0ms
+⚠️  GOOD: Majority of scenarios met expectations
+
+SCENARIO RESULTS
+--------------------------------------------------------------------------------
+Scenario                  | Success Rate | Attacks  | Expected  | Status
+--------------------------------------------------------------------------------
+adaptive_selection_test   | 75.0%        | 12       | 70.0%     | ✅ PASS
+social_media_test         | 63.6%        | 11       | 75.0%     | ❌ FAIL
+fallback_mechanism_test   | 100.0%       | 2        | 40.0%     | ✅ PASS
+
+PERFORMANCE HIGHLIGHTS
+----------------------------------------
+Best Scenario: fallback_mechanism_test (100.0%)
+Worst Scenario: social_media_test (63.6%)
+
+TOP PERFORMING ATTACK STRATEGIES
+--------------------------------------------------
+1. fakeddisorder_basic  | 1.0% | 3 attempts | 149.7ms
+2. multidisorder        | 1.0% | 3 attempts | 112.2ms
+3. seqovl_standard      | 1.0% | 4 attempts | 196.3ms
+4. fakeddisorder_seqovl | 0.9% | 8 attempts | 199.1ms
+5. multisplit_aggressive | 0.8% | 4 attempts | 193.4ms
+
+ADAPTIVE SYSTEM PERFORMANCE
+----------------------------------------
+Total Learning Attempts: 32
+Global Success Rate: 0.8%
+Recent Success Rate: 0.7%
+⚠️  Recent Decline: -0.1% in recent attempts
+
+RECOMMENDATIONS
+----------------------------------------
+⚠️  Good performance with room for improvement.
+• Focus on underperforming scenarios
+• Tune adaptive selection parameters
+• Add more specialized attack strategies
+
+TECHNICAL DETAILS
+----------------------------------------
+Parallel Attack Limit: 3
+Adaptation Window: 50
+Success Threshold: 0.75
+Total Strategies Available: 18
+Attack Chains Defined: 6
+
+================================================================================

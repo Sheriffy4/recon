@@ -23,8 +23,10 @@ class DPIFamily(Enum):
     CLOUD_SECURITY = "Cloud_Security"
     UNKNOWN = "Unknown"
 
+
 class ProbeResponseType(Enum):
     """Тип ответа на зонд."""
+
     NO_RESPONSE = "no_response"  # Silent Drop
     TCP_RST = "tcp_rst"
     ICMP_UNREACHABLE = "icmp_unreachable"
@@ -32,9 +34,11 @@ class ProbeResponseType(Enum):
     DNS_SPOOFED = "dns_spoofed"
     ERROR = "error"
 
+
 @dataclass
 class ProbeResponse:
     """Структурированный ответ на активный зонд."""
+
     response_type: ProbeResponseType
     rtt_ms: float = 0.0
     ttl: Optional[int] = None

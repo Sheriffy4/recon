@@ -1,0 +1,508 @@
+{
+  "timestamp": "2025-08-29T16:07:03.255718",
+  "target": "sites.txt",
+  "port": 443,
+  "total_strategies_tested": 20,
+  "working_strategies_found": 16,
+  "success_rate": 0.8,
+  "best_strategy": {
+    "strategy_dict": {
+      "params": {
+        "positions": [
+          1
+        ],
+        "split_pos": 1,
+        "overlap_size": 10
+      },
+      "name": "seqovl"
+    },
+    "strategy": "seqovl(positions=[1], split_pos=1, overlap_size=10)",
+    "result_status": "PARTIAL_SUCCESS",
+    "successful_sites": 5,
+    "total_sites": 28,
+    "success_rate": 0.17857142857142858,
+    "avg_latency_ms": 256.46371841430664,
+    "fingerprint_used": false,
+    "dpi_type": null,
+    "dpi_confidence": null
+  },
+  "execution_time_seconds": 178.46163988113403,
+  "domain_status": {
+    "https://x.com": "BLOCKED",
+    "https://instagram.com": "BLOCKED",
+    "https://nnmclub.to": "BLOCKED",
+    "https://rutracker.org": "BLOCKED",
+    "https://abs.twimg.com": "BLOCKED",
+    "https://abs-0.twimg.com": "BLOCKED",
+    "https://youtube.com": "BLOCKED",
+    "https://*.twimg.com": "BLOCKED",
+    "https://pbs.twimg.com": "BLOCKED",
+    "https://video.twimg.com": "BLOCKED",
+    "https://ton.twimg.com": "BLOCKED",
+    "https://facebook.com": "BLOCKED",
+    "https://static.cdninstagram.com": "BLOCKED",
+    "https://scontent-arn2-1.cdninstagram.com": "BLOCKED",
+    "https://edge-chat.instagram.com": "BLOCKED",
+    "https://*.cdninstagram.com": "BLOCKED",
+    "https://*.fbcdn.net": "BLOCKED",
+    "https://www.x.com": "BLOCKED",
+    "https://api.x.com": "BLOCKED",
+    "https://mobile.x.com": "BLOCKED",
+    "https://www.youtube.com": "BLOCKED",
+    "https://*.ytimg.com": "BLOCKED",
+    "https://*.ggpht.com": "BLOCKED",
+    "https://www.facebook.com": "BLOCKED",
+    "https://*.xx.fbcdn.net": "BLOCKED",
+    "https://*.cloudflare.net": "BLOCKED",
+    "https://*.fastly.com": "BLOCKED",
+    "https://*.fastly.net": "BLOCKED"
+  },
+  "fingerprints": {},
+  "all_results": [
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1
+          ],
+          "split_pos": 1,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1], split_pos=1, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 256.46371841430664,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10,
+          "ttl": 6
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=6)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 259.10587310791016,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10,
+          "ttl": 3
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=3)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 263.42549324035645,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10,
+          "ttl": 12
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=12)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 269.85602378845215,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            7
+          ],
+          "split_pos": 7,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[7], split_pos=7, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 270.2003479003906,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 270.22461891174316,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10,
+          "ttl": 128
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=128)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 270.60818672180176,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10,
+          "ttl": 7
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=7)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 270.67790031433105,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 271.6830253601074,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            3
+          ],
+          "split_pos": 3,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[3], split_pos=3, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 273.54865074157715,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 275.88186264038086,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10,
+          "ttl": 20
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=20)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 275.9070873260498,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 278.65214347839355,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "split_pos": 3,
+          "overlap_size": 10,
+          "ttl": 2
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=2)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 279.8635482788086,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            10
+          ],
+          "split_pos": 10,
+          "overlap_size": 10
+        },
+        "name": "seqovl"
+      },
+      "strategy": "seqovl(positions=[10], split_pos=10, overlap_size=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 280.7351589202881,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            3,
+            10
+          ]
+        },
+        "name": "multidisorder"
+      },
+      "strategy": "multidisorder(positions=[3, 10])",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 5,
+      "total_sites": 28,
+      "success_rate": 0.17857142857142858,
+      "avg_latency_ms": 288.0094051361084,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 28,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 1,
+          "ttl": 2
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(split_pos=1, ttl=2)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 28,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 3
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=3)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 28,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            1,
+            5,
+            10
+          ],
+          "ttl": 3
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(positions=[1, 5, 10], ttl=3)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 28,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    }
+  ],
+  "learning_cache_stats": {
+    "total_strategy_records": 2584,
+    "total_tests_performed": 4204,
+    "domains_learned": 25,
+    "dpi_patterns_learned": 6,
+    "average_success_rate": 0.17858072979209924
+  }
+}

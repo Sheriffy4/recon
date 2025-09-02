@@ -7,20 +7,57 @@ Tests all timing attack implementations:
 - Delay-based evasion attacks
 - Burst traffic generation attacks
 """
+
+import os
+import sys
+
+# Add the parent directories to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(current_dir)
+recon_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, recon_dir)
+
 import pytest
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult, TimingPattern
-from core.bypass.attacks.timing.jitter_injection import JitterInjectionAttack, JitterConfiguration, JitterType
-from core.bypass.attacks.timing.delay_evasion import DelayEvasionAttack, DelayEvasionConfiguration, DelayPattern
-from core.bypass.attacks.timing.burst_traffic import BurstTrafficAttack, BurstConfiguration, BurstType, BurstTiming
-from core.bypass.attacks.timing_controller import TimingStrategy, PreciseTimingController
+from core.bypass.attacks.timing.timing_base import (
+    TimingAttackBase,
+    TimingConfiguration,
+    TimingResult,
+    TimingPattern,
+)
+from core.bypass.attacks.timing.jitter_injection import (
+    JitterInjectionAttack,
+    JitterConfiguration,
+    JitterType,
+)
+from core.bypass.attacks.timing.delay_evasion import (
+    DelayEvasionAttack,
+    DelayEvasionConfiguration,
+    DelayPattern,
+)
+from core.bypass.attacks.timing.burst_traffic import (
+    BurstTrafficAttack,
+    BurstConfiguration,
+    BurstType,
+    BurstTiming,
+)
+from core.bypass.attacks.timing_controller import (
+    TimingStrategy,
+    PreciseTimingController,
+)
+
 
 class TestTimingBase:
     """Test timing attack base functionality."""
 
     def setup_method(self):
         """Setup test fixtures."""
-        self.config = TimingConfiguration(base_delay_ms=10.0, min_delay_ms=1.0, max_delay_ms=100.0, pattern=TimingPattern.CONSTANT)
+        self.config = TimingConfiguration(
+            base_delay_ms=10.0,
+            min_delay_ms=1.0,
+            max_delay_ms=100.0,
+            pattern=TimingPattern.CONSTANT,
+        )
 
         class MockTimingAttack(TimingAttackBase):
             @property
@@ -30,12 +67,20 @@ class TestTimingBase:
             def _execute_timing_attack(self, context, timing_result):
                 timing_result.success = True
                 return AttackResult(status=AttackStatus.SUCCESS)
+
         self.attack = MockTimingAttack(self.config)
-        self.context = AttackContext(dst_ip='192.168.1.1', dst_port=443, domain='example.com', payload=b'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n')
+        self.context = AttackContext(
+            dst_ip="192.168.1.1",
+            dst_port=443,
+            domain="example.com",
+            payload=b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
+        )
 
     def test_timing_configuration_validation(self):
         """Test timing configuration validation."""
-        config = TimingConfiguration(min_delay_ms=-5.0, max_delay_ms=5.0, base_delay_ms=10.0)
+        config = TimingConfiguration(
+            min_delay_ms=-5.0, max_delay_ms=5.0, base_delay_ms=10.0
+        )
         assert config.min_delay_ms == 0.0
         assert config.max_delay_ms >= config.min_delay_ms
         assert config.base_delay_ms <= config.max_delay_ms
@@ -54,15 +99,21 @@ class TestTimingBase:
         self.config.pattern = TimingPattern.RANDOM
         delays = self.attack.generate_delay_sequence(10)
         assert len(delays) == 10
-        assert all((self.config.min_delay_ms <= d <= self.config.max_delay_ms for d in delays))
+        assert all(
+            (self.config.min_delay_ms <= d <= self.config.max_delay_ms for d in delays)
+        )
 
     def test_timing_execution(self):
         """Test timing attack execution."""
         result = self.attack.execute(self.context)
         assert isinstance(result, AttackResult)
-        assert result.status in [AttackStatus.SUCCESS, AttackStatus.FAILURE, AttackStatus.ERROR]
-        assert 'timing_result' in result.metadata
-        assert 'timing_statistics' in result.metadata
+        assert result.status in [
+            AttackStatus.SUCCESS,
+            AttackStatus.FAILURE,
+            AttackStatus.ERROR,
+        ]
+        assert "timing_result" in result.metadata
+        assert "timing_statistics" in result.metadata
 
     def test_timing_measurement(self):
         """Test timing measurement functionality."""
@@ -84,18 +135,30 @@ class TestTimingBase:
         delay_slow = self.attack._calculate_adaptive_delay(2)
         assert delay_slow < delay
 
+
 class TestJitterInjection:
     """Test jitter injection attacks."""
 
     def setup_method(self):
         """Setup test fixtures."""
-        self.config = JitterConfiguration(jitter_type=JitterType.UNIFORM, jitter_amplitude_ms=10.0, packets_per_burst=3)
+        self.config = JitterConfiguration(
+            jitter_type=JitterType.UNIFORM,
+            jitter_amplitude_ms=10.0,
+            packets_per_burst=3,
+        )
         self.attack = JitterInjectionAttack(self.config)
-        self.context = AttackContext(dst_ip='192.168.1.1', dst_port=443, domain='example.com', payload=b'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n')
+        self.context = AttackContext(
+            dst_ip="192.168.1.1",
+            dst_port=443,
+            domain="example.com",
+            payload=b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
+        )
 
     def test_jitter_configuration_validation(self):
         """Test jitter configuration validation."""
-        config = JitterConfiguration(jitter_amplitude_ms=-5.0, gaussian_stddev_ms=-1.0, packets_per_burst=0)
+        config = JitterConfiguration(
+            jitter_amplitude_ms=-5.0, gaussian_stddev_ms=-1.0, packets_per_burst=0
+        )
         assert config.jitter_amplitude_ms == 0.0
         assert config.gaussian_stddev_ms == 1.0
         assert config.packets_per_burst == 1
@@ -145,7 +208,7 @@ class TestJitterInjection:
         """Test jitter injection attack execution."""
         result = self.attack.execute(self.context)
         assert isinstance(result, AttackResult)
-        assert result.technique_used.startswith('jitter_injection_')
+        assert result.technique_used.startswith("jitter_injection_")
         assert result.packets_sent > 0
         assert result.bytes_sent > 0
 
@@ -163,10 +226,10 @@ class TestJitterInjection:
         """Test jitter statistics collection."""
         self.attack._generate_jitter_sequence(10)
         stats = self.attack.get_jitter_statistics()
-        assert 'jitter_type' in stats
-        assert 'jitter_amplitude_ms' in stats
-        assert 'packets_per_burst' in stats
-        assert stats['jitter_type'] == JitterType.UNIFORM
+        assert "jitter_type" in stats
+        assert "jitter_amplitude_ms" in stats
+        assert "packets_per_burst" in stats
+        assert stats["jitter_type"] == JitterType.UNIFORM
 
     def test_jitter_pattern_benchmark(self):
         """Test jitter pattern benchmarking."""
@@ -174,24 +237,36 @@ class TestJitterInjection:
         assert isinstance(benchmark_results, dict)
         assert len(benchmark_results) > 0
         for pattern, results in benchmark_results.items():
-            assert 'avg_jitter_ms' in results
-            assert 'min_jitter_ms' in results
-            assert 'max_jitter_ms' in results
-            assert 'values_generated' in results
-            assert results['values_generated'] == 50
+            assert "avg_jitter_ms" in results
+            assert "min_jitter_ms" in results
+            assert "max_jitter_ms" in results
+            assert "values_generated" in results
+            assert results["values_generated"] == 50
+
 
 class TestDelayEvasion:
     """Test delay-based evasion attacks."""
 
     def setup_method(self):
         """Setup test fixtures."""
-        self.config = DelayEvasionConfiguration(delay_pattern=DelayPattern.PROGRESSIVE, progression_factor=1.5, max_progression_steps=5)
+        self.config = DelayEvasionConfiguration(
+            delay_pattern=DelayPattern.PROGRESSIVE,
+            progression_factor=1.5,
+            max_progression_steps=5,
+        )
         self.attack = DelayEvasionAttack(self.config)
-        self.context = AttackContext(dst_ip='192.168.1.1', dst_port=443, domain='example.com', payload=b'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n')
+        self.context = AttackContext(
+            dst_ip="192.168.1.1",
+            dst_port=443,
+            domain="example.com",
+            payload=b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
+        )
 
     def test_delay_configuration_validation(self):
         """Test delay evasion configuration validation."""
-        config = DelayEvasionConfiguration(progression_factor=0.5, max_progression_steps=0, packets_per_delay=0)
+        config = DelayEvasionConfiguration(
+            progression_factor=0.5, max_progression_steps=0, packets_per_delay=0
+        )
         assert config.progression_factor == 1.5
         assert config.max_progression_steps == 1
         assert config.packets_per_delay == 1
@@ -237,7 +312,7 @@ class TestDelayEvasion:
         """Test delay evasion attack execution."""
         result = self.attack.execute(self.context)
         assert isinstance(result, AttackResult)
-        assert result.technique_used.startswith('delay_evasion_')
+        assert result.technique_used.startswith("delay_evasion_")
         assert result.packets_sent > 0
         assert result.bytes_sent > 0
 
@@ -245,9 +320,9 @@ class TestDelayEvasion:
         """Test pattern effectiveness tracking."""
         self.attack.execute(self.context)
         stats = self.attack.get_delay_evasion_statistics()
-        assert 'pattern_effectiveness' in stats
-        assert 'delay_pattern' in stats
-        assert stats['delay_pattern'] == DelayPattern.PROGRESSIVE.value
+        assert "pattern_effectiveness" in stats
+        assert "delay_pattern" in stats
+        assert stats["delay_pattern"] == DelayPattern.PROGRESSIVE.value
 
 
 class TestBurstTraffic:
@@ -255,13 +330,29 @@ class TestBurstTraffic:
 
     def setup_method(self):
         """Setup test fixtures."""
-        self.config = BurstConfiguration(burst_type=BurstType.FIXED_SIZE, default_burst_size=5, total_bursts=3, burst_interval_ms=50.0)
+        self.config = BurstConfiguration(
+            burst_type=BurstType.FIXED_SIZE,
+            default_burst_size=5,
+            total_bursts=3,
+            burst_interval_ms=50.0,
+        )
         self.attack = BurstTrafficAttack(self.config)
-        self.context = AttackContext(dst_ip='192.168.1.1', dst_port=443, domain='example.com', payload=b'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n')
+        self.context = AttackContext(
+            dst_ip="192.168.1.1",
+            dst_port=443,
+            domain="example.com",
+            payload=b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
+        )
 
     def test_burst_configuration_validation(self):
         """Test burst configuration validation."""
-        config = BurstConfiguration(min_burst_size=0, max_burst_size=5, default_burst_size=10, concurrent_streams=0, total_bursts=0)
+        config = BurstConfiguration(
+            min_burst_size=0,
+            max_burst_size=5,
+            default_burst_size=10,
+            concurrent_streams=0,
+            total_bursts=0,
+        )
         assert config.min_burst_size == 1
         assert config.default_burst_size <= config.max_burst_size
         assert config.concurrent_streams == 1
@@ -309,7 +400,12 @@ class TestBurstTraffic:
         for i in range(5):
             size = self.attack._calculate_burst_size(i)
             sizes.append(size)
-        assert all((self.config.min_burst_size <= size <= self.config.max_burst_size for size in sizes))
+        assert all(
+            (
+                self.config.min_burst_size <= size <= self.config.max_burst_size
+                for size in sizes
+            )
+        )
         assert len(sizes) == 5
 
     def test_random_burst_size_calculation(self):
@@ -354,7 +450,7 @@ class TestBurstTraffic:
         """Test burst traffic attack execution."""
         result = self.attack.execute(self.context)
         assert isinstance(result, AttackResult)
-        assert result.technique_used.startswith('burst_traffic_')
+        assert result.technique_used.startswith("burst_traffic_")
         assert result.packets_sent > 0
         assert result.bytes_sent > 0
 
@@ -370,21 +466,24 @@ class TestBurstTraffic:
         self.config.total_bursts = 2
         result = self.attack.execute(self.context)
         assert isinstance(result, AttackResult)
-        assert result.packets_sent >= self.config.total_bursts * self.config.default_burst_size
+        assert (
+            result.packets_sent
+            >= self.config.total_bursts * self.config.default_burst_size
+        )
 
     def test_burst_statistics(self):
         """Test burst statistics collection."""
         self.attack.execute(self.context)
         stats = self.attack.get_burst_statistics()
-        assert 'burst_type' in stats
-        assert 'burst_timing' in stats
-        assert 'concurrent_streams' in stats
-        assert 'metrics' in stats
-        metrics = stats['metrics']
-        assert 'bursts_sent' in metrics
-        assert 'total_packets' in metrics
-        assert 'total_bytes' in metrics
-        assert 'success_rate' in metrics
+        assert "burst_type" in stats
+        assert "burst_timing" in stats
+        assert "concurrent_streams" in stats
+        assert "metrics" in stats
+        metrics = stats["metrics"]
+        assert "bursts_sent" in metrics
+        assert "total_packets" in metrics
+        assert "total_bytes" in metrics
+        assert "success_rate" in metrics
 
     def test_adaptive_burst_size(self):
         """Test adaptive burst size calculation."""
@@ -405,18 +504,24 @@ class TestBurstTraffic:
         assert isinstance(benchmark_results, dict)
         assert len(benchmark_results) > 0
         for pattern, results in benchmark_results.items():
-            assert 'sequence_length' in results
-            assert 'total_packets' in results
-            assert 'avg_burst_size' in results
-            assert 'generation_time_ms' in results
-            assert results['sequence_length'] == 3
+            assert "sequence_length" in results
+            assert "total_packets" in results
+            assert "avg_burst_size" in results
+            assert "generation_time_ms" in results
+            assert results["sequence_length"] == 3
+
 
 class TestTimingIntegration:
     """Integration tests for timing attacks."""
 
     def setup_method(self):
         """Setup test fixtures."""
-        self.context = AttackContext(dst_ip='192.168.1.1', dst_port=443, domain='example.com', payload=b'GET / HTTP/1.1\r\nHost: example.com\r\n\r\n')
+        self.context = AttackContext(
+            dst_ip="192.168.1.1",
+            dst_port=443,
+            domain="example.com",
+            payload=b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
+        )
 
     def test_timing_controller_integration(self):
         """Test integration with timing controller."""
@@ -436,7 +541,11 @@ class TestTimingIntegration:
         for attack in attacks:
             result = attack.execute(self.context)
             assert isinstance(result, AttackResult)
-            assert result.status in [AttackStatus.SUCCESS, AttackStatus.FAILURE, AttackStatus.ERROR]
+            assert result.status in [
+                AttackStatus.SUCCESS,
+                AttackStatus.FAILURE,
+                AttackStatus.ERROR,
+            ]
             assert result.packets_sent >= 0
             assert result.bytes_sent >= 0
 
@@ -447,21 +556,27 @@ class TestTimingIntegration:
             attack.execute(self.context)
             timing_stats = attack.get_timing_statistics()
             assert isinstance(timing_stats, dict)
-            assert 'total_delays' in timing_stats
-            assert 'average_accuracy_percentage' in timing_stats
+            assert "total_delays" in timing_stats
+            assert "average_accuracy_percentage" in timing_stats
 
     def test_timing_attack_configuration(self):
         """Test configuration of timing attacks."""
         jitter_attack = JitterInjectionAttack()
-        jitter_attack.configure_jitter(jitter_type=JitterType.GAUSSIAN, amplitude_ms=15.0)
+        jitter_attack.configure_jitter(
+            jitter_type=JitterType.GAUSSIAN, amplitude_ms=15.0
+        )
         assert jitter_attack.jitter_config.jitter_type == JitterType.GAUSSIAN
         assert jitter_attack.jitter_config.jitter_amplitude_ms == 15.0
         delay_attack = DelayEvasionAttack()
-        delay_attack.configure_timing(delay_pattern=DelayPattern.EXPONENTIAL, progression_factor=2.0)
+        delay_attack.configure_timing(
+            delay_pattern=DelayPattern.EXPONENTIAL, progression_factor=2.0
+        )
         assert delay_attack.delay_config.delay_pattern == DelayPattern.EXPONENTIAL
         assert delay_attack.delay_config.progression_factor == 2.0
         burst_attack = BurstTrafficAttack()
-        burst_attack.configure_burst_pattern(BurstType.RANDOM, min_burst_size=3, max_burst_size=15)
+        burst_attack.configure_burst_pattern(
+            BurstType.RANDOM, min_burst_size=3, max_burst_size=15
+        )
         assert burst_attack.burst_config.burst_type == BurstType.RANDOM
         assert burst_attack.burst_config.min_burst_size == 3
         assert burst_attack.burst_config.max_burst_size == 15
@@ -471,12 +586,14 @@ class TestTimingIntegration:
         attacks = [JitterInjectionAttack(), DelayEvasionAttack(), BurstTrafficAttack()]
         for attack in attacks:
             attack.execute(self.context)
-            if hasattr(attack, 'reset_adaptive_state'):
+            if hasattr(attack, "reset_adaptive_state"):
                 attack.reset_adaptive_state()
-            elif hasattr(attack, 'reset_pattern_state'):
+            elif hasattr(attack, "reset_pattern_state"):
                 attack.reset_pattern_state()
-            elif hasattr(attack, 'reset_burst_state'):
+            elif hasattr(attack, "reset_burst_state"):
                 attack.reset_burst_state()
             assert True
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

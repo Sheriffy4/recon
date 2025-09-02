@@ -1,0 +1,768 @@
+{
+  "timestamp": "2025-08-27T21:05:38.439541",
+  "target": "sites.txt",
+  "port": 443,
+  "total_strategies_tested": 20,
+  "working_strategies_found": 12,
+  "success_rate": 0.6,
+  "best_strategy": {
+    "strategy_dict": {
+      "params": {
+        "ttl": 8
+      },
+      "name": "badsum_race"
+    },
+    "strategy": "badsum_race(ttl=8)",
+    "result_status": "PARTIAL_SUCCESS",
+    "successful_sites": 1,
+    "total_sites": 2,
+    "success_rate": 0.5,
+    "avg_latency_ms": 457.95154571533203,
+    "fingerprint_used": false,
+    "dpi_type": null,
+    "dpi_confidence": null
+  },
+  "execution_time_seconds": 186.82323718070984,
+  "domain_status": {
+    "https://rutracker.org": "BLOCKED",
+    "https://x.com": "BLOCKED"
+  },
+  "fingerprints": {
+    "rutracker.org": {
+      "target": "rutracker.org:443",
+      "timestamp": 1756317780.7581966,
+      "analysis_duration": 30.148943662643433,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 8960,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 8.437800002866425,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "rutracker.org",
+          "timestamp": 1756317780.7611942,
+          "timing": {
+            "latency_ms": 161.7764000002353,
+            "jitter_ms": 12.22329041672006,
+            "packet_timing": [
+              195.61529999919003,
+              158.3632000038051,
+              158.41090000321856,
+              155.5143000005046,
+              160.25490000174614,
+              160.06080000079237,
+              153.03359999961685,
+              160.253099995316,
+              161.7891999994754,
+              154.46869999868795
+            ],
+            "connection_time_ms": 4.849120000289986,
+            "first_byte_time_ms": 156.9252899986168,
+            "total_time_ms": 161.7764000002353,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 1.0,
+              "error_codes": [
+                400,
+                400,
+                400,
+                400,
+                400
+              ],
+              "response_sizes": [
+                414,
+                414,
+                414,
+                414,
+                414
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 5
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 1.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 0
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756317783.7746954,
+            "target": "rutracker.org",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 1.0
+        },
+        "tcp_analysis": {
+          "target": "rutracker.org",
+          "timestamp": 1756317780.7611942,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 8960,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 8.437800002866425
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    },
+    "x.com": {
+      "target": "x.com:443",
+      "timestamp": 1756317810.909968,
+      "analysis_duration": 30.16504693031311,
+      "dpi_type": "unknown",
+      "confidence": 0.0,
+      "alternative_types": [],
+      "cipher_suites_order": [
+        49195,
+        49187,
+        49199,
+        49191,
+        158,
+        103,
+        156,
+        60,
+        49161,
+        49171,
+        51,
+        47,
+        10
+      ],
+      "extensions_order": [
+        65281,
+        0,
+        13,
+        10
+      ],
+      "supported_groups": [
+        23
+      ],
+      "signature_algorithms": [
+        1027,
+        1025,
+        513
+      ],
+      "ec_point_formats": null,
+      "alpn_protocols": null,
+      "tcp_window_size": 65535,
+      "tcp_mss": 8960,
+      "tcp_sack_permitted": true,
+      "tcp_timestamps_enabled": true,
+      "syn_ack_to_client_hello_delta": 8.00359999993816,
+      "rst_injection_detected": false,
+      "rst_ttl": null,
+      "rst_source_analysis": "unknown",
+      "tcp_window_manipulation": false,
+      "sequence_number_anomalies": false,
+      "tcp_options_filtering": false,
+      "connection_reset_timing": 0.0,
+      "handshake_anomalies": [],
+      "fragmentation_handling": "unknown",
+      "mss_clamping_detected": false,
+      "tcp_timestamp_manipulation": false,
+      "http_header_filtering": false,
+      "content_inspection_depth": 0,
+      "user_agent_filtering": false,
+      "host_header_manipulation": false,
+      "http_method_restrictions": [],
+      "content_type_filtering": false,
+      "redirect_injection": false,
+      "http_response_modification": false,
+      "keep_alive_manipulation": false,
+      "chunked_encoding_handling": "unknown",
+      "dns_hijacking_detected": false,
+      "dns_response_modification": false,
+      "dns_query_filtering": false,
+      "doh_blocking": false,
+      "dot_blocking": false,
+      "dns_cache_poisoning": false,
+      "dns_timeout_manipulation": false,
+      "recursive_resolver_blocking": false,
+      "dns_over_tcp_blocking": false,
+      "edns_support": false,
+      "supports_ipv6": false,
+      "ip_fragmentation_handling": "unknown",
+      "packet_size_limitations": null,
+      "protocol_whitelist": [],
+      "geographic_restrictions": false,
+      "time_based_filtering": false,
+      "raw_metrics": {
+        "metrics_collection": {
+          "target": "x.com",
+          "timestamp": 1756317810.9115472,
+          "timing": {
+            "latency_ms": 171.02519000254688,
+            "jitter_ms": 23.863612565029634,
+            "packet_timing": [
+              229.28440000396222,
+              163.72199999750592,
+              188.71410000429023,
+              158.62520000518998,
+              153.06690000579692,
+              154.56340000673663,
+              159.5145000028424,
+              152.7018999986467,
+              167.37089999514865,
+              182.68860000534914
+            ],
+            "connection_time_ms": 6.968820000474807,
+            "first_byte_time_ms": 164.05448999939836,
+            "total_time_ms": 171.02519000254688,
+            "timeout_occurred": false,
+            "retransmission_count": 0
+          },
+          "network": {
+            "packet_loss_rate": 0.0,
+            "out_of_order_packets": 0,
+            "duplicate_packets": 0,
+            "fragmented_packets": 0,
+            "mtu_discovery_blocked": false,
+            "icmp_responses": [],
+            "tcp_window_scaling": false,
+            "tcp_options": [
+              "mss",
+              "sackOK",
+              "timestamp"
+            ]
+          },
+          "protocols": {
+            "http": {
+              "protocol": "http",
+              "success_rate": 1.0,
+              "error_codes": [
+                400,
+                400,
+                400,
+                400,
+                400
+              ],
+              "response_sizes": [
+                414,
+                414,
+                414,
+                414,
+                414
+              ],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 5
+            },
+            "https": {
+              "protocol": "https",
+              "success_rate": 1.0,
+              "error_codes": [],
+              "response_sizes": [],
+              "header_modifications": {},
+              "content_modifications": false,
+              "redirect_responses": 0,
+              "blocked_responses": 0
+            }
+          },
+          "raw_data": {
+            "collection_timestamp": 1756317814.2139337,
+            "target": "x.com",
+            "port": 443,
+            "protocols_tested": [
+              "http",
+              "https"
+            ],
+            "timing_samples": 10,
+            "errors_encountered": 0
+          },
+          "collection_errors": [],
+          "reliability_score": 1.0
+        },
+        "tcp_analysis": {
+          "target": "x.com",
+          "timestamp": 1756317810.9120743,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 8960,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 8.00359999993816
+        }
+      },
+      "analysis_methods_used": [],
+      "reliability_score": 0.0,
+      "block_type": "none",
+      "vulnerable_to_fragmentation": false,
+      "vulnerable_to_sni_case": false,
+      "vulnerable_to_bad_checksum_race": false,
+      "is_stateful": false
+    }
+  },
+  "all_results": [
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 8
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=8)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 457.95154571533203,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 461.9903564453125,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 10
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=10)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 477.2155284881592,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "positions": [
+            3,
+            10
+          ]
+        },
+        "name": "multidisorder"
+      },
+      "strategy": "multidisorder(positions=[3, 10])",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 488.9717102050781,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 3,
+          "ttl": 5
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(split_pos=3, ttl=5)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 489.26663398742676,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 128
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=128)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 509.28544998168945,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 523.9346027374268,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 537.9605293273926,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 3
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=3)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 549.2644309997559,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 578.789234161377,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 619.9884414672852,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=4)",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 1,
+      "total_sites": 2,
+      "success_rate": 0.5,
+      "avg_latency_ms": 1245.8415031433105,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 15
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=15)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 2,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 2,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 2,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 64
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=64)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 2,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 7
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=7)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 2,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 5
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=5)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 2,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 2,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 20
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=20)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 2,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    }
+  ],
+  "learning_cache_stats": {
+    "total_strategy_records": 805,
+    "total_tests_performed": 1320,
+    "domains_learned": 6,
+    "dpi_patterns_learned": 6,
+    "average_success_rate": 0.27312598387503106
+  }
+}

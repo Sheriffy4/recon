@@ -21,7 +21,13 @@ import itertools
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
-from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus, SegmentTuple
+from core.bypass.attacks.base import (
+    BaseAttack,
+    AttackContext,
+    AttackResult,
+    AttackStatus,
+    SegmentTuple,
+)
 from core.bypass.attacks.attack_definition import (
     AttackDefinition,
     AttackCategory,

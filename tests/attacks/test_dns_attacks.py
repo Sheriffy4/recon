@@ -2,11 +2,30 @@
 Comprehensive tests for DNS tunneling and evasion attacks.
 Tests all DNS attack implementations for functionality and reliability.
 """
+
+import os
+import sys
+
+# Add the parent directories to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(current_dir)
+recon_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, recon_dir)
+
 import pytest
 import asyncio
 import time
-from core.bypass.attacks.dns.dns_tunneling import DoHAttack, DoTAttack, DNSQueryManipulation, DNSCachePoisoningPrevention, DoHProvider, DoTProvider, get_dns_attack_definitions
+from core.bypass.attacks.dns.dns_tunneling import (
+    DoHAttack,
+    DoTAttack,
+    DNSQueryManipulation,
+    DNSCachePoisoningPrevention,
+    DoHProvider,
+    DoTProvider,
+    get_dns_attack_definitions,
+)
 from core.bypass.attacks.base import AttackResult, AttackStatus
+
 
 class TestDoHAttack:
     """Test DNS over HTTPS attack implementation."""
@@ -19,63 +38,64 @@ class TestDoHAttack:
     @pytest.mark.asyncio
     async def test_doh_basic_resolution(self, doh_attack):
         """Test basic DoH resolution."""
-        result = await doh_attack.execute('example.com')
+        result = await doh_attack.execute("example.com")
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert 'resolved_ip' in result.metadata
-            assert result.metadata['method'] == 'DoH'
-            assert result.metadata['provider'] == 'cloudflare'
+            assert "resolved_ip" in result.metadata
+            assert result.metadata["method"] == "DoH"
+            assert result.metadata["provider"] == "cloudflare"
 
     @pytest.mark.asyncio
     async def test_doh_json_format(self, doh_attack):
         """Test DoH with JSON format."""
-        parameters = {'provider': 'cloudflare', 'query_type': 'A', 'use_json': True}
-        result = await doh_attack.execute('google.com', parameters)
+        parameters = {"provider": "cloudflare", "query_type": "A", "use_json": True}
+        result = await doh_attack.execute("google.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['use_json'] is True
+            assert result.metadata["use_json"] is True
 
     @pytest.mark.asyncio
     async def test_doh_wire_format(self, doh_attack):
         """Test DoH with wire format."""
-        parameters = {'provider': 'cloudflare', 'query_type': 'A', 'use_json': False}
-        result = await doh_attack.execute('google.com', parameters)
+        parameters = {"provider": "cloudflare", "query_type": "A", "use_json": False}
+        result = await doh_attack.execute("google.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['use_json'] is False
+            assert result.metadata["use_json"] is False
 
     @pytest.mark.asyncio
     async def test_doh_multiple_providers(self, doh_attack):
         """Test DoH with different providers."""
-        providers = ['cloudflare', 'google', 'quad9']
+        providers = ["cloudflare", "google", "quad9"]
         for provider in providers:
-            parameters = {'provider': provider}
-            result = await doh_attack.execute('example.com', parameters)
+            parameters = {"provider": provider}
+            result = await doh_attack.execute("example.com", parameters)
             assert isinstance(result, AttackResult)
             if result.status == AttackStatus.SUCCESS:
-                assert result.metadata['provider'] == provider
+                assert result.metadata["provider"] == provider
 
     @pytest.mark.asyncio
     async def test_doh_invalid_provider(self, doh_attack):
         """Test DoH with invalid provider."""
-        parameters = {'provider': 'invalid_provider'}
-        result = await doh_attack.execute('example.com', parameters)
+        parameters = {"provider": "invalid_provider"}
+        result = await doh_attack.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         assert result.status != AttackStatus.SUCCESS
-        assert 'not supported' in result.error_message.lower()
+        assert "not supported" in result.error_message.lower()
 
     @pytest.mark.asyncio
     async def test_doh_timeout_handling(self, doh_attack):
         """Test DoH timeout handling."""
         doh_attack.timeout = 0.001
-        result = await doh_attack.execute('example.com')
+        result = await doh_attack.execute("example.com")
         assert isinstance(result, AttackResult)
 
     @pytest.mark.asyncio
     async def test_doh_error_handling(self, doh_attack):
         """Test DoH error handling."""
-        result = await doh_attack.execute('invalid.domain.that.does.not.exist.12345')
+        result = await doh_attack.execute("invalid.domain.that.does.not.exist.12345")
         assert isinstance(result, AttackResult)
+
 
 class TestDoTAttack:
     """Test DNS over TLS attack implementation."""
@@ -88,49 +108,50 @@ class TestDoTAttack:
     @pytest.mark.asyncio
     async def test_dot_basic_resolution(self, dot_attack):
         """Test basic DoT resolution."""
-        result = await dot_attack.execute('example.com')
+        result = await dot_attack.execute("example.com")
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert 'resolved_ip' in result.metadata
-            assert result.metadata['method'] == 'DoT'
-            assert result.metadata['provider'] == 'cloudflare'
+            assert "resolved_ip" in result.metadata
+            assert result.metadata["method"] == "DoT"
+            assert result.metadata["provider"] == "cloudflare"
 
     @pytest.mark.asyncio
     async def test_dot_multiple_providers(self, dot_attack):
         """Test DoT with different providers."""
-        providers = ['cloudflare', 'google', 'quad9']
+        providers = ["cloudflare", "google", "quad9"]
         for provider in providers:
-            parameters = {'provider': provider}
-            result = await dot_attack.execute('example.com', parameters)
+            parameters = {"provider": provider}
+            result = await dot_attack.execute("example.com", parameters)
             assert isinstance(result, AttackResult)
             if result.status == AttackStatus.SUCCESS:
-                assert result.metadata['provider'] == provider
+                assert result.metadata["provider"] == provider
 
     @pytest.mark.asyncio
     async def test_dot_query_types(self, dot_attack):
         """Test DoT with different query types."""
-        query_types = ['A', 'AAAA', 'CNAME']
+        query_types = ["A", "AAAA", "CNAME"]
         for query_type in query_types:
-            parameters = {'query_type': query_type}
-            result = await dot_attack.execute('example.com', parameters)
+            parameters = {"query_type": query_type}
+            result = await dot_attack.execute("example.com", parameters)
             assert isinstance(result, AttackResult)
             if result.status == AttackStatus.SUCCESS:
-                assert result.metadata['query_type'] == query_type
+                assert result.metadata["query_type"] == query_type
 
     @pytest.mark.asyncio
     async def test_dot_invalid_provider(self, dot_attack):
         """Test DoT with invalid provider."""
-        parameters = {'provider': 'invalid_provider'}
-        result = await dot_attack.execute('example.com', parameters)
+        parameters = {"provider": "invalid_provider"}
+        result = await dot_attack.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         assert result.status != AttackStatus.SUCCESS
-        assert 'not supported' in result.error_message.lower()
+        assert "not supported" in result.error_message.lower()
 
     @pytest.mark.asyncio
     async def test_dot_tls_verification(self, dot_attack):
         """Test DoT TLS certificate verification."""
-        result = await dot_attack.execute('google.com')
+        result = await dot_attack.execute("google.com")
         assert isinstance(result, AttackResult)
+
 
 class TestDNSQueryManipulation:
     """Test DNS query manipulation techniques."""
@@ -143,66 +164,73 @@ class TestDNSQueryManipulation:
     @pytest.mark.asyncio
     async def test_case_randomization(self, query_manipulation):
         """Test DNS case randomization."""
-        parameters = {'technique': 'case_randomization'}
-        result = await query_manipulation.execute('example.com', parameters)
+        parameters = {"technique": "case_randomization"}
+        result = await query_manipulation.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'case_randomization'
-            assert result.metadata['manipulation_applied'] is True
+            assert result.metadata["technique"] == "case_randomization"
+            assert result.metadata["manipulation_applied"] is True
 
     @pytest.mark.asyncio
     async def test_subdomain_prepending(self, query_manipulation):
         """Test subdomain prepending."""
-        parameters = {'technique': 'subdomain_prepending', 'subdomain': 'www'}
-        result = await query_manipulation.execute('example.com', parameters)
+        parameters = {"technique": "subdomain_prepending", "subdomain": "www"}
+        result = await query_manipulation.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'subdomain_prepending'
+            assert result.metadata["technique"] == "subdomain_prepending"
 
     @pytest.mark.asyncio
     async def test_query_type_variation(self, query_manipulation):
         """Test query type variation."""
-        parameters = {'technique': 'query_type_variation'}
-        result = await query_manipulation.execute('example.com', parameters)
+        parameters = {"technique": "query_type_variation"}
+        result = await query_manipulation.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'query_type_variation'
+            assert result.metadata["technique"] == "query_type_variation"
 
     @pytest.mark.asyncio
     async def test_recursive_queries(self, query_manipulation):
         """Test recursive DNS queries."""
-        parameters = {'technique': 'recursive_queries'}
-        result = await query_manipulation.execute('example.com', parameters)
+        parameters = {"technique": "recursive_queries"}
+        result = await query_manipulation.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'recursive_queries'
+            assert result.metadata["technique"] == "recursive_queries"
 
     @pytest.mark.asyncio
     async def test_edns_padding(self, query_manipulation):
         """Test EDNS padding."""
-        parameters = {'technique': 'edns_padding'}
-        result = await query_manipulation.execute('example.com', parameters)
+        parameters = {"technique": "edns_padding"}
+        result = await query_manipulation.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'edns_padding'
+            assert result.metadata["technique"] == "edns_padding"
 
     @pytest.mark.asyncio
     async def test_invalid_technique(self, query_manipulation):
         """Test invalid manipulation technique."""
-        parameters = {'technique': 'invalid_technique'}
-        result = await query_manipulation.execute('example.com', parameters)
+        parameters = {"technique": "invalid_technique"}
+        result = await query_manipulation.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         assert result.status != AttackStatus.SUCCESS
-        assert 'Unknown manipulation technique' in result.error_message
+        assert "Unknown manipulation technique" in result.error_message
 
     @pytest.mark.asyncio
     async def test_all_techniques(self, query_manipulation):
         """Test all manipulation techniques."""
-        techniques = ['case_randomization', 'subdomain_prepending', 'query_type_variation', 'recursive_queries', 'edns_padding']
+        techniques = [
+            "case_randomization",
+            "subdomain_prepending",
+            "query_type_variation",
+            "recursive_queries",
+            "edns_padding",
+        ]
         for technique in techniques:
-            parameters = {'technique': technique}
-            result = await query_manipulation.execute('example.com', parameters)
+            parameters = {"technique": technique}
+            result = await query_manipulation.execute("example.com", parameters)
             assert isinstance(result, AttackResult)
+
 
 class TestDNSCachePoisoningPrevention:
     """Test DNS cache poisoning prevention techniques."""
@@ -215,75 +243,82 @@ class TestDNSCachePoisoningPrevention:
     @pytest.mark.asyncio
     async def test_query_id_randomization(self, cache_prevention):
         """Test query ID randomization."""
-        parameters = {'technique': 'query_id_randomization'}
-        result = await cache_prevention.execute('example.com', parameters)
+        parameters = {"technique": "query_id_randomization"}
+        result = await cache_prevention.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'query_id_randomization'
-            assert 'results' in result.metadata
-            assert 'consistent' in result.metadata
+            assert result.metadata["technique"] == "query_id_randomization"
+            assert "results" in result.metadata
+            assert "consistent" in result.metadata
 
     @pytest.mark.asyncio
     async def test_source_port_randomization(self, cache_prevention):
         """Test source port randomization."""
-        parameters = {'technique': 'source_port_randomization'}
-        result = await cache_prevention.execute('example.com', parameters)
+        parameters = {"technique": "source_port_randomization"}
+        result = await cache_prevention.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'source_port_randomization'
-            assert 'results' in result.metadata
+            assert result.metadata["technique"] == "source_port_randomization"
+            assert "results" in result.metadata
 
     @pytest.mark.asyncio
     async def test_multiple_server_validation(self, cache_prevention):
         """Test multiple server validation."""
-        parameters = {'technique': 'multiple_server_validation'}
-        result = await cache_prevention.execute('example.com', parameters)
+        parameters = {"technique": "multiple_server_validation"}
+        result = await cache_prevention.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'multiple_server_validation'
-            assert 'results' in result.metadata
-            assert 'consistent' in result.metadata
-            assert 'consensus_ip' in result.metadata
+            assert result.metadata["technique"] == "multiple_server_validation"
+            assert "results" in result.metadata
+            assert "consistent" in result.metadata
+            assert "consensus_ip" in result.metadata
 
     @pytest.mark.asyncio
     async def test_dnssec_validation(self, cache_prevention):
         """Test DNSSEC validation."""
-        parameters = {'technique': 'dnssec_validation'}
-        result = await cache_prevention.execute('cloudflare.com', parameters)
+        parameters = {"technique": "dnssec_validation"}
+        result = await cache_prevention.execute("cloudflare.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'dnssec_validation'
-            assert 'dnssec_enabled' in result.metadata
+            assert result.metadata["technique"] == "dnssec_validation"
+            assert "dnssec_enabled" in result.metadata
 
     @pytest.mark.asyncio
     async def test_response_verification(self, cache_prevention):
         """Test response verification."""
-        parameters = {'technique': 'response_verification'}
-        result = await cache_prevention.execute('example.com', parameters)
+        parameters = {"technique": "response_verification"}
+        result = await cache_prevention.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         if result.status == AttackStatus.SUCCESS:
-            assert result.metadata['technique'] == 'response_verification'
-            assert 'responses' in result.metadata
-            assert 'consistent_ip' in result.metadata
-            assert 'verified' in result.metadata
+            assert result.metadata["technique"] == "response_verification"
+            assert "responses" in result.metadata
+            assert "consistent_ip" in result.metadata
+            assert "verified" in result.metadata
 
     @pytest.mark.asyncio
     async def test_invalid_technique(self, cache_prevention):
         """Test invalid prevention technique."""
-        parameters = {'technique': 'invalid_technique'}
-        result = await cache_prevention.execute('example.com', parameters)
+        parameters = {"technique": "invalid_technique"}
+        result = await cache_prevention.execute("example.com", parameters)
         assert isinstance(result, AttackResult)
         assert result.status != AttackStatus.SUCCESS
-        assert 'Unknown prevention technique' in result.error_message
+        assert "Unknown prevention technique" in result.error_message
 
     @pytest.mark.asyncio
     async def test_all_techniques(self, cache_prevention):
         """Test all prevention techniques."""
-        techniques = ['query_id_randomization', 'source_port_randomization', 'multiple_server_validation', 'dnssec_validation', 'response_verification']
+        techniques = [
+            "query_id_randomization",
+            "source_port_randomization",
+            "multiple_server_validation",
+            "dnssec_validation",
+            "response_verification",
+        ]
         for technique in techniques:
-            parameters = {'technique': technique}
-            result = await cache_prevention.execute('example.com', parameters)
+            parameters = {"technique": technique}
+            result = await cache_prevention.execute("example.com", parameters)
             assert isinstance(result, AttackResult)
+
 
 class TestDNSAttackDefinitions:
     """Test DNS attack definitions."""
@@ -296,7 +331,7 @@ class TestDNSAttackDefinitions:
             assert definition.id
             assert definition.name
             assert definition.description
-            assert definition.category.value == 'dns_tunneling'
+            assert definition.category.value == "dns_tunneling"
             assert definition.test_cases
             assert definition.stability_score >= 0.0
             assert definition.effectiveness_score >= 0.0
@@ -305,37 +340,40 @@ class TestDNSAttackDefinitions:
     def test_doh_attack_definition(self):
         """Test DoH attack definition."""
         definitions = get_dns_attack_definitions()
-        doh_def = next((d for d in definitions if d.id == 'dns_doh_tunneling'))
-        assert doh_def.name == 'DNS over HTTPS Tunneling'
-        assert 'provider' in doh_def.required_parameters
-        assert 'https' in doh_def.supported_protocols
+        doh_def = next((d for d in definitions if d.id == "dns_doh_tunneling"))
+        assert doh_def.name == "DNS over HTTPS Tunneling"
+        assert "provider" in doh_def.required_parameters
+        assert "https" in doh_def.supported_protocols
         assert 443 in doh_def.supported_ports
         assert len(doh_def.test_cases) >= 2
 
     def test_dot_attack_definition(self):
         """Test DoT attack definition."""
         definitions = get_dns_attack_definitions()
-        dot_def = next((d for d in definitions if d.id == 'dns_dot_tunneling'))
-        assert dot_def.name == 'DNS over TLS Tunneling'
-        assert 'provider' in dot_def.required_parameters
-        assert 'tls' in dot_def.supported_protocols
+        dot_def = next((d for d in definitions if d.id == "dns_dot_tunneling"))
+        assert dot_def.name == "DNS over TLS Tunneling"
+        assert "provider" in dot_def.required_parameters
+        assert "tls" in dot_def.supported_protocols
         assert 853 in dot_def.supported_ports
 
     def test_query_manipulation_definition(self):
         """Test query manipulation definition."""
         definitions = get_dns_attack_definitions()
-        query_def = next((d for d in definitions if d.id == 'dns_query_manipulation'))
-        assert query_def.name == 'DNS Query Manipulation'
-        assert 'technique' in query_def.required_parameters
+        query_def = next((d for d in definitions if d.id == "dns_query_manipulation"))
+        assert query_def.name == "DNS Query Manipulation"
+        assert "technique" in query_def.required_parameters
         assert len(query_def.test_cases) >= 2
 
     def test_cache_prevention_definition(self):
         """Test cache prevention definition."""
         definitions = get_dns_attack_definitions()
-        cache_def = next((d for d in definitions if d.id == 'dns_cache_poisoning_prevention'))
-        assert cache_def.name == 'DNS Cache Poisoning Prevention'
-        assert 'technique' in cache_def.required_parameters
+        cache_def = next(
+            (d for d in definitions if d.id == "dns_cache_poisoning_prevention")
+        )
+        assert cache_def.name == "DNS Cache Poisoning Prevention"
+        assert "technique" in cache_def.required_parameters
         assert len(cache_def.test_cases) >= 2
+
 
 class TestDNSIntegration:
     """Integration tests for DNS attacks."""
@@ -346,24 +384,28 @@ class TestDNSIntegration:
         doh_attack = DoHAttack()
         dot_attack = DoTAttack()
         query_manipulation = DNSQueryManipulation()
-        domain = 'example.com'
+        domain = "example.com"
         doh_result = await doh_attack.execute(domain)
         if doh_result.status != AttackStatus.SUCCESS:
             dot_result = await dot_attack.execute(domain)
             if dot_result.status != AttackStatus.SUCCESS:
-                manipulation_result = await query_manipulation.execute(domain, {'technique': 'case_randomization'})
+                manipulation_result = await query_manipulation.execute(
+                    domain, {"technique": "case_randomization"}
+                )
                 assert isinstance(manipulation_result, AttackResult)
 
     @pytest.mark.asyncio
     async def test_dns_fallback_mechanism(self):
         """Test DNS fallback mechanism."""
         attacks = [DoHAttack(), DoTAttack(), DNSQueryManipulation()]
-        domain = 'example.com'
+        domain = "example.com"
         success = False
         for attack in attacks:
             try:
                 if isinstance(attack, DNSQueryManipulation):
-                    result = await attack.execute(domain, {'technique': 'case_randomization'})
+                    result = await attack.execute(
+                        domain, {"technique": "case_randomization"}
+                    )
                 else:
                     result = await attack.execute(domain)
                 if result.status == AttackStatus.SUCCESS:
@@ -376,23 +418,44 @@ class TestDNSIntegration:
     @pytest.mark.asyncio
     async def test_dns_performance_comparison(self):
         """Test performance comparison of DNS attacks."""
-        attacks = {'DoH': DoHAttack(), 'DoT': DoTAttack(), 'Query Manipulation': DNSQueryManipulation()}
-        domain = 'example.com'
+        attacks = {
+            "DoH": DoHAttack(),
+            "DoT": DoTAttack(),
+            "Query Manipulation": DNSQueryManipulation(),
+        }
+        domain = "example.com"
         results = {}
         for name, attack in attacks.items():
             start_time = time.time()
             try:
                 if isinstance(attack, DNSQueryManipulation):
-                    result = await attack.execute(domain, {'technique': 'case_randomization'})
+                    result = await attack.execute(
+                        domain, {"technique": "case_randomization"}
+                    )
                 else:
                     result = await attack.execute(domain)
                 end_time = time.time()
-                results[name] = {'success': result.status == AttackStatus.SUCCESS, 'duration': end_time - start_time, 'error': result.error_message if result.status != AttackStatus.SUCCESS else None}
+                results[name] = {
+                    "success": result.status == AttackStatus.SUCCESS,
+                    "duration": end_time - start_time,
+                    "error": (
+                        result.error_message
+                        if result.status != AttackStatus.SUCCESS
+                        else None
+                    ),
+                }
             except Exception as e:
-                results[name] = {'success': False, 'duration': time.time() - start_time, 'error': str(e)}
+                results[name] = {
+                    "success": False,
+                    "duration": time.time() - start_time,
+                    "error": str(e),
+                }
         assert len(results) == len(attacks)
         for name, result in results.items():
-            print(f"{name}: Success={result['success']}, Duration={result['duration']:.3f}s")
+            print(
+                f"{name}: Success={result['success']}, Duration={result['duration']:.3f}s"
+            )
+
 
 class TestDNSPerformance:
     """Performance tests for DNS attacks."""
@@ -401,28 +464,44 @@ class TestDNSPerformance:
     async def test_concurrent_doh_requests(self):
         """Test concurrent DoH requests."""
         doh_attack = DoHAttack()
-        domains = ['example.com', 'google.com', 'github.com', 'stackoverflow.com']
+        domains = ["example.com", "google.com", "github.com", "stackoverflow.com"]
         tasks = [doh_attack.execute(domain) for domain in domains]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         assert len(results) == len(domains)
-        successful = sum((1 for r in results if isinstance(r, AttackResult) and r.status == AttackStatus.SUCCESS))
-        print(f'Concurrent DoH: {successful}/{len(domains)} successful')
+        successful = sum(
+            (
+                1
+                for r in results
+                if isinstance(r, AttackResult) and r.status == AttackStatus.SUCCESS
+            )
+        )
+        print(f"Concurrent DoH: {successful}/{len(domains)} successful")
 
     @pytest.mark.asyncio
     async def test_dns_attack_stress(self):
         """Stress test DNS attacks."""
         attack = DoHAttack()
-        domain = 'example.com'
+        domain = "example.com"
         num_requests = 10
         start_time = time.time()
         tasks = [attack.execute(domain) for _ in range(num_requests)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         end_time = time.time()
         assert len(results) == num_requests
-        successful = sum((1 for r in results if isinstance(r, AttackResult) and r.status == AttackStatus.SUCCESS))
+        successful = sum(
+            (
+                1
+                for r in results
+                if isinstance(r, AttackResult) and r.status == AttackStatus.SUCCESS
+            )
+        )
         total_time = end_time - start_time
         avg_time = total_time / num_requests
-        print(f'Stress test: {successful}/{num_requests} successful, avg time: {avg_time:.3f}s')
+        print(
+            f"Stress test: {successful}/{num_requests} successful, avg time: {avg_time:.3f}s"
+        )
         assert avg_time < 10.0
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

@@ -1,0 +1,383 @@
+{
+  "timestamp": "2025-08-28T14:46:01.637906",
+  "target": "sites.txt",
+  "port": 443,
+  "total_strategies_tested": 20,
+  "working_strategies_found": 0,
+  "success_rate": 0.0,
+  "best_strategy": null,
+  "execution_time_seconds": 183.41939735412598,
+  "domain_status": {
+    "https://x.com": "BLOCKED",
+    "https://instagram.com": "BLOCKED",
+    "https://ntc.party": "BLOCKED"
+  },
+  "fingerprints": {},
+  "all_results": [
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 7,
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=7, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 15,
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=15, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 20,
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=20, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 10
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=10)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 5,
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=5, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 2
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=2)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 15
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=15)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 1,
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=1, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "ttl": 1
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(ttl=1)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 6,
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=6, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 1,
+          "ttl": 2
+        },
+        "name": "badsum_race"
+      },
+      "strategy": "badsum_race(split_pos=1, ttl=2)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": 3
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=3)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 20
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=20)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 12
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=12)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 1
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=1)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 5
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=5)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 4
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=4)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    },
+    {
+      "strategy_dict": {
+        "params": {
+          "split_pos": "midsld",
+          "ttl": 8
+        },
+        "name": "fakedisorder"
+      },
+      "strategy": "fakedisorder(split_pos=midsld, ttl=8)",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 3,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null
+    }
+  ],
+  "learning_cache_stats": {
+    "total_strategy_records": 1007,
+    "total_tests_performed": 1760,
+    "domains_learned": 6,
+    "dpi_patterns_learned": 6,
+    "average_success_rate": 0.21582529562615982
+  }
+}

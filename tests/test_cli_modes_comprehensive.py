@@ -15,9 +15,7 @@ import cli
 def mock_async_main_runners():
     """Mock all main async runner functions from cli.py to prevent actual execution."""
     # Using MagicMock to allow both sync and async calls if needed
-    with patch(
-        "cli.run_hybrid_mode", new_callable=MagicMock
-    ) as mock_hybrid, patch(
+    with patch("cli.run_hybrid_mode", new_callable=MagicMock) as mock_hybrid, patch(
         "cli.run_evolutionary_mode", new_callable=MagicMock
     ) as mock_evolve, patch(
         "cli.run_single_strategy_mode", new_callable=MagicMock

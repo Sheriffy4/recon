@@ -4,8 +4,10 @@ from typing import Dict, Tuple, Optional
 import time
 from core.net.byte_packet import TCPPacket, IPv4Packet
 
+
 class TCPState(Enum):
     """Состояния TCP-соединения"""
+
     CLOSED = auto()
     SYN_SENT = auto()
     SYN_RECEIVED = auto()
@@ -17,9 +19,11 @@ class TCPState(Enum):
     LAST_ACK = auto()
     TIME_WAIT = auto()
 
+
 @dataclass
 class TCPConnection:
     """Информация о TCP-соединении"""
+
     client_addr: str
     client_port: int
     server_addr: str
@@ -36,10 +40,11 @@ class TCPConnection:
         """Уникальный идентификатор соединения"""
         return (self.client_addr, self.client_port, self.server_addr, self.server_port)
 
+
 class TCPTracker:
     """Отслеживание TCP-соединений"""
 
-    def __init__(self, timeout: float=300.0):
+    def __init__(self, timeout: float = 300.0):
         self.connections: Dict[Tuple[str, int, str, int], TCPConnection] = {}
         self.timeout = timeout
 
@@ -60,7 +65,15 @@ class TCPTracker:
         conn = self.connections.get(forward_id) or self.connections.get(reverse_id)
         if not conn:
             if tcp.flags & 2:
-                conn = TCPConnection(client_addr=ip.src_addr, client_port=tcp.src_port, server_addr=ip.dst_addr, server_port=tcp.dst_port, client_seq=tcp.seq_num, client_window=tcp.window, state=TCPState.SYN_SENT)
+                conn = TCPConnection(
+                    client_addr=ip.src_addr,
+                    client_port=tcp.src_port,
+                    server_addr=ip.dst_addr,
+                    server_port=tcp.dst_port,
+                    client_seq=tcp.seq_num,
+                    client_window=tcp.window,
+                    state=TCPState.SYN_SENT,
+                )
                 self.connections[forward_id] = conn
         return conn
 
@@ -100,7 +113,9 @@ class TCPTracker:
         if conn_id in self.connections:
             del self.connections[conn_id]
 
-    def handle_retransmission(self, ip: IPv4Packet, tcp: TCPPacket, conn: TCPConnection) -> bool:
+    def handle_retransmission(
+        self, ip: IPv4Packet, tcp: TCPPacket, conn: TCPConnection
+    ) -> bool:
         """Проверить, является ли пакет ретрансмиссией"""
         is_client = ip.src_addr == conn.client_addr and tcp.src_port == conn.client_port
         expected_seq = conn.client_seq if is_client else conn.server_seq

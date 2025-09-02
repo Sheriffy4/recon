@@ -1,0 +1,123 @@
+{
+  "validation_timestamp": "2025-09-02T10:09:10.136548",
+  "strategy_tested": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-seqovl=336 --dpi-desync-autottl=2 --dpi-desync-fooling=md5sig,badsum,badseq --dpi-desync-repeats=1 --dpi-desync-split-pos=76 --dpi-desync-ttl=1",
+  "packet_comparisons": [
+    {
+      "strategy_command": "--dpi-desync=fake,fakeddisorder --dpi-desync-split-seqovl=336 --dpi-desync-autottl=2 --dpi-desync-fooling=md5sig,badsum,badseq --dpi-desync-repeats=1 --dpi-desync-split-pos=76 --dpi-desync-ttl=1",
+      "recon_analysis": {
+        "total_packets": 3,
+        "fake_packets": 1,
+        "real_packets": 2,
+        "split_packets": 1,
+        "ttl_values": [
+          1,
+          64,
+          64
+        ],
+        "sequence_overlaps": [],
+        "split_positions": [
+          76
+        ],
+        "attack_pattern": "fakeddisorder",
+        "patterns": [
+          {
+            "sequence_number": 0,
+            "acknowledgment_number": 0,
+            "payload_size": 13,
+            "tcp_flags": "PSH|ACK",
+            "ttl": 1,
+            "payload_hash": "a7daa223",
+            "is_fake_packet": true,
+            "split_position": null,
+            "overlap_size": null
+          },
+          {
+            "sequence_number": 1000,
+            "acknowledgment_number": 0,
+            "payload_size": 76,
+            "tcp_flags": "PSH|ACK",
+            "ttl": 64,
+            "payload_hash": "6691e149",
+            "is_fake_packet": false,
+            "split_position": 76,
+            "overlap_size": null
+          },
+          {
+            "sequence_number": 740,
+            "acknowledgment_number": 0,
+            "payload_size": 124,
+            "tcp_flags": "PSH|ACK",
+            "ttl": 64,
+            "payload_hash": "84cec34b",
+            "is_fake_packet": false,
+            "split_position": null,
+            "overlap_size": null
+          }
+        ]
+      },
+      "zapret_analysis": {
+        "total_packets": 3,
+        "fake_packets": 1,
+        "real_packets": 2,
+        "split_packets": 1,
+        "ttl_values": [
+          1,
+          64,
+          64
+        ],
+        "sequence_overlaps": [],
+        "split_positions": [
+          76
+        ],
+        "attack_pattern": "fakeddisorder",
+        "patterns": [
+          {
+            "sequence_number": 0,
+            "acknowledgment_number": 0,
+            "payload_size": 13,
+            "tcp_flags": "PSH|ACK",
+            "ttl": 1,
+            "payload_hash": "a7daa223",
+            "is_fake_packet": true,
+            "split_position": null,
+            "overlap_size": null
+          },
+          {
+            "sequence_number": 1000,
+            "acknowledgment_number": 0,
+            "payload_size": 76,
+            "tcp_flags": "PSH|ACK",
+            "ttl": 64,
+            "payload_hash": "6691e149",
+            "is_fake_packet": false,
+            "split_position": 76,
+            "overlap_size": null
+          },
+          {
+            "sequence_number": 740,
+            "acknowledgment_number": 0,
+            "payload_size": 124,
+            "tcp_flags": "PSH|ACK",
+            "ttl": 64,
+            "payload_hash": "84cec34b",
+            "is_fake_packet": false,
+            "split_position": null,
+            "overlap_size": null
+          }
+        ]
+      },
+      "pattern_match_score": 1.0,
+      "critical_differences": [],
+      "minor_differences": [],
+      "validation_passed": true
+    }
+  ],
+  "summary": {
+    "pattern_match_score": 1.0,
+    "critical_differences_count": 0,
+    "minor_differences_count": 0,
+    "attack_pattern_match": true,
+    "validation_result": "PASSED"
+  },
+  "validation_passed": true
+}

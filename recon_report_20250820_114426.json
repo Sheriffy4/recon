@@ -1,0 +1,257 @@
+{
+  "timestamp": "2025-08-20T11:44:26.933244",
+  "target": "sites.txt",
+  "port": 443,
+  "total_strategies_tested": 20,
+  "working_strategies_found": 6,
+  "success_rate": 0.3,
+  "best_strategy": {
+    "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=3,10 --dpi-desync-fooling=badseq",
+    "result_status": "PARTIAL_SUCCESS",
+    "successful_sites": 3,
+    "total_sites": 5,
+    "success_rate": 0.6,
+    "avg_latency_ms": 259.83182589213055,
+    "fingerprint_used": true,
+    "dpi_type": "government",
+    "dpi_confidence": 0.5
+  },
+  "execution_time_seconds": 200.4266700744629,
+  "domain_status": {
+    "https://rutracker.org": "BLOCKED",
+    "https://nnmclub.to": "BLOCKED",
+    "https://rutor.info": "BLOCKED",
+    "https://instagram.com": "BLOCKED",
+    "https://x.com": "BLOCKED"
+  },
+  "fingerprints": {},
+  "all_results": [
+    {
+      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=3,10 --dpi-desync-fooling=badseq",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 5,
+      "success_rate": 0.6,
+      "avg_latency_ms": 259.83182589213055,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 5,
+      "success_rate": 0.6,
+      "avg_latency_ms": 284.3139171600342,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 3,
+      "total_sites": 5,
+      "success_rate": 0.6,
+      "avg_latency_ms": 288.36536407470703,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=7",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 2,
+      "total_sites": 5,
+      "success_rate": 0.4,
+      "avg_latency_ms": 282.4053764343262,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=4",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 2,
+      "total_sites": 5,
+      "success_rate": 0.4,
+      "avg_latency_ms": 290.06707668304443,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=5",
+      "result_status": "PARTIAL_SUCCESS",
+      "successful_sites": 2,
+      "total_sites": 5,
+      "success_rate": 0.4,
+      "avg_latency_ms": 295.7412004470825,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=7",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=10",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-repeats=3",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=8",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=3",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=6",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=127",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=20",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-repeats=2",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-repeats=1",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-split-pos=5",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=2 --dpi-desync-repeats=4",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    },
+    {
+      "strategy": "--dpi-desync=fake --dpi-desync-fake-tls=0x1603 --dpi-desync-ttl=1",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 5,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": true,
+      "dpi_type": "government",
+      "dpi_confidence": 0.5
+    }
+  ],
+  "learning_cache_stats": {
+    "total_strategy_records": 120,
+    "total_tests_performed": 120,
+    "domains_learned": 6,
+    "dpi_patterns_learned": 0,
+    "average_success_rate": 0.15
+  }
+}

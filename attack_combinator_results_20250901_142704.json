@@ -1,0 +1,494 @@
+{
+  "suite_name": "Comprehensive Attack Combinator Test Suite",
+  "scenarios_tested": 3,
+  "total_attacks": 25,
+  "successful_attacks": 19,
+  "overall_success_rate": 76.0,
+  "avg_latency_ms": 204.85620279722085,
+  "test_duration_seconds": 19.94581389427185,
+  "scenario_results": [
+    {
+      "scenario_name": "adaptive_selection_test",
+      "success_rate": 83.33333333333334,
+      "total_attacks": 12,
+      "successful_attacks": 10,
+      "avg_latency_ms": 202.41300251398658,
+      "min_latency_ms": 102.55770561427104,
+      "max_latency_ms": 290.46706694208854,
+      "latency_std_dev": 56.917928656453434,
+      "duration_seconds": 6.205813884735107,
+      "attacks_per_second": 1.9336706228843366,
+      "meets_expectations": true,
+      "expected_success_rate": 70.0,
+      "performance_delta": 13.333333333333341,
+      "domain_results": {
+        "youtube.com": {
+          "success_rate": 100.0,
+          "total_attacks": 3,
+          "successful_attacks": 3,
+          "avg_latency_ms": 238.0227818934423,
+          "best_attack": {
+            "strategy": "multisplit_conservative",
+            "success": true,
+            "latency_ms": 228.916223624326
+          },
+          "worst_attack": {
+            "strategy": "multisplit_conservative",
+            "success": true,
+            "latency_ms": 228.916223624326
+          },
+          "attack_breakdown": {
+            "fakeddisorder_seqovl": {
+              "success": true,
+              "latency_ms": 233.9579267126473
+            },
+            "multisplit_aggressive": {
+              "success": true,
+              "latency_ms": 251.19419534335364
+            },
+            "multisplit_conservative": {
+              "success": true,
+              "latency_ms": 228.916223624326
+            }
+          }
+        },
+        "telegram.org": {
+          "success_rate": 100.0,
+          "total_attacks": 3,
+          "successful_attacks": 3,
+          "avg_latency_ms": 166.7036736562372,
+          "best_attack": {
+            "strategy": "fakeddisorder_seqovl",
+            "success": true,
+            "latency_ms": 102.55770561427104
+          },
+          "worst_attack": {
+            "strategy": "fakeddisorder_seqovl",
+            "success": true,
+            "latency_ms": 102.55770561427104
+          },
+          "attack_breakdown": {
+            "multisplit_aggressive": {
+              "success": true,
+              "latency_ms": 191.41009689823613
+            },
+            "fakeddisorder_seqovl": {
+              "success": true,
+              "latency_ms": 102.55770561427104
+            },
+            "multisplit_conservative": {
+              "success": true,
+              "latency_ms": 206.14321845620447
+            }
+          }
+        },
+        "github.com": {
+          "success_rate": 66.66666666666666,
+          "total_attacks": 3,
+          "successful_attacks": 2,
+          "avg_latency_ms": 255.13486803939503,
+          "best_attack": {
+            "strategy": "multisplit_aggressive",
+            "success": true,
+            "latency_ms": 236.14013183802146
+          },
+          "worst_attack": {
+            "strategy": "multisplit_aggressive",
+            "success": true,
+            "latency_ms": 236.14013183802146
+          },
+          "attack_breakdown": {
+            "fakeddisorder_seqovl": {
+              "success": true,
+              "latency_ms": 238.79740533807512
+            },
+            "multisplit_conservative": {
+              "success": false,
+              "latency_ms": 290.46706694208854
+            },
+            "multisplit_aggressive": {
+              "success": true,
+              "latency_ms": 236.14013183802146
+            }
+          }
+        },
+        "stackoverflow.com": {
+          "success_rate": 66.66666666666666,
+          "total_attacks": 3,
+          "successful_attacks": 2,
+          "avg_latency_ms": 149.79068646687182,
+          "best_attack": {
+            "strategy": "multisplit_aggressive",
+            "success": true,
+            "latency_ms": 169.52696903438098
+          },
+          "worst_attack": {
+            "strategy": "multisplit_aggressive",
+            "success": true,
+            "latency_ms": 169.52696903438098
+          },
+          "attack_breakdown": {
+            "fakeddisorder_seqovl": {
+              "success": true,
+              "latency_ms": 174.17544377433467
+            },
+            "multisplit_aggressive": {
+              "success": true,
+              "latency_ms": 169.52696903438098
+            },
+            "multidisorder": {
+              "success": false,
+              "latency_ms": 105.6696465918998
+            }
+          }
+        }
+      }
+    },
+    {
+      "scenario_name": "social_media_test",
+      "success_rate": 63.63636363636363,
+      "total_attacks": 11,
+      "successful_attacks": 7,
+      "avg_latency_ms": 213.66569746484726,
+      "min_latency_ms": 82.31049667568337,
+      "max_latency_ms": 294.7338311955174,
+      "latency_std_dev": 67.63467899899304,
+      "duration_seconds": 10.409916400909424,
+      "attacks_per_second": 1.0566847586825026,
+      "meets_expectations": false,
+      "expected_success_rate": 75.0,
+      "performance_delta": -11.363636363636365,
+      "domain_results": {
+        "x.com": {
+          "success_rate": 75.0,
+          "total_attacks": 4,
+          "successful_attacks": 3,
+          "avg_latency_ms": 185.68935295325466,
+          "best_attack": {
+            "strategy": "conservative_bypass",
+            "success": true,
+            "latency_ms": 82.31049667568337
+          },
+          "worst_attack": {
+            "strategy": "conservative_bypass",
+            "success": true,
+            "latency_ms": 82.31049667568337
+          },
+          "attack_breakdown": {
+            "instagram_optimized": {
+              "success": false,
+              "latency_ms": 121.7931458030317
+            },
+            "multisplit_conservative": {
+              "success": true,
+              "latency_ms": 268.18513784721506
+            },
+            "seqovl_standard": {
+              "success": true,
+              "latency_ms": 270.4686314870885
+            },
+            "conservative_bypass": {
+              "success": true,
+              "latency_ms": 82.31049667568337
+            }
+          }
+        },
+        "instagram.com": {
+          "success_rate": 100.0,
+          "total_attacks": 1,
+          "successful_attacks": 1,
+          "avg_latency_ms": 216.0712402114532,
+          "best_attack": {
+            "strategy": "instagram_optimized",
+            "success": true,
+            "latency_ms": 216.0712402114532
+          },
+          "worst_attack": {
+            "strategy": "instagram_optimized",
+            "success": true,
+            "latency_ms": 216.0712402114532
+          },
+          "attack_breakdown": {
+            "instagram_optimized": {
+              "success": true,
+              "latency_ms": 216.0712402114532
+            }
+          }
+        },
+        "facebook.com": {
+          "success_rate": 25.0,
+          "total_attacks": 4,
+          "successful_attacks": 1,
+          "avg_latency_ms": 221.38114366632936,
+          "best_attack": {
+            "strategy": "conservative_bypass",
+            "success": true,
+            "latency_ms": 226.52558645038528
+          },
+          "worst_attack": {
+            "strategy": "conservative_bypass",
+            "success": true,
+            "latency_ms": 226.52558645038528
+          },
+          "attack_breakdown": {
+            "instagram_optimized": {
+              "success": false,
+              "latency_ms": 294.7338311955174
+            },
+            "multisplit_conservative": {
+              "success": false,
+              "latency_ms": 213.3353005467086
+            },
+            "seqovl_standard": {
+              "success": false,
+              "latency_ms": 150.92985647270626
+            },
+            "conservative_bypass": {
+              "success": true,
+              "latency_ms": 226.52558645038528
+            }
+          }
+        },
+        "abs.twimg.com": {
+          "success_rate": 100.0,
+          "total_attacks": 1,
+          "successful_attacks": 1,
+          "avg_latency_ms": 259.298546021058,
+          "best_attack": {
+            "strategy": "instagram_optimized",
+            "success": true,
+            "latency_ms": 259.298546021058
+          },
+          "worst_attack": {
+            "strategy": "instagram_optimized",
+            "success": true,
+            "latency_ms": 259.298546021058
+          },
+          "attack_breakdown": {
+            "instagram_optimized": {
+              "success": true,
+              "latency_ms": 259.298546021058
+            }
+          }
+        },
+        "pbs.twimg.com": {
+          "success_rate": 100.0,
+          "total_attacks": 1,
+          "successful_attacks": 1,
+          "avg_latency_ms": 246.67089940247243,
+          "best_attack": {
+            "strategy": "instagram_optimized",
+            "success": true,
+            "latency_ms": 246.67089940247243
+          },
+          "worst_attack": {
+            "strategy": "instagram_optimized",
+            "success": true,
+            "latency_ms": 246.67089940247243
+          },
+          "attack_breakdown": {
+            "instagram_optimized": {
+              "success": true,
+              "latency_ms": 246.67089940247243
+            }
+          }
+        }
+      }
+    },
+    {
+      "scenario_name": "fallback_mechanism_test",
+      "success_rate": 100.0,
+      "total_attacks": 2,
+      "successful_attacks": 2,
+      "avg_latency_ms": 171.06318382468106,
+      "min_latency_ms": 142.54892926350905,
+      "max_latency_ms": 199.5774383858531,
+      "latency_std_dev": 40.32524552136836,
+      "duration_seconds": 3.320770263671875,
+      "attacks_per_second": 0.6022699076414098,
+      "meets_expectations": true,
+      "expected_success_rate": 40.0,
+      "performance_delta": 60.0,
+      "domain_results": {
+        "example.com": {
+          "success_rate": 100.0,
+          "total_attacks": 1,
+          "successful_attacks": 1,
+          "avg_latency_ms": 199.5774383858531,
+          "best_attack": {
+            "strategy": "fakeddisorder_seqovl",
+            "success": true,
+            "latency_ms": 199.5774383858531
+          },
+          "worst_attack": {
+            "strategy": "fakeddisorder_seqovl",
+            "success": true,
+            "latency_ms": 199.5774383858531
+          },
+          "attack_breakdown": {
+            "fakeddisorder_seqovl": {
+              "success": true,
+              "latency_ms": 199.5774383858531
+            }
+          }
+        },
+        "httpbin.org": {
+          "success_rate": 100.0,
+          "total_attacks": 1,
+          "successful_attacks": 1,
+          "avg_latency_ms": 142.54892926350905,
+          "best_attack": {
+            "strategy": "fakeddisorder_seqovl",
+            "success": true,
+            "latency_ms": 142.54892926350905
+          },
+          "worst_attack": {
+            "strategy": "fakeddisorder_seqovl",
+            "success": true,
+            "latency_ms": 142.54892926350905
+          },
+          "attack_breakdown": {
+            "fakeddisorder_seqovl": {
+              "success": true,
+              "latency_ms": 142.54892926350905
+            }
+          }
+        }
+      }
+    }
+  ],
+  "performance_metrics": {
+    "suite_duration_seconds": 19.94581389427185,
+    "scenarios_meeting_expectations": 2,
+    "total_scenarios": 3,
+    "best_scenario": {
+      "name": "fallback_mechanism_test",
+      "success_rate": 100.0
+    },
+    "worst_scenario": {
+      "name": "social_media_test",
+      "success_rate": 63.63636363636363
+    },
+    "attack_combinator_stats": {
+      "global_metrics": {
+        "total_attempts": 32,
+        "success_count": 24,
+        "success_rate": 0.75,
+        "recent_success_rate": 0.7
+      },
+      "strategy_performance": {
+        "fakeddisorder_basic": {
+          "success_rate": 0.0,
+          "total_attempts": 2,
+          "avg_latency_ms": 229.05864418682745
+        },
+        "fakeddisorder_seqovl": {
+          "success_rate": 1.0,
+          "total_attempts": 9,
+          "avg_latency_ms": 190.9513576700608
+        },
+        "multisplit_aggressive": {
+          "success_rate": 1.0,
+          "total_attempts": 6,
+          "avg_latency_ms": 224.16280213436247
+        },
+        "multisplit_conservative": {
+          "success_rate": 0.6,
+          "total_attempts": 5,
+          "avg_latency_ms": 241.4093894833085
+        },
+        "multidisorder": {
+          "success_rate": 0.0,
+          "total_attempts": 1,
+          "avg_latency_ms": 105.6696465918998
+        },
+        "instagram_optimized": {
+          "success_rate": 0.6,
+          "total_attempts": 5,
+          "avg_latency_ms": 227.71353252670656
+        },
+        "seqovl_standard": {
+          "success_rate": 0.5,
+          "total_attempts": 2,
+          "avg_latency_ms": 210.69924397989737
+        },
+        "conservative_bypass": {
+          "success_rate": 1.0,
+          "total_attempts": 2,
+          "avg_latency_ms": 154.4180415630343
+        }
+      },
+      "domain_performance": {
+        "example.com": {
+          "success_rate": 0.8,
+          "total_attempts": 5
+        },
+        "httpbin.org": {
+          "success_rate": 0.75,
+          "total_attempts": 4
+        },
+        "youtube.com": {
+          "success_rate": 1.0,
+          "total_attempts": 3
+        },
+        "telegram.org": {
+          "success_rate": 1.0,
+          "total_attempts": 3
+        },
+        "github.com": {
+          "success_rate": 0.6666666666666666,
+          "total_attempts": 3
+        },
+        "stackoverflow.com": {
+          "success_rate": 0.6666666666666666,
+          "total_attempts": 3
+        },
+        "x.com": {
+          "success_rate": 0.75,
+          "total_attempts": 4
+        },
+        "instagram.com": {
+          "success_rate": 1.0,
+          "total_attempts": 1
+        },
+        "facebook.com": {
+          "success_rate": 0.25,
+          "total_attempts": 4
+        },
+        "abs.twimg.com": {
+          "success_rate": 1.0,
+          "total_attempts": 1
+        },
+        "pbs.twimg.com": {
+          "success_rate": 1.0,
+          "total_attempts": 1
+        }
+      },
+      "recent_activity": 32,
+      "total_strategies_tested": 8,
+      "total_domains_tested": 11
+    },
+    "scenario_performance": {
+      "adaptive_selection_test": {
+        "success_rate": 83.33333333333334,
+        "meets_expectations": true,
+        "performance_delta": 13.333333333333341,
+        "efficiency": 1.9336706228843366
+      },
+      "social_media_test": {
+        "success_rate": 63.63636363636363,
+        "meets_expectations": false,
+        "performance_delta": -11.363636363636365,
+        "efficiency": 1.0566847586825026
+      },
+      "fallback_mechanism_test": {
+        "success_rate": 100.0,
+        "meets_expectations": true,
+        "performance_delta": 60.0,
+        "efficiency": 0.6022699076414098
+      }
+    },
+    "overall_efficiency": 0.1504074998344167
+  },
+  "timestamp": "2025-09-01T14:27:04.673453"
+}

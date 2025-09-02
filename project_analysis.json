@@ -1,0 +1,3508 @@
+{
+  "total_files": 795,
+  "working_modules": 688,
+  "broken_modules": 107,
+  "categories": {
+    "cli_tools": [
+      "adaptive_strategy_finder.py",
+      "analyze_and_fix_issues.py",
+      "analyze_notwork_pcap.py",
+      "analyze_work_pcap.py",
+      "analyze_work_pcap_advanced.py",
+      "apply_additional_attackstatus_safety.py",
+      "apply_final_optimizations.py",
+      "apply_improved_strategies.py",
+      "attack_effectiveness_validator.py",
+      "attack_system_survey.py",
+      "blockcheck_logic.py",
+      "browser_network_monitor.py",
+      "cli.py",
+      "cli_di_patch.py",
+      "cli_simple.py",
+      "cli_workflow_optimizer.py",
+      "cli_workflow_patch.py",
+      "comprehensive_bypass_analyzer.py",
+      "debug_attack_adapter_detailed.py",
+      "debug_cli_attack_result.py",
+      "debug_cli_exact_params.py",
+      "debug_multisplit_segments.py",
+      "debug_production_attackstatus_error.py",
+      "demo_comprehensive_system_test.py",
+      "demo_modern_integration.py",
+      "demo_zapret_adapter.py",
+      "demo_zapret_system.py",
+      "detailed_success_analyzer.py",
+      "diagnose_hang.py",
+      "doctor.py",
+      "doctor_simple.py",
+      "final_packet_bypass.py",
+      "final_production_validation.py",
+      "final_system_validation.py",
+      "fix_bypass_issues.py",
+      "fix_future_annotations.py",
+      "fix_imports.py",
+      "fix_test_imports.py",
+      "fix_timeout_issues.py",
+      "fix_warnings.py",
+      "hybrid_engine_fingerprinting_demo.py",
+      "install_pydivert.py",
+      "monitor.py",
+      "old_test_metrics_comprehensive.py",
+      "old_test_metrics_simple.py",
+      "pcap_monitor.py",
+      "pcap_validation_test.py",
+      "project_analyzer.py",
+      "quick_test.py",
+      "recon_service.py",
+      "run_dashboard.py",
+      "run_metrics_tests.py",
+      "run_web_dashboard.py",
+      "setup.py",
+      "setup_advanced.py",
+      "simple_cli.py",
+      "simple_pcap_analyzer.py",
+      "smart_bypass_cli.py",
+      "subdomain_detector.py",
+      "testing_completion_report.py",
+      "test_doh_fix.py",
+      "test_doh_simple.py",
+      "test_hybrid_engine_fingerprinting.py",
+      "test_modern_integration.py",
+      "verify_attacks.py",
+      "windivert_driver_fix.py",
+      "x_com_specific_fix.py",
+      "x_com_subdomain_analyzer.py",
+      "core\\cli_workflow_optimizer.py",
+      "core\\demo_modern_integration.py",
+      "core\\hybrid_engine_fingerprinting_demo.py",
+      "core\\test_hybrid_engine_fingerprinting.py",
+      "core\\test_modern_integration.py",
+      "core\\windivert_driver_fix.py",
+      "deployment\\production_deployment_manager.py",
+      "examples\\dry_run_testing_example.py",
+      "examples\\engine_dry_run_example.py",
+      "examples\\faked_disorder_attack_example.py",
+      "examples\\migration_examples_before_after.py",
+      "examples\\multisplit_attack_example.py",
+      "examples\\native_engine_segments_example.py",
+      "examples\\packet_construction_transmission_example.py",
+      "examples\\production_monitoring_example.py",
+      "examples\\reference_attacks_showcase.py",
+      "examples\\segments_usage_example.py",
+      "examples\\segment_diagnostics_example.py",
+      "examples\\segment_execution_stats_example.py",
+      "examples\\segment_packet_builder_example.py",
+      "examples\\segment_performance_optimization_example.py",
+      "examples\\tcp_session_context_example.py",
+      "ml\\fingerprint_aware_strategy_demo.py",
+      "ml\\test_fingerprint_integration_simple.py",
+      "ml\\test_zapret_strategy_generator_fingerprint.py",
+      "monitoring\\production_monitoring_system.py",
+      "tests\\run_tests.py",
+      "tests\\test_adaptive_learning.py",
+      "tests\\test_advanced_fingerprinter.py",
+      "tests\\test_advanced_fingerprinter_simple.py",
+      "tests\\test_advanced_models.py",
+      "tests\\test_analytics_comprehensive.py",
+      "tests\\test_analytics_standalone.py",
+      "tests\\test_async_attacks.py",
+      "tests\\test_attack_catalog.py",
+      "tests\\test_attack_registry.py",
+      "tests\\test_attack_registry_simple.py",
+      "tests\\test_bypass_web_integration.py",
+      "tests\\test_cache.py",
+      "tests\\test_cache_integration.py",
+      "tests\\test_cli_modes.py",
+      "tests\\test_cli_modes_comprehensive.py",
+      "tests\\test_compatibility.py",
+      "tests\\test_compatibility_layer.py",
+      "tests\\test_comprehensive_suite.py",
+      "tests\\test_comprehensive_system.py",
+      "tests\\test_comprehensive_system_simple.py",
+      "tests\\test_config.py",
+      "tests\\test_config_migration.py",
+      "tests\\test_config_migration_standalone.py",
+      "tests\\test_diagnostics.py",
+      "tests\\test_dns_analyzer.py",
+      "tests\\test_dns_attacks.py",
+      "tests\\test_dns_integration.py",
+      "tests\\test_dns_simple.py",
+      "tests\\test_dpi_behavior_monitor.py",
+      "tests\\test_dpi_fingerprinting.py",
+      "tests\\test_dpi_monitor_simple.py",
+      "tests\\test_evolutionary_search.py",
+      "tests\\test_fingerprint_integration_simple.py",
+      "tests\\test_http_analyzer.py",
+      "tests\\test_http_integration.py",
+      "tests\\test_http_manipulation.py",
+      "tests\\test_http_simple.py",
+      "tests\\test_hybrid_engine_fingerprinting.py",
+      "tests\\test_integration.py",
+      "tests\\test_metrics_collector.py",
+      "tests\\test_metrics_comprehensive.py",
+      "tests\\test_metrics_simple.py",
+      "tests\\test_ml_classifier.py",
+      "tests\\test_model_trainer.py",
+      "tests\\test_modern_integration.py",
+      "tests\\test_mode_controller.py",
+      "tests\\test_mode_controller_simple.py",
+      "tests\\test_monitoring_integration.py",
+      "tests\\test_multi_port_handler.py",
+      "tests\\test_obfuscation_attacks.py",
+      "tests\\test_online_learning.py",
+      "tests\\test_online_learning_integration.py",
+      "tests\\test_online_learning_simple.py",
+      "tests\\test_packet_engine.py",
+      "tests\\test_performance_optimization.py",
+      "tests\\test_pool_management.py",
+      "tests\\test_quic_ech.py",
+      "tests\\test_reliability_validator.py",
+      "tests\\test_reporting.py",
+      "tests\\test_runner.py",
+      "tests\\test_safety_framework.py",
+      "tests\\test_sharing_system.py",
+      "tests\\test_simple.py",
+      "tests\\test_strategy_application.py",
+      "tests\\test_strategy_simple.py",
+      "tests\\test_subdomain_handler.py",
+      "tests\\test_tcp_analyzer.py",
+      "tests\\test_tcp_attacks.py",
+      "tests\\test_tcp_fragmentation.py",
+      "tests\\test_tcp_integration.py",
+      "tests\\test_tcp_manipulation.py",
+      "tests\\test_tcp_tracking.py",
+      "tests\\test_timing_attacks.py",
+      "tests\\test_tls_evasion.py",
+      "tests\\test_training_pipeline.py",
+      "tests\\test_zapret_strategy_generator_fingerprint.py",
+      "tools\\migration_validation_tool.py",
+      "web\\bypass_integration.py",
+      "web\\demo_web_integration.py",
+      "web\\simple_web_integration_test.py",
+      "web\\test_bypass_web_integration.py",
+      "тесты\\final_integration_test.py",
+      "тесты\\test_attack_catalog.py",
+      "тесты\\test_attack_registry.py",
+      "тесты\\test_attack_registry_simple.py",
+      "тесты\\test_cache.py",
+      "тесты\\test_cache_integration.py",
+      "тесты\\test_cli_modes.py",
+      "тесты\\test_cli_modes_comprehensive.py",
+      "тесты\\test_compatibility.py",
+      "тесты\\test_comprehensive_system_simple.py",
+      "тесты\\test_config.py",
+      "тесты\\test_config_migration_standalone.py",
+      "тесты\\test_diagnostics.py",
+      "тесты\\test_evolutionary_search.py",
+      "тесты\\test_http_integration.py",
+      "тесты\\test_http_manipulation.py",
+      "тесты\\test_integration.py",
+      "тесты\\test_metrics_simple.py",
+      "тесты\\test_ml_classifier.py",
+      "тесты\\test_model_trainer.py",
+      "тесты\\test_mode_controller.py",
+      "тесты\\test_mode_controller_simple.py",
+      "тесты\\test_online_learning.py",
+      "тесты\\test_online_learning_simple.py",
+      "тесты\\test_packet_engine.py",
+      "тесты\\test_quic_ech.py",
+      "тесты\\test_reporting.py",
+      "тесты\\test_safety_framework.py",
+      "тесты\\test_tcp_analyzer.py",
+      "тесты\\test_tcp_attacks.py",
+      "тесты\\test_tcp_fragmentation.py",
+      "тесты\\test_tcp_integration.py",
+      "тесты\\test_tcp_manipulation.py",
+      "тесты\\test_tcp_tracking.py",
+      "тесты\\test_training_pipeline.py",
+      "core\\cli\\segment_attack_cli.py",
+      "core\\di\\cli_integration.py",
+      "core\\di\\cli_provider.py",
+      "core\\fingerprint\\advanced_fingerprinter_demo.py",
+      "core\\fingerprint\\compatibility.py",
+      "core\\fingerprint\\compatibility_demo.py",
+      "core\\fingerprint\\config.py",
+      "core\\fingerprint\\config_demo.py",
+      "core\\fingerprint\\diagnostics.py",
+      "core\\fingerprint\\dns_analyzer_demo.py",
+      "core\\fingerprint\\dpi_monitor_demo.py",
+      "core\\fingerprint\\final_integration.py",
+      "core\\fingerprint\\ml_classifier_demo.py",
+      "core\\fingerprint\\online_learning_demo.py",
+      "core\\fingerprint\\tcp_analyzer_demo.py",
+      "core\\fingerprint\\test_advanced_fingerprinter.py",
+      "core\\fingerprint\\test_advanced_fingerprinter_simple.py",
+      "core\\fingerprint\\test_advanced_models.py",
+      "core\\fingerprint\\test_cache.py",
+      "core\\fingerprint\\test_cache_integration.py",
+      "core\\fingerprint\\test_dns_analyzer.py",
+      "core\\fingerprint\\test_dns_integration.py",
+      "core\\fingerprint\\test_dns_simple.py",
+      "core\\fingerprint\\test_dpi_behavior_monitor.py",
+      "core\\fingerprint\\test_dpi_monitor_simple.py",
+      "core\\fingerprint\\test_http_analyzer.py",
+      "core\\fingerprint\\test_http_integration.py",
+      "core\\fingerprint\\test_http_simple.py",
+      "core\\fingerprint\\test_integration.py",
+      "core\\fingerprint\\test_metrics_collector.py",
+      "core\\fingerprint\\test_ml_classifier.py",
+      "core\\fingerprint\\test_online_learning.py",
+      "core\\fingerprint\\test_online_learning_simple.py",
+      "core\\fingerprint\\test_tcp_analyzer.py",
+      "core\\fingerprint\\test_tcp_integration.py",
+      "core\\fingerprint\\test_training_pipeline.py",
+      "core\\fingerprint\\training_demo.py",
+      "core\\optimization\\http_client_pool.py",
+      "core\\packet\\attack_optimizer.py",
+      "core\\packet\\demo_final.py",
+      "core\\packet\\demo_migration.py",
+      "core\\packet\\improved_bypass_engine.py",
+      "core\\packet\\pcap_analyzer.py",
+      "core\\packet\\performance_benchmark.py",
+      "core\\packet\\simple_migration_test.py",
+      "core\\packet\\test_migration.py",
+      "core\\bypass\\analytics\\demo_analytics_system.py",
+      "core\\bypass\\analytics\\simple_analytics_test.py",
+      "core\\bypass\\analytics\\test_analytics_comprehensive.py",
+      "core\\bypass\\analytics\\test_analytics_standalone.py",
+      "core\\bypass\\analytics\\test_simple.py",
+      "core\\bypass\\attacks\\compatibility_matrix.py",
+      "core\\bypass\\attacks\\demo_attack_registry.py",
+      "core\\bypass\\attacks\\demo_http_attacks.py",
+      "core\\bypass\\attacks\\test_http_manipulation.py",
+      "core\\bypass\\compatibility\\demo_compatibility_layer.py",
+      "core\\bypass\\compatibility\\simple_compatibility_test.py",
+      "core\\bypass\\compatibility\\test_compatibility_layer.py",
+      "core\\bypass\\config\\demo_config_migration.py",
+      "core\\bypass\\config\\simple_config_test.py",
+      "core\\bypass\\config\\test_config_migration.py",
+      "core\\bypass\\engines\\health_check.py",
+      "core\\bypass\\modes\\demo_mode_controller.py",
+      "core\\bypass\\performance\\demo_performance_optimization.py",
+      "core\\bypass\\performance\\simple_performance_test.py",
+      "core\\bypass\\performance\\test_performance_optimization.py",
+      "core\\bypass\\protocols\\demo_multi_port_integration.py",
+      "core\\bypass\\protocols\\simple_multi_port_test.py",
+      "core\\bypass\\protocols\\test_multi_port_handler.py",
+      "core\\bypass\\safety\\demo_safety_framework.py",
+      "core\\bypass\\sharing\\demo_sharing_system.py",
+      "core\\bypass\\sharing\\simple_sharing_test.py",
+      "core\\bypass\\sharing\\test_sharing_system.py",
+      "core\\bypass\\strategies\\comprehensive_test.py",
+      "core\\bypass\\strategies\\demo_pool_management.py",
+      "core\\bypass\\strategies\\demo_social_media_support.py",
+      "core\\bypass\\strategies\\demo_strategy_application.py",
+      "core\\bypass\\strategies\\demo_subdomain_support.py",
+      "core\\bypass\\strategies\\pool_management.py",
+      "core\\bypass\\strategies\\pool_management_minimal.py",
+      "core\\bypass\\strategies\\simple_social_media_test.py",
+      "core\\bypass\\strategies\\simple_subdomain_test.py",
+      "core\\bypass\\strategies\\simple_test.py",
+      "core\\bypass\\strategies\\strategy_application.py",
+      "core\\bypass\\strategies\\subdomain_handler.py",
+      "core\\bypass\\strategies\\test_pool_management.py",
+      "core\\bypass\\strategies\\test_social_media_handler.py",
+      "core\\bypass\\strategies\\test_strategy_application.py",
+      "core\\bypass\\strategies\\test_strategy_simple.py",
+      "core\\bypass\\strategies\\test_subdomain_handler.py",
+      "core\\bypass\\testing\\comprehensive_system_test.py",
+      "core\\bypass\\testing\\demo_testing_framework.py",
+      "core\\bypass\\testing\\simple_framework_test.py",
+      "core\\bypass\\testing\\test_comprehensive_system.py",
+      "core\\bypass\\testing\\test_runner.py",
+      "core\\bypass\\validation\\demo_reliability_validation.py",
+      "core\\bypass\\validation\\simple_reliability_test.py",
+      "core\\bypass\\validation\\test_reliability_validator.py",
+      "core\\bypass\\attacks\\dns\\demo_dns_attacks.py",
+      "core\\bypass\\attacks\\dns\\final_dns_test.py",
+      "core\\bypass\\attacks\\dns\\simple_dns_test.py",
+      "core\\bypass\\attacks\\dns\\test_dns_attacks.py",
+      "core\\bypass\\attacks\\obfuscation\\simple_obfuscation_test.py",
+      "core\\bypass\\attacks\\obfuscation\\test_obfuscation_attacks.py",
+      "core\\bypass\\attacks\\obfuscation\\test_simple.py",
+      "core\\bypass\\attacks\\timing\\demo_timing_attacks.py",
+      "core\\bypass\\attacks\\timing\\simple_timing_test.py",
+      "core\\bypass\\attacks\\timing\\test_timing_attacks.py",
+      "core\\bypass\\attacks\\tls\\demo_tls_evasion.py",
+      "core\\bypass\\attacks\\tls\\simple_tls_test.py",
+      "core\\bypass\\attacks\\tls\\test_tls_evasion.py",
+      "tests\\analytics\\test_analytics_comprehensive.py",
+      "tests\\analytics\\test_analytics_standalone.py",
+      "tests\\analytics\\test_simple.py",
+      "tests\\analytics\\test_simple_analytics.py",
+      "tests\\attacks\\test_combo_attacks.py",
+      "tests\\attacks\\test_dns_attacks.py",
+      "tests\\attacks\\test_http_manipulation.py",
+      "tests\\attacks\\test_obfuscation_attacks.py",
+      "tests\\attacks\\test_simple.py",
+      "tests\\attacks\\test_simple_obfuscation.py",
+      "tests\\attacks\\test_tcp_comprehensive.py",
+      "tests\\attacks\\test_timing_attacks.py",
+      "tests\\attacks\\test_tls_evasion.py",
+      "tests\\compatibility\\test_compatibility_layer.py",
+      "tests\\config\\test_config_migration.py",
+      "tests\\core\\test_advanced_fingerprinter.py",
+      "tests\\core\\test_advanced_fingerprinter_simple.py",
+      "tests\\core\\test_advanced_models.py",
+      "tests\\core\\test_analytics_comprehensive.py",
+      "tests\\core\\test_analytics_standalone.py",
+      "tests\\core\\test_cache.py",
+      "tests\\core\\test_cache_integration.py",
+      "tests\\core\\test_compatibility_layer.py",
+      "tests\\core\\test_comprehensive_system.py",
+      "tests\\core\\test_config_migration.py",
+      "tests\\core\\test_dns_analyzer.py",
+      "tests\\core\\test_dns_integration.py",
+      "tests\\core\\test_dns_simple.py",
+      "tests\\core\\test_dpi_behavior_monitor.py",
+      "tests\\core\\test_dpi_monitor_simple.py",
+      "tests\\core\\test_http_analyzer.py",
+      "tests\\core\\test_http_integration.py",
+      "tests\\core\\test_http_simple.py",
+      "tests\\core\\test_integration.py",
+      "tests\\core\\test_metrics_collector.py",
+      "tests\\core\\test_ml_classifier.py",
+      "tests\\core\\test_multi_port_handler.py",
+      "tests\\core\\test_online_learning.py",
+      "tests\\core\\test_online_learning_simple.py",
+      "tests\\core\\test_performance_optimization.py",
+      "tests\\core\\test_pool_management.py",
+      "tests\\core\\test_reliability_validator.py",
+      "tests\\core\\test_runner.py",
+      "tests\\core\\test_sharing_system.py",
+      "tests\\core\\test_simple.py",
+      "tests\\core\\test_strategy_application.py",
+      "tests\\core\\test_strategy_simple.py",
+      "tests\\core\\test_subdomain_handler.py",
+      "tests\\core\\test_tcp_analyzer.py",
+      "tests\\core\\test_tcp_integration.py",
+      "tests\\core\\test_training_pipeline.py",
+      "tests\\fingerprint\\test_advanced_fingerprinter.py",
+      "tests\\fingerprint\\test_advanced_fingerprinter_simple.py",
+      "tests\\fingerprint\\test_advanced_models.py",
+      "tests\\fingerprint\\test_cache.py",
+      "tests\\fingerprint\\test_cache_integration.py",
+      "tests\\fingerprint\\test_dns_analyzer.py",
+      "tests\\fingerprint\\test_dns_integration.py",
+      "tests\\fingerprint\\test_dns_simple.py",
+      "tests\\fingerprint\\test_dpi_behavior_monitor.py",
+      "tests\\fingerprint\\test_dpi_monitor_simple.py",
+      "tests\\fingerprint\\test_http_analyzer.py",
+      "tests\\fingerprint\\test_http_integration.py",
+      "tests\\fingerprint\\test_http_simple.py",
+      "tests\\fingerprint\\test_integration.py",
+      "tests\\fingerprint\\test_metrics_collector.py",
+      "tests\\fingerprint\\test_ml_classifier.py",
+      "tests\\fingerprint\\test_online_learning.py",
+      "tests\\fingerprint\\test_online_learning_simple.py",
+      "tests\\fingerprint\\test_tcp_analyzer.py",
+      "tests\\fingerprint\\test_tcp_integration.py",
+      "tests\\fingerprint\\test_training_pipeline.py",
+      "tests\\performance\\test_performance_optimization.py",
+      "tests\\protocols\\test_multi_port_handler.py",
+      "tests\\sharing\\test_sharing_system.py",
+      "tests\\strategies\\test_pool_management.py",
+      "tests\\strategies\\test_strategy_application.py",
+      "tests\\strategies\\test_strategy_simple.py",
+      "tests\\strategies\\test_subdomain_handler.py",
+      "tests\\testing\\test_comprehensive_system.py",
+      "tests\\testing\\test_runner.py",
+      "tests\\validation\\test_reliability_validator.py"
+    ],
+    "core_engines": [
+      "apply_bypass.py",
+      "bypass_engine.py",
+      "final_bypass_test.py",
+      "hybrid_engine.py",
+      "setup_bypass.py",
+      "setup_hosts_bypass.py",
+      "simple_bypass_test.py",
+      "test_smart_bypass.py",
+      "core\\app_level_tester.py",
+      "core\\blocked_domain_detector.py",
+      "core\\bypass_engine.py",
+      "core\\capture.py",
+      "core\\cdn_resolver.py",
+      "core\\compat.py",
+      "core\\diagnostic_system.py",
+      "core\\doh_resolver.py",
+      "core\\domain_manager.py",
+      "core\\domain_specific_strategies.py",
+      "core\\failure_analyzer.py",
+      "core\\hybrid_engine.py",
+      "core\\interfaces.py",
+      "core\\metrics.py",
+      "core\\monitoring_system.py",
+      "core\\packet_builder.py",
+      "core\\packet_converter.py",
+      "core\\packet_modification_validator.py",
+      "core\\performance_optimizer.py",
+      "core\\planner.py",
+      "core\\post_handshake_analyzer.py",
+      "core\\quality_analyzer.py",
+      "core\\quic_handler.py",
+      "core\\real_world_tester.py",
+      "core\\robust_packet_processor.py",
+      "core\\signature_manager.py",
+      "core\\smart_bypass_engine.py",
+      "core\\storage.py",
+      "core\\strategy_manager.py",
+      "core\\strategy_monitor.py",
+      "core\\windivert_filter.py",
+      "core\\zapret.py",
+      "core\\zapret_parser.py",
+      "core\\__init__.py",
+      "tests\\test_engine.py",
+      "tests\\test_hybrid_engine_integration.py",
+      "tests\\test_intelligent_bypass.py",
+      "web\\bypass_api.py",
+      "web\\bypass_dashboard.py",
+      "core\\async_utils\\background_task_manager.py",
+      "core\\async_utils\\import_manager.py",
+      "core\\async_utils\\__init__.py",
+      "core\\bypass\\exceptions.py",
+      "core\\bypass\\system_bypass_manager.py",
+      "core\\bypass\\types.py",
+      "core\\bypass\\__init__.py",
+      "core\\di\\component_registry.py",
+      "core\\di\\config.py",
+      "core\\di\\container.py",
+      "core\\di\\factory.py",
+      "core\\di\\typed_config.py",
+      "core\\di\\__init__.py",
+      "core\\diagnostics\\logger.py",
+      "core\\diagnostics\\metrics.py",
+      "core\\dns\\ip_aggregator.py",
+      "core\\dns\\pinned_resolver.py",
+      "core\\dns\\robust_dns_handler.py",
+      "core\\dns\\__init__.py",
+      "core\\effectiveness\\production_effectiveness_tester.py",
+      "core\\fingerprint\\advanced_fingerprinter.py",
+      "core\\fingerprint\\advanced_fingerprint_engine.py",
+      "core\\fingerprint\\advanced_models.py",
+      "core\\fingerprint\\analyzer.py",
+      "core\\fingerprint\\cache.py",
+      "core\\fingerprint\\classifier.py",
+      "core\\fingerprint\\dns_analyzer.py",
+      "core\\fingerprint\\dpi_behavior_analyzer.py",
+      "core\\fingerprint\\dpi_behavior_monitor.py",
+      "core\\fingerprint\\http_analyzer.py",
+      "core\\fingerprint\\metrics_collector.py",
+      "core\\fingerprint\\metrics_collector_new.py",
+      "core\\fingerprint\\ml_classifier.py",
+      "core\\fingerprint\\models.py",
+      "core\\fingerprint\\model_trainer.py",
+      "core\\fingerprint\\monitoring_integration.py",
+      "core\\fingerprint\\online_learning.py",
+      "core\\fingerprint\\online_learning_integration.py",
+      "core\\fingerprint\\prober.py",
+      "core\\fingerprint\\profiles.py",
+      "core\\fingerprint\\tcp_analyzer.py",
+      "core\\fingerprint\\training_data.py",
+      "core\\fingerprint\\__init__.py",
+      "core\\integration\\adaptive_combo_integration.py",
+      "core\\integration\\advanced_attack_errors.py",
+      "core\\integration\\advanced_attack_manager.py",
+      "core\\integration\\advanced_attack_registry.py",
+      "core\\integration\\advanced_attack_registry_simple.py",
+      "core\\integration\\advanced_diagnostics.py",
+      "core\\integration\\advanced_performance_monitor.py",
+      "core\\integration\\advanced_reporting_integration.py",
+      "core\\integration\\attack_adapter.py",
+      "core\\integration\\closed_loop_manager.py",
+      "core\\integration\\ech_attack_integration.py",
+      "core\\integration\\evolutionary_optimization_integration.py",
+      "core\\integration\\fingerprint_integration.py",
+      "core\\integration\\integration_config.py",
+      "core\\integration\\learning_memory_integration.py",
+      "core\\integration\\performance_integration.py",
+      "core\\integration\\quic_attack_integration.py",
+      "core\\integration\\result_processor.py",
+      "core\\integration\\service_integration_manager.py",
+      "core\\integration\\simple_performance_optimizer.py",
+      "core\\integration\\strategy_mapper.py",
+      "core\\integration\\strategy_prediction_integration.py",
+      "core\\integration\\strategy_saver.py",
+      "core\\integration\\traffic_mimicry_integration.py",
+      "core\\integration\\__init__.py",
+      "core\\learning\\cache.py",
+      "core\\learning\\__init__.py",
+      "core\\monitoring\\advanced_monitoring_system.py",
+      "core\\net\\base_packet.py",
+      "core\\net\\byte_packet.py",
+      "core\\net\\ech.py",
+      "core\\net\\packet_engine.py",
+      "core\\net\\quic_packet.py",
+      "core\\net\\tcp_manipulator.py",
+      "core\\net\\tcp_options.py",
+      "core\\net\\tcp_tracker.py",
+      "core\\optimization\\dynamic_parameter_optimizer.py",
+      "core\\optimization\\performance_optimizer.py",
+      "core\\packet\\migration_tool.py",
+      "core\\packet\\packet_builder.py",
+      "core\\packet\\packet_injector.py",
+      "core\\packet\\packet_models.py",
+      "core\\packet\\packet_parser.py",
+      "core\\packet\\protocol_handlers.py",
+      "core\\packet\\raw_packet_engine.py",
+      "core\\packet\\scapy_compatibility.py",
+      "core\\packet\\__init__.py",
+      "core\\protocols\\http.py",
+      "core\\protocols\\tls.py",
+      "core\\protocols\\__init__.py",
+      "core\\reporting\\enhanced_reporter.py",
+      "core\\reporting\\segment_reporting_integration.py",
+      "core\\reporting\\__init__.py",
+      "core\\workflow\\segment_workflow_integration.py",
+      "core\\bypass\\analytics\\analytics_engine.py",
+      "core\\bypass\\analytics\\analytics_models.py",
+      "core\\bypass\\analytics\\metrics_collector.py",
+      "core\\bypass\\analytics\\ml_predictor.py",
+      "core\\bypass\\analytics\\performance_tracker.py",
+      "core\\bypass\\analytics\\reporting_dashboard.py",
+      "core\\bypass\\analytics\\__init__.py",
+      "core\\bypass\\attacks\\advanced_base.py",
+      "core\\bypass\\attacks\\attack_catalog.py",
+      "core\\bypass\\attacks\\attack_definition.py",
+      "core\\bypass\\attacks\\base.py",
+      "core\\bypass\\attacks\\bypass_tester.py",
+      "core\\bypass\\attacks\\domain_tester.py",
+      "core\\bypass\\attacks\\engine.py",
+      "core\\bypass\\attacks\\http_manipulation.py",
+      "core\\bypass\\attacks\\learning_memory.py",
+      "core\\bypass\\attacks\\migration_helper.py",
+      "core\\bypass\\attacks\\modern_registry.py",
+      "core\\bypass\\attacks\\multisplit_segment_fix.py",
+      "core\\bypass\\attacks\\network_tester.py",
+      "core\\bypass\\attacks\\pacing_attack.py",
+      "core\\bypass\\attacks\\proper_testing_methodology.py",
+      "core\\bypass\\attacks\\real_effectiveness_tester.py",
+      "core\\bypass\\attacks\\registry.py",
+      "core\\bypass\\attacks\\safe_result_utils.py",
+      "core\\bypass\\attacks\\segment_packet_builder.py",
+      "core\\bypass\\attacks\\simple_attack_executor.py",
+      "core\\bypass\\attacks\\stateful_fragmentation.py",
+      "core\\bypass\\attacks\\tcp_fragmentation.py",
+      "core\\bypass\\attacks\\timing_controller.py",
+      "core\\bypass\\attacks\\tls_record_manipulation.py",
+      "core\\bypass\\attacks\\__init__.py",
+      "core\\bypass\\compatibility\\byebyedpi_parser.py",
+      "core\\bypass\\compatibility\\compatibility_bridge.py",
+      "core\\bypass\\compatibility\\goodbyedpi_parser.py",
+      "core\\bypass\\compatibility\\syntax_converter.py",
+      "core\\bypass\\compatibility\\tool_detector.py",
+      "core\\bypass\\compatibility\\zapret_parser.py",
+      "core\\bypass\\compatibility\\__init__.py",
+      "core\\bypass\\config\\backup_manager.py",
+      "core\\bypass\\config\\config_manager.py",
+      "core\\bypass\\config\\config_migrator.py",
+      "core\\bypass\\config\\config_models.py",
+      "core\\bypass\\config\\config_validator.py",
+      "core\\bypass\\config\\__init__.py",
+      "core\\bypass\\diagnostics\\metrics.py",
+      "core\\bypass\\diagnostics\\segment_diagnostics.py",
+      "core\\bypass\\diagnostics\\__init__.py",
+      "core\\bypass\\engines\\base.py",
+      "core\\bypass\\engines\\builder.py",
+      "core\\bypass\\engines\\config_models.py",
+      "core\\bypass\\engines\\engine_config_manager.py",
+      "core\\bypass\\engines\\engine_type_detector.py",
+      "core\\bypass\\engines\\engine_validator.py",
+      "core\\bypass\\engines\\enhanced_factory.py",
+      "core\\bypass\\engines\\error_handling.py",
+      "core\\bypass\\engines\\external_tool_engine.py",
+      "core\\bypass\\engines\\factory.py",
+      "core\\bypass\\engines\\fallback_recovery.py",
+      "core\\bypass\\engines\\native_pydivert_engine.py",
+      "core\\bypass\\engines\\packet_executor.py",
+      "core\\bypass\\engines\\packet_processing_engine.py",
+      "core\\bypass\\engines\\scapy_engine.py",
+      "core\\bypass\\engines\\simple_attack_executor.py",
+      "core\\bypass\\engines\\__init__.py",
+      "core\\bypass\\modes\\capability_detector.py",
+      "core\\bypass\\modes\\exceptions.py",
+      "core\\bypass\\modes\\mode_controller.py",
+      "core\\bypass\\modes\\mode_transition.py",
+      "core\\bypass\\modes\\__init__.py",
+      "core\\bypass\\monitoring\\segment_execution_stats.py",
+      "core\\bypass\\performance\\alerting_system.py",
+      "core\\bypass\\performance\\performance_models.py",
+      "core\\bypass\\performance\\performance_optimizer.py",
+      "core\\bypass\\performance\\production_monitor.py",
+      "core\\bypass\\performance\\segment_performance_optimizer.py",
+      "core\\bypass\\performance\\segment_performance_optimizer_simple.py",
+      "core\\bypass\\performance\\strategy_optimizer.py",
+      "core\\bypass\\performance\\__init__.py",
+      "core\\bypass\\protocols\\multi_port_handler.py",
+      "core\\bypass\\protocols\\__init__.py",
+      "core\\bypass\\safety\\attack_sandbox.py",
+      "core\\bypass\\safety\\emergency_stop.py",
+      "core\\bypass\\safety\\exceptions.py",
+      "core\\bypass\\safety\\resource_manager.py",
+      "core\\bypass\\safety\\safety_controller.py",
+      "core\\bypass\\safety\\safety_validator.py",
+      "core\\bypass\\safety\\__init__.py",
+      "core\\bypass\\sharing\\community_database.py",
+      "core\\bypass\\sharing\\sharing_manager.py",
+      "core\\bypass\\sharing\\sharing_models.py",
+      "core\\bypass\\sharing\\strategy_validator.py",
+      "core\\bypass\\sharing\\update_manager.py",
+      "core\\bypass\\sharing\\__init__.py",
+      "core\\bypass\\strategies\\executor.py",
+      "core\\bypass\\strategies\\generator.py",
+      "core\\bypass\\strategies\\parser.py",
+      "core\\bypass\\strategies\\simple_strategy_test.py",
+      "core\\bypass\\strategies\\social_media_handler.py",
+      "core\\bypass\\strategies\\test_import.py",
+      "core\\bypass\\strategies\\__init__.py",
+      "core\\bypass\\techniques\\base.py",
+      "core\\bypass\\techniques\\registry.py",
+      "core\\bypass\\testing\\attack_test_suite.py",
+      "core\\bypass\\testing\\integration_tests.py",
+      "core\\bypass\\testing\\test_models.py",
+      "core\\bypass\\testing\\__init__.py",
+      "core\\bypass\\validation\\dpi_effectiveness_validator.py",
+      "core\\bypass\\validation\\reliability_validator.py",
+      "core\\bypass\\attacks\\combo\\adaptive_combo.py",
+      "core\\bypass\\attacks\\combo\\advanced_traffic_profiler.py",
+      "core\\bypass\\attacks\\combo\\baseline.py",
+      "core\\bypass\\attacks\\combo\\dynamic_combo.py",
+      "core\\bypass\\attacks\\combo\\full_session_simulation.py",
+      "core\\bypass\\attacks\\combo\\multi_flow_correlation.py",
+      "core\\bypass\\attacks\\combo\\multi_layer.py",
+      "core\\bypass\\attacks\\combo\\native_combo_engine.py",
+      "core\\bypass\\attacks\\combo\\steganographic_engine.py",
+      "core\\bypass\\attacks\\combo\\steganography.py",
+      "core\\bypass\\attacks\\combo\\traffic_mimicry.py",
+      "core\\bypass\\attacks\\combo\\traffic_profiles.py",
+      "core\\bypass\\attacks\\combo\\zapret_attack_adapter.py",
+      "core\\bypass\\attacks\\combo\\zapret_integration.py",
+      "core\\bypass\\attacks\\combo\\zapret_strategy.py",
+      "core\\bypass\\attacks\\combo\\__init__.py",
+      "core\\bypass\\attacks\\compatibility\\backward_compatibility_manager.py",
+      "core\\bypass\\attacks\\compatibility\\migration_utilities.py",
+      "core\\bypass\\attacks\\dns\\dns_base.py",
+      "core\\bypass\\attacks\\dns\\dns_tunneling.py",
+      "core\\bypass\\attacks\\dns\\__init__.py",
+      "core\\bypass\\attacks\\http\\header_attacks.py",
+      "core\\bypass\\attacks\\http\\http2_attacks.py",
+      "core\\bypass\\attacks\\http\\method_attacks.py",
+      "core\\bypass\\attacks\\http\\quic_attacks.py",
+      "core\\bypass\\attacks\\http\\__init__.py",
+      "core\\bypass\\attacks\\ip\\fragmentation.py",
+      "core\\bypass\\attacks\\ip\\header_manipulation.py",
+      "core\\bypass\\attacks\\ip\\__init__.py",
+      "core\\bypass\\attacks\\obfuscation\\icmp_obfuscation.py",
+      "core\\bypass\\attacks\\obfuscation\\payload_encryption.py",
+      "core\\bypass\\attacks\\obfuscation\\protocol_mimicry.py",
+      "core\\bypass\\attacks\\obfuscation\\protocol_tunneling.py",
+      "core\\bypass\\attacks\\obfuscation\\quic_obfuscation.py",
+      "core\\bypass\\attacks\\obfuscation\\traffic_obfuscation.py",
+      "core\\bypass\\attacks\\obfuscation\\__init__.py",
+      "core\\bypass\\attacks\\payload\\encryption.py",
+      "core\\bypass\\attacks\\payload\\noise.py",
+      "core\\bypass\\attacks\\payload\\obfuscation.py",
+      "core\\bypass\\attacks\\payload\\__init__.py",
+      "core\\bypass\\attacks\\reference\\faked_disorder_attack.py",
+      "core\\bypass\\attacks\\reference\\multisplit_attack.py",
+      "core\\bypass\\attacks\\reference\\payload_obfuscation_attack.py",
+      "core\\bypass\\attacks\\reference\\tcp_timing_manipulation_attack.py",
+      "core\\bypass\\attacks\\reference\\urgent_pointer_manipulation_attack.py",
+      "core\\bypass\\attacks\\reference\\window_scaling_attack.py",
+      "core\\bypass\\attacks\\tcp\\fooling.py",
+      "core\\bypass\\attacks\\tcp\\manipulation.py",
+      "core\\bypass\\attacks\\tcp\\race_attacks.py",
+      "core\\bypass\\attacks\\tcp\\stateful_attacks.py",
+      "core\\bypass\\attacks\\tcp\\timing.py",
+      "core\\bypass\\attacks\\tcp\\__init__.py",
+      "core\\bypass\\attacks\\timing\\burst_traffic.py",
+      "core\\bypass\\attacks\\timing\\delay_evasion.py",
+      "core\\bypass\\attacks\\timing\\jitter_injection.py",
+      "core\\bypass\\attacks\\timing\\timing_base.py",
+      "core\\bypass\\attacks\\timing\\__init__.py",
+      "core\\bypass\\attacks\\tls\\confusion.py",
+      "core\\bypass\\attacks\\tls\\early_data_smuggling.py",
+      "core\\bypass\\attacks\\tls\\early_data_tunnel.py",
+      "core\\bypass\\attacks\\tls\\ech_attacks.py",
+      "core\\bypass\\attacks\\tls\\extension_attacks.py",
+      "core\\bypass\\attacks\\tls\\ja3_mimicry.py",
+      "core\\bypass\\attacks\\tls\\record_manipulation.py",
+      "core\\bypass\\attacks\\tls\\tls_evasion.py",
+      "core\\bypass\\attacks\\tls\\__init__.py",
+      "core\\bypass\\attacks\\tunneling\\dns_tunneling_legacy.py",
+      "core\\bypass\\attacks\\tunneling\\icmp_tunneling.py",
+      "core\\bypass\\attacks\\tunneling\\protocol_tunneling.py",
+      "core\\bypass\\attacks\\tunneling\\quic_fragmentation.py",
+      "core\\bypass\\attacks\\tunneling\\__init__.py",
+      "tests\\core\\test_import.py",
+      "tests\\core\\test_models.py",
+      "tests\\core\\test_social_media_handler.py"
+    ],
+    "analyzers": [
+      "analyze_logs_and_fix_issues.py",
+      "analyze_test1_pcap.py",
+      "failure_analyzer.py",
+      "post_handshake_analyzer.py",
+      "quality_analyzer.py",
+      "tests\\test_dpi_behavior_analyzer.py",
+      "tests\\test_pcap_profiler.py"
+    ],
+    "tests": [
+      "app_level_tester.py",
+      "real_world_tester.py",
+      "tests\\conftest.py",
+      "tests\\test_advanced_attacks.py",
+      "tests\\test_environment.py",
+      "tests\\test_import.py",
+      "tests\\test_models.py",
+      "tests\\test_social_media_handler.py",
+      "tests\\__init__.py",
+      "тесты\\test_environment.py",
+      "tests\\strategies\\test_import.py",
+      "tests\\strategies\\test_social_media_handler.py",
+      "tests\\testing\\test_models.py"
+    ],
+    "utilities": [
+      "apply_optimized_fix.py",
+      "capture.py",
+      "cdn_resolver.py",
+      "diagnostic_system.py",
+      "doh_resolver.py",
+      "doh_resolver_fixed.py",
+      "domain_manager.py",
+      "domain_specific_strategies.py",
+      "fix_hosts_duplicates.py",
+      "interfaces.py",
+      "metrics.py",
+      "monitoring_system.py",
+      "packet_builder.py",
+      "packet_converter.py",
+      "packet_modification_validator.py",
+      "performance_optimizer.py",
+      "planner.py",
+      "quic_handler.py",
+      "robust_packet_processor.py",
+      "signature_manager.py",
+      "storage.py",
+      "strategy_manager.py",
+      "strategy_monitor.py",
+      "windivert_filter.py",
+      "zapret.py",
+      "zapret_parser.py",
+      "ml\\dpi_classifier.py",
+      "ml\\evolutionary_search.py",
+      "ml\\predictor.py",
+      "ml\\strategy_generator.py",
+      "ml\\strategy_predictor.py",
+      "ml\\zapret_strategy_generator.py",
+      "monitoring\\advanced_monitoring_system.py",
+      "tunnels\\doh_tunnel.py",
+      "tunnels\\doh_zapret_bridge.py",
+      "web\\dashboard.py",
+      "web\\monitoring_server.py"
+    ],
+    "configs": [
+      "config.py"
+    ],
+    "documentation": [],
+    "deprecated": [],
+    "broken": [
+      "fix_payload_extraction.py",
+      "__init__.py",
+      "assets\\__init__.py",
+      "ml\\adaptive_learning_fingerprint.py",
+      "ml\\__init__.py",
+      "tunnels\\__init__.py"
+    ]
+  },
+  "standalone_functionality": [
+    {
+      "file": "adaptive_strategy_finder.py",
+      "description": "Адаптивная система поиска оптимальных стратегий обхода.\nТестирует все доступные атаки и их комбинации для поиска лучшего решения.",
+      "functions": 8,
+      "classes": 3,
+      "type": "Utility"
+    },
+    {
+      "file": "analyze_and_fix_issues.py",
+      "description": "Анализ и исправление проблем в системе обхода DPI.\nАнализирует PCAP файл и выявляет ошибки в алгоритмах атак.",
+      "functions": 3,
+      "classes": 1,
+      "type": "Analyzer"
+    },
+    {
+      "file": "analyze_work_pcap.py",
+      "description": "Анализ нового work.pcap файла",
+      "functions": 2,
+      "classes": 0,
+      "type": "Analyzer"
+    },
+    {
+      "file": "analyze_work_pcap_advanced.py",
+      "description": "Продвинутый анализатор work.pcap файла\nАнализирует трафик обхода блокировок и предоставляет детальную статистику",
+      "functions": 14,
+      "classes": 1,
+      "type": "Analyzer"
+    },
+    {
+      "file": "apply_additional_attackstatus_safety.py",
+      "description": "Apply additional AttackStatus safety measures to prevent future errors.\nThis script adds safe result creation to the most commonly used attacks.",
+      "functions": 6,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "apply_final_optimizations.py",
+      "description": "Финальное применение всех оптимизаций на основе комплексного анализа.\nПрименяет оптимизированные стратегии, обновляет hosts файл и настраивает службу.",
+      "functions": 11,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "attack_effectiveness_validator.py",
+      "description": "Attack Effectiveness Validation Script\n\nTests individual attacks for effectiveness without requiring PCAP capture.\nThis script performs systematic testing of each attack category with basic validation.",
+      "functions": 4,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "attack_system_survey.py",
+      "description": "RECON Attack System Survey\n\nComprehensive survey of all implemented DPI bypass attacks in the RECON system.\nThis script catalogs attack types, capabilities, and provides a testing framework.",
+      "functions": 11,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "blockcheck_logic.py",
+      "description": "Нет описания",
+      "functions": 15,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "cli.py",
+      "description": "Нет описания",
+      "functions": 48,
+      "classes": 15,
+      "type": "CLI Tool"
+    },
+    {
+      "file": "cli_simple.py",
+      "description": "Нет описания",
+      "functions": 10,
+      "classes": 5,
+      "type": "CLI Tool"
+    },
+    {
+      "file": "comprehensive_bypass_analyzer.py",
+      "description": "Комплексный анализатор системы обхода.\nОбъединяет анализ PCAP, поддоменов, стратегий и генерирует финальные рекомендации.",
+      "functions": 10,
+      "classes": 1,
+      "type": "Analyzer"
+    },
+    {
+      "file": "debug_attack_adapter_detailed.py",
+      "description": "Детальный отладочный скрипт для AttackAdapter.",
+      "functions": 2,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "debug_cli_attack_result.py",
+      "description": "Отладочный скрипт для проверки AttackResult в CLI.",
+      "functions": 0,
+      "classes": 0,
+      "type": "CLI Tool"
+    },
+    {
+      "file": "debug_cli_exact_params.py",
+      "description": "Отладочный скрипт для проверки точных параметров CLI.",
+      "functions": 0,
+      "classes": 0,
+      "type": "CLI Tool"
+    },
+    {
+      "file": "debug_multisplit_segments.py",
+      "description": "Отладочный скрипт для проверки создания segments в multisplit атаке.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "debug_production_attackstatus_error.py",
+      "description": "Debug script to reproduce the exact AttackStatus error from production logs.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "demo_comprehensive_system_test.py",
+      "description": "Demo script for comprehensive system validation - Task 24 Implementation.\n\nThis script demonstrates the comprehensive system testing and validation\nfor the bypass engine modernization project.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "demo_modern_integration.py",
+      "description": "Demo script showing the integration of modernized bypass engine components.\nDemonstrates HybridEngine, strategy generation, pool management, and monitoring working together.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "demo_zapret_adapter.py",
+      "description": "Demonstration of the Zapret Attack Adapter\n\nThis script shows how to use the ZapretAttackAdapter to integrate Zapret DPI bypass\nattacks into the main system with different execution modes and configurations.",
+      "functions": 7,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "demo_zapret_system.py",
+      "description": "Zapret System Demo\n\nDemonstrates the complete zapret strategy implementation and native combo engine.\nShows how the highly effective zapret configuration can be used in practice.",
+      "functions": 0,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "diagnose_hang.py",
+      "description": "Нет описания",
+      "functions": 2,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "doctor.py",
+      "description": "Doctor Script - Санитарная проверка проекта\n\nПроверяет все модули проекта на наличие ошибок импорта,\nциклических зависимостей и других проблем.",
+      "functions": 24,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "doctor_simple.py",
+      "description": "Simple Doctor Script - Быстрая проверка импортов и структуры кода.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "final_packet_bypass.py",
+      "description": "Финальный рабочий DPI bypass с интегрированными продвинутыми техниками.",
+      "functions": 51,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "final_production_validation.py",
+      "description": "Final production validation test to confirm all fixes are working.\nThis test simulates the exact production scenario that was failing.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "final_system_validation.py",
+      "description": "Финальная валидация системы после всех исправлений.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "fix_bypass_issues.py",
+      "description": "Исправление проблем в системе обхода DPI на основе анализа.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "fix_future_annotations.py",
+      "description": "Исправление проблемы с future annotations",
+      "functions": 3,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "fix_imports.py",
+      "description": "Нет описания",
+      "functions": 2,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "fix_test_imports.py",
+      "description": "Script to fix import paths in migrated test files.\nThis ensures all tests can find the core modules from their new location in tests/.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "fix_timeout_issues.py",
+      "description": "Исправление проблем с таймаутами и семафорами\nУстраняет ошибки типа \"Превышен таймаут семафора\"",
+      "functions": 9,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "fix_warnings.py",
+      "description": "Исправление предупреждений и ошибок в системе",
+      "functions": 6,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "hybrid_engine_fingerprinting_demo.py",
+      "description": "Demo script for HybridEngine with Advanced DPI Fingerprinting Integration\nDemonstrates the enhanced capabilities of fingerprint-aware strategy testing.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "install_pydivert.py",
+      "description": "Нет описания",
+      "functions": 5,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "monitor.py",
+      "description": "Нет описания",
+      "functions": 7,
+      "classes": 3,
+      "type": "Monitor"
+    },
+    {
+      "file": "old_test_metrics_comprehensive.py",
+      "description": "Comprehensive test demonstrating all metrics collection framework features\nTask 3 Implementation - Requirements 2.1, 2.5",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "old_test_metrics_simple.py",
+      "description": "Simple test to verify metrics collector functionality",
+      "functions": 6,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "pcap_monitor.py",
+      "description": "Быстрый мониторинг PCAP файлов\nОтслеживает эффективность обхода блокировок",
+      "functions": 8,
+      "classes": 1,
+      "type": "Monitor"
+    },
+    {
+      "file": "pcap_validation_test.py",
+      "description": "PCAP Validation Testing Script\n\nTests individual attacks with packet capture to validate their real-world effectiveness.\nThis script performs systematic testing of each attack category with network validation.",
+      "functions": 3,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "project_analyzer.py",
+      "description": "Анализатор проекта - определяет рабочие и нерабочие модули",
+      "functions": 10,
+      "classes": 1,
+      "type": "Analyzer"
+    },
+    {
+      "file": "quick_test.py",
+      "description": "Быстрый тест всей системы обхода блокировок",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "recon_service.py",
+      "description": "Нет описания",
+      "functions": 13,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "run_dashboard.py",
+      "description": "Нет описания",
+      "functions": 1,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "run_metrics_tests.py",
+      "description": "Simple test runner for metrics collector tests",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "run_web_dashboard.py",
+      "description": "Нет описания",
+      "functions": 1,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "setup.py",
+      "description": "Интерактивный установщик и менеджер для Recon DPI Bypass.\nПредоставляет пользователю простой интерфейс для основных действий:\n- Поиск лучшей стратегии обхода.\n- Запуск системной службы обхода с найденной стратегией.\n- Отображение справочной информации.",
+      "functions": 11,
+      "classes": 4,
+      "type": "Setup Script"
+    },
+    {
+      "file": "setup_advanced.py",
+      "description": "Расширенный интерактивный менеджер для Recon DPI Bypass.\nПредоставляет доступ ко всей функциональности проекта через удобное меню.",
+      "functions": 24,
+      "classes": 7,
+      "type": "Setup Script"
+    },
+    {
+      "file": "testing_completion_report.py",
+      "description": "RECON DPI Bypass System Testing Completion Report\n\nThis report documents the comprehensive testing and validation work completed\non the RECON DPI bypass system, including test stabilization, attack validation,\nand system effectiveness assessment.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "test_doh_fix.py",
+      "description": "Тест и исправление DoH resolver",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "test_doh_simple.py",
+      "description": "Простой тест DoH с исправленным кодом",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "test_hybrid_engine_fingerprinting.py",
+      "description": "Integration tests for HybridEngine with Advanced DPI Fingerprinting\nTests the integration between HybridEngine and AdvancedFingerprinter.\n\nRequirements: 5.1, 5.2, 5.3, 5.4, 5.5",
+      "functions": 10,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "test_modern_integration.py",
+      "description": "Integration tests for modernized bypass engine components.\nTests the integration between HybridEngine, strategy generation, pool management, and monitoring.",
+      "functions": 12,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "verify_attacks.py",
+      "description": "Нет описания",
+      "functions": 1,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "windivert_driver_fix.py",
+      "description": "WinDivert Driver Fix and Management\n\nThis module provides tools to diagnose and fix WinDivert driver issues\nthat prevent the DPI bypass system from starting.",
+      "functions": 11,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "x_com_specific_fix.py",
+      "description": "Специальное исправление для x.com.\nАнализирует почему x.com не открывается полностью и применяет целевые исправления.",
+      "functions": 3,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "x_com_subdomain_analyzer.py",
+      "description": "Анализатор проблем с x.com на основе поддоменов.\nОпределяет какие поддомены блокируются и мешают полной загрузке сайта.",
+      "functions": 4,
+      "classes": 1,
+      "type": "Analyzer"
+    },
+    {
+      "file": "core\\demo_modern_integration.py",
+      "description": "Demo script showing the integration of modernized bypass engine components.\nDemonstrates HybridEngine, strategy generation, pool management, and monitoring working together.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\hybrid_engine_fingerprinting_demo.py",
+      "description": "Demo script for HybridEngine with Advanced DPI Fingerprinting Integration\nDemonstrates the enhanced capabilities of fingerprint-aware strategy testing.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\test_hybrid_engine_fingerprinting.py",
+      "description": "Integration tests for HybridEngine with Advanced DPI Fingerprinting\nTests the integration between HybridEngine and AdvancedFingerprinter.\n\nRequirements: 5.1, 5.2, 5.3, 5.4, 5.5",
+      "functions": 10,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\test_modern_integration.py",
+      "description": "Integration tests for modernized bypass engine components.\nTests the integration between HybridEngine, strategy generation, pool management, and monitoring.",
+      "functions": 12,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\windivert_driver_fix.py",
+      "description": "WinDivert Driver Fix and Management\n\nThis module provides tools to diagnose and fix WinDivert driver issues\nthat prevent the DPI bypass system from starting.",
+      "functions": 11,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "deployment\\production_deployment_manager.py",
+      "description": "Production Deployment Manager for Native Attack Orchestration.\n\nThis module manages the deployment of the segment-based attack system\nto production environments with monitoring, alerting, and operational support.",
+      "functions": 3,
+      "classes": 3,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\dry_run_testing_example.py",
+      "description": "Example demonstrating dry run testing mode.\n\nShows how to use dry run mode to test segment-based attacks\nwithout actual network transmission.",
+      "functions": 6,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "examples\\engine_dry_run_example.py",
+      "description": "Example demonstrating engine dry run testing.\n\nShows how to use dry run mode with NativePyDivertEngine\nto test attacks without network transmission.",
+      "functions": 3,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\faked_disorder_attack_example.py",
+      "description": "Example demonstrating FakedDisorderAttack usage.\n\nThis example shows how to use the FakedDisorderAttack to bypass DPI systems\nthat rely on packet order analysis.",
+      "functions": 7,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\migration_examples_before_after.py",
+      "description": "Migration Examples: Before and After\n\nThis file demonstrates the migration process from legacy attacks to\nsegment-based architecture with concrete before/after examples.",
+      "functions": 48,
+      "classes": 8,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\multisplit_attack_example.py",
+      "description": "Example demonstrating MultisplitAttack usage.\n\nThis example shows how to use the MultisplitAttack to bypass DPI systems\nthat rely on contiguous data stream analysis.",
+      "functions": 7,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\native_engine_segments_example.py",
+      "description": "Example usage of NativePyDivertEngine with segments orchestration.\nDemonstrates the integration of segments architecture with the native engine.",
+      "functions": 9,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\packet_construction_transmission_example.py",
+      "description": "Example demonstrating packet construction and transmission integration.\n\nShows how the NativePyDivertEngine integrates with SegmentPacketBuilder\nto provide precise packet construction and transmission capabilities.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\production_monitoring_example.py",
+      "description": "Production Monitoring System Example.\n\nThis example demonstrates how to use the comprehensive production monitoring\nsystem for the segment-based attack orchestration in real production environments.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Monitor"
+    },
+    {
+      "file": "examples\\reference_attacks_showcase.py",
+      "description": "Showcase of all reference attack implementations.\n\nDemonstrates the usage and capabilities of all reference attacks:\n- TCPTimingManipulationAttack\n- UrgentPointerManipulationAttack\n- WindowScalingAttack\n- PayloadObfuscationAttack",
+      "functions": 8,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\segments_usage_example.py",
+      "description": "Example usage of the new segments orchestration system.\nDemonstrates how to create attacks that return segment scenarios.",
+      "functions": 13,
+      "classes": 3,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\segment_diagnostics_example.py",
+      "description": "Example demonstrating segment execution diagnostics system.\n\nShows how to use the comprehensive diagnostic logging and analysis\ncapabilities for segment-based attack orchestration.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\segment_execution_stats_example.py",
+      "description": "Example demonstrating segment execution statistics and monitoring system.\n\nThis example shows how to use the segment execution statistics system\nto monitor and analyze the performance of segment-based attacks.",
+      "functions": 6,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\segment_packet_builder_example.py",
+      "description": "Example usage of SegmentPacketBuilder for packet construction.\nDemonstrates how to build packets from segment tuples with precise control.",
+      "functions": 9,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\segment_performance_optimization_example.py",
+      "description": "Segment Performance Optimization Example.\n\nDemonstrates the usage of the segment performance optimizer for improving\nattack execution performance through caching, memory pooling, async execution,\nand other optimization techniques.",
+      "functions": 22,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "examples\\tcp_session_context_example.py",
+      "description": "Example usage of enhanced AttackContext with TCP session information.\nDemonstrates how to use the new TCP session fields for segments orchestration.",
+      "functions": 13,
+      "classes": 3,
+      "type": "Utility"
+    },
+    {
+      "file": "ml\\fingerprint_aware_strategy_demo.py",
+      "description": "Demo script for fingerprint-aware ZapretStrategyGenerator - Task 13 Implementation\nDemonstrates DPI-type-specific strategy generation, confidence-based ranking, and fallback mechanisms.",
+      "functions": 7,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "ml\\test_fingerprint_integration_simple.py",
+      "description": "Simple integration test for fingerprint-aware ZapretStrategyGenerator",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "ml\\test_zapret_strategy_generator_fingerprint.py",
+      "description": "Test suite for fingerprint-aware ZapretStrategyGenerator - Task 13 Implementation\nTests DPI-type-specific strategy generation, confidence-based ranking, and fallback mechanisms.",
+      "functions": 22,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "monitoring\\production_monitoring_system.py",
+      "description": "Production Monitoring System for Native Attack Orchestration.\n\nThis module provides comprehensive monitoring, alerting, and observability\nfor the segment-based attack system in production environments.",
+      "functions": 7,
+      "classes": 5,
+      "type": "Monitor"
+    },
+    {
+      "file": "tests\\run_tests.py",
+      "description": "Нет описания",
+      "functions": 2,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_adaptive_learning.py",
+      "description": "Tests for the adaptive learning and caching system used in DPI bypass strategy optimization.",
+      "functions": 17,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_advanced_fingerprinter.py",
+      "description": "Integration tests for AdvancedFingerprinter - Task 10 Implementation\nTests complete fingerprinting workflow with parallel metric collection,\ncache integration, error handling, and graceful degradation.",
+      "functions": 12,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_advanced_fingerprinter_simple.py",
+      "description": "Simple integration tests for AdvancedFingerprinter - Task 10 Implementation\nFocused tests for core functionality without complex mocking.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_advanced_models.py",
+      "description": "Unit tests for advanced DPI fingerprinting models - Task 1 Implementation\nTests for data models, serialization, and error handling.",
+      "functions": 19,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_analytics_comprehensive.py",
+      "description": "Comprehensive tests for analytics and reporting functionality",
+      "functions": 0,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_analytics_standalone.py",
+      "description": "Standalone test for analytics and reporting functionality",
+      "functions": 5,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_async_attacks.py",
+      "description": "Нет описания",
+      "functions": 3,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_attack_catalog.py",
+      "description": "Test script for the comprehensive attack catalog.\n\nThis script demonstrates the functionality of the attack catalog and compatibility matrix,\nshowing how to query attacks, convert between tool formats, and validate the catalog data.",
+      "functions": 8,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_attack_registry.py",
+      "description": "Comprehensive unit tests for the modernized attack registry infrastructure.\nTests all functionality including attack definitions, registry operations, and testing framework.",
+      "functions": 33,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_attack_registry_simple.py",
+      "description": "Simple unit tests for the modernized attack registry infrastructure.\nThese tests avoid complex legacy registry interactions to prevent hanging.",
+      "functions": 20,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_bypass_web_integration.py",
+      "description": "Comprehensive test suite for bypass engine web interface integration.\nTests API endpoints, dashboard functionality, and real-time features.",
+      "functions": 10,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_cache.py",
+      "description": "Comprehensive tests for FingerprintCache - Task 2 Implementation\nTests cache operations, TTL logic, persistence, thread safety, and edge cases.",
+      "functions": 34,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_cache_integration.py",
+      "description": "Integration test for FingerprintCache with the existing system.\nVerifies that the cache integrates properly with the fingerprinting workflow.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_compatibility.py",
+      "description": "Test suite for Backward Compatibility Layer - Task 15 Implementation\nTests data migration, compatibility wrappers, and graceful handling of legacy formats.",
+      "functions": 47,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_compatibility_layer.py",
+      "description": "Comprehensive Tests for External Tool Compatibility Layer\n\nTests all components of the compatibility layer including:\n- Tool detection\n- Configuration parsing\n- Syntax conversion\n- Compatibility bridge functionality",
+      "functions": 43,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_comprehensive_suite.py",
+      "description": "Comprehensive Test Suite for Advanced DPI Fingerprinting - Task 17 Implementation\nEnd-to-end tests, performance benchmarks, stress tests, and integration tests.",
+      "functions": 32,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_comprehensive_system.py",
+      "description": "Test script for comprehensive system validation.\nVerifies that the comprehensive system test implementation works correctly.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_comprehensive_system_simple.py",
+      "description": "Simple test for comprehensive system validation.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_config.py",
+      "description": "Test suite for Configuration System - Task 16 Implementation\nTests configuration loading, validation, feature flags, and runtime updates.",
+      "functions": 47,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_config_migration.py",
+      "description": "Tests for configuration migration and management functionality.",
+      "functions": 24,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_config_migration_standalone.py",
+      "description": "Standalone test script for configuration migration functionality.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_diagnostics.py",
+      "description": "Test suite for Monitoring and Diagnostics System - Task 18 Implementation\nTests logging, metrics collection, health checks, and diagnostic tools.",
+      "functions": 38,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_dns_analyzer.py",
+      "description": "Unit tests for DNS Behavior Analyzer - Task 6 Implementation\nTests DNS-specific DPI behavior analysis including hijacking detection,\nresponse modification, DoH/DoT blocking, cache poisoning, and EDNS support.",
+      "functions": 13,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_dns_attacks.py",
+      "description": "Comprehensive tests for DNS tunneling and evasion attacks.\nTests all DNS attack implementations for functionality and reliability.",
+      "functions": 9,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_dns_integration.py",
+      "description": "Integration tests for DNS Behavior Analyzer - Task 6 Implementation\nTests real-world DNS analysis scenarios and integration with other components.",
+      "functions": 2,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_dns_simple.py",
+      "description": "Simple integration tests for DNS Behavior Analyzer - Task 6 Implementation",
+      "functions": 2,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_dpi_behavior_monitor.py",
+      "description": "Tests for DPI Behavior Monitoring System - Task 11 Implementation\n\nTests cover:\n- Background monitoring for DPI behavior changes\n- Automatic fingerprint updates when behavior changes detected\n- Alert system for unknown DPI behavior patterns\n- Performance-aware monitoring with adaptive frequency\n- Alert generation and management\n\nRequirements: 6.1, 6.2, 6.3, 6.4, 6.5",
+      "functions": 24,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_dpi_fingerprinting.py",
+      "description": "Tests for DPI fingerprinting system.\nTests the basic and advanced fingerprinting capabilities.",
+      "functions": 11,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_dpi_monitor_simple.py",
+      "description": "Simple tests for DPI Behavior Monitoring System - Task 11 Implementation\n\nBasic functionality tests that can run without complex dependencies.",
+      "functions": 13,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_evolutionary_search.py",
+      "description": "Comprehensive tests for evolutionary DPI bypass strategy search",
+      "functions": 11,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_fingerprint_integration_simple.py",
+      "description": "Simple integration test for fingerprint-aware ZapretStrategyGenerator",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_http_analyzer.py",
+      "description": "Comprehensive tests for HTTP Behavior Analyzer - Task 5 Implementation\nTests HTTP-specific DPI detection including header filtering, content inspection,\nuser agent filtering, host header manipulation, redirect injection, and response modification.",
+      "functions": 16,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_http_integration.py",
+      "description": "Integration tests for HTTP Analyzer - Task 5 Implementation\nTests HTTP analyzer integration with various HTTP blocking scenarios and real-world DPI behaviors.",
+      "functions": 6,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_http_manipulation.py",
+      "description": "Comprehensive tests for HTTP manipulation attacks.\n\nTests all HTTP manipulation attack implementations to ensure they work correctly\nand produce valid segments for orchestrated execution.",
+      "functions": 39,
+      "classes": 10,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_http_simple.py",
+      "description": "Simple test to verify HTTP analyzer is working correctly",
+      "functions": 2,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_hybrid_engine_fingerprinting.py",
+      "description": "Integration tests for HybridEngine with Advanced DPI Fingerprinting\nTests the integration between HybridEngine and AdvancedFingerprinter.\n\nRequirements: 5.1, 5.2, 5.3, 5.4, 5.5",
+      "functions": 10,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_integration.py",
+      "description": "Integration test for advanced fingerprinting models - Task 1 verification",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_metrics_collector.py",
+      "description": "Unit tests for MetricsCollector framework - Task 3 Implementation\nTests async collection methods, timing metrics, protocol-agnostic aggregation and validation.\n\nRequirements: 2.1, 2.5",
+      "functions": 24,
+      "classes": 13,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_metrics_comprehensive.py",
+      "description": "Comprehensive test demonstrating all metrics collection framework features\nTask 3 Implementation - Requirements 2.1, 2.5",
+      "functions": 6,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_metrics_simple.py",
+      "description": "Simple test to verify metrics collector functionality",
+      "functions": 6,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_ml_classifier.py",
+      "description": "Unit tests for MLClassifier.\nTests ML operations and model lifecycle according to task requirements.",
+      "functions": 33,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_model_trainer.py",
+      "description": "Comprehensive tests for the model training pipeline.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_modern_integration.py",
+      "description": "Integration tests for modernized bypass engine components.\nTests the integration between HybridEngine, strategy generation, pool management, and monitoring.",
+      "functions": 12,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_mode_controller.py",
+      "description": "Comprehensive tests for the mode controller system.",
+      "functions": 36,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_mode_controller_simple.py",
+      "description": "Simple tests for mode controller functionality.",
+      "functions": 8,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_monitoring_integration.py",
+      "description": "Integration tests for the DPI Behavior Monitoring System.",
+      "functions": 11,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_multi_port_handler.py",
+      "description": "Comprehensive tests for the MultiPortHandler implementation.\nTests all aspects of multi-port and protocol support functionality.",
+      "functions": 18,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_obfuscation_attacks.py",
+      "description": "Comprehensive Tests for Protocol Obfuscation Attacks\n\nTests all obfuscation attack implementations to ensure they work correctly\nand provide the expected obfuscation capabilities.",
+      "functions": 6,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_online_learning.py",
+      "description": "Comprehensive tests for online learning capabilities.\nTests incremental learning, confidence-based updates, performance monitoring,\nand A/B testing framework.",
+      "functions": 23,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_online_learning_integration.py",
+      "description": "Integration tests for the OnlineLearningIntegrator.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_online_learning_simple.py",
+      "description": "Simple test script for online learning functionality.\nTests basic online learning capabilities without complex dependencies.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_packet_engine.py",
+      "description": "Нет описания",
+      "functions": 5,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_performance_optimization.py",
+      "description": "Test suite for performance optimization and production readiness features.",
+      "functions": 10,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_pool_management.py",
+      "description": "Comprehensive tests for Strategy Pool Management System",
+      "functions": 32,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_quic_ech.py",
+      "description": "Нет описания",
+      "functions": 5,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_reliability_validator.py",
+      "description": "Comprehensive tests for the Reliability Validation System.\n\nTests all aspects of the ReliabilityValidator including:\n- Multi-level accessibility checking\n- False positive detection\n- Strategy effectiveness scoring\n- Consistency validation\n- Performance assessment",
+      "functions": 16,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_reporting.py",
+      "description": "Tests for the DPI bypass reporting system",
+      "functions": 16,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_runner.py",
+      "description": "Test runner for the enhanced testing framework.\nProvides CLI interface and automated test execution.",
+      "functions": 13,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_safety_framework.py",
+      "description": "Comprehensive tests for the safe attack execution framework.\nTests all safety components including resource management, sandboxing, and emergency stops.",
+      "functions": 35,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_sharing_system.py",
+      "description": "Comprehensive tests for strategy sharing and collaboration system.",
+      "functions": 8,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_simple.py",
+      "description": "Simple test for analytics functionality",
+      "functions": 7,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_strategy_application.py",
+      "description": "Comprehensive tests for Enhanced Strategy Application Algorithm",
+      "functions": 40,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_strategy_simple.py",
+      "description": "Simple standalone test for Enhanced Strategy Application Algorithm",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_subdomain_handler.py",
+      "description": "Comprehensive tests for subdomain-specific strategy support.",
+      "functions": 35,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_tcp_analyzer.py",
+      "description": "Comprehensive tests for TCP Behavior Analyzer\nTests TCP analysis with mocked network responses as specified in the requirements.\n\nRequirements: 2.2, 4.1, 4.2, 4.3, 4.4",
+      "functions": 21,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_tcp_attacks.py",
+      "description": "Нет описания",
+      "functions": 20,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_tcp_fragmentation.py",
+      "description": "Comprehensive tests for TCP fragmentation attacks.\n\nTests all TCP fragmentation attack implementations according to task 5 requirements:\n- TCP packet fragmentation techniques\n- TCP window manipulation attacks\n- TCP sequence number manipulation\n- TCP options modification attacks",
+      "functions": 45,
+      "classes": 9,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_tcp_integration.py",
+      "description": "Integration test for TCP Analyzer with the existing fingerprinting system",
+      "functions": 9,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_tcp_manipulation.py",
+      "description": "Нет описания",
+      "functions": 6,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_tcp_tracking.py",
+      "description": "Нет описания",
+      "functions": 5,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_timing_attacks.py",
+      "description": "Comprehensive tests for timing-based DPI bypass attacks.\n\nTests all timing attack implementations:\n- Timing base functionality\n- Jitter injection attacks\n- Delay-based evasion attacks\n- Burst traffic generation attacks",
+      "functions": 49,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_tls_evasion.py",
+      "description": "Comprehensive tests for TLS evasion attacks.\n\nTests all TLS evasion attacks implemented in task 7:\n- TLS handshake manipulation techniques\n- TLS version downgrade attacks\n- TLS extension manipulation\n- TLS record fragmentation attacks",
+      "functions": 29,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_training_pipeline.py",
+      "description": "Comprehensive tests for the training pipeline and model evaluation.\nTests training data generation, feature engineering, and model training.",
+      "functions": 27,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\test_zapret_strategy_generator_fingerprint.py",
+      "description": "Test suite for fingerprint-aware ZapretStrategyGenerator - Task 13 Implementation\nTests DPI-type-specific strategy generation, confidence-based ranking, and fallback mechanisms.",
+      "functions": 22,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tools\\migration_validation_tool.py",
+      "description": "Migration Validation Tool\n\nAutomated tool for validating attack migrations and ensuring backward compatibility.\nProvides comprehensive testing and reporting for migration quality assurance.",
+      "functions": 14,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "web\\bypass_integration.py",
+      "description": "Integration module for bypass engine web management.\nCombines API and dashboard components with the existing monitoring server.",
+      "functions": 9,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "web\\demo_web_integration.py",
+      "description": "Demonstration of bypass engine web interface integration.\nShows all implemented features including API endpoints, dashboard, and real-time testing.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "web\\simple_web_integration_test.py",
+      "description": "Simple test for bypass web integration functionality.",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "web\\test_bypass_web_integration.py",
+      "description": "Comprehensive test suite for bypass engine web interface integration.\nTests API endpoints, dashboard functionality, and real-time features.",
+      "functions": 10,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\final_integration_test.py",
+      "description": "Final Integration Testing - Task 20 Implementation\nQuick integration test to validate system readiness.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_attack_catalog.py",
+      "description": "Test script for the comprehensive attack catalog.\n\nThis script demonstrates the functionality of the attack catalog and compatibility matrix,\nshowing how to query attacks, convert between tool formats, and validate the catalog data.",
+      "functions": 8,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_attack_registry.py",
+      "description": "Comprehensive unit tests for the modernized attack registry infrastructure.\nTests all functionality including attack definitions, registry operations, and testing framework.",
+      "functions": 33,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_attack_registry_simple.py",
+      "description": "Simple unit tests for the modernized attack registry infrastructure.\nThese tests avoid complex legacy registry interactions to prevent hanging.",
+      "functions": 20,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_cache.py",
+      "description": "Comprehensive tests for FingerprintCache - Task 2 Implementation\nTests cache operations, TTL logic, persistence, thread safety, and edge cases.",
+      "functions": 34,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_cache_integration.py",
+      "description": "Integration test for FingerprintCache with the existing system.\nVerifies that the cache integrates properly with the fingerprinting workflow.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_compatibility.py",
+      "description": "Test suite for Backward Compatibility Layer - Task 15 Implementation\nTests data migration, compatibility wrappers, and graceful handling of legacy formats.",
+      "functions": 47,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_comprehensive_system_simple.py",
+      "description": "Simple test for comprehensive system validation.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_config.py",
+      "description": "Test suite for Configuration System - Task 16 Implementation\nTests configuration loading, validation, feature flags, and runtime updates.",
+      "functions": 47,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_config_migration_standalone.py",
+      "description": "Standalone test script for configuration migration functionality.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_diagnostics.py",
+      "description": "Test suite for Monitoring and Diagnostics System - Task 18 Implementation\nTests logging, metrics collection, health checks, and diagnostic tools.",
+      "functions": 38,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_evolutionary_search.py",
+      "description": "Comprehensive tests for evolutionary DPI bypass strategy search",
+      "functions": 11,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_http_integration.py",
+      "description": "Integration tests for HTTP Analyzer - Task 5 Implementation\nTests HTTP analyzer integration with various HTTP blocking scenarios and real-world DPI behaviors.",
+      "functions": 6,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_http_manipulation.py",
+      "description": "Comprehensive tests for HTTP manipulation attacks.\n\nTests all HTTP manipulation attack implementations to ensure they work correctly\nand produce valid segments for orchestrated execution.",
+      "functions": 39,
+      "classes": 10,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_integration.py",
+      "description": "Integration test for advanced fingerprinting models - Task 1 verification",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_metrics_simple.py",
+      "description": "Simple test to verify metrics collector functionality",
+      "functions": 6,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_ml_classifier.py",
+      "description": "Unit tests for MLClassifier.\nTests ML operations and model lifecycle according to task requirements.",
+      "functions": 33,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_model_trainer.py",
+      "description": "Comprehensive tests for the model training pipeline.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_mode_controller.py",
+      "description": "Comprehensive tests for the mode controller system.",
+      "functions": 36,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_mode_controller_simple.py",
+      "description": "Simple tests for mode controller functionality.",
+      "functions": 8,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_online_learning.py",
+      "description": "Comprehensive tests for online learning capabilities.\nTests incremental learning, confidence-based updates, performance monitoring,\nand A/B testing framework.",
+      "functions": 23,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_online_learning_simple.py",
+      "description": "Simple test script for online learning functionality.\nTests basic online learning capabilities without complex dependencies.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_packet_engine.py",
+      "description": "Нет описания",
+      "functions": 5,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_quic_ech.py",
+      "description": "Нет описания",
+      "functions": 5,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_reporting.py",
+      "description": "Tests for the DPI bypass reporting system",
+      "functions": 16,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_safety_framework.py",
+      "description": "Comprehensive tests for the safe attack execution framework.\nTests all safety components including resource management, sandboxing, and emergency stops.",
+      "functions": 35,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_tcp_analyzer.py",
+      "description": "Comprehensive tests for TCP Behavior Analyzer\nTests TCP analysis with mocked network responses as specified in the requirements.\n\nRequirements: 2.2, 4.1, 4.2, 4.3, 4.4",
+      "functions": 21,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_tcp_attacks.py",
+      "description": "Нет описания",
+      "functions": 20,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_tcp_fragmentation.py",
+      "description": "Comprehensive tests for TCP fragmentation attacks.\n\nTests all TCP fragmentation attack implementations according to task 5 requirements:\n- TCP packet fragmentation techniques\n- TCP window manipulation attacks\n- TCP sequence number manipulation\n- TCP options modification attacks",
+      "functions": 45,
+      "classes": 9,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_tcp_integration.py",
+      "description": "Integration test for TCP Analyzer with the existing fingerprinting system",
+      "functions": 9,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_tcp_manipulation.py",
+      "description": "Нет описания",
+      "functions": 6,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_tcp_tracking.py",
+      "description": "Нет описания",
+      "functions": 5,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "тесты\\test_training_pipeline.py",
+      "description": "Comprehensive tests for the training pipeline and model evaluation.\nTests training data generation, feature engineering, and model training.",
+      "functions": 27,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\cli\\segment_attack_cli.py",
+      "description": "Segment-based Attack CLI Integration.\n\nThis module extends the existing CLI system to support segment-based attacks\nwith enhanced monitoring, statistics, and workflow integration.",
+      "functions": 12,
+      "classes": 1,
+      "type": "CLI Tool"
+    },
+    {
+      "file": "core\\fingerprint\\advanced_fingerprinter_demo.py",
+      "description": "Demo script for AdvancedFingerprinter - Task 10 Implementation\nDemonstrates the complete fingerprinting workflow with real and simulated targets.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\compatibility.py",
+      "description": "Backward Compatibility Layer for Advanced DPI Fingerprinting - Task 15 Implementation\nProvides compatibility wrappers, data migration, and graceful handling of legacy formats.",
+      "functions": 25,
+      "classes": 5,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\compatibility_demo.py",
+      "description": "Demo script for Backward Compatibility Layer - Task 15 Implementation\nDemonstrates data migration, compatibility wrappers, and graceful handling of legacy formats.",
+      "functions": 9,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\config.py",
+      "description": "Configuration and Customization System for Advanced DPI Fingerprinting - Task 16 Implementation\nProvides configuration file support, runtime configuration, feature flags, and performance tuning.",
+      "functions": 25,
+      "classes": 14,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\config_demo.py",
+      "description": "Demo script for Configuration System - Task 16 Implementation\nDemonstrates configuration loading, feature flags, runtime updates, and performance tuning.",
+      "functions": 10,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\diagnostics.py",
+      "description": "Monitoring and Diagnostics System for Advanced DPI Fingerprinting - Task 18 Implementation\nProvides detailed logging, metrics collection, health checks, and diagnostic tools.",
+      "functions": 36,
+      "classes": 8,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\dns_analyzer_demo.py",
+      "description": "DNS Analyzer Demo - Task 6 Implementation\nDemonstrates the DNS behavior analysis capabilities for DPI fingerprinting.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Analyzer"
+    },
+    {
+      "file": "core\\fingerprint\\dpi_monitor_demo.py",
+      "description": "Demo script for DPI Behavior Monitoring System - Task 11 Implementation\n\nThis script demonstrates:\n- Background monitoring for DPI behavior changes\n- Automatic fingerprint updates when behavior changes detected\n- Alert system for unknown DPI behavior patterns\n- Performance-aware monitoring with adaptive frequency\n\nRequirements: 6.1, 6.2, 6.3, 6.4, 6.5",
+      "functions": 3,
+      "classes": 1,
+      "type": "Monitor"
+    },
+    {
+      "file": "core\\fingerprint\\final_integration.py",
+      "description": "Final Integration Testing and Optimization - Task 20 Implementation\nEnd-to-end system validation, performance optimization, and production readiness.",
+      "functions": 5,
+      "classes": 4,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\ml_classifier_demo.py",
+      "description": "Demo script for MLClassifier functionality.\nShows training, classification, and model persistence.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\online_learning_demo.py",
+      "description": "Demo script showcasing online learning capabilities for DPI ML classifier.\nDemonstrates incremental learning, confidence-based updates, performance monitoring,\nand A/B testing framework.",
+      "functions": 7,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\fingerprint\\tcp_analyzer_demo.py",
+      "description": "Demonstration script for TCP Behavior Analyzer\nShows how to use the TCP analyzer to analyze DPI behavior",
+      "functions": 1,
+      "classes": 0,
+      "type": "Analyzer"
+    },
+    {
+      "file": "core\\fingerprint\\test_advanced_fingerprinter.py",
+      "description": "Integration tests for AdvancedFingerprinter - Task 10 Implementation\nTests complete fingerprinting workflow with parallel metric collection,\ncache integration, error handling, and graceful degradation.",
+      "functions": 12,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_advanced_fingerprinter_simple.py",
+      "description": "Simple integration tests for AdvancedFingerprinter - Task 10 Implementation\nFocused tests for core functionality without complex mocking.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_advanced_models.py",
+      "description": "Unit tests for advanced DPI fingerprinting models - Task 1 Implementation\nTests for data models, serialization, and error handling.",
+      "functions": 19,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_cache.py",
+      "description": "Comprehensive tests for FingerprintCache - Task 2 Implementation\nTests cache operations, TTL logic, persistence, thread safety, and edge cases.",
+      "functions": 34,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_cache_integration.py",
+      "description": "Integration test for FingerprintCache with the existing system.\nVerifies that the cache integrates properly with the fingerprinting workflow.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_dns_analyzer.py",
+      "description": "Unit tests for DNS Behavior Analyzer - Task 6 Implementation\nTests DNS-specific DPI behavior analysis including hijacking detection,\nresponse modification, DoH/DoT blocking, cache poisoning, and EDNS support.",
+      "functions": 13,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_dns_integration.py",
+      "description": "Integration tests for DNS Behavior Analyzer - Task 6 Implementation\nTests real-world DNS analysis scenarios and integration with other components.",
+      "functions": 2,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_dns_simple.py",
+      "description": "Simple integration tests for DNS Behavior Analyzer - Task 6 Implementation",
+      "functions": 2,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_dpi_behavior_monitor.py",
+      "description": "Tests for DPI Behavior Monitoring System - Task 11 Implementation\n\nTests cover:\n- Background monitoring for DPI behavior changes\n- Automatic fingerprint updates when behavior changes detected\n- Alert system for unknown DPI behavior patterns\n- Performance-aware monitoring with adaptive frequency\n- Alert generation and management\n\nRequirements: 6.1, 6.2, 6.3, 6.4, 6.5",
+      "functions": 24,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_dpi_monitor_simple.py",
+      "description": "Simple tests for DPI Behavior Monitoring System - Task 11 Implementation\n\nBasic functionality tests that can run without complex dependencies.",
+      "functions": 13,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_http_analyzer.py",
+      "description": "Comprehensive tests for HTTP Behavior Analyzer - Task 5 Implementation\nTests HTTP-specific DPI detection including header filtering, content inspection,\nuser agent filtering, host header manipulation, redirect injection, and response modification.",
+      "functions": 16,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_http_integration.py",
+      "description": "Integration tests for HTTP Analyzer - Task 5 Implementation\nTests HTTP analyzer integration with various HTTP blocking scenarios and real-world DPI behaviors.",
+      "functions": 6,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_http_simple.py",
+      "description": "Simple test to verify HTTP analyzer is working correctly",
+      "functions": 2,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_integration.py",
+      "description": "Integration test for advanced fingerprinting models - Task 1 verification",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_metrics_collector.py",
+      "description": "Unit tests for MetricsCollector framework - Task 3 Implementation\nTests async collection methods, timing metrics, protocol-agnostic aggregation and validation.\n\nRequirements: 2.1, 2.5",
+      "functions": 24,
+      "classes": 13,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_ml_classifier.py",
+      "description": "Unit tests for MLClassifier.\nTests ML operations and model lifecycle according to task requirements.",
+      "functions": 33,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_online_learning.py",
+      "description": "Comprehensive tests for online learning capabilities.\nTests incremental learning, confidence-based updates, performance monitoring,\nand A/B testing framework.",
+      "functions": 23,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_online_learning_simple.py",
+      "description": "Simple test script for online learning functionality.\nTests basic online learning capabilities without complex dependencies.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_tcp_analyzer.py",
+      "description": "Comprehensive tests for TCP Behavior Analyzer\nTests TCP analysis with mocked network responses as specified in the requirements.\n\nRequirements: 2.2, 4.1, 4.2, 4.3, 4.4",
+      "functions": 21,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_tcp_integration.py",
+      "description": "Integration test for TCP Analyzer with the existing fingerprinting system",
+      "functions": 9,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\test_training_pipeline.py",
+      "description": "Comprehensive tests for the training pipeline and model evaluation.\nTests training data generation, feature engineering, and model training.",
+      "functions": 27,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\fingerprint\\training_demo.py",
+      "description": "Demo script for DPI ML classifier training pipeline.\nDemonstrates training data preparation, model training, and evaluation.",
+      "functions": 6,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\packet\\attack_optimizer.py",
+      "description": "Оптимизатор алгоритмов атак для улучшения эффективности обхода DPI.",
+      "functions": 1,
+      "classes": 3,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\packet\\demo_final.py",
+      "description": "Финальная демонстрация системы миграции со Scapy на побайтовую обработку.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\packet\\improved_bypass_engine.py",
+      "description": "Улучшенный движок обхода DPI с оптимизированными алгоритмами.",
+      "functions": 2,
+      "classes": 3,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\packet\\pcap_analyzer.py",
+      "description": "Анализатор PCAP файлов для выявления проблем в работе DPI обхода.",
+      "functions": 1,
+      "classes": 2,
+      "type": "Analyzer"
+    },
+    {
+      "file": "core\\packet\\performance_benchmark.py",
+      "description": "Бенчмарки производительности для сравнения Scapy и побайтовой обработки.",
+      "functions": 3,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\packet\\simple_migration_test.py",
+      "description": "Простой тест системы миграции со Scapy на побайтовую обработку.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\packet\\test_migration.py",
+      "description": "Тесты для системы миграции со Scapy на побайтовую обработку.",
+      "functions": 16,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\analytics\\demo_analytics_system.py",
+      "description": "Demo of the advanced analytics and reporting system",
+      "functions": 0,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\analytics\\simple_analytics_test.py",
+      "description": "Simple test for analytics and reporting functionality",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\analytics\\test_analytics_comprehensive.py",
+      "description": "Comprehensive tests for analytics and reporting functionality",
+      "functions": 0,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\analytics\\test_analytics_standalone.py",
+      "description": "Standalone test for analytics and reporting functionality",
+      "functions": 5,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\analytics\\test_simple.py",
+      "description": "Simple test for analytics functionality",
+      "functions": 7,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\compatibility_matrix.py",
+      "description": "External Tool Compatibility Matrix\n\nThis module provides comprehensive mapping between native attacks and external tool equivalents.\nIt enables seamless conversion between different DPI bypass tool formats and syntaxes.\n\nSupported External Tools:\n- zapret: Advanced DPI bypass tool with extensive options\n- goodbyedpi: Popular Windows DPI bypass tool\n- byebyedpi: Alternative DPI bypass implementation\n\nBased on analysis of:\n- recon/core/zapret_parser.py\n- External tool documentation and command-line options\n- Legacy compatibility implementations",
+      "functions": 18,
+      "classes": 3,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\attacks\\demo_attack_registry.py",
+      "description": "Demonstration of the modernized attack registry infrastructure.\nShows how to register attacks, manage them, and use the comprehensive metadata system.",
+      "functions": 7,
+      "classes": 2,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\attacks\\demo_http_attacks.py",
+      "description": "Demo script for HTTP manipulation attacks.\n\nShows how the HTTP manipulation attacks work and what they produce.",
+      "functions": 10,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\attacks\\test_http_manipulation.py",
+      "description": "Comprehensive tests for HTTP manipulation attacks.\n\nTests all HTTP manipulation attack implementations to ensure they work correctly\nand produce valid segments for orchestrated execution.",
+      "functions": 39,
+      "classes": 10,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\compatibility\\demo_compatibility_layer.py",
+      "description": "Demonstration of External Tool Compatibility Layer\n\nShows practical usage of the compatibility layer with real-world examples.",
+      "functions": 8,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\compatibility\\simple_compatibility_test.py",
+      "description": "Simple Test for External Tool Compatibility Layer\n\nBasic functionality test to verify the compatibility layer works correctly.",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\compatibility\\test_compatibility_layer.py",
+      "description": "Comprehensive Tests for External Tool Compatibility Layer\n\nTests all components of the compatibility layer including:\n- Tool detection\n- Configuration parsing\n- Syntax conversion\n- Compatibility bridge functionality",
+      "functions": 43,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\config\\demo_config_migration.py",
+      "description": "Demonstration of configuration migration and management functionality.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\config\\simple_config_test.py",
+      "description": "Simple test script for configuration migration functionality.",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\config\\test_config_migration.py",
+      "description": "Tests for configuration migration and management functionality.",
+      "functions": 24,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\engines\\health_check.py",
+      "description": "Engine Health Check System\n\nProvides comprehensive health checking for packet processing engines,\nincluding PyDivert availability, Scapy functionality, and system permissions.",
+      "functions": 19,
+      "classes": 4,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\modes\\demo_mode_controller.py",
+      "description": "Demonstration of the mode controller system.",
+      "functions": 9,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\performance\\demo_performance_optimization.py",
+      "description": "Demo script for performance optimization and production readiness features.",
+      "functions": 2,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\performance\\simple_performance_test.py",
+      "description": "Simple test script for performance optimization features.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\performance\\test_performance_optimization.py",
+      "description": "Test suite for performance optimization and production readiness features.",
+      "functions": 10,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\protocols\\demo_multi_port_integration.py",
+      "description": "Demonstration of MultiPortHandler integration with the bypass engine.\nShows how multi-port and protocol support enhances bypass capabilities.",
+      "functions": 6,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\protocols\\simple_multi_port_test.py",
+      "description": "Simple test script for MultiPortHandler functionality.\nDemonstrates basic multi-port and protocol support features.",
+      "functions": 5,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\protocols\\test_multi_port_handler.py",
+      "description": "Comprehensive tests for the MultiPortHandler implementation.\nTests all aspects of multi-port and protocol support functionality.",
+      "functions": 18,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\safety\\demo_safety_framework.py",
+      "description": "Demonstration of the safe attack execution framework.\nShows how to use all safety components together for secure attack execution.",
+      "functions": 14,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\sharing\\demo_sharing_system.py",
+      "description": "Demonstration of the strategy sharing and collaboration system.",
+      "functions": 1,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\sharing\\simple_sharing_test.py",
+      "description": "Simple test script for strategy sharing and collaboration features.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\sharing\\test_sharing_system.py",
+      "description": "Comprehensive tests for strategy sharing and collaboration system.",
+      "functions": 8,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\comprehensive_test.py",
+      "description": "Comprehensive test of the Strategy Pool Management System",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\demo_pool_management.py",
+      "description": "Demonstration of Strategy Pool Management System\n\nThis script shows how to use the strategy pool management system for\norganizing bypass strategies across different domains and use cases.",
+      "functions": 11,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\strategies\\demo_social_media_support.py",
+      "description": "Demonstration of Specialized Social Media and Video Platform Support\n\nThis script demonstrates the advanced bypass strategies for social media\nand video platforms including YouTube, Twitter/X, Instagram, and TikTok.",
+      "functions": 1,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\strategies\\demo_strategy_application.py",
+      "description": "Demonstration of Enhanced Strategy Application Algorithm\n\nThis demo shows the complete functionality of the enhanced strategy application system,\nincluding intelligent strategy selection, user preference prioritization, automatic pool\nassignment, and conflict resolution.",
+      "functions": 12,
+      "classes": 3,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\strategies\\demo_subdomain_support.py",
+      "description": "Demo script showcasing subdomain-specific strategy support.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\strategies\\pool_management.py",
+      "description": "Strategy Pool Management System for Bypass Engine Modernization",
+      "functions": 30,
+      "classes": 5,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\strategies\\pool_management_minimal.py",
+      "description": "Minimal Strategy Pool Management System for testing",
+      "functions": 8,
+      "classes": 4,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\strategies\\simple_social_media_test.py",
+      "description": "Simple Test for Social Media Platform Support\n\nThis script provides basic testing for the social media bypass handler\nto verify core functionality works correctly.",
+      "functions": 1,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\simple_subdomain_test.py",
+      "description": "Simple test for subdomain-specific strategy support.",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\simple_test.py",
+      "description": "Нет описания",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\strategy_application.py",
+      "description": "Enhanced Strategy Application Algorithm for Bypass Engine Modernization\n\nThis module implements intelligent strategy selection, user preference prioritization,\nautomatic pool assignment, and conflict resolution mechanisms.",
+      "functions": 29,
+      "classes": 7,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\strategies\\subdomain_handler.py",
+      "description": "Subdomain-Specific Strategy Support for Bypass Engine Modernization\n\nThis module implements advanced subdomain strategy handling with specialized\nsupport for YouTube, Twitter, Instagram, and other social media platforms.",
+      "functions": 26,
+      "classes": 7,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\strategies\\test_pool_management.py",
+      "description": "Comprehensive tests for Strategy Pool Management System",
+      "functions": 32,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\test_social_media_handler.py",
+      "description": "Comprehensive Tests for Social Media Platform Bypass Effectiveness\n\nThis module provides extensive testing for social media and video platform\nbypass strategies to ensure optimal performance and reliability.",
+      "functions": 9,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\test_strategy_application.py",
+      "description": "Comprehensive tests for Enhanced Strategy Application Algorithm",
+      "functions": 40,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\test_strategy_simple.py",
+      "description": "Simple standalone test for Enhanced Strategy Application Algorithm",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\strategies\\test_subdomain_handler.py",
+      "description": "Comprehensive tests for subdomain-specific strategy support.",
+      "functions": 35,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\testing\\comprehensive_system_test.py",
+      "description": "Comprehensive System Testing and Validation for Bypass Engine Modernization\n\nThis module provides end-to-end testing of the complete modernized bypass engine system,\nvalidating all 117+ attacks, strategy effectiveness improvement over legacy system,\nsystem stability under high load conditions, and generates final validation reports.\n\nTask 24 Implementation:\n- Perform end-to-end testing of complete modernized system\n- Validate that all 117+ attacks are working correctly\n- Test strategy effectiveness improvement over legacy system\n- Verify system stability under high load conditions\n- Create final validation report comparing old vs new system",
+      "functions": 12,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\testing\\demo_testing_framework.py",
+      "description": "Demo script for the enhanced testing framework.\nShows how to use the comprehensive testing suite.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\testing\\simple_framework_test.py",
+      "description": "Simple test to verify the enhanced testing framework works correctly.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\testing\\test_comprehensive_system.py",
+      "description": "Test script for comprehensive system validation.\nVerifies that the comprehensive system test implementation works correctly.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\testing\\test_runner.py",
+      "description": "Test runner for the enhanced testing framework.\nProvides CLI interface and automated test execution.",
+      "functions": 13,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\validation\\demo_reliability_validation.py",
+      "description": "Demonstration of the Comprehensive Reliability Validation System.\n\nThis script shows how to use the ReliabilityValidator for:\n- Multi-level accessibility checking\n- Strategy effectiveness validation\n- False positive detection\n- Batch validation of multiple strategies\n- Comprehensive reliability reporting",
+      "functions": 0,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\validation\\simple_reliability_test.py",
+      "description": "Simple test script for the Reliability Validation System.\n\nThis script performs basic functionality tests to ensure the\nReliabilityValidator is working correctly.",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\validation\\test_reliability_validator.py",
+      "description": "Comprehensive tests for the Reliability Validation System.\n\nTests all aspects of the ReliabilityValidator including:\n- Multi-level accessibility checking\n- False positive detection\n- Strategy effectiveness scoring\n- Consistency validation\n- Performance assessment",
+      "functions": 16,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\dns\\demo_dns_attacks.py",
+      "description": "Demo script for DNS tunneling and evasion attacks.\nDemonstrates all DNS attack capabilities with real examples.",
+      "functions": 1,
+      "classes": 1,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\attacks\\dns\\final_dns_test.py",
+      "description": "Final comprehensive test for DNS attacks implementation.\nVerifies all components work together correctly.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\dns\\simple_dns_test.py",
+      "description": "Simple test runner for DNS attacks to verify basic functionality.\nThis is a lightweight test that can be run quickly to ensure DNS attacks work.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\dns\\test_dns_attacks.py",
+      "description": "Comprehensive tests for DNS tunneling and evasion attacks.\nTests all DNS attack implementations for functionality and reliability.",
+      "functions": 9,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\obfuscation\\simple_obfuscation_test.py",
+      "description": "Simple test script for obfuscation attacks to verify implementation.",
+      "functions": 9,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\obfuscation\\test_obfuscation_attacks.py",
+      "description": "Comprehensive Tests for Protocol Obfuscation Attacks\n\nTests all obfuscation attack implementations to ensure they work correctly\nand provide the expected obfuscation capabilities.",
+      "functions": 6,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\obfuscation\\test_simple.py",
+      "description": "Simple test to verify obfuscation attacks can be imported and instantiated.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\timing\\demo_timing_attacks.py",
+      "description": "Demo script for timing-based DPI bypass attacks.\n\nDemonstrates all timing attack implementations:\n- Jitter injection attacks\n- Delay-based evasion attacks\n- Burst traffic generation attacks\n- Performance benchmarking",
+      "functions": 7,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\attacks\\timing\\simple_timing_test.py",
+      "description": "Simple test for timing attacks to verify implementation.",
+      "functions": 1,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\timing\\test_timing_attacks.py",
+      "description": "Comprehensive tests for timing-based DPI bypass attacks.\n\nTests all timing attack implementations:\n- Timing base functionality\n- Jitter injection attacks\n- Delay-based evasion attacks\n- Burst traffic generation attacks",
+      "functions": 49,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\tls\\demo_tls_evasion.py",
+      "description": "Demo script for TLS evasion attacks.\n\nDemonstrates the functionality of all TLS evasion attacks implemented in task 7.",
+      "functions": 8,
+      "classes": 0,
+      "type": "Utility"
+    },
+    {
+      "file": "core\\bypass\\attacks\\tls\\simple_tls_test.py",
+      "description": "Simple test for TLS evasion attacks to verify implementation.",
+      "functions": 8,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "core\\bypass\\attacks\\tls\\test_tls_evasion.py",
+      "description": "Comprehensive tests for TLS evasion attacks.\n\nTests all TLS evasion attacks implemented in task 7:\n- TLS handshake manipulation techniques\n- TLS version downgrade attacks\n- TLS extension manipulation\n- TLS record fragmentation attacks",
+      "functions": 29,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\analytics\\test_analytics_comprehensive.py",
+      "description": "Comprehensive tests for analytics and reporting functionality",
+      "functions": 0,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\analytics\\test_analytics_standalone.py",
+      "description": "Standalone test for analytics and reporting functionality",
+      "functions": 5,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\analytics\\test_simple.py",
+      "description": "Simple test for analytics functionality",
+      "functions": 7,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\analytics\\test_simple_analytics.py",
+      "description": "Simple test for analytics functionality",
+      "functions": 7,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_combo_attacks.py",
+      "description": "Comprehensive test suite for combination DPI bypass attacks.\n\nTests all combo attack implementations including Zapret integration,\nadaptive combinations, multi-layer attacks, and steganographic techniques.",
+      "functions": 22,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_dns_attacks.py",
+      "description": "Comprehensive tests for DNS tunneling and evasion attacks.\nTests all DNS attack implementations for functionality and reliability.",
+      "functions": 9,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_http_manipulation.py",
+      "description": "Comprehensive tests for HTTP manipulation attacks.\n\nTests all HTTP manipulation attack implementations to ensure they work correctly\nand produce valid segments for orchestrated execution.",
+      "functions": 41,
+      "classes": 11,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_obfuscation_attacks.py",
+      "description": "Comprehensive Tests for Protocol Obfuscation Attacks\n\nTests all obfuscation attack implementations to ensure they work correctly\nand provide the expected obfuscation capabilities.",
+      "functions": 6,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_simple.py",
+      "description": "Simple test to verify obfuscation attacks can be imported and instantiated.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_simple_obfuscation.py",
+      "description": "Simple test to verify obfuscation attacks can be imported and instantiated.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_tcp_comprehensive.py",
+      "description": "Comprehensive test suite for TCP-level DPI bypass attacks.\n\nTests all TCP attack implementations including manipulation, fooling,\nrace conditions, stateful attacks, and timing-based techniques.",
+      "functions": 29,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_timing_attacks.py",
+      "description": "Comprehensive tests for timing-based DPI bypass attacks.\n\nTests all timing attack implementations:\n- Timing base functionality\n- Jitter injection attacks\n- Delay-based evasion attacks\n- Burst traffic generation attacks",
+      "functions": 47,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\attacks\\test_tls_evasion.py",
+      "description": "Comprehensive tests for TLS evasion attacks.\n\nTests all TLS evasion attacks implemented in task 7:\n- TLS handshake manipulation techniques\n- TLS version downgrade attacks\n- TLS extension manipulation\n- TLS record fragmentation attacks",
+      "functions": 29,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\compatibility\\test_compatibility_layer.py",
+      "description": "Comprehensive Tests for External Tool Compatibility Layer\n\nTests all components of the compatibility layer including:\n- Tool detection\n- Configuration parsing\n- Syntax conversion\n- Compatibility bridge functionality",
+      "functions": 43,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\config\\test_config_migration.py",
+      "description": "Tests for configuration migration and management functionality.",
+      "functions": 24,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_advanced_fingerprinter.py",
+      "description": "Integration tests for AdvancedFingerprinter - Task 10 Implementation\nTests complete fingerprinting workflow with parallel metric collection,\ncache integration, error handling, and graceful degradation.",
+      "functions": 12,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_advanced_fingerprinter_simple.py",
+      "description": "Simple integration tests for AdvancedFingerprinter - Task 10 Implementation\nFocused tests for core functionality without complex mocking.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_advanced_models.py",
+      "description": "Unit tests for advanced DPI fingerprinting models - Task 1 Implementation\nTests for data models, serialization, and error handling.",
+      "functions": 19,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_analytics_comprehensive.py",
+      "description": "Comprehensive tests for analytics and reporting functionality",
+      "functions": 0,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_analytics_standalone.py",
+      "description": "Standalone test for analytics and reporting functionality",
+      "functions": 5,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_cache.py",
+      "description": "Comprehensive tests for FingerprintCache - Task 2 Implementation\nTests cache operations, TTL logic, persistence, thread safety, and edge cases.",
+      "functions": 34,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_cache_integration.py",
+      "description": "Integration test for FingerprintCache with the existing system.\nVerifies that the cache integrates properly with the fingerprinting workflow.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_compatibility_layer.py",
+      "description": "Comprehensive Tests for External Tool Compatibility Layer\n\nTests all components of the compatibility layer including:\n- Tool detection\n- Configuration parsing\n- Syntax conversion\n- Compatibility bridge functionality",
+      "functions": 43,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_comprehensive_system.py",
+      "description": "Test script for comprehensive system validation.\nVerifies that the comprehensive system test implementation works correctly.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_config_migration.py",
+      "description": "Tests for configuration migration and management functionality.",
+      "functions": 24,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_dns_analyzer.py",
+      "description": "Unit tests for DNS Behavior Analyzer - Task 6 Implementation\nTests DNS-specific DPI behavior analysis including hijacking detection,\nresponse modification, DoH/DoT blocking, cache poisoning, and EDNS support.",
+      "functions": 13,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_dns_integration.py",
+      "description": "Integration tests for DNS Behavior Analyzer - Task 6 Implementation\nTests real-world DNS analysis scenarios and integration with other components.",
+      "functions": 2,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_dns_simple.py",
+      "description": "Simple integration tests for DNS Behavior Analyzer - Task 6 Implementation",
+      "functions": 2,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_dpi_behavior_monitor.py",
+      "description": "Tests for DPI Behavior Monitoring System - Task 11 Implementation\n\nTests cover:\n- Background monitoring for DPI behavior changes\n- Automatic fingerprint updates when behavior changes detected\n- Alert system for unknown DPI behavior patterns\n- Performance-aware monitoring with adaptive frequency\n- Alert generation and management\n\nRequirements: 6.1, 6.2, 6.3, 6.4, 6.5",
+      "functions": 24,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_dpi_monitor_simple.py",
+      "description": "Simple tests for DPI Behavior Monitoring System - Task 11 Implementation\n\nBasic functionality tests that can run without complex dependencies.",
+      "functions": 13,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_http_analyzer.py",
+      "description": "Comprehensive tests for HTTP Behavior Analyzer - Task 5 Implementation\nTests HTTP-specific DPI detection including header filtering, content inspection,\nuser agent filtering, host header manipulation, redirect injection, and response modification.",
+      "functions": 16,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_http_integration.py",
+      "description": "Integration tests for HTTP Analyzer - Task 5 Implementation\nTests HTTP analyzer integration with various HTTP blocking scenarios and real-world DPI behaviors.",
+      "functions": 6,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_http_simple.py",
+      "description": "Simple test to verify HTTP analyzer is working correctly",
+      "functions": 2,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_integration.py",
+      "description": "Integration test for advanced fingerprinting models - Task 1 verification",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_metrics_collector.py",
+      "description": "Unit tests for MetricsCollector framework - Task 3 Implementation\nTests async collection methods, timing metrics, protocol-agnostic aggregation and validation.\n\nRequirements: 2.1, 2.5",
+      "functions": 24,
+      "classes": 13,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_ml_classifier.py",
+      "description": "Unit tests for MLClassifier.\nTests ML operations and model lifecycle according to task requirements.",
+      "functions": 33,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_multi_port_handler.py",
+      "description": "Comprehensive tests for the MultiPortHandler implementation.\nTests all aspects of multi-port and protocol support functionality.",
+      "functions": 18,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_online_learning.py",
+      "description": "Comprehensive tests for online learning capabilities.\nTests incremental learning, confidence-based updates, performance monitoring,\nand A/B testing framework.",
+      "functions": 23,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_online_learning_simple.py",
+      "description": "Simple test script for online learning functionality.\nTests basic online learning capabilities without complex dependencies.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_performance_optimization.py",
+      "description": "Test suite for performance optimization and production readiness features.",
+      "functions": 10,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_pool_management.py",
+      "description": "Comprehensive tests for Strategy Pool Management System",
+      "functions": 32,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_reliability_validator.py",
+      "description": "Comprehensive tests for the Reliability Validation System.\n\nTests all aspects of the ReliabilityValidator including:\n- Multi-level accessibility checking\n- False positive detection\n- Strategy effectiveness scoring\n- Consistency validation\n- Performance assessment",
+      "functions": 16,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_runner.py",
+      "description": "Test runner for the enhanced testing framework.\nProvides CLI interface and automated test execution.",
+      "functions": 13,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_sharing_system.py",
+      "description": "Comprehensive tests for strategy sharing and collaboration system.",
+      "functions": 8,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_simple.py",
+      "description": "Simple test for analytics functionality",
+      "functions": 7,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_strategy_application.py",
+      "description": "Comprehensive tests for Enhanced Strategy Application Algorithm",
+      "functions": 40,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_strategy_simple.py",
+      "description": "Simple standalone test for Enhanced Strategy Application Algorithm",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_subdomain_handler.py",
+      "description": "Comprehensive tests for subdomain-specific strategy support.",
+      "functions": 35,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_tcp_analyzer.py",
+      "description": "Comprehensive tests for TCP Behavior Analyzer\nTests TCP analysis with mocked network responses as specified in the requirements.\n\nRequirements: 2.2, 4.1, 4.2, 4.3, 4.4",
+      "functions": 21,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_tcp_integration.py",
+      "description": "Integration test for TCP Analyzer with the existing fingerprinting system",
+      "functions": 9,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\core\\test_training_pipeline.py",
+      "description": "Comprehensive tests for the training pipeline and model evaluation.\nTests training data generation, feature engineering, and model training.",
+      "functions": 27,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_advanced_fingerprinter.py",
+      "description": "Integration tests for AdvancedFingerprinter - Task 10 Implementation\nTests complete fingerprinting workflow with parallel metric collection,\ncache integration, error handling, and graceful degradation.",
+      "functions": 12,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_advanced_fingerprinter_simple.py",
+      "description": "Simple integration tests for AdvancedFingerprinter - Task 10 Implementation\nFocused tests for core functionality without complex mocking.",
+      "functions": 8,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_advanced_models.py",
+      "description": "Unit tests for advanced DPI fingerprinting models - Task 1 Implementation\nTests for data models, serialization, and error handling.",
+      "functions": 19,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_cache.py",
+      "description": "Comprehensive tests for FingerprintCache - Task 2 Implementation\nTests cache operations, TTL logic, persistence, thread safety, and edge cases.",
+      "functions": 34,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_cache_integration.py",
+      "description": "Integration test for FingerprintCache with the existing system.\nVerifies that the cache integrates properly with the fingerprinting workflow.",
+      "functions": 2,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_dns_analyzer.py",
+      "description": "Unit tests for DNS Behavior Analyzer - Task 6 Implementation\nTests DNS-specific DPI behavior analysis including hijacking detection,\nresponse modification, DoH/DoT blocking, cache poisoning, and EDNS support.",
+      "functions": 13,
+      "classes": 3,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_dns_integration.py",
+      "description": "Integration tests for DNS Behavior Analyzer - Task 6 Implementation\nTests real-world DNS analysis scenarios and integration with other components.",
+      "functions": 2,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_dns_simple.py",
+      "description": "Simple integration tests for DNS Behavior Analyzer - Task 6 Implementation",
+      "functions": 2,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_dpi_behavior_monitor.py",
+      "description": "Tests for DPI Behavior Monitoring System - Task 11 Implementation\n\nTests cover:\n- Background monitoring for DPI behavior changes\n- Automatic fingerprint updates when behavior changes detected\n- Alert system for unknown DPI behavior patterns\n- Performance-aware monitoring with adaptive frequency\n- Alert generation and management\n\nRequirements: 6.1, 6.2, 6.3, 6.4, 6.5",
+      "functions": 24,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_dpi_monitor_simple.py",
+      "description": "Simple tests for DPI Behavior Monitoring System - Task 11 Implementation\n\nBasic functionality tests that can run without complex dependencies.",
+      "functions": 13,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_http_analyzer.py",
+      "description": "Comprehensive tests for HTTP Behavior Analyzer - Task 5 Implementation\nTests HTTP-specific DPI detection including header filtering, content inspection,\nuser agent filtering, host header manipulation, redirect injection, and response modification.",
+      "functions": 16,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_http_integration.py",
+      "description": "Integration tests for HTTP Analyzer - Task 5 Implementation\nTests HTTP analyzer integration with various HTTP blocking scenarios and real-world DPI behaviors.",
+      "functions": 6,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_http_simple.py",
+      "description": "Simple test to verify HTTP analyzer is working correctly",
+      "functions": 2,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_integration.py",
+      "description": "Integration test for advanced fingerprinting models - Task 1 verification",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_metrics_collector.py",
+      "description": "Unit tests for MetricsCollector framework - Task 3 Implementation\nTests async collection methods, timing metrics, protocol-agnostic aggregation and validation.\n\nRequirements: 2.1, 2.5",
+      "functions": 24,
+      "classes": 13,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_ml_classifier.py",
+      "description": "Unit tests for MLClassifier.\nTests ML operations and model lifecycle according to task requirements.",
+      "functions": 33,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_online_learning.py",
+      "description": "Comprehensive tests for online learning capabilities.\nTests incremental learning, confidence-based updates, performance monitoring,\nand A/B testing framework.",
+      "functions": 23,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_online_learning_simple.py",
+      "description": "Simple test script for online learning functionality.\nTests basic online learning capabilities without complex dependencies.",
+      "functions": 4,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_tcp_analyzer.py",
+      "description": "Comprehensive tests for TCP Behavior Analyzer\nTests TCP analysis with mocked network responses as specified in the requirements.\n\nRequirements: 2.2, 4.1, 4.2, 4.3, 4.4",
+      "functions": 21,
+      "classes": 7,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_tcp_integration.py",
+      "description": "Integration test for TCP Analyzer with the existing fingerprinting system",
+      "functions": 9,
+      "classes": 1,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\fingerprint\\test_training_pipeline.py",
+      "description": "Comprehensive tests for the training pipeline and model evaluation.\nTests training data generation, feature engineering, and model training.",
+      "functions": 27,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\performance\\test_performance_optimization.py",
+      "description": "Test suite for performance optimization and production readiness features.",
+      "functions": 10,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\protocols\\test_multi_port_handler.py",
+      "description": "Comprehensive tests for the MultiPortHandler implementation.\nTests all aspects of multi-port and protocol support functionality.",
+      "functions": 18,
+      "classes": 4,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\sharing\\test_sharing_system.py",
+      "description": "Comprehensive tests for strategy sharing and collaboration system.",
+      "functions": 8,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\strategies\\test_pool_management.py",
+      "description": "Comprehensive tests for Strategy Pool Management System",
+      "functions": 32,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\strategies\\test_strategy_application.py",
+      "description": "Comprehensive tests for Enhanced Strategy Application Algorithm",
+      "functions": 40,
+      "classes": 5,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\strategies\\test_strategy_simple.py",
+      "description": "Simple standalone test for Enhanced Strategy Application Algorithm",
+      "functions": 3,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\strategies\\test_subdomain_handler.py",
+      "description": "Comprehensive tests for subdomain-specific strategy support.",
+      "functions": 35,
+      "classes": 6,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\testing\\test_comprehensive_system.py",
+      "description": "Test script for comprehensive system validation.\nVerifies that the comprehensive system test implementation works correctly.",
+      "functions": 0,
+      "classes": 0,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\testing\\test_runner.py",
+      "description": "Test runner for the enhanced testing framework.\nProvides CLI interface and automated test execution.",
+      "functions": 13,
+      "classes": 2,
+      "type": "Test Script"
+    },
+    {
+      "file": "tests\\validation\\test_reliability_validator.py",
+      "description": "Comprehensive tests for the Reliability Validation System.\n\nTests all aspects of the ReliabilityValidator including:\n- Multi-level accessibility checking\n- False positive detection\n- Strategy effectiveness scoring\n- Consistency validation\n- Performance assessment",
+      "functions": 16,
+      "classes": 3,
+      "type": "Test Script"
+    }
+  ]
+}

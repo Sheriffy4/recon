@@ -21,7 +21,13 @@ import logging
 from typing import Optional, List
 from dataclasses import dataclass
 
-from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus, SegmentTuple
+from core.bypass.attacks.base import (
+    BaseAttack,
+    AttackContext,
+    AttackResult,
+    AttackStatus,
+    SegmentTuple,
+)
 from core.bypass.attacks.attack_definition import (
     AttackDefinition,
     AttackCategory,
@@ -764,7 +770,7 @@ def register_tcp_fragmentation_attacks():
         description="Create overlapping TCP sequence numbers to confuse DPI",
         category=AttackCategory.TCP_FRAGMENTATION,
         complexity=AttackComplexity.ADVANCED,
-        stability=AttackStability.MODERATE,
+        stability=AttackStability.MOSTLY_STABLE,
         compatibility=[CompatibilityMode.NATIVE, CompatibilityMode.ZAPRET],
         supported_protocols=["tcp"],
         supported_ports=[80, 443],
@@ -866,7 +872,7 @@ def register_tcp_fragmentation_attacks():
         description="Modify TCP options to evade DPI detection while fragmenting",
         category=AttackCategory.TCP_FRAGMENTATION,
         complexity=AttackComplexity.ADVANCED,
-        stability=AttackStability.MODERATE,
+        stability=AttackStability.MOSTLY_STABLE,
         compatibility=[CompatibilityMode.NATIVE],
         supported_protocols=["tcp"],
         supported_ports=[80, 443],

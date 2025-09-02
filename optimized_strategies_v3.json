@@ -1,0 +1,166 @@
+{
+  "description": "Оптимизированные стратегии на основе анализа успешных соединений",
+  "version": "3.0",
+  "analysis_date": "2025-08-28",
+  "success_patterns": {
+    "working_ttl_values": [2, 3, 4, 128],
+    "optimal_packet_size": 620,
+    "successful_duration": "0.5-19.2s",
+    "data_transfer_range": "5-11KB"
+  },
+  
+  "strategies": {
+    "x.com": {
+      "strategy": "proven_success",
+      "params": {
+        "desync_method": "multisplit",
+        "split_count": 5,
+        "split_seqovl": 20,
+        "fooling": "badsum",
+        "ttl": 3,
+        "repeats": 4,
+        "extra_options": "--dpi-desync-any-protocol --dpi-desync-cutoff=d2"
+      },
+      "reason": "Успешно работает - 4 соединения с передачей 5-11KB данных",
+      "success_rate": "100%"
+    },
+    
+    "instagram.com": {
+      "strategy": "proven_success_instagram",
+      "params": {
+        "desync_method": "multisplit",
+        "split_count": 5,
+        "split_seqovl": 20,
+        "fooling": "badsum",
+        "ttl": 2,
+        "repeats": 4,
+        "extra_options": "--dpi-desync-split-tls=sni --dpi-desync-fake-tls=0x16030100"
+      },
+      "reason": "Успешное соединение с передачей 5.6KB данных",
+      "success_rate": "100%"
+    },
+    
+    "facebook.com": {
+      "strategy": "instagram_clone",
+      "params": {
+        "desync_method": "multisplit",
+        "split_count": 5,
+        "split_seqovl": 20,
+        "fooling": "badsum",
+        "ttl": 2,
+        "repeats": 4,
+        "extra_options": "--dpi-desync-split-tls=sni"
+      },
+      "reason": "Аналогично instagram.com (тот же провайдер)"
+    },
+    
+    "rutracker.org": {
+      "strategy": "dns_fix_required",
+      "params": {
+        "desync_method": "fake,multisplit",
+        "split_count": 8,
+        "split_pos": 2,
+        "ttl": 3,
+        "fooling": "badseq",
+        "repeats": 3,
+        "extra_options": "--dpi-desync-fake-unknown=0x00000000"
+      },
+      "reason": "Проблема с DNS/маршрутизацией - нужен более агрессивный подход",
+      "dns_fix": true
+    },
+    
+    "nnmclub.to": {
+      "strategy": "rutracker_clone",
+      "params": {
+        "desync_method": "fake,multisplit",
+        "split_count": 8,
+        "split_pos": 2,
+        "ttl": 3,
+        "fooling": "badseq",
+        "repeats": 3,
+        "extra_options": "--dpi-desync-fake-unknown=0x00000000"
+      },
+      "reason": "Аналогично rutracker.org"
+    },
+    
+    "youtube.com": {
+      "strategy": "cloudflare_optimized",
+      "params": {
+        "desync_method": "multisplit",
+        "split_count": 5,
+        "split_seqovl": 20,
+        "fooling": "badsum",
+        "ttl": 3,
+        "repeats": 4,
+        "extra_options": "--dpi-desync-split-tls=sni"
+      },
+      "reason": "Использует Cloudflare CDN - аналогично успешным соединениям"
+    },
+    
+    "telegram.org": {
+      "strategy": "aggressive_multisplit",
+      "params": {
+        "desync_method": "multisplit",
+        "split_count": 10,
+        "split_seqovl": 50,
+        "fooling": "badsum",
+        "ttl": 2,
+        "repeats": 5,
+        "extra_options": "--dpi-desync-any-protocol"
+      },
+      "reason": "Telegram требует более агрессивного подхода"
+    }
+  },
+  
+  "global_optimizations": {
+    "preferred_ttl_sequence": [3, 2, 4],
+    "optimal_packet_size": 620,
+    "connection_timeout": 15,
+    "retry_strategy": "exponential_backoff",
+    "enable_tcp_nodelay": true,
+    "enable_tcp_quickack": true
+  },
+  
+  "dns_optimizations": {
+    "enable_doh": true,
+    "doh_servers": [
+      "https://1.1.1.1/dns-query",
+      "https://8.8.8.8/resolve",
+      "https://9.9.9.9/dns-query"
+    ],
+    "fallback_to_system_dns": false,
+    "dns_cache_ttl": 300
+  },
+  
+  "success_indicators": {
+    "min_connection_duration": 0.5,
+    "min_data_transfer": 1000,
+    "required_tcp_states": ["SYN", "SYN+ACK", "ACK"],
+    "tls_handshake_required": true
+  },
+  
+  "monitoring": {
+    "log_successful_patterns": true,
+    "capture_working_connections": true,
+    "auto_adjust_ttl": true,
+    "performance_metrics": true
+  },
+  
+  "troubleshooting": {
+    "rutracker_dns_issue": {
+      "problem": "Соединения не устанавливаются (только ACK без SYN)",
+      "solutions": [
+        "Проверить DNS разрешение rutracker.org",
+        "Добавить IP в hosts файл",
+        "Использовать DoH для получения актуального IP",
+        "Попробовать альтернативные домены (rutracker.net, rutracker.nl)"
+      ]
+    },
+    
+    "general_optimization": {
+      "working_pattern": "TTL=3, multisplit с 5 частями, overlap=20",
+      "data_transfer_proof": "x.com и instagram.com передают 5-11KB данных",
+      "connection_stability": "Соединения длятся 0.5-19.2 секунды"
+    }
+  }
+}

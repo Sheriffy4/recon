@@ -11,16 +11,24 @@ Attack Strategy:
 3. Send segments with varying delays to confuse timing analysis
 4. Use different TCP options for each segment to avoid pattern detection
 """
+
 import asyncio
 import logging
 import random
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
-from core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus, AttackContext
+from core.bypass.attacks.base import (
+    BaseAttack,
+    AttackResult,
+    AttackStatus,
+    AttackContext,
+)
+
 
 @dataclass
 class MultisplitConfig:
     """Configuration for MultisplitAttack."""
+
     split_count: int = 5
     min_segment_size: int = 10
     max_segment_size: int = 0
@@ -40,6 +48,7 @@ class MultisplitConfig:
     exponential_backoff: bool = False
     backoff_multiplier: float = 1.5
 
+
 class MultisplitAttack(BaseAttack):
     """
     MultisplitAttack using segments architecture.
@@ -49,34 +58,55 @@ class MultisplitAttack(BaseAttack):
     rely on contiguous data analysis.
     """
 
-    def __init__(self, name: str='multisplit', config: Optional[MultisplitConfig]=None):
+    def __init__(
+        self, name: str = "multisplit", config: Optional[MultisplitConfig] = None
+    ):
         super().__init__(name)
         self.config = config or MultisplitConfig()
-        self.logger = logging.getLogger(f'MultisplitAttack.{name}')
+        self.logger = logging.getLogger(f"MultisplitAttack.{name}")
         self._validate_config()
 
     def _validate_config(self):
         """Validate attack configuration."""
         if not 2 <= self.config.split_count <= 20:
-            raise ValueError(f'split_count must be between 2 and 20, got {self.config.split_count}')
+            raise ValueError(
+                f"split_count must be between 2 and 20, got {self.config.split_count}"
+            )
         if self.config.min_segment_size < 1:
-            raise ValueError(f'min_segment_size must be at least 1, got {self.config.min_segment_size}')
-        if self.config.max_segment_size > 0 and self.config.max_segment_size < self.config.min_segment_size:
-            raise ValueError(f'max_segment_size ({self.config.max_segment_size}) must be >= min_segment_size ({self.config.min_segment_size})')
+            raise ValueError(
+                f"min_segment_size must be at least 1, got {self.config.min_segment_size}"
+            )
+        if (
+            self.config.max_segment_size > 0
+            and self.config.max_segment_size < self.config.min_segment_size
+        ):
+            raise ValueError(
+                f"max_segment_size ({self.config.max_segment_size}) must be >= min_segment_size ({self.config.min_segment_size})"
+            )
         if self.config.overlap_bytes < 0:
-            raise ValueError(f'overlap_bytes must be non-negative, got {self.config.overlap_bytes}')
+            raise ValueError(
+                f"overlap_bytes must be non-negative, got {self.config.overlap_bytes}"
+            )
         if self.config.base_delay_ms < 0:
-            raise ValueError(f'base_delay_ms must be non-negative, got {self.config.base_delay_ms}')
+            raise ValueError(
+                f"base_delay_ms must be non-negative, got {self.config.base_delay_ms}"
+            )
         if self.config.delay_variation_ms < 0:
-            raise ValueError(f'delay_variation_ms must be non-negative, got {self.config.delay_variation_ms}')
+            raise ValueError(
+                f"delay_variation_ms must be non-negative, got {self.config.delay_variation_ms}"
+            )
         if not 0.0 <= self.config.checksum_corruption_probability <= 1.0:
-            raise ValueError(f'checksum_corruption_probability must be between 0.0 and 1.0, got {self.config.checksum_corruption_probability}')
+            raise ValueError(
+                f"checksum_corruption_probability must be between 0.0 and 1.0, got {self.config.checksum_corruption_probability}"
+            )
         if self.config.ttl_range[0] > self.config.ttl_range[1]:
-            raise ValueError(f'Invalid TTL range: {self.config.ttl_range}')
+            raise ValueError(f"Invalid TTL range: {self.config.ttl_range}")
         if self.config.window_size_range[0] > self.config.window_size_range[1]:
-            raise ValueError(f'Invalid window size range: {self.config.window_size_range}')
+            raise ValueError(
+                f"Invalid window size range: {self.config.window_size_range}"
+            )
         if self.config.padding_range[0] > self.config.padding_range[1]:
-            raise ValueError(f'Invalid padding range: {self.config.padding_range}')
+            raise ValueError(f"Invalid padding range: {self.config.padding_range}")
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """
@@ -89,24 +119,65 @@ class MultisplitAttack(BaseAttack):
             AttackResult with segments for multisplit payload
         """
         try:
-            self.logger.info(f'Executing MultisplitAttack on {context.connection_id}')
+            self.logger.info(f"Executing MultisplitAttack on {context.connection_id}")
             if not context.payload:
-                return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': 'Empty payload provided'})
+                return AttackResult(
+                    status=AttackStatus.FAILED,
+                    modified_payload=None,
+                    metadata={"error": "Empty payload provided"},
+                )
             min_required_size = self.config.min_segment_size * self.config.split_count
             if len(context.payload) < min_required_size:
-                return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': f'Payload too small for {self.config.split_count} segments. Required: {min_required_size}, got: {len(context.payload)}'})
+                return AttackResult(
+                    status=AttackStatus.FAILED,
+                    modified_payload=None,
+                    metadata={
+                        "error": f"Payload too small for {self.config.split_count} segments. Required: {min_required_size}, got: {len(context.payload)}"
+                    },
+                )
             segments = await self._create_segments(context.payload)
             if self.config.randomize_order:
                 segments = self._randomize_segment_order(segments)
-            result = AttackResult(status=AttackStatus.SUCCESS, modified_payload=None, metadata={'attack_type': 'multisplit', 'segments': segments, 'total_segments': len(segments), 'original_payload_size': len(context.payload), 'config': {'split_count': self.config.split_count, 'min_segment_size': self.config.min_segment_size, 'max_segment_size': self.config.max_segment_size, 'overlap_bytes': self.config.overlap_bytes, 'base_delay_ms': self.config.base_delay_ms, 'delay_variation_ms': self.config.delay_variation_ms, 'randomize_order': self.config.randomize_order, 'vary_ttl': self.config.vary_ttl, 'vary_tcp_flags': self.config.vary_tcp_flags, 'vary_window_size': self.config.vary_window_size, 'add_padding': self.config.add_padding, 'corrupt_some_checksums': self.config.corrupt_some_checksums}})
+            result = AttackResult(
+                status=AttackStatus.SUCCESS,
+                modified_payload=None,
+                metadata={
+                    "attack_type": "multisplit",
+                    "segments": segments,
+                    "total_segments": len(segments),
+                    "original_payload_size": len(context.payload),
+                    "config": {
+                        "split_count": self.config.split_count,
+                        "min_segment_size": self.config.min_segment_size,
+                        "max_segment_size": self.config.max_segment_size,
+                        "overlap_bytes": self.config.overlap_bytes,
+                        "base_delay_ms": self.config.base_delay_ms,
+                        "delay_variation_ms": self.config.delay_variation_ms,
+                        "randomize_order": self.config.randomize_order,
+                        "vary_ttl": self.config.vary_ttl,
+                        "vary_tcp_flags": self.config.vary_tcp_flags,
+                        "vary_window_size": self.config.vary_window_size,
+                        "add_padding": self.config.add_padding,
+                        "corrupt_some_checksums": self.config.corrupt_some_checksums,
+                    },
+                },
+            )
             result._segments = segments
-            self.logger.info(f'MultisplitAttack created {len(segments)} segments from {len(context.payload)}-byte payload')
+            self.logger.info(
+                f"MultisplitAttack created {len(segments)} segments from {len(context.payload)}-byte payload"
+            )
             return result
         except Exception as e:
-            self.logger.error(f'MultisplitAttack failed: {e}')
-            return AttackResult(status=AttackStatus.FAILED, modified_payload=None, metadata={'error': str(e), 'attack_type': 'multisplit'})
+            self.logger.error(f"MultisplitAttack failed: {e}")
+            return AttackResult(
+                status=AttackStatus.FAILED,
+                modified_payload=None,
+                metadata={"error": str(e), "attack_type": "multisplit"},
+            )
 
-    async def _create_segments(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    async def _create_segments(
+        self, payload: bytes
+    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """
         Create segments from payload with configured options.
 
@@ -147,7 +218,9 @@ class MultisplitAttack(BaseAttack):
             boundaries = self._add_overlap_to_boundaries(boundaries, payload_len)
         return boundaries
 
-    def _calculate_count_based_boundaries(self, payload_len: int) -> List[Tuple[int, int]]:
+    def _calculate_count_based_boundaries(
+        self, payload_len: int
+    ) -> List[Tuple[int, int]]:
         """Calculate boundaries based on split count."""
         boundaries = []
         base_segment_size = payload_len // self.config.split_count
@@ -164,13 +237,18 @@ class MultisplitAttack(BaseAttack):
                 break
         return boundaries
 
-    def _calculate_size_based_boundaries(self, payload_len: int) -> List[Tuple[int, int]]:
+    def _calculate_size_based_boundaries(
+        self, payload_len: int
+    ) -> List[Tuple[int, int]]:
         """Calculate boundaries based on max segment size."""
         boundaries = []
         current_pos = 0
         while current_pos < payload_len:
             if self.config.delay_variation_ms > 0:
-                size_variation = random.randint(-self.config.min_segment_size // 2, self.config.min_segment_size // 2)
+                size_variation = random.randint(
+                    -self.config.min_segment_size // 2,
+                    self.config.min_segment_size // 2,
+                )
                 segment_size = self.config.max_segment_size + size_variation
             else:
                 segment_size = self.config.max_segment_size
@@ -181,7 +259,9 @@ class MultisplitAttack(BaseAttack):
             current_pos = end_pos
         return boundaries
 
-    def _add_overlap_to_boundaries(self, boundaries: List[Tuple[int, int]], payload_len: int) -> List[Tuple[int, int]]:
+    def _add_overlap_to_boundaries(
+        self, boundaries: List[Tuple[int, int]], payload_len: int
+    ) -> List[Tuple[int, int]]:
         """Add overlap between segments."""
         if not boundaries or self.config.overlap_bytes == 0:
             return boundaries
@@ -196,7 +276,9 @@ class MultisplitAttack(BaseAttack):
             overlapped_boundaries.append((new_start, new_end))
         return overlapped_boundaries
 
-    async def _create_segment_options(self, segment_index: int, total_segments: int) -> Dict[str, Any]:
+    async def _create_segment_options(
+        self, segment_index: int, total_segments: int
+    ) -> Dict[str, Any]:
         """
         Create options for a segment.
 
@@ -209,26 +291,30 @@ class MultisplitAttack(BaseAttack):
         """
         options = {}
         delay = await self._calculate_segment_delay(segment_index, total_segments)
-        options['delay_ms'] = delay
+        options["delay_ms"] = delay
         if self.config.vary_ttl:
             ttl = random.randint(self.config.ttl_range[0], self.config.ttl_range[1])
-            options['ttl'] = ttl
+            options["ttl"] = ttl
         else:
-            options['ttl'] = 64
+            options["ttl"] = 64
         if self.config.vary_tcp_flags:
             flag_options = [24, 16, 8]
-            options['flags'] = random.choice(flag_options)
+            options["flags"] = random.choice(flag_options)
         else:
-            options['flags'] = 24
+            options["flags"] = 24
         if self.config.vary_window_size:
-            window_size = random.randint(self.config.window_size_range[0], self.config.window_size_range[1])
-            options['window_size'] = window_size
+            window_size = random.randint(
+                self.config.window_size_range[0], self.config.window_size_range[1]
+            )
+            options["window_size"] = window_size
         if self.config.corrupt_some_checksums:
             if random.random() < self.config.checksum_corruption_probability:
-                options['bad_checksum'] = True
+                options["bad_checksum"] = True
         return options
 
-    async def _calculate_segment_delay(self, segment_index: int, total_segments: int) -> float:
+    async def _calculate_segment_delay(
+        self, segment_index: int, total_segments: int
+    ) -> float:
         """
         Calculate delay for a segment.
 
@@ -241,11 +327,13 @@ class MultisplitAttack(BaseAttack):
         """
         base_delay = self.config.base_delay_ms
         if self.config.exponential_backoff:
-            delay = base_delay * self.config.backoff_multiplier ** segment_index
+            delay = base_delay * self.config.backoff_multiplier**segment_index
         else:
             delay = base_delay
         if self.config.delay_variation_ms > 0:
-            variation = random.uniform(-self.config.delay_variation_ms, self.config.delay_variation_ms)
+            variation = random.uniform(
+                -self.config.delay_variation_ms, self.config.delay_variation_ms
+            )
             delay += variation
 
         delay = max(0.0, delay)
@@ -265,11 +353,15 @@ class MultisplitAttack(BaseAttack):
         """
         if not self.config.add_padding:
             return segment_data
-        padding_size = random.randint(self.config.padding_range[0], self.config.padding_range[1])
-        padding = b'\\x00' * padding_size
+        padding_size = random.randint(
+            self.config.padding_range[0], self.config.padding_range[1]
+        )
+        padding = b"\\x00" * padding_size
         return segment_data + padding
 
-    def _randomize_segment_order(self, segments: List[Tuple[bytes, int, Dict[str, Any]]]) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    def _randomize_segment_order(
+        self, segments: List[Tuple[bytes, int, Dict[str, Any]]]
+    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """
         Randomize the order of segments while preserving sequence offsets.
 
@@ -292,7 +384,36 @@ class MultisplitAttack(BaseAttack):
         Returns:
             Dictionary with attack information
         """
-        return {'name': self.name, 'type': 'multisplit', 'description': 'Splits payload into multiple segments with configurable overlap and timing', 'technique': 'payload_fragmentation', 'effectiveness': 'high_against_contiguous_analysis_dpi', 'config': {'split_count': self.config.split_count, 'min_segment_size': self.config.min_segment_size, 'max_segment_size': self.config.max_segment_size, 'overlap_bytes': self.config.overlap_bytes, 'base_delay_ms': self.config.base_delay_ms, 'delay_variation_ms': self.config.delay_variation_ms, 'randomize_order': self.config.randomize_order, 'vary_ttl': self.config.vary_ttl, 'vary_tcp_flags': self.config.vary_tcp_flags, 'vary_window_size': self.config.vary_window_size, 'add_padding': self.config.add_padding, 'corrupt_some_checksums': self.config.corrupt_some_checksums, 'exponential_backoff': self.config.exponential_backoff}, 'segments_created': 'configurable', 'advantages': ['Confuses contiguous data analysis', 'Configurable overlap for redundancy', 'Variable timing to avoid patterns', 'TCP option diversity', 'Scalable segment count']}
+        return {
+            "name": self.name,
+            "type": "multisplit",
+            "description": "Splits payload into multiple segments with configurable overlap and timing",
+            "technique": "payload_fragmentation",
+            "effectiveness": "high_against_contiguous_analysis_dpi",
+            "config": {
+                "split_count": self.config.split_count,
+                "min_segment_size": self.config.min_segment_size,
+                "max_segment_size": self.config.max_segment_size,
+                "overlap_bytes": self.config.overlap_bytes,
+                "base_delay_ms": self.config.base_delay_ms,
+                "delay_variation_ms": self.config.delay_variation_ms,
+                "randomize_order": self.config.randomize_order,
+                "vary_ttl": self.config.vary_ttl,
+                "vary_tcp_flags": self.config.vary_tcp_flags,
+                "vary_window_size": self.config.vary_window_size,
+                "add_padding": self.config.add_padding,
+                "corrupt_some_checksums": self.config.corrupt_some_checksums,
+                "exponential_backoff": self.config.exponential_backoff,
+            },
+            "segments_created": "configurable",
+            "advantages": [
+                "Confuses contiguous data analysis",
+                "Configurable overlap for redundancy",
+                "Variable timing to avoid patterns",
+                "TCP option diversity",
+                "Scalable segment count",
+            ],
+        }
 
     def estimate_effectiveness(self, context: AttackContext) -> float:
         """
@@ -317,7 +438,11 @@ class MultisplitAttack(BaseAttack):
             effectiveness += 0.05
         if self.config.randomize_order:
             effectiveness += 0.05
-        if self.config.vary_ttl or self.config.vary_tcp_flags or self.config.vary_window_size:
+        if (
+            self.config.vary_ttl
+            or self.config.vary_tcp_flags
+            or self.config.vary_window_size
+        ):
             effectiveness += 0.05
         if self.config.corrupt_some_checksums:
             effectiveness += 0.05
@@ -332,15 +457,19 @@ class MultisplitAttack(BaseAttack):
         Returns:
             List of required capability names
         """
-        capabilities = ['packet_construction', 'timing_control', 'sequence_manipulation']
+        capabilities = [
+            "packet_construction",
+            "timing_control",
+            "sequence_manipulation",
+        ]
         if self.config.vary_ttl:
-            capabilities.append('ttl_modification')
+            capabilities.append("ttl_modification")
         if self.config.vary_tcp_flags:
-            capabilities.append('tcp_flags_modification')
+            capabilities.append("tcp_flags_modification")
         if self.config.vary_window_size:
-            capabilities.append('window_size_modification')
+            capabilities.append("window_size_modification")
         if self.config.corrupt_some_checksums:
-            capabilities.append('checksum_corruption')
+            capabilities.append("checksum_corruption")
         return capabilities
 
     def validate_context(self, context: AttackContext) -> Tuple[bool, Optional[str]]:
@@ -354,16 +483,35 @@ class MultisplitAttack(BaseAttack):
             Tuple of (is_valid, error_message)
         """
         if not context.payload:
-            return (False, 'Empty payload provided')
+            return (False, "Empty payload provided")
         min_required_size = self.config.min_segment_size * self.config.split_count
         if len(context.payload) < min_required_size:
-            return (False, f'Payload too small for {self.config.split_count} segments. Required: {min_required_size}, got: {len(context.payload)}')
-        if hasattr(context, 'tcp_seq') and context.tcp_seq is not None:
+            return (
+                False,
+                f"Payload too small for {self.config.split_count} segments. Required: {min_required_size}, got: {len(context.payload)}",
+            )
+        if hasattr(context, "tcp_seq") and context.tcp_seq is not None:
             if context.tcp_seq < 0:
-                return (False, f'Invalid TCP sequence number: {context.tcp_seq}')
+                return (False, f"Invalid TCP sequence number: {context.tcp_seq}")
         return (True, None)
 
-def create_multisplit_attack(name: str='multisplit', split_count: int=5, min_segment_size: int=10, max_segment_size: int=0, overlap_bytes: int=0, base_delay_ms: float=5.0, delay_variation_ms: float=3.0, randomize_order: bool=False, vary_ttl: bool=False, vary_tcp_flags: bool=False, vary_window_size: bool=False, add_padding: bool=False, corrupt_some_checksums: bool=False, exponential_backoff: bool=False) -> MultisplitAttack:
+
+def create_multisplit_attack(
+    name: str = "multisplit",
+    split_count: int = 5,
+    min_segment_size: int = 10,
+    max_segment_size: int = 0,
+    overlap_bytes: int = 0,
+    base_delay_ms: float = 5.0,
+    delay_variation_ms: float = 3.0,
+    randomize_order: bool = False,
+    vary_ttl: bool = False,
+    vary_tcp_flags: bool = False,
+    vary_window_size: bool = False,
+    add_padding: bool = False,
+    corrupt_some_checksums: bool = False,
+    exponential_backoff: bool = False,
+) -> MultisplitAttack:
     """
     Factory function to create MultisplitAttack with custom configuration.
 
@@ -386,21 +534,95 @@ def create_multisplit_attack(name: str='multisplit', split_count: int=5, min_seg
     Returns:
         Configured MultisplitAttack instance
     """
-    config = MultisplitConfig(split_count=split_count, min_segment_size=min_segment_size, max_segment_size=max_segment_size, overlap_bytes=overlap_bytes, base_delay_ms=base_delay_ms, delay_variation_ms=delay_variation_ms, randomize_order=randomize_order, vary_ttl=vary_ttl, vary_tcp_flags=vary_tcp_flags, vary_window_size=vary_window_size, add_padding=add_padding, corrupt_some_checksums=corrupt_some_checksums, exponential_backoff=exponential_backoff)
+    config = MultisplitConfig(
+        split_count=split_count,
+        min_segment_size=min_segment_size,
+        max_segment_size=max_segment_size,
+        overlap_bytes=overlap_bytes,
+        base_delay_ms=base_delay_ms,
+        delay_variation_ms=delay_variation_ms,
+        randomize_order=randomize_order,
+        vary_ttl=vary_ttl,
+        vary_tcp_flags=vary_tcp_flags,
+        vary_window_size=vary_window_size,
+        add_padding=add_padding,
+        corrupt_some_checksums=corrupt_some_checksums,
+        exponential_backoff=exponential_backoff,
+    )
     return MultisplitAttack(name=name, config=config)
+
 
 def create_aggressive_multisplit() -> MultisplitAttack:
     """Create aggressive variant with maximum fragmentation."""
-    return create_multisplit_attack(name='aggressive_multisplit', split_count=10, min_segment_size=8, overlap_bytes=3, base_delay_ms=8.0, delay_variation_ms=5.0, randomize_order=True, vary_ttl=True, vary_tcp_flags=True, vary_window_size=True, add_padding=True, corrupt_some_checksums=True, exponential_backoff=True)
+    return create_multisplit_attack(
+        name="aggressive_multisplit",
+        split_count=10,
+        min_segment_size=8,
+        overlap_bytes=3,
+        base_delay_ms=8.0,
+        delay_variation_ms=5.0,
+        randomize_order=True,
+        vary_ttl=True,
+        vary_tcp_flags=True,
+        vary_window_size=True,
+        add_padding=True,
+        corrupt_some_checksums=True,
+        exponential_backoff=True,
+    )
+
 
 def create_subtle_multisplit() -> MultisplitAttack:
     """Create subtle variant with minimal fragmentation."""
-    return create_multisplit_attack(name='subtle_multisplit', split_count=3, min_segment_size=20, overlap_bytes=0, base_delay_ms=2.0, delay_variation_ms=1.0, randomize_order=False, vary_ttl=False, vary_tcp_flags=False, vary_window_size=False, add_padding=False, corrupt_some_checksums=False, exponential_backoff=False)
+    return create_multisplit_attack(
+        name="subtle_multisplit",
+        split_count=3,
+        min_segment_size=20,
+        overlap_bytes=0,
+        base_delay_ms=2.0,
+        delay_variation_ms=1.0,
+        randomize_order=False,
+        vary_ttl=False,
+        vary_tcp_flags=False,
+        vary_window_size=False,
+        add_padding=False,
+        corrupt_some_checksums=False,
+        exponential_backoff=False,
+    )
+
 
 def create_overlap_multisplit() -> MultisplitAttack:
     """Create variant optimized for overlap-based confusion."""
-    return create_multisplit_attack(name='overlap_multisplit', split_count=6, min_segment_size=15, overlap_bytes=5, base_delay_ms=6.0, delay_variation_ms=3.0, randomize_order=True, vary_ttl=True, vary_tcp_flags=False, vary_window_size=False, add_padding=False, corrupt_some_checksums=True, exponential_backoff=False)
+    return create_multisplit_attack(
+        name="overlap_multisplit",
+        split_count=6,
+        min_segment_size=15,
+        overlap_bytes=5,
+        base_delay_ms=6.0,
+        delay_variation_ms=3.0,
+        randomize_order=True,
+        vary_ttl=True,
+        vary_tcp_flags=False,
+        vary_window_size=False,
+        add_padding=False,
+        corrupt_some_checksums=True,
+        exponential_backoff=False,
+    )
+
 
 def create_timing_multisplit() -> MultisplitAttack:
     """Create variant optimized for timing-based confusion."""
-    return create_multisplit_attack(name='timing_multisplit', split_count=7, min_segment_size=12, overlap_bytes=2, base_delay_ms=3.0, delay_variation_ms=8.0, randomize_order=True, vary_ttl=False, vary_tcp_flags=True, vary_window_size=True, add_padding=True, corrupt_some_checksums=False, exponential_backoff=True)
+    return create_multisplit_attack(
+        name="timing_multisplit",
+        split_count=7,
+        min_segment_size=12,
+        overlap_bytes=2,
+        base_delay_ms=3.0,
+        delay_variation_ms=8.0,
+        randomize_order=True,
+        vary_ttl=False,
+        vary_tcp_flags=True,
+        vary_window_size=True,
+        add_padding=True,
+        corrupt_some_checksums=False,
+        exponential_backoff=True,
+    )

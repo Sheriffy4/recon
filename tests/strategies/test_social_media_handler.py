@@ -17,6 +17,13 @@ try:
 except ImportError:
     import sys
     import os
+
+# Add the parent directories to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(current_dir)
+recon_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, recon_dir)
+
     sys.path.append(os.path.dirname(__file__))
     from core.bypass.strategies.social_media_handler import SocialMediaBypassHandler, MediaType, BlockingPattern, PlatformType, PlatformSpecificStrategy
     from core.bypass.strategies.subdomain_handler import SubdomainStrategyHandler

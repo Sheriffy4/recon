@@ -2,6 +2,7 @@
 Persistent Fingerprint Caching System - Task 2 Implementation
 TTL-based caching with pickle persistence and thread-safe operations.
 """
+
 import pickle
 import time
 import threading
@@ -10,11 +11,14 @@ from dataclasses import dataclass
 from pathlib import Path
 import logging
 from core.fingerprint.advanced_models import DPIFingerprint, CacheError
+
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class CachedFingerprint:
     """Container for cached fingerprint with metadata"""
+
     fingerprint: DPIFingerprint
     timestamp: float
     ttl: int
@@ -34,13 +38,21 @@ class CachedFingerprint:
         """Get seconds until expiry (negative if already expired)"""
         return self.timestamp + self.ttl - time.time()
 
+
 class FingerprintCache:
     """
     Thread-safe persistent cache for DPI fingerprints with TTL-based expiration.
     Implements requirements 3.1, 3.2, 3.3, 3.4, 3.5 from the specification.
     """
 
-    def __init__(self, cache_file: str='dpi_fingerprint_cache.pkl', ttl: int=3600, max_entries: int=1000, cleanup_interval: int=300, auto_save: bool=True):
+    def __init__(
+        self,
+        cache_file: str = "dpi_fingerprint_cache.pkl",
+        ttl: int = 3600,
+        max_entries: int = 1000,
+        cleanup_interval: int = 300,
+        auto_save: bool = True,
+    ):
         """
         Initialize the fingerprint cache.
 
@@ -58,7 +70,14 @@ class FingerprintCache:
         self.auto_save = auto_save
         self._cache: Dict[str, CachedFingerprint] = {}
         self._lock = threading.RLock()
-        self._stats = {'hits': 0, 'misses': 0, 'evictions': 0, 'saves': 0, 'loads': 0, 'errors': 0}
+        self._stats = {
+            "hits": 0,
+            "misses": 0,
+            "evictions": 0,
+            "saves": 0,
+            "loads": 0,
+            "errors": 0,
+        }
         self._cleanup_thread = None
         self._stop_cleanup = threading.Event()
         self._initialize_cache()
@@ -68,15 +87,19 @@ class FingerprintCache:
         try:
             self.load_cache()
             self._start_cleanup_thread()
-            logger.info(f'FingerprintCache initialized with {len(self._cache)} entries')
+            logger.info(f"FingerprintCache initialized with {len(self._cache)} entries")
         except Exception as e:
-            logger.error(f'Failed to initialize cache: {e}')
-            self._stats['errors'] += 1
+            logger.error(f"Failed to initialize cache: {e}")
+            self._stats["errors"] += 1
 
     def _start_cleanup_thread(self):
         """Start background cleanup thread"""
         if self.cleanup_interval > 0:
-            self._cleanup_thread = threading.Thread(target=self._background_cleanup, daemon=True, name='FingerprintCache-Cleanup')
+            self._cleanup_thread = threading.Thread(
+                target=self._background_cleanup,
+                daemon=True,
+                name="FingerprintCache-Cleanup",
+            )
             self._cleanup_thread.start()
 
     def _background_cleanup(self):
@@ -85,8 +108,8 @@ class FingerprintCache:
             try:
                 self.cleanup_expired()
             except Exception as e:
-                logger.error(f'Background cleanup error: {e}')
-                self._stats['errors'] += 1
+                logger.error(f"Background cleanup error: {e}")
+                self._stats["errors"] += 1
 
     def get(self, key: str) -> Optional[DPIFingerprint]:
         """
@@ -102,26 +125,26 @@ class FingerprintCache:
             try:
                 cached_item = self._cache.get(key)
                 if cached_item is None:
-                    self._stats['misses'] += 1
-                    logger.debug(f'Cache miss for key: {key}')
+                    self._stats["misses"] += 1
+                    logger.debug(f"Cache miss for key: {key}")
                     return None
                 if cached_item.is_expired():
-                    logger.debug(f'Cache entry expired for key: {key}')
+                    logger.debug(f"Cache entry expired for key: {key}")
                     del self._cache[key]
-                    self._stats['misses'] += 1
+                    self._stats["misses"] += 1
                     if self.auto_save:
                         self._save_cache_unsafe()
                     return None
                 cached_item.update_access()
-                self._stats['hits'] += 1
-                logger.debug(f'Cache hit for key: {key}')
+                self._stats["hits"] += 1
+                logger.debug(f"Cache hit for key: {key}")
                 return cached_item.fingerprint
             except Exception as e:
-                logger.error(f'Error getting cache entry for {key}: {e}')
-                self._stats['errors'] += 1
+                logger.error(f"Error getting cache entry for {key}: {e}")
+                self._stats["errors"] += 1
                 return None
 
-    def set(self, key: str, fingerprint: DPIFingerprint, ttl: Optional[int]=None):
+    def set(self, key: str, fingerprint: DPIFingerprint, ttl: Optional[int] = None):
         """
         Store fingerprint in cache.
 
@@ -136,17 +159,19 @@ class FingerprintCache:
             try:
                 if len(self._cache) >= self.max_entries and key not in self._cache:
                     self._evict_lru()
-                cached_item = CachedFingerprint(fingerprint=fingerprint, timestamp=time.time(), ttl=ttl)
+                cached_item = CachedFingerprint(
+                    fingerprint=fingerprint, timestamp=time.time(), ttl=ttl
+                )
                 self._cache[key] = cached_item
-                logger.debug(f'Cached fingerprint for key: {key} (TTL: {ttl}s)')
+                logger.debug(f"Cached fingerprint for key: {key} (TTL: {ttl}s)")
                 if self.auto_save:
                     self._save_cache_unsafe()
             except Exception as e:
-                logger.error(f'Error setting cache entry for {key}: {e}')
-                self._stats['errors'] += 1
-                raise CacheError(f'Failed to cache fingerprint: {e}')
+                logger.error(f"Error setting cache entry for {key}: {e}")
+                self._stats["errors"] += 1
+                raise CacheError(f"Failed to cache fingerprint: {e}")
 
-    def invalidate(self, key: Optional[str]=None):
+    def invalidate(self, key: Optional[str] = None):
         """
         Invalidate cache entries.
 
@@ -158,18 +183,18 @@ class FingerprintCache:
                 if key is None:
                     count = len(self._cache)
                     self._cache.clear()
-                    logger.info(f'Invalidated entire cache ({count} entries)')
+                    logger.info(f"Invalidated entire cache ({count} entries)")
                 elif key in self._cache:
                     del self._cache[key]
-                    logger.debug(f'Invalidated cache entry for key: {key}')
+                    logger.debug(f"Invalidated cache entry for key: {key}")
                 else:
-                    logger.debug(f'Key not found for invalidation: {key}')
+                    logger.debug(f"Key not found for invalidation: {key}")
                 if self.auto_save:
                     self._save_cache_unsafe()
             except Exception as e:
-                logger.error(f'Error invalidating cache: {e}')
-                self._stats['errors'] += 1
-                raise CacheError(f'Failed to invalidate cache: {e}')
+                logger.error(f"Error invalidating cache: {e}")
+                self._stats["errors"] += 1
+                raise CacheError(f"Failed to invalidate cache: {e}")
 
     def cleanup_expired(self) -> int:
         """
@@ -188,23 +213,29 @@ class FingerprintCache:
                 for key in expired_keys:
                     del self._cache[key]
                 if expired_keys:
-                    logger.debug(f'Cleaned up {len(expired_keys)} expired entries')
+                    logger.debug(f"Cleaned up {len(expired_keys)} expired entries")
                     if self.auto_save:
                         self._save_cache_unsafe()
                 return len(expired_keys)
             except Exception as e:
-                logger.error(f'Error during cleanup: {e}')
-                self._stats['errors'] += 1
+                logger.error(f"Error during cleanup: {e}")
+                self._stats["errors"] += 1
                 return 0
 
     def _evict_lru(self):
         """Evict least recently used entry to make space"""
         if not self._cache:
             return
-        lru_key = min(self._cache.keys(), key=lambda k: (self._cache[k].last_access or self._cache[k].timestamp, self._cache[k].timestamp))
+        lru_key = min(
+            self._cache.keys(),
+            key=lambda k: (
+                self._cache[k].last_access or self._cache[k].timestamp,
+                self._cache[k].timestamp,
+            ),
+        )
         del self._cache[lru_key]
-        self._stats['evictions'] += 1
-        logger.debug(f'Evicted LRU entry: {lru_key}')
+        self._stats["evictions"] += 1
+        logger.debug(f"Evicted LRU entry: {lru_key}")
 
     def save_cache(self):
         """Manually save cache to disk"""
@@ -215,28 +246,28 @@ class FingerprintCache:
         """Save cache to disk (not thread-safe, must be called within lock)"""
         try:
             self.cache_file.parent.mkdir(parents=True, exist_ok=True)
-            temp_file = self.cache_file.with_suffix('.tmp')
-            with open(temp_file, 'wb') as f:
+            temp_file = self.cache_file.with_suffix(".tmp")
+            with open(temp_file, "wb") as f:
                 pickle.dump(self._cache, f, protocol=pickle.HIGHEST_PROTOCOL)
             temp_file.replace(self.cache_file)
-            self._stats['saves'] += 1
-            logger.debug(f'Cache saved to {self.cache_file}')
+            self._stats["saves"] += 1
+            logger.debug(f"Cache saved to {self.cache_file}")
         except Exception as e:
-            logger.error(f'Failed to save cache: {e}')
-            self._stats['errors'] += 1
-            raise CacheError(f'Failed to save cache: {e}')
+            logger.error(f"Failed to save cache: {e}")
+            self._stats["errors"] += 1
+            raise CacheError(f"Failed to save cache: {e}")
 
     def load_cache(self):
         """Load cache from disk"""
         with self._lock:
             try:
                 if not self.cache_file.exists():
-                    logger.debug('Cache file does not exist, starting with empty cache')
+                    logger.debug("Cache file does not exist, starting with empty cache")
                     return
-                with open(self.cache_file, 'rb') as f:
+                with open(self.cache_file, "rb") as f:
                     loaded_cache = pickle.load(f)
                 if not isinstance(loaded_cache, dict):
-                    raise CacheError('Invalid cache file format')
+                    raise CacheError("Invalid cache file format")
                 current_time = time.time()
                 valid_entries = {}
                 for key, cached_item in loaded_cache.items():
@@ -244,17 +275,17 @@ class FingerprintCache:
                         if current_time - cached_item.timestamp <= cached_item.ttl:
                             valid_entries[key] = cached_item
                         else:
-                            logger.debug(f'Skipping expired entry during load: {key}')
+                            logger.debug(f"Skipping expired entry during load: {key}")
                     else:
-                        logger.warning(f'Invalid cache entry format for key: {key}')
+                        logger.warning(f"Invalid cache entry format for key: {key}")
                 self._cache = valid_entries
-                self._stats['loads'] += 1
-                logger.info(f'Loaded {len(self._cache)} valid entries from cache')
+                self._stats["loads"] += 1
+                logger.info(f"Loaded {len(self._cache)} valid entries from cache")
             except FileNotFoundError:
-                logger.debug('Cache file not found, starting with empty cache')
+                logger.debug("Cache file not found, starting with empty cache")
             except Exception as e:
-                logger.error(f'Failed to load cache: {e}')
-                self._stats['errors'] += 1
+                logger.error(f"Failed to load cache: {e}")
+                self._stats["errors"] += 1
                 self._cache = {}
 
     def is_healthy(self) -> bool:
@@ -267,9 +298,23 @@ class FingerprintCache:
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
         with self._lock:
-            total_requests = self._stats['hits'] + self._stats['misses']
-            hit_rate = self._stats['hits'] / total_requests * 100 if total_requests > 0 else 0
-            return {'entries': len(self._cache), 'max_entries': self.max_entries, 'hits': self._stats['hits'], 'misses': self._stats['misses'], 'hit_rate_percent': round(hit_rate, 2), 'evictions': self._stats['evictions'], 'saves': self._stats['saves'], 'loads': self._stats['loads'], 'errors': self._stats['errors'], 'cache_file': str(self.cache_file), 'cache_file_size': self._get_cache_file_size()}
+            total_requests = self._stats["hits"] + self._stats["misses"]
+            hit_rate = (
+                self._stats["hits"] / total_requests * 100 if total_requests > 0 else 0
+            )
+            return {
+                "entries": len(self._cache),
+                "max_entries": self.max_entries,
+                "hits": self._stats["hits"],
+                "misses": self._stats["misses"],
+                "hit_rate_percent": round(hit_rate, 2),
+                "evictions": self._stats["evictions"],
+                "saves": self._stats["saves"],
+                "loads": self._stats["loads"],
+                "errors": self._stats["errors"],
+                "cache_file": str(self.cache_file),
+                "cache_file_size": self._get_cache_file_size(),
+            }
 
     def _get_cache_file_size(self) -> int:
         """Get cache file size in bytes"""
@@ -284,8 +329,19 @@ class FingerprintCache:
             entries_info = []
             current_time = time.time()
             for key, cached_item in self._cache.items():
-                entries_info.append({'key': key, 'dpi_type': cached_item.fingerprint.dpi_type.value, 'confidence': cached_item.fingerprint.confidence, 'age_seconds': current_time - cached_item.timestamp, 'ttl_seconds': cached_item.ttl, 'time_until_expiry': cached_item.time_until_expiry(), 'access_count': cached_item.access_count, 'last_access': cached_item.last_access})
-            return {'stats': self.get_stats(), 'entries': entries_info}
+                entries_info.append(
+                    {
+                        "key": key,
+                        "dpi_type": cached_item.fingerprint.dpi_type.value,
+                        "confidence": cached_item.fingerprint.confidence,
+                        "age_seconds": current_time - cached_item.timestamp,
+                        "ttl_seconds": cached_item.ttl,
+                        "time_until_expiry": cached_item.time_until_expiry(),
+                        "access_count": cached_item.access_count,
+                        "last_access": cached_item.last_access,
+                    }
+                )
+            return {"stats": self.get_stats(), "entries": entries_info}
 
     def contains(self, key: str) -> bool:
         """Check if key exists in cache (without updating access stats)"""
@@ -317,7 +373,7 @@ class FingerprintCache:
             cached_item = self._cache.get(key)
             if cached_item and (not cached_item.is_expired()):
                 cached_item.ttl = new_ttl
-                logger.debug(f'Updated TTL for {key} to {new_ttl}s')
+                logger.debug(f"Updated TTL for {key} to {new_ttl}s")
                 if self.auto_save:
                     self._save_cache_unsafe()
                 return True
@@ -337,7 +393,7 @@ class FingerprintCache:
             cached_item = self._cache.get(key)
             if cached_item and (not cached_item.is_expired()):
                 cached_item.timestamp = time.time()
-                logger.debug(f'Refreshed timestamp for {key}')
+                logger.debug(f"Refreshed timestamp for {key}")
                 if self.auto_save:
                     self._save_cache_unsafe()
                 return True
@@ -345,15 +401,15 @@ class FingerprintCache:
 
     def close(self):
         """Clean shutdown of cache system"""
-        logger.info('Shutting down FingerprintCache')
+        logger.info("Shutting down FingerprintCache")
         if self._cleanup_thread and self._cleanup_thread.is_alive():
             self._stop_cleanup.set()
             self._cleanup_thread.join(timeout=5.0)
         try:
             self.save_cache()
         except Exception as e:
-            logger.error(f'Error during final cache save: {e}')
-        logger.info('FingerprintCache shutdown complete')
+            logger.error(f"Error during final cache save: {e}")
+        logger.info("FingerprintCache shutdown complete")
 
     def __enter__(self):
         """Context manager entry"""
@@ -375,4 +431,4 @@ class FingerprintCache:
     def __repr__(self) -> str:
         """String representation of cache"""
         with self._lock:
-            return f'FingerprintCache(entries={len(self._cache)}, max_entries={self.max_entries}, ttl={self.default_ttl}s, file={self.cache_file})'
+            return f"FingerprintCache(entries={len(self._cache)}, max_entries={self.max_entries}, ttl={self.default_ttl}s, file={self.cache_file})"

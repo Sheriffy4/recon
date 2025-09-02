@@ -1,6 +1,53 @@
 # recon/core/metrics.py
 # Реализация системы метрик качества обхода, предложенная Экспертом 2.
 
+from typing import Dict, Any, List, Optional
+from dataclasses import dataclass
+from datetime import datetime
+
+
+@dataclass
+class MetricData:
+    """Data structure for storing metric information."""
+
+    name: str
+    value: float
+    timestamp: datetime
+    metadata: Dict[str, Any]
+
+
+class MetricsCollector:
+    """Collects and manages bypass performance metrics."""
+
+    def __init__(self):
+        self.metrics: List[MetricData] = []
+        self.aggregated_metrics: Dict[str, Any] = {}
+
+    def record_metric(
+        self, name: str, value: float, metadata: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Record a single metric value."""
+        metric = MetricData(
+            name=name, value=value, timestamp=datetime.now(), metadata=metadata or {}
+        )
+        self.metrics.append(metric)
+
+    def get_metrics(self, name: Optional[str] = None) -> List[MetricData]:
+        """Get metrics, optionally filtered by name."""
+        if name:
+            return [m for m in self.metrics if m.name == name]
+        return self.metrics.copy()
+
+    def clear_metrics(self) -> None:
+        """Clear all stored metrics."""
+        self.metrics.clear()
+        self.aggregated_metrics.clear()
+
+    def get_average(self, name: str) -> Optional[float]:
+        """Get average value for a metric."""
+        values = [m.value for m in self.metrics if m.name == name]
+        return sum(values) / len(values) if values else None
+
 
 class BypassQualityMetrics:
     """Рассчитывает комплексную оценку качества успешной стратегии обхода."""

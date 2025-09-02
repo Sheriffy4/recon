@@ -6,6 +6,13 @@ Simple tests for mode controller functionality.
 import sys
 import os
 
+# Add the parent directories to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(current_dir)
+recon_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, recon_dir)
+
+
 from core.bypass.modes.mode_controller import ModeController, OperationMode
 from core.bypass.modes.capability_detector import CapabilityDetector
 from core.bypass.modes.mode_transition import ModeTransitionManager

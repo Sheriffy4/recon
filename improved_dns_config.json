@@ -1,0 +1,40 @@
+{
+  "doh_enabled": true,
+  "doh_providers": [
+    "https://1.1.1.1/dns-query",
+    "https://8.8.8.8/resolve",
+    "https://9.9.9.9/dns-query"
+  ],
+  "fallback_to_system": true,
+  "cache_ttl": 300,
+  "resolve_timeout": 10,
+  "max_retries": 3,
+  "wildcard_expansion": {
+    "*.twimg.com": [
+      "pbs",
+      "abs",
+      "abs-0",
+      "video",
+      "ton"
+    ],
+    "*.cdninstagram.com": [
+      "static",
+      "scontent-arn2-1"
+    ],
+    "*.fbcdn.net": [
+      "static.xx",
+      "external.xx"
+    ],
+    "*.ytimg.com": [
+      "i",
+      "i1",
+      "i2",
+      "i3"
+    ],
+    "*.ggpht.com": [
+      "lh3",
+      "lh4",
+      "lh5"
+    ]
+  }
+}

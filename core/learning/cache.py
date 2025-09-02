@@ -11,11 +11,12 @@ import logging
 # Use standard logging instead of rich console
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class StrategyPerformanceRecord:
     """Запись о производительности стратегии."""
 
-    strategy: str # This will become a dict
+    strategy: str  # This will become a dict
     domain: str
     ip: str
     success_rate: float
@@ -54,10 +55,10 @@ class AdaptiveLearningCache:
     def _strategy_to_string(self, strategy: Dict[str, Any]) -> str:
         """Converts a strategy dictionary to a stable string for hashing."""
         if not isinstance(strategy, dict):
-            return str(strategy) # Fallback for old format
+            return str(strategy)  # Fallback for old format
 
         parts = [f"name={strategy.get('name', 'unknown')}"]
-        params = strategy.get('params', {})
+        params = strategy.get("params", {})
         for key in sorted(params.keys()):
             parts.append(f"{key}={params[key]}")
         return ";".join(parts)
@@ -105,7 +106,7 @@ class AdaptiveLearningCache:
 
     def record_strategy_performance(
         self,
-        strategy: Dict[str, Any], # Changed to dict
+        strategy: Dict[str, Any],  # Changed to dict
         domain: str,
         ip: str,
         success_rate: float,
@@ -119,7 +120,9 @@ class AdaptiveLearningCache:
             self.strategy_records[key].update_performance(success_rate, avg_latency)
         else:
             self.strategy_records[key] = StrategyPerformanceRecord(
-                strategy=self._strategy_to_string(strategy), # Store as string for record
+                strategy=self._strategy_to_string(
+                    strategy
+                ),  # Store as string for record
                 domain=domain,
                 ip=ip,
                 success_rate=success_rate,
@@ -222,7 +225,7 @@ class AdaptiveLearningCache:
                 "strategy_records": self.strategy_records,
                 "domain_patterns": self.domain_patterns,
                 "dpi_patterns": self.dpi_patterns,
-                "version": "1.1", # Bump version for new dict format
+                "version": "1.1",  # Bump version for new dict format
                 "saved_at": datetime.now().isoformat(),
             }
             with open(self.cache_file, "wb") as f:

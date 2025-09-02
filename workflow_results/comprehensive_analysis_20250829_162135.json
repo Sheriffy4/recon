@@ -1,0 +1,438 @@
+{
+  "workflow_results": {
+    "timestamp": "2025-08-29T16:21:34.855059",
+    "input_files": {
+      "pcap": "work.pcap",
+      "report": "recon_report_20250829_160106.json"
+    },
+    "analysis_results": {
+      "status": "success",
+      "output": "🔍 Enhanced Domain Strategy Analysis\n================================================================================\n📁 PCAP File: work.pcap\n📊 Report File: recon_report_20250829_160106.json\n🎯 Target Domains: 32\n\n📊 Analyzing PCAP for domain-specific patterns...\n📁 File size: 2,585,920 bytes (2.5 MB)\n✅ Classic PCAP format detected\n  Processed 1,000 packets...\n  Processed 2,000 packets...\n  Processed 3,000 packets...\n  Processed 4,000 packets...\n  Processed 5,000 packets...\n  Processed 6,000 packets...\n  Processed 7,000 packets...\n  Processed 8,000 packets...\n  Processed 9,000 packets...\n📊 Analyzed 9,838 packets total\n\n================================================================================\n📋 ENHANCED DOMAIN ANALYSIS REPORT\n================================================================================\n\n🔐 TLS Analysis:\n  • Total TLS ClientHello: 996\n  • Unique domains detected: 19\n  • Successful connections: 668\n\n📊 Domain-Specific Results:\n--------------------------------------------------------------------------------\n  ⚫ abs-0.twimg.com                          |   7 attempts |   0 success |   0.0% | ❌ FAILED\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🔴 abs.twimg.com                            | 110 attempts |   3 success |   2.7% | ❌ POOR\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🟡 api.x.com                                |  22 attempts |  12 success |  54.5% | ⚠️ PARTIAL\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🔴 edge-chat.instagram.com                  | 135 attempts |  18 success |  13.3% | ❌ POOR\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🔴 facebook.com                             |  96 attempts |  20 success |  20.8% | ❌ POOR\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🟢 mobile.x.com                             |  23 attempts | 383 success | 100.0% | ✅ EXCELLENT\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🟡 nnmclub.to                               |  78 attempts |  57 success |  73.1% | ⚠️ PARTIAL\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🔴 pbs.twimg.com                            |  14 attempts |   2 success |  14.3% | ❌ POOR\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🟡 rutracker.org                            |  85 attempts |  58 success |  68.2% | ⚠️ PARTIAL\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  ⚫ safebrowsing.googleapis.com              |   3 attempts |   0 success |   0.0% | ❌ FAILED\n     └─ Bypass patterns: tcp_push\n  🔴 scontent-arn2-1.cdninstagram.com         | 140 attempts |   7 success |   5.0% | ❌ POOR\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  ⚫ static.cdninstagram.com                  |   6 attempts |   0 success |   0.0% | ❌ FAILED\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🔴 ton.twimg.com                            | 103 attempts |   6 success |   5.8% | ❌ POOR\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  ⚫ www.facebook.com                         |   6 attempts |   0 success |   0.0% | ❌ FAILED\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🟢 www.x.com                                |   4 attempts |   8 success | 100.0% | ✅ EXCELLENT\n     └─ Bypass patterns: tcp_push\n  ⚫ www.youtube.com                          |  21 attempts |   0 success |   0.0% | ❌ FAILED\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🟢 x.com                                    |  21 attempts |  86 success | 100.0% | ✅ EXCELLENT\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🔴 youtube.com                              | 121 attempts |   5 success |   4.1% | ❌ POOR\n     └─ Bypass patterns: multiple_attempts, tcp_push\n  🟢 youtubei.googleapis.com                  |   1 attempts |   3 success | 100.0% | ✅ EXCELLENT\n     └─ Bypass patterns: tcp_push\n\n⚠️ Missing Domains (not found in PCAP):\n  ❓ *.cdninstagram.com                       | No connections detected\n  ❓ *.cloudflare.net                         | No connections detected\n  ❓ *.fastly.com                             | No connections detected\n  ❓ *.fastly.net                             | No connections detected\n  ❓ *.fbcdn.net                              | No connections detected\n  ❓ *.ggpht.com                              | No connections detected\n  ❓ *.googleapis.com                         | No connections detected\n  ❓ *.twimg.com                              | No connections detected\n  ❓ *.xx.fbcdn.net                           | No connections detected\n  ❓ *.ytimg.com                              | No connections detected\n  ❓ googlevideo.com                          | No connections detected\n  ❓ instagram.com                            | No connections detected\n  ❓ telegram.org                             | No connections detected\n  ❓ video.twimg.com                          | No connections detected\n\n🔄 Integration with CLI Report:\n--------------------------------------------------------------------------------\nBest Strategy Found: fakedisorder(split_pos=3, ttl=4)\nSuccess Rate: 10.7%\nSuccessful Sites: 3/28\n\nDomain Coverage Analysis:\n  • Domains in PCAP: 19\n  • Domains in Report: 28\n  • Overlap: 17\n  • PCAP only: 2\n  • Report only: 11\n\n📄 Detailed analysis saved to: enhanced_domain_analysis_20250829_162135.json\n\n💡 STRATEGY RECOMMENDATIONS:\n================================================================================\n📈 High Success Domains (5):\n  ✅ www.x.com - Patterns: tcp_push\n  ✅ x.com - Patterns: multiple_attempts, tcp_push\n  ✅ mobile.x.com - Patterns: multiple_attempts, tcp_push\n  ✅ nnmclub.to - Patterns: multiple_attempts, tcp_push\n  ✅ youtubei.googleapis.com - Patterns: tcp_push\n\n⚠️ Medium Success Domains (2):\n  🟡 rutracker.org - Patterns: multiple_attempts, tcp_push\n  🟡 api.x.com - Patterns: multiple_attempts, tcp_push\n\n❌ Failed Domains (12):\n  🔴 pbs.twimg.com - Needs alternative strategy\n  🔴 scontent-arn2-1.cdninstagram.com - Needs alternative strategy\n  🔴 abs.twimg.com - Needs alternative strategy\n  🔴 ton.twimg.com - Needs alternative strategy\n  🔴 youtube.com - Needs alternative strategy\n  🔴 facebook.com - Needs alternative strategy\n  🔴 edge-chat.instagram.com - Needs alternative strategy\n  🔴 abs-0.twimg.com - Needs alternative strategy\n  🔴 static.cdninstagram.com - Needs alternative strategy\n  🔴 www.youtube.com - Needs alternative strategy\n  🔴 www.facebook.com - Needs alternative strategy\n  🔴 safebrowsing.googleapis.com - Needs alternative strategy\n\n🔧 Recommended strategies.json Updates:\n--------------------------------------------------------------------------------\n📊 CLI Discovery Results Summary:\n  • Best Strategy: fakedisorder(split_pos=3, ttl=4)\n  • Success Rate: 3/28 (10.7%)\n  • Total Strategies Tested: 20\n  • Working Strategies Found: 6\n\n🔍 Domain Analysis:\n  • Target domains in CLI report: 28\n  • Domains detected in PCAP: 19\n  • Overlap: 17\n\n📈 Domain Classification:\n  • Successful domains: 7\n    ✅ rutracker.org (attempts: 85, successes: 58)\n       └─ Bypass patterns: multiple_attempts, tcp_push\n    ✅ nnmclub.to (attempts: 78, successes: 57)\n       └─ Bypass patterns: multiple_attempts, tcp_push\n    ✅ www.x.com (attempts: 4, successes: 8)\n       └─ Bypass patterns: tcp_push\n    ✅ api.x.com (attempts: 22, successes: 12)\n       └─ Bypass patterns: multiple_attempts, tcp_push\n    ✅ youtubei.googleapis.com (attempts: 1, successes: 3)\n       └─ Bypass patterns: tcp_push\n    ✅ mobile.x.com (attempts: 23, successes: 383)\n       └─ Bypass patterns: multiple_attempts, tcp_push\n    ✅ x.com (attempts: 21, successes: 86)\n       └─ Bypass patterns: multiple_attempts, tcp_push\n  • Failed domains: 12\n    ❌ scontent-arn2-1.cdninstagram.com (attempts: 140)\n    ❌ edge-chat.instagram.com (attempts: 135)\n    ❌ ton.twimg.com (attempts: 103)\n    ❌ facebook.com (attempts: 96)\n    ❌ static.cdninstagram.com (attempts: 6)\n    ❌ abs.twimg.com (attempts: 110)\n    ❌ www.youtube.com (attempts: 21)\n    ❌ youtube.com (attempts: 121)\n    ❌ abs-0.twimg.com (attempts: 7)\n    ❌ www.facebook.com (attempts: 6)\n    ❌ safebrowsing.googleapis.com (attempts: 3)\n    ❌ pbs.twimg.com (attempts: 14)\n\n💡 Strategy Recommendations:\n\n🎯 Option 1: Apply best strategy to successful domains\nZapret Format: --dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\nAdd to strategies.json:\n{\n  \"rutracker.org\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"nnmclub.to\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"www.x.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"api.x.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"youtubei.googleapis.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"mobile.x.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"x.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n}\n\n🔄 Option 2: Try alternative strategies for failed domains\nAlternative Strategy: fakedisorder(split_pos=3)\nZapret Format: --dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\nAdd to strategies.json:\n{\n  \"scontent-arn2-1.cdninstagram.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"edge-chat.instagram.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"ton.twimg.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"facebook.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n  \"static.cdninstagram.com\": \"--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4\",\n}\n\n🔧 Option 3: Complete strategies.json update\n\n💾 Comprehensive recommendations saved to: domain_strategy_recommendations.json\n💾 Ready-to-use strategies update saved to: strategies_update.json\n\n📋 Next Steps:\n   1. Review strategies_update.json\n   2. Merge with existing strategies.json\n   3. Test with recon_service.py\n   4. Monitor success rates\n"
+    },
+    "synchronization_results": {
+      "status": "success",
+      "method": "merge_updates",
+      "output": "🔄 Merging strategies from strategies_update.json...\n💾 Backup created: backups\\strategies.json.backup_20250829_162135\n🔄 Updating www.x.com\n🔄 Updating api.x.com\n🔄 Updating youtubei.googleapis.com\n🔄 Updating mobile.x.com\n🔄 Updating edge-chat.instagram.com\n🔄 Updating ton.twimg.com\n🔄 Updating facebook.com\n🔄 Updating static.cdninstagram.com\n🔄 Updating abs.twimg.com\n🔄 Updating youtube.com\n🔄 Updating abs-0.twimg.com\n🔄 Updating www.facebook.com\n➕ Adding safebrowsing.googleapis.com\n🔄 Updating pbs.twimg.com\n✅ Merge completed: 1 added, 13 updated\n\n🎉 Merge completed successfully!\n"
+    },
+    "recommendations": {}
+  },
+  "pcap_analysis": {},
+  "strategy_status": {},
+  "domain_visibility": {},
+  "enhanced_domain_analysis_20250829_162135": {
+    "timestamp": "2025-08-29T16:21:35.008084",
+    "pcap_file": "work.pcap",
+    "report_file": "recon_report_20250829_160106.json",
+    "summary": {
+      "total_handshakes": 996,
+      "total_domains_detected": 19,
+      "total_target_domains": 32,
+      "successful_connections": 668
+    },
+    "domain_results": [
+      {
+        "domain": "abs-0.twimg.com",
+        "attempts": 7,
+        "successes": 0,
+        "success_rate": 0.0,
+        "status": "❌ FAILED",
+        "status_icon": "⚫",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "abs.twimg.com",
+        "attempts": 110,
+        "successes": 3,
+        "success_rate": 2.727272727272727,
+        "status": "❌ POOR",
+        "status_icon": "🔴",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "api.x.com",
+        "attempts": 22,
+        "successes": 12,
+        "success_rate": 54.54545454545454,
+        "status": "⚠️ PARTIAL",
+        "status_icon": "🟡",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "edge-chat.instagram.com",
+        "attempts": 135,
+        "successes": 18,
+        "success_rate": 13.333333333333334,
+        "status": "❌ POOR",
+        "status_icon": "🔴",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "facebook.com",
+        "attempts": 96,
+        "successes": 20,
+        "success_rate": 20.833333333333336,
+        "status": "❌ POOR",
+        "status_icon": "🔴",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "mobile.x.com",
+        "attempts": 23,
+        "successes": 383,
+        "success_rate": 100.0,
+        "status": "✅ EXCELLENT",
+        "status_icon": "🟢",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "nnmclub.to",
+        "attempts": 78,
+        "successes": 57,
+        "success_rate": 73.07692307692307,
+        "status": "⚠️ PARTIAL",
+        "status_icon": "🟡",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "pbs.twimg.com",
+        "attempts": 14,
+        "successes": 2,
+        "success_rate": 14.285714285714285,
+        "status": "❌ POOR",
+        "status_icon": "🔴",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "rutracker.org",
+        "attempts": 85,
+        "successes": 58,
+        "success_rate": 68.23529411764706,
+        "status": "⚠️ PARTIAL",
+        "status_icon": "🟡",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "safebrowsing.googleapis.com",
+        "attempts": 3,
+        "successes": 0,
+        "success_rate": 0.0,
+        "status": "❌ FAILED",
+        "status_icon": "⚫",
+        "strategies": [
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "scontent-arn2-1.cdninstagram.com",
+        "attempts": 140,
+        "successes": 7,
+        "success_rate": 5.0,
+        "status": "❌ POOR",
+        "status_icon": "🔴",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "static.cdninstagram.com",
+        "attempts": 6,
+        "successes": 0,
+        "success_rate": 0.0,
+        "status": "❌ FAILED",
+        "status_icon": "⚫",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "ton.twimg.com",
+        "attempts": 103,
+        "successes": 6,
+        "success_rate": 5.825242718446602,
+        "status": "❌ POOR",
+        "status_icon": "🔴",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "www.facebook.com",
+        "attempts": 6,
+        "successes": 0,
+        "success_rate": 0.0,
+        "status": "❌ FAILED",
+        "status_icon": "⚫",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "www.x.com",
+        "attempts": 4,
+        "successes": 8,
+        "success_rate": 100.0,
+        "status": "✅ EXCELLENT",
+        "status_icon": "🟢",
+        "strategies": [
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "www.youtube.com",
+        "attempts": 21,
+        "successes": 0,
+        "success_rate": 0.0,
+        "status": "❌ FAILED",
+        "status_icon": "⚫",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "x.com",
+        "attempts": 21,
+        "successes": 86,
+        "success_rate": 100.0,
+        "status": "✅ EXCELLENT",
+        "status_icon": "🟢",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "youtube.com",
+        "attempts": 121,
+        "successes": 5,
+        "success_rate": 4.132231404958678,
+        "status": "❌ POOR",
+        "status_icon": "🔴",
+        "strategies": [
+          "multiple_attempts",
+          "tcp_push"
+        ]
+      },
+      {
+        "domain": "youtubei.googleapis.com",
+        "attempts": 1,
+        "successes": 3,
+        "success_rate": 100.0,
+        "status": "✅ EXCELLENT",
+        "status_icon": "🟢",
+        "strategies": [
+          "tcp_push"
+        ]
+      }
+    ],
+    "missing_domains": [
+      "*.cloudflare.net",
+      "*.googleapis.com",
+      "*.fbcdn.net",
+      "video.twimg.com",
+      "*.fastly.com",
+      "instagram.com",
+      "*.cdninstagram.com",
+      "telegram.org",
+      "*.fastly.net",
+      "*.ytimg.com",
+      "*.xx.fbcdn.net",
+      "*.ggpht.com",
+      "*.twimg.com",
+      "googlevideo.com"
+    ],
+    "target_domains": [
+      "scontent-arn2-1.cdninstagram.com",
+      "*.fastly.net",
+      "rutracker.org",
+      "nnmclub.to",
+      "googlevideo.com",
+      "*.cloudflare.net",
+      "www.x.com",
+      "*.googleapis.com",
+      "api.x.com",
+      "*.fastly.com",
+      "edge-chat.instagram.com",
+      "ton.twimg.com",
+      "*.xx.fbcdn.net",
+      "facebook.com",
+      "telegram.org",
+      "static.cdninstagram.com",
+      "*.ytimg.com",
+      "*.cdninstagram.com",
+      "abs.twimg.com",
+      "*.twimg.com",
+      "www.youtube.com",
+      "youtube.com",
+      "abs-0.twimg.com",
+      "www.facebook.com",
+      "youtubei.googleapis.com",
+      "mobile.x.com",
+      "pbs.twimg.com",
+      "*.fbcdn.net",
+      "instagram.com",
+      "x.com",
+      "video.twimg.com",
+      "*.ggpht.com"
+    ]
+  },
+  "domain_strategy_recommendations": {
+    "timestamp": "2025-08-29T16:21:35.009678",
+    "analysis_summary": {
+      "best_strategy": "fakedisorder(split_pos=3, ttl=4)",
+      "success_rate": "3/28",
+      "successful_domains": [
+        "rutracker.org",
+        "nnmclub.to",
+        "www.x.com",
+        "api.x.com",
+        "youtubei.googleapis.com",
+        "mobile.x.com",
+        "x.com"
+      ],
+      "failed_domains": [
+        "scontent-arn2-1.cdninstagram.com",
+        "edge-chat.instagram.com",
+        "ton.twimg.com",
+        "facebook.com",
+        "static.cdninstagram.com",
+        "abs.twimg.com",
+        "www.youtube.com",
+        "youtube.com",
+        "abs-0.twimg.com",
+        "www.facebook.com",
+        "safebrowsing.googleapis.com",
+        "pbs.twimg.com"
+      ],
+      "pcap_domains_detected": 19
+    },
+    "strategy_options": {
+      "option_1_best_for_successful": {
+        "rutracker.org": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "nnmclub.to": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "www.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "api.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "youtubei.googleapis.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "mobile.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+      },
+      "option_3_comprehensive": {
+        "rutracker.org": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "nnmclub.to": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "www.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "api.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "youtubei.googleapis.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "mobile.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "scontent-arn2-1.cdninstagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "edge-chat.instagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "ton.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "facebook.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "static.cdninstagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "abs.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "www.youtube.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "youtube.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "abs-0.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "www.facebook.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "safebrowsing.googleapis.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "pbs.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+      }
+    },
+    "zapret_formats": {
+      "best_strategy": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "alternatives": [
+        "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+      ]
+    }
+  },
+  "strategies_update": {
+    "rutracker.org": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "nnmclub.to": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "www.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "api.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "youtubei.googleapis.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "mobile.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "scontent-arn2-1.cdninstagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "edge-chat.instagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "ton.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "facebook.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "static.cdninstagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "abs.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "www.youtube.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "youtube.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "abs-0.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "www.facebook.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "safebrowsing.googleapis.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "pbs.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+  },
+  "current_strategies": {
+    "*.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badseq --dpi-desync-repeats=3 --dpi-desync-ttl=4 --dpi-desync-split-tls=sni",
+    "abs.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "abs-0.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "pbs.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "video.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badseq --dpi-desync-repeats=3 --dpi-desync-ttl=4 --dpi-desync-split-tls=sni",
+    "ton.twimg.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "instagram.com": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=25 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "facebook.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "rutracker.org": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "nnmclub.to": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "youtube.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "telegram.org": "--dpi-desync=fake,multisplit,disorder --dpi-desync-split-count=20 --dpi-desync-split-pos=1 --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-repeats=4 --dpi-desync-any-protocol --dpi-desync-cutoff=d3",
+    "default": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum --dpi-desync-repeats=2",
+    "www.instagram.com": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=25 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "static.cdninstagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "scontent-arn2-1.cdninstagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "edge-chat.instagram.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "*.cdninstagram.com": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4 --dpi-desync-split-tls=sni",
+    "*.fbcdn.net": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-fake-tls=0x16030100 --dpi-desync-ttl6=1",
+    "www.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "api.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "mobile.x.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "www.youtube.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "youtubei.googleapis.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "*.googleapis.com": "--dpi-desync=multisplit --dpi-desync-split-count=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+    "*.ytimg.com": "--dpi-desync=multisplit --dpi-desync-split-count=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+    "*.ggpht.com": "--dpi-desync=multisplit --dpi-desync-split-count=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+    "www.facebook.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "*.xx.fbcdn.net": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-fake-tls=0x16030100 --dpi-desync-ttl6=1",
+    "*.cloudflare.net": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum --dpi-desync-repeats=2",
+    "*.fastly.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum --dpi-desync-repeats=2",
+    "*.fastly.net": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum --dpi-desync-repeats=2",
+    "safebrowsing.googleapis.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+  }
+}

@@ -3,6 +3,7 @@ CLI Service Provider for Dependency Injection
 
 Provides DI container setup and service resolution for CLI operations.
 """
+
 import logging
 import argparse
 from typing import Dict, Any, Optional
@@ -10,9 +11,21 @@ from core.di.container import DIContainer
 from core.di.factory import ServiceFactory
 from core.di.config import DIConfiguration, DIMode
 from core.di.typed_config import TypedDIConfiguration, ConfigurationBuilder, DIMode
-from core.interfaces import IFingerprintEngine, IProber, IClassifier, IAttackAdapter, IEffectivenessTester, ILearningMemory, IStrategySaver, IClosedLoopManager, IEvolutionarySearcher
+from core.interfaces import (
+    IFingerprintEngine,
+    IProber,
+    IClassifier,
+    IAttackAdapter,
+    IEffectivenessTester,
+    ILearningMemory,
+    IStrategySaver,
+    IClosedLoopManager,
+    IEvolutionarySearcher,
+)
 from core.bypass.engines.packet_processing_engine import PacketProcessingEngine
-LOG = logging.getLogger('CLIProvider')
+
+LOG = logging.getLogger("CLIProvider")
+
 
 class CLIServiceProvider:
     """
@@ -40,7 +53,7 @@ class CLIServiceProvider:
         """Initialize DI container based on CLI arguments."""
         try:
             builder = ConfigurationBuilder()
-            if hasattr(self.args, 'test_mode') and self.args.test_mode:
+            if hasattr(self.args, "test_mode") and self.args.test_mode:
                 builder.set_mode(DIMode.TESTING)
             elif self.args.debug:
                 builder.set_mode(DIMode.DEVELOPMENT)
@@ -48,15 +61,19 @@ class CLIServiceProvider:
                 builder.set_mode(DIMode.PRODUCTION)
             builder.apply_cli_args(self.args)
             self._typed_config = builder.build()
-            self.container = ServiceFactory.create_container_from_typed_config(self._typed_config)
-            self._logger.info(f'Initialized DI container for CLI (mode: {self._typed_config.mode})')
+            self.container = ServiceFactory.create_container_from_typed_config(
+                self._typed_config
+            )
+            self._logger.info(
+                f"Initialized DI container for CLI (mode: {self._typed_config.mode})"
+            )
         except Exception as e:
-            self._logger.error(f'Failed to initialize DI container: {e}')
+            self._logger.error(f"Failed to initialize DI container: {e}")
             self._initialize_fallback_container()
 
     def _initialize_fallback_container(self) -> None:
         """Initialize fallback container with basic services."""
-        self._logger.warning('Using fallback DI container initialization')
+        self._logger.warning("Using fallback DI container initialization")
         if self.args.debug:
             self.container = ServiceFactory.create_development_container()
         else:
@@ -105,24 +122,32 @@ class CLIServiceProvider:
     def _resolve_service(self, service_type: type):
         """Resolve service from container with error handling."""
         if not self.container:
-            raise RuntimeError('DI container not initialized')
+            raise RuntimeError("DI container not initialized")
         try:
             return self.container.resolve(service_type)
         except Exception as e:
-            self._logger.error(f'Failed to resolve service {service_type.__name__}: {e}')
-            raise RuntimeError(f'Service resolution failed: {service_type.__name__}')
+            self._logger.error(
+                f"Failed to resolve service {service_type.__name__}: {e}"
+            )
+            raise RuntimeError(f"Service resolution failed: {service_type.__name__}")
 
     async def resolve_service_async(self, service_type: type):
         """Resolve service asynchronously from container."""
         if not self.container:
-            raise RuntimeError('DI container not initialized')
+            raise RuntimeError("DI container not initialized")
         try:
             return await self.container.resolve_async(service_type)
         except Exception as e:
-            self._logger.error(f'Failed to resolve service {service_type.__name__} async: {e}')
-            raise RuntimeError(f'Async service resolution failed: {service_type.__name__}')
+            self._logger.error(
+                f"Failed to resolve service {service_type.__name__} async: {e}"
+            )
+            raise RuntimeError(
+                f"Async service resolution failed: {service_type.__name__}"
+            )
 
-    def create_services_for_domain(self, domain: str, domain_ip: str, port: int) -> Dict[str, Any]:
+    def create_services_for_domain(
+        self, domain: str, domain_ip: str, port: int
+    ) -> Dict[str, Any]:
         """
         Create domain-specific services.
 
@@ -136,16 +161,26 @@ class CLIServiceProvider:
         """
         try:
             from core.fingerprint.models import ProbeConfig
+
             probe_config = ProbeConfig(target_ip=domain_ip, port=port)
-            services = {'fingerprint_engine': self.get_fingerprint_engine(), 'prober': self.get_prober(), 'classifier': self.get_classifier(), 'attack_adapter': self.get_attack_adapter(), 'effectiveness_tester': self.get_effectiveness_tester(), 'learning_memory': self.get_learning_memory(), 'strategy_generator': self.get_strategy_generator(), 'strategy_saver': self.get_strategy_saver()}
-            if hasattr(self.args, 'closed_loop') and self.args.closed_loop:
-                services['closed_loop_manager'] = self.get_closed_loop_manager()
-            if hasattr(services['prober'], 'config'):
-                services['prober'].config = probe_config
-            self._logger.info(f'Created services for domain: {domain}')
+            services = {
+                "fingerprint_engine": self.get_fingerprint_engine(),
+                "prober": self.get_prober(),
+                "classifier": self.get_classifier(),
+                "attack_adapter": self.get_attack_adapter(),
+                "effectiveness_tester": self.get_effectiveness_tester(),
+                "learning_memory": self.get_learning_memory(),
+                "strategy_generator": self.get_strategy_generator(),
+                "strategy_saver": self.get_strategy_saver(),
+            }
+            if hasattr(self.args, "closed_loop") and self.args.closed_loop:
+                services["closed_loop_manager"] = self.get_closed_loop_manager()
+            if hasattr(services["prober"], "config"):
+                services["prober"].config = probe_config
+            self._logger.info(f"Created services for domain: {domain}")
             return services
         except Exception as e:
-            self._logger.error(f'Failed to create services for domain {domain}: {e}')
+            self._logger.error(f"Failed to create services for domain {domain}: {e}")
             raise
 
     def cleanup(self) -> None:
@@ -156,24 +191,33 @@ class CLIServiceProvider:
                 if self.container.is_registered(type(None)):
                     pass
             except Exception as e:
-                self._logger.warning(f'Error during service cleanup: {e}')
-        self._logger.info('CLI service provider cleanup completed')
+                self._logger.warning(f"Error during service cleanup: {e}")
+        self._logger.info("CLI service provider cleanup completed")
 
     def get_container_info(self) -> Dict[str, Any]:
         """Get information about the DI container."""
         if not self.container:
-            return {'status': 'not_initialized'}
+            return {"status": "not_initialized"}
         config_dict = None
         if self._typed_config:
             try:
-                if hasattr(self._typed_config, 'dict'):
+                if hasattr(self._typed_config, "dict"):
                     config_dict = self._typed_config.dict()
                 else:
                     import dataclasses
+
                     config_dict = dataclasses.asdict(self._typed_config)
             except Exception as e:
-                self._logger.warning(f'Failed to serialize config: {e}')
-        return {'status': 'initialized', 'mode': self._typed_config.mode if self._typed_config else 'unknown', 'registered_services': self.container.get_registered_services(), 'debug_enabled': self.args.debug, 'typed_config': config_dict, 'legacy_config': self._config.to_dict() if self._config else None}
+                self._logger.warning(f"Failed to serialize config: {e}")
+        return {
+            "status": "initialized",
+            "mode": self._typed_config.mode if self._typed_config else "unknown",
+            "registered_services": self.container.get_registered_services(),
+            "debug_enabled": self.args.debug,
+            "typed_config": config_dict,
+            "legacy_config": self._config.to_dict() if self._config else None,
+        }
+
 
 def create_cli_provider(args: argparse.Namespace) -> CLIServiceProvider:
     """

@@ -1,0 +1,288 @@
+{
+  "timestamp": "2025-08-29T16:22:11.276772",
+  "pcap_file": "work.pcap",
+  "report_file": "recon_report_20250829_160703.json",
+  "summary": {
+    "total_handshakes": 996,
+    "total_domains_detected": 19,
+    "total_target_domains": 32,
+    "successful_connections": 668
+  },
+  "domain_results": [
+    {
+      "domain": "abs-0.twimg.com",
+      "attempts": 7,
+      "successes": 0,
+      "success_rate": 0.0,
+      "status": "❌ FAILED",
+      "status_icon": "⚫",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "abs.twimg.com",
+      "attempts": 110,
+      "successes": 3,
+      "success_rate": 2.727272727272727,
+      "status": "❌ POOR",
+      "status_icon": "🔴",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "api.x.com",
+      "attempts": 22,
+      "successes": 12,
+      "success_rate": 54.54545454545454,
+      "status": "⚠️ PARTIAL",
+      "status_icon": "🟡",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "edge-chat.instagram.com",
+      "attempts": 135,
+      "successes": 18,
+      "success_rate": 13.333333333333334,
+      "status": "❌ POOR",
+      "status_icon": "🔴",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "facebook.com",
+      "attempts": 96,
+      "successes": 20,
+      "success_rate": 20.833333333333336,
+      "status": "❌ POOR",
+      "status_icon": "🔴",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "mobile.x.com",
+      "attempts": 23,
+      "successes": 383,
+      "success_rate": 100.0,
+      "status": "✅ EXCELLENT",
+      "status_icon": "🟢",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "nnmclub.to",
+      "attempts": 78,
+      "successes": 57,
+      "success_rate": 73.07692307692307,
+      "status": "⚠️ PARTIAL",
+      "status_icon": "🟡",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "pbs.twimg.com",
+      "attempts": 14,
+      "successes": 2,
+      "success_rate": 14.285714285714285,
+      "status": "❌ POOR",
+      "status_icon": "🔴",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "rutracker.org",
+      "attempts": 85,
+      "successes": 58,
+      "success_rate": 68.23529411764706,
+      "status": "⚠️ PARTIAL",
+      "status_icon": "🟡",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "safebrowsing.googleapis.com",
+      "attempts": 3,
+      "successes": 0,
+      "success_rate": 0.0,
+      "status": "❌ FAILED",
+      "status_icon": "⚫",
+      "strategies": [
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "scontent-arn2-1.cdninstagram.com",
+      "attempts": 140,
+      "successes": 7,
+      "success_rate": 5.0,
+      "status": "❌ POOR",
+      "status_icon": "🔴",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "static.cdninstagram.com",
+      "attempts": 6,
+      "successes": 0,
+      "success_rate": 0.0,
+      "status": "❌ FAILED",
+      "status_icon": "⚫",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "ton.twimg.com",
+      "attempts": 103,
+      "successes": 6,
+      "success_rate": 5.825242718446602,
+      "status": "❌ POOR",
+      "status_icon": "🔴",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "www.facebook.com",
+      "attempts": 6,
+      "successes": 0,
+      "success_rate": 0.0,
+      "status": "❌ FAILED",
+      "status_icon": "⚫",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "www.x.com",
+      "attempts": 4,
+      "successes": 8,
+      "success_rate": 100.0,
+      "status": "✅ EXCELLENT",
+      "status_icon": "🟢",
+      "strategies": [
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "www.youtube.com",
+      "attempts": 21,
+      "successes": 0,
+      "success_rate": 0.0,
+      "status": "❌ FAILED",
+      "status_icon": "⚫",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "x.com",
+      "attempts": 21,
+      "successes": 86,
+      "success_rate": 100.0,
+      "status": "✅ EXCELLENT",
+      "status_icon": "🟢",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "youtube.com",
+      "attempts": 121,
+      "successes": 5,
+      "success_rate": 4.132231404958678,
+      "status": "❌ POOR",
+      "status_icon": "🔴",
+      "strategies": [
+        "multiple_attempts",
+        "tcp_push"
+      ]
+    },
+    {
+      "domain": "youtubei.googleapis.com",
+      "attempts": 1,
+      "successes": 3,
+      "success_rate": 100.0,
+      "status": "✅ EXCELLENT",
+      "status_icon": "🟢",
+      "strategies": [
+        "tcp_push"
+      ]
+    }
+  ],
+  "missing_domains": [
+    "*.fastly.com",
+    "*.ytimg.com",
+    "*.cloudflare.net",
+    "*.twimg.com",
+    "*.cdninstagram.com",
+    "*.ggpht.com",
+    "*.fastly.net",
+    "telegram.org",
+    "*.fbcdn.net",
+    "*.googleapis.com",
+    "googlevideo.com",
+    "video.twimg.com",
+    "*.xx.fbcdn.net",
+    "instagram.com"
+  ],
+  "target_domains": [
+    "www.x.com",
+    "nnmclub.to",
+    "youtubei.googleapis.com",
+    "*.ggpht.com",
+    "rutracker.org",
+    "mobile.x.com",
+    "*.fbcdn.net",
+    "googlevideo.com",
+    "www.youtube.com",
+    "*.fastly.net",
+    "ton.twimg.com",
+    "instagram.com",
+    "youtube.com",
+    "*.xx.fbcdn.net",
+    "x.com",
+    "*.fastly.com",
+    "abs.twimg.com",
+    "scontent-arn2-1.cdninstagram.com",
+    "api.x.com",
+    "static.cdninstagram.com",
+    "facebook.com",
+    "video.twimg.com",
+    "telegram.org",
+    "abs-0.twimg.com",
+    "*.ytimg.com",
+    "www.facebook.com",
+    "edge-chat.instagram.com",
+    "*.cloudflare.net",
+    "*.twimg.com",
+    "*.cdninstagram.com",
+    "pbs.twimg.com",
+    "*.googleapis.com"
+  ]
+}

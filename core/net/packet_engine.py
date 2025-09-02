@@ -5,11 +5,12 @@ from core.net.tcp_options import TCPOption, TCPOptions
 from core.net.quic_packet import QUICPacket, QUICHeader, QUICPacketType, QUICVersion
 from core.net.ech import ECHConfig, ECHClientHello, ECHCipherSuite, ECHVersion
 
+
 class Packet(ABC):
 
     @classmethod
     @abstractmethod
-    def parse(cls, raw: bytes) -> 'Packet':
+    def parse(cls, raw: bytes) -> "Packet":
         pass
 
     @abstractmethod
@@ -17,10 +18,13 @@ class Packet(ABC):
         pass
 
     @abstractmethod
-    def clone(self) -> 'Packet':
+    def clone(self) -> "Packet":
         pass
+
+
 try:
     import scapy.all as scapy
+
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -29,9 +33,10 @@ from core.net.byte_packet import IPv4Packet, TCPPacket, UDPPacket
 from core.net.tcp_tracker import TCPTracker, TCPState
 from core.net.tcp_manipulator import TCPSegmentManipulator, SegmentConfig
 
+
 class PacketEngine:
 
-    def __init__(self, use_scapy: bool=False):
+    def __init__(self, use_scapy: bool = False):
         self.use_scapy = use_scapy and SCAPY_AVAILABLE
         self.tcp_tracker = TCPTracker()
         self.tcp_manipulator = TCPSegmentManipulator()
@@ -66,49 +71,50 @@ class PacketEngine:
                 pkt.update_checksum()
             return pkt
 
-    def add_padding(self, pkt: Packet, pad_length: int, random: bool=True) -> Packet:
+    def add_padding(self, pkt: Packet, pad_length: int, random: bool = True) -> Packet:
         """Добавляет padding к payload пакета."""
         if random:
             import os
+
             padding = os.urandom(pad_length)
         else:
-            padding = b'\x00' * pad_length
+            padding = b"\x00" * pad_length
         if self.use_scapy:
-            if pkt.haslayer('TCP'):
-                pkt['TCP'].payload = padding + bytes(pkt['TCP'].payload)
-            elif pkt.haslayer('UDP'):
-                pkt['UDP'].payload = padding + bytes(pkt['UDP'].payload)
+            if pkt.haslayer("TCP"):
+                pkt["TCP"].payload = padding + bytes(pkt["TCP"].payload)
+            elif pkt.haslayer("UDP"):
+                pkt["UDP"].payload = padding + bytes(pkt["UDP"].payload)
         elif isinstance(pkt, IPv4Packet):
-            if hasattr(pkt, 'payload'):
+            if hasattr(pkt, "payload"):
                 pkt.payload = padding + pkt.payload
                 pkt.update_checksum()
         return pkt
 
-    def obfuscate_payload(self, pkt: Packet, method: str='xor') -> Packet:
+    def obfuscate_payload(self, pkt: Packet, method: str = "xor") -> Packet:
         """Простая обфускация payload."""
         if self.use_scapy:
-            if pkt.haslayer('TCP'):
-                payload = bytes(pkt['TCP'].payload)
-            elif pkt.haslayer('UDP'):
-                payload = bytes(pkt['UDP'].payload)
+            if pkt.haslayer("TCP"):
+                payload = bytes(pkt["TCP"].payload)
+            elif pkt.haslayer("UDP"):
+                payload = bytes(pkt["UDP"].payload)
             else:
                 return pkt
         elif isinstance(pkt, (TCPPacket, UDPPacket)):
             payload = pkt.payload
         else:
             return pkt
-        if method == 'xor':
+        if method == "xor":
             key = 66
             obfuscated = bytes([b ^ key for b in payload])
-        elif method == 'reverse':
+        elif method == "reverse":
             obfuscated = payload[::-1]
         else:
             return pkt
         if self.use_scapy:
-            if pkt.haslayer('TCP'):
-                pkt['TCP'].payload = obfuscated
-            elif pkt.haslayer('UDP'):
-                pkt['UDP'].payload = obfuscated
+            if pkt.haslayer("TCP"):
+                pkt["TCP"].payload = obfuscated
+            elif pkt.haslayer("UDP"):
+                pkt["UDP"].payload = obfuscated
         elif isinstance(pkt, (TCPPacket, UDPPacket)):
             pkt.payload = obfuscated
             if isinstance(pkt, IPv4Packet):
@@ -126,7 +132,9 @@ class PacketEngine:
             self.tcp_tracker.update_connection(ip_packet, tcp_packet, conn)
         return True
 
-    def fragment_tcp_packet(self, ip_packet: IPv4Packet, tcp_packet: TCPPacket, fragment_size: int=8) -> list[IPv4Packet]:
+    def fragment_tcp_packet(
+        self, ip_packet: IPv4Packet, tcp_packet: TCPPacket, fragment_size: int = 8
+    ) -> list[IPv4Packet]:
         """Фрагментация TCP пакета"""
         if not isinstance(tcp_packet, TCPPacket):
             return [ip_packet]
@@ -136,9 +144,25 @@ class PacketEngine:
         fragments = []
         offset = 0
         while offset < len(payload):
-            frag_payload = payload[offset:offset + fragment_size]
-            frag_tcp = TCPPacket(src_port=tcp_packet.src_port, dst_port=tcp_packet.dst_port, seq_num=tcp_packet.seq_num + offset, ack_num=tcp_packet.ack_num, flags=tcp_packet.flags, window=tcp_packet.window, payload=frag_payload)
-            frag_ip = IPv4Packet(src_addr=ip_packet.src_addr, dst_addr=ip_packet.dst_addr, ttl=ip_packet.ttl, protocol=ip_packet.protocol, id=ip_packet.id, flags=ip_packet.flags, frag_offset=offset // 8)
+            frag_payload = payload[offset : offset + fragment_size]
+            frag_tcp = TCPPacket(
+                src_port=tcp_packet.src_port,
+                dst_port=tcp_packet.dst_port,
+                seq_num=tcp_packet.seq_num + offset,
+                ack_num=tcp_packet.ack_num,
+                flags=tcp_packet.flags,
+                window=tcp_packet.window,
+                payload=frag_payload,
+            )
+            frag_ip = IPv4Packet(
+                src_addr=ip_packet.src_addr,
+                dst_addr=ip_packet.dst_addr,
+                ttl=ip_packet.ttl,
+                protocol=ip_packet.protocol,
+                id=ip_packet.id,
+                flags=ip_packet.flags,
+                frag_offset=offset // 8,
+            )
             frag_ip.payload = frag_tcp.serialize()
             frag_tcp.update_checksum(frag_ip)
             frag_ip.update_checksum()
@@ -146,12 +170,19 @@ class PacketEngine:
             offset += fragment_size
         return fragments
 
-    def get_connection_state(self, ip_packet: IPv4Packet, tcp_packet: TCPPacket) -> Optional[TCPState]:
+    def get_connection_state(
+        self, ip_packet: IPv4Packet, tcp_packet: TCPPacket
+    ) -> Optional[TCPState]:
         """Получить текущее состояние TCP-соединения"""
         conn = self.tcp_tracker.get_connection(ip_packet, tcp_packet)
         return conn.state if conn else None
 
-    def create_multisplit_attack(self, ip_packet: IPv4Packet, tcp_packet: TCPPacket, config: Optional[SegmentConfig]=None) -> List[IPv4Packet]:
+    def create_multisplit_attack(
+        self,
+        ip_packet: IPv4Packet,
+        tcp_packet: TCPPacket,
+        config: Optional[SegmentConfig] = None,
+    ) -> List[IPv4Packet]:
         """Создать multisplit атаку"""
         if not isinstance(tcp_packet, TCPPacket):
             return [ip_packet]
@@ -159,24 +190,34 @@ class PacketEngine:
             config = SegmentConfig()
         return self.tcp_manipulator.multisplit_packet(ip_packet, tcp_packet, config)
 
-    def create_overlap_attack(self, ip_packet: IPv4Packet, tcp_packet: TCPPacket, overlap_data: bytes, offset: int) -> List[IPv4Packet]:
+    def create_overlap_attack(
+        self,
+        ip_packet: IPv4Packet,
+        tcp_packet: TCPPacket,
+        overlap_data: bytes,
+        offset: int,
+    ) -> List[IPv4Packet]:
         """Создать атаку с перекрывающимися сегментами"""
         if not isinstance(tcp_packet, TCPPacket):
             return [ip_packet]
-        return self.tcp_manipulator.create_overlap_attack(ip_packet, tcp_packet, overlap_data, offset)
+        return self.tcp_manipulator.create_overlap_attack(
+            ip_packet, tcp_packet, overlap_data, offset
+        )
 
     def create_tcp_option(self, option_type: int, **kwargs) -> TCPOption:
         """Создать TCP option заданного типа"""
         if option_type == TCPOptions.MSS:
-            return TCPOptions.create_mss(kwargs.get('mss', 1460))
+            return TCPOptions.create_mss(kwargs.get("mss", 1460))
         elif option_type == TCPOptions.WINDOW_SCALE:
-            return TCPOptions.create_window_scale(kwargs.get('shift_count', 7))
+            return TCPOptions.create_window_scale(kwargs.get("shift_count", 7))
         elif option_type == TCPOptions.TIMESTAMP:
-            return TCPOptions.create_timestamp(kwargs.get('ts_val', 0), kwargs.get('ts_echo', 0))
+            return TCPOptions.create_timestamp(
+                kwargs.get("ts_val", 0), kwargs.get("ts_echo", 0)
+            )
         elif option_type == TCPOptions.SACK_PERMITTED:
             return TCPOptions.create_sack_permitted()
         elif option_type == TCPOptions.SACK:
-            return TCPOptions.create_sack(kwargs.get('blocks', []))
+            return TCPOptions.create_sack(kwargs.get("blocks", []))
         else:
             return TCPOption(kind=option_type, length=2)
 
@@ -187,26 +228,71 @@ class PacketEngine:
         except ValueError:
             return None
 
-    def create_quic_packet(self, packet_type: QUICPacketType, version: QUICVersion, dcid: bytes, scid: bytes, payload: bytes=b'') -> QUICPacket:
+    def create_quic_packet(
+        self,
+        packet_type: QUICPacketType,
+        version: QUICVersion,
+        dcid: bytes,
+        scid: bytes,
+        payload: bytes = b"",
+    ) -> QUICPacket:
         """Create a new QUIC packet"""
-        header = QUICHeader(header_form=True, packet_type=packet_type, version=version, dcid_len=len(dcid), dcid=dcid, scid_len=len(scid), scid=scid, length=len(payload), packet_number=0)
+        header = QUICHeader(
+            header_form=True,
+            packet_type=packet_type,
+            version=version,
+            dcid_len=len(dcid),
+            dcid=dcid,
+            scid_len=len(scid),
+            scid=scid,
+            length=len(payload),
+            packet_number=0,
+        )
         return QUICPacket(header=header, payload=payload)
 
     def create_ech_config(self, public_name: str, **kwargs) -> ECHConfig:
         """Create ECH configuration"""
-        return ECHConfig(version=kwargs.get('version', ECHVersion.DRAFT_13), config_id=kwargs.get('config_id', 0), cipher_suites=kwargs.get('cipher_suites', [ECHCipherSuite.AES_128_GCM_SHA256]), public_name=public_name, public_key=kwargs.get('public_key', b''), maximum_name_length=kwargs.get('maximum_name_length', 64))
+        return ECHConfig(
+            version=kwargs.get("version", ECHVersion.DRAFT_13),
+            config_id=kwargs.get("config_id", 0),
+            cipher_suites=kwargs.get(
+                "cipher_suites", [ECHCipherSuite.AES_128_GCM_SHA256]
+            ),
+            public_name=public_name,
+            public_key=kwargs.get("public_key", b""),
+            maximum_name_length=kwargs.get("maximum_name_length", 64),
+        )
 
-    def create_ech_client_hello(self, config: ECHConfig, inner_ch: bytes, cipher_suite: Optional[ECHCipherSuite]=None) -> ECHClientHello:
+    def create_ech_client_hello(
+        self,
+        config: ECHConfig,
+        inner_ch: bytes,
+        cipher_suite: Optional[ECHCipherSuite] = None,
+    ) -> ECHClientHello:
         """Create ECH ClientHello extension"""
         if cipher_suite is None:
             cipher_suite = config.cipher_suites[0]
         encrypted_ch = inner_ch
-        return ECHClientHello(config_id=config.config_id, cipher_suite=cipher_suite, encrypted_ch=encrypted_ch)
+        return ECHClientHello(
+            config_id=config.config_id,
+            cipher_suite=cipher_suite,
+            encrypted_ch=encrypted_ch,
+        )
 
-    def process_quic_initial(self, packet: QUICPacket) -> Union[QUICPacket, List[QUICPacket]]:
+    def process_quic_initial(
+        self, packet: QUICPacket
+    ) -> Union[QUICPacket, List[QUICPacket]]:
         """Process QUIC Initial packet - special handling for the first packet"""
         if packet.header.packet_type != QUICPacketType.INITIAL:
             return packet
         if packet.header.version not in [QUICVersion.VERSION_1, QUICVersion.VERSION_2]:
-            return self.create_quic_packet(packet_type=QUICPacketType.VERSION_NEGOTIATION, version=QUICVersion.NEGOTIATION, dcid=packet.header.scid, scid=packet.header.dcid, payload=struct.pack('!II', QUICVersion.VERSION_1, QUICVersion.VERSION_2))
+            return self.create_quic_packet(
+                packet_type=QUICPacketType.VERSION_NEGOTIATION,
+                version=QUICVersion.NEGOTIATION,
+                dcid=packet.header.scid,
+                scid=packet.header.dcid,
+                payload=struct.pack(
+                    "!II", QUICVersion.VERSION_1, QUICVersion.VERSION_2
+                ),
+            )
         return packet

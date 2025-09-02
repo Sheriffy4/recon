@@ -1,0 +1,46 @@
+{
+  "doh_providers": [
+    "cloudflare",
+    "google", 
+    "quad9",
+    "adguard"
+  ],
+  "cache_ttl": 300,
+  "doh_cache_ttl": 600,
+  "hosts_file_path": null,
+  "known_blocked_domains": [
+    "x.com",
+    "twitter.com", 
+    "instagram.com",
+    "facebook.com",
+    "youtube.com",
+    "telegram.org",
+    "discord.com",
+    "tiktok.com",
+    "linkedin.com"
+  ],
+  "blocked_ip_indicators": [
+    "127.0.0.1",
+    "0.0.0.0", 
+    "192.168.1.1",
+    "10.0.0.1",
+    "172.16.0.1",
+    "203.0.113.0"
+  ],
+  "bypass_strategies": {
+    "ip_block": ["hosts", "doh"],
+    "dns_block": ["doh", "hosts"], 
+    "dns_hijack": ["doh", "hosts"],
+    "none": ["system_dns", "direct"],
+    "error": ["doh", "hosts", "system_dns"]
+  },
+  "connection_timeout": 5.0,
+  "max_concurrent_tests": 10,
+  "retry_attempts": 3,
+  "preferred_ports": [443, 80, 8080, 8443],
+  "logging": {
+    "level": "INFO",
+    "save_to_file": true,
+    "log_file": "logs/smart_bypass.log"
+  }
+}

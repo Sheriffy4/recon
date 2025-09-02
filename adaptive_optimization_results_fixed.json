@@ -1,0 +1,282 @@
+{
+  "domain_results": {
+    "x.com": {
+      "domain": "x.com",
+      "best_strategy": null,
+      "best_result": null,
+      "all_results": [
+        {
+          "strategy_name": "fakeddisorder_seqovl",
+          "domain": "x.com",
+          "success": false,
+          "latency_ms": 5137.868165969849,
+          "data_transferred": 0,
+          "connection_duration": 5.137868165969849,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "fakeddisorder_basic",
+          "domain": "x.com",
+          "success": false,
+          "latency_ms": 5118.577003479004,
+          "data_transferred": 0,
+          "connection_duration": 5.118577003479004,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "multisplit_conservative",
+          "domain": "x.com",
+          "success": false,
+          "latency_ms": 5113.975763320923,
+          "data_transferred": 0,
+          "connection_duration": 5.113975763320923,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "multisplit_aggressive",
+          "domain": "x.com",
+          "success": false,
+          "latency_ms": 5099.124193191528,
+          "data_transferred": 0,
+          "connection_duration": 5.099124193191528,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "conservative_bypass",
+          "domain": "x.com",
+          "success": false,
+          "latency_ms": 5090.245008468628,
+          "data_transferred": 0,
+          "connection_duration": 5.090245008468628,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "disorder_basic",
+          "domain": "x.com",
+          "success": false,
+          "latency_ms": 5099.402666091919,
+          "data_transferred": 0,
+          "connection_duration": 5.099402666091919,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        }
+      ],
+      "success_rate": 0.0,
+      "zapret_string": null,
+      "adaptive_insights": {
+        "domain_type": "social_media",
+        "total_tested": 6,
+        "success_count": 0,
+        "common_errors": [
+          "_ssl.c:993: The handshake operation timed out"
+        ],
+        "recommendation": "Try different network conditions or check domain accessibility",
+        "suggested_actions": [
+          "Check if domain is accessible without DPI bypass",
+          "Try different network interface",
+          "Verify DNS resolution",
+          "Check for QUIC/HTTP3 usage"
+        ]
+      }
+    },
+    "instagram.com": {
+      "domain": "instagram.com",
+      "best_strategy": null,
+      "best_result": null,
+      "all_results": [
+        {
+          "strategy_name": "fakeddisorder_seqovl",
+          "domain": "instagram.com",
+          "success": false,
+          "latency_ms": 5216.311693191528,
+          "data_transferred": 0,
+          "connection_duration": 5.216311693191528,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "fakeddisorder_basic",
+          "domain": "instagram.com",
+          "success": false,
+          "latency_ms": 5197.318553924561,
+          "data_transferred": 0,
+          "connection_duration": 5.1973185539245605,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "multisplit_conservative",
+          "domain": "instagram.com",
+          "success": false,
+          "latency_ms": 5206.325054168701,
+          "data_transferred": 0,
+          "connection_duration": 5.206325054168701,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "multisplit_aggressive",
+          "domain": "instagram.com",
+          "success": false,
+          "latency_ms": 5210.490703582764,
+          "data_transferred": 0,
+          "connection_duration": 5.210490703582764,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "conservative_bypass",
+          "domain": "instagram.com",
+          "success": false,
+          "latency_ms": 5196.134090423584,
+          "data_transferred": 0,
+          "connection_duration": 5.196134090423584,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "disorder_basic",
+          "domain": "instagram.com",
+          "success": false,
+          "latency_ms": 5236.512899398804,
+          "data_transferred": 0,
+          "connection_duration": 5.236512899398804,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        }
+      ],
+      "success_rate": 0.0,
+      "zapret_string": null,
+      "adaptive_insights": {
+        "domain_type": "social_media",
+        "total_tested": 6,
+        "success_count": 0,
+        "common_errors": [
+          "_ssl.c:993: The handshake operation timed out"
+        ],
+        "recommendation": "Try different network conditions or check domain accessibility",
+        "suggested_actions": [
+          "Check if domain is accessible without DPI bypass",
+          "Try different network interface",
+          "Verify DNS resolution",
+          "Check for QUIC/HTTP3 usage"
+        ]
+      }
+    },
+    "rutracker.org": {
+      "domain": "rutracker.org",
+      "best_strategy": null,
+      "best_result": null,
+      "all_results": [
+        {
+          "strategy_name": "fakeddisorder_seqovl",
+          "domain": "rutracker.org",
+          "success": false,
+          "latency_ms": 5109.558582305908,
+          "data_transferred": 0,
+          "connection_duration": 5.109558582305908,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "fakeddisorder_basic",
+          "domain": "rutracker.org",
+          "success": false,
+          "latency_ms": 5131.431579589844,
+          "data_transferred": 0,
+          "connection_duration": 5.131431579589844,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "multisplit_conservative",
+          "domain": "rutracker.org",
+          "success": false,
+          "latency_ms": 5137.324571609497,
+          "data_transferred": 0,
+          "connection_duration": 5.137324571609497,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "multisplit_aggressive",
+          "domain": "rutracker.org",
+          "success": false,
+          "latency_ms": 5119.695425033569,
+          "data_transferred": 0,
+          "connection_duration": 5.119695425033569,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "conservative_bypass",
+          "domain": "rutracker.org",
+          "success": false,
+          "latency_ms": 5130.976915359497,
+          "data_transferred": 0,
+          "connection_duration": 5.130976915359497,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        },
+        {
+          "strategy_name": "disorder_basic",
+          "domain": "rutracker.org",
+          "success": false,
+          "latency_ms": 5123.577356338501,
+          "data_transferred": 0,
+          "connection_duration": 5.123577356338501,
+          "error": "_ssl.c:993: The handshake operation timed out",
+          "score": 0.0,
+          "network_conditions": null
+        }
+      ],
+      "success_rate": 0.0,
+      "zapret_string": null,
+      "adaptive_insights": {
+        "domain_type": "torrent",
+        "total_tested": 6,
+        "success_count": 0,
+        "common_errors": [
+          "_ssl.c:993: The handshake operation timed out"
+        ],
+        "recommendation": "Try different network conditions or check domain accessibility",
+        "suggested_actions": [
+          "Check if domain is accessible without DPI bypass",
+          "Try different network interface",
+          "Verify DNS resolution",
+          "Check for QUIC/HTTP3 usage"
+        ]
+      }
+    }
+  },
+  "learned_patterns": {},
+  "optimization_summary": {
+    "total_domains": 3,
+    "successful_domains": 0,
+    "success_rate": 0.0,
+    "learned_patterns_count": 0
+  },
+  "timestamp": 1756726679.3324342
+}

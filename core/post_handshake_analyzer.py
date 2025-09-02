@@ -1,7 +1,9 @@
 import logging
 from typing import Optional, Dict
 from scapy.all import IP, TCP, Raw, sr1
-LOG = logging.getLogger('PostHandshakeAnalyzer')
+
+LOG = logging.getLogger("PostHandshakeAnalyzer")
+
 
 class PostHandshakeAnalyzer:
     """
@@ -21,9 +23,11 @@ class PostHandshakeAnalyzer:
 
     def run_post_handshake_probes(self) -> Dict:
         """Запускает все зонды пост-хендшейка."""
-        LOG.info(f'Running post-handshake probes for {self.target_ip}:{self.port}')
+        LOG.info(f"Running post-handshake probes for {self.target_ip}:{self.port}")
         results = {}
-        results['session_resumption_tolerance'] = self.probe_session_resumption_tolerance()
+        results["session_resumption_tolerance"] = (
+            self.probe_session_resumption_tolerance()
+        )
         return results
 
     def probe_session_resumption_tolerance(self) -> Optional[bool]:
@@ -36,22 +40,41 @@ class PostHandshakeAnalyzer:
             False - DPI, вероятно, блокирует измененные тикеты.
             None - Не удалось провести тест.
         """
-        LOG.debug('Probing session resumption tolerance...')
-        fake_session_ticket = b'\xde\xad\xbe\xef' * 8
+        LOG.debug("Probing session resumption tolerance...")
+        fake_session_ticket = b"\xde\xad\xbe\xef" * 8
         from recon.core.engine import build_client_hello
-        hello_payload = build_client_hello('resumption-test.local')
-        modified_hello = hello_payload[:80] + fake_session_ticket + hello_payload[80 + len(fake_session_ticket):]
+
+        hello_payload = build_client_hello("resumption-test.local")
+        modified_hello = (
+            hello_payload[:80]
+            + fake_session_ticket
+            + hello_payload[80 + len(fake_session_ticket) :]
+        )
         try:
-            pkt = self.ip_layer(dst=self.target_ip) / TCP(sport=self.session['sport'], dport=self.port, flags='PA', seq=self.session['seq'], ack=self.session['ack']) / Raw(load=modified_hello)
+            pkt = (
+                self.ip_layer(dst=self.target_ip)
+                / TCP(
+                    sport=self.session["sport"],
+                    dport=self.port,
+                    flags="PA",
+                    seq=self.session["seq"],
+                    ack=self.session["ack"],
+                )
+                / Raw(load=modified_hello)
+            )
             resp = sr1(pkt, timeout=2.0, verbose=0)
             if resp is None:
-                LOG.debug('Session resumption probe: TIMEOUT. DPI likely blocked the modified ticket.')
+                LOG.debug(
+                    "Session resumption probe: TIMEOUT. DPI likely blocked the modified ticket."
+                )
                 return False
             if resp.haslayer(TCP) and resp[TCP].flags.R:
-                LOG.debug('Session resumption probe: RST. DPI or server rejected.')
+                LOG.debug("Session resumption probe: RST. DPI or server rejected.")
                 return False
-            LOG.debug('Session resumption probe: Response received. DPI likely tolerant.')
+            LOG.debug(
+                "Session resumption probe: Response received. DPI likely tolerant."
+            )
             return True
         except Exception as e:
-            LOG.error(f'Error during session resumption probe: {e}')
+            LOG.error(f"Error during session resumption probe: {e}")
             return None

@@ -15,7 +15,8 @@ import statistics
 import platform
 from datetime import datetime
 from dataclasses import dataclass
-from core.zapret_parser import ZapretStrategyParser
+from core.strategy_interpreter import interpret_strategy
+
 # --- Конфигурация Scapy для Windows ---
 if platform.system() == "Windows":
     try:
@@ -93,15 +94,23 @@ except ImportError:
 # --- Scapy (для захвата/pcap-парсинга) ---
 try:
     from scapy.all import sniff, PcapWriter, Raw, IP, IPv6, TCP, UDP
+
     SCAPY_AVAILABLE = True
 except (ImportError, PermissionError) as e:
     print(f"[WARNING] Scapy not available: {e}")
     SCAPY_AVAILABLE = False
+
     # Create dummy classes for graceful degradation
     class DummyPcapWriter:
-        def __init__(self, *args, **kwargs): pass
-        def write(self, *args, **kwargs): pass
-        def close(self, *args, **kwargs): pass
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def write(self, *args, **kwargs):
+            pass
+
+        def close(self, *args, **kwargs):
+            pass
+
     PcapWriter = DummyPcapWriter
 
 # --- Advanced Fingerprinter + Traffic Profiler ---
@@ -126,7 +135,10 @@ except Exception:
 
 import config
 from core.domain_manager import DomainManager
-from core.doh_resolver import DoHResolver
+try:
+    from core.doh_resolver import DoHResolver
+except ImportError:
+    from doh_resolver_fixed import DoHResolver
 from core.hybrid_engine import HybridEngine
 from ml.zapret_strategy_generator import ZapretStrategyGenerator
 from apply_bypass import apply_system_bypass
@@ -250,28 +262,40 @@ async def resolve_all_ips(domain: str) -> Set[str]:
     except socket.gaierror:
         pass
 
-    # 2. DoH (упрощенная версия)
+    # 2. DoH (исправленная версия с множественными провайдерами)
     try:
         import aiohttp
+        import json
 
         async with aiohttp.ClientSession() as s:
-            for doh in (
-                "https://cloudflare-dns.com/dns-query",
-                "https://dns.google/resolve",
-            ):
+            doh_servers = [
+                "https://1.1.1.1/dns-query",
+                "https://8.8.8.8/resolve",
+                "https://9.9.9.9/dns-query"
+            ]
+            
+            for doh in doh_servers:
                 try:
                     params = {"name": domain, "type": "A"}
                     headers = {"accept": "application/dns-json"}
                     async with s.get(
-                        doh, params=params, headers=headers, timeout=2
+                        doh, params=params, headers=headers, timeout=3
                     ) as r:
                         if r.status == 200:
-                            j = await r.json()
-                            for ans in j.get("Answer", []):
-                                if ans.get("data"):
-                                    ips.add(ans.get("data"))
+                            # Исправленный парсинг JSON (игнорируем content-type)
+                            text = await r.text()
+                            try:
+                                j = json.loads(text)
+                                for ans in j.get("Answer", []):
+                                    if ans.get("data"):
+                                        ips.add(ans.get("data"))
+                                # Если получили результат, прерываем цикл
+                                if j.get("Answer"):
+                                    break
+                            except json.JSONDecodeError:
+                                continue
                 except Exception:
-                    pass
+                    continue
     except ImportError:
         pass
 
@@ -307,16 +331,53 @@ class EvolutionaryChromosome:
 
     def mutate(self, mutation_rate: float = 0.1):
         if random.random() < mutation_rate:
-            if "ttl" in self.genes:
-                self.genes["ttl"] = random.choice(
-                    [1, 2, 3, 4, 5, 6, 7, 8, 10, 64, 127, 128]
-                )
-            if "split_pos" in self.genes:
-                self.genes["split_pos"] = random.choice(
-                    [1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20]
-                )
-            if "overlap_size" in self.genes:
-                self.genes["overlap_size"] = random.choice([5, 10, 15, 20, 25, 30])
+            # Comprehensive parameter mutation for all attack types
+            mutation_ranges = {
+                "ttl": [1, 2, 3, 4, 5, 6, 7, 8, 10, 64, 127, 128],
+                "split_pos": [1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20],
+                "split_count": [2, 3, 4, 5, 6, 7, 8, 9, 10],
+                "split_seqovl": [5, 10, 15, 20, 25, 30, 35, 40],
+                "overlap_size": [5, 10, 15, 20, 25, 30],  # Legacy parameter
+                "fragment_size": [8, 16, 24, 32, 48, 64],
+                "reorder_distance": [2, 3, 4, 5, 6, 8, 10],
+                "repeats": [1, 2, 3, 4, 5],
+                "delay": [5, 10, 15, 20, 25, 30],
+                "window_size": [512, 1024, 2048, 4096, 8192],
+                "fooling": ["badsum", "badseq", "md5sig", "hopbyhop"]
+            }
+            
+            # Mutate existing parameters
+            for param_name, current_value in self.genes.items():
+                if param_name in mutation_ranges:
+                    if isinstance(current_value, bool):
+                        # Boolean parameters
+                        if random.random() < 0.1:
+                            self.genes[param_name] = not current_value
+                    else:
+                        # Numeric/string parameters
+                        self.genes[param_name] = random.choice(mutation_ranges[param_name])
+            
+            # Occasionally change attack type to explore different strategies
+            if random.random() < 0.05:  # 5% chance to change attack type
+                from core.attack_mapping import get_attack_mapping
+                attack_mapping = get_attack_mapping()
+                
+                # Get attacks from same category or similar attacks
+                current_type = self.genes.get("type", "fake_disorder")
+                current_attack_info = attack_mapping.get_attack_info(current_type)
+                
+                if current_attack_info:
+                    # Try to find similar attacks in the same category
+                    similar_attacks = attack_mapping.get_attacks_by_category(current_attack_info.category)
+                    if similar_attacks and len(similar_attacks) > 1:
+                        new_type = random.choice([name for name in similar_attacks.keys() if name != current_type])
+                        new_attack_info = similar_attacks[new_type]
+                        
+                        # Update genes with new attack type and its default parameters
+                        self.genes["type"] = new_type
+                        for param_name, default_value in new_attack_info.default_params.items():
+                            if param_name not in self.genes:
+                                self.genes[param_name] = default_value
 
     def crossover(self, other: "EvolutionaryChromosome") -> "EvolutionaryChromosome":
         child_genes = {}
@@ -349,96 +410,247 @@ class SimpleEvolutionarySearcher:
         self, learning_cache=None, domain=None, dpi_hash=None
     ) -> List[EvolutionaryChromosome]:
         population = []
-        base_strategies = [
-            {"type": "fakedisorder", "ttl": 3, "split_pos": 3},
-            {"type": "multisplit", "ttl": 5, "split_pos": 5, "overlap_size": 10},
-            {"type": "seqovl", "ttl": 2, "split_pos": 3, "overlap_size": 20},
-            {"type": "badsum_race", "ttl": 4},
-            {"type": "md5sig_race", "ttl": 6},
+        # Import comprehensive attack mapping
+        from core.attack_mapping import get_attack_mapping
+        attack_mapping = get_attack_mapping()
+        
+        # Get all supported attacks and create base strategies
+        all_attacks = attack_mapping.get_all_attacks()
+        base_strategies = []
+        
+        # Priority attacks (most effective)
+        priority_attacks = [
+            "fake_disorder", "multisplit", "sequence_overlap", "badsum_race", 
+            "md5sig_race", "ip_fragmentation_advanced", "force_tcp", "tcp_multidisorder",
+            "tcp_multisplit", "simple_fragment", "window_manipulation"
         ]
+        
+        # Add priority attacks first
+        for attack_name in priority_attacks:
+            if attack_name in all_attacks:
+                attack_info = all_attacks[attack_name]
+                base_strategies.append({
+                    "type": attack_name,
+                    **attack_info.default_params
+                })
+        
+        # Add other TCP and IP attacks
+        tcp_ip_categories = ["tcp", "ip", "fragmentation", "race"]
+        for category in tcp_ip_categories:
+            category_attacks = attack_mapping.get_attacks_by_category(category)
+            for attack_name, attack_info in category_attacks.items():
+                if attack_name not in [s["type"] for s in base_strategies]:
+                    base_strategies.append({
+                        "type": attack_name,
+                        **attack_info.default_params
+                    })
+        
+        # Fallback to original if no attacks found
+        if not base_strategies:
+            base_strategies = [
+                {"type": "fake_disorder", "ttl": 3, "split_pos": 3},
+                {"type": "multisplit", "ttl": 5, "split_pos": 5, "split_seqovl": 10},
+                {"type": "sequence_overlap", "ttl": 2, "split_pos": 3, "split_seqovl": 20},
+                {"type": "badsum_race", "ttl": 4},
+                {"type": "md5sig_race", "ttl": 6},
+            ]
         learned_strategies = []
         if learning_cache and domain:
-            domain_recs = learning_cache.get_domain_recommendations(domain, 5)
+            from core.attack_mapping import get_attack_mapping
+            attack_mapping = get_attack_mapping()
+            
+            domain_recs = learning_cache.get_domain_recommendations(domain, 10)
             if dpi_hash:
-                dpi_recs = learning_cache.get_dpi_recommendations(dpi_hash, 5)
+                dpi_recs = learning_cache.get_dpi_recommendations(dpi_hash, 10)
                 all_recs = domain_recs + dpi_recs
             else:
                 all_recs = domain_recs
+                
             for strategy_type, success_rate in all_recs:
                 if success_rate > 0.3:
-                    if strategy_type == "fakedisorder":
-                        learned_strategies.append(
-                            {
-                                "type": "fakedisorder",
+                    # Get attack info from comprehensive mapping
+                    attack_info = attack_mapping.get_attack_info(strategy_type)
+                    if attack_info:
+                        # Create learned strategy with randomized parameters
+                        learned_strategy = {"type": strategy_type}
+                        
+                        # Add randomized parameters based on attack info
+                        for param_name, default_value in attack_info.default_params.items():
+                            if param_name == "ttl":
+                                learned_strategy[param_name] = random.choice([2, 3, 4, 5, 6])
+                            elif param_name == "split_pos":
+                                learned_strategy[param_name] = random.choice([2, 3, 4, 5, 6])
+                            elif param_name == "split_count":
+                                learned_strategy[param_name] = random.choice([3, 4, 5, 6, 7])
+                            elif param_name == "split_seqovl":
+                                learned_strategy[param_name] = random.choice([10, 15, 20, 25, 30])
+                            elif param_name == "fragment_size":
+                                learned_strategy[param_name] = random.choice([8, 16, 24, 32])
+                            elif param_name == "fooling":
+                                learned_strategy[param_name] = random.choice(["badsum", "badseq", "md5sig"])
+                            elif param_name == "repeats":
+                                learned_strategy[param_name] = random.choice([1, 2, 3])
+                            else:
+                                learned_strategy[param_name] = default_value
+                        
+                        learned_strategies.append(learned_strategy)
+                    else:
+                        # Fallback for unknown strategy types
+                        if strategy_type in ["fake_disorder", "fakedisorder", "tcp_fakeddisorder"]:
+                            learned_strategies.append({
+                                "type": "fake_disorder",
                                 "ttl": random.choice([2, 3, 4]),
                                 "split_pos": random.choice([2, 3, 4]),
-                            }
-                        )
-                    elif strategy_type == "multisplit":
-                        learned_strategies.append(
-                            {
+                            })
+                        elif strategy_type in ["multisplit", "tcp_multisplit"]:
+                            learned_strategies.append({
                                 "type": "multisplit",
                                 "ttl": random.choice([4, 5, 6]),
-                                "split_pos": random.choice([4, 5, 6]),
-                                "overlap_size": random.choice([8, 10, 12]),
-                            }
-                        )
-                    elif strategy_type == "seqovl":
-                        learned_strategies.append(
-                            {
-                                "type": "seqovl",
+                                "split_count": random.choice([4, 5, 6]),
+                                "split_seqovl": random.choice([8, 10, 12]),
+                            })
+                        elif strategy_type in ["sequence_overlap", "seqovl", "tcp_seqovl"]:
+                            learned_strategies.append({
+                                "type": "sequence_overlap",
                                 "ttl": random.choice([2, 3, 4]),
                                 "split_pos": random.choice([2, 3, 4]),
-                                "overlap_size": random.choice([15, 20, 25]),
-                            }
-                        )
+                                "split_seqovl": random.choice([15, 20, 25]),
+                            })
         all_base_strategies = base_strategies + learned_strategies
         for i in range(self.population_size):
             if i < len(all_base_strategies):
                 genes = all_base_strategies[i].copy()
             else:
+                from core.attack_mapping import get_attack_mapping
+                attack_mapping = get_attack_mapping()
+                
+                # Get all available attacks and select randomly
+                all_attacks = attack_mapping.get_all_attacks()
+                
+                # Prefer TCP and IP attacks for better compatibility
+                preferred_categories = ["tcp", "ip", "fragmentation", "race", "unknown"]
+                preferred_attacks = []
+                
+                for category in preferred_categories:
+                    category_attacks = attack_mapping.get_attacks_by_category(category)
+                    preferred_attacks.extend(category_attacks.keys())
+                
+                # Add some specific high-success attacks
+                high_success_attacks = [
+                    "fake_disorder", "multisplit", "tcp_multisplit", "sequence_overlap",
+                    "badsum_race", "md5sig_race", "simple_fragment", "tcp_fragmentation",
+                    "multidisorder", "tcp_multidisorder", "ip_fragmentation_advanced"
+                ]
+                
+                # Combine and deduplicate
+                available_attacks = list(set(preferred_attacks + high_success_attacks))
+                
+                # Filter to only include attacks that exist
+                available_attacks = [attack for attack in available_attacks if attack in all_attacks]
+                
+                if not available_attacks:
+                    # Fallback to any available attack
+                    available_attacks = list(all_attacks.keys())
+                
+                # Select random attack type
+                attack_type = random.choice(available_attacks)
+                attack_info = all_attacks[attack_type]
+                
+                # Start with attack type and default parameters
                 genes = {
-                    "type": random.choice(
-                        ["fakedisorder", "multisplit", "seqovl", "badsum_race"]
-                    ),
-                    "ttl": random.choice([1, 2, 3, 4, 5, 6, 7, 8]),
-                    "split_pos": random.choice([1, 2, 3, 4, 5, 6, 7, 8, 10]),
+                    "type": attack_type,
+                    **attack_info.default_params
                 }
-                if genes["type"] in ["multisplit", "seqovl"]:
-                    genes["overlap_size"] = random.choice([5, 10, 15, 20, 25])
+                
+                # Add some randomization to parameters
+                if "ttl" in genes:
+                    genes["ttl"] = random.choice([1, 2, 3, 4, 5, 6, 7, 8])
+                if "split_pos" in genes:
+                    genes["split_pos"] = random.choice([1, 2, 3, 4, 5, 6, 7, 8, 10])
+                if "split_count" in genes:
+                    genes["split_count"] = random.choice([2, 3, 4, 5, 6, 7])
+                if "split_seqovl" in genes:
+                    genes["split_seqovl"] = random.choice([5, 10, 15, 20, 25, 30])
+                if "fragment_size" in genes:
+                    genes["fragment_size"] = random.choice([8, 16, 24, 32])
+                if "fooling" in genes:
+                    genes["fooling"] = random.choice(["badsum", "badseq", "md5sig"])
             population.append(EvolutionaryChromosome(genes=genes, generation=0))
         return population
 
     def genes_to_zapret_strategy(self, genes: Dict[str, Any]) -> str:
+        from core.attack_mapping import get_attack_mapping
+        
+        strategy_type = genes.get("type", "fake_disorder")
+        attack_mapping = get_attack_mapping()
+        
+        # Try to generate command using comprehensive mapping
+        zapret_cmd = attack_mapping.get_zapret_command(strategy_type, genes)
+        if zapret_cmd:
+            return zapret_cmd
+        
+        # Fallback to legacy mapping for backward compatibility
         strategy_parts = []
-        strategy_type = genes.get("type", "fakedisorder")
         ttl = genes.get("ttl", 3)
         split_pos = genes.get("split_pos", 3)
-        overlap_size = genes.get("overlap_size", 10)
-        if strategy_type == "fakedisorder":
-            strategy_parts.append("--dpi-desync=fake,fakeddisorder")
-            strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
-            strategy_parts.append("--dpi-desync-fooling=badsum")
-            strategy_parts.append(f"--dpi-desync-ttl={ttl}")
-        elif strategy_type == "multisplit":
-            strategy_parts.append("--dpi-desync=multisplit")
-            strategy_parts.append("--dpi-desync-split-count=3")
-            strategy_parts.append(f"--dpi-desync-split-seqovl={overlap_size}")
-            strategy_parts.append("--dpi-desync-fooling=badsum")
-        elif strategy_type == "seqovl":
-            strategy_parts.append("--dpi-desync=fake,disorder")
-            strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
-            strategy_parts.append(f"--dpi-desync-split-seqovl={overlap_size}")
-            strategy_parts.append("--dpi-desync-fooling=badsum")
-            strategy_parts.append(f"--dpi-desync-ttl={ttl}")
-        elif strategy_type == "badsum_race":
+        split_seqovl = genes.get("split_seqovl", genes.get("overlap_size", 10))
+        fragment_size = genes.get("fragment_size", 8)
+        disable_quic = genes.get("disable_quic", False)
+        reorder_distance = genes.get("reorder_distance", 3)
+        
+        # Legacy mappings with updated names
+        legacy_mappings = {
+            "fakedisorder": "--dpi-desync=fake,disorder",
+            "fake_disorder": "--dpi-desync=fake,disorder", 
+            "tcp_fakeddisorder": "--dpi-desync=fake,disorder",
+            "multisplit": "--dpi-desync=multisplit",
+            "tcp_multisplit": "--dpi-desync=multisplit",
+            "multidisorder": "--dpi-desync=multidisorder",
+            "tcp_multidisorder": "--dpi-desync=multidisorder",
+            "seqovl": "--dpi-desync=fake,disorder",
+            "sequence_overlap": "--dpi-desync=fake,disorder",
+            "tcp_seqovl": "--dpi-desync=fake,disorder",
+            "badsum_race": "--dpi-desync=fake --dpi-desync-fooling=badsum",
+            "md5sig_race": "--dpi-desync=fake --dpi-desync-fooling=md5sig",
+            "ip_fragmentation": "--dpi-desync=ipfrag2",
+            "ip_fragmentation_advanced": "--dpi-desync=ipfrag2",
+            "force_tcp": "--filter-udp=443 --dpi-desync=fake,disorder",
+            "tcp_reorder": "--dpi-desync=disorder",
+            "simple_fragment": "--dpi-desync=split",
+            "tcp_fragmentation": "--dpi-desync=split"
+        }
+        
+        if strategy_type in legacy_mappings:
+            strategy_parts.append(legacy_mappings[strategy_type])
+            
+            # Add common parameters
+            if "multisplit" in strategy_type:
+                split_count = genes.get("split_count", 3)
+                strategy_parts.append(f"--dpi-desync-split-count={split_count}")
+                if split_seqovl:
+                    strategy_parts.append(f"--dpi-desync-split-seqovl={split_seqovl}")
+            elif "split" in strategy_type or "disorder" in strategy_type:
+                strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
+                if "seqovl" in strategy_type or "sequence_overlap" in strategy_type:
+                    strategy_parts.append(f"--dpi-desync-split-seqovl={split_seqovl}")
+            elif "fragmentation" in strategy_type:
+                strategy_parts.append(f"--dpi-desync-split-pos={fragment_size}")
+            
+            # Add TTL if not a race attack
+            if "race" not in strategy_type or ttl != 3:
+                strategy_parts.append(f"--dpi-desync-ttl={ttl}")
+            
+            # Add fooling method if not already specified
+            if "--dpi-desync-fooling=" not in " ".join(strategy_parts):
+                fooling = genes.get("fooling", "badsum")
+                strategy_parts.append(f"--dpi-desync-fooling={fooling}")
+        else:
+            # Generic fallback
             strategy_parts.append("--dpi-desync=fake")
+            strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
+            strategy_parts.append(f"--dpi-desync-ttl={ttl}")
             strategy_parts.append("--dpi-desync-fooling=badsum")
-            strategy_parts.append(f"--dpi-desync-ttl={ttl}")
-        elif strategy_type == "md5sig_race":
-            strategy_parts.append("--dpi-desync=fake")
-            strategy_parts.append("--dpi-desync-fooling=md5sig")
-            strategy_parts.append(f"--dpi-desync-ttl={ttl}")
+        
         return " ".join(strategy_parts)
 
     async def evaluate_fitness(
@@ -487,12 +699,19 @@ class SimpleEvolutionarySearcher:
         all_target_ips: Set[str],
         dns_cache: Dict[str, str],
         port: int,
+        learning_cache=None,
+        domain: str = None,
+        dpi_hash: str = None
     ) -> "EvolutionaryChromosome":
         console.print("[bold magenta]🧬 Starting evolutionary search...[/bold magenta]")
         console.print(
             f"Population: {self.population_size}, Generations: {self.generations}"
         )
-        self.population = self.create_initial_population()
+        
+        # Create initial population with fingerprint-informed strategies
+        self.population = self.create_initial_population(
+            learning_cache=learning_cache, domain=domain, dpi_hash=dpi_hash
+        )
         for generation in range(self.generations):
             console.print(
                 f"\n[yellow]Generation {generation + 1}/{self.generations}[/yellow]"
@@ -604,35 +823,56 @@ class AdaptiveLearningCache:
         return f"{domain}_{ip}_{strategy_hash}"
 
     def _extract_strategy_type(self, strategy: str) -> str:
-        """Извлекает тип стратегии из полной строки, устойчиво к опечаткам."""
-        if "--dpi-desync=" in strategy:
-            value = strategy.split("--dpi-desync=")[1].split()[0]
-            parts = value.split(",")
-            for part in parts:
-                if "fakedisorder" in part or "fakeddisorder" in part:
-                    return "fakedisorder"
-                if part == "multisplit":
-                    return "multisplit"
-                if part == "seqovl":
-                    return "seqovl"
-                if part == "badsum_race":
-                    return "badsum_race"
-                if part == "md5sig_race":
-                    return "md5sig_race"
-        if "fakedisorder" in strategy or "fakeddisorder" in strategy:
-            return "fakedisorder"
-        elif "multisplit" in strategy:
-            return "multisplit"
-        elif "seqovl" in strategy:
-            return "seqovl"
-        elif "badsum_race" in strategy:
-            return "badsum_race"
-        elif "md5sig_race" in strategy or "md5sig" in strategy:
-            return "md5sig_race"
-        elif "badsum" in strategy:
-            return "badsum"
-        else:
-            return "unknown"
+        """Извлекает тип стратегии из полной строки с поддержкой всех атак."""
+        from core.attack_mapping import get_attack_mapping
+        
+        # Use comprehensive attack mapping for extraction
+        attack_mapping = get_attack_mapping()
+        extracted_type = attack_mapping.extract_strategy_type(strategy)
+        
+        if extracted_type != "unknown":
+            return extracted_type
+        
+        # Fallback to legacy extraction for backward compatibility
+        strategy_lower = strategy.lower()
+        
+        # Enhanced pattern matching
+        type_patterns = {
+            "fake_disorder": ["fake,disorder", "fakedisorder", "fakeddisorder", "fake,fakeddisorder"],
+            "multisplit": ["multisplit"],
+            "tcp_multisplit": ["multisplit"],
+            "multidisorder": ["multidisorder"],
+            "tcp_multidisorder": ["multidisorder"],
+            "sequence_overlap": ["seqovl", "sequence_overlap"],
+            "tcp_seqovl": ["seqovl"],
+            "badsum_race": ["badsum"],
+            "md5sig_race": ["md5sig"],
+            "ip_fragmentation": ["ipfrag2"],
+            "force_tcp": ["filter-udp=443"],
+            "simple_fragment": ["split"],
+            "tcp_fragmentation": ["split"],
+            "timing_based": ["delay"],
+            "window_manipulation": ["window"]
+        }
+        
+        for attack_type, patterns in type_patterns.items():
+            for pattern in patterns:
+                if pattern in strategy_lower:
+                    return attack_type
+        
+        # Check for any registered attack names in the strategy
+        all_attacks = attack_mapping.get_all_attacks()
+        for attack_name in all_attacks:
+            if attack_name.lower() in strategy_lower:
+                return attack_name
+            
+            # Check aliases
+            attack_info = all_attacks[attack_name]
+            for alias in attack_info.aliases:
+                if alias.lower() in strategy_lower:
+                    return attack_name
+        
+        return "unknown"
 
     def record_strategy_performance(
         self,
@@ -1017,6 +1257,24 @@ class SimpleReporter:
                         fps_serialized[k] = getattr(v, "__dict__", str(v))
                 else:
                     fps_serialized[k] = getattr(v, "__dict__", str(v))
+        
+        # Extract domain-specific strategy mappings
+        domain_strategies = {}
+        if test_results and "domain_strategy_map" in test_results[0]:
+            domain_strategies = test_results[0]["domain_strategy_map"]
+        
+        # Create domain-specific results
+        domain_results = {}
+        for domain, strategy_info in domain_strategies.items():
+            domain_results[domain] = {
+                "best_strategy": strategy_info["strategy"],
+                "success_rate": strategy_info["success_rate"],
+                "avg_latency_ms": strategy_info["avg_latency_ms"],
+                "fingerprint_used": strategy_info["fingerprint_used"],
+                "dpi_type": strategy_info["dpi_type"],
+                "dpi_confidence": strategy_info["dpi_confidence"]
+            }
+        
         report = {
             "timestamp": datetime.now().isoformat(),
             "target": args.target,
@@ -1030,6 +1288,7 @@ class SimpleReporter:
             "execution_time_seconds": time.time() - self.start_time,
             "domain_status": domain_status,
             "fingerprints": fps_serialized,
+            "domains": domain_results,  # Add domain-specific results
             "all_results": test_results,
         }
         # ВАЖНО: добавляем эволюционные данные, если предоставлены (фикс теста)
@@ -1072,7 +1331,29 @@ class SimpleReporter:
             best = report["best_strategy"]
             console.print(f"Best strategy: [cyan]{best.get('strategy', 'N/A')}[/cyan]")
             console.print(f"Best latency: {best.get('avg_latency_ms', 0):.1f}ms")
-
+        
+        # Print domain-specific results
+        domains = report.get("domains", {})
+        if domains:
+            console.print("\n[bold underline]🌐 Domain-Specific Results[/bold underline]")
+            working_domains = [domain for domain, data in domains.items() 
+                             if data.get("success_rate", 0) > 0]
+            blocked_domains = [domain for domain, data in domains.items() 
+                             if data.get("success_rate", 0) == 0]
+            
+            console.print(f"Working domains: [green]{len(working_domains)}[/green]")
+            for domain in working_domains:
+                data = domains[domain]
+                strategy = data.get("best_strategy", "N/A")
+                success_rate = data.get("success_rate", 0)
+                latency = data.get("avg_latency_ms", 0)
+                console.print(f"  ✓ {domain}: [cyan]{strategy}[/cyan] ({success_rate:.1%}, {latency:.1f}ms)")
+            
+            console.print(f"Blocked domains: [red]{len(blocked_domains)}[/red]")
+            for domain in blocked_domains[:10]:  # Show first 10 blocked domains
+                console.print(f"  ✗ {domain}")
+            if len(blocked_domains) > 10:
+                console.print(f"  ... and {len(blocked_domains) - 10} more")
 
 # --- Advanced DNS resolution helper ---
 async def run_advanced_dns_resolution(
@@ -1312,7 +1593,17 @@ async def run_hybrid_mode(args):
                 pass
 
         if ADV_FPR_AVAILABLE:
-            cfg = FingerprintingConfig()
+            # Create optimized configuration from CLI arguments
+            cfg = FingerprintingConfig(
+                analysis_level=args.analysis_level,
+                max_parallel_targets=1 if args.sequential else args.parallel,
+                enable_fail_fast=not args.no_fail_fast,
+                enable_scapy_probes=args.enable_scapy,
+                sni_probe_mode=args.sni_mode,
+                connect_timeout=args.connect_timeout,
+                tls_timeout=args.tls_timeout,
+                udp_timeout=0.3  # Keep default UDP timeout
+            )
             setattr(cfg, "pcap_path", args.pcap or "")
             setattr(cfg, "http_force_sni", True)
             setattr(cfg, "http_send_host_header", True)
@@ -1323,43 +1614,139 @@ async def run_hybrid_mode(args):
 
             advanced_fingerprinter = AdvancedFingerprinter(config=cfg)
 
-            with Progress(console=console, transient=True) as progress:
-                task = progress.add_task(
-                    "[cyan]Fingerprinting...", total=len(blocked_sites)
-                )
-                for site in blocked_sites:
-                    hostname = urlparse(site).hostname or site
-                    protocols = ["http", "https"]
-                    if prefer_quic:
-                        protocols.append("quic")
-                    try:
-                        fp = await advanced_fingerprinter.fingerprint_target(
-                            hostname, port=args.port, protocols=protocols
-                        )
-                        fingerprints[hostname] = fp
+            # Show optimization info
+            if not args.sequential:
+                console.print(f"[dim]🚀 Using parallel processing: {args.parallel} domains simultaneously[/dim]")
+                estimated_times = {
+                    'fast': '1-2 min', 'balanced': '2-3 min', 'full': '6-8 min'
+                }
+                console.print(f"[dim]⚡ Analysis level: {args.analysis_level} (estimated time: {estimated_times[args.analysis_level]} for ~30 domains)[/dim]")
+            else:
+                console.print("[dim]🐌 Using sequential processing (for comparison)[/dim]")
+
+            hostnames = [urlparse(site).hostname or site for site in blocked_sites]
+            
+            if args.sequential:
+                # Sequential processing (original method)
+                with Progress(console=console, transient=True) as progress:
+                    task = progress.add_task(
+                        "[cyan]Fingerprinting (sequential)...", total=len(blocked_sites)
+                    )
+                    for site in blocked_sites:
+                        hostname = urlparse(site).hostname or site
+                        protocols = ["http", "https"]
+                        if prefer_quic:
+                            protocols.append("quic")
                         try:
-                            dpi_value = getattr(
-                                fp.dpi_type,
-                                "value",
-                                str(getattr(fp.dpi_type, "name", "unknown")),
+                            fp = await advanced_fingerprinter.fingerprint_target(
+                                hostname, port=args.port, protocols=protocols
                             )
+                            fingerprints[hostname] = fp
+                            try:
+                                dpi_value = getattr(
+                                    fp.dpi_type,
+                                    "value",
+                                    str(getattr(fp.dpi_type, "name", "unknown")),
+                                )
+                                console.print(
+                                    f"  - {hostname}: [cyan]{dpi_value}[/cyan] "
+                                    f"(reliability: {getattr(fp, 'reliability_score', 0):.2f})"
+                                )
+                            except Exception:
+                                console.print(f"  - {hostname}: fingerprint collected")
+                        except Exception as e:
                             console.print(
-                                f"  - {hostname}: [cyan]{dpi_value}[/cyan] "
-                                f"(reliability: {getattr(fp, 'reliability_score', 0):.2f})"
+                                f"[yellow]  - {hostname}: Advanced fingerprint failed ({e}), fallback...[/yellow]"
                             )
-                        except Exception:
-                            console.print(f"  - {hostname}: fingerprint collected")
-                    except Exception as e:
-                        console.print(
-                            f"[yellow]  - {hostname}: Advanced fingerprint failed ({e}), fallback...[/yellow]"
+                            target_ip = dns_cache.get(hostname)
+                            if target_ip:
+                                fp_simple = await simple_fingerprinter.create_fingerprint(
+                                    hostname, target_ip, args.port
+                                )
+                                fingerprints[hostname] = fp_simple
+                        progress.update(task, advance=1)
+            else:
+                # Parallel processing (new optimized method)
+                targets = [(hostname, args.port) for hostname in hostnames]
+                protocols = ["http", "https"]
+                if prefer_quic:
+                    protocols.append("quic")
+                
+                import time
+                start_time = time.time()
+                
+                with Progress(console=console, transient=True) as progress:
+                    task = progress.add_task(
+                        f"[cyan]Fingerprinting (parallel x{args.parallel})...", total=len(targets)
+                    )
+                    
+                    try:
+                        # Use the new parallel fingerprinting method
+                        fps = await advanced_fingerprinter.fingerprint_many(
+                            targets, 
+                            protocols=protocols,
+                            concurrency=args.parallel
                         )
-                        target_ip = dns_cache.get(hostname)
-                        if target_ip:
-                            fp_simple = await simple_fingerprinter.create_fingerprint(
-                                hostname, target_ip, args.port
-                            )
-                            fingerprints[hostname] = fp_simple
-                    progress.update(task, advance=1)
+                        
+                        total_time = time.time() - start_time
+                        successful_count = sum(1 for fp in fps if fp is not None)
+                        
+                        # Process results
+                        for i, hostname in enumerate(hostnames):
+                            fp = fps[i] if i < len(fps) else None
+                            if fp:
+                                fingerprints[hostname] = fp
+                                try:
+                                    dpi_value = getattr(
+                                        fp.dpi_type,
+                                        "value",
+                                        str(getattr(fp.dpi_type, "name", "unknown")),
+                                    )
+                                    console.print(
+                                        f"  - {hostname}: [cyan]{dpi_value}[/cyan] "
+                                        f"(reliability: {getattr(fp, 'reliability_score', 0):.2f})"
+                                    )
+                                except Exception:
+                                    console.print(f"  - {hostname}: fingerprint collected")
+                            else:
+                                console.print(f"[yellow]  - {hostname}: Fingerprinting failed, using fallback[/yellow]")
+                                target_ip = dns_cache.get(hostname)
+                                if target_ip:
+                                    fp_simple = await simple_fingerprinter.create_fingerprint(
+                                        hostname, target_ip, args.port
+                                    )
+                                    fingerprints[hostname] = fp_simple
+                            progress.update(task, advance=1)
+                        
+                        # Show performance summary
+                        estimated_sequential_time = total_time * args.parallel
+                        speedup = estimated_sequential_time / total_time if total_time > 0 else 1.0
+                        console.print(
+                            f"[dim]✅ Parallel fingerprinting completed: {successful_count}/{len(targets)} successful "
+                            f"in {total_time:.1f}s (estimated {speedup:.1f}x speedup vs sequential)[/dim]"
+                        )
+                        
+                    except Exception as e:
+                        console.print(f"[red]Parallel fingerprinting failed: {e}[/red]")
+                        console.print("[yellow]Falling back to sequential processing...[/yellow]")
+                        # Fallback to sequential if parallel fails
+                        for site in blocked_sites:
+                            hostname = urlparse(site).hostname or site
+                            try:
+                                fp = await advanced_fingerprinter.fingerprint_target(
+                                    hostname, port=args.port, protocols=protocols
+                                )
+                                fingerprints[hostname] = fp
+                            except Exception:
+                                target_ip = dns_cache.get(hostname)
+                                if target_ip:
+                                    fp_simple = await simple_fingerprinter.create_fingerprint(
+                                        hostname, target_ip, args.port
+                                    )
+                                    fingerprints[hostname] = fp_simple
+            
+            # Cleanup
+            await advanced_fingerprinter.close()
         else:
             console.print(
                 "[yellow]AdvancedFingerprinter not available, using simple fingerprinting[/yellow]"
@@ -1392,30 +1779,16 @@ async def run_hybrid_mode(args):
         console.print(f"Testing specific strategy: [cyan]{args.strategy}[/cyan]")
     else:
         generator = ZapretStrategyGenerator()
+        fingerprint_for_strategy = None
         if fingerprints:
+            # Use the actual fingerprint object for enhanced strategy generation
             first_fp = next(iter(fingerprints.values()))
-            if hasattr(first_fp, "to_dict"):
-                try:
-                    fp_dict = first_fp.to_dict()
-                except Exception:
-                    fp_dict = getattr(
-                        first_fp,
-                        "__dict__",
-                        {
-                            "dpi_vendor": "unknown",
-                            "blocking_method": "connection_reset",
-                        },
-                    )
-            else:
-                fp_dict = getattr(
-                    first_fp,
-                    "__dict__",
-                    {"dpi_vendor": "unknown", "blocking_method": "connection_reset"},
-                )
+            fingerprint_for_strategy = first_fp
             console.print("Using fingerprint for strategy generation")
         else:
-            fp_dict = {"dpi_vendor": "unknown", "blocking_method": "connection_reset"}
-        strategies = generator.generate_strategies(fp_dict, count=args.count)
+            # No fingerprint available - use generic strategy generation
+            fingerprint_for_strategy = None
+        strategies = generator.generate_strategies(fingerprint_for_strategy, count=args.count)
         console.print(f"Generated {len(strategies)} strategies to test.")
         if strategies and dns_cache:
             first_domain = list(dns_cache.keys())[0]
@@ -1439,34 +1812,37 @@ async def run_hybrid_mode(args):
                 )
                 # Шаг 3.5: Преобразование строковых стратегий в структурированный формат
     console.print("[dim]Parsing strategies into structured format...[/dim]")
-    parser = ZapretStrategyParser()
     structured_strategies = []
     for s_str in strategies:
         try:
-            # Парсим строку в словарь параметров
-            parsed_params = parser.parse(s_str)
-            # Транслируем в формат задачи для движка
-            engine_task = hybrid_engine._translate_zapret_to_engine_task(parsed_params)
-            if engine_task:
-                # Для совместимости с execute_strategy_real_world_from_dict,
-                # переименуем 'type' в 'name'
-                engine_task['name'] = engine_task.pop('type')
+            # Используем исправленный интерпретатор стратегий
+            parsed_strategy = interpret_strategy(s_str)
+            if parsed_strategy:
+                # Преобразуем в формат для движка
+                engine_task = {
+                    "name": parsed_strategy.get("type", "unknown"),
+                    "params": parsed_strategy.get("params", {})
+                }
                 structured_strategies.append(engine_task)
+                console.print(f"[green]✓[/green] Parsed strategy: {engine_task['name']} with params: {engine_task['params']}")
             else:
-                console.print(f"[yellow]Warning: Could not translate strategy: {s_str}[/yellow]")
+                console.print(
+                    f"[yellow]Warning: Could not parse strategy: {s_str}[/yellow]"
+                )
         except Exception as e:
             console.print(f"[red]Error parsing strategy '{s_str}': {e}[/red]")
 
     if not structured_strategies:
-        console.print("[bold red]Fatal Error: No valid strategies could be parsed.[/bold red]")
+        console.print(
+            "[bold red]Fatal Error: No valid strategies could be parsed.[/bold red]"
+        )
         return
     # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-
 
     # Шаг 4: Гибридное тестирование
     console.print("\n[yellow]Step 4: Hybrid testing with forced DNS...[/yellow]")
     test_results = await hybrid_engine.test_strategies_hybrid(
-        strategies=structured_strategies, # <--- ИСПОЛЬЗУЕМ НОВЫЙ СПИСОК
+        strategies=structured_strategies,  # <--- ИСПОЛЬЗУЕМ НОВЫЙ СПИСОК
         test_sites=blocked_sites,
         ips=set(dns_cache.values()),
         dns_cache=dns_cache,
@@ -1474,6 +1850,7 @@ async def run_hybrid_mode(args):
         domain=list(dns_cache.keys())[0],
         fast_filter=not args.no_fast_filter,
         initial_ttl=None,
+        enable_fingerprinting=bool(args.fingerprint and fingerprints),
     )
 
     # Шаг 5: Уточнение фингерпринта результатами
@@ -1708,6 +2085,7 @@ async def run_evolutionary_mode(args):
     doh_resolver = DoHResolver()
     hybrid_engine = HybridEngine(debug=args.debug)
     learning_cache = AdaptiveLearningCache()
+    simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
     console.print("\n[yellow]Step 1: DNS Resolution...[/yellow]")
     dns_cache: Dict[str, str] = {}
     all_target_ips: Set[str] = set()
@@ -1737,6 +2115,80 @@ async def run_evolutionary_mode(args):
         )
         return
     console.print(f"Found {len(blocked_sites)} blocked sites for evolution.")
+    
+    # Step 2.5: DPI Fingerprinting for better evolution
+    fingerprints = {}
+    console.print("\n[yellow]Step 2.5: DPI Fingerprinting for Evolution...[/yellow]")
+    advanced_fingerprinter = None
+    if ADV_FPR_AVAILABLE:
+        try:
+            from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+            cfg = FingerprintingConfig(
+                analysis_level='balanced',
+                max_parallel_targets=min(3, len(blocked_sites)),
+                enable_fail_fast=True,
+                connect_timeout=5.0,
+                tls_timeout=10.0
+            )
+            advanced_fingerprinter = AdvancedFingerprinter(config=cfg)
+            
+            with Progress(console=console, transient=True) as progress:
+                task = progress.add_task(
+                    "[cyan]Fingerprinting for evolution...", total=len(blocked_sites)
+                )
+                for site in blocked_sites:
+                    hostname = urlparse(site).hostname or site
+                    try:
+                        fp = await advanced_fingerprinter.fingerprint_target(
+                            hostname, port=args.port, protocols=["http", "https"]
+                        )
+                        fingerprints[hostname] = fp
+                        try:
+                            dpi_value = getattr(
+                                fp.dpi_type,
+                                "value",
+                                str(getattr(fp.dpi_type, "name", "unknown")),
+                            )
+                            console.print(
+                                f"  - {hostname}: [cyan]{dpi_value}[/cyan] "
+                                f"(reliability: {getattr(fp, 'reliability_score', 0):.2f})"
+                            )
+                        except Exception:
+                            console.print(f"  - {hostname}: fingerprint collected")
+                    except Exception as e:
+                        console.print(
+                            f"[yellow]  - {hostname}: Advanced fingerprint failed ({e}), fallback...[/yellow]"
+                        )
+                        target_ip = dns_cache.get(hostname)
+                        if target_ip:
+                            fp_simple = await simple_fingerprinter.create_fingerprint(
+                                hostname, target_ip, args.port
+                            )
+                            fingerprints[hostname] = fp_simple
+                    progress.update(task, advance=1)
+            await advanced_fingerprinter.close()
+        except Exception as e:
+            console.print(f"[yellow]Advanced fingerprinting failed: {e}, using simple mode[/yellow]")
+            advanced_fingerprinter = None
+    
+    if not fingerprints:
+        console.print("[yellow]Using simple fingerprinting fallback...[/yellow]")
+        with Progress(console=console, transient=True) as progress:
+            task = progress.add_task(
+                "[cyan]Simple fingerprinting...", total=len(blocked_sites)
+            )
+            for site in blocked_sites:
+                hostname = urlparse(site).hostname or site
+                target_ip = dns_cache.get(hostname)
+                if target_ip:
+                    fp = await simple_fingerprinter.create_fingerprint(
+                        hostname, target_ip, args.port
+                    )
+                    fingerprints[hostname] = fp
+                    console.print(
+                        f"  - {hostname}: [cyan]{fp.dpi_type}[/cyan] ({fp.blocking_method})"
+                    )
+                progress.update(task, advance=1)
     searcher = SimpleEvolutionarySearcher(
         population_size=args.population,
         generations=args.generations,
@@ -1745,9 +2197,27 @@ async def run_evolutionary_mode(args):
     console.print(
         f"\n[bold magenta]🧬 Starting Evolution with {args.population} individuals, {args.generations} generations[/bold magenta]"
     )
+    
+    # Prepare fingerprint-informed evolution
+    first_domain = list(dns_cache.keys())[0] if dns_cache else None
+    dpi_hash = ""
+    if fingerprints and first_domain and first_domain in fingerprints:
+        try:
+            fp = fingerprints[first_domain]
+            if hasattr(fp, 'short_hash'):
+                dpi_hash = fp.short_hash()
+            else:
+                # Fallback hash generation for simple fingerprints
+                dpi_hash = f"{fp.dpi_type}_{fp.blocking_method}"
+            console.print(f"[dim]🧠 Using fingerprint data for evolution (DPI hash: {dpi_hash[:8]}...)[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not extract DPI hash: {e}[/yellow]")
+            dpi_hash = ""
+    
     start_time = time.time()
     best_chromosome = await searcher.evolve(
-        hybrid_engine, blocked_sites, all_target_ips, dns_cache, args.port
+        hybrid_engine, blocked_sites, all_target_ips, dns_cache, args.port,
+        learning_cache=learning_cache, domain=first_domain, dpi_hash=dpi_hash
     )
     evolution_time = time.time() - start_time
     best_strategy = searcher.genes_to_zapret_strategy(best_chromosome.genes)
@@ -1767,6 +2237,11 @@ async def run_evolutionary_mode(args):
         "generations": args.generations,
         "mutation_rate": args.mutation_rate,
         "timestamp": datetime.now().isoformat(),
+        # Add fingerprint data to results
+        "fingerprint_used": bool(fingerprints),
+        "dpi_type": dpi_hash if dpi_hash else "unknown",
+        "dpi_confidence": 0.8 if fingerprints else 0.2,
+        "fingerprint_recommendations_used": True if dpi_hash else False,
     }
     try:
         with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
@@ -1783,13 +2258,27 @@ async def run_evolutionary_mode(args):
             console.print(f"Gen {gen+1}: Best={best_fit:.3f}, Avg={avg_fit:.3f}")
     console.print("[dim]💾 Saving evolution results to learning cache...[/dim]")
     for domain, ip in dns_cache.items():
+        # Use the proper DPI hash if available
+        fingerprint_hash = ""
+        if fingerprints and domain in fingerprints:
+            try:
+                fp = fingerprints[domain]
+                if hasattr(fp, 'short_hash'):
+                    fingerprint_hash = fp.short_hash()
+                else:
+                    fingerprint_hash = f"{fp.dpi_type}_{fp.blocking_method}"
+            except Exception:
+                fingerprint_hash = dpi_hash if dpi_hash else ""
+        else:
+            fingerprint_hash = dpi_hash if dpi_hash else ""
+            
         learning_cache.record_strategy_performance(
             strategy=best_strategy,
             domain=domain,
             ip=ip,
             success_rate=best_chromosome.fitness,
             avg_latency=100.0,
-            dpi_fingerprint_hash="",
+            dpi_fingerprint_hash=fingerprint_hash,
         )
     learning_cache.save_cache()
     if best_chromosome.fitness > 0.5:
@@ -1932,8 +2421,9 @@ async def run_per_domain_mode(args):
             f"[yellow]🔍 {hostname} needs bypass, finding optimal strategy...[/yellow]"
         )
         generator = ZapretStrategyGenerator()
-        fp_dict = {"dpi_vendor": "unknown", "blocking_method": "connection_reset"}
-        strategies = generator.generate_strategies(fp_dict, count=args.count)
+        # For per-domain mode, we use None since fingerprinting isn't typically done per-domain
+        # This will use generic strategy generation
+        strategies = generator.generate_strategies(None, count=args.count)
         if learning_cache:
             optimized_strategies = learning_cache.get_smart_strategy_order(
                 strategies, hostname, ip
@@ -1952,6 +2442,7 @@ async def run_per_domain_mode(args):
             domain=hostname,
             fast_filter=not args.no_fast_filter,
             initial_ttl=None,
+            enable_fingerprinting=False,  # Per-domain mode doesn't use fingerprinting
         )
         working_strategies = [r for r in domain_results if r["success_rate"] > 0]
         if working_strategies:
@@ -2045,14 +2536,18 @@ def load_all_attacks():
     package = core.bypass.attacks
 
     # Рекурсивно обходим все подмодули
-    for _, module_name, _ in pkgutil.walk_packages(package.__path__, package.__name__ + '.'):
+    for _, module_name, _ in pkgutil.walk_packages(
+        package.__path__, package.__name__ + "."
+    ):
         try:
             importlib.import_module(module_name)
         except ImportError as e:
             # Игнорируем демо-файлы и тесты, которые могут вызывать ошибки
-            if 'demo_' in module_name or 'test_' in module_name:
+            if "demo_" in module_name or "test_" in module_name:
                 continue
-            print(f"[yellow]Warning: Could not import attack module {module_name}: {e}[/yellow]")
+            print(
+                f"[yellow]Warning: Could not import attack module {module_name}: {e}[/yellow]"
+            )
 
 
 def main():
@@ -2070,6 +2565,24 @@ def main():
         default=config.DEFAULT_DOMAIN,
         help="Target host (e.g., rutracker.org) or path to file with domains (if -d is used).",
     )
+    parser.add_argument(
+        "--enable-enhanced-tracking",
+        action="store_true",
+        help="Enable enhanced strategy-result correlation tracking"
+    )
+
+    parser.add_argument(
+        "--enable-optimization",
+        action="store_true",
+        help="Enable real-time strategy optimization based on test results"
+    )
+
+    parser.add_argument(
+        "--optimize-for-cdn",
+        action="store_true",
+        help="Optimize strategies specifically for CDN endpoints"
+    )
+    
     parser.add_argument(
         "-p", "--port", type=int, default=443, help="Target port (default: 443)."
     )
@@ -2138,6 +2651,53 @@ def main():
         "--fingerprint",
         action="store_true",
         help="Enable DPI fingerprinting for better strategy selection.",
+    )
+    # Performance optimization arguments
+    parser.add_argument(
+        "--analysis-level",
+        choices=["fast", "balanced", "full"],
+        default="balanced",
+        help="Analysis level: fast (1-2 min), balanced (2-3 min), full (6-8 min) for ~30 domains.",
+    )
+    parser.add_argument(
+        "--parallel",
+        type=int,
+        default=15,
+        metavar="N",
+        help="Number of domains to process in parallel (default: 15, reduces time from 34+ min to 2-3 min).",
+    )
+    parser.add_argument(
+        "--no-fail-fast",
+        action="store_true",
+        help="Disable fail-fast optimization (skips heavy probes on obviously blocked domains).",
+    )
+    parser.add_argument(
+        "--enable-scapy",
+        action="store_true",
+        help="Enable scapy-dependent probes (slower on Windows, disabled by default).",
+    )
+    parser.add_argument(
+        "--sni-mode",
+        choices=["off", "basic", "detailed"],
+        default="basic",
+        help="SNI probing mode: off (fastest), basic (balanced), detailed (slowest but thorough).",
+    )
+    parser.add_argument(
+        "--connect-timeout",
+        type=float,
+        default=1.5,
+        help="TCP connection timeout in seconds (default: 1.5s).",
+    )
+    parser.add_argument(
+        "--tls-timeout",
+        type=float,
+        default=2.0,
+        help="TLS handshake timeout in seconds (default: 2.0s).",
+    )
+    parser.add_argument(
+        "--sequential",
+        action="store_true",
+        help="Force sequential processing (disables parallelization for comparison).",
     )
     # Evolutionary parameters
     parser.add_argument(
