@@ -16,6 +16,12 @@ from quic_handler import QuicHandler
 
 if platform.system() == "Windows":
     import pydivert
+    # Попробуем импортировать helper для пересчёта checksum
+    try:
+        from pydivert.windivert import WinDivertHelper, WinDivertLayer, WinDivertParam
+        _HAS_WINDIVERT_HELPER = True
+    except Exception:
+        _HAS_WINDIVERT_HELPER = False
 
 
 class BypassTechniques:
@@ -595,18 +601,16 @@ if platform.system() == "Windows":
                 )
                 self.logger.info(f"🔍 TTL ANALYSIS: ttl={ttl}, autottl={autottl}")
 
-                # Совместимость: нормализуем тип атаки и алиасы
-                raw_type = str(task_type or "").lower().strip()
-                norm_type = raw_type.replace("-", "_").replace(" ", "")
+                # Нормализация алиасов для fakeddisorder
                 alias_map = {
                     "fakeddisorder": "fakeddisorder", "fakedisorder": "fakeddisorder",
                     "fake_fakeddisorder": "fakeddisorder", "tcp_fakeddisorder": "fakeddisorder",
-                    "fake,disorder": "fakeddisorder", "fake+disorder": "fakeddisorder",
                     "fakeddisorder_seqovl": "fakeddisorder", "seqovl_fakeddisorder": "fakeddisorder",
                     "multidisorder": "multidisorder", "tcp_multidisorder": "multidisorder",
                     "multisplit": "multisplit", "tcp_multisplit": "multisplit",
                 }
-                task_type = alias_map.get(norm_type, norm_type)
+                norm = str(task_type or "").lower().replace("-", "_").replace(" ", "")
+                task_type = alias_map.get(norm, norm)
 
                 # CRITICAL TTL FIX: Validate TTL parameter
                 if ttl is not None:
@@ -662,30 +666,54 @@ if platform.system() == "Windows":
                         )
                         params["split_pos"] = 3
                 if task_type == "fakeddisorder":
-                    # +++ УПРОЩЁННЫЙ И СТАБИЛЬНЫЙ ПУТЬ ДЛЯ fakeddisorder +++
+                    # Heuristics для TLS ClientHello: если параметры «сомнительные», подставим zapret-дефолты
+                    is_tls_ch = (len(payload) > 6 and payload[0] == 22 and payload[5] == 1)
+                    if is_tls_ch:
+                        sp = params.get("split_pos")
+                        ov = params.get("overlap_size") or params.get("split_seqovl")
+                        # Если split_pos отсутствует или слишком мал для CH — используем 76
+                        if sp is None or sp < 20:
+                            params["split_pos"] = 76
+                            self.logger.info("TLS heuristic: split_pos -> 76")
+                        # Если overlap подозрительно маленький — используем 336
+                        try:
+                            ov_int = int(ov) if ov is not None else None
+                        except Exception:
+                            ov_int = None
+                        if ov_int is None or ov_int < 8:
+                            params["overlap_size"] = 336
+                            self.logger.info("TLS heuristic: overlap_size -> 336")
+                        else:
+                            params["overlap_size"] = ov_int
+
                     self.logger.info(f"✅ Применяем стабильную fakeddisorder атаку с параметрами: {params}")
-                    # По умолчанию для fakeddisorder используем низкий TTL (zapret-like)
-                    if ttl is None or ttl == 64 and autottl is None:
-                        ttl = 1
-                        self.logger.debug("fakeddisorder: default TTL overridden to 1 (zapret-compat)")
-                    self.current_params["ttl"] = ttl
                     # Предварительный fake пакет по списку fooling
                     fooling_list = params.get("fooling", [])
                     try:
                         if "badsum" in fooling_list:
-                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl); time.sleep(0.003)
+                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl if ttl else 1)
+                            time.sleep(0.003)
                         elif "md5sig" in fooling_list:
-                            self._send_fake_packet_with_md5sig(packet, w, ttl=ttl); time.sleep(0.005)
+                            self._send_fake_packet_with_md5sig(packet, w, ttl=ttl if ttl else 1)
+                            time.sleep(0.005)
                         elif "badseq" in fooling_list:
-                            self._send_fake_packet_with_badseq(packet, w, ttl=ttl); time.sleep(0.003)
+                            self._send_fake_packet_with_badseq(packet, w, ttl=ttl if ttl else 1)
+                            time.sleep(0.003)
                         else:
-                            self._send_fake_packet(packet, w, ttl=ttl); time.sleep(0.002)
+                            # Без специальных фулингов — обычный фейк
+                            self._send_fake_packet(packet, w, ttl=ttl if ttl else 1)
+                            time.sleep(0.002)
                     except Exception as e:
                         self.logger.debug(f"Fake pre-packet send error (ignored): {e}")
-                    # Разбиение полезной нагрузки (zapret defaults)
-                    split_pos = params.get("split_pos", 76)
-                    overlap = params.get("overlap_size", 336)
+                    # Разбиение полезной нагрузки в стиле zapret
+                    split_pos = int(params.get("split_pos", 76))
+                    overlap = int(params.get("overlap_size", 336))
                     segments = self.techniques.apply_fakeddisorder(payload, split_pos, overlap)
+
+                    # ВАЖНО: реальным сегментам даём нормальный TTL (исходный), а не TTL=1!
+                    # Сохраняем реальный TTL исходного пакета
+                    base_ttl = bytearray(packet.raw)[8]
+                    self.current_params["real_ttl"] = base_ttl if 1 <= base_ttl <= 255 else 64
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "multisplit":
                     is_meta_ip = any(
@@ -780,7 +808,8 @@ if platform.system() == "Windows":
         def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):
             """
             Тяжёлая версия без options: пересчитывает IP/TCP checksum, корректирует длины.
-            Для fakeddisorder разумно задать TTL низким у второго сегмента (перекрывающего).
+            ВНИМАНИЕ: здесь всем реальным сегментам ставим НОРМАЛЬНЫЙ TTL (исходный/64).
+            TTL=1 используется только для фейковых пакетов, а не для реальных сегментов.
             """
             try:
                 raw = bytearray(original_packet.raw)
@@ -802,6 +831,8 @@ if platform.system() == "Windows":
                 reduced_win = max(base_win // window_div, 1024)
                 base_ip_id = struct.unpack("!H", raw[4:6])[0]
                 ipid_step = self.current_params.get("ipid_step", 2048)
+                # Реальный TTL для сегментов
+                real_ttl = self.current_params.get("real_ttl", base_ttl if 1 <= base_ttl <= 255 else 64)
 
                 for i, (seg_payload, rel_off) in enumerate(segments):
                     if not seg_payload:
@@ -823,9 +854,8 @@ if platform.system() == "Windows":
 
                     tcp_hdr[14:16] = struct.pack("!H", reduced_win)
 
-                    # TTL: «низкий» TTL для второго сегмента в паре (fakeddisorder-подобная эвристика)
-                    low_ttl = self.current_params.get("ttl", 1)
-                    ip_hdr[8] = low_ttl if (i == 1 and len(segments) == 2) else base_ttl
+                    # ВАЖНО: всем реальным сегментам — нормальный TTL
+                    ip_hdr[8] = real_ttl
 
                     # IP ID
                     new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
@@ -850,9 +880,8 @@ if platform.system() == "Windows":
                     csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
                     seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
 
-                    # Безопасная отправка с повтором/пересчетом checksum
-                    ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
-                    if not ok:
+                    # Безопасная отправка с пересчётом checksum helper'ом (если доступен)
+                    if not self._safe_send_packet(w, bytes(seg_raw), original_packet):
                         self.logger.error("WinDivert send failed for segment (basic). Aborting.")
                         return False
 
@@ -1275,10 +1304,17 @@ if platform.system() == "Windows":
             """
             Безопасная отправка пакета через WinDivert:
             - помечает инжект пакеты mark'ом (чтобы не перехватывать их повторно);
-            - при таймауте (WinError 258) делает небольшой ретрай с пересчетом checksum helper'ом.
+            - всегда пытается пересчитать checksum через helper (если доступен);
+            - при таймауте (WinError 258) делает небольшой ретрай.
             """
             try:
-                pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                buf = bytearray(pkt_bytes)
+                if _HAS_WINDIVERT_HELPER:
+                    try:
+                        WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
+                    except Exception as he:
+                        self.logger.debug(f"Helper checksum calc failed (ignored): {he}")
+                pkt = pydivert.Packet(bytes(buf), original_packet.interface, original_packet.direction)
                 # Отметим наш пакет, чтобы в recv() его пропустить
                 try:
                     pkt.mark = self._INJECT_MARK
@@ -1289,34 +1325,15 @@ if platform.system() == "Windows":
             except OSError as e:
                 winerr = getattr(e, "winerror", None)
                 if winerr == 258:
-                    # Таймаут очереди — небольшой ретрай + попытка пересчитать checksum helper'ом
-                    self.logger.debug("WinDivert send timeout (258). Retrying with checksum helper...")
+                    # Таймаут очереди — небольшой ретрай
+                    self.logger.debug("WinDivert send timeout (258). Retrying ...")
                     time.sleep(0.001)
-                    buf = bytearray(pkt_bytes)
                     try:
-                        from pydivert.windivert import WinDivertHelper, WinDivertLayer
-                        WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
-                        pkt2 = pydivert.Packet(bytes(buf), original_packet.interface, original_packet.direction)
-                        try:
-                            pkt2.mark = self._INJECT_MARK
-                        except Exception:
-                            pass
-                        w.send(pkt2)
+                        w.send(pkt)
                         return True
                     except Exception as e2:
-                        # Helper недоступен — повторим отправку как есть
-                        self.logger.debug(f"Checksum helper not available or failed: {e2}")
-                        try:
-                            pkt2 = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
-                            try:
-                                pkt2.mark = self._INJECT_MARK
-                            except Exception:
-                                pass
-                            w.send(pkt2)
-                            return True
-                        except Exception as e3:
-                            self.logger.error(f"WinDivert retry failed after 258: {e3}")
-                            return False
+                        self.logger.error(f"WinDivert retry failed after 258: {e2}")
+                        return False
                 self.logger.error(f"WinDivert send error: {e}", exc_info=self.debug)
                 return False
             except Exception as e:
