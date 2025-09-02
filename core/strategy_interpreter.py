@@ -480,7 +480,7 @@ class EnhancedStrategyInterpreter:
             params.update(self._build_fakeddisorder_params(parsed))
         elif primary_attack == "fake":
             params.update(self._build_fake_params(parsed))
-        elif primary_attack == "multisplit":
+        elif primary_attack == "multisplit" or primary_attack == "multidisorder":
             params.update(self._build_multisplit_params(parsed))
         elif primary_attack == "seqovl":
             params.update(self._build_seqovl_params(parsed))
@@ -550,6 +550,8 @@ class EnhancedStrategyInterpreter:
         # Check for other desync methods
         if "multisplit" in parsed.desync_methods:
             return "multisplit"
+        elif "multidisorder" in parsed.desync_methods:
+            return "multidisorder"
         elif "seqovl" in parsed.desync_methods:
             return "seqovl"
         
