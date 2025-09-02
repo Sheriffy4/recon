@@ -751,62 +751,90 @@ if platform.system() == "Windows":
 
         def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):
             """
-            ИСПРАВЛЕНИЕ: Улучшенная отправка сегментов с правильными флагами TCP и размерами окна.
-            Теперь также правильно обрабатывает TCP заголовки.
+            Тяжёлая версия без options: пересчитывает IP/TCP checksum, корректирует длины.
+            Для fakeddisorder разумно задать TTL низким у второго сегмента (перекрывающего).
             """
             try:
-                raw_data = bytearray(original_packet.raw)
-                ip_header_len = (raw_data[0] & 15) * 4
-                tcp_header_len = (raw_data[ip_header_len + 12] >> 4 & 15) * 4
-                payload_start = ip_header_len + tcp_header_len
-                tcp_seq_start = ip_header_len + 4
-                tcp_flags_offset = ip_header_len + 13
-                tcp_window_offset = ip_header_len + 14
-                base_seq = struct.unpack(
-                    "!I", raw_data[tcp_seq_start : tcp_seq_start + 4]
-                )[0]
-                original_window = struct.unpack(
-                    "!H", raw_data[tcp_window_offset : tcp_window_offset + 2]
-                )[0]
+                raw = bytearray(original_packet.raw)
+                ip_ver = (raw[0] >> 4) & 0xF
+                if ip_ver != 4:
+                    w.send(original_packet)
+                    return False
+
+                ip_hl = (raw[0] & 0x0F) * 4
+                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                if tcp_hl < 20:
+                    tcp_hl = 20
+                base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
+                base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
+                base_flags = raw[ip_hl+13]
+                base_win = struct.unpack("!H", raw[ip_hl+14:ip_hl+16])[0]
+                base_ttl = raw[8]
                 window_div = self.current_params.get("window_div", 8)
-                reduced_window = max(original_window // window_div, 1024)
-                for i, (segment_data, seq_offset) in enumerate(segments):
-                    if not segment_data:
+                reduced_win = max(base_win // window_div, 1024)
+                base_ip_id = struct.unpack("!H", raw[4:6])[0]
+                ipid_step = self.current_params.get("ipid_step", 2048)
+
+                for i, (seg_payload, rel_off) in enumerate(segments):
+                    if not seg_payload:
                         continue
-                    seg_raw = bytearray(raw_data[:payload_start])
-                    seg_raw.extend(segment_data)
-                    new_seq = base_seq + seq_offset & 4294967295
-                    seg_raw[tcp_seq_start : tcp_seq_start + 4] = struct.pack(
-                        "!I", new_seq
-                    )
-                    seg_raw[2:4] = struct.pack("!H", len(seg_raw))
-                    tcp_flags = 16
+
+                    # Копия IP+TCP базового заголовка
+                    ip_hdr = bytearray(raw[:ip_hl])
+                    tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
+
+                    # Seq/Ack/Flags/Win
+                    new_seq = (base_seq + rel_off) & 0xFFFFFFFF
+                    tcp_hdr[4:8] = struct.pack("!I", new_seq)
+                    tcp_hdr[8:12] = struct.pack("!I", base_ack)
+
+                    flags = 0x10  # ACK
                     if i == len(segments) - 1:
-                        tcp_flags |= 8
-                    seg_raw[tcp_flags_offset] = tcp_flags
-                    seg_raw[tcp_window_offset : tcp_window_offset + 2] = struct.pack(
-                        "!H", reduced_window
-                    )
-                    ip_id = struct.unpack("!H", seg_raw[4:6])[0]
-                    new_ip_id = (
-                        ip_id + i * self.current_params.get("ipid_step", 2048) & 65535
-                    )
-                    seg_raw[4:6] = struct.pack("!H", new_ip_id)
-                    seg_packet = pydivert.Packet(
-                        bytes(seg_raw),
-                        original_packet.interface,
-                        original_packet.direction,
-                    )
-                    w.send(seg_packet)
+                        flags |= 0x08  # PSH на последний
+                    tcp_hdr[13] = flags & 0xFF
+
+                    tcp_hdr[14:16] = struct.pack("!H", reduced_win)
+
+                    # TTL: «низкий» TTL для второго сегмента в паре (fakeddisorder-подобная эвристика)
+                    low_ttl = self.current_params.get("ttl", 1)
+                    ip_hdr[8] = low_ttl if (i == 1 and len(segments) == 2) else base_ttl
+
+                    # IP ID
+                    new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
+                    ip_hdr[4:6] = struct.pack("!H", new_ip_id)
+
+                    seg_raw = bytearray(ip_hdr + tcp_hdr + seg_payload)
+
+                    # Total Length
+                    total_len = len(seg_raw)
+                    seg_raw[2:4] = struct.pack("!H", total_len)
+
+                    # Checksums
+                    # IP
+                    seg_raw[10:12] = b"\x00\x00"
+                    ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                    seg_raw[10:12] = struct.pack("!H", ip_csum)
+
+                    # TCP
+                    tcp_hl_new = ((seg_raw[ip_hl+12] >> 4) & 0x0F) * 4
+                    tcp_start = ip_hl
+                    tcp_end = ip_hl + tcp_hl_new
+                    csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                    seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
+
+                    pkt = pydivert.Packet(bytes(seg_raw), original_packet.interface, original_packet.direction)
+                    w.send(pkt)
                     self.stats["fragments_sent"] += 1
-                    if i < len(segments) - 1:
-                        time.sleep(self.current_params.get("delay_ms", 2) / 1000.0)
-                self.logger.debug(f"✨ Отправлено {len(segments)} сегментов")
+
+                    # Между сегментами небольшая задержка
+                    delay_ms = self.current_params.get("delay_ms", 2)
+                    if i < len(segments) - 1 and delay_ms > 0:
+                        time.sleep(delay_ms / 1000.0)
+
+                self.logger.debug(f"✨ Отправлено {len(segments)} сегментов (heavy/basic)")
                 return True
             except Exception as e:
-                self.logger.error(
-                    f"Ошибка отправки сегментов: {e}", exc_info=self.debug
-                )
+                self.logger.error(f"Ошибка отправки сегментов: {e}", exc_info=self.debug)
                 return False
 
         def _send_fake_packet(self, original_packet, w, ttl: Optional[int] = 64):
@@ -1027,30 +1055,213 @@ if platform.system() == "Windows":
                 )
                 return False
 
-        
+        def _ones_complement_sum(self, data: bytes) -> int:
+            if len(data) % 2:
+                data += b"\x00"
+            s = 0
+            for i in range(0, len(data), 2):
+                s += (data[i] << 8) + data[i+1]
+                s = (s & 0xFFFF) + (s >> 16)
+            return s
+
+        def _checksum16(self, data: bytes) -> int:
+            s = self._ones_complement_sum(data)
+            return (~s) & 0xFFFF
+
+        def _ip_header_checksum(self, ip_hdr: bytearray) -> int:
+            # нулим checksum
+            ip_hdr[10:12] = b"\x00\x00"
+            return self._checksum16(bytes(ip_hdr))
+
+        def _tcp_checksum(self, ip_hdr: bytes, tcp_hdr: bytes, payload: bytes) -> int:
+            # Псевдозаголовок IPv4: src(4) dst(4) 0x00 proto(1) tcp_len(2)
+            src = ip_hdr[12:16]
+            dst = ip_hdr[16:20]
+            proto = ip_hdr[9]
+            tcp_len = len(tcp_hdr) + len(payload)
+            pseudo = src + dst + bytes([0, proto]) + tcp_len.to_bytes(2, "big")
+            # Нулим TCP checksum в заголовке
+            tcp_hdr_wo_csum = bytearray(tcp_hdr)
+            tcp_hdr_wo_csum[16:18] = b"\x00\x00"
+            s = self._ones_complement_sum(pseudo + bytes(tcp_hdr_wo_csum) + payload)
+            return (~s) & 0xFFFF
+
+        def _inject_md5sig_option(self, tcp_hdr: bytes) -> bytes:
+            """
+            Добавляет TCP MD5SIG опцию (kind=19, len=18) к заголовку.
+            Корректирует data offset и выравнивание до 4 байт (NOP=1).
+            Возвращает новый tcp_hdr с опциями.
+            """
+            hdr = bytearray(tcp_hdr)
+            # Текущая длина заголовка (в 32-бит словах)
+            data_offset_words = (hdr[12] >> 4) & 0x0F
+            base_len = data_offset_words * 4
+            if base_len < 20:
+                base_len = 20
+            # Разделяем на «фиксированную» часть и «опции»
+            fixed = hdr[:20]
+            opts = hdr[20:base_len]
+
+            # md5sig: kind=19(0x13), len=18(0x12), 16 байт «сигнатуры»
+            md5opt = b"\x13\x12" + b"\x00" * 16
+            new_opts = bytes(opts) + md5opt
+            # Пэддинг NOP (1) до кратности 4
+            pad_len = (4 - ((20 + len(new_opts)) % 4)) % 4
+            new_opts += b"\x01" * pad_len  # NOP
+
+            new_len = 20 + len(new_opts)
+            new_hdr = bytearray(fixed + new_opts)
+            new_hdr[12] = ((new_len // 4) << 4) | (new_hdr[12] & 0x0F)
+            # Сбросим checksum (будет пересчитан)
+            new_hdr[16:18] = b"\x00\x00"
+            return bytes(new_hdr)
         
         def _send_attack_segments(self, original_packet, w, segments):
             """
-            Метод для отправки сегментов от исправленных атак.
-            Обрабатывает новый формат сегментов: (bytes, int, Dict[str, Any])
+            Отправка сегментов в расширенном формате:
+            - segment = (payload: bytes, seq_offset: int, options: Dict[str, Any])
+            Поддержка:
+              options["ttl"]: int
+              options["corrupt_tcp_checksum"]: bool
+              options["corrupt_sequence"]: bool, options["seq_offset"]: int
+              options["add_md5sig_option"]: bool
+              options["tcp_flags"]: int
+              options["delay_ms"]: float
+              options["is_fake"]: bool (для фейкового сегмента)
             """
             try:
-                # Конвертируем новый формат в старый для совместимости
-                converted_segments = []
-                for segment in segments:
-                    if len(segment) == 3:
-                        # Новый формат: (payload, seq_offset, options)
-                        payload, seq_offset, options = segment
-                        converted_segments.append((payload, seq_offset))
-                    elif len(segment) == 2:
-                        # Старый формат: (payload, seq_offset)
-                        converted_segments.append(segment)
+                raw = bytearray(original_packet.raw)
+                # IPv4 only
+                ip_ver = (raw[0] >> 4) & 0xF
+                if ip_ver != 4:
+                    self.logger.warning("Non-IPv4 packet, fallback to original send")
+                    w.send(original_packet)
+                    return False
+
+                ip_hl = (raw[0] & 0x0F) * 4
+                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                if tcp_hl < 20:
+                    tcp_hl = 20
+                payload_start = ip_hl + tcp_hl
+
+                # Базовые поля
+                base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
+                base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
+                base_flags = raw[ip_hl+13]
+                base_win = struct.unpack("!H", raw[ip_hl+14:ip_hl+16])[0]
+                base_ttl = raw[8]
+                # Уменьшенное окно (как раньше)
+                window_div = self.current_params.get("window_div", 8)
+                reduced_win = max(base_win // window_div, 1024)
+
+                # IP ID
+                base_ip_id = struct.unpack("!H", raw[4:6])[0]
+                ipid_step = self.current_params.get("ipid_step", 2048)
+
+                for i, seg in enumerate(segments):
+                    # Нормализуем формат
+                    if len(seg) == 3:
+                        seg_payload, rel_off, opts = seg
+                    elif len(seg) == 2:
+                        seg_payload, rel_off = seg
+                        opts = {}
                     else:
-                        self.logger.error(f"Неизвестный формат сегмента: {len(segment)} элементов")
+                        self.logger.error(f"Bad segment tuple size: {len(seg)}")
                         continue
-                
-                self.logger.debug(f"Конвертировано {len(converted_segments)} сегментов для отправки")
-                return self._send_segments(original_packet, w, converted_segments)
+
+                    if not seg_payload:
+                        continue
+
+                    # Создаём каркас: IPhdr + TCPhdr + payload
+                    ip_hdr = bytearray(raw[:ip_hl])
+                    tcp_hdr = bytearray(raw[ip_hl:ip_hl+20])  # начнём с «минимального» TCP заголовка
+                    # Если у исходного пакета были опции — учтём их как исходную базу
+                    if tcp_hl > 20:
+                        tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
+
+                    # Настраиваем SEQ/ACK/FLAGS/WINDOW
+                    seq_extra = opts.get("seq_offset", 0) if opts.get("corrupt_sequence") else 0
+                    seq = (base_seq + rel_off + seq_extra) & 0xFFFFFFFF
+                    tcp_hdr[4:8] = struct.pack("!I", seq)
+                    tcp_hdr[8:12] = struct.pack("!I", base_ack)
+
+                    # Флаги TCP
+                    flags = opts.get("tcp_flags")
+                    if flags is None:
+                        # По умолчанию PSH+ACK, как было
+                        flags = 0x10  # ACK
+                        # последний сегмент даём PSH
+                        if i == len(segments) - 1:
+                            flags |= 0x08  # PSH
+                    tcp_hdr[13] = flags & 0xFF
+
+                    # Окно
+                    tcp_hdr[14:16] = struct.pack("!H", reduced_win)
+
+                    # TTL
+                    ttl = opts.get("ttl", base_ttl)
+                    if not isinstance(ttl, int) or not (1 <= ttl <= 255):
+                        ttl = base_ttl
+                    ip_hdr[8] = ttl
+
+                    # Длина IP (пока неизвестна) — проставим позже
+                    # IP ID для «разных» сегментов
+                    new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
+                    ip_hdr[4:6] = struct.pack("!H", new_ip_id)
+
+                    # TCP MD5SIG (только для фейковых сегментов)
+                    if opts.get("is_fake") and opts.get("add_md5sig_option"):
+                        tcp_hdr = bytearray(self._inject_md5sig_option(bytes(tcp_hdr)))
+                        # обновим tcp_hl после инъекции
+                        tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
+                    else:
+                        # убедимся, что размер заголовка корректный
+                        tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
+                        if tcp_hl_new < 20:
+                            tcp_hdr[12] = (5 << 4) | (tcp_hdr[12] & 0x0F)
+                            tcp_hl_new = 20
+
+                    # Собираем пакет: IP header + TCP header + payload
+                    seg_raw = bytearray(ip_hdr + tcp_hdr + seg_payload)
+
+                    # Проставим Total Length
+                    total_len = len(seg_raw)
+                    seg_raw[2:4] = struct.pack("!H", total_len)
+
+                    # Пересчитываем checksum-и
+                    # IP checksum
+                    seg_raw[10:12] = b"\x00\x00"
+                    ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                    seg_raw[10:12] = struct.pack("!H", ip_csum)
+
+                    # TCP checksum
+                    tcp_start = ip_hl
+                    tcp_end = ip_hl + tcp_hl_new
+                    tcp_hdr_bytes = bytes(seg_raw[tcp_start:tcp_end])
+                    payload_bytes = bytes(seg_raw[tcp_end:])
+
+                    # Если требуется «badsum» на фейковом сегменте — испортим TCP checksum
+                    if opts.get("is_fake") and opts.get("corrupt_tcp_checksum"):
+                        # Сначала посчитаем правильную, затем испортим
+                        good_csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
+                        bad_csum = good_csum ^ 0xFFFF  # инверсия как «заведомо неверная»
+                        seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
+                    else:
+                        csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
+                        seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
+
+                    # Отправляем
+                    pkt = pydivert.Packet(bytes(seg_raw), original_packet.interface, original_packet.direction)
+                    w.send(pkt)
+                    self.stats["fragments_sent"] += 1
+
+                    # Задержка между сегментами (если задана)
+                    delay_ms = float(opts.get("delay_ms", self.current_params.get("delay_ms", 2)))
+                    if i < len(segments) - 1 and delay_ms > 0:
+                        time.sleep(delay_ms / 1000.0)
+
+                self.logger.debug(f"✨ Отправлено {len(segments)} сегментов (heavy/options)")
+                return True
             except Exception as e:
                 self.logger.error(f"Ошибка в _send_attack_segments: {e}", exc_info=self.debug)
                 return False
