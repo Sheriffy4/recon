@@ -184,6 +184,9 @@ if platform.system() == "Windows":
             self.quic_handler = QuicHandler(debug=debug)
             
             # Adaptive strategy controller and flow tracking
+            # Маркер для собственных инжекций (чтобы не перехватывать их повторно)
+            self._INJECT_MARK = 0xC0DE
+
             self.controller = None
             self.flow_table = {}
             self._lock = threading.Lock()
@@ -458,10 +461,29 @@ if platform.system() == "Windows":
             self.logger.info(f"🔍 Фильтр pydivert: {filter_str}")
             try:
                 with pydivert.WinDivert(filter_str, priority=1000) as w:
+                    # Увеличим очереди WinDivert для снижения вероятности таймаутов 258
+                    try:
+                        from pydivert.windivert import WinDivertParam
+                        w.set_param(WinDivertParam.QueueLen, 8192)
+                        w.set_param(WinDivertParam.QueueTime, 2048)       # usec
+                        w.set_param(WinDivertParam.QueueSize, 64 * 1024)  # KB
+                        self.logger.debug("WinDivert queue params set: Len=8192, Time=2048, Size=64KB")
+                    except Exception as e:
+                        self.logger.debug(f"WinDivert set_param failed: {e}")
+
                     self.logger.info("✅ WinDivert запущен успешно.")
                     while self.running:
                         packet = w.recv()
                         if packet is None:
+                            continue
+                        # Не обрабатываем собственные инжектированные пакеты (по mark)
+                        try:
+                            pkt_mark = getattr(packet, "mark", 0)
+                        except Exception:
+                            pkt_mark = 0
+                        if pkt_mark == self._INJECT_MARK:
+                            # Просто пропускаем дальше в стек
+                            w.send(packet)
                             continue
                         self.stats["packets_captured"] += 1
                         if (
@@ -828,8 +850,12 @@ if platform.system() == "Windows":
                     csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
                     seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
 
-                    pkt = pydivert.Packet(bytes(seg_raw), original_packet.interface, original_packet.direction)
-                    w.send(pkt)
+                    # Безопасная отправка с повтором/пересчетом checksum
+                    ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                    if not ok:
+                        self.logger.error("WinDivert send failed for segment (basic). Aborting.")
+                        return False
+
                     self.stats["fragments_sent"] += 1
 
                     # Между сегментами небольшая задержка
@@ -1229,8 +1255,10 @@ if platform.system() == "Windows":
                         csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
                         seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
 
-                    pkt = pydivert.Packet(bytes(seg_raw), original_packet.interface, original_packet.direction)
-                    w.send(pkt)
+                    ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                    if not ok:
+                        self.logger.error("WinDivert send failed for segment (options). Aborting.")
+                        return False
                     self.stats["fragments_sent"] += 1
 
                     delay_ms = float(opts.get("delay_ms", self.current_params.get("delay_ms", 2)))
@@ -1241,6 +1269,58 @@ if platform.system() == "Windows":
                 return True
             except Exception as e:
                 self.logger.error(f"Ошибка в _send_attack_segments: {e}", exc_info=self.debug)
+                return False
+
+        def _safe_send_packet(self, w: "pydivert.WinDivert", pkt_bytes: bytes, original_packet: "pydivert.Packet") -> bool:
+            """
+            Безопасная отправка пакета через WinDivert:
+            - помечает инжект пакеты mark'ом (чтобы не перехватывать их повторно);
+            - при таймауте (WinError 258) делает небольшой ретрай с пересчетом checksum helper'ом.
+            """
+            try:
+                pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                # Отметим наш пакет, чтобы в recv() его пропустить
+                try:
+                    pkt.mark = self._INJECT_MARK
+                except Exception:
+                    pass
+                w.send(pkt)
+                return True
+            except OSError as e:
+                winerr = getattr(e, "winerror", None)
+                if winerr == 258:
+                    # Таймаут очереди — небольшой ретрай + попытка пересчитать checksum helper'ом
+                    self.logger.debug("WinDivert send timeout (258). Retrying with checksum helper...")
+                    time.sleep(0.001)
+                    buf = bytearray(pkt_bytes)
+                    try:
+                        from pydivert.windivert import WinDivertHelper, WinDivertLayer
+                        WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
+                        pkt2 = pydivert.Packet(bytes(buf), original_packet.interface, original_packet.direction)
+                        try:
+                            pkt2.mark = self._INJECT_MARK
+                        except Exception:
+                            pass
+                        w.send(pkt2)
+                        return True
+                    except Exception as e2:
+                        # Helper недоступен — повторим отправку как есть
+                        self.logger.debug(f"Checksum helper not available or failed: {e2}")
+                        try:
+                            pkt2 = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                            try:
+                                pkt2.mark = self._INJECT_MARK
+                            except Exception:
+                                pass
+                            w.send(pkt2)
+                            return True
+                        except Exception as e3:
+                            self.logger.error(f"WinDivert retry failed after 258: {e3}")
+                            return False
+                self.logger.error(f"WinDivert send error: {e}", exc_info=self.debug)
+                return False
+            except Exception as e:
+                self.logger.error(f"Unexpected send error: {e}", exc_info=self.debug)
                 return False
 
         def _send_fragmented_fallback(self, packet, w):
