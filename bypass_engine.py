@@ -9,6 +9,7 @@ import time
 import threading
 import logging
 import struct
+import re
 from typing import List, Dict, Optional, Tuple, Set, Any
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from quic_handler import QuicHandler
@@ -594,12 +595,19 @@ if platform.system() == "Windows":
                 )
                 self.logger.info(f"🔍 TTL ANALYSIS: ttl={ttl}, autottl={autottl}")
 
-                # Нормализация алиасов для fakeddisorder
-                # (исключаем «экзотические» названия, приводим к единому типу)
-                if task_type in ("fake_fakeddisorder", "tcp_fakeddisorder", "fakeddisorder_seqovl"):
-                    self.logger.debug(f"Normalizing task_type '{task_type}' -> 'fakedisorder'")
-                    task_type = "fakedisorder"
-                
+                # Совместимость: нормализуем тип атаки и алиасы
+                raw_type = str(task_type or "").lower().strip()
+                norm_type = raw_type.replace("-", "_").replace(" ", "")
+                alias_map = {
+                    "fakeddisorder": "fakeddisorder", "fakedisorder": "fakeddisorder",
+                    "fake_fakeddisorder": "fakeddisorder", "tcp_fakeddisorder": "fakeddisorder",
+                    "fake,disorder": "fakeddisorder", "fake+disorder": "fakeddisorder",
+                    "fakeddisorder_seqovl": "fakeddisorder", "seqovl_fakeddisorder": "fakeddisorder",
+                    "multidisorder": "multidisorder", "tcp_multidisorder": "multidisorder",
+                    "multisplit": "multisplit", "tcp_multisplit": "multisplit",
+                }
+                task_type = alias_map.get(norm_type, norm_type)
+
                 # CRITICAL TTL FIX: Validate TTL parameter
                 if ttl is not None:
                     if not isinstance(ttl, int) or ttl < 1 or ttl > 255:
@@ -624,6 +632,23 @@ if platform.system() == "Windows":
                     )
                     success = self._send_segments(packet, w, segments)
                     return
+
+                # Совместимость параметров: split_seqovl -> overlap_size
+                if "overlap_size" not in params and "split_seqovl" in params:
+                    try:
+                        params["overlap_size"] = int(params["split_seqovl"])
+                    except Exception:
+                        pass
+
+                # Нормализуем fooling к списку строк
+                fooling_raw = params.get("fooling", [])
+                if isinstance(fooling_raw, str):
+                    params["fooling"] = [s.strip().lower() for s in re.split(r"[,;]", fooling_raw) if s.strip()]
+                elif isinstance(fooling_raw, list):
+                    params["fooling"] = [str(x).lower() for x in fooling_raw]
+                else:
+                    params["fooling"] = []
+
                 if params.get("split_pos") == "midsld":
                     resolved_pos = self._resolve_midsld_pos(payload)
                     if resolved_pos:
@@ -636,36 +661,32 @@ if platform.system() == "Windows":
                             "Could not resolve 'midsld', falling back to default position 3."
                         )
                         params["split_pos"] = 3
-                if task_type == "fakedisorder":
+                if task_type == "fakeddisorder":
                     # +++ УПРОЩЁННЫЙ И СТАБИЛЬНЫЙ ПУТЬ ДЛЯ fakeddisorder +++
                     self.logger.info(f"✅ Применяем стабильную fakeddisorder атаку с параметрами: {params}")
-                    # Предварительный фейк-пакет с нужным fooling
-                    fooling_list = params.get("fooling", []) or []
+                    # По умолчанию для fakeddisorder используем низкий TTL (zapret-like)
+                    if ttl is None or ttl == 64 and autottl is None:
+                        ttl = 1
+                        self.logger.debug("fakeddisorder: default TTL overridden to 1 (zapret-compat)")
+                    self.current_params["ttl"] = ttl
+                    # Предварительный fake пакет по списку fooling
+                    fooling_list = params.get("fooling", [])
                     try:
                         if "badsum" in fooling_list:
-                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl)
-                            time.sleep(0.003)
+                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl); time.sleep(0.003)
                         elif "md5sig" in fooling_list:
-                            self._send_fake_packet_with_md5sig(packet, w, ttl=ttl)
-                            time.sleep(0.005)
+                            self._send_fake_packet_with_md5sig(packet, w, ttl=ttl); time.sleep(0.005)
                         elif "badseq" in fooling_list:
-                            self._send_fake_packet_with_badseq(packet, w, ttl=ttl)
-                            time.sleep(0.003)
+                            self._send_fake_packet_with_badseq(packet, w, ttl=ttl); time.sleep(0.003)
                         else:
-                            # Без специальных фулингов — обычный фейк
-                            self._send_fake_packet(packet, w, ttl=ttl)
-                            time.sleep(0.002)
+                            self._send_fake_packet(packet, w, ttl=ttl); time.sleep(0.002)
                     except Exception as e:
                         self.logger.debug(f"Fake pre-packet send error (ignored): {e}")
-
-                    # Разбиение полезной нагрузки в стиле zapret
-                    split_pos = params.get("split_pos", 76)          # zapret default
-                    overlap = params.get("overlap_size", 336)        # zapret default
+                    # Разбиение полезной нагрузки (zapret defaults)
+                    split_pos = params.get("split_pos", 76)
+                    overlap = params.get("overlap_size", 336)
                     segments = self.techniques.apply_fakeddisorder(payload, split_pos, overlap)
-
-                    # Отправка сегментов через «тяжёлую» реализацию с пересчётом checksum-ов
                     success = self._send_segments(packet, w, segments)
-                    # +++ КОНЕЦ УПРОЩЁННОГО ПУТИ +++
                 elif task_type == "multisplit":
                     is_meta_ip = any(
                         (
