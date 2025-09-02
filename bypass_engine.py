@@ -696,7 +696,7 @@ if platform.system() == "Windows":
                             self._send_aligned_fake_segment(packet, w, offset_part2, part2[:100] if part2 else part1[:100], fake_ttl, fooling_list)
                             time.sleep(0.003)
                     else:
-                        self._send_aligned_fake_segment(packet, w, offset_part2, part2[:100] if part2 else part1[:100], 1, fooling_list)
+                        self._send_aligned_fake_segment(packet, w, offset_part2, part2[:100] if part2 else part1[:100], ttl, fooling_list)
                         time.sleep(0.003)
                     # 2) реальные сегменты: part2, затем part1 (disorder), оба с PSH+ACK и нормальным TTL
                     segments = []
@@ -1290,70 +1290,85 @@ if platform.system() == "Windows":
                 self.logger.error(f"Ошибка в _send_attack_segments: {e}", exc_info=self.debug)
                 return False
 
-    def _send_aligned_fake_segment(self, original_packet, w, seq_offset: int, data: bytes, ttl: int, fooling: List[str]) -> bool:
-        """
-        Fake сегмент, выровненный по реальному SEQ (base_seq + seq_offset) с данными data.
-        Применяем fooling (badseq/md5sig/badsum) к ЭТОМУ сегменту (как в zapret).
-        """
-        try:
-            raw = bytearray(original_packet.raw)
-            ip_hl = (raw[0] & 0x0F) * 4
-            tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
-            if tcp_hl < 20:
-                tcp_hl = 20
-            base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
-            base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
+        def _send_aligned_fake_segment(self, original_packet, w, seq_offset: int, data: bytes, ttl: int, fooling: List[str]) -> bool:
+            """
+            Отправляет фейковый сегмент, выровненный по реальному SEQ (base_seq + seq_offset)
+            с переданным payload `data`. Поддерживает:
+              - md5sig: инъекция TCP MD5SIG опции (kind=19,len=18) с защитой от >60 байт заголовка
+              - badseq: сдвиг SEQ на -10000
+              - badsum: порча TCP checksum (инверсия) после корректного пересчёта
+            TTL выставляется для этого «фейкового» сегмента (обычно 1..2 при autottl).
+            """
+            try:
+                raw = bytearray(original_packet.raw)
+                ip_hl = (raw[0] & 0x0F) * 4
+                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                if tcp_hl < 20:
+                    tcp_hl = 20
 
-            ip_hdr = bytearray(raw[:ip_hl])
-            tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
+                # Базовые поля из оригинального пакета
+                base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
+                base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
+                base_win = struct.unpack("!H", raw[ip_hl+14:ip_hl+16])[0]
 
-            # Устанавливаем SEQ = base_seq + seq_offset
-            seq = (base_seq + seq_offset) & 0xFFFFFFFF
-            tcp_hdr[4:8] = struct.pack("!I", seq)
-            tcp_hdr[8:12] = struct.pack("!I", base_ack)
-            # PSH+ACK для стабильности
-            tcp_hdr[13] = 0x18
+                # Заголовки IP и TCP (без payload)
+                ip_hdr = bytearray(raw[:ip_hl])
+                tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
 
-            # TTL для fake
-            ip_hdr[8] = ttl if 1 <= ttl <= 255 else 1
+                # Устанавливаем SEQ = base_seq + seq_offset, ACK как в оригинале
+                seq = (base_seq + (seq_offset or 0)) & 0xFFFFFFFF
+                tcp_hdr[4:8]  = struct.pack("!I", seq)
+                tcp_hdr[8:12] = struct.pack("!I", base_ack)
 
-            # Применяем fooling
-            fake_raw = bytearray(ip_hdr + tcp_hdr + data)
-            # md5sig
-            if "md5sig" in (fooling or []):
-                tcp_hdr_with_opt = bytearray(self._inject_md5sig_option(bytes(fake_raw[ip_hl:ip_hl+tcp_hl])))
-                fake_raw = bytearray(ip_hdr + tcp_hdr_with_opt + data)
-            # badseq
-            if "badseq" in (fooling or []):
-                # Сдвиг SEQ ещё на -10000, как «плохой»
-                bad_seq = (seq - 10000) & 0xFFFFFFFF
-                fake_raw[ip_hl+4:ip_hl+8] = struct.pack("!I", bad_seq)
-            # badsum
-            if "badsum" in (fooling or []):
-                # Портим TCP checksum позже инвертированием
-                pass
+                # Флаги: PSH+ACK, окно можно немного уменьшить (как в основной логике)
+                tcp_hdr[13] = 0x18
+                # Оставим исходное окно (или слегка уменьшенное при желании)
+                # tcp_hdr[14:16] = struct.pack("!H", max(base_win // 2, 1024))
 
-            # Обновляем Total Length
-            fake_raw[2:4] = struct.pack("!H", len(fake_raw))
-            # Пересчёт IP/TCP checksum
-            fake_raw[10:12] = b"\x00\x00"
-            ip_csum = self._ip_header_checksum(fake_raw[:ip_hl])
-            fake_raw[10:12] = struct.pack("!H", ip_csum)
-            # TCP checksum
-            tcp_hl_new = ((fake_raw[ip_hl+12] >> 4) & 0x0F) * 4
-            tcp_start = ip_hl
-            tcp_end = ip_hl + tcp_hl_new
-            tcp_hdr_bytes = bytes(fake_raw[tcp_start:tcp_end])
-            payload_bytes = bytes(fake_raw[tcp_end:])
-            tcp_csum = self._tcp_checksum(fake_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
-            if "badsum" in (fooling or []):
-                tcp_csum ^= 0xFFFF
-            fake_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", tcp_csum)
+                # TTL для фейкового сегмента
+                ip_hdr[8] = ttl if isinstance(ttl, int) and 1 <= ttl <= 255 else 1
 
-            return self._safe_send_packet(w, bytes(fake_raw), original_packet)
-        except Exception as e:
-            self.logger.debug(f"_send_aligned_fake_segment error: {e}")
-            return False
+                # Применяем md5sig (если задано) — инъекция TCP опции с учётом лимита 60 байт
+                if "md5sig" in (fooling or []):
+                    tcp_hdr = bytearray(self._inject_md5sig_option(bytes(tcp_hdr)))
+                    # Убедимся, что новый data offset корректен (>=20 байт)
+                    tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
+                    if tcp_hl_new < 20:
+                        tcp_hdr[12] = (5 << 4) | (tcp_hdr[12] & 0x0F)
+
+                # Применяем badseq — сдвиг sequence на -10000
+                if "badseq" in (fooling or []):
+                    bad_seq = (seq - 10000) & 0xFFFFFFFF
+                    tcp_hdr[4:8] = struct.pack("!I", bad_seq)
+
+                # Собираем пакет: IP + TCP + payload
+                seg_raw = bytearray(ip_hdr + tcp_hdr + (data or b""))
+
+                # Проставляем Total Length
+                seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+
+                # Пересчёт checksums
+                # IP
+                seg_raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                seg_raw[10:12] = struct.pack("!H", ip_csum)
+
+                # TCP
+                tcp_hl_effective = ((seg_raw[ip_hl+12] >> 4) & 0x0F) * 4
+                tcp_start = ip_hl
+                tcp_end   = ip_hl + tcp_hl_effective
+                tcp_hdr_bytes = bytes(seg_raw[tcp_start:tcp_end])
+                payload_bytes = bytes(seg_raw[tcp_end:])
+                tcp_csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
+                if "badsum" in (fooling or []):
+                    tcp_csum ^= 0xFFFF
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", tcp_csum)
+
+                # Отправляем через safe-отправку (с меткой и ретраем при 258)
+                return self._safe_send_packet(w, bytes(seg_raw), original_packet)
+            except Exception as e:
+                self.logger.debug(f"_send_aligned_fake_segment error: {e}")
+                return False
 
         def _safe_send_packet(self, w: "pydivert.WinDivert", pkt_bytes: bytes, original_packet: "pydivert.Packet") -> bool:
             """
