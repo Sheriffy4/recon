@@ -4,28 +4,38 @@ import asyncio
 import aiohttp
 import socket
 import ssl
-from typing import Dict, List, Tuple, Optional, Set, Any
+from typing import Dict, List, Tuple, Optional, Set, Any, Union
 from urllib.parse import urlparse
-from recon.bypass_engine import BypassEngine
-from recon.zapret_parser import ZapretStrategyParser
-from core.attacks.alias_map import normalize_attack_name
+from core.bypass_engine import BypassEngine
+from core.zapret_parser import ZapretStrategyParser
+from core.bypass.attacks.alias_map import normalize_attack_name
+
+# Initialize modern bypass engine availability
+MODERN_BYPASS_ENGINE_AVAILABLE = False
+BypassStrategy = Any  # Default fallback
+
 try:
-    from recon.bypass.attacks.modern_registry import ModernAttackRegistry
-    from recon.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
-    from recon.bypass.modes.mode_controller import ModeController, OperationMode
-    from recon.bypass.validation.reliability_validator import ReliabilityValidator
-    from recon.bypass.protocols.multi_port_handler import MultiPortHandler
+    from core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
+    from core.bypass.modes.mode_controller import ModeController
+    from core.bypass.validation.reliability_validator import ReliabilityValidator
+    from core.bypass.protocols.multi_port_handler import MultiPortHandler
+    from core.bypass.modes.mode_controller import OperationMode  # Move the import statement here
     MODERN_BYPASS_ENGINE_AVAILABLE = True
 except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Modern bypass engine not available: {e}')
-    MODERN_BYPASS_ENGINE_AVAILABLE = False
+    OperationMode = Any
+    
+
+# Initialize advanced fingerprinting availability
+ADVANCED_FINGERPRINTING_AVAILABLE = False
 try:
     from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
     ADVANCED_FINGERPRINTING_AVAILABLE = True
 except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Advanced fingerprinting not available: {e}')
-    ADVANCED_FINGERPRINTING_AVAILABLE = False
+
 LOG = logging.getLogger('hybrid_engine')
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6753.0 Safari/537.36'}
 
@@ -40,6 +50,8 @@ class HybridEngine:
     def __init__(self, debug: bool=False, enable_advanced_fingerprinting: bool=True, enable_modern_bypass: bool=True):
         self.debug = debug
         self.parser = ZapretStrategyParser()
+        
+        # Initialize modern bypass engine components
         self.modern_bypass_enabled = enable_modern_bypass and MODERN_BYPASS_ENGINE_AVAILABLE
         if self.modern_bypass_enabled:
             try:
@@ -58,6 +70,8 @@ class HybridEngine:
             self.mode_controller = None
             self.reliability_validator = None
             self.multi_port_handler = None
+        
+        # Initialize advanced fingerprinting
         self.advanced_fingerprinting_enabled = enable_advanced_fingerprinting and ADVANCED_FINGERPRINTING_AVAILABLE
         if self.advanced_fingerprinting_enabled:
             try:
@@ -74,8 +88,23 @@ class HybridEngine:
                 LOG.info('Advanced fingerprinting disabled - module not available')
             else:
                 LOG.info('Advanced fingerprinting disabled by configuration')
-        self.fingerprint_stats = {'fingerprints_created': 0, 'fingerprint_cache_hits': 0, 'fingerprint_failures': 0, 'fingerprint_aware_tests': 0, 'fallback_tests': 0}
-        self.bypass_stats = {'modern_engine_tests': 0, 'legacy_engine_tests': 0, 'pool_assignments': 0, 'attack_registry_queries': 0, 'mode_switches': 0}
+        
+        # Initialize statistics
+        self.fingerprint_stats = {
+            'fingerprints_created': 0, 
+            'fingerprint_cache_hits': 0, 
+            'fingerprint_failures': 0, 
+            'fingerprint_aware_tests': 0, 
+            'fallback_tests': 0
+        }
+        
+        self.bypass_stats = {
+            'modern_engine_tests': 0, 
+            'legacy_engine_tests': 0, 
+            'pool_assignments': 0, 
+            'attack_registry_queries': 0, 
+            'mode_switches': 0
+        }
 
     def _translate_zapret_to_engine_task(self, params: Dict) -> Optional[Dict]:
         """
