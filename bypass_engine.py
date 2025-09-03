@@ -15,7 +15,7 @@ from core.bypass.attacks.base import AttackResult, AttackStatus
 from quic_handler import QuicHandler
 
 # Calibrator and alias map integration
-from core.attacks.alias_map import normalize_attack_name
+from core.bypass.attacks.alias_map import normalize_attack_name
 from core.calibration.calibrator import Calibrator, CalibCandidate
 try:
     from core.strategy_manager import StrategyManager
