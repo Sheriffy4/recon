@@ -14,6 +14,20 @@ from typing import List, Dict, Optional, Tuple, Set, Any
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from quic_handler import QuicHandler
 
+# Calibrator and alias map integration
+from core.attacks.alias_map import normalize_attack_name
+from core.calibration.calibrator import Calibrator, CalibCandidate
+try:
+    from core.strategy_manager import StrategyManager
+except (ImportError, ModuleNotFoundError):
+    try:
+        # Fallback to root strategy_manager if available
+        from strategy_manager import StrategyManager
+    except (ImportError, ModuleNotFoundError):
+        StrategyManager = None
+        logging.getLogger("BypassEngine").warning("StrategyManager could not be imported.")
+
+
 if platform.system() == "Windows":
     import pydivert
 
@@ -183,6 +197,9 @@ if platform.system() == "Windows":
             # Guard: чтобы не инжектить один и тот же поток многократно
             self._active_flows: Set[Tuple[str,int,str,int]] = set()
             self._flow_ttl_sec = 3.0
+            # For calibrator early stopping
+            self._inbound_events: Dict[Tuple[str, int, str, int], threading.Event] = {}
+            self._inbound_results: Dict[Tuple[str, int, str, int], str] = {}
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -414,6 +431,15 @@ if platform.system() == "Windows":
                 self.logger.debug(f"Error resolving midsld: {e}")
             return None
 
+        def _get_inbound_event_for_flow(self, packet: "pydivert.Packet") -> threading.Event:
+            rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
+            with self._lock:
+                ev = self._inbound_events.get(rev_key)
+                if not ev:
+                    ev = threading.Event()
+                    self._inbound_events[rev_key] = ev
+                return ev
+
         def _start_inbound_observer(self):
             def run():
                 try:
@@ -432,13 +458,26 @@ if platform.system() == "Windows":
                                     outcome = "rst"
                             except Exception:
                                 pass
-                            if outcome and self.controller:
+
+                            if outcome:
                                 rev_key = (pkt.dst_addr, pkt.dst_port, pkt.src_addr, pkt.src_port)
-                                with self._lock:
-                                    info = self.flow_table.pop(rev_key, None)
-                                if info:
-                                    rtt_ms = int((time.time() - info["start_ts"]) * 1000)
-                                    self.controller.record_outcome(info["key"], info["strategy"], outcome, rtt_ms)
+                                # Signal early stopping event for calibrator
+                                try:
+                                    with self._lock:
+                                        ev = self._inbound_events.get(rev_key)
+                                    if ev:
+                                        self._inbound_results[rev_key] = outcome
+                                        ev.set()
+                                except Exception:
+                                    pass
+
+                                # Record outcome for adaptive controller
+                                if self.controller:
+                                    with self._lock:
+                                        info = self.flow_table.pop(rev_key, None)
+                                    if info:
+                                        rtt_ms = int((time.time() - info["start_ts"]) * 1000)
+                                        self.controller.record_outcome(info["key"], info["strategy"], outcome, rtt_ms)
                             wi.send(pkt)
                 except Exception as e:
                     if self.running:
@@ -567,10 +606,8 @@ if platform.system() == "Windows":
             self, packet: pydivert.Packet, w: pydivert.WinDivert, strategy_task: Dict
         ):
             """
-            ИСПРАВЛЕНИЕ: Полностью переписанный диспетчер стратегий.
-            Теперь он корректно обрабатывает все типы задач, включая QUIC.
-            
-            CRITICAL TTL FIX: Added comprehensive TTL logging and validation.
+            Применяет стратегию обхода к пакету, используя калибратор, раннюю остановку
+            и централизованную логику.
             """
             try:
                 params = strategy_task.get("params", {}).copy()
@@ -578,7 +615,6 @@ if platform.system() == "Windows":
                 task_type = normalize_attack_name(strategy_task.get("type"))
 
                 # --- Улучшенная логика TTL ---
-                # 1. Определяем TTL для фейковых пакетов
                 fake_ttl_source = params.get("autottl") or params.get("ttl")
                 if fake_ttl_source is not None:
                     try:
@@ -590,236 +626,166 @@ if platform.system() == "Windows":
                         self.logger.warning(f"Invalid fake TTL format '{fake_ttl_source}', using default 1.")
                         fake_ttl = 1
                 else:
-                    # Дефолтный TTL для фейков, если не задан
                     fake_ttl = 1 if task_type == "fakeddisorder" else 3
                 self.current_params["fake_ttl"] = fake_ttl
-                self.logger.info(f"TTL for FAKE packets set to: {fake_ttl}")
+                self.logger.info(f"Base TTL for FAKE packets set to: {fake_ttl}")
 
-                # 2. Определяем TTL для реальных сегментов (всегда используем исходный)
-                original_ttl = bytearray(packet.raw)[8]
-                real_ttl = original_ttl if 1 <= original_ttl <= 255 else 64
+                orig_ttl = bytearray(packet.raw)[8]
+                real_ttl = orig_ttl if 1 <= orig_ttl <= 255 else 64
                 self.current_params["real_ttl"] = real_ttl
                 self.logger.info(f"TTL for REAL segments set to: {real_ttl} (from original packet)")
-                
-                # CRITICAL TTL FIX: Extract and log TTL parameter
-                ttl = params.get("ttl")
-                autottl = params.get("autottl")
-                
-                self.logger.info(
-                    f"🎯 Применяем обход для {packet.dst_addr} -> Тип: {task_type}, Параметры: {params}"
-                )
-                self.logger.info(f"🔍 TTL ANALYSIS: ttl={ttl}, autottl={autottl}")
+                # --- Конец логики TTL ---
 
-                # Совместимость: нормализуем тип атаки и алиасы
-                raw_type = str(task_type or "").lower().strip()
-                norm_type = raw_type.replace("-", "_").replace(" ", "")
-                alias_map = {
-                    "fakeddisorder": "fakeddisorder", "fakedisorder": "fakeddisorder",
-                    "fake_fakeddisorder": "fakeddisorder", "tcp_fakeddisorder": "fakeddisorder",
-                    "fake,disorder": "fakeddisorder", "fake+disorder": "fakeddisorder",
-                    "fakeddisorder_seqovl": "fakeddisorder", "seqovl_fakeddisorder": "fakeddisorder",
-                    "multidisorder": "multidisorder", "tcp_multidisorder": "multidisorder",
-                    "multisplit": "multisplit", "tcp_multisplit": "multisplit",
-                }
-                task_type = alias_map.get(norm_type, norm_type)
-
-                # CRITICAL TTL FIX: Validate TTL parameter
-                if ttl is not None:
-                    if not isinstance(ttl, int) or ttl < 1 or ttl > 255:
-                        self.logger.warning(f"❌ Invalid TTL value: {ttl}, using default 64")
-                        ttl = 64
-                    else:
-                        self.logger.info(f"✅ Using TTL={ttl} from strategy parameters")
-                elif autottl is not None:
-                    # For autottl, we'll use a range of values, but for now use the max
-                    ttl = autottl
-                    self.logger.info(f"✅ Using TTL={ttl} from autottl parameter")
-                else:
-                    # Use a better default TTL (64 instead of 1)
-                    ttl = 64
-                    self.logger.info(f"⚠️ No TTL specified, using default TTL={ttl}")
+                self.logger.info(f"🎯 Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
                 
                 payload = bytes(packet.payload)
                 success = False
+
                 if self._is_udp(packet) and packet.dst_port == 443:
-                    segments = self.quic_handler.split_quic_initial(
-                        payload, [10, 25, 40]
-                    )
+                    segments = self.quic_handler.split_quic_initial(payload, [10, 25, 40])
                     success = self._send_segments(packet, w, segments)
+                    if not success: w.send(packet)
                     return
 
-                # Совместимость параметров: split_seqovl -> overlap_size
-                if "overlap_size" not in params and "split_seqovl" in params:
-                    try:
-                        params["overlap_size"] = int(params["split_seqovl"])
-                    except Exception:
-                        pass
-
-                # Нормализуем fooling к списку строк
-                fooling_raw = params.get("fooling", [])
-                if isinstance(fooling_raw, str):
-                    params["fooling"] = [s.strip().lower() for s in re.split(r"[,;]", fooling_raw) if s.strip()]
-                elif isinstance(fooling_raw, list):
-                    params["fooling"] = [str(x).lower() for x in fooling_raw]
-                else:
-                    params["fooling"] = []
-
                 if params.get("split_pos") == "midsld":
-                    resolved_pos = self._resolve_midsld_pos(payload)
-                    if resolved_pos:
-                        params["split_pos"] = resolved_pos
-                        self.logger.debug(
-                            f"Resolved 'midsld' to absolute position: {resolved_pos}"
-                        )
-                    else:
-                        self.logger.warning(
-                            "Could not resolve 'midsld', falling back to default position 3."
-                        )
-                        params["split_pos"] = 3
+                    params["split_pos"] = self._resolve_midsld_pos(payload) or 3
+
                 if task_type == "fakeddisorder":
-                    # Flow guard: не инжектим повторно тот же поток в течение короткого окна
+                    # --- Логика с калибратором и ранней остановкой ---
                     flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
                     if flow_id in self._active_flows:
-                        self.logger.debug("Flow already processed recently, forwarding original")
+                        self.logger.debug("Flow already processed, forwarding original")
                         w.send(packet)
                         return
                     self._active_flows.add(flow_id)
-                    # таймер очистки
                     threading.Timer(self._flow_ttl_sec, lambda: self._active_flows.discard(flow_id)).start()
 
-                    # Heuristics для TLS ClientHello
+                    inbound_ev = self._get_inbound_event_for_flow(packet)
+                    rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
+                    if inbound_ev.is_set(): inbound_ev.clear()
+                    self._inbound_results.pop(rev_key, None)
+
                     is_tls_ch = (len(payload) > 6 and payload[0] == 22 and payload[5] == 1)
-                    if is_tls_ch:
-                        sp = params.get("split_pos")
-                        ov = params.get("overlap_size") or params.get("split_seqovl")
-                        if sp is None or sp < 20:
-                            params["split_pos"] = 76
-                            self.logger.info("TLS heuristic: split_pos -> 76")
-                        try:
-                            ov_int = int(ov) if ov is not None else None
-                        except Exception:
-                            ov_int = None
-                        if ov_int is None or ov_int < 8:
-                            params["overlap_size"] = 336
-                            self.logger.info("TLS heuristic: overlap_size -> 336")
-                        else:
-                            params["overlap_size"] = ov_int
-                    self.logger.info(f"✅ Применяем fakeddisorder (zapret-like) с параметрами: {params}")
-                    split_pos = int(params.get("split_pos", 76))
-                    overlap = int(params.get("overlap_size", 336))
-                    # Готовим части
-                    part1 = payload[:split_pos] if split_pos <= len(payload) else payload
-                    part2 = payload[split_pos:] if split_pos <= len(payload) else b""
-                    eff_ov = min(overlap, len(part1), len(part2), split_pos) if part2 else 0
-                    offset_part2 = split_pos
-                    offset_part1 = split_pos - eff_ov if part2 else 0
-                    # 1) aligned fake по part2 с autottl
+                    init_sp = params.get("split_pos") or (76 if is_tls_ch else max(16, len(payload)//2))
+
+                    cand_list = Calibrator.prepare_candidates(payload, initial_split_pos=init_sp)
+                    if "split_pos" in params and "overlap_size" in params:
+                        head = CalibCandidate(split_pos=int(params["split_pos"]), overlap_size=int(params["overlap_size"]))
+                        cand_list.insert(0, head)
+
                     fooling_list = params.get("fooling", []) or []
-                    if autottl and isinstance(autottl, int) and autottl > 0:
-                        for fake_ttl in range(1, min(autottl, 8) + 1):
-                            self._send_aligned_fake_segment(packet, w, offset_part2, part2[:100] if part2 else part1[:100], fake_ttl, fooling_list)
-                            time.sleep(0.003)
-                    else:
-                        self._send_aligned_fake_segment(packet, w, offset_part2, part2[:100] if part2 else part1[:100], ttl, fooling_list)
-                        time.sleep(0.003)
-                    # 2) реальные сегменты: part2, затем part1 (disorder), оба с PSH+ACK и нормальным TTL
-                    segments = []
-                    if part2:
-                        segments.append((part2, offset_part2))
-                    if part1:
-                        segments.append((part1, offset_part1))
-                    # Нормальный TTL для real
-                    base_ttl = bytearray(packet.raw)[8]
-                    self.current_params["real_ttl"] = base_ttl if 1 <= base_ttl <= 255 else 64
-                    success = self._send_segments(packet, w, segments)
+                    autottl = params.get("autottl")
+                    ttl_list = list(range(1, min(int(autottl), 8) + 1)) if autottl else [self.current_params["fake_ttl"]]
+
+                    best_cand = None
+                    for cand in cand_list:
+                        for t in ttl_list:
+                            self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:100], t, fooling_list)
+                            time.sleep(0.002)
+
+                        segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
+                        self._send_segments(packet, w, segments)
+
+                        got_inbound = inbound_ev.wait(timeout=0.20)
+                        if got_inbound:
+                            outcome = self._inbound_results.get(rev_key)
+                            if outcome == "ok":
+                                self.logger.info(f"✅ Calibrator: early success with sp={cand.split_pos}, ov={cand.overlap_size}")
+                                best_cand = cand
+                                break
+                            self.logger.debug(f"Calibrator: got '{outcome}', trying next candidate.")
+                            inbound_ev.clear()
+                            self._inbound_results.pop(rev_key, None)
+
+                    if best_cand and StrategyManager:
+                        try:
+                            sm = StrategyManager()
+                            sni = self._extract_sni(payload)
+                            key_domain = getattr(packet, "domain", sni or packet.dst_addr)
+                            strategy_str = f"fakeddisorder(overlap_size={best_cand.overlap_size}, split_pos={best_cand.split_pos})"
+                            sm.add_strategy(
+                                key_domain,
+                                strategy_str,
+                                1.0,
+                                200.0,  # success_rate, avg_latency_ms
+                                # Pass micro-parameters to be stored
+                                split_pos=best_cand.split_pos,
+                                overlap_size=best_cand.overlap_size,
+                                fooling_modes=fooling_list,
+                                fake_ttl_source=autottl or self.current_params.get("fake_ttl")
+                            )
+                            sm.save_strategies()
+                            self.logger.info(f"Saved best params for {key_domain} via StrategyManager.")
+                        except Exception as e:
+                            self.logger.debug(f"StrategyManager immediate update failed: {e}")
+
+                    success = (best_cand is not None)
+                    if not success:
+                        self.logger.warning("Calibrator sweep finished with no success. Will fall back to sending original packet.")
+
+                # --- Остальные типы атак (логика сохранена для совместимости) ---
                 elif task_type == "multisplit":
+                    ttl = self.current_params.get("fake_ttl")
                     is_meta_ip = any(
-                        (
-                            packet.dst_addr.startswith(prefix)
-                            for prefix in ["157.240.", "69.171.", "31.13."]
-                        )
+                        (packet.dst_addr.startswith(prefix) for prefix in ["157.240.", "69.171.", "31.13."])
                     )
-                    is_twitter_ip = packet.dst_addr.startswith(
-                        "104.244."
-                    ) or packet.dst_addr.startswith("199.59.")
+                    is_twitter_ip = packet.dst_addr.startswith("104.244.") or packet.dst_addr.startswith("199.59.")
                     if is_meta_ip or is_twitter_ip:
                         for fake_ttl in [ttl - 1, ttl, ttl + 1]:
-                            self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params["fake_ttl"])
+                            self._send_fake_packet_with_badsum(packet, w, ttl=fake_ttl)
                             time.sleep(0.002)
-                        segments = self.techniques.apply_multisplit(
-                            payload, params.get("positions", [6, 14, 26, 42, 64])
-                        )
+                        segments = self.techniques.apply_multisplit(payload, params.get("positions", [6, 14, 26, 42, 64]))
                         success = self._send_segments(packet, w, segments)
                         time.sleep(0.002)
                         self._send_fake_packet_with_badsum(packet, w, ttl=ttl + 2)
                     else:
                         if params.get("fooling") == "badsum":
-                            self._send_fake_packet_with_badsum(
-                                packet, w, ttl=ttl if ttl else 3
-                            )
+                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl)
                             time.sleep(0.005)
-                        segments = self.techniques.apply_multisplit(
-                            payload, params.get("positions", [10, 25, 40, 55, 70])
-                        )
+                        segments = self.techniques.apply_multisplit(payload, params.get("positions", [10, 25, 40, 55, 70]))
                         success = self._send_segments(packet, w, segments)
                         if params.get("fooling") == "badsum":
                             time.sleep(0.003)
-                            self._send_fake_packet_with_badsum(
-                                packet, w, ttl=ttl + 1 if ttl else 4
-                            )
+                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl + 1)
                 elif task_type == "multidisorder":
-                    self._send_fake_packet(packet, w, ttl=ttl if ttl else 2)
-                    segments = self.techniques.apply_multidisorder(
-                        payload, params.get("positions", [10, 25, 40])
-                    )
+                    self._send_fake_packet(packet, w, ttl=self.current_params.get("fake_ttl"))
+                    segments = self.techniques.apply_multidisorder(payload, params.get("positions", [10, 25, 40]))
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "seqovl":
                     if params.get("fooling") == "badsum":
-                        self._send_fake_packet_with_badsum(
-                            packet, w, ttl=ttl if ttl else 3
-                        )
+                        self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params.get("fake_ttl"))
                         time.sleep(0.003)
                     segments = self.techniques.apply_seqovl(
-                        payload,
-                        params.get("split_pos", 3),
-                        params.get("overlap_size", 20),
+                        payload, params.get("split_pos", 3), params.get("overlap_size", 20)
                     )
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "tlsrec_split":
-                    modified_payload = self.techniques.apply_tlsrec_split(
-                        payload, params.get("split_pos", 5)
-                    )
+                    modified_payload = self.techniques.apply_tlsrec_split(payload, params.get("split_pos", 5))
                     success = self._send_modified_packet(packet, w, modified_payload)
                 elif task_type == "wssize_limit":
-                    segments = self.techniques.apply_wssize_limit(
-                        payload, params.get("window_size", 2)
-                    )
+                    segments = self.techniques.apply_wssize_limit(payload, params.get("window_size", 2))
                     success = self._send_segments_with_window(packet, w, segments)
                 elif task_type == "badsum_race":
-                    self._send_fake_packet_with_badsum(packet, w, ttl=ttl if ttl else 2)
+                    self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params.get("fake_ttl"))
                     time.sleep(0.005)
                     w.send(packet)
                     success = True
                 elif task_type == "md5sig_race":
-                    self._send_fake_packet_with_md5sig(packet, w, ttl=ttl if ttl else 3)
+                    self._send_fake_packet_with_md5sig(packet, w, ttl=self.current_params.get("fake_ttl"))
                     time.sleep(0.007)
                     w.send(packet)
                     success = True
                 else:
-                    self.logger.warning(
-                        f"Неизвестный тип задачи '{task_type}', применяем простую фрагментацию."
-                    )
+                    self.logger.warning(f"Неизвестный тип задачи '{task_type}', применяем простую фрагментацию.")
                     self._send_fragmented_fallback(packet, w)
                     success = True
+
                 if not success:
-                    self.logger.error(
-                        "Не удалось применить стратегию, отправляем оригинальный пакет."
-                    )
+                    self.logger.error("Strategy failed, sending original packet.")
                     w.send(packet)
+
             except Exception as e:
-                self.logger.error(
-                    f"❌ Ошибка применения bypass: {e}", exc_info=self.debug
-                )
+                self.logger.error(f"❌ Ошибка применения bypass: {e}", exc_info=self.debug)
                 w.send(packet)
 
         def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):

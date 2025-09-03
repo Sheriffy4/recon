@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple, Optional, Set, Any
 from urllib.parse import urlparse
 from recon.bypass_engine import BypassEngine
 from recon.zapret_parser import ZapretStrategyParser
+from core.attacks.alias_map import normalize_attack_name
 try:
     from recon.bypass.attacks.modern_registry import ModernAttackRegistry
     from recon.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
@@ -80,20 +81,22 @@ class HybridEngine:
         """
         ИСПРАВЛЕНИЕ: Унифицированный и надежный транслятор zapret-строки в задачу для BypassEngine.
         """
-        desync = params.get('dpi_desync', [])
-        fooling = params.get('dpi_desync_fooling', [])
+        # Нормализуем имена атак для консистентности
+        desync = [normalize_attack_name(d) for d in params.get('dpi_desync', [])]
+        fooling = [normalize_attack_name(f) for f in params.get('dpi_desync_fooling', [])]
+
         if not desync:
             return None
         task_type = 'none'
         task_params = {}
         if 'fakeddisorder' in desync:
-            task_type = 'fakedisorder'
+            task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
             task_type = 'multidisorder'
         elif 'multisplit' in desync:
             task_type = 'multisplit'
-        elif 'disorder' in desync or 'disorder2' in desync:
-            task_type = 'fakedisorder'
+        elif 'disorder' in desync or 'disorder2' in desync: # Legacy aliases
+            task_type = 'fakeddisorder'
         if task_type in ['fakedisorder', 'multidisorder', 'multisplit']:
             split_pos_raw = params.get('dpi_desync_split_pos', [])
             if any((p.get('type') == 'midsld' for p in split_pos_raw)):
