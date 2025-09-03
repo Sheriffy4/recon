@@ -1952,6 +1952,37 @@ async def run_hybrid_mode(args):
         console.print(
             "   Try increasing the number of strategies with `--count` or check if zapret tools are properly installed."
         )
+        # Авто-PCAP захват на фейле (если не включен вручную)
+        try:
+            if SCAPY_AVAILABLE and not args.pcap:
+                console.print("[dim]📡 Auto-capture: starting short PCAP (8s) for failure profiling...[/dim]")
+                auto_pcap = f"recon_autofail_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap"
+                bpf = build_bpf_from_ips(set(dns_cache.values()), args.port)
+                cap = PacketCapturer(auto_pcap, bpf=bpf, iface=args.capture_iface, max_seconds=8)
+                cap.start()
+                # Запустим ещё один baseline для генерации ClientHello во время захвата
+                try:
+                    await hybrid_engine.test_baseline_connectivity(dm.domains, dns_cache)
+                except Exception:
+                    pass
+                cap.stop()
+                console.print(f"[green]✓ Auto-capture saved to {auto_pcap}[/green]")
+                if PROFILER_AVAILABLE:
+                    try:
+                        profiler = AdvancedTrafficProfiler()
+                        res = profiler.analyze_pcap_file(auto_pcap)
+                        if res and res.success:
+                            console.print("[bold]🧪 Auto PCAP profiling summary[/bold]")
+                            apps = ", ".join(res.detected_applications) or "none"
+                            ctx = res.metadata.get("context", {})
+                            console.print(f"  Apps: [cyan]{apps}[/cyan]")
+                            console.print(
+                                f"  TLS ClientHello: {ctx.get('tls_client_hello',0)}, Alerts: {ctx.get('tls_alert_count',0)}, QUIC: {ctx.get('quic_initial_count',0)}"
+                            )
+                    except Exception as e:
+                        console.print(f"[yellow]⚠️ Auto profiling failed: {e}[/yellow]")
+        except Exception:
+            pass
     else:
         console.print(
             f"\n[bold green]✓ Found {len(working_strategies)} working strategies![/bold green]"
