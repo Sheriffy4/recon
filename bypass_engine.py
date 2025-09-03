@@ -573,9 +573,33 @@ if platform.system() == "Windows":
             CRITICAL TTL FIX: Added comprehensive TTL logging and validation.
             """
             try:
-                task_type = strategy_task.get("type")
                 params = strategy_task.get("params", {}).copy()
                 self.current_params = params
+                task_type = normalize_attack_name(strategy_task.get("type"))
+
+                # --- Улучшенная логика TTL ---
+                # 1. Определяем TTL для фейковых пакетов
+                fake_ttl_source = params.get("autottl") or params.get("ttl")
+                if fake_ttl_source is not None:
+                    try:
+                        fake_ttl = int(fake_ttl_source)
+                        if not (1 <= fake_ttl <= 255):
+                            self.logger.warning(f"Invalid fake TTL {fake_ttl}, using default 1 for fakes.")
+                            fake_ttl = 1
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid fake TTL format '{fake_ttl_source}', using default 1.")
+                        fake_ttl = 1
+                else:
+                    # Дефолтный TTL для фейков, если не задан
+                    fake_ttl = 1 if task_type == "fakeddisorder" else 3
+                self.current_params["fake_ttl"] = fake_ttl
+                self.logger.info(f"TTL for FAKE packets set to: {fake_ttl}")
+
+                # 2. Определяем TTL для реальных сегментов (всегда используем исходный)
+                original_ttl = bytearray(packet.raw)[8]
+                real_ttl = original_ttl if 1 <= original_ttl <= 255 else 64
+                self.current_params["real_ttl"] = real_ttl
+                self.logger.info(f"TTL for REAL segments set to: {real_ttl} (from original packet)")
                 
                 # CRITICAL TTL FIX: Extract and log TTL parameter
                 ttl = params.get("ttl")
@@ -720,7 +744,7 @@ if platform.system() == "Windows":
                     ) or packet.dst_addr.startswith("199.59.")
                     if is_meta_ip or is_twitter_ip:
                         for fake_ttl in [ttl - 1, ttl, ttl + 1]:
-                            self._send_fake_packet_with_badsum(packet, w, ttl=fake_ttl)
+                            self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params["fake_ttl"])
                             time.sleep(0.002)
                         segments = self.techniques.apply_multisplit(
                             payload, params.get("positions", [6, 14, 26, 42, 64])
