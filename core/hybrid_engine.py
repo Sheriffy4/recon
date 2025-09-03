@@ -159,6 +159,25 @@ class HybridEngine:
             return None
         return {'type': task_type, 'params': task_params}
 
+    def _task_to_str(self, task: Dict[str, Any]) -> str:
+        try:
+            t = task.get('type') or task.get('name') or 'unknown'
+            p = task.get('params', {})
+            return f"{t}({', '.join(f'{k}={v}' for k,v in p.items())})"
+        except Exception:
+            return str(task)
+
+    def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        # Если уже dict — нормализуем ключи и возвращаем
+        if isinstance(strategy, dict):
+            t = strategy.get('type') or strategy.get('name')
+            if not t:
+                return None
+            return {'type': t, 'params': strategy.get('params', {})}
+        # Иначе — это строка zapret-стиля
+        parsed_params = self.parser.parse(strategy)
+        return self._translate_zapret_to_engine_task(parsed_params)
+
     async def _test_sites_connectivity(self, sites: List[str], dns_cache: Dict[str, str], max_concurrent: int=10) -> Dict[str, Tuple[str, str, float, int]]:
         """
         ИСПРАВЛЕНИЕ: Более устойчивый тестовый клиент на aiohttp с принудительным DNS и увеличенными таймаутами.
@@ -219,13 +238,12 @@ class HybridEngine:
         LOG.info('Тестируем базовую доступность сайтов (без bypass) с DNS-кэшем...')
         return await self._test_sites_connectivity(test_sites, dns_cache)
 
-    async def execute_strategy_real_world(self, strategy_str: str, test_sites: List[str], target_ips: Set[str], dns_cache: Dict[str, str], target_port: int=443, initial_ttl: Optional[int]=None, fingerprint: Optional[DPIFingerprint]=None) -> Tuple[str, int, int, float]:
+    async def execute_strategy_real_world(self, strategy: Union[str, Dict[str, Any]], test_sites: List[str], target_ips: Set[str], dns_cache: Dict[str, str], target_port: int=443, initial_ttl: Optional[int]=None, fingerprint: Optional[DPIFingerprint]=None) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
         Теперь с поддержкой контекстной информации от фингерпринтинга.
         """
-        parsed_params = self.parser.parse(strategy_str)
-        engine_task = self._translate_zapret_to_engine_task(parsed_params)
+        engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
         bypass_engine = BypassEngine(debug=self.debug)
@@ -278,7 +296,7 @@ class HybridEngine:
                 bypass_thread.join(timeout=2.0)
             await asyncio.sleep(0.5)
 
-    async def test_strategies_hybrid(self, strategies: List[str], test_sites: List[str], ips: Set[str], dns_cache: Dict[str, str], port: int, domain: str, fast_filter: bool=True, initial_ttl: Optional[int]=None, enable_fingerprinting: bool=True, use_modern_engine: bool=True) -> List[Dict]:
+    async def test_strategies_hybrid(self, strategies: List[Union[str, Dict[str, Any]]], test_sites: List[str], ips: Set[str], dns_cache: Dict[str, str], port: int, domain: str, fast_filter: bool=True, initial_ttl: Optional[int]=None, enable_fingerprinting: bool=True, use_modern_engine: bool=True) -> List[Dict]:
         """
         Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
         1. Выполняет фингерпринтинг DPI для целевого домена
@@ -329,10 +347,12 @@ class HybridEngine:
             LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
         for i, strategy in enumerate(strategies_to_test):
-            LOG.info(f'--> Тест {i + 1}/{len(strategies_to_test)}: {strategy}')
-            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(strategy, test_sites, ips, dns_cache, port, initial_ttl)
+            pretty = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
+            LOG.info(f'--> Тест {i + 1}/{len(strategies_to_test)}: {pretty}')
+            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint)
             success_rate = successful_count / total_count if total_count > 0 else 0.0
-            result_data = {'strategy': strategy, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
+            result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
+
             results.append(result_data)
             if success_rate > 0:
                 LOG.info(f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms')

@@ -9,6 +9,7 @@ import time
 import threading
 import logging
 import struct
+import random
 import re
 from typing import List, Dict, Optional, Tuple, Set, Any
 from core.bypass.attacks.base import AttackResult, AttackStatus
@@ -200,6 +201,11 @@ if platform.system() == "Windows":
             # For calibrator early stopping
             self._inbound_events: Dict[Tuple[str, int, str, int], threading.Event] = {}
             self._inbound_results: Dict[Tuple[str, int, str, int], str] = {}
+            # Ограничение параллельных инъекций и jitter
+            self._max_injections = 12
+            self._inject_sema = threading.Semaphore(self._max_injections)
+            # Профили по CDN: md5sig_allowed/badsum_allowed + лучшие параметры
+            self.cdn_profiles: Dict[str, Dict[str, Any]] = {}
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -234,8 +240,8 @@ if platform.system() == "Windows":
                 daemon=True,
             )
             thread.start()
-            # если есть контроллер — запускаем наблюдатель входящих пакетов
-            if self.controller and not self._inbound_thread:
+            # Всегда запускаем inbound-обсервер (нужен для ранней остановки калибратора)
+            if not self._inbound_thread:
                 self._inbound_thread = self._start_inbound_observer()
             return thread
 
@@ -431,6 +437,126 @@ if platform.system() == "Windows":
                 self.logger.debug(f"Error resolving midsld: {e}")
             return None
 
+        def _classify_cdn(self, ip_str: str) -> str:
+            """Грубая классификация CDN по префиксам."""
+            mapping = {
+                "104.": "cloudflare",
+                "172.64.": "cloudflare", "172.67.": "cloudflare",
+                "162.158.": "cloudflare", "162.159.": "cloudflare",
+                "151.101.": "fastly",
+                "199.232.": "fastly",
+                "23.": "akamai",
+                "2.16.": "akamai", "95.100.": "akamai",
+                "54.192.": "cloudfront", "54.230.": "cloudfront", "54.239.": "cloudfront", "54.182.": "cloudfront",
+                "216.58.": "google", "172.217.": "google", "142.250.": "google", "172.253.": "google",
+                "157.240.": "meta", "69.171.": "meta", "31.13.": "meta",
+                "77.88.": "yandex", "5.255.": "yandex",
+                "104.244.": "twitter", "199.59.": "twitter",
+                "91.108.": "telegram", "149.154.": "telegram",
+                "13.107.": "microsoft", "40.96.": "microsoft", "40.97.": "microsoft", "40.98.": "microsoft", "40.99.": "microsoft",
+                "104.131.": "digitalocean", "104.236.": "digitalocean",
+            }
+            for pref, name in mapping.items():
+                if ip_str.startswith(pref):
+                    return name
+            return "generic"
+
+        def _get_cdn_profile(self, cdn: str) -> Dict[str, Any]:
+            prof = self.cdn_profiles.get(cdn)
+            if not prof:
+                prof = {"md5sig_allowed": None, "badsum_allowed": None, "best_fakeddisorder": None}
+                self.cdn_profiles[cdn] = prof
+            return prof
+
+        def _estimate_split_pos_from_ch(self, payload: bytes) -> Optional[int]:
+            """Оценивает разумный split_pos из структуры TLS ClientHello."""
+            try:
+                if not self._is_tls_clienthello(payload):
+                    return None
+                # TLS record (5), HandshakeType=1 @ [5], len[6:9]
+                if len(payload) < 43:
+                    return None
+                # Handshake header
+                if payload[5] != 0x01:
+                    return None
+                pos = 9  # after hs header(4)
+                # legacy_version(2) + random(32)
+                pos += 2 + 32
+                if pos + 1 >= len(payload):
+                    return None
+                # session_id
+                sid_len = payload[pos]
+                pos += 1 + sid_len
+                if pos + 2 > len(payload):
+                    return None
+                # cipher_suites
+                cs_len = int.from_bytes(payload[pos:pos+2], "big")
+                pos += 2 + cs_len
+                if pos + 1 > len(payload):
+                    return None
+                # compression
+                comp_len = payload[pos]
+                pos += 1 + comp_len
+                if pos + 2 > len(payload):
+                    return None
+                # extensions
+                ext_len = int.from_bytes(payload[pos:pos+2], "big")
+                ext_start = pos + 2
+                if ext_start + ext_len > len(payload):
+                    ext_len = max(0, len(payload) - ext_start)
+                # Попробуем найти SNI внутри extensions
+                s = ext_start
+                sni_mid_abs = None
+                while s + 4 <= ext_start + ext_len:
+                    etype = int.from_bytes(payload[s:s+2], "big")
+                    elen = int.from_bytes(payload[s+2:s+4], "big")
+                    epos = s + 4
+                    if epos + elen > len(payload):
+                        break
+                    if etype == 0 and elen >= 5:
+                        # server_name
+                        try:
+                            list_len = int.from_bytes(payload[epos:epos+2], "big")
+                            npos = epos + 2
+                            if npos + list_len <= epos + elen:
+                                if npos + 3 <= len(payload):
+                                    ntype = payload[npos]
+                                    nlen = int.from_bytes(payload[npos+1:npos+3], "big")
+                                    nstart = npos + 3
+                                    if ntype == 0 and nstart + nlen <= len(payload):
+                                        # середина SLD
+                                        try:
+                                            name = payload[nstart:nstart+nlen].decode("idna")
+                                            parts = name.split(".")
+                                            if len(parts) >= 2:
+                                                sld = parts[-2]
+                                                sld_start_dom = name.rfind(sld)
+                                                sld_mid = sld_start_dom + len(sld)//2
+                                                sni_mid_abs = nstart + sld_mid
+                                        except Exception:
+                                            pass
+                        except Exception:
+                            pass
+                        break
+                    s = epos + elen
+                # Выбор split_pos:
+                if sni_mid_abs:
+                    sp = max(32, min(sni_mid_abs, len(payload)-1))
+                else:
+                    # немного внутрь extensions
+                    sp = max(48, min(ext_start + min(32, ext_len//8), len(payload)-1))
+                return sp
+            except Exception:
+                return None
+
+        def _estimate_overlap(self, part1_len: int, part2_len: int, split_pos: int) -> int:
+            """Оценивает overlap с приоритетом 336, затем 160, затем безопасный минимум."""
+            cap = min(part1_len, part2_len, split_pos)
+            for cand in (336, 160, 96, 64, 32):
+                if cap >= cand:
+                    return cand
+            return max(8, min(cap, 24))
+
         def _get_inbound_event_for_flow(self, packet: "pydivert.Packet") -> threading.Event:
             rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
             with self._lock:
@@ -610,6 +736,12 @@ if platform.system() == "Windows":
             и централизованную логику.
             """
             try:
+                # Лимит параллельных инъекций
+                acquired = self._inject_sema.acquire(timeout=0.5)
+                if not acquired:
+                    self.logger.debug("Injection semaphore limit reached, forwarding original")
+                    w.send(packet)
+                    return
                 params = strategy_task.get("params", {}).copy()
                 self.current_params = params
                 task_type = normalize_attack_name(strategy_task.get("type"))
@@ -665,8 +797,10 @@ if platform.system() == "Windows":
                     if inbound_ev.is_set(): inbound_ev.clear()
                     self._inbound_results.pop(rev_key, None)
 
-                    is_tls_ch = (len(payload) > 6 and payload[0] == 22 and payload[5] == 1)
-                    init_sp = params.get("split_pos") or (76 if is_tls_ch else max(16, len(payload)//2))
+                    is_tls_ch = self._is_tls_clienthello(payload)
+                    # Оценка split_pos по структуре CH
+                    sp_guess = self._estimate_split_pos_from_ch(payload) if is_tls_ch else None
+                    init_sp = params.get("split_pos") or sp_guess or (76 if is_tls_ch else max(16, len(payload)//2))
 
                     # Seed из StrategyManager
                     seed = None
@@ -691,7 +825,38 @@ if platform.system() == "Windows":
                         head = CalibCandidate(split_pos=int(params["split_pos"]), overlap_size=int(params["overlap_size"]))
                         cand_list = [head] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (head.split_pos, head.overlap_size)]
 
+                    # Предпробинг fooling по CDN
+                    cdn = self._classify_cdn(packet.dst_addr)
+                    prof = self._get_cdn_profile(cdn)
                     fooling_list = params.get("fooling", []) or []
+                    if isinstance(fooling_list, str):
+                        fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
+                    # Если не задано явно — пробуем автоматом оценить совместимость md5sig/badsum
+                    try:
+                        inbound_ev = self._get_inbound_event_for_flow(packet)
+                        if inbound_ev.is_set(): inbound_ev.clear()
+                        rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
+                        self._inbound_results.pop(rev_key, None)
+                        # md5sig
+                        if prof["md5sig_allowed"] is None:
+                            self._send_aligned_fake_segment(packet, w, init_sp, b"", max(1, self.current_params["fake_ttl"]), ["md5sig"])
+                            got = inbound_ev.wait(timeout=0.2)
+                            outcome = self._inbound_results.pop(rev_key, None) if got else None
+                            prof["md5sig_allowed"] = (outcome != "rst")
+                        # badsum
+                        if prof["badsum_allowed"] is None:
+                            inbound_ev.clear()
+                            self._send_aligned_fake_segment(packet, w, init_sp, b"", max(1, self.current_params["fake_ttl"]), ["badsum"])
+                            got = inbound_ev.wait(timeout=0.2)
+                            outcome = self._inbound_results.pop(rev_key, None) if got else None
+                            prof["badsum_allowed"] = (outcome != "rst")
+                    except Exception:
+                        pass
+                    # Фильтруем запрещённые режимы
+                    if "md5sig" in fooling_list and prof["md5sig_allowed"] is False:
+                        fooling_list = [f for f in fooling_list if f != "md5sig"]
+                    if "badsum" in fooling_list and prof["badsum_allowed"] is False:
+                        fooling_list = [f for f in fooling_list if f != "badsum"]
                     autottl = params.get("autottl")
                     ttl_list = list(range(1, min(int(autottl), 8) + 1)) if autottl else [self.current_params["fake_ttl"]]
 
@@ -701,7 +866,7 @@ if platform.system() == "Windows":
                         for t in ttl_list:
                             for d_ms in (1, 2, 3): # мини-сетка задержек
                                 self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], t, fooling_list)
-                                time.sleep(d_ms / 1000.0)
+                                time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
                                 self.current_params["delay_ms"] = d_ms
 
                                 segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
@@ -751,7 +916,26 @@ if platform.system() == "Windows":
 
                     success = (best_cand is not None)
                     if not success:
-                        self.logger.warning("Calibrator sweep finished with no success. Will fall back to sending original packet.")
+                        # Фоллбэк: пробуем seqovl, затем multisplit
+                        self.logger.warning("Calibrator failed. Trying fallbacks (seqovl -> multisplit)...")
+                        try:
+                            sp_fb = init_sp
+                            ov_fb = params.get("overlap_size", 20)
+                            segments = self.techniques.apply_seqovl(payload, sp_fb, ov_fb)
+                            if self._send_segments(packet, w, segments):
+                                # чуть подождём входящий
+                                _ev = self._get_inbound_event_for_flow(packet)
+                                if _ev.wait(timeout=0.25) and self._inbound_results.get(rev_key) == "ok":
+                                    success = True
+                            if not success:
+                                positions = [max(6, sp_fb//4), max(12, sp_fb//2), max(18, (3*sp_fb)//4)]
+                                segments = self.techniques.apply_multisplit(payload, positions)
+                                if self._send_segments(packet, w, segments):
+                                    _ev = self._get_inbound_event_for_flow(packet)
+                                    if _ev.wait(timeout=0.25) and self._inbound_results.get(rev_key) == "ok":
+                                        success = True
+                        except Exception:
+                            pass
 
                 # --- Остальные типы атак (логика сохранена для совместимости) ---
                 elif task_type == "multisplit":
@@ -817,6 +1001,11 @@ if platform.system() == "Windows":
             except Exception as e:
                 self.logger.error(f"❌ Ошибка применения bypass: {e}", exc_info=self.debug)
                 w.send(packet)
+            finally:
+                try:
+                    self._inject_sema.release()
+                except Exception:
+                    pass
 
         def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):
             """
