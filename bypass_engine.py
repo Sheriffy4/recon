@@ -668,34 +668,63 @@ if platform.system() == "Windows":
                     is_tls_ch = (len(payload) > 6 and payload[0] == 22 and payload[5] == 1)
                     init_sp = params.get("split_pos") or (76 if is_tls_ch else max(16, len(payload)//2))
 
+                    # Seed из StrategyManager
+                    seed = None
+                    if StrategyManager:
+                        try:
+                            sm = StrategyManager()
+                            sni = self._extract_sni(payload)
+                            key_domain = getattr(packet, "domain", None) or sni or packet.dst_addr
+                            ds = sm.get_strategy(key_domain)
+                            if ds and ds.split_pos and ds.overlap_size:
+                                seed = CalibCandidate(split_pos=int(ds.split_pos), overlap_size=int(ds.overlap_size))
+                                self.logger.info(f"Calibrator seed from StrategyManager: sp={seed.split_pos}, ov={seed.overlap_size}")
+                        except Exception as e:
+                            self.logger.debug(f"Seed fetch failed: {e}")
+
+                    # Подготовка кандидатов
                     cand_list = Calibrator.prepare_candidates(payload, initial_split_pos=init_sp)
-                    if "split_pos" in params and "overlap_size" in params:
+                    if seed:
+                        cand_list = [seed] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (seed.split_pos, seed.overlap_size)]
+                    elif "split_pos" in params and "overlap_size" in params:
+                        # Fallback to params from the strategy string if no seed from learning
                         head = CalibCandidate(split_pos=int(params["split_pos"]), overlap_size=int(params["overlap_size"]))
-                        cand_list.insert(0, head)
+                        cand_list = [head] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (head.split_pos, head.overlap_size)]
 
                     fooling_list = params.get("fooling", []) or []
                     autottl = params.get("autottl")
                     ttl_list = list(range(1, min(int(autottl), 8) + 1)) if autottl else [self.current_params["fake_ttl"]]
 
                     best_cand = None
+                    got_inbound = False
                     for cand in cand_list:
                         for t in ttl_list:
-                            self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:100], t, fooling_list)
-                            time.sleep(0.002)
+                            for d_ms in (1, 2, 3): # мини-сетка задержек
+                                self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], t, fooling_list)
+                                time.sleep(d_ms / 1000.0)
+                                self.current_params["delay_ms"] = d_ms
 
-                        segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
-                        self._send_segments(packet, w, segments)
+                                segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
+                                self._send_segments(packet, w, segments)
 
-                        got_inbound = inbound_ev.wait(timeout=0.20)
-                        if got_inbound:
-                            outcome = self._inbound_results.get(rev_key)
-                            if outcome == "ok":
-                                self.logger.info(f"✅ Calibrator: early success with sp={cand.split_pos}, ov={cand.overlap_size}")
-                                best_cand = cand
-                                break
-                            self.logger.debug(f"Calibrator: got '{outcome}', trying next candidate.")
-                            inbound_ev.clear()
-                            self._inbound_results.pop(rev_key, None)
+                                got_inbound = inbound_ev.wait(timeout=0.25)
+                                if got_inbound:
+                                    outcome = self._inbound_results.get(rev_key)
+                                    if outcome == "ok":
+                                        self.logger.info(f"✅ Calibrator: early success with sp={cand.split_pos}, ov={cand.overlap_size}, delay={d_ms}ms, ttl={t}")
+                                        best_cand = cand
+                                        # Cleanup after success
+                                        with self._lock:
+                                            self._inbound_events.pop(rev_key, None)
+                                            self._inbound_results.pop(rev_key, None)
+                                        break
+                                    else:
+                                        self.logger.debug(f"Calibrator: got '{outcome}', trying next params.")
+                                        inbound_ev.clear()
+                                        with self._lock:
+                                            self._inbound_results.pop(rev_key, None)
+                            if got_inbound: break
+                        if got_inbound: break
 
                     if best_cand and StrategyManager:
                         try:
@@ -712,7 +741,8 @@ if platform.system() == "Windows":
                                 split_pos=best_cand.split_pos,
                                 overlap_size=best_cand.overlap_size,
                                 fooling_modes=fooling_list,
-                                fake_ttl_source=autottl or self.current_params.get("fake_ttl")
+                                fake_ttl_source=autottl or self.current_params.get("fake_ttl"),
+                                delay_ms=self.current_params.get("delay_ms", 2)
                             )
                             sm.save_strategies()
                             self.logger.info(f"Saved best params for {key_domain} via StrategyManager.")
@@ -832,9 +862,12 @@ if platform.system() == "Windows":
 
                     tcp_hdr[14:16] = struct.pack("!H", reduced_win)
 
-                    # TTL: «низкий» TTL для второго сегмента в паре (fakeddisorder-подобная эвристика)
-                    low_ttl = self.current_params.get("ttl", 1)
-                    ip_hdr[8] = low_ttl if (i == 1 and len(segments) == 2) else base_ttl
+                    # TTL для реальных сегментов всегда берется из исходного пакета (base_ttl),
+                    # который уже установлен в ip_hdr. self.current_params["real_ttl"]
+                    # устанавливается в apply_bypass для информации и здесь не используется
+                    # напрямую, но base_ttl ему эквивалентен.
+                    # Старая логика с low_ttl удалена для консистентности.
+                    ip_hdr[8] = base_ttl
 
                     # IP ID
                     new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
