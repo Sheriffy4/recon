@@ -9,9 +9,25 @@ import time
 import threading
 import logging
 import struct
+import random
+import re
 from typing import List, Dict, Optional, Tuple, Set, Any
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from quic_handler import QuicHandler
+
+# Calibrator and alias map integration
+from core.bypass.attacks.alias_map import normalize_attack_name
+from core.calibration.calibrator import Calibrator, CalibCandidate
+try:
+    from core.strategy_manager import StrategyManager
+except (ImportError, ModuleNotFoundError):
+    try:
+        # Fallback to root strategy_manager if available
+        from strategy_manager import StrategyManager
+    except (ImportError, ModuleNotFoundError):
+        StrategyManager = None
+        logging.getLogger("BypassEngine").warning("StrategyManager could not be imported.")
+
 
 if platform.system() == "Windows":
     import pydivert
@@ -49,23 +65,11 @@ class BypassTechniques:
         part1, part2 = (payload[:split_pos], payload[split_pos:])
         
         if overlap_size > 0:
-            # ZAPRET ALGORITHM: Sequence overlap disorder
-            # Part2 goes first with positive offset (after split position)
-            # Part1 goes second with negative offset (creates overlap)
-            
-            # Calculate effective overlap (can't be larger than segments)
-            effective_overlap = min(overlap_size, len(part1), len(part2))
-            
-            # Zapret sequence calculation:
-            # - part2: seq = original_seq + split_pos (normal position)
-            # - part1: seq = original_seq - effective_overlap (creates overlap)
-            
-            segments = [
-                (part2, split_pos),           # Send part2 first (disorder)
-                (part1, -effective_overlap)   # Send part1 with overlap (zapret algorithm)
-            ]
-            
-            return segments
+            # Корректная формула overlap: part1 должен начинаться ДО part2, но не выходить в отрицательный SEQ
+            effective_overlap = min(overlap_size, len(part1), len(part2), split_pos)
+            offset_part2 = split_pos
+            offset_part1 = split_pos - effective_overlap  # не отрицательный!
+            return [(part2, offset_part2), (part1, offset_part1)]
         else:
             # Simple disorder without overlap (fallback)
             return [(part2, split_pos), (part1, 0)]
@@ -155,6 +159,7 @@ if platform.system() == "Windows":
             self.running = False
             self.techniques = BypassTechniques()
             self.logger = logging.getLogger("BypassEngine")
+            self.logger.info(f"BypassEngine from {self.__class__.__module__}")
             if debug:
                 if self.logger.level == logging.NOTSET:
                     self.logger.setLevel(logging.DEBUG)
@@ -183,10 +188,24 @@ if platform.system() == "Windows":
             self.quic_handler = QuicHandler(debug=debug)
             
             # Adaptive strategy controller and flow tracking
+            # Маркер для собственных инжекций (чтобы не перехватывать их повторно)
+            self._INJECT_MARK = 0xC0DE
+
             self.controller = None
             self.flow_table = {}
             self._lock = threading.Lock()
             self._inbound_thread = None
+            # Guard: чтобы не инжектить один и тот же поток многократно
+            self._active_flows: Set[Tuple[str,int,str,int]] = set()
+            self._flow_ttl_sec = 3.0
+            # For calibrator early stopping
+            self._inbound_events: Dict[Tuple[str, int, str, int], threading.Event] = {}
+            self._inbound_results: Dict[Tuple[str, int, str, int], str] = {}
+            # Ограничение параллельных инъекций и jitter
+            self._max_injections = 12
+            self._inject_sema = threading.Semaphore(self._max_injections)
+            # Профили по CDN: md5sig_allowed/badsum_allowed + лучшие параметры
+            self.cdn_profiles: Dict[str, Dict[str, Any]] = {}
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -221,8 +240,8 @@ if platform.system() == "Windows":
                 daemon=True,
             )
             thread.start()
-            # если есть контроллер — запускаем наблюдатель входящих пакетов
-            if self.controller and not self._inbound_thread:
+            # Всегда запускаем inbound-обсервер (нужен для ранней остановки калибратора)
+            if not self._inbound_thread:
                 self._inbound_thread = self._start_inbound_observer()
             return thread
 
@@ -418,6 +437,135 @@ if platform.system() == "Windows":
                 self.logger.debug(f"Error resolving midsld: {e}")
             return None
 
+        def _classify_cdn(self, ip_str: str) -> str:
+            """Грубая классификация CDN по префиксам."""
+            mapping = {
+                "104.": "cloudflare",
+                "172.64.": "cloudflare", "172.67.": "cloudflare",
+                "162.158.": "cloudflare", "162.159.": "cloudflare",
+                "151.101.": "fastly",
+                "199.232.": "fastly",
+                "23.": "akamai",
+                "2.16.": "akamai", "95.100.": "akamai",
+                "54.192.": "cloudfront", "54.230.": "cloudfront", "54.239.": "cloudfront", "54.182.": "cloudfront",
+                "216.58.": "google", "172.217.": "google", "142.250.": "google", "172.253.": "google",
+                "157.240.": "meta", "69.171.": "meta", "31.13.": "meta",
+                "77.88.": "yandex", "5.255.": "yandex",
+                "104.244.": "twitter", "199.59.": "twitter",
+                "91.108.": "telegram", "149.154.": "telegram",
+                "13.107.": "microsoft", "40.96.": "microsoft", "40.97.": "microsoft", "40.98.": "microsoft", "40.99.": "microsoft",
+                "104.131.": "digitalocean", "104.236.": "digitalocean",
+            }
+            for pref, name in mapping.items():
+                if ip_str.startswith(pref):
+                    return name
+            return "generic"
+
+        def _get_cdn_profile(self, cdn: str) -> Dict[str, Any]:
+            prof = self.cdn_profiles.get(cdn)
+            if not prof:
+                prof = {"md5sig_allowed": None, "badsum_allowed": None, "best_fakeddisorder": None}
+                self.cdn_profiles[cdn] = prof
+            return prof
+
+        def _estimate_split_pos_from_ch(self, payload: bytes) -> Optional[int]:
+            """Оценивает разумный split_pos из структуры TLS ClientHello."""
+            try:
+                if not self._is_tls_clienthello(payload):
+                    return None
+                # TLS record (5), HandshakeType=1 @ [5], len[6:9]
+                if len(payload) < 43:
+                    return None
+                # Handshake header
+                if payload[5] != 0x01:
+                    return None
+                pos = 9  # after hs header(4)
+                # legacy_version(2) + random(32)
+                pos += 2 + 32
+                if pos + 1 >= len(payload):
+                    return None
+                # session_id
+                sid_len = payload[pos]
+                pos += 1 + sid_len
+                if pos + 2 > len(payload):
+                    return None
+                # cipher_suites
+                cs_len = int.from_bytes(payload[pos:pos+2], "big")
+                pos += 2 + cs_len
+                if pos + 1 > len(payload):
+                    return None
+                # compression
+                comp_len = payload[pos]
+                pos += 1 + comp_len
+                if pos + 2 > len(payload):
+                    return None
+                # extensions
+                ext_len = int.from_bytes(payload[pos:pos+2], "big")
+                ext_start = pos + 2
+                if ext_start + ext_len > len(payload):
+                    ext_len = max(0, len(payload) - ext_start)
+                # Попробуем найти SNI внутри extensions
+                s = ext_start
+                sni_mid_abs = None
+                while s + 4 <= ext_start + ext_len:
+                    etype = int.from_bytes(payload[s:s+2], "big")
+                    elen = int.from_bytes(payload[s+2:s+4], "big")
+                    epos = s + 4
+                    if epos + elen > len(payload):
+                        break
+                    if etype == 0 and elen >= 5:
+                        # server_name
+                        try:
+                            list_len = int.from_bytes(payload[epos:epos+2], "big")
+                            npos = epos + 2
+                            if npos + list_len <= epos + elen:
+                                if npos + 3 <= len(payload):
+                                    ntype = payload[npos]
+                                    nlen = int.from_bytes(payload[npos+1:npos+3], "big")
+                                    nstart = npos + 3
+                                    if ntype == 0 and nstart + nlen <= len(payload):
+                                        # середина SLD
+                                        try:
+                                            name = payload[nstart:nstart+nlen].decode("idna")
+                                            parts = name.split(".")
+                                            if len(parts) >= 2:
+                                                sld = parts[-2]
+                                                sld_start_dom = name.rfind(sld)
+                                                sld_mid = sld_start_dom + len(sld)//2
+                                                sni_mid_abs = nstart + sld_mid
+                                        except Exception:
+                                            pass
+                        except Exception:
+                            pass
+                        break
+                    s = epos + elen
+                # Выбор split_pos:
+                if sni_mid_abs:
+                    sp = max(32, min(sni_mid_abs, len(payload)-1))
+                else:
+                    # немного внутрь extensions
+                    sp = max(48, min(ext_start + min(32, ext_len//8), len(payload)-1))
+                return sp
+            except Exception:
+                return None
+
+        def _estimate_overlap(self, part1_len: int, part2_len: int, split_pos: int) -> int:
+            """Оценивает overlap с приоритетом 336, затем 160, затем безопасный минимум."""
+            cap = min(part1_len, part2_len, split_pos)
+            for cand in (336, 160, 96, 64, 32):
+                if cap >= cand:
+                    return cand
+            return max(8, min(cap, 24))
+
+        def _get_inbound_event_for_flow(self, packet: "pydivert.Packet") -> threading.Event:
+            rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
+            with self._lock:
+                ev = self._inbound_events.get(rev_key)
+                if not ev:
+                    ev = threading.Event()
+                    self._inbound_events[rev_key] = ev
+                return ev
+
         def _start_inbound_observer(self):
             def run():
                 try:
@@ -436,13 +584,26 @@ if platform.system() == "Windows":
                                     outcome = "rst"
                             except Exception:
                                 pass
-                            if outcome and self.controller:
+
+                            if outcome:
                                 rev_key = (pkt.dst_addr, pkt.dst_port, pkt.src_addr, pkt.src_port)
-                                with self._lock:
-                                    info = self.flow_table.pop(rev_key, None)
-                                if info:
-                                    rtt_ms = int((time.time() - info["start_ts"]) * 1000)
-                                    self.controller.record_outcome(info["key"], info["strategy"], outcome, rtt_ms)
+                                # Signal early stopping event for calibrator
+                                try:
+                                    with self._lock:
+                                        ev = self._inbound_events.get(rev_key)
+                                    if ev:
+                                        self._inbound_results[rev_key] = outcome
+                                        ev.set()
+                                except Exception:
+                                    pass
+
+                                # Record outcome for adaptive controller
+                                if self.controller:
+                                    with self._lock:
+                                        info = self.flow_table.pop(rev_key, None)
+                                    if info:
+                                        rtt_ms = int((time.time() - info["start_ts"]) * 1000)
+                                        self.controller.record_outcome(info["key"], info["strategy"], outcome, rtt_ms)
                             wi.send(pkt)
                 except Exception as e:
                     if self.running:
@@ -457,10 +618,29 @@ if platform.system() == "Windows":
             self.logger.info(f"🔍 Фильтр pydivert: {filter_str}")
             try:
                 with pydivert.WinDivert(filter_str, priority=1000) as w:
+                    # Увеличим очереди WinDivert для снижения вероятности таймаутов 258
+                    try:
+                        from pydivert.windivert import WinDivertParam
+                        w.set_param(WinDivertParam.QueueLen, 8192)
+                        w.set_param(WinDivertParam.QueueTime, 2048)       # usec
+                        w.set_param(WinDivertParam.QueueSize, 64 * 1024)  # KB
+                        self.logger.debug("WinDivert queue params set: Len=8192, Time=2048, Size=64KB")
+                    except Exception as e:
+                        self.logger.debug(f"WinDivert set_param failed: {e}")
+
                     self.logger.info("✅ WinDivert запущен успешно.")
                     while self.running:
                         packet = w.recv()
                         if packet is None:
+                            continue
+                        # Не обрабатываем собственные инжектированные пакеты (по mark)
+                        try:
+                            pkt_mark = getattr(packet, "mark", 0)
+                        except Exception:
+                            pkt_mark = 0
+                        if pkt_mark == self._INJECT_MARK:
+                            # Просто пропускаем дальше в стек
+                            w.send(packet)
                             continue
                         self.stats["packets_captured"] += 1
                         if (
@@ -552,202 +732,280 @@ if platform.system() == "Windows":
             self, packet: pydivert.Packet, w: pydivert.WinDivert, strategy_task: Dict
         ):
             """
-            ИСПРАВЛЕНИЕ: Полностью переписанный диспетчер стратегий.
-            Теперь он корректно обрабатывает все типы задач, включая QUIC.
-            
-            CRITICAL TTL FIX: Added comprehensive TTL logging and validation.
+            Применяет стратегию обхода к пакету, используя калибратор, раннюю остановку
+            и централизованную логику.
             """
             try:
-                task_type = strategy_task.get("type")
+                # Лимит параллельных инъекций
+                acquired = self._inject_sema.acquire(timeout=0.5)
+                if not acquired:
+                    self.logger.debug("Injection semaphore limit reached, forwarding original")
+                    w.send(packet)
+                    return
                 params = strategy_task.get("params", {}).copy()
                 self.current_params = params
-                
-                # CRITICAL TTL FIX: Extract and log TTL parameter
-                ttl = params.get("ttl")
-                autottl = params.get("autottl")
-                
-                self.logger.info(
-                    f"🎯 Применяем обход для {packet.dst_addr} -> Тип: {task_type}, Параметры: {params}"
-                )
-                self.logger.info(f"🔍 TTL ANALYSIS: ttl={ttl}, autottl={autottl}")
-                
-                # CRITICAL TTL FIX: Validate TTL parameter
-                if ttl is not None:
-                    if not isinstance(ttl, int) or ttl < 1 or ttl > 255:
-                        self.logger.warning(f"❌ Invalid TTL value: {ttl}, using default 64")
-                        ttl = 64
-                    else:
-                        self.logger.info(f"✅ Using TTL={ttl} from strategy parameters")
-                elif autottl is not None:
-                    # For autottl, we'll use a range of values, but for now use the max
-                    ttl = autottl
-                    self.logger.info(f"✅ Using TTL={ttl} from autottl parameter")
+                task_type = normalize_attack_name(strategy_task.get("type"))
+
+                # --- Улучшенная логика TTL ---
+                fake_ttl_source = params.get("autottl") or params.get("ttl")
+                if fake_ttl_source is not None:
+                    try:
+                        fake_ttl = int(fake_ttl_source)
+                        if not (1 <= fake_ttl <= 255):
+                            self.logger.warning(f"Invalid fake TTL {fake_ttl}, using default 1 for fakes.")
+                            fake_ttl = 1
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid fake TTL format '{fake_ttl_source}', using default 1.")
+                        fake_ttl = 1
                 else:
-                    # Use a better default TTL (64 instead of 1)
-                    ttl = 64
-                    self.logger.info(f"⚠️ No TTL specified, using default TTL={ttl}")
+                    fake_ttl = 1 if task_type == "fakeddisorder" else 3
+                self.current_params["fake_ttl"] = fake_ttl
+                self.logger.info(f"Base TTL for FAKE packets set to: {fake_ttl}")
+
+                orig_ttl = bytearray(packet.raw)[8]
+                real_ttl = orig_ttl if 1 <= orig_ttl <= 255 else 64
+                self.current_params["real_ttl"] = real_ttl
+                self.logger.info(f"TTL for REAL segments set to: {real_ttl} (from original packet)")
+                # --- Конец логики TTL ---
+
+                self.logger.info(f"🎯 Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
                 
                 payload = bytes(packet.payload)
                 success = False
+
                 if self._is_udp(packet) and packet.dst_port == 443:
-                    segments = self.quic_handler.split_quic_initial(
-                        payload, [10, 25, 40]
-                    )
+                    segments = self.quic_handler.split_quic_initial(payload, [10, 25, 40])
                     success = self._send_segments(packet, w, segments)
+                    if not success: w.send(packet)
                     return
+
                 if params.get("split_pos") == "midsld":
-                    resolved_pos = self._resolve_midsld_pos(payload)
-                    if resolved_pos:
-                        params["split_pos"] = resolved_pos
-                        self.logger.debug(
-                            f"Resolved 'midsld' to absolute position: {resolved_pos}"
-                        )
-                    else:
-                        self.logger.warning(
-                            "Could not resolve 'midsld', falling back to default position 3."
-                        )
-                        params["split_pos"] = 3
-                if task_type in ["fake_fakeddisorder", "fakedisorder", "fakeddisorder"]:
-                    # ИСПРАВЛЕНО: Используем зарегистрированную исправленную атаку
-                    self.logger.info(f"✅ Обрабатываем ИСПРАВЛЕННУЮ fakeddisorder атаку с параметрами: {params}")
-                    
-                    try:
-                        # Импортируем registry и создаем атаку
-                        from core.bypass.attacks.registry import AttackRegistry
-                        from core.bypass.attacks.tcp.fake_disorder_attack import create_fixed_fakeddisorder_from_config
-                        from core.bypass.attacks.base import AttackContext
-                        
-                        # Создаем контекст атаки
-                        context = AttackContext(
-                            dst_ip=packet.dst_addr,
-                            dst_port=packet.dst_port,
-                            payload=payload,
-                            domain=getattr(packet, 'domain', None)
-                        )
-                        
-                        # Создаем исправленную атаку с параметрами из стратегии
-                        attack = create_fixed_fakeddisorder_from_config(params)
-                        
-                        # Выполняем атаку
-                        import asyncio
+                    params["split_pos"] = self._resolve_midsld_pos(payload) or 3
+
+                if task_type == "fakeddisorder":
+                    # --- Логика с калибратором и ранней остановкой ---
+                    flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
+                    if flow_id in self._active_flows:
+                        self.logger.debug("Flow already processed, forwarding original")
+                        w.send(packet)
+                        return
+                    self._active_flows.add(flow_id)
+                    threading.Timer(self._flow_ttl_sec, lambda: self._active_flows.discard(flow_id)).start()
+
+                    inbound_ev = self._get_inbound_event_for_flow(packet)
+                    rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
+                    if inbound_ev.is_set(): inbound_ev.clear()
+                    self._inbound_results.pop(rev_key, None)
+
+                    is_tls_ch = self._is_tls_clienthello(payload)
+                    # Оценка split_pos по структуре CH
+                    sp_guess = self._estimate_split_pos_from_ch(payload) if is_tls_ch else None
+                    init_sp = params.get("split_pos") or sp_guess or (76 if is_tls_ch else max(16, len(payload)//2))
+
+                    # Seed из StrategyManager
+                    seed = None
+                    if StrategyManager:
                         try:
-                            # Проверяем, есть ли активный event loop
-                            loop = asyncio.get_running_loop()
-                            # Если есть, создаем task
-                            result = loop.run_until_complete(attack.execute(context))
-                        except RuntimeError:
-                            # Нет активного loop, создаем новый
-                            result = asyncio.run(attack.execute(context))
-                        
-                        # Обрабатываем результат
-                        if result.segments and len(result.segments) > 0:
-                            # Отправляем сегменты через существующий механизм
-                            success = self._send_attack_segments(packet, w, result.segments)
-                            self.logger.info(f"✅ ИСПРАВЛЕННАЯ fakeddisorder атака выполнена, сегментов: {len(result.segments)}, успех: {success}")
-                        else:
-                            self.logger.warning("⚠️  ИСПРАВЛЕННАЯ fakeddisorder атака не создала сегментов")
-                            success = False
-                            
-                    except Exception as e:
-                        self.logger.error(f"❌ Ошибка в ИСПРАВЛЕННОЙ fakeddisorder атаке: {e}")
-                        # Fallback к старой реализации
-                        self.logger.info("🔄 Fallback к старой реализации fakeddisorder")
-                        segments = self.techniques.apply_fakeddisorder(
-                            payload, 
-                            params.get("split_pos", 76),
-                            params.get("overlap_size", 1)
-                        )
-                        success = self._send_segments(packet, w, segments)
-                        self.logger.info(f"✅ Fallback fakeddisorder выполнена, успех: {success}")
+                            sm = StrategyManager()
+                            sni = self._extract_sni(payload)
+                            key_domain = getattr(packet, "domain", None) or sni or packet.dst_addr
+                            ds = sm.get_strategy(key_domain)
+                            if ds and ds.split_pos and ds.overlap_size:
+                                seed = CalibCandidate(split_pos=int(ds.split_pos), overlap_size=int(ds.overlap_size))
+                                self.logger.info(f"Calibrator seed from StrategyManager: sp={seed.split_pos}, ov={seed.overlap_size}")
+                        except Exception as e:
+                            self.logger.debug(f"Seed fetch failed: {e}")
+
+                    # Подготовка кандидатов
+                    cand_list = Calibrator.prepare_candidates(payload, initial_split_pos=init_sp)
+                    if seed:
+                        cand_list = [seed] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (seed.split_pos, seed.overlap_size)]
+                    elif "split_pos" in params and "overlap_size" in params:
+                        # Fallback to params from the strategy string if no seed from learning
+                        head = CalibCandidate(split_pos=int(params["split_pos"]), overlap_size=int(params["overlap_size"]))
+                        cand_list = [head] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (head.split_pos, head.overlap_size)]
+
+                    # Предпробинг fooling по CDN
+                    cdn = self._classify_cdn(packet.dst_addr)
+                    prof = self._get_cdn_profile(cdn)
+                    fooling_list = params.get("fooling", []) or []
+                    if isinstance(fooling_list, str):
+                        fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
+                    # Если не задано явно — пробуем автоматом оценить совместимость md5sig/badsum
+                    try:
+                        inbound_ev = self._get_inbound_event_for_flow(packet)
+                        if inbound_ev.is_set(): inbound_ev.clear()
+                        rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
+                        self._inbound_results.pop(rev_key, None)
+                        # md5sig
+                        if prof["md5sig_allowed"] is None:
+                            self._send_aligned_fake_segment(packet, w, init_sp, b"", max(1, self.current_params["fake_ttl"]), ["md5sig"])
+                            got = inbound_ev.wait(timeout=0.2)
+                            outcome = self._inbound_results.pop(rev_key, None) if got else None
+                            prof["md5sig_allowed"] = (outcome != "rst")
+                        # badsum
+                        if prof["badsum_allowed"] is None:
+                            inbound_ev.clear()
+                            self._send_aligned_fake_segment(packet, w, init_sp, b"", max(1, self.current_params["fake_ttl"]), ["badsum"])
+                            got = inbound_ev.wait(timeout=0.2)
+                            outcome = self._inbound_results.pop(rev_key, None) if got else None
+                            prof["badsum_allowed"] = (outcome != "rst")
+                    except Exception:
+                        pass
+                    # Фильтруем запрещённые режимы
+                    if "md5sig" in fooling_list and prof["md5sig_allowed"] is False:
+                        fooling_list = [f for f in fooling_list if f != "md5sig"]
+                    if "badsum" in fooling_list and prof["badsum_allowed"] is False:
+                        fooling_list = [f for f in fooling_list if f != "badsum"]
+                    autottl = params.get("autottl")
+                    ttl_list = list(range(1, min(int(autottl), 8) + 1)) if autottl else [self.current_params["fake_ttl"]]
+
+                    best_cand = None
+                    got_inbound = False
+                    for cand in cand_list:
+                        for t in ttl_list:
+                            for d_ms in (1, 2, 3): # мини-сетка задержек
+                                self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], t, fooling_list)
+                                time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
+                                self.current_params["delay_ms"] = d_ms
+
+                                segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
+                                self._send_segments(packet, w, segments)
+
+                                got_inbound = inbound_ev.wait(timeout=0.25)
+                                if got_inbound:
+                                    outcome = self._inbound_results.get(rev_key)
+                                    if outcome == "ok":
+                                        self.logger.info(f"✅ Calibrator: early success with sp={cand.split_pos}, ov={cand.overlap_size}, delay={d_ms}ms, ttl={t}")
+                                        best_cand = cand
+                                        # Cleanup after success
+                                        with self._lock:
+                                            self._inbound_events.pop(rev_key, None)
+                                            self._inbound_results.pop(rev_key, None)
+                                        break
+                                    else:
+                                        self.logger.debug(f"Calibrator: got '{outcome}', trying next params.")
+                                        inbound_ev.clear()
+                                        with self._lock:
+                                            self._inbound_results.pop(rev_key, None)
+                            if got_inbound: break
+                        if got_inbound: break
+
+                    if best_cand and StrategyManager:
+                        try:
+                            sm = StrategyManager()
+                            sni = self._extract_sni(payload)
+                            key_domain = getattr(packet, "domain", sni or packet.dst_addr)
+                            strategy_str = f"fakeddisorder(overlap_size={best_cand.overlap_size}, split_pos={best_cand.split_pos})"
+                            sm.add_strategy(
+                                key_domain,
+                                strategy_str,
+                                1.0,
+                                200.0,  # success_rate, avg_latency_ms
+                                # Pass micro-parameters to be stored
+                                split_pos=best_cand.split_pos,
+                                overlap_size=best_cand.overlap_size,
+                                fooling_modes=fooling_list,
+                                fake_ttl_source=autottl or self.current_params.get("fake_ttl"),
+                                delay_ms=self.current_params.get("delay_ms", 2)
+                            )
+                            sm.save_strategies()
+                            self.logger.info(f"Saved best params for {key_domain} via StrategyManager.")
+                        except Exception as e:
+                            self.logger.debug(f"StrategyManager immediate update failed: {e}")
+
+                    success = (best_cand is not None)
+                    if not success:
+                        # Фоллбэк: пробуем seqovl, затем multisplit
+                        self.logger.warning("Calibrator failed. Trying fallbacks (seqovl -> multisplit)...")
+                        try:
+                            sp_fb = init_sp
+                            ov_fb = params.get("overlap_size", 20)
+                            segments = self.techniques.apply_seqovl(payload, sp_fb, ov_fb)
+                            if self._send_segments(packet, w, segments):
+                                # чуть подождём входящий
+                                _ev = self._get_inbound_event_for_flow(packet)
+                                if _ev.wait(timeout=0.25) and self._inbound_results.get(rev_key) == "ok":
+                                    success = True
+                            if not success:
+                                positions = [max(6, sp_fb//4), max(12, sp_fb//2), max(18, (3*sp_fb)//4)]
+                                segments = self.techniques.apply_multisplit(payload, positions)
+                                if self._send_segments(packet, w, segments):
+                                    _ev = self._get_inbound_event_for_flow(packet)
+                                    if _ev.wait(timeout=0.25) and self._inbound_results.get(rev_key) == "ok":
+                                        success = True
+                        except Exception:
+                            pass
+
+                # --- Остальные типы атак (логика сохранена для совместимости) ---
                 elif task_type == "multisplit":
+                    ttl = self.current_params.get("fake_ttl")
                     is_meta_ip = any(
-                        (
-                            packet.dst_addr.startswith(prefix)
-                            for prefix in ["157.240.", "69.171.", "31.13."]
-                        )
+                        (packet.dst_addr.startswith(prefix) for prefix in ["157.240.", "69.171.", "31.13."])
                     )
-                    is_twitter_ip = packet.dst_addr.startswith(
-                        "104.244."
-                    ) or packet.dst_addr.startswith("199.59.")
+                    is_twitter_ip = packet.dst_addr.startswith("104.244.") or packet.dst_addr.startswith("199.59.")
                     if is_meta_ip or is_twitter_ip:
                         for fake_ttl in [ttl - 1, ttl, ttl + 1]:
                             self._send_fake_packet_with_badsum(packet, w, ttl=fake_ttl)
                             time.sleep(0.002)
-                        segments = self.techniques.apply_multisplit(
-                            payload, params.get("positions", [6, 14, 26, 42, 64])
-                        )
+                        segments = self.techniques.apply_multisplit(payload, params.get("positions", [6, 14, 26, 42, 64]))
                         success = self._send_segments(packet, w, segments)
                         time.sleep(0.002)
                         self._send_fake_packet_with_badsum(packet, w, ttl=ttl + 2)
                     else:
                         if params.get("fooling") == "badsum":
-                            self._send_fake_packet_with_badsum(
-                                packet, w, ttl=ttl if ttl else 3
-                            )
+                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl)
                             time.sleep(0.005)
-                        segments = self.techniques.apply_multisplit(
-                            payload, params.get("positions", [10, 25, 40, 55, 70])
-                        )
+                        segments = self.techniques.apply_multisplit(payload, params.get("positions", [10, 25, 40, 55, 70]))
                         success = self._send_segments(packet, w, segments)
                         if params.get("fooling") == "badsum":
                             time.sleep(0.003)
-                            self._send_fake_packet_with_badsum(
-                                packet, w, ttl=ttl + 1 if ttl else 4
-                            )
+                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl + 1)
                 elif task_type == "multidisorder":
-                    self._send_fake_packet(packet, w, ttl=ttl if ttl else 2)
-                    segments = self.techniques.apply_multidisorder(
-                        payload, params.get("positions", [10, 25, 40])
-                    )
+                    self._send_fake_packet(packet, w, ttl=self.current_params.get("fake_ttl"))
+                    segments = self.techniques.apply_multidisorder(payload, params.get("positions", [10, 25, 40]))
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "seqovl":
                     if params.get("fooling") == "badsum":
-                        self._send_fake_packet_with_badsum(
-                            packet, w, ttl=ttl if ttl else 3
-                        )
+                        self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params.get("fake_ttl"))
                         time.sleep(0.003)
                     segments = self.techniques.apply_seqovl(
-                        payload,
-                        params.get("split_pos", 3),
-                        params.get("overlap_size", 20),
+                        payload, params.get("split_pos", 3), params.get("overlap_size", 20)
                     )
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "tlsrec_split":
-                    modified_payload = self.techniques.apply_tlsrec_split(
-                        payload, params.get("split_pos", 5)
-                    )
+                    modified_payload = self.techniques.apply_tlsrec_split(payload, params.get("split_pos", 5))
                     success = self._send_modified_packet(packet, w, modified_payload)
                 elif task_type == "wssize_limit":
-                    segments = self.techniques.apply_wssize_limit(
-                        payload, params.get("window_size", 2)
-                    )
+                    segments = self.techniques.apply_wssize_limit(payload, params.get("window_size", 2))
                     success = self._send_segments_with_window(packet, w, segments)
                 elif task_type == "badsum_race":
-                    self._send_fake_packet_with_badsum(packet, w, ttl=ttl if ttl else 2)
+                    self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params.get("fake_ttl"))
                     time.sleep(0.005)
                     w.send(packet)
                     success = True
                 elif task_type == "md5sig_race":
-                    self._send_fake_packet_with_md5sig(packet, w, ttl=ttl if ttl else 3)
+                    self._send_fake_packet_with_md5sig(packet, w, ttl=self.current_params.get("fake_ttl"))
                     time.sleep(0.007)
                     w.send(packet)
                     success = True
                 else:
-                    self.logger.warning(
-                        f"Неизвестный тип задачи '{task_type}', применяем простую фрагментацию."
-                    )
+                    self.logger.warning(f"Неизвестный тип задачи '{task_type}', применяем простую фрагментацию.")
                     self._send_fragmented_fallback(packet, w)
                     success = True
+
                 if not success:
-                    self.logger.error(
-                        "Не удалось применить стратегию, отправляем оригинальный пакет."
-                    )
+                    self.logger.error("Strategy failed, sending original packet.")
                     w.send(packet)
+
             except Exception as e:
-                self.logger.error(
-                    f"❌ Ошибка применения bypass: {e}", exc_info=self.debug
-                )
+                self.logger.error(f"❌ Ошибка применения bypass: {e}", exc_info=self.debug)
                 w.send(packet)
+            finally:
+                try:
+                    self._inject_sema.release()
+                except Exception:
+                    pass
 
         def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):
             """
@@ -788,16 +1046,17 @@ if platform.system() == "Windows":
                     tcp_hdr[4:8] = struct.pack("!I", new_seq)
                     tcp_hdr[8:12] = struct.pack("!I", base_ack)
 
-                    flags = 0x10  # ACK
-                    if i == len(segments) - 1:
-                        flags |= 0x08  # PSH на последний
-                    tcp_hdr[13] = flags & 0xFF
+                    # Стабильно даём PSH+ACK на обоих сегментах для flush
+                    tcp_hdr[13] = 0x18
 
                     tcp_hdr[14:16] = struct.pack("!H", reduced_win)
 
-                    # TTL: «низкий» TTL для второго сегмента в паре (fakeddisorder-подобная эвристика)
-                    low_ttl = self.current_params.get("ttl", 1)
-                    ip_hdr[8] = low_ttl if (i == 1 and len(segments) == 2) else base_ttl
+                    # TTL для реальных сегментов всегда берется из исходного пакета (base_ttl),
+                    # который уже установлен в ip_hdr. self.current_params["real_ttl"]
+                    # устанавливается в apply_bypass для информации и здесь не используется
+                    # напрямую, но base_ttl ему эквивалентен.
+                    # Старая логика с low_ttl удалена для консистентности.
+                    ip_hdr[8] = base_ttl
 
                     # IP ID
                     new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
@@ -822,8 +1081,12 @@ if platform.system() == "Windows":
                     csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
                     seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
 
-                    pkt = pydivert.Packet(bytes(seg_raw), original_packet.interface, original_packet.direction)
-                    w.send(pkt)
+                    # Безопасная отправка с повтором/пересчетом checksum
+                    ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                    if not ok:
+                        self.logger.error("WinDivert send failed for segment (basic). Aborting.")
+                        return False
+
                     self.stats["fragments_sent"] += 1
 
                     # Между сегментами небольшая задержка
@@ -1069,18 +1332,15 @@ if platform.system() == "Windows":
             return (~s) & 0xFFFF
 
         def _ip_header_checksum(self, ip_hdr: bytearray) -> int:
-            # нулим checksum
             ip_hdr[10:12] = b"\x00\x00"
             return self._checksum16(bytes(ip_hdr))
 
         def _tcp_checksum(self, ip_hdr: bytes, tcp_hdr: bytes, payload: bytes) -> int:
-            # Псевдозаголовок IPv4: src(4) dst(4) 0x00 proto(1) tcp_len(2)
             src = ip_hdr[12:16]
             dst = ip_hdr[16:20]
             proto = ip_hdr[9]
             tcp_len = len(tcp_hdr) + len(payload)
             pseudo = src + dst + bytes([0, proto]) + tcp_len.to_bytes(2, "big")
-            # Нулим TCP checksum в заголовке
             tcp_hdr_wo_csum = bytearray(tcp_hdr)
             tcp_hdr_wo_csum[16:18] = b"\x00\x00"
             s = self._ones_complement_sum(pseudo + bytes(tcp_hdr_wo_csum) + payload)
@@ -1088,50 +1348,46 @@ if platform.system() == "Windows":
 
         def _inject_md5sig_option(self, tcp_hdr: bytes) -> bytes:
             """
-            Добавляет TCP MD5SIG опцию (kind=19, len=18) к заголовку.
-            Корректирует data offset и выравнивание до 4 байт (NOP=1).
-            Возвращает новый tcp_hdr с опциями.
+            Добавляет TCP MD5SIG (kind=19,len=18). Если суммарная длина TCP заголовка > 60,
+            пропускаем добавление и возвращаем исходный заголовок.
             """
+            MAX_TCP_HDR = 60  # байт
             hdr = bytearray(tcp_hdr)
-            # Текущая длина заголовка (в 32-бит словах)
             data_offset_words = (hdr[12] >> 4) & 0x0F
-            base_len = data_offset_words * 4
-            if base_len < 20:
-                base_len = 20
-            # Разделяем на «фиксированную» часть и «опции»
+            base_len = max(20, data_offset_words * 4)  # минимум 20
+
+            # Нормализуем заголовок, если кто-то указал некорректную длину > 60
+            if base_len > MAX_TCP_HDR:
+                self.logger.warning(f"TCP header base_len={base_len} > 60, clamping to 60")
+                base_len = MAX_TCP_HDR
+                hdr = hdr[:base_len]
+                hdr[12] = ((base_len // 4) << 4) | (hdr[12] & 0x0F)
+
             fixed = hdr[:20]
             opts = hdr[20:base_len]
 
-            # md5sig: kind=19(0x13), len=18(0x12), 16 байт «сигнатуры»
-            md5opt = b"\x13\x12" + b"\x00" * 16
+            md5opt = b"\x13\x12" + b"\x00" * 16  # kind=19,len=18
             new_opts = bytes(opts) + md5opt
-            # Пэддинг NOP (1) до кратности 4
+            # пэддинг до 4 байт
             pad_len = (4 - ((20 + len(new_opts)) % 4)) % 4
-            new_opts += b"\x01" * pad_len  # NOP
+            new_total_len = 20 + len(new_opts) + pad_len
 
-            new_len = 20 + len(new_opts)
+            if new_total_len > MAX_TCP_HDR:
+                # Слишком длинно — пропускаем MD5SIG
+                self.logger.warning(
+                    f"MD5SIG would exceed TCP header limit ({new_total_len} > 60). Skipping MD5SIG."
+                )
+                return bytes(hdr[:base_len])
+
+            new_opts += b"\x01" * pad_len  # NOP padding
             new_hdr = bytearray(fixed + new_opts)
-            new_hdr[12] = ((new_len // 4) << 4) | (new_hdr[12] & 0x0F)
-            # Сбросим checksum (будет пересчитан)
-            new_hdr[16:18] = b"\x00\x00"
+            new_hdr[12] = ((new_total_len // 4) << 4) | (new_hdr[12] & 0x0F)
+            new_hdr[16:18] = b"\x00\x00"  # checksum обнулим (пересчитаем позже)
             return bytes(new_hdr)
         
         def _send_attack_segments(self, original_packet, w, segments):
-            """
-            Отправка сегментов в расширенном формате:
-            - segment = (payload: bytes, seq_offset: int, options: Dict[str, Any])
-            Поддержка:
-              options["ttl"]: int
-              options["corrupt_tcp_checksum"]: bool
-              options["corrupt_sequence"]: bool, options["seq_offset"]: int
-              options["add_md5sig_option"]: bool
-              options["tcp_flags"]: int
-              options["delay_ms"]: float
-              options["is_fake"]: bool (для фейкового сегмента)
-            """
             try:
                 raw = bytearray(original_packet.raw)
-                # IPv4 only
                 ip_ver = (raw[0] >> 4) & 0xF
                 if ip_ver != 4:
                     self.logger.warning("Non-IPv4 packet, fallback to original send")
@@ -1142,24 +1398,19 @@ if platform.system() == "Windows":
                 tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
                 if tcp_hl < 20:
                     tcp_hl = 20
-                payload_start = ip_hl + tcp_hl
 
-                # Базовые поля
+                payload_start = ip_hl + tcp_hl
                 base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
                 base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
-                base_flags = raw[ip_hl+13]
                 base_win = struct.unpack("!H", raw[ip_hl+14:ip_hl+16])[0]
                 base_ttl = raw[8]
-                # Уменьшенное окно (как раньше)
                 window_div = self.current_params.get("window_div", 8)
                 reduced_win = max(base_win // window_div, 1024)
-
-                # IP ID
                 base_ip_id = struct.unpack("!H", raw[4:6])[0]
                 ipid_step = self.current_params.get("ipid_step", 2048)
+                MAX_TCP_HDR = 60
 
                 for i, seg in enumerate(segments):
-                    # Нормализуем формат
                     if len(seg) == 3:
                         seg_payload, rel_off, opts = seg
                     elif len(seg) == 2:
@@ -1172,63 +1423,50 @@ if platform.system() == "Windows":
                     if not seg_payload:
                         continue
 
-                    # Создаём каркас: IPhdr + TCPhdr + payload
                     ip_hdr = bytearray(raw[:ip_hl])
-                    tcp_hdr = bytearray(raw[ip_hl:ip_hl+20])  # начнём с «минимального» TCP заголовка
-                    # Если у исходного пакета были опции — учтём их как исходную базу
-                    if tcp_hl > 20:
-                        tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
+                    orig_tcp_hdr = bytearray(raw[ip_hl:ip_hl+max(20, tcp_hl)])
+                    tcp_hdr = bytearray(orig_tcp_hdr)
 
-                    # Настраиваем SEQ/ACK/FLAGS/WINDOW
                     seq_extra = opts.get("seq_offset", 0) if opts.get("corrupt_sequence") else 0
                     seq = (base_seq + rel_off + seq_extra) & 0xFFFFFFFF
                     tcp_hdr[4:8] = struct.pack("!I", seq)
                     tcp_hdr[8:12] = struct.pack("!I", base_ack)
 
-                    # Флаги TCP
                     flags = opts.get("tcp_flags")
                     if flags is None:
-                        # По умолчанию PSH+ACK, как было
-                        flags = 0x10  # ACK
-                        # последний сегмент даём PSH
+                        flags = 0x10
                         if i == len(segments) - 1:
-                            flags |= 0x08  # PSH
+                            flags |= 0x08
                     tcp_hdr[13] = flags & 0xFF
-
-                    # Окно
                     tcp_hdr[14:16] = struct.pack("!H", reduced_win)
 
-                    # TTL
                     ttl = opts.get("ttl", base_ttl)
                     if not isinstance(ttl, int) or not (1 <= ttl <= 255):
                         ttl = base_ttl
                     ip_hdr[8] = ttl
 
-                    # Длина IP (пока неизвестна) — проставим позже
-                    # IP ID для «разных» сегментов
                     new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
                     ip_hdr[4:6] = struct.pack("!H", new_ip_id)
 
-                    # TCP MD5SIG (только для фейковых сегментов)
+                    # MD5SIG — пробуем добавить
                     if opts.get("is_fake") and opts.get("add_md5sig_option"):
                         tcp_hdr = bytearray(self._inject_md5sig_option(bytes(tcp_hdr)))
-                        # обновим tcp_hl после инъекции
-                        tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
-                    else:
-                        # убедимся, что размер заголовка корректный
+                    # Контроль: не превысили ли 60?
+                    tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
+                    if tcp_hl_new > MAX_TCP_HDR:
+                        self.logger.warning(
+                            f"TCP header len {tcp_hl_new} > 60 after options. Reverting to original header."
+                        )
+                        tcp_hdr = bytearray(orig_tcp_hdr)
                         tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
                         if tcp_hl_new < 20:
                             tcp_hdr[12] = (5 << 4) | (tcp_hdr[12] & 0x0F)
                             tcp_hl_new = 20
 
-                    # Собираем пакет: IP header + TCP header + payload
                     seg_raw = bytearray(ip_hdr + tcp_hdr + seg_payload)
-
-                    # Проставим Total Length
                     total_len = len(seg_raw)
                     seg_raw[2:4] = struct.pack("!H", total_len)
 
-                    # Пересчитываем checksum-и
                     # IP checksum
                     seg_raw[10:12] = b"\x00\x00"
                     ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
@@ -1240,22 +1478,20 @@ if platform.system() == "Windows":
                     tcp_hdr_bytes = bytes(seg_raw[tcp_start:tcp_end])
                     payload_bytes = bytes(seg_raw[tcp_end:])
 
-                    # Если требуется «badsum» на фейковом сегменте — испортим TCP checksum
                     if opts.get("is_fake") and opts.get("corrupt_tcp_checksum"):
-                        # Сначала посчитаем правильную, затем испортим
                         good_csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
-                        bad_csum = good_csum ^ 0xFFFF  # инверсия как «заведомо неверная»
+                        bad_csum = good_csum ^ 0xFFFF
                         seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
                     else:
                         csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
                         seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
 
-                    # Отправляем
-                    pkt = pydivert.Packet(bytes(seg_raw), original_packet.interface, original_packet.direction)
-                    w.send(pkt)
+                    ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                    if not ok:
+                        self.logger.error("WinDivert send failed for segment (options). Aborting.")
+                        return False
                     self.stats["fragments_sent"] += 1
 
-                    # Задержка между сегментами (если задана)
                     delay_ms = float(opts.get("delay_ms", self.current_params.get("delay_ms", 2)))
                     if i < len(segments) - 1 and delay_ms > 0:
                         time.sleep(delay_ms / 1000.0)
@@ -1264,6 +1500,138 @@ if platform.system() == "Windows":
                 return True
             except Exception as e:
                 self.logger.error(f"Ошибка в _send_attack_segments: {e}", exc_info=self.debug)
+                return False
+
+        def _send_aligned_fake_segment(self, original_packet, w, seq_offset: int, data: bytes, ttl: int, fooling: List[str]) -> bool:
+            """
+            Отправляет фейковый сегмент, выровненный по реальному SEQ (base_seq + seq_offset)
+            с переданным payload `data`. Поддерживает:
+              - md5sig: инъекция TCP MD5SIG опции (kind=19,len=18) с защитой от >60 байт заголовка
+              - badseq: сдвиг SEQ на -10000
+              - badsum: порча TCP checksum (инверсия) после корректного пересчёта
+            TTL выставляется для этого «фейкового» сегмента (обычно 1..2 при autottl).
+            """
+            try:
+                raw = bytearray(original_packet.raw)
+                ip_hl = (raw[0] & 0x0F) * 4
+                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                if tcp_hl < 20:
+                    tcp_hl = 20
+
+                # Базовые поля из оригинального пакета
+                base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
+                base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
+                base_win = struct.unpack("!H", raw[ip_hl+14:ip_hl+16])[0]
+
+                # Заголовки IP и TCP (без payload)
+                ip_hdr = bytearray(raw[:ip_hl])
+                tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
+
+                # Устанавливаем SEQ = base_seq + seq_offset, ACK как в оригинале
+                seq = (base_seq + (seq_offset or 0)) & 0xFFFFFFFF
+                tcp_hdr[4:8]  = struct.pack("!I", seq)
+                tcp_hdr[8:12] = struct.pack("!I", base_ack)
+
+                # Флаги: PSH+ACK, окно можно немного уменьшить (как в основной логике)
+                tcp_hdr[13] = 0x18
+                # Оставим исходное окно (или слегка уменьшенное при желании)
+                # tcp_hdr[14:16] = struct.pack("!H", max(base_win // 2, 1024))
+
+                # TTL для фейкового сегмента
+                ip_hdr[8] = ttl if isinstance(ttl, int) and 1 <= ttl <= 255 else 1
+
+                # Применяем md5sig (если задано) — инъекция TCP опции с учётом лимита 60 байт
+                if "md5sig" in (fooling or []):
+                    tcp_hdr = bytearray(self._inject_md5sig_option(bytes(tcp_hdr)))
+                    # Убедимся, что новый data offset корректен (>=20 байт)
+                    tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
+                    if tcp_hl_new < 20:
+                        tcp_hdr[12] = (5 << 4) | (tcp_hdr[12] & 0x0F)
+
+                # Применяем badseq — сдвиг sequence на -10000
+                if "badseq" in (fooling or []):
+                    bad_seq = (seq - 10000) & 0xFFFFFFFF
+                    tcp_hdr[4:8] = struct.pack("!I", bad_seq)
+
+                # Собираем пакет: IP + TCP + payload
+                seg_raw = bytearray(ip_hdr + tcp_hdr + (data or b""))
+
+                # Проставляем Total Length
+                seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+
+                # Пересчёт checksums
+                # IP
+                seg_raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                seg_raw[10:12] = struct.pack("!H", ip_csum)
+
+                # TCP
+                tcp_hl_effective = ((seg_raw[ip_hl+12] >> 4) & 0x0F) * 4
+                tcp_start = ip_hl
+                tcp_end   = ip_hl + tcp_hl_effective
+                tcp_hdr_bytes = bytes(seg_raw[tcp_start:tcp_end])
+                payload_bytes = bytes(seg_raw[tcp_end:])
+                tcp_csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
+                if "badsum" in (fooling or []):
+                    tcp_csum ^= 0xFFFF
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", tcp_csum)
+
+                # Отправляем через safe-отправку (с меткой и ретраем при 258)
+                return self._safe_send_packet(w, bytes(seg_raw), original_packet)
+            except Exception as e:
+                self.logger.debug(f"_send_aligned_fake_segment error: {e}")
+                return False
+
+        def _safe_send_packet(self, w: "pydivert.WinDivert", pkt_bytes: bytes, original_packet: "pydivert.Packet") -> bool:
+            """
+            Безопасная отправка пакета через WinDivert:
+            - помечает инжект пакеты mark'ом (чтобы не перехватывать их повторно);
+            - при таймауте (WinError 258) делает небольшой ретрай с пересчетом checksum helper'ом.
+            """
+            try:
+                pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                # Отметим наш пакет, чтобы в recv() его пропустить
+                try:
+                    pkt.mark = self._INJECT_MARK
+                except Exception:
+                    pass
+                w.send(pkt)
+                return True
+            except OSError as e:
+                winerr = getattr(e, "winerror", None)
+                if winerr == 258:
+                    # Таймаут очереди — небольшой ретрай + попытка пересчитать checksum helper'ом
+                    self.logger.debug("WinDivert send timeout (258). Retrying with checksum helper...")
+                    time.sleep(0.001)
+                    buf = bytearray(pkt_bytes)
+                    try:
+                        from pydivert.windivert import WinDivertHelper, WinDivertLayer
+                        WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
+                        pkt2 = pydivert.Packet(bytes(buf), original_packet.interface, original_packet.direction)
+                        try:
+                            pkt2.mark = self._INJECT_MARK
+                        except Exception:
+                            pass
+                        w.send(pkt2)
+                        return True
+                    except Exception as e2:
+                        # Helper недоступен — повторим отправку как есть
+                        self.logger.debug(f"Checksum helper not available or failed: {e2}")
+                        try:
+                            pkt2 = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                            try:
+                                pkt2.mark = self._INJECT_MARK
+                            except Exception:
+                                pass
+                            w.send(pkt2)
+                            return True
+                        except Exception as e3:
+                            self.logger.error(f"WinDivert retry failed after 258: {e3}")
+                            return False
+                self.logger.error(f"WinDivert send error: {e}", exc_info=self.debug)
+                return False
+            except Exception as e:
+                self.logger.error(f"Unexpected send error: {e}", exc_info=self.debug)
                 return False
 
         def _send_fragmented_fallback(self, packet, w):
