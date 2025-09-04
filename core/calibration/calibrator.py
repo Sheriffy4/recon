@@ -1,7 +1,6 @@
 # core/calibration/calibrator.py
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Any, Optional, Callable
-import time
+from typing import List, Tuple, Dict, Any, Optional
 
 @dataclass
 class CalibCandidate:
@@ -50,34 +49,3 @@ class Calibrator:
                 seen.add(key)
                 uniq.append(c)
         return uniq[:6]  # ограничим 6-ю комбинациями
-
-    @staticmethod
-    def sweep(
-        payload: bytes,
-        candidates: List[CalibCandidate],
-        ttl_list: List[int],
-        delays: List[int],
-        send_func: Callable[[CalibCandidate, int, int], None],
-        wait_func: Callable[..., Optional[str]],
-        time_budget_ms: Optional[int] = None
-    ) -> Optional[CalibCandidate]:
-        if not candidates:
-            return None
-        tlist = ttl_list or [1]
-        dlist = delays or [2]
-        t0 = time.time()
-        for cand in candidates:
-            for t in tlist:
-                for d in dlist:
-                    try:
-                        send_func(cand, t, d)
-                        outcome = wait_func(timeout=0.25)
-                        if outcome == "ok":
-                            return cand
-                    except Exception:
-                        continue
-                    # бюджет времени
-                    if time_budget_ms:
-                        if (time.time() - t0) * 1000.0 >= float(time_budget_ms):
-                            return None
-        return None

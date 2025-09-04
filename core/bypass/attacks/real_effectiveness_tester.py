@@ -72,6 +72,7 @@ class RealEffectivenessTester:
         max_retries: int = 2,
         engine_config: Optional[EngineConfig] = None,
         pinned_dns: Optional[Dict[str, str]] = None,
+        debug: bool = False,
     ):
         self.timeout = timeout
         self.max_retries = max_retries
@@ -80,6 +81,7 @@ class RealEffectivenessTester:
         self._session: Optional[aiohttp.ClientSession] = None
         self._ssl_context = self._create_ssl_context()
         self._pinned_dns = pinned_dns or {}
+        self.debug = debug
 
     def set_pinned_dns_map(self, pinned_map: Dict[str, str]):
         """Позволяет динамически установить карту пиннинга перед тестом."""
@@ -527,15 +529,13 @@ class RealEffectivenessTester:
         )
         return self._session
 
-    async def _http_get(
-        self, url: str
-    ) -> Tuple[Optional[bytes], Optional[Dict[str, str]], Optional[int], Optional[str]]:
-        """Выполняет HTTP GET запрос и возвращает (content, headers, status_code, error)."""
+    async def _http_get(self, url: str, **kwargs) -> Tuple[Optional[bytes], Optional[Dict[str, str]], Optional[int], Optional[str]]:
+        """Выполняет HTTP GET и возвращает (content, headers, status_code, error). Пропускает параметры в aiohttp."""
         session = await self._get_session()
         try:
-            async with session.get(url, allow_redirects=True) as response:
+            async with session.get(url, **kwargs) as response:
                 content = await response.read()
-                return (content, dict(response.headers), response.status, None)
+                return content, dict(response.headers), response.status, None
         except asyncio.TimeoutError:
             return (None, None, None, "Timeout")
         except aiohttp.ClientError as e:
@@ -654,33 +654,28 @@ class RealEffectivenessTester:
                 engine.stop()
             self.clear_pinned_ips()
 
-    async def _perform_test(
-        self, domain: str, port: int, is_baseline: bool
-    ) -> EffectivenessResult:
+    async def _perform_test(self, domain: str, port: int, is_baseline: bool) -> EffectivenessResult:
         """Общая логика для выполнения HTTP-теста."""
-        if not self.session:
-            raise RuntimeError("Tester must be used within an 'async with' context.")
         start_time = time.monotonic()
         url = f"https://{domain}" if port == 443 else f"http://{domain}:{port}"
         try:
-            async with self.session.get(url, allow_redirects=True) as response:
-                await response.content.read(1024)
-                latency = (time.monotonic() - start_time) * 1000
-                if 200 <= response.status < 400:
+            content, headers, status = await self._http_get(url, allow_redirects=True)
+            latency = (time.monotonic() - start_time) * 1000
+            if status is not None and 200 <= status < 400:
                     return EffectivenessResult(
                         domain=domain,
                         success=True,
                         latency_ms=latency,
-                        status_code=response.status,
+                        status_code=status,
                         block_type=BlockType.NONE,
                     )
-                else:
+            else:
                     return EffectivenessResult(
                         domain=domain,
                         success=False,
                         latency_ms=latency,
-                        status_code=response.status,
-                        error=f"HTTP Status {response.status}",
+                        status_code=status,
+                        error=f"HTTP Status {status}",
                         block_type=BlockType.HTTP_ERROR,
                     )
         except asyncio.TimeoutError:
@@ -797,7 +792,7 @@ class RealEffectivenessTester:
             self.logger.debug(
                 f"Bypass engine started for IP {target_ip}. Performing HTTP request..."
             )
-            content, headers, status_code, error = await self._http_get(url)
+            content, headers, status_code, error = await self._http_get(url, allow_redirects=True)
             latency_ms = (time.time() - start_time) * 1000
             block_type = self._analyze_response(status_code, content, headers)
             success = block_type == BlockType.NONE
@@ -823,7 +818,7 @@ class RealEffectivenessTester:
                 f"Bypass test for {domain} failed with an exception: {e}",
                 exc_info=self.debug,
             )
-            return BypassResult(
+            return EffectivenessResult(
                 domain=domain,
                 success=False,
                 latency_ms=(time.time() - start_time) * 1000,
@@ -935,7 +930,7 @@ class RealEffectivenessTester:
         )
         start_time = time.time()
         try:
-            content, headers, status_code = await self._http_get(
+            content, headers, status_code, error = await self._http_get(
                 url,
                 allow_redirects=True,
                 ssl=self._ssl_context if protocol == "https" else None,
@@ -1018,7 +1013,7 @@ class RealEffectivenessTester:
         if "timeout" in error_str:
             return BlockType.TIMEOUT
         elif "reset" in error_str:
-            return BlockType.RST
+            return BlockType.RST_INJECTION
         elif "refused" in error_str:
             return BlockType.CONNECTION_REFUSED
         else:

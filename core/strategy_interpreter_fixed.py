@@ -20,34 +20,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def _normalize_engine_task(engine_task: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Ensures params['fooling'] exists (list) and split_pos='midsld' (never -1).
-    """
-    params = engine_task.get("params") or {}
-    # ensure fooling exists
-    if "fooling" not in params:
-        fm = params.get("fooling_methods")
-        if isinstance(fm, list):
-            params["fooling"] = fm
-        elif isinstance(fm, str) and fm:
-            params["fooling"] = [x.strip() for x in fm.split(",") if x.strip()]
-        else:
-            params["fooling"] = []
-    if isinstance(params.get("fooling"), str):
-        params["fooling"] = [x.strip() for x in params["fooling"].split(",") if x.strip()]
-    # midsld handling
-    if params.get("split_pos", None) == -1 or (isinstance(params.get("split_pos"), str) and params["split_pos"].lower() == "midsld"):
-        params["split_pos"] = "midsld"
-    if isinstance(params.get("positions"), list):
-        params["positions"] = [p for p in params["positions"] if not (isinstance(p, int) and p < 0)]
-    # cleanup legacy
-    params.pop("fooling_methods", None)
-    engine_task["params"] = params
-    if "name" in engine_task and "type" not in engine_task:
-        engine_task["type"] = engine_task.pop("name")
-    return engine_task
-
 
 class DPIMethod(Enum):
     """
@@ -1091,10 +1063,7 @@ def interpret_strategy(strategy_string: str) -> Optional[Dict[str, Any]]:
                        f"overlap_size={engine_task['params'].get('overlap_size', 336)}, "
                        f"ttl={engine_task['params']['ttl']}")
         
-        try:
-            return _normalize_engine_task(engine_task)
-        except Exception:
-            return engine_task
+        return engine_task
         
     except Exception as e:
         logger.error(f"Failed to interpret strategy '{strategy_string}': {e}")
