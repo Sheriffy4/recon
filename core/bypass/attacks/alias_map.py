@@ -20,6 +20,10 @@ _ALIAS_MAP = {
     # seqovl family
     "seqovl": "seqovl",
     "tcp_seqovl": "seqovl",
+    # fake
+    "fake_packet": "fake",
+    "fakeonly": "fake",
+    "fake-desync": "fake",
 }
 
 def normalize_attack_name(name: str) -> str:
