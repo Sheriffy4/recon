@@ -163,18 +163,24 @@ class HybridEngine:
         try:
             t = task.get('type') or task.get('name') or 'unknown'
             p = task.get('params', {})
-            return f"{t}({', '.join(f'{k}={v}' for k,v in p.items())})"
+            pairs = []
+            for k, v in p.items():
+                try:
+                    pairs.append(f"{k}={v}")
+                except Exception:
+                    pairs.append(f"{k}=<obj>")
+            return f"{t}({', '.join(pairs)})"
         except Exception:
             return str(task)
 
     def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        # Если уже dict — нормализуем ключи и возвращаем
+        # dict → нормализуем
         if isinstance(strategy, dict):
             t = strategy.get('type') or strategy.get('name')
             if not t:
                 return None
             return {'type': t, 'params': strategy.get('params', {})}
-        # Иначе — это строка zapret-стиля
+        # str → парсим zapret-строку
         parsed_params = self.parser.parse(strategy)
         return self._translate_zapret_to_engine_task(parsed_params)
 
@@ -336,15 +342,32 @@ class HybridEngine:
                 self.fingerprint_stats['fallback_tests'] += 1
         else:
             self.fingerprint_stats['fallback_tests'] += 1
+        # Базовый список (может содержать dict/str)
+        base = strategies[:]
+        registry_strats: List[str] = []
         if use_modern and self.attack_registry:
-            strategies_to_test = self._enhance_strategies_with_registry(strategies, fingerprint, domain, port)
-            self.bypass_stats['attack_registry_queries'] += 1
+            # В реестр передаем только строки
+            only_strings = [s for s in base if isinstance(s, str)]
+            if only_strings:
+                registry_strats = self._enhance_strategies_with_registry(only_strings, fingerprint, domain, port)
+                self.bypass_stats['attack_registry_queries'] += 1
         elif fingerprint:
-            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies, fingerprint)
-            LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
+            # Адаптация — также только для строк
+            only_strings = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
+            adapted = self._adapt_strategies_for_fingerprint(only_strings, fingerprint)
+            registry_strats = adapted
+            LOG.info(f'Using {len(adapted)} fingerprint-adapted strategies')
         else:
-            strategies_to_test = strategies
-            LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
+            LOG.info(f'Using {len(base)} standard strategies (no fingerprint)')
+
+        # Объединяем base (dict/str) + registry (str), дедуп по строковому ключу
+        seen = set()
+        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
+        for s in base + registry_strats:
+            key = s if isinstance(s, str) else self._task_to_str(s)
+            if key not in seen:
+                seen.add(key)
+                strategies_to_test.append(s)
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
         for i, strategy in enumerate(strategies_to_test):
             pretty = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
@@ -446,43 +469,95 @@ class HybridEngine:
         LOG.info(f'Adapted {len(strategies)} strategies to {len(unique_strategies)} fingerprint-aware strategies')
         return unique_strategies
 
-    def _enhance_strategies_with_registry(self, strategies: List[str], fingerprint: Optional[DPIFingerprint], domain: str, port: int) -> List[str]:
+    def _enhance_strategies_with_registry(self, strategies: List[Union[str, Dict[str, Any]]], fingerprint: Optional[DPIFingerprint], domain: str, port: int) -> List[str]:
         """
-        Enhance strategies using the modern attack registry.
+        Enhance strategies using the modern attack registry and inject fast fingerprint-driven templates.
 
-        Args:
-            strategies: Original list of strategies
-            fingerprint: DPI fingerprint (optional)
-            domain: Target domain
-            port: Target port
-
-        Returns:
-            Enhanced strategy list with registry-based optimizations
+        - Normalizes mixed input (dict or str) to strings for safe dedup.
+        - Adds fast templates based on fingerprint (e.g. RST injection).
+        - Merges: [fp_templates] + [registry_enhanced] + [original], preserving order and uniqueness.
         """
         if not self.attack_registry:
-            return strategies
-        enhanced_strategies = []
+            return [s if isinstance(s, str) else self._task_to_str(s) for s in strategies]
+
+        # Normalize input to strings (dict -> readable string) to avoid unhashable errors and for dedup
+        base_strategies = [s if isinstance(s, str) else self._task_to_str(s) for s in strategies]
+
+        enhanced_strategies: List[str] = []
         available_attacks = self.attack_registry.list_attacks(enabled_only=True)
         LOG.info(f'Found {len(available_attacks)} available attacks in registry')
-        if fingerprint:
-            if fingerprint.rst_injection_detected:
-                tcp_attacks = self.attack_registry.list_attacks(category=self.attack_registry.get_attack_definition(available_attacks[0]).category if available_attacks else None, enabled_only=True)
-                LOG.info(f'Found {len(tcp_attacks)} TCP-based attacks for RST injection DPI')
-        for strategy in strategies:
-            enhanced_strategy = self._enhance_single_strategy(strategy, available_attacks, fingerprint)
-            if enhanced_strategy:
-                enhanced_strategies.append(enhanced_strategy)
+
+        # Keep original registry enhancement path per-strategy
+        for strategy in base_strategies:
+            try:
+                enhanced_strategy = self._enhance_single_strategy(strategy, available_attacks, fingerprint)
+                if enhanced_strategy:
+                    enhanced_strategies.append(enhanced_strategy)
+            except Exception as e:
+                LOG.debug(f'Registry enhancement failed for "{strategy}": {e}')
+
+        # Optionally append registry-generated strategies driven by fingerprint
         if fingerprint and available_attacks:
-            registry_strategies = self._generate_registry_strategies(available_attacks, fingerprint, domain, port)
-            enhanced_strategies.extend(registry_strategies)
+            try:
+                registry_strategies = self._generate_registry_strategies(available_attacks, fingerprint, domain, port)
+                enhanced_strategies.extend(registry_strategies)
+            except Exception as e:
+                LOG.debug(f'Registry strategy generation failed: {e}')
+
+        # Inject fast fingerprint-driven templates (highest priority)
+        fp_templates: List[str] = []
+        if fingerprint:
+            try:
+                # RST injection → classic zapret-style quick wins
+                if getattr(fingerprint, 'rst_injection_detected', False):
+                    fp_templates.extend([
+                        '--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum',
+                        '--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq'
+                    ])
+                    # If resets come very early, try a small multisplit overlap
+                    crt = getattr(fingerprint, 'connection_reset_timing', 0) or 0
+                    if crt and crt < 100:
+                        fp_templates.append('--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10')
+
+                # TCP window manipulation → multisplit tends to help
+                if getattr(fingerprint, 'tcp_window_manipulation', False):
+                    fp_templates.append('--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10')
+
+                # HTTP header filtering → fake+disorder near start + badsum
+                if getattr(fingerprint, 'http_header_filtering', False):
+                    fp_templates.append('--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum')
+
+                # SNI sensitivity (from raw metrics) → midsld split
+                sni_like = False
+                try:
+                    sni_like = bool(fingerprint.raw_metrics.get('sni_sensitivity', {}).get('likely')) or \
+                               bool(fingerprint.raw_metrics.get('sni_sensitivity', {}).get('confirmed'))
+                except Exception:
+                    pass
+                if sni_like:
+                    fp_templates.append('--dpi-desync=fake,disorder --dpi-desync-split-pos=midsld --dpi-desync-ttl=2')
+
+                # QUIC blocked → force TCP (disable UDP:443)
+                try:
+                    quic_blocked = bool(fingerprint.raw_metrics.get('quic_probe', {}).get('blocked'))
+                except Exception:
+                    quic_blocked = False
+                if quic_blocked:
+                    fp_templates.append('--filter-udp=443 --dpi-desync=fake,disorder')
+            except Exception as e:
+                LOG.debug(f'Failed to build fingerprint-driven templates: {e}')
+
+        # Merge in priority order and deduplicate
+        merged_order = fp_templates + enhanced_strategies + base_strategies
         seen = set()
-        unique_strategies = []
-        for strategy in enhanced_strategies:
-            if strategy not in seen:
-                seen.add(strategy)
-                unique_strategies.append(strategy)
-        LOG.info(f'Enhanced {len(strategies)} strategies to {len(unique_strategies)} registry-optimized strategies')
-        return unique_strategies
+        unique: List[str] = []
+        for s in merged_order:
+            if s not in seen:
+                seen.add(s)
+                unique.append(s)
+
+        LOG.info(f'Enhanced {len(base_strategies)} strategies to {len(unique)} (fp_templates={len(fp_templates)}, registry_enhanced={len(enhanced_strategies)})')
+        return unique
 
     def _enhance_single_strategy(self, strategy: str, available_attacks: List[str], fingerprint: Optional[DPIFingerprint]) -> Optional[str]:
         """Enhance a single strategy using registry information."""

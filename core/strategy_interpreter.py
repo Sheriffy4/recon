@@ -39,6 +39,44 @@ except ImportError as e:
 
 LOG = logging.getLogger("strategy_interpreter")
 
+def _normalize_engine_task(engine_task: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Post-processes parsed engine task for consistency:
+      - ensures params['fooling'] is present and list
+      - converts split_pos=-1 to 'midsld'
+      - removes legacy 'fooling_methods'
+    """
+    if not engine_task or not isinstance(engine_task, dict):
+        return engine_task
+    params = engine_task.get("params") or {}
+    # fooling_methods -> fooling
+    if "fooling" not in params:
+        fm = params.get("fooling_methods")
+        if isinstance(fm, list):
+            params["fooling"] = fm
+        elif isinstance(fm, str) and fm:
+            params["fooling"] = [x.strip() for x in fm.split(",") if x.strip()]
+        else:
+            params["fooling"] = []
+    # normalize to list
+    if isinstance(params.get("fooling"), str):
+        params["fooling"] = [x.strip() for x in params["fooling"].split(",") if x.strip()]
+    # handle midsld: never return -1, use sentinel 'midsld'
+    sp = params.get("split_pos", None)
+    if sp == -1 or (isinstance(sp, str) and sp.lower() == "midsld"):
+        params["split_pos"] = "midsld"
+    # if positions accidentally contain -1, drop it (engine doesn't need midsld in positions)
+    if isinstance(params.get("positions"), list):
+        params["positions"] = [p for p in params["positions"] if not (isinstance(p, int) and p < 0)]
+    # cleanup legacy key
+    if "fooling_methods" in params:
+        params.pop("fooling_methods", None)
+    engine_task["params"] = params
+    # ensure we return 'type' (not 'name')
+    if "name" in engine_task and "type" not in engine_task:
+        engine_task["type"] = engine_task.pop("name")
+    return engine_task
+
 
 def interpret_strategy(strategy_str: str) -> Dict[str, Any]:
     """
@@ -106,7 +144,10 @@ def interpret_strategy(strategy_str: str) -> Dict[str, Any]:
             consistent_format['_original_strategy'] = strategy_str
             
             logger.info(f"Fixed parser result: {consistent_format}")
-            return consistent_format
+            try:
+                return _normalize_engine_task(consistent_format)
+            except Exception:
+                return consistent_format
             
         except Exception as e:
             logger.error(f"FixedStrategyInterpreter failed: {e}, falling back to legacy parser")
@@ -123,6 +164,11 @@ def interpret_strategy(strategy_str: str) -> Dict[str, Any]:
         result['_original_strategy'] = strategy_str
         
         logger.info(f"Legacy parser result: {result}")
+        # Normalize result to guarantee fooling and midsld handling
+        try:
+            result = _normalize_engine_task(result)
+        except Exception:
+            pass
         return result
         
     except Exception as e:
