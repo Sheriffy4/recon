@@ -48,33 +48,36 @@ def _normalize_engine_task(engine_task: Dict[str, Any]) -> Dict[str, Any]:
     """
     if not engine_task or not isinstance(engine_task, dict):
         return engine_task
-    params = engine_task.get("params") or {}
-    # fooling_methods -> fooling
-    if "fooling" not in params:
-        fm = params.get("fooling_methods")
-        if isinstance(fm, list):
-            params["fooling"] = fm
-        elif isinstance(fm, str) and fm:
-            params["fooling"] = [x.strip() for x in fm.split(",") if x.strip()]
-        else:
-            params["fooling"] = []
-    # normalize to list
-    if isinstance(params.get("fooling"), str):
-        params["fooling"] = [x.strip() for x in params["fooling"].split(",") if x.strip()]
-    # handle midsld: never return -1, use sentinel 'midsld'
-    sp = params.get("split_pos", None)
-    if sp == -1 or (isinstance(sp, str) and sp.lower() == "midsld"):
-        params["split_pos"] = "midsld"
-    # if positions accidentally contain -1, drop it (engine doesn't need midsld in positions)
-    if isinstance(params.get("positions"), list):
-        params["positions"] = [p for p in params["positions"] if not (isinstance(p, int) and p < 0)]
-    # cleanup legacy key
-    if "fooling_methods" in params:
-        params.pop("fooling_methods", None)
-    engine_task["params"] = params
-    # ensure we return 'type' (not 'name')
-    if "name" in engine_task and "type" not in engine_task:
-        engine_task["type"] = engine_task.pop("name")
+
+    p = engine_task.get("params", {}) or {}
+    # 1) fooling: всегда список и всегда присутствует
+    if "fooling" not in p:
+        fm = p.get("fooling_methods", [])
+        if isinstance(fm, str):
+            fm = [x.strip() for x in fm.split(",") if x.strip()]
+        if not isinstance(fm, list):
+            fm = []
+        p["fooling"] = fm
+    # удалить устаревшее поле
+    p.pop("fooling_methods", None)
+
+    # 2) midsld обработка: не допускаем split_pos = -1
+    # если парсер вернул -1 для midsld или явно указано midsld
+    sp = p.get("split_pos", None)
+    if isinstance(sp, str):
+        if sp.lower() == "midsld":
+            p["split_pos"] = "midsld"
+    elif isinstance(sp, int) and sp < 0:
+        p["split_pos"] = "midsld"
+
+    # 3) для массовых позиций: удалим «-1» если он попал у multisplit/multidisorder
+    if "positions" in p and isinstance(p["positions"], list):
+        p["positions"] = [x for x in p["positions"] if isinstance(x, int) and x >= 0]
+        # если пусто после фильтра — лучше не отдавать пустой список
+        if not p["positions"]:
+            p.pop("positions", None)
+
+    engine_task["params"] = p
     return engine_task
 
 

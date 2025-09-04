@@ -863,36 +863,32 @@ if platform.system() == "Windows":
                     autottl = params.get("autottl")
                     ttl_list = list(range(1, min(int(autottl), 8) + 1)) if autottl else [self.current_params["fake_ttl"]]
 
-                    best_cand = None
-                    got_inbound = False
-                    for cand in cand_list:
-                        for t in ttl_list:
-                            for d_ms in (1, 2, 3): # мини-сетка задержек
-                                self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], t, fooling_list)
-                                time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
-                                self.current_params["delay_ms"] = d_ms
-
-                                segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
-                                self._send_segments(packet, w, segments)
-
-                                got_inbound = inbound_ev.wait(timeout=0.25)
-                                if got_inbound:
-                                    outcome = self._inbound_results.get(rev_key)
-                                    if outcome == "ok":
-                                        self.logger.info(f"✅ Calibrator: early success with sp={cand.split_pos}, ov={cand.overlap_size}, delay={d_ms}ms, ttl={t}")
-                                        best_cand = cand
-                                        # Cleanup after success
-                                        with self._lock:
-                                            self._inbound_events.pop(rev_key, None)
-                                            self._inbound_results.pop(rev_key, None)
-                                        break
-                                    else:
-                                        self.logger.debug(f"Calibrator: got '{outcome}', trying next params.")
-                                        inbound_ev.clear()
-                                        with self._lock:
-                                            self._inbound_results.pop(rev_key, None)
-                            if got_inbound: break
-                        if got_inbound: break
+                    # Sweep с тайм-бюджетом (350мс)
+                    def _send_try(cand: CalibCandidate, ttl: int, d_ms: int):
+                        self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], ttl, fooling_list)
+                        time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
+                        self.current_params["delay_ms"] = d_ms
+                        segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
+                        self._send_segments(packet, w, segments)
+                    def _wait_outcome(timeout: float=0.25) -> Optional[str]:
+                        got = inbound_ev.wait(timeout=timeout)
+                        if not got: return None
+                        return self._inbound_results.get(rev_key)
+                    best_cand = Calibrator.sweep(
+                        payload=payload,
+                        candidates=cand_list,
+                        ttl_list=ttl_list,
+                        delays=[1,2,3],
+                        send_func=_send_try,
+                        wait_func=_wait_outcome,
+                        time_budget_ms=350
+                    )
+                    got_inbound = best_cand is not None
+                    if got_inbound:
+                        with self._lock:
+                            self._inbound_events.pop(rev_key, None)
+                            self._inbound_results.pop(rev_key, None)
+                        self.logger.info(f"✅ Calibrator: success with sp={best_cand.split_pos}, ov={best_cand.overlap_size}, delay={self.current_params.get('delay_ms',2)}ms")
 
                     if best_cand and StrategyManager:
                         try:
