@@ -1819,10 +1819,7 @@ async def run_hybrid_mode(args):
             parsed_strategy = interpret_strategy(s_str)
             if parsed_strategy:
                 # Преобразуем в формат для движка
-                engine_task = {
-                    "name": parsed_strategy.get("type", "unknown"),
-                    "params": parsed_strategy.get("params", {})
-                }
+                engine_task = {"type": parsed_strategy.get("type", "unknown"), "params": parsed_strategy.get("params", {})}
                 structured_strategies.append(engine_task)
                 console.print(f"[green]✓[/green] Parsed strategy: {engine_task['name']} with params: {engine_task['params']}")
             else:
