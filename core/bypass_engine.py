@@ -12,18 +12,22 @@ import struct
 import random
 import re
 from typing import List, Dict, Optional, Tuple, Set, Any
+from core.pcap.enhanced_packet_capturer import EnhancedPacketCapturer, StrategyMetricsCollector
+from core.protocols.tls import TLSParser, TLSHandler, ClientHelloInfo
 from core.bypass.fooling_selector import FoolingSelector
 from core.bypass.jitter_control import JitterController, RateController, InjectionTiming
 from core.bypass.fallback_manager import FallbackManager
 from core.calibration.tls_analyzer import TlsAnalyzer
 from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
-from core.bypass.pcap_collector import FailurePcapCollector
+
+# Attack classification system
+from core.bypass.attacks.attack_classifier import AttackClassifier
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from quic_handler import QuicHandler
 
 # Calibrator and alias map integration
 from core.bypass.attacks.alias_map import normalize_attack_name
-from core.calibration.calibrator import Calibrator, CalibCandidate
+from core.calibration.calibrator import CalibCandidate
 try:
     from core.strategy_manager import StrategyManager
 except (ImportError, ModuleNotFoundError):
@@ -213,14 +217,25 @@ if platform.system() == "Windows":
             # Профили по CDN: md5sig_allowed/badsum_allowed + лучшие параметры
             self.cdn_profiles: Dict[str, Dict[str, Any]] = {}
 
-            # Новые компоненты
+            # Компоненты обхода
             self.fooling_selector = FoolingSelector(self, debug)
             self.jitter_controller = JitterController()
             self.rate_controller = RateController(max_concurrent=12, max_per_second=100)
             self.fallback_manager = FallbackManager(debug)
-            self.tls_analyzer = TlsAnalyzer()
             self.knowledge_base = CdnAsnKnowledgeBase()
-            self.pcap_collector = FailurePcapCollector() if debug else None
+
+            # TLS анализ
+            self.tls_parser = TLSParser()
+            self.tls_handler = TLSHandler()
+            self.tls_analyzer = TlsAnalyzer()  # Legacy, оставляем для совместимости
+
+            # Packet capture и анализ
+            self.packet_capturer = None
+            self.current_metrics_collector = None
+
+            # Attack classification
+            self.attack_classifier = AttackClassifier()
+            self.attack_history: Dict[str, List[Dict]] = {}  # domain -> attack results
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -484,54 +499,18 @@ if platform.system() == "Windows":
             return prof
 
         def _extract_sni(self, payload: bytes) -> Optional[str]:
-            try:
-                if not self._is_tls_clienthello(payload):
-                    return None
-                # Пропускаем record(5) + hs_header(4) + ver(2) + random(32)
-                pos = 9 + 2 + 32
-                if pos + 1 >= len(payload):
-                    return None
-                sid_len = payload[pos]
-                pos += 1 + sid_len
-                if pos + 2 > len(payload):
-                    return None
-                cs_len = int.from_bytes(payload[pos:pos+2], "big")
-                pos += 2 + cs_len
-                if pos + 1 > len(payload):
-                    return None
-                comp_len = payload[pos]
-                pos += 1 + comp_len
-                if pos + 2 > len(payload):
-                    return None
-                ext_len = int.from_bytes(payload[pos:pos+2], "big")
-                ext_start = pos + 2
-                ext_end = min(len(payload), ext_start + ext_len)
-                s = ext_start
-                while s + 4 <= ext_end:
-                    etype = int.from_bytes(payload[s:s+2], "big")
-                    elen = int.from_bytes(payload[s+2:s+4], "big")
-                    epos = s + 4
-                    if epos + elen > ext_end:
-                        break
-                    if etype == 0 and elen >= 5:
-                        # server_name
-                        try:
-                            list_len = int.from_bytes(payload[epos:epos+2], "big")
-                            npos = epos + 2
-                            end_list = min(epos + 2 + list_len, epos + elen)
-                            if npos + 3 <= end_list:
-                                ntype = payload[npos]
-                                nlen = int.from_bytes(payload[npos+1:npos+3], "big")
-                                nstart = npos + 3
-                                if ntype == 0 and nstart + nlen <= end_list:
-                                    return payload[nstart:nstart+nlen].decode("idna", errors="ignore")
-                        except Exception:
-                            pass
-                        break
-                    s = epos + elen
-            except Exception:
-                pass
-            return None
+            """Извлекает SNI из TLS ClientHello используя новый парсер"""
+            return self.tls_handler.extract_sni(payload)
+
+        def _analyze_clienthello(self, payload: bytes) -> Optional[ClientHelloInfo]:
+            """Полный анализ ClientHello"""
+            return self.tls_handler.parse_client_hello(payload)
+
+        def start_packet_capture(self, pcap_file: str, target_ips: Set[str], port: int = 443):
+            """Запускает захват пакетов с корреляцией стратегий"""
+            from core.pcap.enhanced_packet_capturer import create_enhanced_capturer
+            self.packet_capturer = create_enhanced_capturer(pcap_file, target_ips, port)
+            self.packet_capturer.start()
 
         def _estimate_split_pos_from_ch(self, payload: bytes) -> Optional[int]:
             """Оценивает разумный split_pos из структуры TLS ClientHello."""
@@ -825,6 +804,24 @@ if platform.system() == "Windows":
                 recommendations = self.knowledge_base.get_recommendations(packet.dst_addr)
                 cdn = recommendations.get('cdn')
 
+                # Классификация атаки для выбора оптимальной стратегии
+                attack_category = self.attack_classifier.classify_strategy(strategy_task)
+                self.logger.info(f"Attack category: {attack_category}")
+
+                # Начинаем метрики для этой стратегии
+                strategy_id = f"{task_type}_{time.time():.0f}"
+                if self.packet_capturer:
+                    self.packet_capturer.mark_strategy_start(strategy_id)
+                    self.current_metrics_collector = StrategyMetricsCollector(strategy_id)
+                    self.current_metrics_collector.start_conn(domain, packet.dst_addr)
+
+                # Полный анализ ClientHello для оптимизации параметров
+                client_hello_info = None
+                if self._is_tls_clienthello(payload):
+                    client_hello_info = self._analyze_clienthello(payload)
+                    if client_hello_info:
+                        self.logger.debug(f"ClientHello: {len(client_hello_info.cipher_suites)} cipher suites, {len(client_hello_info.extensions)} extensions")
+
                 params = strategy_task.get("params", {}).copy()
                 self.current_params = params
                 task_type = normalize_attack_name(strategy_task.get("type"))
@@ -867,9 +864,27 @@ if platform.system() == "Windows":
 
                 # TLS анализ для автоматического split_pos
                 if self._is_tls_clienthello(payload) and params.get("split_pos") == "auto":
-                    split_pos = self.tls_analyzer.estimate_optimal_split_pos(payload)
-                    params["split_pos"] = split_pos
-                    self.logger.info(f"Auto-selected split_pos: {split_pos} via TlsAnalyzer")
+                    if client_hello_info:
+                        # Используем детальную информацию из ClientHello
+                        # Приоритет: перед SNI > после session_id > середина random
+                        if client_hello_info.extensions_start_pos > 0:
+                            split_pos = client_hello_info.extensions_start_pos - 1
+                        else:
+                            split_pos = 76  # fallback
+                        params["split_pos"] = split_pos
+                        self.logger.info(f"Auto-selected split_pos: {split_pos} based on ClientHello structure")
+                    else:
+                        # Fallback на старый анализатор
+                        split_pos = self.tls_analyzer.estimate_optimal_split_pos(payload)
+                        params["split_pos"] = split_pos
+
+                # Выбор атаки на основе классификации и истории
+                if attack_category and domain in self.attack_history:
+                    # Используем историю для выбора лучшей атаки из категории
+                    best_attack = self._select_best_attack_from_history(domain, attack_category)
+                    if best_attack:
+                        task_type = best_attack
+                        self.logger.info(f"Selected best attack from history: {task_type}")
 
                 # Настройка jitter timing
                 self.current_timing = self.jitter_controller.get_timing_for_cdn(cdn)
@@ -1025,8 +1040,23 @@ if platform.system() == "Windows":
                                 "fooling": fooling_list[:],
                             }
 
+                            # Записываем в историю атак
+                            if domain not in self.attack_history:
+                                self.attack_history[domain] = []
+                            self.attack_history[domain].append({
+                                "type": task_type,
+                                "success": True,
+                                "split_pos": best_cand.split_pos,
+                                "overlap_size": best_cand.overlap_size,
+                                "timestamp": time.time()
+                            })
+
                             # Записываем успех в fallback manager
                             self.fallback_manager.record_success(domain, strategy_task)
+
+                            # Записываем метрики
+                            if self.current_metrics_collector:
+                                self.current_metrics_collector.ok(domain)
                         except Exception as e:
                             self.logger.debug(f"StrategyManager immediate update failed: {e}")
 
@@ -1114,12 +1144,23 @@ if platform.system() == "Windows":
                     self.logger.error("Strategy failed, sending original packet.")
                     # Записываем неудачу
                     self.fallback_manager.record_failure(domain, strategy_task, "strategy_failed")
-                    # Автосбор PCAP при повторяющихся неудачах
-                    if self.pcap_collector:
-                        tracker = self.fallback_manager.failure_trackers.get(domain)
-                        if tracker and tracker.consecutive_failures >= 3:
-                            self.pcap_collector.trigger_capture(domain, "multiple_failures")
+
+                    # Записываем в историю
+                    if domain not in self.attack_history:
+                        self.attack_history[domain] = []
+                    self.attack_history[domain].append({
+                        "type": task_type,
+                        "success": False,
+                        "timestamp": time.time()
+                    })
+
+                    if self.current_metrics_collector:
+                        self.current_metrics_collector.fail(domain, "strategy_failed")
                     w.send(packet)
+
+                # Завершаем захват для стратегии
+                if self.packet_capturer:
+                    self.packet_capturer.mark_strategy_end(strategy_id)
 
             except Exception as e:
                 self.logger.error(f"❌ Ошибка применения bypass: {e}", exc_info=self.debug)
@@ -1128,6 +1169,22 @@ if platform.system() == "Windows":
                 w.send(packet)
             finally:
                 self.rate_controller.end_injection()
+
+        def _select_best_attack_from_history(self, domain: str, category: str) -> Optional[str]:
+            """Выбирает лучшую атаку из истории для домена и категории"""
+            if domain not in self.attack_history:
+                return None
+
+            # Фильтруем по категории и успешности
+            successful_attacks = [
+                a for a in self.attack_history[domain]
+                if a.get("success") and self.attack_classifier.get_category(a["type"]) == category
+            ]
+
+            if successful_attacks:
+                # Возвращаем последнюю успешную атаку
+                return successful_attacks[-1]["type"]
+            return None
 
         def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):
             """
