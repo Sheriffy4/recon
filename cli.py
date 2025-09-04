@@ -2643,6 +2643,9 @@ def main():
     parser.add_argument(
         "--debug", action="store_true", help="Enable detailed debug logging."
     )
+    parser.add_argument(
+        "--quiet", action="store_true", help="Reduce log noise (set WARNING on noisy modules)."
+    )
     # Mode arguments
     parser.add_argument(
         "--evolve", action="store_true", help="Run evolutionary search mode."
@@ -2858,6 +2861,12 @@ def main():
         console.print(
             "[bold yellow]Debug mode enabled. Output will be verbose.[/bold yellow]"
         )
+    if args.quiet:
+        for noisy in ("core.fingerprint.advanced_fingerprinter", "core.fingerprint.http_analyzer",
+                      "core.fingerprint.dns_analyzer", "core.fingerprint.tcp_analyzer",
+                      "hybrid_engine"):
+            try: logging.getLogger(noisy).setLevel(logging.WARNING)
+            except Exception: pass
 
     # Оффлайн анализ PCAP и выход
     if args.profile_pcap:
