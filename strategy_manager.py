@@ -3,9 +3,9 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 
 @dataclass
@@ -18,17 +18,26 @@ class DomainStrategy:
     avg_latency_ms: float
     last_tested: str
     test_count: int = 1
-    # --- Новые микропараметры для калибратора ---
-    split_pos: Optional[int] = None
-    overlap_size: Optional[int] = None
-    fake_ttl_source: Optional[Any] = None
-    fooling_modes: Optional[List[str]] = None
+    params: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "DomainStrategy":
+        # Backward compatibility: move legacy top-level params into the 'params' dict
+        if "params" not in data:
+            data["params"] = {}
+
+        legacy_keys = ["split_pos", "overlap_size", "fake_ttl_source", "fooling_modes", "delay_ms"]
+        for key in legacy_keys:
+            if key in data:
+                # Move to params if not already there (to avoid overwriting)
+                if key not in data["params"]:
+                    data["params"][key] = data[key]
+                # Remove from top level
+                del data[key]
+
         return cls(**data)
 
 
@@ -97,7 +106,7 @@ class StrategyManager:
         """Сохраняет стратегии в файл."""
         try:
             data = {
-                "version": "2.0",
+                "version": "2.1", # Incremented version for new structure
                 "last_updated": datetime.now().isoformat(),
                 "domain_strategies": {
                     domain: strategy.to_dict()
@@ -134,6 +143,10 @@ class StrategyManager:
                 "last_tested": best_strategy.last_tested,
                 "format_version": "1.0_compat",
             }
+            # Add params back for partial compatibility
+            if best_strategy.params:
+                legacy_data.update(best_strategy.params)
+
 
             with open(self.legacy_file, "w", encoding="utf-8") as f:
                 json.dump(legacy_data, f, indent=2, ensure_ascii=False)
@@ -143,7 +156,7 @@ class StrategyManager:
     def add_strategy(
         self, domain: str, strategy: str, success_rate: float, avg_latency_ms: float, **kwargs
     ):
-        """Добавляет или обновляет стратегию для домена, включая микропараметры."""
+        """Добавляет или обновляет стратегию для домена, сохраняя все доп. параметры в `params`."""
         domain = domain.lower().strip()
 
         if domain in self.domain_strategies:
@@ -154,11 +167,8 @@ class StrategyManager:
             existing.avg_latency_ms = avg_latency_ms
             existing.last_tested = datetime.now().isoformat()
             existing.test_count += 1
-            # Update micro-parameters
-            existing.split_pos = kwargs.get("split_pos", existing.split_pos)
-            existing.overlap_size = kwargs.get("overlap_size", existing.overlap_size)
-            existing.fake_ttl_source = kwargs.get("fake_ttl_source", existing.fake_ttl_source)
-            existing.fooling_modes = kwargs.get("fooling_modes", existing.fooling_modes)
+            # Обновляем или добавляем параметры
+            existing.params.update(kwargs)
         else:
             # Создаем новую стратегию
             self.domain_strategies[domain] = DomainStrategy(
@@ -167,11 +177,7 @@ class StrategyManager:
                 success_rate=success_rate,
                 avg_latency_ms=avg_latency_ms,
                 last_tested=datetime.now().isoformat(),
-                # Add micro-parameters
-                split_pos=kwargs.get("split_pos"),
-                overlap_size=kwargs.get("overlap_size"),
-                fake_ttl_source=kwargs.get("fake_ttl_source"),
-                fooling_modes=kwargs.get("fooling_modes"),
+                params=kwargs,
             )
 
         self.logger.info(f"Added/updated strategy for {domain}: {strategy} with params {kwargs}")
@@ -179,7 +185,18 @@ class StrategyManager:
     def get_strategy(self, domain: str) -> Optional[DomainStrategy]:
         """Получает стратегию для домена."""
         domain = domain.lower().strip()
-        return self.domain_strategies.get(domain)
+        # Простой поиск по полному домену
+        if domain in self.domain_strategies:
+            return self.domain_strategies[domain]
+        # Поиск по wildcard (*.example.com)
+        parts = domain.split('.')
+        if len(parts) > 1:
+            wildcard_domain = f"*.{'.'.join(parts[1:])}"
+            if wildcard_domain in self.domain_strategies:
+                return self.domain_strategies[wildcard_domain]
+        # Фоллбэк на default
+        return self.domain_strategies.get("default")
+
 
     def get_all_strategies(self) -> Dict[str, DomainStrategy]:
         """Получает все стратегии."""
