@@ -1,75 +1,51 @@
-"""Калибратор для подбора оптимальных параметров обхода DPI."""
-
+# core/calibration/calibrator.py
 from dataclasses import dataclass
-from typing import List, Optional
-from core.protocols.tls import TLSParser, ClientHelloInfo
+from typing import List, Tuple, Dict, Any, Optional
 
 @dataclass
 class CalibCandidate:
-    """Кандидат для калибровки."""
-
     split_pos: int
     overlap_size: int
 
 class Calibrator:
-    """Калибратор для fakeddisorder."""
+    @staticmethod
+    def estimate_split_pos_from_ch(payload: bytes) -> int:
+        # Упрощенная эвристика для TLS ClientHello:
+        # record hdr(5) + handshake hdr(4) + version(2) + random(32) = 43
+        # session_id_len (1) + session_id(var)
+        # попробуем дать чуть дальше 76 как стартовую точку
+        if len(payload) < 64:
+            return max(20, len(payload) // 2)
+        return 76
 
     @staticmethod
-    def prepare_candidates(payload: bytes, initial_split_pos: int = 76) -> List[CalibCandidate]:
-        """
-        Подготавливает список кандидатов для тестирования.
-        Теперь с учетом структуры TLS ClientHello.
-        """
-        candidates = []
+    def estimate_overlap_size(part1_len: int, part2_len: int, split_pos: int) -> int:
+        # Берём безопасное пересечение, ограниченное длиной part1/part2 и split_pos
+        # а также даём разумный максимум 336
+        if part1_len <= 0 or part2_len <= 0:
+            return 0
+        return min(336, part1_len, part2_len, split_pos)
 
-        # Анализируем TLS структуру для умных позиций
-        tls_parser = TLSParser()
-        client_hello = tls_parser.parse_client_hello(payload)
-
-        if client_hello:
-            # Стратегические позиции на основе TLS структуры
-            strategic_positions = []
-
-            # Перед extensions - очень эффективная позиция
-            if client_hello.extensions_start_pos > 0:
-                strategic_positions.append(client_hello.extensions_start_pos - 1)
-
-            # После session_id
-            if hasattr(client_hello, 'session_id') and len(client_hello.session_id) > 0:
-                # Позиция после session_id тоже хорошая
-                strategic_positions.append(43 + 1 + len(client_hello.session_id))
-
-            # Добавляем стратегические позиции как приоритетные кандидаты
-            for pos in strategic_positions:
-                if 10 < pos < len(payload) - 10:
-                    candidates.append(CalibCandidate(split_pos=pos, overlap_size=336))
-                    candidates.append(CalibCandidate(split_pos=pos, overlap_size=160))
-
-        # Добавляем стандартные кандидаты
-        candidates = []
-
-        # Кандидаты по split_pos
-        split_positions = [initial_split_pos] + [p for p in [3, 5, 8, 16, 32, 64, 76, 128, 256] if p != initial_split_pos]
-
-        # Кандидаты по overlap_size
-        overlap_sizes = [336, 160, 96, 64, 32, 16, 8]
-
-        for sp in split_positions:
-            if sp >= len(payload):
-                continue
+    @staticmethod
+    def prepare_candidates(payload: bytes, initial_split_pos: Optional[int] = None) -> List[CalibCandidate]:
+        # Сформировать маленькую сетку: (sp±8) x overlap {64, 160, 336} (+ защита по длинам)
+        est_sp = initial_split_pos if initial_split_pos else Calibrator.estimate_split_pos_from_ch(payload)
+        sps = [max(16, est_sp - 8), est_sp, est_sp + 8]
+        candidates: List[CalibCandidate] = []
+        for sp in sps:
+            sp = min(sp, len(payload) - 1) if len(payload) > 1 else sp
             part1_len = sp
-            part2_len = len(payload) - sp
-
-            for ov in overlap_sizes:
-                if ov < min(part1_len, part2_len, sp):
-                    candidates.append(CalibCandidate(split_pos=sp, overlap_size=ov))
-
-        # Убираем дубликаты, сохраняя порядок
+            part2_len = max(0, len(payload) - sp)
+            for ov in [64, 160, 336]:
+                eff_ov = min(ov, part1_len, part2_len, sp)
+                if eff_ov > 0:
+                    candidates.append(CalibCandidate(split_pos=sp, overlap_size=eff_ov))
+        # Уникализируем и сохраняем порядок
         seen = set()
-        unique_candidates = []
+        uniq: List[CalibCandidate] = []
         for c in candidates:
-            if (c.split_pos, c.overlap_size) not in seen:
-                seen.add((c.split_pos, c.overlap_size))
-                unique_candidates.append(c)
-
-        return unique_candidates[:20]  # Ограничиваем количество кандидатов
+            key = (c.split_pos, c.overlap_size)
+            if key not in seen:
+                seen.add(key)
+                uniq.append(c)
+        return uniq[:6]  # ограничим 6-ю комбинациями

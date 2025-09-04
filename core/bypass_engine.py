@@ -12,22 +12,12 @@ import struct
 import random
 import re
 from typing import List, Dict, Optional, Tuple, Set, Any
-from core.pcap.enhanced_packet_capturer import EnhancedPacketCapturer, StrategyMetricsCollector
-from core.protocols.tls import TLSParser, TLSHandler, ClientHelloInfo
-from core.bypass.fooling_selector import FoolingSelector
-from core.bypass.jitter_control import JitterController, RateController, InjectionTiming
-from core.bypass.fallback_manager import FallbackManager
-from core.calibration.tls_analyzer import TlsAnalyzer
-from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
-
-# Attack classification system
-from core.bypass.attacks.attack_classifier import AttackClassifier
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from quic_handler import QuicHandler
 
 # Calibrator and alias map integration
 from core.bypass.attacks.alias_map import normalize_attack_name
-from core.calibration.calibrator import CalibCandidate
+from core.calibration.calibrator import Calibrator, CalibCandidate
 try:
     from core.strategy_manager import StrategyManager
 except (ImportError, ModuleNotFoundError):
@@ -216,26 +206,6 @@ if platform.system() == "Windows":
             self._inject_sema = threading.Semaphore(self._max_injections)
             # Профили по CDN: md5sig_allowed/badsum_allowed + лучшие параметры
             self.cdn_profiles: Dict[str, Dict[str, Any]] = {}
-
-            # Компоненты обхода
-            self.fooling_selector = FoolingSelector(self, debug)
-            self.jitter_controller = JitterController()
-            self.rate_controller = RateController(max_concurrent=12, max_per_second=100)
-            self.fallback_manager = FallbackManager(debug)
-            self.knowledge_base = CdnAsnKnowledgeBase()
-
-            # TLS анализ
-            self.tls_parser = TLSParser()
-            self.tls_handler = TLSHandler()
-            self.tls_analyzer = TlsAnalyzer()  # Legacy, оставляем для совместимости
-
-            # Packet capture и анализ
-            self.packet_capturer = None
-            self.current_metrics_collector = None
-
-            # Attack classification
-            self.attack_classifier = AttackClassifier()
-            self.attack_history: Dict[str, List[Dict]] = {}  # domain -> attack results
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -497,20 +467,6 @@ if platform.system() == "Windows":
                 prof = {"md5sig_allowed": None, "badsum_allowed": None, "best_fakeddisorder": None}
                 self.cdn_profiles[cdn] = prof
             return prof
-
-        def _extract_sni(self, payload: bytes) -> Optional[str]:
-            """Извлекает SNI из TLS ClientHello используя новый парсер"""
-            return self.tls_handler.extract_sni(payload)
-
-        def _analyze_clienthello(self, payload: bytes) -> Optional[ClientHelloInfo]:
-            """Полный анализ ClientHello"""
-            return self.tls_handler.parse_client_hello(payload)
-
-        def start_packet_capture(self, pcap_file: str, target_ips: Set[str], port: int = 443):
-            """Запускает захват пакетов с корреляцией стратегий"""
-            from core.pcap.enhanced_packet_capturer import create_enhanced_capturer
-            self.packet_capturer = create_enhanced_capturer(pcap_file, target_ips, port)
-            self.packet_capturer.start()
 
         def _estimate_split_pos_from_ch(self, payload: bytes) -> Optional[int]:
             """Оценивает разумный split_pos из структуры TLS ClientHello."""
@@ -780,49 +736,16 @@ if platform.system() == "Windows":
             и централизованную логику.
             """
             try:
-                # Rate limiting с новым контроллером
-                if not self.rate_controller.can_inject():
-                    wait_time = 0.01
-                    time.sleep(wait_time)
-                    if not self.rate_controller.can_inject():
-                        self.logger.debug("Rate limit exceeded, forwarding original")
-                        w.send(packet)
-                        return
-
-                self.rate_controller.start_injection()
-
-                # Проверка fallback
-                domain = self._extract_sni(packet.payload) or packet.dst_addr
-                if self.fallback_manager.should_fallback(domain):
-                    cdn = self._classify_cdn(packet.dst_addr)
-                    fallback_strategy = self.fallback_manager.get_fallback_strategy(domain, cdn)
-                    if fallback_strategy:
-                        strategy_task = fallback_strategy
-                        self.logger.info(f"Using fallback strategy for {domain}")
-
-                # Получаем рекомендации из базы знаний
-                recommendations = self.knowledge_base.get_recommendations(packet.dst_addr)
-                cdn = recommendations.get('cdn')
-
-                # Классификация атаки для выбора оптимальной стратегии
-                attack_category = self.attack_classifier.classify_strategy(strategy_task)
-                self.logger.info(f"Attack category: {attack_category}")
-
-                # Начинаем метрики для этой стратегии
-                strategy_id = f"{task_type}_{time.time():.0f}"
-                if self.packet_capturer:
-                    self.packet_capturer.mark_strategy_start(strategy_id)
-                    self.current_metrics_collector = StrategyMetricsCollector(strategy_id)
-                    self.current_metrics_collector.start_conn(domain, packet.dst_addr)
-
-                # Полный анализ ClientHello для оптимизации параметров
-                client_hello_info = None
-                if self._is_tls_clienthello(payload):
-                    client_hello_info = self._analyze_clienthello(payload)
-                    if client_hello_info:
-                        self.logger.debug(f"ClientHello: {len(client_hello_info.cipher_suites)} cipher suites, {len(client_hello_info.extensions)} extensions")
-
+                # Лимит параллельных инъекций
+                acquired = self._inject_sema.acquire(timeout=0.5)
+                if not acquired:
+                    self.logger.debug("Injection semaphore limit reached, forwarding original")
+                    w.send(packet)
+                    return
                 params = strategy_task.get("params", {}).copy()
+                # Нормализуем ключи из интерпретатора: fooling_methods -> fooling
+                if "fooling" not in params and "fooling_methods" in params:
+                    params["fooling"] = params.get("fooling_methods", [])
                 self.current_params = params
                 task_type = normalize_attack_name(strategy_task.get("type"))
 
@@ -861,33 +784,6 @@ if platform.system() == "Windows":
 
                 if params.get("split_pos") == "midsld":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
-
-                # TLS анализ для автоматического split_pos
-                if self._is_tls_clienthello(payload) and params.get("split_pos") == "auto":
-                    if client_hello_info:
-                        # Используем детальную информацию из ClientHello
-                        # Приоритет: перед SNI > после session_id > середина random
-                        if client_hello_info.extensions_start_pos > 0:
-                            split_pos = client_hello_info.extensions_start_pos - 1
-                        else:
-                            split_pos = 76  # fallback
-                        params["split_pos"] = split_pos
-                        self.logger.info(f"Auto-selected split_pos: {split_pos} based on ClientHello structure")
-                    else:
-                        # Fallback на старый анализатор
-                        split_pos = self.tls_analyzer.estimate_optimal_split_pos(payload)
-                        params["split_pos"] = split_pos
-
-                # Выбор атаки на основе классификации и истории
-                if attack_category and domain in self.attack_history:
-                    # Используем историю для выбора лучшей атаки из категории
-                    best_attack = self._select_best_attack_from_history(domain, attack_category)
-                    if best_attack:
-                        task_type = best_attack
-                        self.logger.info(f"Selected best attack from history: {task_type}")
-
-                # Настройка jitter timing
-                self.current_timing = self.jitter_controller.get_timing_for_cdn(cdn)
 
                 if task_type == "fakeddisorder":
                     # --- Логика с калибратором и ранней остановкой ---
@@ -932,27 +828,18 @@ if platform.system() == "Windows":
                         head = CalibCandidate(split_pos=int(params["split_pos"]), overlap_size=int(params["overlap_size"]))
                         cand_list = [head] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (head.split_pos, head.overlap_size)]
 
-                    # Используем рекомендации из базы знаний
-                    if recommendations.get('split_pos') and recommendations.get('overlap_size'):
-                        kb_seed = CalibCandidate(
-                            split_pos=recommendations['split_pos'],
-                            overlap_size=recommendations['overlap_size']
-                        )
-                        cand_list = [kb_seed] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (kb_seed.split_pos, kb_seed.overlap_size)]
-
-                    # Проверка совместимости fooling
+                    # Предпробинг fooling по CDN
+                    cdn = self._classify_cdn(packet.dst_addr)
                     prof = self._get_cdn_profile(cdn)
                     fooling_list = params.get("fooling", []) or []
                     if isinstance(fooling_list, str):
                         fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
-
                     # Если не задано явно — пробуем автоматом оценить совместимость md5sig/badsum
                     try:
                         inbound_ev = self._get_inbound_event_for_flow(packet)
                         if inbound_ev.is_set(): inbound_ev.clear()
                         rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
                         self._inbound_results.pop(rev_key, None)
-
                         # md5sig
                         if prof["md5sig_allowed"] is None:
                             self._send_aligned_fake_segment(packet, w, init_sp, b"", max(1, self.current_params["fake_ttl"]), ["md5sig"])
@@ -968,7 +855,6 @@ if platform.system() == "Windows":
                             prof["badsum_allowed"] = (outcome != "rst")
                     except Exception:
                         pass
-
                     # Фильтруем запрещённые режимы
                     if "md5sig" in fooling_list and prof["md5sig_allowed"] is False:
                         fooling_list = [f for f in fooling_list if f != "md5sig"]
@@ -983,10 +869,8 @@ if platform.system() == "Windows":
                         for t in ttl_list:
                             for d_ms in (1, 2, 3): # мини-сетка задержек
                                 self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], t, fooling_list)
-                                # Используем jitter controller
-                                jittered_delay = self.current_timing.get_jittered_delay()
-                                time.sleep(jittered_delay / 1000.0)
-                                self.current_params["delay_ms"] = jittered_delay
+                                time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
+                                self.current_params["delay_ms"] = d_ms
 
                                 segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
                                 self._send_segments(packet, w, segments)
@@ -1030,33 +914,6 @@ if platform.system() == "Windows":
                             )
                             sm.save_strategies()
                             self.logger.info(f"Saved best params for {key_domain} via StrategyManager.")
-
-                            # Сохраняем в CDN профиль
-                            prof["best_fakeddisorder"] = {
-                                "split_pos": best_cand.split_pos,
-                                "overlap_size": best_cand.overlap_size,
-                                "ttl": autottl or self.current_params.get("fake_ttl"),
-                                "delay_ms": self.current_params.get("delay_ms", 2),
-                                "fooling": fooling_list[:],
-                            }
-
-                            # Записываем в историю атак
-                            if domain not in self.attack_history:
-                                self.attack_history[domain] = []
-                            self.attack_history[domain].append({
-                                "type": task_type,
-                                "success": True,
-                                "split_pos": best_cand.split_pos,
-                                "overlap_size": best_cand.overlap_size,
-                                "timestamp": time.time()
-                            })
-
-                            # Записываем успех в fallback manager
-                            self.fallback_manager.record_success(domain, strategy_task)
-
-                            # Записываем метрики
-                            if self.current_metrics_collector:
-                                self.current_metrics_collector.ok(domain)
                         except Exception as e:
                             self.logger.debug(f"StrategyManager immediate update failed: {e}")
 
@@ -1135,6 +992,25 @@ if platform.system() == "Windows":
                     time.sleep(0.007)
                     w.send(packet)
                     success = True
+                elif task_type == "fake":
+                    # Простой режим fake: отправляем фейковый пакет и затем оригинал.
+                    # Поддерживаем badsum/md5sig/badseq при указании в fooling.
+                    fooling = params.get("fooling", []) or []
+                    if isinstance(fooling, str):
+                        fooling = [f.strip() for f in fooling.split(",") if f.strip()]
+                    ttl_fake = self.current_params.get("fake_ttl")
+                    if "badsum" in fooling:
+                        self._send_fake_packet_with_badsum(packet, w, ttl=ttl_fake)
+                    elif "md5sig" in fooling:
+                        self._send_fake_packet_with_md5sig(packet, w, ttl=ttl_fake)
+                    elif "badseq" in fooling:
+                        self._send_fake_packet_with_badseq(packet, w, ttl=ttl_fake)
+                    else:
+                        self._send_fake_packet(packet, w, ttl=ttl_fake)
+                    # Небольшая задержка перед оригиналом
+                    time.sleep(params.get("delay_ms", 3) / 1000.0 if isinstance(params.get("delay_ms"), (int, float)) else 0.003)
+                    w.send(packet)
+                    success = True
                 else:
                     self.logger.warning(f"Неизвестный тип задачи '{task_type}', применяем простую фрагментацию.")
                     self._send_fragmented_fallback(packet, w)
@@ -1142,49 +1018,16 @@ if platform.system() == "Windows":
 
                 if not success:
                     self.logger.error("Strategy failed, sending original packet.")
-                    # Записываем неудачу
-                    self.fallback_manager.record_failure(domain, strategy_task, "strategy_failed")
-
-                    # Записываем в историю
-                    if domain not in self.attack_history:
-                        self.attack_history[domain] = []
-                    self.attack_history[domain].append({
-                        "type": task_type,
-                        "success": False,
-                        "timestamp": time.time()
-                    })
-
-                    if self.current_metrics_collector:
-                        self.current_metrics_collector.fail(domain, "strategy_failed")
                     w.send(packet)
-
-                # Завершаем захват для стратегии
-                if self.packet_capturer:
-                    self.packet_capturer.mark_strategy_end(strategy_id)
 
             except Exception as e:
                 self.logger.error(f"❌ Ошибка применения bypass: {e}", exc_info=self.debug)
-                domain = self._extract_sni(packet.payload) or packet.dst_addr
-                self.fallback_manager.record_failure(domain, strategy_task, str(e))
                 w.send(packet)
             finally:
-                self.rate_controller.end_injection()
-
-        def _select_best_attack_from_history(self, domain: str, category: str) -> Optional[str]:
-            """Выбирает лучшую атаку из истории для домена и категории"""
-            if domain not in self.attack_history:
-                return None
-
-            # Фильтруем по категории и успешности
-            successful_attacks = [
-                a for a in self.attack_history[domain]
-                if a.get("success") and self.attack_classifier.get_category(a["type"]) == category
-            ]
-
-            if successful_attacks:
-                # Возвращаем последнюю успешную атаку
-                return successful_attacks[-1]["type"]
-            return None
+                try:
+                    self._inject_sema.release()
+                except Exception:
+                    pass
 
         def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):
             """

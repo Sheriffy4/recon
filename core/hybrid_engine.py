@@ -5,14 +5,10 @@ import aiohttp
 import socket
 import ssl
 from typing import Dict, List, Tuple, Optional, Set, Any, Union
-import json
 from urllib.parse import urlparse
 from core.bypass_engine import BypassEngine
 from core.zapret_parser import ZapretStrategyParser
 from core.bypass.attacks.alias_map import normalize_attack_name
-
-# Import attack classifier
-from core.bypass.attacks.attack_classifier import AttackClassifier
 
 # Initialize modern bypass engine availability
 MODERN_BYPASS_ENGINE_AVAILABLE = False
@@ -110,36 +106,6 @@ class HybridEngine:
             'mode_switches': 0
         }
 
-        # Attack classification
-        self.attack_classifier = AttackClassifier()
-
-    def _task_to_str(self, task: Dict[str, Any]) -> str:
-        """Преобразует dict задачу в строковое представление"""
-        try:
-            t = task.get('type') or task.get('name') or 'unknown'
-            p = task.get('params', {})
-            pairs = []
-            for k, v in p.items():
-                try:
-                    pairs.append(f"{k}={v}")
-                except Exception:
-                    pairs.append(f"{k}=<obj>")
-            return f"{t}({', '.join(pairs)})"
-        except Exception:
-            return str(task)
-
-    def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        """Преобразует стратегию (строку или dict) в задачу для движка"""
-        # Если уже dict — нормализуем ключи
-        if isinstance(strategy, dict):
-            t = strategy.get('type') or strategy.get('name')
-            if not t:
-                return None
-            return {'type': t, 'params': strategy.get('params', {})}
-        # Строка — парсим zapret-строку
-        parsed_params = self.parser.parse(strategy)
-        return self._translate_zapret_to_engine_task(parsed_params)
-
     def _translate_zapret_to_engine_task(self, params: Dict) -> Optional[Dict]:
         """
         ИСПРАВЛЕНИЕ: Унифицированный и надежный транслятор zapret-строки в задачу для BypassEngine.
@@ -160,13 +126,13 @@ class HybridEngine:
             task_type = 'multisplit'
         elif 'disorder' in desync or 'disorder2' in desync: # Legacy aliases
             task_type = 'fakeddisorder'
-        if task_type in ['fakeddisorder', 'multidisorder', 'multisplit']:
+        if task_type in ['fakedisorder', 'multidisorder', 'multisplit']:
             split_pos_raw = params.get('dpi_desync_split_pos', [])
             if any((p.get('type') == 'midsld' for p in split_pos_raw)):
                 task_params['split_pos'] = 'midsld'
             else:
                 positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                if task_type == 'fakeddisorder':
+                if task_type == 'fakedisorder':
                     task_params['split_pos'] = positions[0] if positions else 3
                 else:
                     task_params['positions'] = positions if positions else [1, 5, 10]
@@ -192,6 +158,25 @@ class HybridEngine:
             LOG.warning(f'Не удалось транслировать zapret-стратегию в задачу для движка: {params}')
             return None
         return {'type': task_type, 'params': task_params}
+
+    def _task_to_str(self, task: Dict[str, Any]) -> str:
+        try:
+            t = task.get('type') or task.get('name') or 'unknown'
+            p = task.get('params', {})
+            return f"{t}({', '.join(f'{k}={v}' for k,v in p.items())})"
+        except Exception:
+            return str(task)
+
+    def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        # Если уже dict — нормализуем ключи и возвращаем
+        if isinstance(strategy, dict):
+            t = strategy.get('type') or strategy.get('name')
+            if not t:
+                return None
+            return {'type': t, 'params': strategy.get('params', {})}
+        # Иначе — это строка zapret-стиля
+        parsed_params = self.parser.parse(strategy)
+        return self._translate_zapret_to_engine_task(parsed_params)
 
     async def _test_sites_connectivity(self, sites: List[str], dns_cache: Dict[str, str], max_concurrent: int=10) -> Dict[str, Tuple[str, str, float, int]]:
         """
@@ -256,32 +241,15 @@ class HybridEngine:
     async def execute_strategy_real_world(self, strategy: Union[str, Dict[str, Any]], test_sites: List[str], target_ips: Set[str], dns_cache: Dict[str, str], target_port: int=443, initial_ttl: Optional[int]=None, fingerprint: Optional[DPIFingerprint]=None) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
+        Теперь с поддержкой контекстной информации от фингерпринтинга.
         """
         engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
-
         bypass_engine = BypassEngine(debug=self.debug)
-
-        # Запускаем захват пакетов если включен debug
-        if self.debug and target_ips:
-            from datetime import datetime
-            pcap_file = f"strategy_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap"
-            bypass_engine.start_packet_capture(pcap_file, target_ips, target_port)
-
         strategy_map = {'default': engine_task}
         bypass_thread = bypass_engine.start(target_ips, strategy_map)
-
         try:
-            # Адаптируем время ожидания на основе типа атаки
-            attack_category = self.attack_classifier.classify_strategy(engine_task)
-            if attack_category == "timing":
-                wait_time = 2.5  # Timing атаки требуют больше времени
-            elif attack_category == "combo":
-                wait_time = 3.0  # Комбинированные атаки тоже
-            else:
-                wait_time = 1.5
-
             wait_time = 1.5
             if fingerprint:
                 if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
@@ -290,7 +258,6 @@ class HybridEngine:
                     wait_time = 2.0
                 elif fingerprint.connection_reset_timing > 0:
                     wait_time = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
-
             await asyncio.sleep(wait_time)
             try:
                 results = await self._test_sites_connectivity(test_sites, dns_cache)
@@ -327,25 +294,6 @@ class HybridEngine:
             bypass_engine.stop()
             if bypass_thread:
                 bypass_thread.join(timeout=2.0)
-
-            # Анализируем захваченные пакеты
-            if self.debug and bypass_engine.packet_capturer:
-                bypass_engine.packet_capturer.stop()
-                analysis = bypass_engine.packet_capturer.analyze_all_strategies()
-
-                if analysis:
-                    for strategy_id, packet_stats in analysis.items():
-                        LOG.info(f"Packet analysis for {strategy_id}:")
-                        LOG.info(f"  - Total packets: {packet_stats.get('total_packets', 0)}")
-                        LOG.info(f"  - TLS ClientHello: {packet_stats.get('tls_clienthellos', 0)}")
-                        LOG.info(f"  - TLS ServerHello: {packet_stats.get('tls_serverhellos', 0)}")
-                        LOG.info(f"  - RST packets: {packet_stats.get('rst_packets', 0)}")
-                        LOG.info(f"  - Success indicator: {packet_stats.get('success_indicator', False)}")
-
-                        # Используем анализ пакетов для корректировки успешности
-                        if packet_stats.get('success_indicator'):
-                            LOG.info("  ✓ Packet-level analysis confirms success")
-
             await asyncio.sleep(0.5)
 
     async def test_strategies_hybrid(self, strategies: List[Union[str, Dict[str, Any]]], test_sites: List[str], ips: Set[str], dns_cache: Dict[str, str], port: int, domain: str, fast_filter: bool=True, initial_ttl: Optional[int]=None, enable_fingerprinting: bool=True, use_modern_engine: bool=True) -> List[Dict]:
@@ -388,54 +336,23 @@ class HybridEngine:
                 self.fingerprint_stats['fallback_tests'] += 1
         else:
             self.fingerprint_stats['fallback_tests'] += 1
-
-        # Если есть fingerprint, используем классификатор для выбора атак
-        if fingerprint:
-            recommended_attacks = self.attack_classifier.recommend_attacks_for_dpi(
-                fingerprint.dpi_type.value
-            )
-            LOG.info(f"Recommended attacks for {fingerprint.dpi_type.value}: {recommended_attacks[:5]}")
-
-            # Добавляем рекомендованные атаки в начало списка
-            for attack_name in recommended_attacks[:3]:
-                strategy_str = f"--dpi-desync={attack_name}"
-                if strategy_str not in strategies:
-                    strategies.insert(0, strategy_str)
-                    LOG.info(f"Added recommended attack: {attack_name}")
-
-        # Обработка registry и dict стратегий
-        base_strategies = strategies[:]
-        registry_strategies: List[str] = []
-
         if use_modern and self.attack_registry:
-            # В реестр передаем только строковые стратегии
-            only_strings = [s for s in base_strategies if isinstance(s, str)]
-            if only_strings:
-                registry_strategies = self._enhance_strategies_with_registry(only_strings, fingerprint, domain, port)
+            strategies_to_test = self._enhance_strategies_with_registry(strategies, fingerprint, domain, port)
             self.bypass_stats['attack_registry_queries'] += 1
-
-        # Объединяем и дедуплицируем
-        seen = set()
-        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
-        for s in base_strategies + registry_strategies:
-            # Используем строковое представление для дедупликации
-            key = s if isinstance(s, str) else json.dumps(s, sort_keys=True)
-            if key not in seen:
-                seen.add(key)
-                strategies_to_test.append(s)
-
+        elif fingerprint:
+            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies, fingerprint)
+            LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
+        else:
+            strategies_to_test = strategies
+            LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
-
         for i, strategy in enumerate(strategies_to_test):
-            # Создаем человекочитаемое представление для логов
             pretty = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
             LOG.info(f'--> Тест {i + 1}/{len(strategies_to_test)}: {pretty}')
-
-            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(
-                strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint
-            )
+            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint)
             success_rate = successful_count / total_count if total_count > 0 else 0.0
             result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
+
             results.append(result_data)
             if success_rate > 0:
                 LOG.info(f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms')
