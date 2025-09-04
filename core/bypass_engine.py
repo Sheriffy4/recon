@@ -12,6 +12,12 @@ import struct
 import random
 import re
 from typing import List, Dict, Optional, Tuple, Set, Any
+from core.bypass.fooling_selector import FoolingSelector
+from core.bypass.jitter_control import JitterController, RateController, InjectionTiming
+from core.bypass.fallback_manager import FallbackManager
+from core.calibration.tls_analyzer import TlsAnalyzer
+from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
+from core.bypass.pcap_collector import FailurePcapCollector
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from quic_handler import QuicHandler
 
@@ -206,6 +212,15 @@ if platform.system() == "Windows":
             self._inject_sema = threading.Semaphore(self._max_injections)
             # Профили по CDN: md5sig_allowed/badsum_allowed + лучшие параметры
             self.cdn_profiles: Dict[str, Dict[str, Any]] = {}
+
+            # Новые компоненты
+            self.fooling_selector = FoolingSelector(self, debug)
+            self.jitter_controller = JitterController()
+            self.rate_controller = RateController(max_concurrent=12, max_per_second=100)
+            self.fallback_manager = FallbackManager(debug)
+            self.tls_analyzer = TlsAnalyzer()
+            self.knowledge_base = CdnAsnKnowledgeBase()
+            self.pcap_collector = FailurePcapCollector() if debug else None
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -786,12 +801,30 @@ if platform.system() == "Windows":
             и централизованную логику.
             """
             try:
-                # Лимит параллельных инъекций
-                acquired = self._inject_sema.acquire(timeout=0.5)
-                if not acquired:
-                    self.logger.debug("Injection semaphore limit reached, forwarding original")
-                    w.send(packet)
-                    return
+                # Rate limiting с новым контроллером
+                if not self.rate_controller.can_inject():
+                    wait_time = 0.01
+                    time.sleep(wait_time)
+                    if not self.rate_controller.can_inject():
+                        self.logger.debug("Rate limit exceeded, forwarding original")
+                        w.send(packet)
+                        return
+
+                self.rate_controller.start_injection()
+
+                # Проверка fallback
+                domain = self._extract_sni(packet.payload) or packet.dst_addr
+                if self.fallback_manager.should_fallback(domain):
+                    cdn = self._classify_cdn(packet.dst_addr)
+                    fallback_strategy = self.fallback_manager.get_fallback_strategy(domain, cdn)
+                    if fallback_strategy:
+                        strategy_task = fallback_strategy
+                        self.logger.info(f"Using fallback strategy for {domain}")
+
+                # Получаем рекомендации из базы знаний
+                recommendations = self.knowledge_base.get_recommendations(packet.dst_addr)
+                cdn = recommendations.get('cdn')
+
                 params = strategy_task.get("params", {}).copy()
                 self.current_params = params
                 task_type = normalize_attack_name(strategy_task.get("type"))
@@ -831,6 +864,15 @@ if platform.system() == "Windows":
 
                 if params.get("split_pos") == "midsld":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
+
+                # TLS анализ для автоматического split_pos
+                if self._is_tls_clienthello(payload) and params.get("split_pos") == "auto":
+                    split_pos = self.tls_analyzer.estimate_optimal_split_pos(payload)
+                    params["split_pos"] = split_pos
+                    self.logger.info(f"Auto-selected split_pos: {split_pos} via TlsAnalyzer")
+
+                # Настройка jitter timing
+                self.current_timing = self.jitter_controller.get_timing_for_cdn(cdn)
 
                 if task_type == "fakeddisorder":
                     # --- Логика с калибратором и ранней остановкой ---
@@ -875,24 +917,27 @@ if platform.system() == "Windows":
                         head = CalibCandidate(split_pos=int(params["split_pos"]), overlap_size=int(params["overlap_size"]))
                         cand_list = [head] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (head.split_pos, head.overlap_size)]
 
-                    # Предпробинг fooling по CDN
-                    cdn = self._classify_cdn(packet.dst_addr)
+                    # Используем рекомендации из базы знаний
+                    if recommendations.get('split_pos') and recommendations.get('overlap_size'):
+                        kb_seed = CalibCandidate(
+                            split_pos=recommendations['split_pos'],
+                            overlap_size=recommendations['overlap_size']
+                        )
+                        cand_list = [kb_seed] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (kb_seed.split_pos, kb_seed.overlap_size)]
+
+                    # Проверка совместимости fooling
                     prof = self._get_cdn_profile(cdn)
-                    best = prof.get("best_fakeddisorder")
-                    if best:
-                        head = CalibCandidate(split_pos=int(best.get("split_pos", init_sp)),
-                                              overlap_size=int(best.get("overlap_size", 160)))
-                        cand_list = [head] + [c for c in cand_list
-                                              if (c.split_pos, c.overlap_size) != (head.split_pos, head.overlap_size)]
                     fooling_list = params.get("fooling", []) or []
                     if isinstance(fooling_list, str):
                         fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
+
                     # Если не задано явно — пробуем автоматом оценить совместимость md5sig/badsum
                     try:
                         inbound_ev = self._get_inbound_event_for_flow(packet)
                         if inbound_ev.is_set(): inbound_ev.clear()
                         rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
                         self._inbound_results.pop(rev_key, None)
+
                         # md5sig
                         if prof["md5sig_allowed"] is None:
                             self._send_aligned_fake_segment(packet, w, init_sp, b"", max(1, self.current_params["fake_ttl"]), ["md5sig"])
@@ -908,6 +953,7 @@ if platform.system() == "Windows":
                             prof["badsum_allowed"] = (outcome != "rst")
                     except Exception:
                         pass
+
                     # Фильтруем запрещённые режимы
                     if "md5sig" in fooling_list and prof["md5sig_allowed"] is False:
                         fooling_list = [f for f in fooling_list if f != "md5sig"]
@@ -922,8 +968,10 @@ if platform.system() == "Windows":
                         for t in ttl_list:
                             for d_ms in (1, 2, 3): # мини-сетка задержек
                                 self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], t, fooling_list)
-                                time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
-                                self.current_params["delay_ms"] = d_ms
+                                # Используем jitter controller
+                                jittered_delay = self.current_timing.get_jittered_delay()
+                                time.sleep(jittered_delay / 1000.0)
+                                self.current_params["delay_ms"] = jittered_delay
 
                                 segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
                                 self._send_segments(packet, w, segments)
@@ -967,15 +1015,8 @@ if platform.system() == "Windows":
                             )
                             sm.save_strategies()
                             self.logger.info(f"Saved best params for {key_domain} via StrategyManager.")
-                        except Exception as e:
-                            self.logger.debug(f"StrategyManager immediate update failed: {e}")
 
-                    if best_cand:
-                        # ... существующий блок StrategyManager ...
-                        # Запомним лучшие параметры для CDN-профиля
-                        try:
-                            cdn = self._classify_cdn(packet.dst_addr)
-                            prof = self._get_cdn_profile(cdn)
+                            # Сохраняем в CDN профиль
                             prof["best_fakeddisorder"] = {
                                 "split_pos": best_cand.split_pos,
                                 "overlap_size": best_cand.overlap_size,
@@ -983,8 +1024,11 @@ if platform.system() == "Windows":
                                 "delay_ms": self.current_params.get("delay_ms", 2),
                                 "fooling": fooling_list[:],
                             }
-                        except Exception:
-                            pass
+
+                            # Записываем успех в fallback manager
+                            self.fallback_manager.record_success(domain, strategy_task)
+                        except Exception as e:
+                            self.logger.debug(f"StrategyManager immediate update failed: {e}")
 
                     success = (best_cand is not None)
                     if not success:
@@ -1068,16 +1112,22 @@ if platform.system() == "Windows":
 
                 if not success:
                     self.logger.error("Strategy failed, sending original packet.")
+                    # Записываем неудачу
+                    self.fallback_manager.record_failure(domain, strategy_task, "strategy_failed")
+                    # Автосбор PCAP при повторяющихся неудачах
+                    if self.pcap_collector:
+                        tracker = self.fallback_manager.failure_trackers.get(domain)
+                        if tracker and tracker.consecutive_failures >= 3:
+                            self.pcap_collector.trigger_capture(domain, "multiple_failures")
                     w.send(packet)
 
             except Exception as e:
                 self.logger.error(f"❌ Ошибка применения bypass: {e}", exc_info=self.debug)
+                domain = self._extract_sni(packet.payload) or packet.dst_addr
+                self.fallback_manager.record_failure(domain, strategy_task, str(e))
                 w.send(packet)
             finally:
-                try:
-                    self._inject_sema.release()
-                except Exception:
-                    pass
+                self.rate_controller.end_injection()
 
         def _send_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]):
             """
