@@ -309,6 +309,22 @@ class HybridEngine:
                 LOG.debug(f'Strategy test with DPI context: {fingerprint.dpi_type.value}, RST injection: {fingerprint.rst_injection_detected}, TCP manipulation: {fingerprint.tcp_window_manipulation}')
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
             
+            # Обновляем KB по результатам (если доступна)
+            try:
+                if self.knowledge_base:
+                    pretty_strategy = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
+                    for site, (status, ip_used, lat_ms, _http) in (results or {}).items():
+                        domain = urlparse(site).hostname or site
+                        ok = (status == 'WORKING')
+                        bt = BlockType.NONE if ok else BlockType.UNKNOWN
+                        self.knowledge_base.update_with_result(
+                            domain=domain, ip=ip_used or "", strategy={"raw": pretty_strategy},
+                            success=ok, block_type=bt, latency_ms=float(lat_ms or 0.0)
+                        )
+                    self.knowledge_base.save()
+            except Exception as e:
+                LOG.debug(f"KB update failed: {e}")
+
             if return_details:
                 return (result_status, successful_count, len(test_sites), avg_latency, results)
             return (result_status, successful_count, len(test_sites), avg_latency)

@@ -961,7 +961,19 @@ if platform.system() == "Windows":
                             time.sleep(0.003)
                             self._send_fake_packet_with_badsum(packet, w, ttl=ttl + 1)
                 elif task_type == "multidisorder":
-                    self._send_fake_packet(packet, w, ttl=self.current_params.get("fake_ttl"))
+                    # Префиксный fake, если задан
+                    if params.get("pre_fake"):
+                        ttl_pf = int(params.get("fake_ttl", self.current_params.get("fake_ttl", 1)))
+                        fool = params.get("fooling") or []
+                        if "badsum" in fool:
+                            self._send_fake_packet_with_badsum(packet, w, ttl=ttl_pf)
+                        elif "md5sig" in fool:
+                            self._send_fake_packet_with_md5sig(packet, w, ttl=ttl_pf)
+                        elif "badseq" in fool:
+                            self._send_fake_packet_with_badseq(packet, w, ttl=ttl_pf)
+                        else:
+                            self._send_fake_packet(packet, w, ttl=ttl_pf)
+                        time.sleep(0.003)
                     segments = self.techniques.apply_multidisorder(payload, params.get("positions", [10, 25, 40]))
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "seqovl":
@@ -989,8 +1001,7 @@ if platform.system() == "Windows":
                     w.send(packet)
                     success = True
                 elif task_type == "fake":
-                    # Простой режим fake: отправляем фейковый пакет и затем оригинал.
-                    # Поддерживаем badsum/md5sig/badseq при указании в fooling.
+                    # Простой режим fake: отправляем фейковый пакет и затем оригинал (с учетом split_pos)
                     fooling = params.get("fooling", []) or []
                     if isinstance(fooling, str):
                         fooling = [f.strip() for f in fooling.split(",") if f.strip()]
@@ -1005,7 +1016,13 @@ if platform.system() == "Windows":
                         self._send_fake_packet(packet, w, ttl=ttl_fake)
                     # Небольшая задержка перед оригиналом
                     time.sleep(params.get("delay_ms", 3) / 1000.0 if isinstance(params.get("delay_ms"), (int, float)) else 0.003)
-                    w.send(packet)
+                    # Если указан split_pos — применим TLS record split к payload перед отправкой
+                    sp = params.get("split_pos")
+                    if isinstance(sp, int) and sp > 0:
+                        modified_payload = self.techniques.apply_tlsrec_split(payload, sp)
+                        self._send_modified_packet(packet, w, modified_payload)
+                    else:
+                        w.send(packet)
                     success = True
                 else:
                     self.logger.warning(f"Неизвестный тип задачи '{task_type}', применяем простую фрагментацию.")

@@ -521,6 +521,11 @@ class EnhancedStrategyInterpreter:
             "fooling_methods": parsed.fooling_methods,
             "autottl": parsed.autottl
         }
+        # Если в методах есть 'fake' + другая основная атака — включаем префиксный fake
+        if "fake" in parsed.desync_methods and primary_attack not in ("fake",):
+            params["pre_fake"] = True
+            if parsed.ttl:
+                params["fake_ttl"] = parsed.ttl
         
         # Add attack-specific parameters
         if primary_attack == "fake_fakeddisorder":
