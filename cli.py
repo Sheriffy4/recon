@@ -2622,6 +2622,12 @@ def load_all_attacks():
 
 
 def main():
+    # Windows: подавить Proactor-шум и снизить параллелизм
+    if platform.system() == "Windows":
+        try:
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        except Exception:
+            pass
     # Вызываем загрузчик в самом начале
     load_all_attacks()
 
