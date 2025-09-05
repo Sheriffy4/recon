@@ -97,11 +97,11 @@ class PcapInsightsWorker:
             details["rst_avg_ttl"] = avg_ttl 
             # простая эвристика 
             block_type = BlockType.RST_INJECTION 
-        elif tls_alerts > 0: 
-            block_type = BlockType.TLS_ALERT if hasattr(BlockType, "TLS_ALERT") else BlockType.UNKNOWN 
-            details["tls_alert_count"] = tls_alerts 
-        elif icmp_unreach > 0: 
-            block_type = BlockType.ICMP_UNREACH if hasattr(BlockType, "ICMP_UNREACH") else BlockType.UNKNOWN 
+        elif tls_alerts > 0:
+            block_type = BlockType.TLS_ALERT
+            details["tls_alert_count"] = tls_alerts
+        elif icmp_unreach > 0:
+            block_type = BlockType.ICMP_UNREACH
             details["icmp_unreach_count"] = icmp_unreach 
         else: 
             return None 

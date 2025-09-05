@@ -364,8 +364,11 @@ class HybridEngine:
                 LOG.error(f'DPI fingerprinting error: {e}')
                 self.fingerprint_stats['fingerprint_failures'] += 1
                 self.fingerprint_stats['fallback_tests'] += 1
-        else:
-            self.fingerprint_stats['fallback_tests'] += 1
+                # Анализ PCAP даже при неудачном фингерпринтинге
+                if capturer and self.enhanced_tracking:
+                    capturer.trigger_pcap_analysis(force=True)
+                else:
+                    self.fingerprint_stats['fallback_tests'] += 1
         # Knowledge init: derive CDN/ASN profile for primary domain
         cdn = None
         asn = None
@@ -551,7 +554,11 @@ class HybridEngine:
             priority_patterns = ['--dpi-desync=fake.*disorder', '--dpi-desync-fooling=.*seq']
             adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
         if fingerprint.rst_injection_detected and fingerprint.connection_reset_timing < 100:
-            adapted_strategies.extend(['--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum', '--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq'])
+            adapted_strategies.extend([
+                '--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum',
+                '--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq',
+                '--dpi-desync-stealth-mode --dpi-desync-rst-evasion'  # Новая стратегия
+            ])
         if fingerprint.tcp_window_manipulation:
             adapted_strategies.extend(['--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10'])
         if fingerprint.http_header_filtering:

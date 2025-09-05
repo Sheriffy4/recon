@@ -3,9 +3,9 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from datetime import datetime
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 
 
 @dataclass
@@ -14,11 +14,15 @@ class DomainStrategy:
 
     domain: str
     strategy: str
-    success_rate: float = 0.0
-    avg_latency_ms: float = 0.0
-    last_tested: Optional[str] = None
-    test_count: int = 0
-    params: Dict[str, Any] = field(default_factory=dict)
+    success_rate: float
+    avg_latency_ms: float
+    last_tested: str
+    test_count: int = 1
+    # --- Новые микропараметры для калибратора ---
+    split_pos: Optional[int] = None
+    overlap_size: Optional[int] = None
+    fake_ttl_source: Optional[Any] = None
+    fooling_modes: Optional[List[str]] = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -43,88 +47,71 @@ class StrategyManager:
         self.load_strategies()
 
     def load_strategies(self):
-        """Загружает стратегии из файла, безопасно обрабатывая неизвестные поля."""
+        """Загружает стратегии из файла."""
+        # Сначала пытаемся загрузить из нового формата
         if self.strategies_file.exists():
             try:
                 with open(self.strategies_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                ds = data.get("domain_strategies", {}) or {}
-                known_fields = {f.name for f in DomainStrategy.__dataclass_fields__.values()}
-                loaded_count = 0
+                for domain, strategy_data in data.get("domain_strategies", {}).items():
+                    self.domain_strategies[domain] = DomainStrategy.from_dict(
+                        strategy_data
+                    )
 
-                for domain, rec in ds.items():
-                    if not isinstance(rec, dict):
-                        self.logger.warning(f"Skipping invalid strategy record for domain {domain}: not a dictionary.")
-                        continue
-
-                    # Sanitize the record, separating known and unknown fields
-                    sanitized_data = {k: v for k, v in rec.items() if k in known_fields}
-                    unknown_fields = {k: v for k, v in rec.items() if k not in known_fields}
-
-                    # Store unknown fields in params
-                    if unknown_fields:
-                        if 'params' not in sanitized_data:
-                            sanitized_data['params'] = {}
-                        sanitized_data['params']['extra'] = unknown_fields
-                        self.logger.debug(f"Stored unknown fields for {domain} in params: {list(unknown_fields.keys())}")
-
-                    try:
-                        self.domain_strategies[domain] = DomainStrategy.from_dict(sanitized_data)
-                        loaded_count += 1
-                    except Exception as e:
-                        self.logger.error(f"Failed to create DomainStrategy for {domain}: {e}")
-
-                self.logger.info(f"Loaded {loaded_count} domain strategies from {self.strategies_file}")
+                self.logger.info(
+                    f"Loaded {len(self.domain_strategies)} domain strategies"
+                )
                 return
             except Exception as e:
-                self.logger.warning(f"Failed to load strategies from {self.strategies_file}: {e}")
+                self.logger.warning(
+                    f"Failed to load strategies from {self.strategies_file}: {e}"
+                )
 
         # Fallback к старому формату
         if self.legacy_file.exists():
             try:
                 with open(self.legacy_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
+
+                # Конвертируем старый формат
                 if "strategy" in data:
-                    domain = data.get("domain", "default")
+                    # Это старый формат с одной стратегией
+                    domain = "default"  # Используем default для совместимости
                     strategy = DomainStrategy(
                         domain=domain,
                         strategy=data["strategy"],
                         success_rate=data.get("success_rate", 1.0),
                         avg_latency_ms=data.get("avg_latency_ms", 0.0),
-                        last_tested=data.get("last_tested", datetime.now().isoformat()),
-                        test_count=data.get("test_count", 1),
+                        last_tested=datetime.now().isoformat(),
+                        test_count=1,
                     )
                     self.domain_strategies[domain] = strategy
-                    self.logger.info(f"Converted legacy strategy for domain: {domain}")
+                    self.logger.info("Converted legacy strategy for default domain")
             except Exception as e:
-                self.logger.warning(f"Failed to load legacy strategy from {self.legacy_file}: {e}")
+                self.logger.warning(
+                    f"Failed to load legacy strategy from {self.legacy_file}: {e}"
+                )
 
     def save_strategies(self):
-        """Saves strategies into JSON file, including params."""
+        """Сохраняет стратегии в файл."""
         try:
-            payload = {"version": "2.0", "last_updated": datetime.now().isoformat(), "domain_strategies": {}}
-
-            for domain, ds in self.domain_strategies.items():
-                record = {
-                    "domain": ds.domain,
-                    "strategy": ds.strategy,
-                    "success_rate": ds.success_rate,
-                    "avg_latency_ms": ds.avg_latency_ms,
-                    "last_tested": ds.last_tested,
-                    "test_count": ds.test_count,
-                }
-                if ds.params:
-                    record["params"] = ds.params
-                payload["domain_strategies"][domain] = record
+            data = {
+                "version": "2.0",
+                "last_updated": datetime.now().isoformat(),
+                "domain_strategies": {
+                    domain: strategy.to_dict()
+                    for domain, strategy in self.domain_strategies.items()
+                },
+            }
 
             with open(self.strategies_file, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2, ensure_ascii=False)
+                json.dump(data, f, indent=2, ensure_ascii=False)
 
             # Также сохраняем в старом формате для совместимости
             self.save_legacy_format()
 
-            self.logger.info(f"Saved {len(self.domain_strategies)} domain strategies to {self.strategies_file}")
+            self.logger.info(f"Saved {len(self.domain_strategies)} domain strategies")
         except Exception as e:
             self.logger.error(f"Failed to save strategies: {e}")
 
@@ -154,9 +141,9 @@ class StrategyManager:
             self.logger.error(f"Failed to save legacy format: {e}")
 
     def add_strategy(
-        self, domain: str, strategy: str, success_rate: float, avg_latency_ms: float
+        self, domain: str, strategy: str, success_rate: float, avg_latency_ms: float, **kwargs
     ):
-        """Добавляет или обновляет стратегию для домена."""
+        """Добавляет или обновляет стратегию для домена, включая микропараметры."""
         domain = domain.lower().strip()
 
         if domain in self.domain_strategies:
@@ -167,6 +154,11 @@ class StrategyManager:
             existing.avg_latency_ms = avg_latency_ms
             existing.last_tested = datetime.now().isoformat()
             existing.test_count += 1
+            # Update micro-parameters
+            existing.split_pos = kwargs.get("split_pos", existing.split_pos)
+            existing.overlap_size = kwargs.get("overlap_size", existing.overlap_size)
+            existing.fake_ttl_source = kwargs.get("fake_ttl_source", existing.fake_ttl_source)
+            existing.fooling_modes = kwargs.get("fooling_modes", existing.fooling_modes)
         else:
             # Создаем новую стратегию
             self.domain_strategies[domain] = DomainStrategy(
@@ -175,9 +167,14 @@ class StrategyManager:
                 success_rate=success_rate,
                 avg_latency_ms=avg_latency_ms,
                 last_tested=datetime.now().isoformat(),
+                # Add micro-parameters
+                split_pos=kwargs.get("split_pos"),
+                overlap_size=kwargs.get("overlap_size"),
+                fake_ttl_source=kwargs.get("fake_ttl_source"),
+                fooling_modes=kwargs.get("fooling_modes"),
             )
 
-        self.logger.info(f"Added strategy for {domain}: {strategy}")
+        self.logger.info(f"Added/updated strategy for {domain}: {strategy} with params {kwargs}")
 
     def get_strategy(self, domain: str) -> Optional[DomainStrategy]:
         """Получает стратегию для домена."""
