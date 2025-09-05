@@ -5,8 +5,6 @@ _ALIAS_MAP = {
     # fakeddisorder family
     "fakeddisorder": "fakeddisorder",
     "fakedisorder": "fakeddisorder",
-    # современное имя
-    "fake_disorder": "fakeddisorder",
     "fake_fakeddisorder": "fakeddisorder",
     "tcp_fakeddisorder": "fakeddisorder",
     "fake,disorder": "fakeddisorder",
@@ -22,8 +20,6 @@ _ALIAS_MAP = {
     # seqovl family
     "seqovl": "seqovl",
     "tcp_seqovl": "seqovl",
-    # современное имя
-    "sequence_overlap": "seqovl",
     # fake
     "fake_packet": "fake",
     "fakeonly": "fake",

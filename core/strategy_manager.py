@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Optional, Any
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 
 @dataclass
@@ -14,10 +14,11 @@ class DomainStrategy:
 
     domain: str
     strategy: str
-    success_rate: float
-    avg_latency_ms: float
-    last_tested: str
-    test_count: int = 1
+    success_rate: float = 0.0
+    avg_latency_ms: float = 0.0
+    last_tested: Optional[str] = None
+    test_count: int = 0
+    params: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -42,71 +43,88 @@ class StrategyManager:
         self.load_strategies()
 
     def load_strategies(self):
-        """Загружает стратегии из файла."""
-        # Сначала пытаемся загрузить из нового формата
+        """Загружает стратегии из файла, безопасно обрабатывая неизвестные поля."""
         if self.strategies_file.exists():
             try:
                 with open(self.strategies_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                for domain, strategy_data in data.get("domain_strategies", {}).items():
-                    self.domain_strategies[domain] = DomainStrategy.from_dict(
-                        strategy_data
-                    )
+                ds = data.get("domain_strategies", {}) or {}
+                known_fields = {f.name for f in DomainStrategy.__dataclass_fields__.values()}
+                loaded_count = 0
 
-                self.logger.info(
-                    f"Loaded {len(self.domain_strategies)} domain strategies"
-                )
+                for domain, rec in ds.items():
+                    if not isinstance(rec, dict):
+                        self.logger.warning(f"Skipping invalid strategy record for domain {domain}: not a dictionary.")
+                        continue
+
+                    # Sanitize the record, separating known and unknown fields
+                    sanitized_data = {k: v for k, v in rec.items() if k in known_fields}
+                    unknown_fields = {k: v for k, v in rec.items() if k not in known_fields}
+
+                    # Store unknown fields in params
+                    if unknown_fields:
+                        if 'params' not in sanitized_data:
+                            sanitized_data['params'] = {}
+                        sanitized_data['params']['extra'] = unknown_fields
+                        self.logger.debug(f"Stored unknown fields for {domain} in params: {list(unknown_fields.keys())}")
+
+                    try:
+                        self.domain_strategies[domain] = DomainStrategy.from_dict(sanitized_data)
+                        loaded_count += 1
+                    except Exception as e:
+                        self.logger.error(f"Failed to create DomainStrategy for {domain}: {e}")
+
+                self.logger.info(f"Loaded {loaded_count} domain strategies from {self.strategies_file}")
                 return
             except Exception as e:
-                self.logger.warning(
-                    f"Failed to load strategies from {self.strategies_file}: {e}"
-                )
+                self.logger.warning(f"Failed to load strategies from {self.strategies_file}: {e}")
 
         # Fallback к старому формату
         if self.legacy_file.exists():
             try:
                 with open(self.legacy_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-
-                # Конвертируем старый формат
                 if "strategy" in data:
-                    # Это старый формат с одной стратегией
-                    domain = "default"  # Используем default для совместимости
+                    domain = data.get("domain", "default")
                     strategy = DomainStrategy(
                         domain=domain,
                         strategy=data["strategy"],
                         success_rate=data.get("success_rate", 1.0),
                         avg_latency_ms=data.get("avg_latency_ms", 0.0),
-                        last_tested=datetime.now().isoformat(),
-                        test_count=1,
+                        last_tested=data.get("last_tested", datetime.now().isoformat()),
+                        test_count=data.get("test_count", 1),
                     )
                     self.domain_strategies[domain] = strategy
-                    self.logger.info("Converted legacy strategy for default domain")
+                    self.logger.info(f"Converted legacy strategy for domain: {domain}")
             except Exception as e:
-                self.logger.warning(
-                    f"Failed to load legacy strategy from {self.legacy_file}: {e}"
-                )
+                self.logger.warning(f"Failed to load legacy strategy from {self.legacy_file}: {e}")
 
     def save_strategies(self):
-        """Сохраняет стратегии в файл."""
+        """Saves strategies into JSON file, including params."""
         try:
-            data = {
-                "version": "2.0",
-                "last_updated": datetime.now().isoformat(),
-                "domain_strategies": {
-                    domain: strategy.to_dict()
-                    for domain, strategy in self.domain_strategies.items()
-                },
-            }
+            payload = {"version": "2.0", "last_updated": datetime.now().isoformat(), "domain_strategies": {}}
+
+            for domain, ds in self.domain_strategies.items():
+                record = {
+                    "domain": ds.domain,
+                    "strategy": ds.strategy,
+                    "success_rate": ds.success_rate,
+                    "avg_latency_ms": ds.avg_latency_ms,
+                    "last_tested": ds.last_tested,
+                    "test_count": ds.test_count,
+                }
+                if ds.params:
+                    record["params"] = ds.params
+                payload["domain_strategies"][domain] = record
 
             with open(self.strategies_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+                json.dump(payload, f, indent=2, ensure_ascii=False)
 
             # Также сохраняем в старом формате для совместимости
             self.save_legacy_format()
 
-            self.logger.info(f"Saved {len(self.domain_strategies)} domain strategies")
+            self.logger.info(f"Saved {len(self.domain_strategies)} domain strategies to {self.strategies_file}")
         except Exception as e:
             self.logger.error(f"Failed to save strategies: {e}")
 
