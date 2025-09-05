@@ -162,8 +162,13 @@ class HybridEngine:
                 task_type = 'badsum_race'
             elif 'md5sig' in fooling:
                 task_type = 'md5sig_race'
-            elif task_type == 'none' and (params.get('dpi_desync_ttl') or params.get('dpi_desync_fake_tls')):
-                task_type = 'badsum_race'
+            elif params.get('dpi_desync_ttl') or params.get('dpi_desync_fake_tls'):
+                # есть 'fake' без fooling — поддерживаем чистый fake
+                task_type = 'fake' if task_type == 'none' else task_type
+            else:
+                # чистый 'fake' без TTL/параметров — тоже поддержим
+                if task_type == 'none':
+                    task_type = 'fake'
         if params.get('dpi_desync_split_seqovl'):
             task_type = 'seqovl'
             split_pos_raw = params.get('dpi_desync_split_pos', [])
@@ -175,6 +180,13 @@ class HybridEngine:
             task_params['overlap_size'] = params.get('dpi_desync_split_seqovl')
         if params.get('dpi_desync_ttl'):
             task_params['ttl'] = params.get('dpi_desync_ttl')
+        # split без seqovl → простая фрагментация
+        if task_type == 'none' and 'split' in desync:
+            task_type = 'simple_fragment'
+            split_pos_raw = params.get('dpi_desync_split_pos', [])
+            positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
+            task_params['split_pos'] = positions[0] if positions else 3
+
         if task_type == 'none':
             LOG.warning(f'Не удалось транслировать zapret-стратегию в задачу для движка: {params}')
             return None
@@ -479,7 +491,8 @@ class HybridEngine:
         if results and fingerprint:
             LOG.info(f'Strategy testing completed with DPI fingerprint: {fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f})')
             
-        if self.knowledge_base and any(r['success_rate'] > 0 for r in results):
+        # Сохраняем обновленную базу знаний (если используется)
+        if self.knowledge_base and any(r.get('success_rate', 0) > 0 for r in results):
             try:
                 self.knowledge_base.save()
                 LOG.info('Knowledge base updated and saved after successful strategy tests')
