@@ -41,17 +41,24 @@ class ProtocolType(Enum):
 
 
 class BlockType(Enum):
-    """Единый источник истины для всей системы."""
+    """
+    Типы блокировок, обнаруженные при тестировании. Единый источник истины.
+    """
+    # Успешные / нейтральные
     NONE = "none"
+    # По поведению сети
     RST_INJECTION = "rst_injection"
     TIMEOUT = "timeout"
     CONNECTION_REFUSED = "connection_refused"
     ICMP_UNREACH = "icmp_unreach"
+    # По содержимому
     HTTP_BLOCK_PAGE = "http_block_page"
     CONTENT = "content"
     HTTP_ERROR = "http_error"
+    # На уровне протоколов
     TLS_ALERT = "tls_alert"
     TLS_HANDSHAKE_FAILURE = "tls_handshake_failure"
+    # Прочее
     INVALID = "invalid"
     UNKNOWN = "unknown"
 

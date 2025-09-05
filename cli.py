@@ -1,5 +1,13 @@
 # recon/cli.py - Рабочая версия на основе v111 (с PCAP, AdvancedFingerprinter и фиксом тестов)
 
+# Windows asyncio: подавим Proactor‑спам и улучшим совместимость
+import sys, asyncio as _asyncio
+if sys.platform == "win32":
+    try:
+        _asyncio.set_event_loop_policy(_asyncio.WindowsSelectorEventLoopPolicy())
+    except Exception:
+        pass
+
 import os
 import sys
 import argparse
@@ -2645,12 +2653,6 @@ def load_all_attacks():
 
 
 def main():
-    # Windows: подавить Proactor-шум и снизить параллелизм
-    if platform.system() == "Windows":
-        try:
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        except Exception:
-            pass
     # Вызываем загрузчик в самом начале
     load_all_attacks()
 
