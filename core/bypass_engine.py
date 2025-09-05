@@ -149,27 +149,6 @@ class BypassTechniques:
             )
         return packet_data
 
-    @staticmethod
-    def apply_simple_fragment(payload: bytes, split_pos: int = 1) -> List[Tuple[bytes, int]]:
-        """Простая фрагментация на 2 части."""
-        if split_pos <= 0 or split_pos >= len(payload):
-            return [(payload, 0)]
-        part1 = payload[:split_pos]
-        part2 = payload[split_pos:]
-        return [(part1, 0), (part2, split_pos)]
-
-    @staticmethod
-    def apply_window_manipulation(payload: bytes, window_size: int = 1) -> List[Tuple[bytes, int]]:
-        """Фрагментация с манипуляцией TCP Window Size."""
-        segments = []
-        pos = 0
-        while pos < len(payload):
-            chunk_size = min(window_size, len(payload) - pos)
-            chunk = payload[pos:pos+chunk_size]
-            segments.append((chunk, pos))
-            pos += chunk_size
-        return segments
-
 
 if platform.system() == "Windows":
 
@@ -884,36 +863,32 @@ if platform.system() == "Windows":
                     autottl = params.get("autottl")
                     ttl_list = list(range(1, min(int(autottl), 8) + 1)) if autottl else [self.current_params["fake_ttl"]]
 
-                    best_cand = None
-                    got_inbound = False
-                    for cand in cand_list:
-                        for t in ttl_list:
-                            for d_ms in (1, 2, 3): # мини-сетка задержек
-                                self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], t, fooling_list)
-                                time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
-                                self.current_params["delay_ms"] = d_ms
-
-                                segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
-                                self._send_segments(packet, w, segments)
-
-                                got_inbound = inbound_ev.wait(timeout=0.25)
-                                if got_inbound:
-                                    outcome = self._inbound_results.get(rev_key)
-                                    if outcome == "ok":
-                                        self.logger.info(f"✅ Calibrator: early success with sp={cand.split_pos}, ov={cand.overlap_size}, delay={d_ms}ms, ttl={t}")
-                                        best_cand = cand
-                                        # Cleanup after success
-                                        with self._lock:
-                                            self._inbound_events.pop(rev_key, None)
-                                            self._inbound_results.pop(rev_key, None)
-                                        break
-                                    else:
-                                        self.logger.debug(f"Calibrator: got '{outcome}', trying next params.")
-                                        inbound_ev.clear()
-                                        with self._lock:
-                                            self._inbound_results.pop(rev_key, None)
-                            if got_inbound: break
-                        if got_inbound: break
+                    # Sweep с тайм-бюджетом (350мс)
+                    def _send_try(cand: CalibCandidate, ttl: int, d_ms: int):
+                        self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], ttl, fooling_list)
+                        time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
+                        self.current_params["delay_ms"] = d_ms
+                        segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
+                        self._send_segments(packet, w, segments)
+                    def _wait_outcome(timeout: float=0.25) -> Optional[str]:
+                        got = inbound_ev.wait(timeout=timeout)
+                        if not got: return None
+                        return self._inbound_results.get(rev_key)
+                    best_cand = Calibrator.sweep(
+                        payload=payload,
+                        candidates=cand_list,
+                        ttl_list=ttl_list,
+                        delays=[1,2,3],
+                        send_func=_send_try,
+                        wait_func=_wait_outcome,
+                        time_budget_ms=350
+                    )
+                    got_inbound = best_cand is not None
+                    if got_inbound:
+                        with self._lock:
+                            self._inbound_events.pop(rev_key, None)
+                            self._inbound_results.pop(rev_key, None)
+                        self.logger.info(f"✅ Calibrator: success with sp={best_cand.split_pos}, ov={best_cand.overlap_size}, delay={self.current_params.get('delay_ms',2)}ms")
 
                     if best_cand and StrategyManager:
                         try:
@@ -1032,15 +1007,6 @@ if platform.system() == "Windows":
                     time.sleep(params.get("delay_ms", 3) / 1000.0 if isinstance(params.get("delay_ms"), (int, float)) else 0.003)
                     w.send(packet)
                     success = True
-                elif task_type == "simple_fragment":
-                    split_pos = params.get("split_pos", 1)
-                    segments = self.techniques.apply_simple_fragment(payload, split_pos)
-                    success = self._send_segments(packet, w, segments)
-                elif task_type == "window_manipulation":
-                    window_size = params.get("window_size", 1)
-                    # Используем специальный метод отправки, который выставляет TCP Window
-                    segments = self.techniques.apply_window_manipulation(payload, window_size)
-                    success = self._send_segments_with_window(packet, w, segments)
                 else:
                     self.logger.warning(f"Неизвестный тип задачи '{task_type}', применяем простую фрагментацию.")
                     self._send_fragmented_fallback(packet, w)

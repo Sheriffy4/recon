@@ -305,6 +305,76 @@ class AdvancedFingerprinter:
             self.logger.debug(f"Could not load effectiveness model: {e}")
             self.effectiveness_model = None
 
+    async def fingerprint_many(
+        self,
+        targets: List[Tuple[str, int]],
+        force_refresh: bool = False,
+        protocols: Optional[List[str]] = None,
+        include_behavior_analysis: Optional[bool] = None,
+        include_extended_metrics: Optional[bool] = None,
+        concurrency: Optional[int] = None,
+    ) -> List[DPIFingerprint]:
+        """
+        Параллельно фингерпринтим список доменов с ограничением по одновременным задачам.
+        
+        Args:
+            targets: [(domain, port), ...]
+            force_refresh: Force refresh for all targets
+            protocols: Protocols to analyze
+            include_behavior_analysis: Enable behavior analysis
+            include_extended_metrics: Enable extended metrics
+            concurrency: Override default concurrency limit
+            
+        Returns:
+            List of DPIFingerprint objects
+        """
+        start_time = time.time()
+        concurrency_limit = concurrency or self.config.max_parallel_targets
+        sem = asyncio.Semaphore(concurrency_limit)
+
+        async def _worker(target: str, port: int):
+            async with sem:
+                return await self.fingerprint_target(
+                    target, port,
+                    force_refresh=force_refresh,
+                    protocols=protocols,
+                    include_behavior_analysis=include_behavior_analysis,
+                    include_extended_metrics=include_extended_metrics,
+                )
+
+        self.logger.info(f"Starting parallel fingerprinting for {len(targets)} targets with concurrency {concurrency_limit}")
+        
+        tasks = [asyncio.create_task(_worker(t, p)) for t, p in targets]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process results and handle exceptions
+        fingerprints = []
+        error_count = 0
+        
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                error_count += 1
+                target, port = targets[i]
+                self.logger.error(f"Fingerprinting failed for {target}:{port}: {result}")
+                # Create fallback fingerprint for failed targets
+                fingerprints.append(self._create_fallback_fingerprint(f"{target}:{port}", str(result)))
+            else:
+                fingerprints.append(result)
+        
+        total_time = time.time() - start_time
+        success_count = len(fingerprints) - error_count
+        
+        self.logger.info(
+            f"Parallel fingerprinting completed: {success_count}/{len(targets)} successful "
+            f"in {total_time:.2f}s (avg: {total_time/len(targets):.2f}s per target)"
+        )
+        
+        # Update stats
+        self.stats["total_analysis_time"] += total_time
+        self.stats["errors"] += error_count
+        
+        return fingerprints
+
     async def fingerprint_target(
         self,
         target: str,
