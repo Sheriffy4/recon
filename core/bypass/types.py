@@ -45,22 +45,26 @@ class BlockType(Enum):
     Единый источник истины для всей системы.
     """
     # Успешные или нейтральные состояния
-    NONE = "none"                          # Блокировки нет
+    NONE = "none"                       # Блокировки нет
+
     # Типы блокировок, определенные по поведению сети
-    RST_INJECTION = "rst_injection"        # Получен RST-пакет (инжекция DPI)
-    TIMEOUT = "timeout"                    # Соединение истекло по таймауту
+    RST_INJECTION = "rst_injection"     # Инжекция RST (DPI)
+    TIMEOUT = "timeout"                 # Соединение истекло по таймауту
     CONNECTION_REFUSED = "connection_refused"  # Соединение активно отклонено
-    ICMP_UNREACH = "icmp_unreach"          # ICMP destination unreachable
+    ICMP_UNREACH = "icmp_unreach"       # ICMP destination unreachable
+
     # Типы блокировок, определенные по содержимому ответа
-    HTTP_BLOCK_PAGE = "http_block_page"    # HTTP-страница-заглушка
-    CONTENT = "content"                    # Блокировка по содержимому
-    HTTP_ERROR = "http_error"              # Общая HTTP-ошибка (4xx, 5xx)
+    HTTP_BLOCK_PAGE = "http_block_page" # HTTP-страница-заглушка
+    CONTENT = "content"                 # Блокировка по содержимому
+    HTTP_ERROR = "http_error"           # Общая HTTP-ошибка (4xx, 5xx)
+
     # Типы блокировок на уровне протоколов
-    TLS_ALERT = "tls_alert"                # Получен TLS Alert
+    TLS_ALERT = "tls_alert"             # Получен TLS Alert
     TLS_HANDSHAKE_FAILURE = "tls_handshake_failure"  # Ошибка TLS handshake
+
     # Прочее
-    INVALID = "invalid"                    # Невалидный/неожиданный ответ
-    UNKNOWN = "unknown"                    # Не удалось классифицировать
+    INVALID = "invalid"                 # Невалидный/неожиданный ответ
+    UNKNOWN = "unknown"                 # Не удалось классифицировать
 
 
 # --- Основные структуры данных ---
