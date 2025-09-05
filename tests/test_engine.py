@@ -46,12 +46,17 @@ class TestHybridEngine:
     @patch("aiohttp.ClientSession")
     async def test_connectivity_success(self, mock_session, hybrid_engine, test_data):
         """Test _test_sites_connectivity for a successful connection."""
+        mock_session_obj = mock_session.return_value.__aenter__.return_value
+
         mock_response = AsyncMock()
         mock_response.status = 200
-        mock_response.content.readexactly.return_value = b"OK"
-        mock_session.return_value.__aenter__.return_value.get.return_value = (
-            mock_response
-        )
+        mock_response.content.readexactly = AsyncMock(return_value=b'OK')
+
+        mock_response_cm = AsyncMock()
+        mock_response_cm.__aenter__.return_value = mock_response
+
+        mock_session_obj.get = Mock(return_value=mock_response_cm)
+
         results = await hybrid_engine._test_sites_connectivity(
             sites=test_data["test_sites"], dns_cache=test_data["dns_cache"]
         )
@@ -70,9 +75,10 @@ class TestHybridEngine:
         self, mock_session, hybrid_engine, test_data
     ):
         """Test _test_sites_connectivity for a failed connection due to timeout."""
-        mock_session.return_value.__aenter__.return_value.get.side_effect = (
-            asyncio.TimeoutError
-        )
+        mock_cm = AsyncMock()
+        mock_cm.__aenter__.side_effect = asyncio.TimeoutError("test timeout")
+        mock_session.return_value.__aenter__.return_value.get = Mock(return_value=mock_cm)
+
         results = await hybrid_engine._test_sites_connectivity(
             sites=test_data["test_sites"], dns_cache=test_data["dns_cache"]
         )
@@ -102,7 +108,7 @@ class TestHybridEngine:
         )
         result_status, successful_count, total_count, avg_latency = (
             await hybrid_engine.execute_strategy_real_world(
-                strategy_str=test_data["strategy_str"],
+                strategy=test_data["strategy_str"],
                 test_sites=test_data["test_sites"],
                 target_ips=test_data["ips"],
                 dns_cache=test_data["dns_cache"],
@@ -121,19 +127,25 @@ class TestHybridEngine:
         """Test the high-level logic of test_strategies_hybrid."""
         strategies_to_test = [
             {"name": "fakedisorder", "params": {"split_pos": 3}},
-            {"name": "multisplit", "params": {"positions": [1, 5]}},
+            "fake(ttl=2)",
         ]
 
-        async def mock_execute_strategy(strategy_dict, *args, **kwargs):
-            if strategy_dict["name"] == "fakedisorder":
-                return ("ALL_SITES_WORKING", 2, 2, 120.0)
+        async def mock_execute_strategy(strategy, *args, **kwargs):
+            strategy_str = (
+                hybrid_engine._task_to_str(strategy)
+                if isinstance(strategy, dict)
+                else strategy
+            )
+            if "fakedisorder(split_pos=3)" in strategy_str:
+                return ("ALL_SITES_WORKING", 2, 2, 120.0, {})
             else:
-                return ("NO_SITES_WORKING", 0, 2, 0.0)
+                return ("NO_SITES_WORKING", 0, 2, 0.0, {})
 
-        hybrid_engine.execute_strategy_real_world_from_dict = AsyncMock(
+        hybrid_engine.execute_strategy_real_world = AsyncMock(
             side_effect=mock_execute_strategy
         )
         hybrid_engine.fingerprint_target = AsyncMock(return_value=None)
+
         results = await hybrid_engine.test_strategies_hybrid(
             strategies=strategies_to_test,
             test_sites=test_data["test_sites"],
@@ -144,11 +156,17 @@ class TestHybridEngine:
             enable_fingerprinting=False,
         )
         assert len(results) == 2
-        assert results[0]["strategy_dict"]["name"] == "fakedisorder"
-        assert results[0]["success_rate"] == 1.0
-        assert results[1]["strategy_dict"]["name"] == "multisplit"
-        assert results[1]["success_rate"] == 0.0
-        assert hybrid_engine.execute_strategy_real_world_from_dict.call_count == 2
+        # Note: The order might not be guaranteed, so we check for presence and correctness
+        fakedisorder_result = next((r for r in results if "fakedisorder" in r["strategy"]), None)
+        fake_ttl_result = next((r for r in results if "fake(ttl=2)" in r["strategy"]), None)
+
+        assert fakedisorder_result is not None
+        assert fakedisorder_result["success_rate"] == 1.0
+
+        assert fake_ttl_result is not None
+        assert fake_ttl_result["success_rate"] == 0.0
+
+        assert hybrid_engine.execute_strategy_real_world.call_count == 2
 
     @pytest.mark.asyncio
     @patch("core.hybrid_engine.BypassEngine")
@@ -167,7 +185,7 @@ class TestHybridEngine:
         )
         result_status, successful_count, total_count, avg_latency = (
             await hybrid_engine.execute_strategy_real_world(
-                strategy_str=test_data["strategy_str"],
+                strategy=test_data["strategy_str"],
                 test_sites=test_data["test_sites"],
                 target_ips=test_data["ips"],
                 dns_cache=test_data["dns_cache"],
