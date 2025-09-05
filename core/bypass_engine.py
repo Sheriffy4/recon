@@ -938,6 +938,23 @@ if platform.system() == "Windows":
 
                 # --- Остальные типы атак (логика сохранена для совместимости) ---
                 elif task_type == "multisplit":
+                    # Если передан preinject_fake или есть fooling — сначала отправим fake‑пакет
+                    try:
+                        pre = params.get("preinject_fake", False)
+                        fool = params.get("fooling", []) or []
+                        if pre or fool:
+                            ttl_fake = self.current_params.get("fake_ttl")
+                            if "badsum" in fool:
+                                self._send_fake_packet_with_badsum(packet, w, ttl=ttl_fake)
+                            elif "md5sig" in fool:
+                                self._send_fake_packet_with_md5sig(packet, w, ttl=ttl_fake)
+                            elif "badseq" in fool:
+                                self._send_fake_packet_with_badseq(packet, w, ttl=ttl_fake)
+                            else:
+                                self._send_fake_packet(packet, w, ttl=ttl_fake)
+                            time.sleep(0.003)
+                    except Exception:
+                        pass
                     ttl = self.current_params.get("fake_ttl")
                     is_meta_ip = any(
                         (packet.dst_addr.startswith(prefix) for prefix in ["157.240.", "69.171.", "31.13."])
@@ -977,6 +994,22 @@ if platform.system() == "Windows":
                     segments = self.techniques.apply_multidisorder(payload, params.get("positions", [10, 25, 40]))
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "seqovl":
+                    try:
+                        pre = params.get("preinject_fake", False)
+                        fool = params.get("fooling", []) or []
+                        if pre or fool:
+                            ttl_fake = self.current_params.get("fake_ttl")
+                            if "badsum" in fool:
+                                self._send_fake_packet_with_badsum(packet, w, ttl=ttl_fake)
+                            elif "md5sig" in fool:
+                                self._send_fake_packet_with_md5sig(packet, w, ttl=ttl_fake)
+                            elif "badseq" in fool:
+                                self._send_fake_packet_with_badseq(packet, w, ttl=ttl_fake)
+                            else:
+                                self._send_fake_packet(packet, w, ttl=ttl_fake)
+                            time.sleep(0.003)
+                    except Exception:
+                        pass
                     if params.get("fooling") == "badsum":
                         self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params.get("fake_ttl"))
                         time.sleep(0.003)
