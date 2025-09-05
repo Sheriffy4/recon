@@ -1015,7 +1015,7 @@ class RealEffectivenessTester:
 
     def _classify_error(self, error: Exception) -> BlockType:
         error_str = str(error).lower()
-        # Порядок важен: сначала явные признаки TLS/ICMP
+        # Сначала явные протокольные признаки
         if "tls alert" in error_str or ("ssl" in error_str and "handshake" in error_str):
             return BlockType.TLS_ALERT
         if "icmp" in error_str or "unreach" in error_str:

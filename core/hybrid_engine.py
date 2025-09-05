@@ -309,21 +309,6 @@ class HybridEngine:
                 LOG.debug(f'Strategy test with DPI context: {fingerprint.dpi_type.value}, RST injection: {fingerprint.rst_injection_detected}, TCP manipulation: {fingerprint.tcp_window_manipulation}')
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
             
-            # Обновление базы знаний, если стратегия работает и есть фингерпринт
-            if successful_count > 0 and fingerprint and CdnAsnKnowledgeBase:
-                pretty_strategy = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
-                for site, (status, ip, _, _) in results.items():
-                    if status == 'WORKING':
-                        domain = urlparse(f'https://{site}').netloc
-                        if domain and ip:
-                            block_type = BlockType.DPI
-                            if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
-                                block_type = BlockType.TSPU
-                            elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI:
-                                block_type = BlockType.COMMERCIAL_DPI
-                            self.kb.add_working_strategy(domain, ip, pretty_strategy, block_type)
-                            LOG.debug(f'Added working strategy to KB for {domain} ({ip}): {pretty_strategy}')
-            
             if return_details:
                 return (result_status, successful_count, len(test_sites), avg_latency, results)
             return (result_status, successful_count, len(test_sites), avg_latency)
@@ -440,7 +425,15 @@ class HybridEngine:
             if capturer:
                 try: capturer.mark_strategy_start(str(strategy))
                 except Exception: pass
-            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint)
+            ret = await self.execute_strategy_real_world(
+                strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
+                return_details=True
+            )
+            if len(ret) == 5:
+                result_status, successful_count, total_count, avg_latency, site_results = ret
+            else:
+                result_status, successful_count, total_count, avg_latency = ret
+                site_results = {}
             if capturer:
                 try: capturer.mark_strategy_end(str(strategy))
                 except Exception: pass
@@ -448,6 +441,35 @@ class HybridEngine:
             result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
         
             results.append(result_data)
+            # KB update per-domain (успех/провал + причина)
+            try:
+                if self.knowledge_base and site_results:
+                    for site, (st, ip_used, lat_ms, http_code) in site_results.items():
+                        d = urlparse(site).hostname or site
+                        if st == "WORKING":
+                            bt = BlockType.NONE
+                            ok = True
+                        elif st == "TIMEOUT":
+                            bt = BlockType.TIMEOUT
+                            ok = False
+                        else:
+                            bt = BlockType.UNKNOWN
+                            ok = False
+                        # нормализуем стратегию в dict
+                        if isinstance(strategy, dict):
+                            strat_obj = {"type": strategy.get("type"), "params": strategy.get("params", {})}
+                        else:
+                            strat_obj = {"raw": str(strategy)}
+                        self.knowledge_base.update_with_result(
+                            domain=d,
+                            ip=ip_used or "",
+                            strategy=strat_obj,
+                            success=ok,
+                            block_type=bt,
+                            latency_ms=float(lat_ms or 0.0)
+                        )
+            except Exception as e:
+                LOG.debug(f"KB update failed: {e}")
             if success_rate > 0:
                 LOG.info(f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms')
             else:
@@ -459,13 +481,12 @@ class HybridEngine:
         if results and fingerprint:
             LOG.info(f'Strategy testing completed with DPI fingerprint: {fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f})')
             
-        # Сохраняем обновленную базу знаний после серии тестов
-        if CdnAsnKnowledgeBase and self.kb and any(r['success_rate'] > 0 for r in results):
-            try:
-                self.kb.save()
-                LOG.info('Knowledge base updated and saved after successful strategy tests')
-            except Exception as e:
-                LOG.error(f'Failed to save knowledge base: {e}')
+        # Сохраняем KB после серии тестов
+        try:
+            if self.knowledge_base:
+                self.knowledge_base.save()
+        except Exception as e:
+            LOG.debug(f"KB save failed: {e}")
                 
         return results
 

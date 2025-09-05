@@ -116,7 +116,7 @@ class FoolingSelector:
                             # Тут достаточно отдать пустой dns_cache — HybridEngine сам решит
                             ret = await engine.execute_strategy_real_world(
                                 strategy=strategy_str,
-                                test_sites=[f" `https://{hostname}` "],
+                                test_sites=[f"https://{hostname}"],
                                 target_ips=set(), dns_cache=dns_cache, target_port=port,
                                 initial_ttl=None, fingerprint=None, return_details=True
                             )
