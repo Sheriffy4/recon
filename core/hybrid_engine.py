@@ -391,25 +391,48 @@ class HybridEngine:
             synthesized = None
             LOG.debug(f"Strategy synthesis failed: {e}")
 
-        # Базовый список (может содержать dict/str) → всегда приводим к строкам
-        base = strategies[:]
-        strategies_str: List[str] = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
-        if use_modern and self.attack_registry:
-            strategies_to_test = self._enhance_strategies_with_registry(strategies_str, fingerprint, domain, port)
-            self.bypass_stats['attack_registry_queries'] += 1
-        elif fingerprint:
-            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies_str, fingerprint)
-            LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
-        else:
-            strategies_to_test = strategies_str
-            LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
+        # Базовый список (может содержать dict/str). ВАЖНО: dict оставляем dict, str оставляем zapret-строкой
+        base: List[Union[str, Dict[str, Any]]] = strategies[:]
 
-        # Merge synthesized first (dict), dedupe by pretty-string key
+        # Список кандидатов, которые будем реально тестировать (сохраняем тип)
+        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
+
+        # Для modern registry и fingerprint адаптации работаем ТОЛЬКО со строками (zapret),
+        # dict-стратегии не преобразуем в fake(...) текст
+        base_strings: List[str] = [s for s in base if isinstance(s, str)]
+        base_dicts: List[Dict[str, Any]] = [s for s in base if isinstance(s, dict)]
+
+        if use_modern and self.attack_registry and base_strings:
+            enhanced = self._enhance_strategies_with_registry(base_strings, fingerprint, domain, port)
+            self.bypass_stats['attack_registry_queries'] += 1
+            strategies_to_test.extend(enhanced)
+        elif fingerprint and base_strings:
+            adapted = self._adapt_strategies_for_fingerprint(base_strings, fingerprint)
+            LOG.info(f'Using {len(adapted)} fingerprint-adapted strategies')
+            strategies_to_test.extend(adapted)
+        else:
+            strategies_to_test.extend(base_strings)
+            LOG.info(f'Using {len(base_strings)} standard zapret strategies (no fingerprint or no registry input)')
+
+        # Добавляем dict-стратегии как есть (engine_task). Они уже интерпретированы и готовы для движка.
+        strategies_to_test.extend(base_dicts)
+
+        # Дедупликация по «ключу», но оставляем оригинальный объект (str/dict)
+        seen_keys = set()
+        unique_list: List[Union[str, Dict[str, Any]]] = []
+        for s in strategies_to_test:
+            key = s if isinstance(s, str) else self._task_to_str(s)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                unique_list.append(s)
+        strategies_to_test = unique_list
+
+        # Merge synthesized first (dict), dedupe; synthesized добавляем как dict
         if synthesized and isinstance(synthesized, dict):
             pretty = self._task_to_str(synthesized)
             merged = [synthesized] + strategies_to_test
             seen = set()
-            unique = []
+            unique: List[Union[str, Dict[str, Any]]] = []
             for s in merged:
                 key = s if isinstance(s, str) else self._task_to_str(s)
                 if key not in seen:
@@ -420,20 +443,15 @@ class HybridEngine:
 
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
         for i, strategy in enumerate(strategies_to_test):
+            # Логируем красиво, но в движок отдаём исходный str/dict
             pretty = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
             LOG.info(f'--> Тест {i + 1}/{len(strategies_to_test)}: {pretty}')
             if capturer:
                 try: capturer.mark_strategy_start(str(strategy))
                 except Exception: pass
-            ret = await self.execute_strategy_real_world(
-                strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
-                return_details=True
+            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(
+                strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint
             )
-            if len(ret) == 5:
-                result_status, successful_count, total_count, avg_latency, site_results = ret
-            else:
-                result_status, successful_count, total_count, avg_latency = ret
-                site_results = {}
             if capturer:
                 try: capturer.mark_strategy_end(str(strategy))
                 except Exception: pass
