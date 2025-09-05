@@ -1,254 +1,254 @@
 {
   "version": "2.0",
-  "last_updated": "2025-09-02T10:12:13.668683",
+  "last_updated": "2025-09-04T14:44:20.091522",
   "domain_strategies": {
     "default": {
       "domain": "default",
-      "strategy": "seqovl(positions=[1, 5, 10], split_pos=3, overlap_size=10, ttl=8)",
-      "success_rate": 0.38461538461538464,
-      "avg_latency_ms": 260.62638759613037,
-      "last_tested": "2025-09-01T17:04:02.658864",
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, fooling_methods=[], autottl=None, fake_tls=0x1603)",
+      "success_rate": 0.07407407407407407,
+      "avg_latency_ms": 422.5841760635376,
+      "last_tested": "2025-09-04T14:44:20.088091",
       "test_count": 1
     },
     "x.com": {
       "domain": "x.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.666658",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "instagram.com": {
       "domain": "instagram.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.666658",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "nnmclub.to": {
       "domain": "nnmclub.to",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "rutracker.org": {
       "domain": "rutracker.org",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "youtube.com": {
       "domain": "youtube.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "facebook.com": {
       "domain": "facebook.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "telegram.org": {
       "domain": "telegram.org",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "www.x.com": {
       "domain": "www.x.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "api.x.com": {
       "domain": "api.x.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "mobile.x.com": {
       "domain": "mobile.x.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.090519",
+      "test_count": 3
     },
     "www.youtube.com": {
       "domain": "www.youtube.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "www.facebook.com": {
       "domain": "www.facebook.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "pbs.twimg.com": {
       "domain": "pbs.twimg.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "abs.twimg.com": {
       "domain": "abs.twimg.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "abs-0.twimg.com": {
       "domain": "abs-0.twimg.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "video.twimg.com": {
       "domain": "video.twimg.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "ton.twimg.com": {
       "domain": "ton.twimg.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "static.cdninstagram.com": {
       "domain": "static.cdninstagram.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "scontent-arn2-1.cdninstagram.com": {
       "domain": "scontent-arn2-1.cdninstagram.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "edge-chat.instagram.com": {
       "domain": "edge-chat.instagram.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "static.xx.fbcdn.net": {
       "domain": "static.xx.fbcdn.net",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.667651",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "external.xx.fbcdn.net": {
       "domain": "external.xx.fbcdn.net",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "youtubei.googleapis.com": {
       "domain": "youtubei.googleapis.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "i.ytimg.com": {
       "domain": "i.ytimg.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "i1.ytimg.com": {
       "domain": "i1.ytimg.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "i2.ytimg.com": {
       "domain": "i2.ytimg.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "lh3.ggpht.com": {
       "domain": "lh3.ggpht.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "lh4.ggpht.com": {
       "domain": "lh4.ggpht.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "www.fastly.com": {
       "domain": "www.fastly.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     },
     "api.fastly.com": {
       "domain": "api.fastly.com",
-      "strategy": "seqovl(split_pos=3, overlap_size=1, ttl=64)",
-      "success_rate": 0.34615384615384615,
-      "avg_latency_ms": 234.90341504414877,
-      "last_tested": "2025-09-02T10:12:13.668683",
-      "test_count": 5
+      "strategy": "fake(ttl=4, split_pos=3, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, fooling=[])",
+      "success_rate": 0.06896551724137931,
+      "avg_latency_ms": 394.1441774368286,
+      "last_tested": "2025-09-04T14:44:20.091522",
+      "test_count": 3
     }
   }
 }

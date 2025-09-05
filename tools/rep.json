@@ -1,0 +1,279 @@
+{
+  "generated_at": "2025-09-04T14:01:54.986882Z",
+  "pcap_metrics": {
+    "total_packets": 24112,
+    "tcp_443": 24056,
+    "tls_clienthello": 3940,
+    "tls_serverhello": 138,
+    "tcp_rst": 1729,
+    "ttl_histogram": {
+      "128": 15544,
+      "54": 2752,
+      "121": 1182,
+      "57": 1093,
+      "58": 930,
+      "56": 738,
+      "2": 536,
+      "55": 518,
+      "3": 250,
+      "64": 210,
+      "1": 80,
+      "5": 79,
+      "4": 51,
+      "107": 39,
+      "51": 18,
+      "50": 14,
+      "53": 6,
+      "110": 6,
+      "63": 3,
+      "65": 3,
+      "66": 3,
+      "245": 1
+    },
+    "top_dst_ips": [
+      [
+        "192.168.18.188",
+        7297
+      ],
+      [
+        "31.13.72.53",
+        2860
+      ],
+      [
+        "172.66.0.227",
+        2567
+      ],
+      [
+        "199.232.172.159",
+        1967
+      ],
+      [
+        "31.13.72.12",
+        1917
+      ],
+      [
+        "162.159.140.229",
+        1736
+      ],
+      [
+        "31.13.72.36",
+        793
+      ],
+      [
+        "104.244.43.131",
+        780
+      ],
+      [
+        "216.239.38.60",
+        645
+      ],
+      [
+        "74.125.205.198",
+        403
+      ]
+    ],
+    "syn_packets": 2175
+  },
+  "report_metrics": {
+    "timestamp": "2025-09-04T16:45:23.202209",
+    "target": "sites.txt",
+    "port": 443,
+    "total_strategies": 0,
+    "working_strategies": 0,
+    "success_rate": 0,
+    "best_strategy": null,
+    "domains": {},
+    "top_strategies": [],
+    "fingerprints": {
+      "x.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "instagram.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "nnmclub.to": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "rutracker.org": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "youtube.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "facebook.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "www.x.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.1,
+        "reliability": 0.15000000000000002,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "api.x.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.1,
+        "reliability": 0.15000000000000002,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "mobile.x.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.1,
+        "reliability": 0.15000000000000002,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "www.youtube.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "www.facebook.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "pbs.twimg.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "abs.twimg.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "abs-0.twimg.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "video.twimg.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "ton.twimg.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "static.cdninstagram.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "scontent-arn2-1.cdninstagram.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "edge-chat.instagram.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.1,
+        "reliability": 0.15000000000000002,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "static.xx.fbcdn.net": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "external.xx.fbcdn.net": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "youtubei.googleapis.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "i.ytimg.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.2,
+        "reliability": 0.25,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "i1.ytimg.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.1,
+        "reliability": 0.15000000000000002,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "i2.ytimg.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.1,
+        "reliability": 0.15000000000000002,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "lh3.ggpht.com": {
+        "dpi_type": "unknown",
+        "confidence": 0.1,
+        "reliability": 0.15000000000000002,
+        "rst_injection": false,
+        "dns_hijacking": false
+      },
+      "cdnjs.cloudflare.net": {
+        "dpi_type": "unknown",
+        "confidence": 0.1,
+        "reliability": 0.2,
+        "rst_injection": false,
+        "dns_hijacking": false
+      }
+    }
+  }
+}

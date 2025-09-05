@@ -468,56 +468,6 @@ if platform.system() == "Windows":
                 self.cdn_profiles[cdn] = prof
             return prof
 
-        def _extract_sni(self, payload: bytes) -> Optional[str]:
-            try:
-                if not self._is_tls_clienthello(payload):
-                    return None
-                # Пропускаем record(5) + hs_header(4) + ver(2) + random(32)
-                pos = 9 + 2 + 32
-                if pos + 1 >= len(payload):
-                    return None
-                sid_len = payload[pos]
-                pos += 1 + sid_len
-                if pos + 2 > len(payload):
-                    return None
-                cs_len = int.from_bytes(payload[pos:pos+2], "big")
-                pos += 2 + cs_len
-                if pos + 1 > len(payload):
-                    return None
-                comp_len = payload[pos]
-                pos += 1 + comp_len
-                if pos + 2 > len(payload):
-                    return None
-                ext_len = int.from_bytes(payload[pos:pos+2], "big")
-                ext_start = pos + 2
-                ext_end = min(len(payload), ext_start + ext_len)
-                s = ext_start
-                while s + 4 <= ext_end:
-                    etype = int.from_bytes(payload[s:s+2], "big")
-                    elen = int.from_bytes(payload[s+2:s+4], "big")
-                    epos = s + 4
-                    if epos + elen > ext_end:
-                        break
-                    if etype == 0 and elen >= 5:
-                        # server_name
-                        try:
-                            list_len = int.from_bytes(payload[epos:epos+2], "big")
-                            npos = epos + 2
-                            end_list = min(epos + 2 + list_len, epos + elen)
-                            if npos + 3 <= end_list:
-                                ntype = payload[npos]
-                                nlen = int.from_bytes(payload[npos+1:npos+3], "big")
-                                nstart = npos + 3
-                                if ntype == 0 and nstart + nlen <= end_list:
-                                    return payload[nstart:nstart+nlen].decode("idna", errors="ignore")
-                        except Exception:
-                            pass
-                        break
-                    s = epos + elen
-            except Exception:
-                pass
-            return None
-
         def _estimate_split_pos_from_ch(self, payload: bytes) -> Optional[int]:
             """Оценивает разумный split_pos из структуры TLS ClientHello."""
             try:
@@ -793,6 +743,9 @@ if platform.system() == "Windows":
                     w.send(packet)
                     return
                 params = strategy_task.get("params", {}).copy()
+                # Нормализуем ключи из интерпретатора: fooling_methods -> fooling
+                if "fooling" not in params and "fooling_methods" in params:
+                    params["fooling"] = params.get("fooling_methods", [])
                 self.current_params = params
                 task_type = normalize_attack_name(strategy_task.get("type"))
 
@@ -878,12 +831,6 @@ if platform.system() == "Windows":
                     # Предпробинг fooling по CDN
                     cdn = self._classify_cdn(packet.dst_addr)
                     prof = self._get_cdn_profile(cdn)
-                    best = prof.get("best_fakeddisorder")
-                    if best:
-                        head = CalibCandidate(split_pos=int(best.get("split_pos", init_sp)),
-                                              overlap_size=int(best.get("overlap_size", 160)))
-                        cand_list = [head] + [c for c in cand_list
-                                              if (c.split_pos, c.overlap_size) != (head.split_pos, head.overlap_size)]
                     fooling_list = params.get("fooling", []) or []
                     if isinstance(fooling_list, str):
                         fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
@@ -970,22 +917,6 @@ if platform.system() == "Windows":
                         except Exception as e:
                             self.logger.debug(f"StrategyManager immediate update failed: {e}")
 
-                    if best_cand:
-                        # ... существующий блок StrategyManager ...
-                        # Запомним лучшие параметры для CDN-профиля
-                        try:
-                            cdn = self._classify_cdn(packet.dst_addr)
-                            prof = self._get_cdn_profile(cdn)
-                            prof["best_fakeddisorder"] = {
-                                "split_pos": best_cand.split_pos,
-                                "overlap_size": best_cand.overlap_size,
-                                "ttl": autottl or self.current_params.get("fake_ttl"),
-                                "delay_ms": self.current_params.get("delay_ms", 2),
-                                "fooling": fooling_list[:],
-                            }
-                        except Exception:
-                            pass
-
                     success = (best_cand is not None)
                     if not success:
                         # Фоллбэк: пробуем seqovl, затем multisplit
@@ -1059,6 +990,25 @@ if platform.system() == "Windows":
                 elif task_type == "md5sig_race":
                     self._send_fake_packet_with_md5sig(packet, w, ttl=self.current_params.get("fake_ttl"))
                     time.sleep(0.007)
+                    w.send(packet)
+                    success = True
+                elif task_type == "fake":
+                    # Простой режим fake: отправляем фейковый пакет и затем оригинал.
+                    # Поддерживаем badsum/md5sig/badseq при указании в fooling.
+                    fooling = params.get("fooling", []) or []
+                    if isinstance(fooling, str):
+                        fooling = [f.strip() for f in fooling.split(",") if f.strip()]
+                    ttl_fake = self.current_params.get("fake_ttl")
+                    if "badsum" in fooling:
+                        self._send_fake_packet_with_badsum(packet, w, ttl=ttl_fake)
+                    elif "md5sig" in fooling:
+                        self._send_fake_packet_with_md5sig(packet, w, ttl=ttl_fake)
+                    elif "badseq" in fooling:
+                        self._send_fake_packet_with_badseq(packet, w, ttl=ttl_fake)
+                    else:
+                        self._send_fake_packet(packet, w, ttl=ttl_fake)
+                    # Небольшая задержка перед оригиналом
+                    time.sleep(params.get("delay_ms", 3) / 1000.0 if isinstance(params.get("delay_ms"), (int, float)) else 0.003)
                     w.send(packet)
                     success = True
                 else:
