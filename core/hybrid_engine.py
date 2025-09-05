@@ -309,22 +309,6 @@ class HybridEngine:
                 LOG.debug(f'Strategy test with DPI context: {fingerprint.dpi_type.value}, RST injection: {fingerprint.rst_injection_detected}, TCP manipulation: {fingerprint.tcp_window_manipulation}')
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
             
-            # Обновляем KB по результатам (если доступна)
-            try:
-                if self.knowledge_base:
-                    pretty_strategy = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
-                    for site, (status, ip_used, lat_ms, _http) in (results or {}).items():
-                        domain = urlparse(site).hostname or site
-                        ok = (status == 'WORKING')
-                        bt = BlockType.NONE if ok else BlockType.UNKNOWN
-                        self.knowledge_base.update_with_result(
-                            domain=domain, ip=ip_used or "", strategy={"raw": pretty_strategy},
-                            success=ok, block_type=bt, latency_ms=float(lat_ms or 0.0)
-                        )
-                    self.knowledge_base.save()
-            except Exception as e:
-                LOG.debug(f"KB update failed: {e}")
-
             if return_details:
                 return (result_status, successful_count, len(test_sites), avg_latency, results)
             return (result_status, successful_count, len(test_sites), avg_latency)
@@ -407,67 +391,58 @@ class HybridEngine:
             synthesized = None
             LOG.debug(f"Strategy synthesis failed: {e}")
 
-        # Базовый список (может содержать dict/str). ВАЖНО: dict оставляем dict, str оставляем zapret-строкой
-        base: List[Union[str, Dict[str, Any]]] = strategies[:]
+        # Базовый список (может содержать dict/str) → всегда приводим к строкам
+        base = strategies[:]
+        strategies_str: List[str] = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
+        strategies_to_test: List[str] = []
 
-        # Список кандидатов, которые будем реально тестировать (сохраняем тип)
-        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
-
-        # Для modern registry и fingerprint адаптации работаем ТОЛЬКО со строками (zapret),
-        # dict-стратегии не преобразуем в fake(...) текст
-        base_strings: List[str] = [s for s in base if isinstance(s, str)]
-        base_dicts: List[Dict[str, Any]] = [s for s in base if isinstance(s, dict)]
-
-        if use_modern and self.attack_registry and base_strings:
-            enhanced = self._enhance_strategies_with_registry(base_strings, fingerprint, domain, port)
-            self.bypass_stats['attack_registry_queries'] += 1
-            strategies_to_test.extend(enhanced)
-        elif fingerprint and base_strings:
-            adapted = self._adapt_strategies_for_fingerprint(base_strings, fingerprint)
-            LOG.info(f'Using {len(adapted)} fingerprint-adapted strategies')
-            strategies_to_test.extend(adapted)
+        if use_modern and self.attack_registry:
+            if strategies_str:
+                strategies_to_test = self._enhance_strategies_with_registry(strategies_str, fingerprint, domain, port)
+                self.bypass_stats['attack_registry_queries'] += 1
+        elif fingerprint:
+            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies_str, fingerprint)
+            LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
         else:
-            strategies_to_test.extend(base_strings)
-            LOG.info(f'Using {len(base_strings)} standard zapret strategies (no fingerprint or no registry input)')
+            strategies_to_test = strategies_str
+            LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
 
-        # Добавляем dict-стратегии как есть (engine_task). Они уже интерпретированы и готовы для движка.
-        strategies_to_test.extend(base_dicts)
-
-        # Дедупликация по «ключу», но оставляем оригинальный объект (str/dict)
-        seen_keys = set()
-        unique_list: List[Union[str, Dict[str, Any]]] = []
-        for s in strategies_to_test:
-            key = s if isinstance(s, str) else self._task_to_str(s)
-            if key not in seen_keys:
-                seen_keys.add(key)
-                unique_list.append(s)
-        strategies_to_test = unique_list
-
-        # Merge synthesized first (dict), dedupe; synthesized добавляем как dict
+        # Merge synthesized first (dict), dedupe by pretty-string key
         if synthesized and isinstance(synthesized, dict):
             pretty = self._task_to_str(synthesized)
-            merged = [synthesized] + strategies_to_test
+            merged = [pretty] + strategies_to_test
             seen = set()
-            unique: List[Union[str, Dict[str, Any]]] = []
+            unique = []
             for s in merged:
-                key = s if isinstance(s, str) else self._task_to_str(s)
+                key = s
                 if key not in seen:
                     seen.add(key)
                     unique.append(s)
             strategies_to_test = unique
             LOG.info(f"Prepended synthesized strategy: {pretty}")
 
+        # Если после всех оптимизаций стратегий нет — фолбэк к стандартному набору
+        if not strategies_to_test:
+            strategies_to_test = strategies_str or ["--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"]
+            LOG.warning(f"No strategies after optimization, falling back to {len(strategies_to_test)}")
+
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
         for i, strategy in enumerate(strategies_to_test):
-            # Логируем красиво, но в движок отдаём исходный str/dict
             pretty = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
             LOG.info(f'--> Тест {i + 1}/{len(strategies_to_test)}: {pretty}')
             if capturer:
                 try: capturer.mark_strategy_start(str(strategy))
                 except Exception: pass
-            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(
-                strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint
+            ret = await self.execute_strategy_real_world(
+                strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
+                return_details=True
             )
+            if len(ret) == 5:
+                result_status, successful_count, total_count, avg_latency, site_results = ret
+            else:
+                result_status, successful_count, total_count, avg_latency = ret
+                site_results = {}
+
             if capturer:
                 try: capturer.mark_strategy_end(str(strategy))
                 except Exception: pass
@@ -475,31 +450,17 @@ class HybridEngine:
             result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
         
             results.append(result_data)
-            # KB update per-domain (успех/провал + причина)
+            # Пишем результат по каждому домену в KB
             try:
                 if self.knowledge_base and site_results:
-                    for site, (st, ip_used, lat_ms, http_code) in site_results.items():
-                        d = urlparse(site).hostname or site
-                        if st == "WORKING":
-                            bt = BlockType.NONE
-                            ok = True
-                        elif st == "TIMEOUT":
-                            bt = BlockType.TIMEOUT
-                            ok = False
-                        else:
-                            bt = BlockType.UNKNOWN
-                            ok = False
-                        # нормализуем стратегию в dict
-                        if isinstance(strategy, dict):
-                            strat_obj = {"type": strategy.get("type"), "params": strategy.get("params", {})}
-                        else:
-                            strat_obj = {"raw": str(strategy)}
+                    for site, (st, ip_used, lat_ms, _http) in site_results.items():
+                        dname = urlparse(site).hostname or site
                         self.knowledge_base.update_with_result(
-                            domain=d,
+                            domain=dname,
                             ip=ip_used or "",
-                            strategy=strat_obj,
-                            success=ok,
-                            block_type=bt,
+                            strategy={"raw": pretty},
+                            success=(st == "WORKING"),
+                            block_type=(BlockType.NONE if st == "WORKING" else BlockType.TIMEOUT),
                             latency_ms=float(lat_ms or 0.0)
                         )
             except Exception as e:
@@ -515,12 +476,12 @@ class HybridEngine:
         if results and fingerprint:
             LOG.info(f'Strategy testing completed with DPI fingerprint: {fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f})')
             
-        # Сохраняем KB после серии тестов
-        try:
-            if self.knowledge_base:
+        if self.knowledge_base and any(r['success_rate'] > 0 for r in results):
+            try:
                 self.knowledge_base.save()
-        except Exception as e:
-            LOG.debug(f"KB save failed: {e}")
+                LOG.info('Knowledge base updated and saved after successful strategy tests')
+            except Exception as e:
+                LOG.error(f'Failed to save knowledge base: {e}')
                 
         return results
 

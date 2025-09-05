@@ -4,6 +4,7 @@
 Централизованные и строго типизированные определения для системы обхода DPI.
 Этот модуль является фундаментом для всех компонентов, обеспечивая консистентность данных.
 """
+from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
