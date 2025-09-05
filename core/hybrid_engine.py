@@ -406,22 +406,17 @@ class HybridEngine:
             synthesized = None
             LOG.debug(f"Strategy synthesis failed: {e}")
 
-        # Базовый список (может содержать dict/str)
+        # Базовый список (может содержать dict/str) → всегда приводим к строкам
         base = strategies[:]
-        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
+        strategies_str: List[str] = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
         if use_modern and self.attack_registry:
-            # В реестр передаем только строки
-            only_strings = [s for s in base if isinstance(s, str)]
-            if only_strings:
-                strategies_to_test = self._enhance_strategies_with_registry(only_strings, fingerprint, domain, port)
-                self.bypass_stats['attack_registry_queries'] += 1
+            strategies_to_test = self._enhance_strategies_with_registry(strategies_str, fingerprint, domain, port)
+            self.bypass_stats['attack_registry_queries'] += 1
         elif fingerprint:
-            # Адаптация — также только для строк
-            only_strings = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
-            strategies_to_test = self._adapt_strategies_for_fingerprint(only_strings, fingerprint)
+            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies_str, fingerprint)
             LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
         else:
-            strategies_to_test = base
+            strategies_to_test = strategies_str
             LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
 
         # Merge synthesized first (dict), dedupe by pretty-string key

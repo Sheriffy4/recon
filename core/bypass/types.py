@@ -40,41 +40,27 @@ class ProtocolType(Enum):
 
 
 class BlockType(Enum):
-    NONE = "none"
-    TIMEOUT = "timeout"
-    HTTP_ERROR = "http_error"
-    CONNECTION_REFUSED = "connection_refused"
-    RST_INJECTION = "rst_injection"
-    UNKNOWN = "unknown"
-    TLS_ALERT = "tls_alert"
-    ICMP_UNREACH = "icmp_unreach"
-
     """
     Типы блокировок, обнаруженные при тестировании.
     Единый источник истины для всей системы.
     """
-
     # Успешные или нейтральные состояния
-    NONE = "none"  # Блокировки нет
-
+    NONE = "none"                          # Блокировки нет
     # Типы блокировок, определенные по поведению сети
-    RST_INJECTION = "rst_injection"  # Получен RST-пакет от DPI
-    TIMEOUT = "timeout"  # Соединение истекло по таймауту
-    CONNECTION_REFUSED = "connection_refused"  # Соединение было активно отклонено
-
+    RST_INJECTION = "rst_injection"        # Получен RST-пакет (инжекция DPI)
+    TIMEOUT = "timeout"                    # Соединение истекло по таймауту
+    CONNECTION_REFUSED = "connection_refused"  # Соединение активно отклонено
+    ICMP_UNREACH = "icmp_unreach"          # ICMP destination unreachable
     # Типы блокировок, определенные по содержимому ответа
-    HTTP_BLOCK_PAGE = "http_block_page"  # Получена HTTP-страница заглушка
-    CONTENT = (
-        "content"  # Обнаружена блокировка по содержимому (синоним HTTP_BLOCK_PAGE)
-    )
-
+    HTTP_BLOCK_PAGE = "http_block_page"    # HTTP-страница-заглушка
+    CONTENT = "content"                    # Блокировка по содержимому
+    HTTP_ERROR = "http_error"              # Общая HTTP-ошибка (4xx, 5xx)
     # Типы блокировок на уровне протоколов
+    TLS_ALERT = "tls_alert"                # Получен TLS Alert
     TLS_HANDSHAKE_FAILURE = "tls_handshake_failure"  # Ошибка TLS handshake
-
-    # Общие и неопределенные состояния
-    HTTP_ERROR = "http_error"  # Общая ошибка HTTP (4xx, 5xx)
-    INVALID = "invalid"  # Невалидный или неожиданный ответ
-    UNKNOWN = "unknown"  # Не удалось классифицировать тип блокировки
+    # Прочее
+    INVALID = "invalid"                    # Невалидный/неожиданный ответ
+    UNKNOWN = "unknown"                    # Не удалось классифицировать
 
 
 # --- Основные структуры данных ---
