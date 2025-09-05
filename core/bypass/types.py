@@ -40,6 +40,15 @@ class ProtocolType(Enum):
 
 
 class BlockType(Enum):
+    NONE = "none"
+    TIMEOUT = "timeout"
+    HTTP_ERROR = "http_error"
+    CONNECTION_REFUSED = "connection_refused"
+    RST_INJECTION = "rst_injection"
+    UNKNOWN = "unknown"
+    TLS_ALERT = "tls_alert"
+    ICMP_UNREACH = "icmp_unreach"
+
     """
     Типы блокировок, обнаруженные при тестировании.
     Единый источник истины для всей системы.

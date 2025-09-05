@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from core.bypass_engine import BypassEngine
 from core.zapret_parser import ZapretStrategyParser
 from core.bypass.attacks.alias_map import normalize_attack_name
+from core.bypass.types import BlockType
 try:
     from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
 except Exception:
@@ -264,7 +265,7 @@ class HybridEngine:
         LOG.info('Тестируем базовую доступность сайтов (без bypass) с DNS-кэшем...')
         return await self._test_sites_connectivity(test_sites, dns_cache)
 
-    async def execute_strategy_real_world(self, strategy: Union[str, Dict[str, Any]], test_sites: List[str], target_ips: Set[str], dns_cache: Dict[str, str], target_port: int=443, initial_ttl: Optional[int]=None, fingerprint: Optional[DPIFingerprint]=None) -> Tuple[str, int, int, float]:
+    async def execute_strategy_real_world(self, strategy: Union[str, Dict[str, Any]], test_sites: List[str], target_ips: Set[str], dns_cache: Dict[str, str], target_port: int=443, initial_ttl: Optional[int]=None, fingerprint: Optional[DPIFingerprint]=None, return_details: bool=False) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
         Теперь с поддержкой контекстной информации от фингерпринтинга.
@@ -307,6 +308,24 @@ class HybridEngine:
             if fingerprint and self.debug:
                 LOG.debug(f'Strategy test with DPI context: {fingerprint.dpi_type.value}, RST injection: {fingerprint.rst_injection_detected}, TCP manipulation: {fingerprint.tcp_window_manipulation}')
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
+            
+            # Обновление базы знаний, если стратегия работает и есть фингерпринт
+            if successful_count > 0 and fingerprint and CdnAsnKnowledgeBase:
+                pretty_strategy = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
+                for site, (status, ip, _, _) in results.items():
+                    if status == 'WORKING':
+                        domain = urlparse(f'https://{site}').netloc
+                        if domain and ip:
+                            block_type = BlockType.DPI
+                            if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
+                                block_type = BlockType.TSPU
+                            elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI:
+                                block_type = BlockType.COMMERCIAL_DPI
+                            self.kb.add_working_strategy(domain, ip, pretty_strategy, block_type)
+                            LOG.debug(f'Added working strategy to KB for {domain} ({ip}): {pretty_strategy}')
+            
+            if return_details:
+                return (result_status, successful_count, len(test_sites), avg_latency, results)
             return (result_status, successful_count, len(test_sites), avg_latency)
         except Exception as e:
             LOG.error(f'Ошибка во время реального тестирования: {e}', exc_info=self.debug)
@@ -432,7 +451,7 @@ class HybridEngine:
                 except Exception: pass
             success_rate = successful_count / total_count if total_count > 0 else 0.0
             result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
-
+        
             results.append(result_data)
             if success_rate > 0:
                 LOG.info(f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms')
@@ -444,6 +463,15 @@ class HybridEngine:
             results.sort(key=lambda x: (x['success_rate'], -x['avg_latency_ms']), reverse=True)
         if results and fingerprint:
             LOG.info(f'Strategy testing completed with DPI fingerprint: {fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f})')
+            
+        # Сохраняем обновленную базу знаний после серии тестов
+        if CdnAsnKnowledgeBase and self.kb and any(r['success_rate'] > 0 for r in results):
+            try:
+                self.kb.save()
+                LOG.info('Knowledge base updated and saved after successful strategy tests')
+            except Exception as e:
+                LOG.error(f'Failed to save knowledge base: {e}')
+                
         return results
 
     async def fingerprint_target(self, domain: str, port: int=443, force_refresh: bool=False) -> Optional[DPIFingerprint]:

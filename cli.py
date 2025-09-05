@@ -1476,6 +1476,17 @@ async def run_hybrid_mode(args):
     advanced_fingerprinter = None
 
     learning_cache = AdaptiveLearningCache()
+    
+    # Background PCAP insights worker (enhanced tracking)
+    pcap_worker_task = None
+    if args.enable_enhanced_tracking:
+        try:
+            from core.pcap.pcap_insights_worker import PcapInsightsWorker
+            pcap_worker = PcapInsightsWorker()
+            pcap_worker_task = asyncio.create_task(pcap_worker.run(interval=15.0))
+            console.print("[dim]🧠 Enhanced tracking enabled: PCAP insights worker started[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Could not start PCAP insights worker: {e}[/yellow]")
 
     # Шаг 1: DNS резолвинг
     if args.advanced_dns:
@@ -2050,6 +2061,29 @@ async def run_hybrid_mode(args):
         }
     reporter.print_summary(report)
 
+    # KB summary: причины блокировок по CDN и доменам
+    try:
+        from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
+        kb = CdnAsnKnowledgeBase()
+        # По CDN
+        if kb.cdn_profiles:
+            console.print("\n[bold underline]🧠 KB Blocking Reasons Summary (by CDN)[/bold underline]")
+            for cdn, prof in kb.cdn_profiles.items():
+                br = getattr(prof, "block_reasons", {}) or {}
+                if br:
+                    top = sorted(br.items(), key=lambda x: x[1], reverse=True)[:5]
+                    s = ", ".join([f"{k}:{v}" for k, v in top])
+                    console.print(f"  • {cdn}: {s}")
+        # По доменам (только топ‑10)
+        if kb.domain_block_reasons:
+            console.print("\n[bold underline]🧠 KB Blocking Reasons Summary (by domain)[/bold underline]")
+            items = sorted(kb.domain_block_reasons.items(), key=lambda kv: sum(kv[1].values()), reverse=True)[:10]
+            for domain, brmap in items:
+                s = ", ".join([f"{k}:{v}" for k, v in sorted(brmap.items(), key=lambda x: x[1], reverse=True)[:3]])
+                console.print(f"  • {domain}: {s}")
+    except Exception as e:
+        console.print(f"[yellow]KB summary unavailable: {e}[/yellow]")
+
     report_filename = reporter.save_report(report)
     if report_filename:
         console.print(f"[green]📄 Detailed report saved to: {report_filename}[/green]")
@@ -2060,6 +2094,12 @@ async def run_hybrid_mode(args):
         await start_monitoring_mode(args, blocked_sites, learning_cache)
 
     hybrid_engine.cleanup()
+    # Stop worker if running
+    if 'pcap_worker_task' in locals() and pcap_worker_task:
+        try:
+            pcap_worker_task.cancel()
+        except Exception:
+            pass
 
 
 async def run_single_strategy_mode(args):

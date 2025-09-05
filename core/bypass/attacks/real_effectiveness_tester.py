@@ -1015,10 +1015,15 @@ class RealEffectivenessTester:
 
     def _classify_error(self, error: Exception) -> BlockType:
         error_str = str(error).lower()
+        # Порядок важен: сначала явные признаки TLS/ICMP
+        if "tls alert" in error_str or ("ssl" in error_str and "handshake" in error_str):
+            return BlockType.TLS_ALERT
+        if "icmp" in error_str or "unreach" in error_str:
+            return BlockType.ICMP_UNREACH
         if "timeout" in error_str:
             return BlockType.TIMEOUT
         elif "reset" in error_str:
-            return BlockType.RST
+            return BlockType.RST_INJECTION
         elif "refused" in error_str:
             return BlockType.CONNECTION_REFUSED
         else:
