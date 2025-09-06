@@ -58,7 +58,8 @@ class HybridEngine:
     3. Продвинутый фингерпринтинг DPI для контекстно-зависимой генерации стратегий.
     """
 
-    def __init__(self, debug: bool=False, enable_advanced_fingerprinting: bool=True, enable_modern_bypass: bool=True, verbosity: str="normal", enable_enhanced_tracking: bool=False):
+    def __init__(self, debug: bool=False, enable_advanced_fingerprinting: bool=True,
+                 enable_modern_bypass: bool=True, verbosity: str="normal", enable_enhanced_tracking: bool=False):
         self.debug = debug
         self.verbosity = verbosity
         self.parser = ZapretStrategyParser()
@@ -208,6 +209,28 @@ class HybridEngine:
         except Exception:
             return str(task)
 
+    def _parse_engine_pretty(self, s: str) -> Optional[Dict[str, Any]]:
+        """
+        Парсер «красивых» строк form: name(k=v, ...)
+        Пример: fakeddisorder(overlap_size=336, split_pos=76)
+        Безопасный: использует ast.literal_eval.
+        """
+        import re, ast
+        try:
+            m = re.match(r'^\s*([A-Za-z0-9_]+)\s*(?:\((.*)\))?\s*$', s)
+            if not m:
+                return None
+            name, args = m.group(1), m.group(2)
+            params = {}
+            if args and args.strip():
+                # преобразуем "a=1, b=2" в dict(...) и безопасно разбираем
+                params = ast.literal_eval("dict(" + args + ")")
+                if not isinstance(params, dict):
+                    return None
+            return {'type': name, 'params': params}
+        except Exception:
+            return None
+
     def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         # dict → нормализуем
         if isinstance(strategy, dict):
@@ -215,8 +238,16 @@ class HybridEngine:
             if not t:
                 return None
             return {'type': t, 'params': strategy.get('params', {})}
-        # str → парсим zapret-строку
-        parsed_params = self.parser.parse(strategy)
+        # str → сначала пробуем «красивую» форму, затем zapret-CLI
+        s = (strategy or "").strip()
+        pretty = self._parse_engine_pretty(s)
+        if pretty:
+            return pretty
+        try:
+            parsed_params = self.parser.parse(s)
+        except Exception as e:
+            LOG.debug(f'Zapret parse failed for "{s}": {e}')
+            return None
         return self._translate_zapret_to_engine_task(parsed_params)
 
     async def _test_sites_connectivity(self, sites: List[str], dns_cache: Dict[str, str], max_concurrent: int=10) -> Dict[str, Tuple[str, str, float, int]]:
@@ -263,12 +294,17 @@ class HybridEngine:
                     latency = (time.time() - start_time) * 1000
                     LOG.debug(f'Неожиданная ошибка при тестировании {site}: {e}')
                     return (site, ('ERROR', ip_used, latency, 0))
-        async with aiohttp.ClientSession(connector=connector) as session:
-            tasks = [test_with_semaphore(session, site) for site in sites]
-            task_results = await asyncio.gather(*tasks)
-            for site, result_tuple in task_results:
-                results[site] = result_tuple
-        await connector.close()
+        try:
+            async with aiohttp.ClientSession(connector=connector) as session:
+                tasks = [test_with_semaphore(session, site) for site in sites]
+                task_results = await asyncio.gather(*tasks)
+                for site, result_tuple in task_results:
+                    results[site] = result_tuple
+        finally:
+            try:
+                await connector.close()
+            except Exception:
+                pass
         return results
 
     async def test_baseline_connectivity(self, test_sites: List[str], dns_cache: Dict[str, str]) -> Dict[str, Tuple[str, str, float, int]]:
@@ -291,7 +327,8 @@ class HybridEngine:
         strategy_map = {'default': engine_task}
         bypass_thread = bypass_engine.start(target_ips, strategy_map)
         try:
-            wait_time = 1.5
+            # Чуть больше времени на прогрев хука, если нет DPI‑контекста
+            wait_time = 2.5
             if fingerprint:
                 if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
                     wait_time = 1.0
@@ -379,7 +416,7 @@ class HybridEngine:
                 self.fingerprint_stats['fingerprint_failures'] += 1
                 self.fingerprint_stats['fallback_tests'] += 1
                 # Анализ PCAP даже при неудачном фингерпринтинге
-                if capturer and self.enhanced_tracking:
+                if capturer and getattr(self, "enhanced_tracking", False):
                     capturer.trigger_pcap_analysis(force=True)
                 else:
                     self.fingerprint_stats['fallback_tests'] += 1
@@ -408,39 +445,46 @@ class HybridEngine:
             synthesized = None
             LOG.debug(f"Strategy synthesis failed: {e}")
 
-        # Базовый список (может содержать dict/str) → всегда приводим к строкам
-        base = strategies[:]
-        strategies_str: List[str] = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
-        strategies_to_test: List[str] = []
+        # Базовый список (может содержать dict/str) — сохраняем типы как есть
+        base: List[Union[str, Dict[str, Any]]] = strategies[:]
+        dict_only: List[Dict[str, Any]] = [s for s in base if isinstance(s, dict)]
+        str_only: List[str] = [s for s in base if isinstance(s, str)]
 
+        # Обогащение строковых стратегий через реестр/фингерпринт
+        enhanced_str: List[str] = []
         if use_modern and self.attack_registry:
-            if strategies_str:
-                strategies_to_test = self._enhance_strategies_with_registry(strategies_str, fingerprint, domain, port)
+            if str_only:
+                enhanced_str = self._enhance_strategies_with_registry(str_only, fingerprint, domain, port)
                 self.bypass_stats['attack_registry_queries'] += 1
         elif fingerprint:
-            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies_str, fingerprint)
-            LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
+            enhanced_str = self._adapt_strategies_for_fingerprint(str_only, fingerprint)
+            LOG.info(f'Using {len(enhanced_str)} fingerprint-adapted strategies')
         else:
-            strategies_to_test = strategies_str
-            LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
+            enhanced_str = str_only
+            LOG.info(f'Using {len(enhanced_str)} standard strategies (no fingerprint)')
 
-        # Merge synthesized first (dict), dedupe by pretty-string key
+        # Собираем итоговый список: synthesized (dict, если есть) + dict_only + enhanced_str
+        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
         if synthesized and isinstance(synthesized, dict):
-            pretty = self._task_to_str(synthesized)
-            merged = [pretty] + strategies_to_test
-            seen = set()
-            unique = []
-            for s in merged:
-                key = s
-                if key not in seen:
-                    seen.add(key)
-                    unique.append(s)
-            strategies_to_test = unique
-            LOG.info(f"Prepended synthesized strategy: {pretty}")
+            strategies_to_test.append(synthesized)
+            LOG.info(f"Prepended synthesized strategy: {self._task_to_str(synthesized)}")
+        strategies_to_test.extend(dict_only)
+        strategies_to_test.extend(enhanced_str)
 
-        # Если после всех оптимизаций стратегий нет — фолбэк к стандартному набору
+        # Дедупликация по «красивому» ключу
+        seen: Set[str] = set()
+        unique_list: List[Union[str, Dict[str, Any]]] = []
+        for item in strategies_to_test:
+            key = item if isinstance(item, str) else self._task_to_str(item)
+            if key not in seen:
+                seen.add(key)
+                unique_list.append(item)
+        strategies_to_test = unique_list
+
+        # Если после всех оптимизаций стратегий нет — фолбэк
         if not strategies_to_test:
-            strategies_to_test = strategies_str or ["--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"]
+            fallback = ["--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"]
+            strategies_to_test = fallback
             LOG.warning(f"No strategies after optimization, falling back to {len(strategies_to_test)}")
 
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
@@ -451,7 +495,8 @@ class HybridEngine:
                 try: capturer.mark_strategy_start(str(strategy))
                 except Exception: pass
             ret = await self.execute_strategy_real_world(
-                strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
+                strategy,  # передаём оригинальный объект (dict или str)
+                test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
                 return_details=True
             )
             if len(ret) == 5:
@@ -485,7 +530,7 @@ class HybridEngine:
             if success_rate > 0:
                 LOG.info(f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms')
             else:
-                LOG.info('✗ Провал: ни один сайт не заработал.')
+                LOG.info(f'✗ Провал: ни один сайт не заработал. Причина: {result_status}')
         if fingerprint:
             results.sort(key=lambda x: (x['success_rate'], -x['avg_latency_ms'], 1 if x['fingerprint_used'] else 0), reverse=True)
         else:
@@ -802,11 +847,26 @@ class HybridEngine:
 
     def cleanup(self):
         """Очистка ресурсов."""
-        if self.advanced_fingerprinter and hasattr(self.advanced_fingerprinter, 'executor'):
-            try:
+        # Закрываем HTTP‑клиенты продвинутого фингерпринтера (во избежание Unclosed client session)
+        try:
+            if self.advanced_fingerprinter:
+                # сначала попытаемся корректно закрыть клиент(ы)
+                close = getattr(self.advanced_fingerprinter, "close", None)
+                aclose = getattr(self.advanced_fingerprinter, "aclose", None)
+                if inspect.iscoroutinefunction(close):
+                    asyncio.run(close())
+                elif callable(close):
+                    close()
+                elif inspect.iscoroutinefunction(aclose):
+                    asyncio.run(aclose())
+        except Exception as e:
+            LOG.warning(f'Failed to close advanced fingerprinter http client: {e}')
+        # Останавливаем пул/экзекутор
+        try:
+            if self.advanced_fingerprinter and hasattr(self.advanced_fingerprinter, 'executor'):
                 self.advanced_fingerprinter.executor.shutdown(wait=True)
-            except Exception as e:
-                LOG.error(f'Error shutting down fingerprinter executor: {e}')
+        except Exception as e:
+            LOG.error(f'Error shutting down fingerprinter executor: {e}')
         if self.modern_bypass_enabled:
             try:
                 if self.attack_registry and hasattr(self.attack_registry, 'cleanup'):

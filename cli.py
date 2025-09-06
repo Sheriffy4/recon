@@ -1478,7 +1478,7 @@ async def run_hybrid_mode(args):
     console.print(f"Loaded {len(dm.domains)} domain(s) for testing.")
 
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
+    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=bool(args.enable_enhanced_tracking))
     reporter = SimpleReporter(debug=args.debug)
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
     advanced_fingerprinter = None
@@ -2185,7 +2185,7 @@ async def run_evolutionary_mode(args):
     dm.domains = normalized_domains
     console.print(f"Loaded {len(dm.domains)} domain(s) for evolutionary search.")
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
+    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=bool(args.enable_enhanced_tracking))
     learning_cache = AdaptiveLearningCache()
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
     console.print("\n[yellow]Step 1: DNS Resolution...[/yellow]")
@@ -2484,7 +2484,7 @@ async def run_per_domain_mode(args):
         f"Testing {len(dm.domains)} domains individually for optimal strategies..."
     )
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
+    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=bool(args.enable_enhanced_tracking))
     try:
         from core.strategy_manager import StrategyManager
 
