@@ -58,10 +58,11 @@ class HybridEngine:
     3. Продвинутый фингерпринтинг DPI для контекстно-зависимой генерации стратегий.
     """
 
-    def __init__(self, debug: bool=False, enable_advanced_fingerprinting: bool=True, enable_modern_bypass: bool=True, verbosity: str="normal"):
+    def __init__(self, debug: bool=False, enable_advanced_fingerprinting: bool=True, enable_modern_bypass: bool=True, verbosity: str="normal", enable_enhanced_tracking: bool=False):
         self.debug = debug
         self.verbosity = verbosity
         self.parser = ZapretStrategyParser()
+        self.enhanced_tracking = enable_enhanced_tracking
         
         # Initialize modern bypass engine components
         self.modern_bypass_enabled = enable_modern_bypass and MODERN_BYPASS_ENGINE_AVAILABLE
@@ -208,42 +209,15 @@ class HybridEngine:
             return str(task)
 
     def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        # dict → нормализуем (сохраняем параметры как есть)
         # dict → нормализуем
         if isinstance(strategy, dict):
             t = strategy.get('type') or strategy.get('name')
             if not t:
                 return None
             return {'type': t, 'params': strategy.get('params', {})}
-        # str → сначала пробуем «красивый» формат name(k=v, ...)
-        s = strategy.strip()
-        pretty = self._parse_engine_pretty(s)
-        if pretty:
-            return pretty
-        # иначе парсим zapret-строку
-        try:
-            parsed_params = self.parser.parse(s)
-        except Exception as e:
-            LOG.debug(f'Zapret parse failed for "{s}": {e}')
-            return None
+        # str → парсим zapret-строку
+        parsed_params = self.parser.parse(strategy)
         return self._translate_zapret_to_engine_task(parsed_params)
-
-    def _parse_engine_pretty(self, s: str) -> Optional[Dict[str, Any]]:
-        """Парсер «красивых» строк: fake(ttl=2, split_pos=3, ...) → {'type':'fake', 'params':{...}}"""
-        import re, ast
-        m = re.match(r'^\s*([A-Za-z0-9_]+)\s*(?:\((.*)\))?\s*$', s)
-        if not m:
-            return None
-        name, args = m.group(1), m.group(2)
-        params = {}
-        if args and args.strip():
-            try:
-                params = ast.literal_eval("dict(" + args + ")")
-                if not isinstance(params, dict):
-                    return None
-            except Exception:
-                return None
-        return {'type': name, 'params': params}
 
     async def _test_sites_connectivity(self, sites: List[str], dns_cache: Dict[str, str], max_concurrent: int=10) -> Dict[str, Tuple[str, str, float, int]]:
         """
@@ -289,17 +263,12 @@ class HybridEngine:
                     latency = (time.time() - start_time) * 1000
                     LOG.debug(f'Неожиданная ошибка при тестировании {site}: {e}')
                     return (site, ('ERROR', ip_used, latency, 0))
-        try:
-            async with aiohttp.ClientSession(connector=connector) as session:
-                tasks = [test_with_semaphore(session, site) for site in sites]
-                task_results = await asyncio.gather(*tasks)
-                for site, result_tuple in task_results:
-                    results[site] = result_tuple
-        finally:
-            try:
-                await connector.close()
-            except Exception:
-                pass
+        async with aiohttp.ClientSession(connector=connector) as session:
+            tasks = [test_with_semaphore(session, site) for site in sites]
+            task_results = await asyncio.gather(*tasks)
+            for site, result_tuple in task_results:
+                results[site] = result_tuple
+        await connector.close()
         return results
 
     async def test_baseline_connectivity(self, test_sites: List[str], dns_cache: Dict[str, str]) -> Dict[str, Tuple[str, str, float, int]]:
@@ -322,7 +291,7 @@ class HybridEngine:
         strategy_map = {'default': engine_task}
         bypass_thread = bypass_engine.start(target_ips, strategy_map)
         try:
-            wait_time = 2.5
+            wait_time = 1.5
             if fingerprint:
                 if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
                     wait_time = 1.0
@@ -440,39 +409,38 @@ class HybridEngine:
             LOG.debug(f"Strategy synthesis failed: {e}")
 
         # Базовый список (может содержать dict/str) → всегда приводим к строкам
-        base: List[Union[str, Dict[str, Any]]] = strategies[:]
-        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
+        base = strategies[:]
+        strategies_str: List[str] = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
+        strategies_to_test: List[str] = []
 
         if use_modern and self.attack_registry:
-            if base:
-                strategies_to_test = self._enhance_strategies_with_registry(base, fingerprint, domain, port)
+            if strategies_str:
+                strategies_to_test = self._enhance_strategies_with_registry(strategies_str, fingerprint, domain, port)
                 self.bypass_stats['attack_registry_queries'] += 1
         elif fingerprint:
-            # адаптируем только строковые стратегии, dict оставляем как есть
-            dict_only = [s for s in base if isinstance(s, dict)]
-            str_only = [s for s in base if isinstance(s, str)]
-            adapted = self._adapt_strategies_for_fingerprint(str_only, fingerprint)
-            strategies_to_test = dict_only + adapted
-            LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies (mixed types)')
+            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies_str, fingerprint)
+            LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
         else:
-            strategies_to_test = base
-            LOG.info(f'Using {len(strategies_to_test)} standard strategies (mixed types, no fingerprint)')
+            strategies_to_test = strategies_str
+            LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
 
+        # Merge synthesized first (dict), dedupe by pretty-string key
         if synthesized and isinstance(synthesized, dict):
-            pretty_syn = self._task_to_str(synthesized)
-            merged: List[Union[str, Dict[str, Any]]] = [synthesized] + strategies_to_test
+            pretty = self._task_to_str(synthesized)
+            merged = [pretty] + strategies_to_test
             seen = set()
-            unique: List[Union[str, Dict[str, Any]]] = []
+            unique = []
             for s in merged:
-                key = s if isinstance(s, str) else self._task_to_str(s)
+                key = s
                 if key not in seen:
                     seen.add(key)
                     unique.append(s)
             strategies_to_test = unique
-            LOG.info(f"Prepended synthesized strategy: {pretty_syn}")
+            LOG.info(f"Prepended synthesized strategy: {pretty}")
 
+        # Если после всех оптимизаций стратегий нет — фолбэк к стандартному набору
         if not strategies_to_test:
-            strategies_to_test = base or ["--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"]
+            strategies_to_test = strategies_str or ["--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"]
             LOG.warning(f"No strategies after optimization, falling back to {len(strategies_to_test)}")
 
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
@@ -517,7 +485,7 @@ class HybridEngine:
             if success_rate > 0:
                 LOG.info(f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms')
             else:
-                LOG.info(f'✗ Провал: ни один сайт не заработал. Причина: {result_status}')
+                LOG.info('✗ Провал: ни один сайт не заработал.')
         if fingerprint:
             results.sort(key=lambda x: (x['success_rate'], -x['avg_latency_ms'], 1 if x['fingerprint_used'] else 0), reverse=True)
         else:
@@ -619,15 +587,14 @@ class HybridEngine:
         LOG.info(f'Adapted {len(strategies)} strategies to {len(unique_strategies)} fingerprint-aware strategies')
         return unique_strategies
 
-    def _enhance_strategies_with_registry(self, strategies: List[Union[str, Dict[str, Any]]], fingerprint: Optional[DPIFingerprint], domain: str, port: int) -> List[Union[str, Dict[str, Any]]]:
+    def _enhance_strategies_with_registry(self, strategies: List[str], fingerprint: Optional[DPIFingerprint], domain: str, port: int) -> List[str]:
         """
         Enhance strategies using the modern attack registry.
         """
         if not self.attack_registry:
-            # Нормализуем на случай, если сюда попали dict → возвращаем как есть (смешанный список)
-            return strategies[:]
+            # Нормализуем на случай, если сюда попали dict
+            return [s if isinstance(s, str) else self._task_to_str(s) for s in strategies]
 
-        original_dicts: List[Dict[str, Any]] = [s for s in strategies if isinstance(s, dict)]
         normalized_in: List[str] = [s if isinstance(s, str) else self._task_to_str(s) for s in strategies]
         enhanced_strategies: List[str] = []
 
@@ -673,18 +640,14 @@ class HybridEngine:
             except Exception as e:
                 LOG.debug(f"Registry strategy generation failed: {e}")
 
-        # Дедупликация: смешиваем (строки от реестра) + оригинальные dict + исходные строки
         seen = set()
-        unique: List[Union[str, Dict[str, Any]]] = []
-        def key_of(x: Union[str, Dict[str, Any]]) -> str:
-            return x if isinstance(x, str) else self._task_to_str(x)
-        for item in list(enhanced_strategies) + original_dicts + normalized_in:
-            k = key_of(item)
-            if k not in seen:
-                seen.add(k)
-                unique.append(item if not isinstance(item, str) else item)
-        LOG.info(f'Enhanced {len(strategies)} strategies to {len(unique)} registry-optimized strategies')
-        return unique
+        unique_strategies = []
+        for strategy in enhanced_strategies + normalized_in:
+            if strategy not in seen:
+                seen.add(strategy)
+                unique_strategies.append(strategy)
+        LOG.info(f'Enhanced {len(strategies)} strategies to {len(unique_strategies)} registry-optimized strategies')
+        return unique_strategies
 
     def _enhance_single_strategy(self, strategy: str, available_attacks: List[str], fingerprint: Optional[DPIFingerprint]) -> Optional[str]:
         """Enhance a single strategy using registry information."""
@@ -859,20 +822,3 @@ class HybridEngine:
                 LOG.info('Modern bypass engine components cleaned up')
             except Exception as e:
                 LOG.error(f'Error cleaning up modern bypass engine: {e}')
-        # Закрываем AdvancedFingerprinter HTTP-клиенты, если доступны
-        if self.advanced_fingerprinter:
-            try:
-                closer = getattr(self.advanced_fingerprinter, 'aclose', None) or getattr(self.advanced_fingerprinter, 'close', None)
-                if closer:
-                    res = closer()
-                    if inspect.isawaitable(res):
-                        try:
-                            loop = asyncio.get_running_loop()
-                            if loop.is_running():
-                                loop.create_task(res)
-                            else:
-                                asyncio.run(res)
-                        except Exception:
-                            pass
-            except Exception as e:
-                LOG.warning(f'Failed to close advanced fingerprinter http client: {e}')
