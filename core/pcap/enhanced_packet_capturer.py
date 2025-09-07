@@ -1,12 +1,19 @@
 from collections import defaultdict
 import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
+import logging
 
 try:
     from scapy.all import TCP, Raw, wrpcap
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
+try:
+    # Для оффлайн-анализа PCAP
+    from scapy.all import rdpcap
+    SCAPY_SCAPY_READER = True
+except Exception:
+    SCAPY_SCAPY_READER = False
 
 
 class StrategyMetricsCollector:
@@ -125,6 +132,7 @@ class EnhancedPacketCapturer:
         
         self.running = False
         self._start_time = None
+        self.logger = logging.getLogger("EnhancedPacketCapturer")
 
     def mark_strategy_start(self, strategy_id: str):
         """Mark the start of testing a specific strategy."""
@@ -254,8 +262,121 @@ class EnhancedPacketCapturer:
             analysis[strategy_id] = self.get_strategy_packets(strategy_id)
         return analysis
 
+    # ==== NEW: Offline PCAP analysis by strategy time windows ====
+    def _get_strategy_windows(self) -> List[Tuple[str, float, float]]:
+        """
+        Преобразует метки начала/окончания стратегий в интервалы времени.
+        Возвращает список (strategy_id, start_ts, end_ts). Если нет пары end — берём
+        ближайший следующий start как конец, либо конец захвата.
+        """
+        # Сортируем метки по времени
+        events = sorted(self.strategy_markers.items(), key=lambda kv: kv[0])
+        windows: List[Tuple[str, float, float]] = []
+        open_map: Dict[str, float] = {}
+        last_ts = time.time()
+        for ts, (ev, sid) in events:
+            last_ts = max(last_ts, ts)
+            if ev == "start":
+                open_map[sid] = ts
+            elif ev == "end":
+                st = open_map.pop(sid, None)
+                if st is not None and ts > st:
+                    windows.append((sid, st, ts))
+        # Закрываем висящие окна текущим временем
+        for sid, st in open_map.items():
+            windows.append((sid, st, last_ts))
+        return windows
 
-def create_enhanced_capturer(pcap_file: str, target_ips: set, port: int = 443) -> EnhancedPacketCapturer:
+    def analyze_pcap_file(self, pcap_file: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+        """
+        Оффлайн-анализ PCAP по временным окнам стратегий.
+        Возвращает: {strategy_id: {tls_clienthellos, tls_serverhellos, rst_packets, syn_packets,
+                                   data_packets, total_bytes, success_indicator, success_score, total_packets}}
+        """
+        if not SCAPY_SCAPY_READER:
+            return {"error": "Scapy PCAP reader not available"}
+        path = pcap_file or getattr(self, "pcap_file", "")
+        if not path:
+            return {"error": "pcap_file path is empty"}
+        try:
+            pkts = rdpcap(path)
+        except Exception as e:
+            return {"error": f"Failed to read pcap: {e}"}
+
+        # Подготовим окна
+        windows = self._get_strategy_windows()
+        if not windows:
+            # Если нет явных меток — анализируем всё как один «separate» блок
+            windows = [("all", float("-inf"), float("inf"))]
+
+        # Инициализация результатов
+        res: Dict[str, Dict[str, Any]] = {}
+        for sid, _, _ in windows:
+            if sid not in res:
+                res[sid] = {
+                    "total_packets": 0,
+                    "syn_packets": 0,
+                    "rst_packets": 0,
+                    "tls_clienthellos": 0,
+                    "tls_serverhellos": 0,
+                    "data_packets": 0,
+                    "total_bytes": 0,
+                    "success_indicator": False,
+                    "success_score": 0.0
+                }
+
+        # Раскладываем пакеты по окнам по timestamp
+        for pkt in pkts:
+            try:
+                ts = float(getattr(pkt, "time", 0.0))
+            except Exception:
+                ts = 0.0
+            for sid, st, en in windows:
+                if st <= ts <= en:
+                    r = res[sid]
+                    r["total_packets"] += 1
+                    # TCP flags/данные
+                    try:
+                        if TCP in pkt:
+                            flags = pkt[TCP].flags
+                            if flags & 0x02:  # SYN
+                                r["syn_packets"] += 1
+                            if flags & 0x04:  # RST
+                                r["rst_packets"] += 1
+                            if Raw in pkt:
+                                payload = bytes(pkt[Raw])
+                                if len(payload) > 0:
+                                    r["data_packets"] += 1
+                                    r["total_bytes"] += len(payload)
+                                    # TLS landmarks
+                                    if len(payload) > 5 and payload[0] == 0x16:
+                                        if payload[5] == 0x01:  # ClientHello
+                                            r["tls_clienthellos"] += 1
+                                        elif payload[5] == 0x02:  # ServerHello
+                                            r["tls_serverhellos"] += 1
+                    except Exception:
+                        pass
+                    break  # пакет относится только к одному окну
+
+        # Финальная производная метрика
+        for sid, r in res.items():
+            r["success_indicator"] = r["tls_serverhellos"] > 0
+            ch = max(1, r["tls_clienthellos"])
+            r["success_score"] = r["tls_serverhellos"] / ch
+        return res
+
+    def trigger_pcap_analysis(self, force: bool = False) -> Dict[str, Dict[str, Any]]:
+        """
+        Унифицированный метод, чтобы HybridEngine/CLI могли вызвать анализ PCAP.
+        """
+        try:
+            return self.analyze_pcap_file(getattr(self, "pcap_file", None))
+        except Exception as e:
+            self.logger.debug(f"trigger_pcap_analysis failed: {e}")
+            return {"error": str(e)}
+
+
+def create_enhanced_packet_capturer(pcap_file: str, target_ips: set, port: int = 443) -> EnhancedPacketCapturer:
     """
     Factory function to create enhanced packet capturer with appropriate BPF filter.
     

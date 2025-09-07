@@ -162,6 +162,13 @@ console = Console(highlight=False) if RICH_AVAILABLE else Console()
 STRATEGY_FILE = "best_strategy.json"
 
 # --- Потоковый захват PCAP ---
+try:
+    # Корреляционный захватчик и фабрика (enhanced tracking)
+    from core.pcap.enhanced_packet_capturer import EnhancedPacketCapturer, create_enhanced_packet_capturer
+    enhanced_packet_capturer_AVAILABLE = True
+except Exception:
+    enhanced_packet_capturer_AVAILABLE = False
+
 import threading
 
 
@@ -1479,6 +1486,7 @@ async def run_hybrid_mode(args):
 
     doh_resolver = DoHResolver()
     hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=bool(args.enable_enhanced_tracking))
+
     reporter = SimpleReporter(debug=args.debug)
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
     advanced_fingerprinter = None
@@ -1529,6 +1537,7 @@ async def run_hybrid_mode(args):
 
     # Запуск PCAP захвата (если запрошено)
     capturer = None
+    corr_capturer = None  # для enhanced tracking (корреляция стратегия->пакеты)
     if args.pcap and SCAPY_AVAILABLE:
         try:
             if args.capture_bpf:
@@ -1550,6 +1559,16 @@ async def run_hybrid_mode(args):
             console.print(
                 f"[dim]📡 Packet capture started → {args.pcap} (bpf='{bpf}')[/dim]"
             )
+            # Создаём корреляционный захватчик, если включен enhanced tracking
+            if args.enable_enhanced_tracking and enhanced_packet_capturer_AVAILABLE:
+                try:
+                    corr_capturer = create_enhanced_packet_capturer(args.pcap, all_target_ips, args.port)
+                    # Никакого реального sniff здесь не запускаем — он работает оффлайн по pcap
+                    # corr_capturer используется только для mark_strategy_start/end и дальнейшего анализа файла
+                    console.print("[dim]🔗 Enhanced tracking enabled: correlation capturer ready[/dim]")
+                except Exception as e:
+                    corr_capturer = None
+                    console.print(f"[yellow]⚠️ Could not initialize enhanced capturer: {e}[/yellow]")
         except Exception as e:
             console.print(f"[yellow]⚠️ Could not start capture: {e}[/yellow]")
 
@@ -1870,6 +1889,7 @@ async def run_hybrid_mode(args):
         fast_filter=not args.no_fast_filter,
         initial_ttl=None,
         enable_fingerprinting=bool(args.fingerprint and fingerprints),
+        capturer=corr_capturer if corr_capturer else None
     )
 
     # Шаг 5: Уточнение фингерпринта результатами
@@ -1944,6 +1964,24 @@ async def run_hybrid_mode(args):
             capturer.stop()
         except Exception:
             pass
+    # Выполним оффлайн-анализ PCAP и корреляцию со стратегиями (enhanced tracking)
+    if args.enable_enhanced_tracking and corr_capturer:
+        try:
+            analysis_map = corr_capturer.analyze_pcap_file(getattr(corr_capturer, "pcap_file", args.pcap))
+            if isinstance(analysis_map, dict) and "error" not in analysis_map:
+                # Небольшая сводка
+                console.print("\n[bold]🔎 Enhanced tracking summary (PCAP → strategies)[/bold]")
+                top = sorted(
+                    [(sid, m.get("success_score", 0.0), m.get("tls_serverhellos", 0), m.get("tls_clienthellos", 0), m.get("rst_packets", 0))
+                     for sid, m in analysis_map.items()],
+                    key=lambda t: t[1], reverse=True
+                )[:5]
+                for sid, sc, sh, ch, rst in top:
+                    console.print(f"  • {sid}: score={sc:.2f}, SH/CH={sh}/{ch}, RST={rst}")
+            else:
+                console.print(f"[yellow]Enhanced tracking analysis skipped: {analysis_map.get('error','unknown error')}[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow]Enhanced tracking analysis failed: {e}[/yellow]")
 
     # Если есть PCAP и доступен профилировщик — проанализируем и добавим в отчет
     pcap_profile_result = None
@@ -2185,7 +2223,7 @@ async def run_evolutionary_mode(args):
     dm.domains = normalized_domains
     console.print(f"Loaded {len(dm.domains)} domain(s) for evolutionary search.")
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=bool(args.enable_enhanced_tracking))
+    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
     learning_cache = AdaptiveLearningCache()
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
     console.print("\n[yellow]Step 1: DNS Resolution...[/yellow]")
@@ -2484,7 +2522,7 @@ async def run_per_domain_mode(args):
         f"Testing {len(dm.domains)} domains individually for optimal strategies..."
     )
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=bool(args.enable_enhanced_tracking))
+    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
     try:
         from core.strategy_manager import StrategyManager
 
