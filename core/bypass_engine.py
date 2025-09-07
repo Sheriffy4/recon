@@ -1,9 +1,3 @@
-"""
-Центральный движок обхода DPI, основанный на рабочей реализации из final_packet_bypass.py.
-Этот движок является универсальным и может быть использован как для тестирования стратегий,
-так и для постоянной работы в качестве системной службы.
-"""
-
 import platform
 import time
 import threading
@@ -11,6 +5,8 @@ import logging
 import struct
 import random
 import re
+import copy
+from collections import defaultdict
 from typing import List, Dict, Optional, Tuple, Set, Any
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from quic_handler import QuicHandler
@@ -206,6 +202,9 @@ if platform.system() == "Windows":
             self._inject_sema = threading.Semaphore(self._max_injections)
             # Профили по CDN: md5sig_allowed/badsum_allowed + лучшие параметры
             self.cdn_profiles: Dict[str, Dict[str, Any]] = {}
+            # --- Телеметрия инжектов/исходов ---
+            self._tlock = threading.Lock()
+            self._telemetry = self._init_telemetry()
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -230,8 +229,11 @@ if platform.system() == "Windows":
             self.logger.info("✅ AdaptiveStrategyController attached")
             return True
 
-        def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict]):
+        def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict], reset_telemetry: bool = False):
             """Запускает движок обхода в отдельном потоке."""
+            if reset_telemetry:
+                with self._tlock:
+                    self._telemetry = self._init_telemetry()
             self.running = True
             self.logger.info("🚀 Запуск универсального движка обхода DPI...")
             thread = threading.Thread(
@@ -329,6 +331,41 @@ if platform.system() == "Windows":
             """Останавливает движок обхода."""
             self.running = False
             self.logger.info("🛑 Остановка движка обхода DPI...")
+
+        def _strategy_key(self, strategy_task: Dict[str, Any]) -> str:
+            try:
+                t = (strategy_task or {}).get("type", "unknown")
+                p = (strategy_task or {}).get("params", {})
+                parts = []
+                for k, v in p.items():
+                    parts.append(f"{k}={v}")
+                return f"{t}({', '.join(parts)})"
+            except Exception:
+                return str(strategy_task)
+
+        def _init_telemetry(self) -> Dict[str, Any]:
+            return {
+                "start_ts": time.time(),
+                "strategy_key": None,
+                "aggregate": {
+                    "segments_sent": 0,
+                    "fake_packets_sent": 0,
+                    "modified_packets_sent": 0,
+                    "quic_segments_sent": 0
+                },
+                "ttls": {"fake": defaultdict(int), "real": defaultdict(int)},
+                "seq_offsets": defaultdict(int),
+                "overlaps": defaultdict(int),
+                "clienthellos": 0,
+                "serverhellos": 0,
+                "rst_count": 0,
+                "per_target": defaultdict(lambda: {
+                    "segments_sent": 0, "fake_packets_sent": 0,
+                    "seq_offsets": defaultdict(int), "ttls_fake": defaultdict(int),
+                    "ttls_real": defaultdict(int), "overlaps": defaultdict(int),
+                    "last_outcome": None, "last_outcome_ts": None
+                })
+            }
 
         def _is_target_ip(self, ip_str: str, target_ips: Set[str]) -> bool:
             """
@@ -584,7 +621,17 @@ if platform.system() == "Windows":
                                     outcome = "rst"
                             except Exception:
                                 pass
-
+                            # Телеметрия inbound
+                            if outcome:
+                                try:
+                                    with self._tlock:
+                                        if outcome == "ok":
+                                            self._telemetry["serverhellos"] += 1
+                                        elif outcome == "rst":
+                                            self._telemetry["rst_count"] += 1
+                                except Exception:
+                                    pass
+                            # Сигнал исхода + привязка к стратегии/цели
                             if outcome:
                                 rev_key = (pkt.dst_addr, pkt.dst_port, pkt.src_addr, pkt.src_port)
                                 # Signal early stopping event for calibrator
@@ -596,7 +643,6 @@ if platform.system() == "Windows":
                                         ev.set()
                                 except Exception:
                                     pass
-
                                 # Record outcome for adaptive controller
                                 if self.controller:
                                     with self._lock:
@@ -604,6 +650,15 @@ if platform.system() == "Windows":
                                     if info:
                                         rtt_ms = int((time.time() - info["start_ts"]) * 1000)
                                         self.controller.record_outcome(info["key"], info["strategy"], outcome, rtt_ms)
+                                # Запишем last_outcome в телеметрии на цель
+                                try:
+                                    tgt = pkt.src_addr  # inbound: src is server
+                                    with self._tlock:
+                                        per = self._telemetry["per_target"][tgt]
+                                        per["last_outcome"] = outcome
+                                        per["last_outcome_ts"] = time.time()
+                                except Exception:
+                                    pass
                             wi.send(pkt)
                 except Exception as e:
                     if self.running:
@@ -647,6 +702,15 @@ if platform.system() == "Windows":
                             self._is_target_ip(packet.dst_addr, target_ips)
                             and packet.payload
                         ):
+                            # Телеметрия: CH на исходящих ClientHello
+                            try:
+                                if self._is_tls_clienthello(packet.payload):
+                                    with self._tlock:
+                                        self._telemetry["clienthellos"] += 1
+                                        # откроем пер-цель запись
+                                        _ = self._telemetry["per_target"][packet.dst_addr]
+                            except Exception:
+                                pass
                             # Сначала пытаемся применить контроллер (SNI->wildcard->IP->default)
                             if self.controller and self._is_tls_clienthello(packet.payload):
                                 sni = self._extract_sni(packet.payload)
@@ -661,6 +725,11 @@ if platform.system() == "Windows":
                                         "strategy": strategy_task
                                     }
                                 # Применяем стратегию сразу (не используем _choose_strategy)
+                                # Телеметрия: текущее ключ-имя стратегии
+                                try:
+                                    with self._tlock:
+                                        self._telemetry["strategy_key"] = self._strategy_key(strategy_task)
+                                except Exception: pass
                                 if self._is_udp(packet) and packet.dst_port == 443:
                                     if strategy_task and self.quic_handler.is_quic_initial(packet.payload):
                                         self.stats["quic_packets_bypassed"] += 1
@@ -680,6 +749,19 @@ if platform.system() == "Windows":
                             strategy_task = strategy_map.get(
                                 packet.dst_addr
                             ) or strategy_map.get("default")
+                            # Привязка потока к стратегии для inbound-учёта + телеметрия ключа
+                            if strategy_task and self._is_tls_clienthello(packet.payload):
+                                try:
+                                    flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
+                                    with self._lock:
+                                        self.flow_table[flow_id] = {
+                                            "start_ts": time.time(),
+                                            "key": packet.dst_addr,
+                                            "strategy": strategy_task
+                                        }
+                                    with self._tlock:
+                                        self._telemetry["strategy_key"] = self._strategy_key(strategy_task)
+                                except Exception: pass
                             if self._is_udp(packet) and packet.dst_port == 443:
                                 if strategy_task and self.quic_handler.is_quic_initial(
                                     packet.payload
@@ -775,10 +857,20 @@ if platform.system() == "Windows":
                 
                 payload = bytes(packet.payload)
                 success = False
+                # Телеметрия: ensure per-target bucket
+                try:
+                    with self._tlock:
+                        _ = self._telemetry["per_target"][packet.dst_addr]
+                except Exception:
+                    pass
 
                 if self._is_udp(packet) and packet.dst_port == 443:
                     segments = self.quic_handler.split_quic_initial(payload, [10, 25, 40])
                     success = self._send_segments(packet, w, segments)
+                    # Телеметрия QUIC
+                    if success:
+                        with self._tlock:
+                            self._telemetry["aggregate"]["quic_segments_sent"] += len(segments or [])
                     if not success: w.send(packet)
                     return
 
@@ -869,6 +961,9 @@ if platform.system() == "Windows":
                         time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
                         self.current_params["delay_ms"] = d_ms
                         segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
+                        # Телеметрия: отметим использованный overlap
+                        with self._tlock:
+                            self._telemetry["overlaps"][int(cand.overlap_size)] += 1
                         self._send_segments(packet, w, segments)
                     def _wait_outcome(timeout: float=0.25) -> Optional[str]:
                         got = inbound_ev.wait(timeout=timeout)
@@ -963,6 +1058,9 @@ if platform.system() == "Windows":
                     if is_meta_ip or is_twitter_ip:
                         for fake_ttl in [ttl - 1, ttl, ttl + 1]:
                             self._send_fake_packet_with_badsum(packet, w, ttl=fake_ttl)
+                            with self._tlock:
+                                self._telemetry["ttls"]["fake"][int(fake_ttl)] += 1
+                                self._telemetry["aggregate"]["fake_packets_sent"] += 1
                             time.sleep(0.002)
                         segments = self.techniques.apply_multisplit(payload, params.get("positions", [6, 14, 26, 42, 64]))
                         success = self._send_segments(packet, w, segments)
@@ -1016,6 +1114,10 @@ if platform.system() == "Windows":
                     segments = self.techniques.apply_seqovl(
                         payload, params.get("split_pos", 3), params.get("overlap_size", 20)
                     )
+                    with self._tlock:
+                        self._telemetry["overlaps"][int(params.get("overlap_size", 20))] += 1
+                        self._telemetry["ttls"]["fake"][int(self.current_params.get("fake_ttl", 1))] += 1
+                        self._telemetry["aggregate"]["fake_packets_sent"] += 1
                     success = self._send_segments(packet, w, segments)
                 elif task_type == "tlsrec_split":
                     modified_payload = self.techniques.apply_tlsrec_split(payload, params.get("split_pos", 5))
@@ -1167,6 +1269,24 @@ if platform.system() == "Windows":
             except Exception as e:
                 self.logger.error(f"Ошибка отправки сегментов: {e}", exc_info=self.debug)
                 return False
+            finally:
+                # Телеметрия: учёт сегментов, TTL, seq_offset на каждый отправленный сегмент
+                try:
+                    with self._tlock:
+                        if 'segments' in locals() and segments:
+                            self._telemetry["aggregate"]["segments_sent"] += len(segments)
+                            tgt = original_packet.dst_addr
+                            per = self._telemetry["per_target"][tgt]
+                            per["segments_sent"] += len(segments)
+                            # учёт seq_offsets и реального TTL
+                            for seg_payload, rel_off in segments:
+                                self._telemetry["seq_offsets"][int(rel_off)] += 1
+                                per["seq_offsets"][int(rel_off)] += 1
+                            real_ttl = int(bytearray(original_packet.raw)[8])
+                            self._telemetry["ttls"]["real"][real_ttl] += 1
+                            per["ttls_real"][real_ttl] += 1
+                except Exception:
+                    pass
 
         def _send_fake_packet(self, original_packet, w, ttl: Optional[int] = 64):
             """
@@ -1199,6 +1319,17 @@ if platform.system() == "Windows":
                 )
                 w.send(fake_packet)
                 self.stats["fake_packets_sent"] += 1
+                # Телеметрия
+                with self._tlock:
+                    self._telemetry["aggregate"]["fake_packets_sent"] += 1
+                    self._telemetry["ttls"]["fake"][int(fake_raw[8])] += 1
+                    try:
+                        tgt = original_packet.dst_addr
+                        per = self._telemetry["per_target"][tgt]
+                        per["fake_packets_sent"] += 1
+                        per["ttls_fake"][int(fake_raw[8])] += 1
+                    except Exception:
+                        pass
                 self.logger.debug(f"✅ Sent fake packet with TTL={fake_raw[8]} to {original_packet.dst_addr}")
                 time.sleep(0.002)
             except Exception as e:
@@ -1238,6 +1369,12 @@ if platform.system() == "Windows":
                 )
                 w.send(fake_packet)
                 self.stats["fake_packets_sent"] += 1
+                with self._tlock:
+                    self._telemetry["aggregate"]["fake_packets_sent"] += 1
+                    self._telemetry["ttls"]["fake"][int(fake_raw[8])] += 1
+                    tgt = original_packet.dst_addr
+                    per = self._telemetry["per_target"][tgt]
+                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(fake_raw[8])] += 1
                 self.logger.debug(f"✅ Sent fake packet (badsum) with TTL={fake_raw[8]} to {original_packet.dst_addr}")
             except Exception as e:
                 self.logger.debug(f"Ошибка fake packet with badsum: {e}")
@@ -1276,6 +1413,12 @@ if platform.system() == "Windows":
                 )
                 w.send(fake_packet)
                 self.stats["fake_packets_sent"] += 1
+                with self._tlock:
+                    self._telemetry["aggregate"]["fake_packets_sent"] += 1
+                    self._telemetry["ttls"]["fake"][int(fake_raw[8])] += 1
+                    tgt = original_packet.dst_addr
+                    per = self._telemetry["per_target"][tgt]
+                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(fake_raw[8])] += 1
                 self.logger.debug(f"✅ Sent fake packet (md5sig) with TTL={fake_raw[8]} to {original_packet.dst_addr}")
             except Exception as e:
                 self.logger.debug(f"Ошибка fake packet with md5sig: {e}")
@@ -1318,6 +1461,12 @@ if platform.system() == "Windows":
                 )
                 w.send(fake_packet)
                 self.stats["fake_packets_sent"] += 1
+                with self._tlock:
+                    self._telemetry["aggregate"]["fake_packets_sent"] += 1
+                    self._telemetry["ttls"]["fake"][int(fake_raw[8])] += 1
+                    tgt = original_packet.dst_addr
+                    per = self._telemetry["per_target"][tgt]
+                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(fake_raw[8])] += 1
                 self.logger.debug(f"✅ Sent fake packet (badseq) with TTL={fake_raw[8]} to {original_packet.dst_addr}")
             except Exception as e:
                 self.logger.debug(f"Ошибка fake packet with badseq: {e}")
@@ -1569,6 +1718,28 @@ if platform.system() == "Windows":
             except Exception as e:
                 self.logger.error(f"Ошибка в _send_attack_segments: {e}", exc_info=self.debug)
                 return False
+            finally:
+                try:
+                    with self._tlock:
+                        if 'segments' in locals() and segments:
+                            self._telemetry["aggregate"]["segments_sent"] += len(segments)
+                            tgt = original_packet.dst_addr
+                            per = self._telemetry["per_target"][tgt]
+                            per["segments_sent"] += len(segments)
+                            for seg in segments:
+                                if len(seg) == 3:
+                                    _, rel_off, opts = seg
+                                elif len(seg) == 2:
+                                    _, rel_off = seg; opts = {}
+                                else:
+                                    continue
+                                self._telemetry["seq_offsets"][int(rel_off)] += 1
+                                per["seq_offsets"][int(rel_off)] += 1
+                            real_ttl = int(bytearray(original_packet.raw)[8])
+                            self._telemetry["ttls"]["real"][real_ttl] += 1
+                            per["ttls_real"][real_ttl] += 1
+                except Exception:
+                    pass
 
         def _send_aligned_fake_segment(self, original_packet, w, seq_offset: int, data: bytes, ttl: int, fooling: List[str]) -> bool:
             """
@@ -1707,6 +1878,30 @@ if platform.system() == "Windows":
             payload = bytes(packet.payload)
             fragments = [(payload[0:1], 0), (payload[1:3], 1), (payload[3:], 3)]
             self._send_segments(packet, w, fragments)
+
+        def get_telemetry_snapshot(self) -> Dict[str, Any]:
+            """
+            Возвращает срез телеметрии текущего запуска движка.
+            """
+            try:
+                with self._tlock:
+                    snap = copy.deepcopy(self._telemetry)
+                snap["duration_sec"] = time.time() - snap.get("start_ts", time.time())
+                # Конвертировать defaultdict -> dict для сериализации
+                for k in ["fake", "real"]:
+                    snap["ttls"][k] = dict(snap["ttls"][k])
+                snap["seq_offsets"] = dict(snap["seq_offsets"])
+                snap["overlaps"] = dict(snap["overlaps"])
+                snap["per_target"] = {t: {
+                    **v,
+                    "seq_offsets": dict(v["seq_offsets"]),
+                    "ttls_fake": dict(v["ttls_fake"]),
+                    "ttls_real": dict(v["ttls_real"]),
+                    "overlaps": dict(v["overlaps"])
+                } for t, v in snap["per_target"].items()}
+                return snap
+            except Exception:
+                return {}
 
 else:
 
