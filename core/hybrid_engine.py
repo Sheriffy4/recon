@@ -1,7 +1,6 @@
 import logging
 import time
 import asyncio
-import inspect
 import aiohttp
 import socket
 import ssl
@@ -243,25 +242,32 @@ class HybridEngine:
         sites: List[str],
         dns_cache: Dict[str, str],
         max_concurrent: int = 10,
-        retries: int = 0,
-        backoff_base: float = 0.4,
-        timeout_profile: str = "balanced",
-        connect_timeout: Optional[float] = None,
-        sock_read_timeout: Optional[float] = None,
-        total_timeout: Optional[float] = None
+        timeouts: Optional[Dict[str, float]] = None,
+        attempts: int = 1,
+        backoff_factor: float = 1.6,
+        jitter: float = 0.15,
+        limit_per_host: int = 5
     ) -> Dict[str, Tuple[str, str, float, int]]:
         """
-        ИСПРАВЛЕНИЕ: Более устойчивый тестовый клиент на aiohttp с принудительным DNS и увеличенными таймаутами.
+        Более устойчивый тестовый клиент на aiohttp с принудительным DNS.
+        Добавлены параметризуемые таймауты и ретраи с экспоненциальным бэкоффом
+        (ретраятся только сайты со статусами TIMEOUT/ERROR на предыдущих попытках).
         """
-        results = {}
+        results: Dict[str, Tuple[str, str, float, int]] = {}
         semaphore = asyncio.Semaphore(max_concurrent)
+        # Профиль таймаутов (увеличены дефолты для «шумных» сетей)
+        tprof = {
+            "total": 20.0,
+            "connect": 6.0,
+            "sock_read": 12.0,
+        }
+        if timeouts:
+            tprof.update({k: v for k, v in timeouts.items() if v})
 
         class CustomResolver(aiohttp.resolver.AsyncResolver):
-
             def __init__(self, cache):
                 super().__init__()
                 self._custom_cache = cache
-
             async def resolve(self, host, port, family=socket.AF_INET):
                 if host in self._custom_cache:
                     ip = self._custom_cache[host]
@@ -272,67 +278,60 @@ class HybridEngine:
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
-        connector = aiohttp.TCPConnector(ssl=ssl_context, limit_per_host=5, resolver=CustomResolver(dns_cache))
 
-        def _make_timeouts(profile: str) -> aiohttp.ClientTimeout:
-            # Профили таймаутов: подбираем под худшие сети
-            presets = {
-                "fast":      dict(connect=3.0,  sock_read=5.0,  total=8.0),
-                "balanced":  dict(connect=5.0,  sock_read=12.0, total=18.0),
-                "slow":      dict(connect=8.0,  sock_read=20.0, total=30.0),
-            }
-            p = presets.get(profile, presets["balanced"]).copy()
-            if connect_timeout is not None:   p["connect"] = float(connect_timeout)
-            if sock_read_timeout is not None: p["sock_read"] = float(sock_read_timeout)
-            if total_timeout is not None:     p["total"] = float(total_timeout)
-            return aiohttp.ClientTimeout(total=p["total"], connect=p["connect"], sock_read=p["sock_read"])
-
-        async def test_with_semaphore(session, site):
+        async def test_with_semaphore(session: aiohttp.ClientSession, site: str):
             async with semaphore:
+                start_time = time.time()
                 hostname = urlparse(site).hostname or site
                 ip_used = dns_cache.get(hostname, 'N/A')
-                attempt = 0
-                while True:
-                    start_time = time.time()
-                    try:
-                        # Эскалация профиля на повторных попытках
-                        prof = timeout_profile if attempt == 0 else "slow"
-                        client_timeout = _make_timeouts(prof)
-                        async with session.get(site, headers=HEADERS, allow_redirects=True, timeout=client_timeout) as response:
-                            # немного данных достаточно, чтобы проверить установку канала
-                            await response.content.readexactly(1)
-                            latency = (time.time() - start_time) * 1000
-                            return (site, ('WORKING', ip_used, latency, response.status))
-                    except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError) as e:
+                try:
+                    client_timeout = aiohttp.ClientTimeout(
+                        total=float(tprof["total"]), connect=float(tprof["connect"]), sock_read=float(tprof["sock_read"])
+                    )
+                    async with session.get(site, headers=HEADERS, allow_redirects=True, timeout=client_timeout) as response:
+                        await response.content.readexactly(1)
                         latency = (time.time() - start_time) * 1000
-                        # Классифицируем RST отдельно
-                        if self._is_rst_error(e):
-                            LOG.debug(f'Connectivity test for {site} -> RST ({type(e).__name__})')
-                            return (site, ('RST', ip_used, latency, 0))
-                        # TIMEOUT с экспоненциальным бэкоффом
-                        if attempt < retries:
-                            delay = backoff_base * (2 ** attempt) + random.uniform(0.0, 0.2)
-                            LOG.debug(f'Connectivity TIMEOUT for {site}, retrying in {delay:.2f}s (attempt {attempt+1}/{retries})')
-                            await asyncio.sleep(delay)
-                            attempt += 1
-                            continue
-                        LOG.debug(f'Connectivity test for {site} failed with TIMEOUT ({type(e).__name__})')
-                        return (site, ('TIMEOUT', ip_used, latency, 0))
-                    except Exception as e:
-                        latency = (time.time() - start_time) * 1000
-                        LOG.debug(f'Неожиданная ошибка при тестировании {site}: {e}')
-                        return (site, ('ERROR', ip_used, latency, 0))
-        try:
-            async with aiohttp.ClientSession(connector=connector) as session:
-                tasks = [test_with_semaphore(session, site) for site in sites]
-                task_results = await asyncio.gather(*tasks)
-                for site, result_tuple in task_results:
-                    results[site] = result_tuple
-        finally:
+                        return (site, ('WORKING', ip_used, latency, response.status))
+                except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError) as e:
+                    latency = (time.time() - start_time) * 1000
+                    LOG.debug(f'Connectivity test for {site} failed with {type(e).__name__}')
+                    return (site, ('TIMEOUT', ip_used, latency, 0))
+                except Exception as e:
+                    latency = (time.time() - start_time) * 1000
+                    LOG.debug(f'Неожиданная ошибка при тестировании {site}: {e}')
+                    return (site, ('ERROR', ip_used, latency, 0))
+        # Ретраи по TIMEOUT/ERROR с экспоненциальным бэкоффом
+        pending = list(sites)
+        for attempt in range(max(1, attempts)):
+            connector = aiohttp.TCPConnector(
+                ssl=ssl_context, limit_per_host=int(limit_per_host), resolver=CustomResolver(dns_cache)
+            )
             try:
-                await connector.close()
-            except Exception:
-                pass
+                async with aiohttp.ClientSession(connector=connector) as session:
+                    tasks = [test_with_semaphore(session, site) for site in pending]
+                    task_results = await asyncio.gather(*tasks)
+                    next_pending = []
+                    for site, result_tuple in task_results:
+                        status = result_tuple[0]
+                        if status == 'WORKING':
+                            results[site] = result_tuple
+                        else:
+                            # Запланируем на след. попытку, если будут попытки
+                            if attempt < attempts - 1:
+                                next_pending.append(site)
+                            else:
+                                results[site] = result_tuple
+                    pending = next_pending
+            finally:
+                try:
+                    await connector.close()
+                except Exception:
+                    pass
+            if not pending:
+                break
+            # экспоненциальный бэкофф с небольшим джиттером
+            delay = (backoff_factor ** attempt) * (0.4 + random.random() * jitter)
+            await asyncio.sleep(delay)
         return results
 
     async def test_baseline_connectivity(self, test_sites: List[str], dns_cache: Dict[str, str]) -> Dict[str, Tuple[str, str, float, int]]:
@@ -341,7 +340,7 @@ class HybridEngine:
         Использует aiohttp, так как он корректно обрабатывает сброс соединения.
         """
         LOG.info('Тестируем базовую доступность сайтов (без bypass) с DNS-кэшем...')
-        return await self._test_sites_connectivity(test_sites, dns_cache)
+        return await self._test_sites_connectivity(test_sites, dns_cache, max_concurrent=10)
 
     async def execute_strategy_real_world(
         self,
@@ -351,9 +350,9 @@ class HybridEngine:
         dns_cache: Dict[str, str],
         target_port: int = 443,
         initial_ttl: Optional[int] = None,
-        fingerprint: Optional[DPIFingerprint] = None,
-        return_details: bool = False,
-        prefer_retry_on_timeout: bool = False
+        fingerprint: Optional["DPIFingerprint"] = None,
+        prefer_retry_on_timeout: bool = False,
+        return_details: bool = False
     ) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
@@ -366,8 +365,7 @@ class HybridEngine:
         strategy_map = {'default': engine_task}
         bypass_thread = bypass_engine.start(target_ips, strategy_map)
         try:
-            # Чуть больше времени на прогрев хука, если нет DPI‑контекста
-            wait_time = 2.5
+            wait_time = 1.5
             if fingerprint:
                 if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
                     wait_time = 1.0
@@ -377,39 +375,46 @@ class HybridEngine:
                     wait_time = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
             await asyncio.sleep(wait_time)
             try:
-                # Первичный прогон с ретраями для «первых» стратегий по желанию
+                # Первая попытка: стандартные/увеличенные таймауты, с опциональным retry для первых стратегий
+                attempts = 2 if prefer_retry_on_timeout else 1
                 results = await self._test_sites_connectivity(
-                    test_sites,
-                    dns_cache,
+                    test_sites, dns_cache,
                     max_concurrent=10,
-                    retries=(2 if prefer_retry_on_timeout else 0),
-                    backoff_base=0.4,
-                    timeout_profile="balanced"
+                    timeouts={"total": 20.0, "connect": 6.0, "sock_read": 12.0},
+                    attempts=attempts,
+                    backoff_factor=1.7,
+                    limit_per_host=4
                 )
             except Exception as connectivity_error:
                 LOG.error(f'Connectivity test failed: {connectivity_error}')
                 if fingerprint and fingerprint.tcp_window_manipulation:
                     LOG.info('Retrying with adjusted parameters due to TCP window manipulation')
                     await asyncio.sleep(0.5)
-                    results = await self._test_sites_connectivity(test_sites, dns_cache, timeout_profile="slow", retries=1, max_concurrent=6)
+                    results = await self._test_sites_connectivity(
+                        test_sites, dns_cache,
+                        max_concurrent=8,
+                        timeouts={"total": 25.0, "connect": 8.0, "sock_read": 15.0},
+                        attempts=2, backoff_factor=1.8, limit_per_host=3
+                    )
                 else:
                     raise
-            # Эвристика: подозрение на TCP window manipulation даже без фингерпринта
-            try:
-                statuses = [st for (st, _, _, _) in results.values()]
-                latencies = [lt for (_, _, lt, _) in results.values()]
-                min_lat = min(latencies) if latencies else 0.0
-                rst_cnt = sum(1 for st in statuses if st == 'RST')
-                to_cnt = sum(1 for st in statuses if st == 'TIMEOUT')
-                if (rst_cnt >= 2 or (to_cnt == len(test_sites) and min_lat < 150.0)) and not (fingerprint and getattr(fingerprint, "tcp_window_manipulation", False)):
-                    LOG.info('Heuristic trigger: possible TCP window manipulation. Retesting with slow timeouts and limited concurrency...')
-                    await asyncio.sleep(0.4)
-                    results = await self._test_sites_connectivity(test_sites, dns_cache, max_concurrent=5, retries=1, backoff_base=0.5, timeout_profile="slow")
-            except Exception:
-                pass
             successful_count = sum((1 for status, _, _, _ in results.values() if status == 'WORKING'))
             successful_latencies = [latency for status, _, latency, _ in results.values() if status == 'WORKING']
             avg_latency = sum(successful_latencies) / len(successful_latencies) if successful_latencies else 0.0
+            # Эвристика: если всё TIMEOUT/ERROR и «пахнет» проблемой окна/агрессивным middlebox —
+            # повторим с усиленными таймаутами даже без фингерпринта
+            if successful_count == 0 and self._should_retry_timeout(results, dns_cache, target_ips) and not prefer_retry_on_timeout:
+                LOG.info('Heuristic retry: suspected TCP window/middlebox issue → increasing timeouts and retrying once')
+                await asyncio.sleep(0.4)
+                results = await self._test_sites_connectivity(
+                    test_sites, dns_cache,
+                    max_concurrent=8,
+                    timeouts={"total": 28.0, "connect": 9.0, "sock_read": 16.0},
+                    attempts=2, backoff_factor=1.8, limit_per_host=3
+                )
+                successful_count = sum((1 for status, _, _, _ in results.values() if status == 'WORKING'))
+                successful_latencies = [latency for status, _, latency, _ in results.values() if status == 'WORKING']
+                avg_latency = sum(successful_latencies) / len(successful_latencies) if successful_latencies else 0.0
             if successful_count == 0:
                 result_status = 'NO_SITES_WORKING'
             elif successful_count == len(test_sites):
@@ -419,23 +424,50 @@ class HybridEngine:
             if fingerprint and self.debug:
                 LOG.debug(f'Strategy test with DPI context: {fingerprint.dpi_type.value}, RST injection: {fingerprint.rst_injection_detected}, TCP manipulation: {fingerprint.tcp_window_manipulation}')
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
-            
+
             if return_details:
                 return (result_status, successful_count, len(test_sites), avg_latency, results)
             return (result_status, successful_count, len(test_sites), avg_latency)
-        except Exception as e:
-            LOG.error(f'Ошибка во время реального тестирования: {e}', exc_info=self.debug)
-            if fingerprint:
-                if fingerprint.rst_injection_detected and 'reset' in str(e).lower():
-                    LOG.info('Connection reset detected - consistent with fingerprint analysis')
-                elif fingerprint.dns_hijacking_detected and 'dns' in str(e).lower():
-                    LOG.info('DNS issues detected - consistent with fingerprint analysis')
-            return ('REAL_WORLD_ERROR', 0, len(test_sites), 0.0)
         finally:
             bypass_engine.stop()
             if bypass_thread:
                 bypass_thread.join(timeout=2.0)
             await asyncio.sleep(0.5)
+
+    def _should_retry_timeout(
+        self,
+        results: Dict[str, Tuple[str, str, float, int]],
+        dns_cache: Dict[str, str],
+        target_ips: Set[str]
+    ) -> bool:
+        """
+        Эвристика «подозрения» на TCP window/middlebox:
+          - 80%+ TIMEOUT/ERROR, ни одного WORKING
+          - домены/цели попадают под крупные CDN/Google/Facebook/CF/Fastly и т.п.
+        """
+        if not results:
+            return False
+        total = len(results)
+        if total == 0:
+            return False
+        timeouts = sum(1 for st, *_ in results.values() if st in ("TIMEOUT", "ERROR"))
+        if timeouts < max(1, int(0.8 * total)):
+            return False
+        # Быстрая проверка по префиксам известных CDN/вендоров
+        prefixes = {
+            "104.", "172.64.", "172.67.", "162.158.", "162.159.",     # Cloudflare
+            "151.101.", "199.232.",                                    # Fastly
+            "216.58.", "172.217.", "142.250.", "172.253.", "209.85.",  # Google
+            "31.13.", "157.240.", "69.171.",                           # Meta
+            "104.244.", "199.59.",                                     # Twitter
+        }
+        def match_prefix(ip: str) -> bool:
+            return any(ip.startswith(p) for p in prefixes)
+        # Если в target_ips или dns_cache есть «подозрительные» префиксы — усиливаем вероятность ретрая
+        if any(match_prefix(ip) for ip in list(target_ips) + list(dns_cache.values())):
+            return True
+        # иначе — ретрай не обязателен
+        return False
 
     async def test_strategies_hybrid(self, strategies: List[Union[str, Dict[str, Any]]], test_sites: List[str], ips: Set[str], dns_cache: Dict[str, str], port: int, domain: str, fast_filter: bool=True, initial_ttl: Optional[int]=None, enable_fingerprinting: bool=True, use_modern_engine: bool=True, capturer: Optional[Any]=None) -> List[Dict]:
         """
