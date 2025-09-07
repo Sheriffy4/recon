@@ -260,92 +260,70 @@ class HybridEngine:
         fingerprint: Optional["DPIFingerprint"] = None,
         prefer_retry_on_timeout: bool = False,
         return_details: bool = False
-    ) -> Tuple[str, int, int, float]:
+    ) -> Dict[str, Any]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
-        Теперь с поддержкой контекстной информации от фингерпринтинга.
+        Теперь с поддержкой контекстной информации от фингерпринтинга и возвратом телеметрии.
         """
         engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             LOG.warning(f"Strategy translation failed, skipping: {strategy}")
-            return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
-        bypass_engine = BypassEngine(debug=self.debug)
+            return {'result_status': 'TRANSLATION_FAILED', 'successful_count': 0, 'total_count': len(test_sites), 'avg_latency': 0.0, 'telemetry': {}}
+
+        if not hasattr(self, 'bypass_engine') or not self.bypass_engine:
+             self.bypass_engine = BypassEngine(debug=self.debug)
+
         strategy_map = {'default': engine_task}
-        bypass_thread = bypass_engine.start(target_ips, strategy_map)
+        self.bypass_engine.stop()
+        time.sleep(0.1) # pydivert handle release
+        bypass_thread = self.bypass_engine.start(target_ips, strategy_map, reset_telemetry=True)
+
+        telemetry_snapshot = {}
         try:
             wait_time = 1.5
             if fingerprint:
-                if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
-                    wait_time = 1.0
-                elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI:
-                    wait_time = 2.0
-                elif fingerprint.connection_reset_timing > 0:
-                    wait_time = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
+                if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU: wait_time = 1.0
+                elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI: wait_time = 2.0
+                elif fingerprint.connection_reset_timing > 0: wait_time = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
             await asyncio.sleep(wait_time)
-            try:
-                # Первая попытка: стандартные/увеличенные таймауты, с опциональным retry для первых стратегий
-                attempts = 2 if prefer_retry_on_timeout else 1
-                results = await self._test_sites_connectivity(
-                    test_sites, dns_cache,
-                    max_concurrent=10,
-                    timeouts={"total": 20.0, "connect": 6.0, "sock_read": 12.0},
-                    attempts=attempts,
-                    backoff_factor=1.7,
-                    limit_per_host=4
-                )
-            except Exception as connectivity_error:
-                LOG.error(f'Connectivity test failed: {connectivity_error}')
-                if fingerprint and fingerprint.tcp_window_manipulation:
-                    LOG.info('Retrying with adjusted parameters due to TCP window manipulation')
-                    await asyncio.sleep(0.5)
-                    results = await self._test_sites_connectivity(
-                        test_sites, dns_cache,
-                        max_concurrent=8,
-                        timeouts={"total": 25.0, "connect": 8.0, "sock_read": 15.0},
-                        attempts=2, backoff_factor=1.8, limit_per_host=3
-                    )
-                else:
-                    raise
-            successful_count = sum((1 for status, _, _, _ in results.values() if status == 'WORKING'))
-            successful_latencies = [latency for status, _, latency, _ in results.values() if status == 'WORKING']
-            avg_latency = sum(successful_latencies) / len(successful_latencies) if successful_latencies else 0.0
-            # Эвристика: если всё TIMEOUT/ERROR и «пахнет» проблемой окна/агрессивным middlebox —
-            # повторим с усиленными таймаутами даже без фингерпринта
+
+            attempts = 2 if prefer_retry_on_timeout else 1
+            results = await self._test_sites_connectivity(test_sites, dns_cache, max_concurrent=10, timeouts={"total": 20.0, "connect": 6.0, "sock_read": 12.0}, attempts=attempts, backoff_factor=1.7, limit_per_host=4)
+
+            successful_count = sum((1 for r in results.values() if r[0] == 'WORKING'))
             if successful_count == 0 and self._should_retry_timeout(results, dns_cache, target_ips) and not prefer_retry_on_timeout:
                 LOG.info('Heuristic retry: suspected TCP window/middlebox issue → increasing timeouts and retrying once')
                 await asyncio.sleep(0.4)
-                results = await self._test_sites_connectivity(
-                    test_sites, dns_cache,
-                    max_concurrent=8,
-                    timeouts={"total": 28.0, "connect": 9.0, "sock_read": 16.0},
-                    attempts=2, backoff_factor=1.8, limit_per_host=3
-                )
-                successful_count = sum((1 for status, _, _, _ in results.values() if status == 'WORKING'))
-                successful_latencies = [latency for status, _, latency, _ in results.values() if status == 'WORKING']
-                avg_latency = sum(successful_latencies) / len(successful_latencies) if successful_latencies else 0.0
-            if successful_count == 0:
-                result_status = 'NO_SITES_WORKING'
-            elif successful_count == len(test_sites):
-                result_status = 'ALL_SITES_WORKING'
-            else:
-                result_status = 'PARTIAL_SUCCESS'
-            if fingerprint and self.debug:
-                LOG.debug(f'Strategy test with DPI context: {fingerprint.dpi_type.value}, RST injection: {fingerprint.rst_injection_detected}, TCP manipulation: {fingerprint.tcp_window_manipulation}')
+                results = await self._test_sites_connectivity(test_sites, dns_cache, max_concurrent=8, timeouts={"total": 28.0, "connect": 9.0, "sock_read": 16.0}, attempts=2, backoff_factor=1.8, limit_per_host=3)
+                successful_count = sum((1 for r in results.values() if r[0] == 'WORKING'))
+
+            successful_latencies = [lat for st, _, lat, _ in results.values() if st == 'WORKING']
+            avg_latency = sum(successful_latencies) / len(successful_latencies) if successful_latencies else 0.0
+            result_status = 'NO_SITES_WORKING'
+            if successful_count > 0:
+                result_status = 'ALL_SITES_WORKING' if successful_count == len(test_sites) else 'PARTIAL_SUCCESS'
+
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
 
+            telemetry_snapshot = self.bypass_engine.get_telemetry_snapshot()
+
+            details = {
+                'result_status': result_status,
+                'successful_count': successful_count,
+                'total_count': len(test_sites),
+                'avg_latency': avg_latency,
+                'telemetry': telemetry_snapshot
+            }
             if return_details:
-                return (result_status, successful_count, len(test_sites), avg_latency, results)
-            return (result_status, successful_count, len(test_sites), avg_latency)
+                details['site_results'] = results
+            return details
+
         except Exception as e:
             LOG.error(f'Ошибка во время реального тестирования: {e}', exc_info=self.debug)
-            if fingerprint:
-                if fingerprint.rst_injection_detected and 'reset' in str(e).lower():
-                    LOG.info('Connection reset detected - consistent with fingerprint analysis')
-                elif fingerprint.dns_hijacking_detected and 'dns' in str(e).lower():
-                    LOG.info('DNS issues detected - consistent with fingerprint analysis')
-            return ('REAL_WORLD_ERROR', 0, len(test_sites), 0.0)
+            return {'result_status': 'REAL_WORLD_ERROR', 'successful_count': 0, 'total_count': len(test_sites), 'avg_latency': 0.0, 'telemetry': {}}
         finally:
-            bypass_engine.stop()
+            if hasattr(self, 'bypass_engine') and self.bypass_engine:
+                self.bypass_engine.stop()
             if bypass_thread:
                 bypass_thread.join(timeout=2.0)
             await asyncio.sleep(0.5)
@@ -446,29 +424,55 @@ class HybridEngine:
             if capturer:
                 try: capturer.mark_strategy_start(str(strategy))
                 except Exception: pass
-            ret = await self.execute_strategy_real_world(
+            details = await self.execute_strategy_real_world(
                 strategy,  # передаём оригинал (dict или str)
                 test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
                 prefer_retry_on_timeout=(i < 2),
                 return_details=True
             )
-            if len(ret) == 5:
-                result_status, successful_count, total_count, avg_latency, site_results = ret
-            else:
-                result_status, successful_count, total_count, avg_latency = ret
-                site_results = {}
+
+            result_status = details.get('result_status', 'UNKNOWN')
+            successful_count = details.get('successful_count', 0)
+            total_count = details.get('total_count', len(test_sites))
+            avg_latency = details.get('avg_latency', 0.0)
 
             if capturer:
                 try: capturer.mark_strategy_end(str(strategy))
                 except Exception: pass
+
             success_rate = successful_count / total_count if total_count > 0 else 0.0
-            result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
+            result_data = {
+                'strategy': pretty,
+                'result_status': result_status,
+                'successful_sites': successful_count,
+                'total_sites': total_count,
+                'success_rate': success_rate,
+                'avg_latency_ms': avg_latency,
+                'fingerprint_used': fingerprint is not None,
+                'dpi_type': fingerprint.dpi_type.value if fingerprint else None,
+                'dpi_confidence': fingerprint.confidence if fingerprint else None
+            }
         
             results.append(result_data)
+
+            log_line = ""
             if success_rate > 0:
-                LOG.info(f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms')
+                log_line = f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms'
             else:
-                LOG.info(f'✗ Провал: ни один сайт не заработал. Причина: {result_status}')
+                log_line = f'✗ Провал: ни один сайт не заработал. Причина: {result_status}'
+
+            telemetry = details.get("telemetry", {})
+            if telemetry:
+                log_line += " | Telemetry:"
+                aggr = telemetry.get("aggregate", {})
+                log_line += f" SegsSent={aggr.get('segments_sent',0)}"
+                log_line += f" FakesSent={aggr.get('fake_packets_sent',0)}"
+                ttls = telemetry.get("ttls", {})
+                log_line += f" RealTTLs={dict(ttls.get('real',{}))}"
+                log_line += f" FakeTTLs={dict(ttls.get('fake',{}))}"
+                log_line += f" CH={telemetry.get('clienthellos',0)} SH={telemetry.get('serverhellos',0)} RST={telemetry.get('rst_count',0)}"
+
+            LOG.info(log_line)
         if fingerprint:
             results.sort(key=lambda x: (x['success_rate'], -x['avg_latency_ms'], 1 if x['fingerprint_used'] else 0), reverse=True)
         else:
