@@ -141,6 +141,13 @@ try:
 except Exception:
     PROFILER_AVAILABLE = False
 
+# Packet pattern validator (optional)
+try:
+    import packet_pattern_validator as pktval
+    PKTVAL_AVAILABLE = True
+except Exception:
+    PKTVAL_AVAILABLE = False
+
 import config
 from core.domain_manager import DomainManager
 try:
@@ -1537,7 +1544,7 @@ async def run_hybrid_mode(args):
 
     # Запуск PCAP захвата (если запрошено)
     capturer = None
-    corr_capturer = None  # для enhanced tracking (корреляция стратегия->пакеты)
+    corr_capturer = None
     if args.pcap and SCAPY_AVAILABLE:
         try:
             if args.capture_bpf:
@@ -1559,18 +1566,16 @@ async def run_hybrid_mode(args):
             console.print(
                 f"[dim]📡 Packet capture started → {args.pcap} (bpf='{bpf}')[/dim]"
             )
-            # Создаём корреляционный захватчик, если включен enhanced tracking
-            if args.enable_enhanced_tracking and enhanced_packet_capturer_AVAILABLE:
-                try:
-                    corr_capturer = create_enhanced_packet_capturer(args.pcap, all_target_ips, args.port)
-                    # Никакого реального sniff здесь не запускаем — он работает оффлайн по pcap
-                    # corr_capturer используется только для mark_strategy_start/end и дальнейшего анализа файла
-                    console.print("[dim]🔗 Enhanced tracking enabled: correlation capturer ready[/dim]")
-                except Exception as e:
-                    corr_capturer = None
-                    console.print(f"[yellow]⚠️ Could not initialize enhanced capturer: {e}[/yellow]")
         except Exception as e:
             console.print(f"[yellow]⚠️ Could not start capture: {e}[/yellow]")
+    # Корреляционный захват по меткам (offline-анализ по итоговому PCAP)
+    if args.enable_enhanced_tracking and args.pcap:
+        try:
+            from enhanced_packed_capturer import EnhancedPacketCapturer
+            corr_capturer = EnhancedPacketCapturer(args.pcap, bpf=None, interface=args.capture_iface)
+            console.print("🔗 Enhanced tracking enabled: correlation capturer ready")
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Could not init correlation capturer: {e}[/yellow]")
 
     # Шаг 2: Базовая доступность
     console.print("\n[yellow]Step 2: Testing baseline connectivity...[/yellow]")
@@ -1880,7 +1885,7 @@ async def run_hybrid_mode(args):
     # Шаг 4: Гибридное тестирование
     console.print("\n[yellow]Step 4: Hybrid testing with forced DNS...[/yellow]")
     test_results = await hybrid_engine.test_strategies_hybrid(
-        strategies=structured_strategies,  # <--- ИСПОЛЬЗУЕМ НОВЫЙ СПИСОК
+        strategies=structured_strategies,  # передаем dict-стратегии как есть
         test_sites=blocked_sites,
         ips=set(dns_cache.values()),
         dns_cache=dns_cache,
@@ -1889,7 +1894,7 @@ async def run_hybrid_mode(args):
         fast_filter=not args.no_fast_filter,
         initial_ttl=None,
         enable_fingerprinting=bool(args.fingerprint and fingerprints),
-        capturer=corr_capturer if corr_capturer else None
+        capturer=corr_capturer
     )
 
     # Шаг 5: Уточнение фингерпринта результатами
@@ -1964,24 +1969,37 @@ async def run_hybrid_mode(args):
             capturer.stop()
         except Exception:
             pass
-    # Выполним оффлайн-анализ PCAP и корреляцию со стратегиями (enhanced tracking)
-    if args.enable_enhanced_tracking and corr_capturer:
+    # Offline анализ корреляции стратегий по PCAP
+    if args.enable_enhanced_tracking and corr_capturer and args.pcap and os.path.exists(args.pcap):
         try:
-            analysis_map = corr_capturer.analyze_pcap_file(getattr(corr_capturer, "pcap_file", args.pcap))
-            if isinstance(analysis_map, dict) and "error" not in analysis_map:
-                # Небольшая сводка
+            analysis = corr_capturer.analyze_all_strategies_offline(
+                pcap_file=args.pcap, window_slack=0.6
+            )
+            if analysis:
                 console.print("\n[bold]🔎 Enhanced tracking summary (PCAP → strategies)[/bold]")
-                top = sorted(
-                    [(sid, m.get("success_score", 0.0), m.get("tls_serverhellos", 0), m.get("tls_clienthellos", 0), m.get("rst_packets", 0))
-                     for sid, m in analysis_map.items()],
-                    key=lambda t: t[1], reverse=True
-                )[:5]
-                for sid, sc, sh, ch, rst in top:
-                    console.print(f"  • {sid}: score={sc:.2f}, SH/CH={sh}/{ch}, RST={rst}")
-            else:
-                console.print(f"[yellow]Enhanced tracking analysis skipped: {analysis_map.get('error','unknown error')}[/yellow]")
+                # Выведем топ-5
+                shown = 0
+                for sid, info in analysis.items():
+                    console.print(f"  • {sid}: score={info.get('success_score',0):.2f}, SH/CH={info.get('tls_serverhellos',0)}/{info.get('tls_clienthellos',0)}, RST={info.get('rst_packets',0)}")
+                    shown += 1
+                    if shown >= 5:
+                        break
         except Exception as e:
-            console.print(f"[yellow]Enhanced tracking analysis failed: {e}[/yellow]")
+            console.print(f"[yellow]⚠️ Correlation analysis failed: {e}[/yellow]")
+
+    # Сравнение паттернов zapret vs recon при наличии PCAPов в корне (zapret.pcap/recon.pcap)
+    if PKTVAL_AVAILABLE and Path("zapret.pcap").exists() and Path("recon.pcap").exists():
+        console.print("\n[yellow]Step 5.1: Packet pattern validation (zapret vs recon)...[/yellow]")
+        try:
+            validator = pktval.PacketPatternValidator(output_dir="packet_validation")
+            comp = validator.compare_packet_patterns("recon.pcap", "zapret.pcap", validator.critical_strategy)
+            console.print(f"  Pattern match score: {comp.pattern_match_score:.2f} (passed={comp.validation_passed})")
+            if comp.critical_differences:
+                console.print("  Critical differences:")
+                for d in comp.critical_differences[:5]:
+                    console.print(f"    - {d}")
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Packet pattern validation failed: {e}[/yellow]")
 
     # Если есть PCAP и доступен профилировщик — проанализируем и добавим в отчет
     pcap_profile_result = None
