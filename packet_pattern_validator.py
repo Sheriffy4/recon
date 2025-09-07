@@ -36,6 +36,8 @@ except ImportError:
 from core.strategy_interpreter_fixed import FixedStrategyInterpreter, ZapretStrategy, DPIMethod
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parent
+DEFAULT_PCAPS = {"zapret": PROJECT_ROOT / "zapret.pcap", "recon": PROJECT_ROOT / "recon.pcap"}
 
 
 @dataclass
@@ -578,21 +580,28 @@ class PacketPatternValidator:
         }
         
         try:
-            # Generate synthetic zapret PCAP for comparison
-            zapret_pcap = self.output_dir / "synthetic_zapret.pcap"
-            if self.generate_synthetic_zapret_pcap(self.critical_strategy, str(zapret_pcap)):
-                logger.info(f"Synthetic zapret PCAP generated: {zapret_pcap}")
+            # 1) Если в корне проекта лежат реальные PCAP — используем их
+            zapret_pcap = DEFAULT_PCAPS["zapret"] if DEFAULT_PCAPS["zapret"].exists() else None
+            recon_pcap = DEFAULT_PCAPS["recon"] if DEFAULT_PCAPS["recon"].exists() else None
+
+            if zapret_pcap and recon_pcap:
+                logger.info(f"Using existing PCAPs: zapret={zapret_pcap}, recon={recon_pcap}")
             else:
-                logger.warning("Failed to generate synthetic zapret PCAP")
-                zapret_pcap = None
-            
-            # Generate recon PCAP (simulate)
-            recon_pcap = self.output_dir / "recon_fixed.pcap"
-            if self.generate_synthetic_zapret_pcap(self.critical_strategy, str(recon_pcap)):
-                logger.info(f"Recon PCAP generated: {recon_pcap}")
-            else:
-                logger.warning("Failed to generate recon PCAP")
-                recon_pcap = None
+                # 2) Иначе, если чего-то нет — сгенерируем синтетические pcaps как fallback
+                if not zapret_pcap:
+                    zapret_pcap = self.output_dir / "synthetic_zapret.pcap"
+                    if self.generate_synthetic_zapret_pcap(self.critical_strategy, str(zapret_pcap)):
+                        logger.info(f"Synthetic zapret PCAP generated: {zapret_pcap}")
+                    else:
+                        logger.warning("Failed to generate synthetic zapret PCAP")
+                        zapret_pcap = None
+                if not recon_pcap:
+                    recon_pcap = self.output_dir / "recon_fixed.pcap"
+                    if self.generate_synthetic_zapret_pcap(self.critical_strategy, str(recon_pcap)):
+                        logger.info(f"Recon PCAP generated: {recon_pcap}")
+                    else:
+                        logger.warning("Failed to generate recon PCAP")
+                        recon_pcap = None
             
             # Compare packet patterns if both PCAPs are available
             if recon_pcap and zapret_pcap:
