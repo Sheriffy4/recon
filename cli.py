@@ -1894,6 +1894,7 @@ async def run_hybrid_mode(args):
         fast_filter=not args.no_fast_filter,
         initial_ttl=None,
         enable_fingerprinting=bool(args.fingerprint and fingerprints),
+        telemetry_full=args.telemetry_full,
         capturer=corr_capturer
     )
 
@@ -2117,6 +2118,15 @@ async def run_hybrid_mode(args):
     cache_stats = learning_cache.get_cache_stats()
     report = reporter.generate_report(test_results, domain_status, args, fingerprints)
     report["learning_cache_stats"] = cache_stats
+    # Включаем полный срез телеметрии (если был запрошен) — агрегируем по стратегиям
+    if args.telemetry_full:
+        try:
+            report["engine_telemetry_full"] = [
+                {"strategy": r.get("strategy"), "telemetry": r.get("engine_telemetry_full")}
+                for r in test_results if "engine_telemetry_full" in r
+            ]
+        except Exception:
+            pass
     if pcap_profile_result and pcap_profile_result.success:
         report["pcap_profile"] = {
             "detected_applications": pcap_profile_result.detected_applications,
@@ -2979,6 +2989,12 @@ def main():
         type=str,
         metavar="PCAP_FILE",
         help="Analyze a PCAP file offline and exit.",
+    )
+    # Engine telemetry
+    parser.add_argument(
+        "--telemetry-full",
+        action="store_true",
+        help="Include full per-strategy engine telemetry snapshots in the report."
     )
 
     args = parser.parse_args()

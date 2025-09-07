@@ -57,18 +57,22 @@ class BypassTechniques:
         """
         if split_pos >= len(payload):
             return [(payload, 0)]
-        
+
         part1, part2 = (payload[:split_pos], payload[split_pos:])
-        
-        if overlap_size > 0:
-            # Корректная формула overlap: part1 должен начинаться ДО part2, но не выходить в отрицательный SEQ
-            effective_overlap = min(overlap_size, len(part1), len(part2), split_pos)
-            offset_part2 = split_pos
-            offset_part1 = split_pos - effective_overlap  # не отрицательный!
-            return [(part2, offset_part2), (part1, offset_part1)]
-        else:
-            # Simple disorder without overlap (fallback)
+
+        # ВАЖНО: zapret не ограничивает overlap длиной part1/part2/split_pos — допускается NEGATIVE seq-offset,
+        # когда второй фрагмент (part1) уходит "назад" относительно base_seq.
+        # Поэтому НЕ режем overlap до split_pos, оставляем как есть (но защитимся от безумных значений).
+        ov = int(overlap_size) if isinstance(overlap_size, int) else 336
+        if ov <= 0:
             return [(part2, split_pos), (part1, 0)]
+        if ov > 4096:
+            ov = 4096
+
+        offset_part2 = split_pos                           # seq = base + split_pos
+        offset_part1 = split_pos - ov                      # seq = base + split_pos - overlap (может быть < base)
+
+        return [(part2, offset_part2), (part1, offset_part1)]
 
     @staticmethod
     def apply_multisplit(
@@ -1007,6 +1011,13 @@ if platform.system() == "Windows":
                             self.logger.info(f"Saved best params for {key_domain} via StrategyManager.")
                         except Exception as e:
                             self.logger.debug(f"StrategyManager immediate update failed: {e}")
+
+                    # Для fakeddisorder гарантируем минимальную задержку 2мс между p2→p1
+                    try:
+                        if best_cand:
+                            self.current_params["delay_ms"] = max(2, int(self.current_params.get("delay_ms", 2)))
+                    except Exception:
+                        pass
 
                     success = (best_cand is not None)
                     if not success:
