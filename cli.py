@@ -2001,6 +2001,11 @@ async def run_hybrid_mode(args):
                     console.print(f"    - {d}")
         except Exception as e:
             console.print(f"[yellow]⚠️ Packet pattern validation failed: {e}[/yellow]")
+        finally:
+            try:
+                validator.close_logging()
+            except Exception:
+                pass
 
     # Если есть PCAP и доступен профилировщик — проанализируем и добавим в отчет
     pcap_profile_result = None

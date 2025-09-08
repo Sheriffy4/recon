@@ -109,19 +109,63 @@ class PacketPatternValidator:
         self._setup_logging()
     
     def _setup_logging(self):
-        """Setup logging for packet validation."""
-        log_file = self.output_dir / f"packet_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file),
-                logging.StreamHandler()
-            ]
-        )
-        
-        logger.info(f"Packet validation logging initialized: {log_file}")
+        """Setup logging for packet validation with explicit file handler."""
+        self._log_file = self.output_dir / f"packet_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        self._logger = logging.getLogger("packet_pattern_validator")
+        self._logger.setLevel(logging.INFO)
+        self._logger.propagate = False
+
+        # Уберем старые хендлеры этого логгера (во избежание дублирования)
+        for h in list(self._logger.handlers):
+            try:
+                self._logger.removeHandler(h)
+                try:
+                    h.close()
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        # Файловый хендлер
+        self._fh = logging.FileHandler(self._log_file, mode="w", encoding="utf-8", delay=False)
+        self._fh.setLevel(logging.INFO)
+        fmt = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self._fh.setFormatter(fmt)
+
+        # Стрим в консоль можно, но не обязателен
+        self._sh = logging.StreamHandler()
+        self._sh.setLevel(logging.INFO)
+        self._sh.setFormatter(fmt)
+
+        self._logger.addHandler(self._fh)
+        self._logger.addHandler(self._sh)
+        self._logger.info(f"Packet validation logging initialized: {self._log_file}")
+    
+    def close_logging(self):
+        """Flush/close log handlers to avoid zero-sized log files."""
+        try:
+            if hasattr(self, "_fh") and self._fh:
+                try:
+                    self._fh.flush()
+                except Exception:
+                    pass
+                try:
+                    self._fh.close()
+                except Exception:
+                    pass
+                try:
+                    self._logger.removeHandler(self._fh)
+                except Exception:
+                    pass
+                self._fh = None
+            if hasattr(self, "_sh") and self._sh:
+                try:
+                    self._logger.removeHandler(self._sh)
+                except Exception:
+                    pass
+                self._sh = None
+        except Exception:
+            pass
     
     def analyze_pcap_file(self, pcap_file: str, strategy_command: str) -> PacketAnalysis:
         """
@@ -634,11 +678,15 @@ class PacketPatternValidator:
         
         # Save report
         report_file = self.output_dir / f"packet_validation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, 'w', encoding='utf-8') as f:
             json.dump(validation_report, f, indent=2)
-        
-        logger.info(f"Packet validation report saved: {report_file}")
-        
+
+        # ВАЖНО: закрыть лог — иначе файл может остаться нулевого размера
+        try:
+            self.close_logging()
+        except Exception:
+            pass
+
         return validation_report
 
 
