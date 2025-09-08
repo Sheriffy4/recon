@@ -280,6 +280,12 @@ async def resolve_all_ips(domain: str) -> Set[str]:
         ips.update(info[4][0] for info in res)
     except socket.gaierror:
         pass
+    # 1.1. IPv6 (если доступно)
+    try:
+        res6 = await loop.getaddrinfo(domain, None, family=socket.AF_INET6)
+        ips.update(info[4][0] for info in res6)
+    except socket.gaierror:
+        pass
 
     # 2. DoH (исправленная версия с множественными провайдерами)
     try:
@@ -295,24 +301,25 @@ async def resolve_all_ips(domain: str) -> Set[str]:
             
             for doh in doh_servers:
                 try:
-                    params = {"name": domain, "type": "A"}
-                    headers = {"accept": "application/dns-json"}
-                    async with s.get(
-                        doh, params=params, headers=headers, timeout=3
-                    ) as r:
-                        if r.status == 200:
-                            # Исправленный парсинг JSON (игнорируем content-type)
-                            text = await r.text()
-                            try:
-                                j = json.loads(text)
-                                for ans in j.get("Answer", []):
-                                    if ans.get("data"):
-                                        ips.add(ans.get("data"))
-                                # Если получили результат, прерываем цикл
-                                if j.get("Answer"):
-                                    break
-                            except json.JSONDecodeError:
-                                continue
+                    # Сначала A, затем AAAA
+                    for rrtype in ("A", "AAAA"):
+                        params = {"name": domain, "type": rrtype}
+                        headers = {"accept": "application/dns-json"}
+                        async with s.get(
+                            doh, params=params, headers=headers, timeout=3
+                        ) as r:
+                            if r.status == 200:
+                                text = await r.text()
+                                try:
+                                    j = json.loads(text)
+                                    for ans in j.get("Answer", []):
+                                        if ans.get("data"):
+                                            ips.add(ans.get("data"))
+                                    # Если получили результат, выходим из внутренних запросов этого DoH
+                                    if j.get("Answer"):
+                                        break
+                                except json.JSONDecodeError:
+                                    continue
                 except Exception:
                     continue
     except ImportError:
@@ -1568,8 +1575,11 @@ async def run_hybrid_mode(args):
     # Корреляционный захват по меткам (offline-анализ по итоговому PCAP)
     if args.enable_enhanced_tracking and args.pcap:
         try:
-            from enhanced_packed_capturer import EnhancedPacketCapturer
-            corr_capturer = EnhancedPacketCapturer(args.pcap, bpf=None, interface=args.capture_iface)
+            if enhanced_packet_capturer_AVAILABLE:
+                corr_capturer = create_enhanced_packet_capturer(args.pcap, bpf=None, interface=args.capture_iface)
+            else:
+                from core.pcap.enhanced_packet_capturer import EnhancedPacketCapturer
+                corr_capturer = EnhancedPacketCapturer(args.pcap, bpf=None, interface=args.capture_iface)
             console.print("🔗 Enhanced tracking enabled: correlation capturer ready")
         except Exception as e:
             console.print(f"[yellow]⚠️ Could not init correlation capturer: {e}[/yellow]")
@@ -1850,7 +1860,7 @@ async def run_hybrid_mode(args):
                 console.print(
                     "[dim]🧠 Applied adaptive learning to optimize strategy order[/dim]"
                 )
-                # Шаг 3.5: Преобразование строковых стратегий в структурированный формат
+                strategies = optimized_strategies
     console.print("[dim]Parsing strategies into structured format...[/dim]")
     structured_strategies = []
     for s_str in strategies:
@@ -2136,29 +2146,6 @@ async def run_hybrid_mode(args):
             "metadata": pcap_profile_result.metadata,
         }
     reporter.print_summary(report)
-
-    # KB summary: причины блокировок по CDN и доменам
-    try:
-        from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
-        kb = CdnAsnKnowledgeBase()
-        # По CDN
-        if kb.cdn_profiles:
-            console.print("\n[bold underline]🧠 KB Blocking Reasons Summary (by CDN)[/bold underline]")
-            for cdn, prof in kb.cdn_profiles.items():
-                br = getattr(prof, "block_reasons", {}) or {}
-                if br:
-                    top = sorted(br.items(), key=lambda x: x[1], reverse=True)[:5]
-                    s = ", ".join([f"{k}:{v}" for k, v in top])
-                    console.print(f"  • {cdn}: {s}")
-        # По доменам (только топ‑10)
-        if kb.domain_block_reasons:
-            console.print("\n[bold underline]🧠 KB Blocking Reasons Summary (by domain)[/bold underline]")
-            items = sorted(kb.domain_block_reasons.items(), key=lambda kv: sum(kv[1].values()), reverse=True)[:10]
-            for domain, brmap in items:
-                s = ", ".join([f"{k}:{v}" for k, v in sorted(brmap.items(), key=lambda x: x[1], reverse=True)[:3]])
-                console.print(f"  • {domain}: {s}")
-    except Exception as e:
-        console.print(f"[yellow]KB summary unavailable: {e}[/yellow]")
 
     report_filename = reporter.save_report(report)
     if report_filename:
@@ -2591,9 +2578,17 @@ async def run_per_domain_mode(args):
             f"[yellow]🔍 {hostname} needs bypass, finding optimal strategy...[/yellow]"
         )
         generator = ZapretStrategyGenerator()
-        # For per-domain mode, we use None since fingerprinting isn't typically done per-domain
-        # This will use generic strategy generation
         strategies = generator.generate_strategies(None, count=args.count)
+        # Parse to structured tasks for engine compatibility
+        from core.strategy_interpreter import interpret_strategy
+        structured = []
+        for s in strategies:
+            try:
+                ps = interpret_strategy(s)
+                structured.append({"type": ps.get("type","unknown"),
+                                   "params": ps.get("params", {})})
+            except Exception:
+                structured.append(s)  # fallback
         if learning_cache:
             optimized_strategies = learning_cache.get_smart_strategy_order(
                 strategies, hostname, ip
@@ -2604,7 +2599,7 @@ async def run_per_domain_mode(args):
                 )
                 strategies = optimized_strategies
         domain_results = await hybrid_engine.test_strategies_hybrid(
-            strategies=strategies,
+            strategies=structured or strategies,
             test_sites=[site],
             ips=all_target_ips,
             dns_cache=dns_cache,
@@ -2700,7 +2695,10 @@ def load_all_attacks():
     import pkgutil
     import core.bypass.attacks
 
-    print("[dim]Loading and registering all available attacks...[/dim]")
+    try:
+        console.print("[dim]Loading and registering all available attacks...[/dim]")
+    except Exception:
+        print("[dim]Loading and registering all available attacks...[/dim]")
 
     # Путь к пакету с атаками
     package = core.bypass.attacks
@@ -3009,7 +3007,7 @@ def main():
     if args.quiet:
         for noisy in ("core.fingerprint.advanced_fingerprinter", "core.fingerprint.http_analyzer",
                       "core.fingerprint.dns_analyzer", "core.fingerprint.tcp_analyzer",
-                      "hybrid_engine"):
+                      "hybrid_engine", "core.hybrid_engine"):
             try: logging.getLogger(noisy).setLevel(logging.WARNING)
             except Exception: pass
 
