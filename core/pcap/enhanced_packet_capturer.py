@@ -179,7 +179,7 @@ class EnhancedPacketCapturer:
                             if flags & 0x02: r["syn_packets"] += 1
                             if flags & 0x04: r["rst_packets"] += 1
                             if Raw in pkt:
-                                payload = bytes(pkt[Raw].load)
+                                payload = bytes(pkt[Raw])
                                 if payload:
                                     r["data_packets"] += 1; r["total_bytes"] += len(payload)
                                     if len(payload) > 5 and payload[0] == 0x16:
@@ -213,7 +213,7 @@ def _analyze_packets(pkts) -> Dict[str, Any]:
             if flags & 0x02: syn_packets += 1
             if flags & 0x04: rst_packets += 1
             if Raw in pkt:
-                payload = bytes(pkt[Raw].load)
+                payload = bytes(pkt[Raw])
                 if payload:
                     data_packets += 1; total_bytes += len(payload)
                     if len(payload) > 5 and payload[0] == 0x16:
