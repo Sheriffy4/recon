@@ -436,6 +436,20 @@ class SimpleEvolutionarySearcher:
         self, learning_cache=None, domain=None, dpi_hash=None
     ) -> List[EvolutionaryChromosome]:
         population = []
+        # Приоритеты из StrategyManager
+        sm_split = sm_overlap = None
+        sm_fooling = None
+        if domain:
+            try:
+                from core.strategy_manager import StrategyManager
+                sm = StrategyManager()
+                ds = sm.get_strategy(domain)
+                if ds:
+                    sm_split = int(ds.split_pos) if ds.split_pos else None
+                    sm_overlap = int(ds.overlap_size) if ds.overlap_size else None
+                    sm_fooling = ds.fooling_modes if ds.fooling_modes else None
+            except Exception:
+                pass
         # Import comprehensive attack mapping
         from core.attack_mapping import get_attack_mapping
         attack_mapping = get_attack_mapping()
@@ -587,6 +601,13 @@ class SimpleEvolutionarySearcher:
                     "type": attack_type,
                     **attack_info.default_params
                 }
+                # Инъекция микропараметров, если применимо
+                if sm_split is not None:
+                    genes["split_pos"] = sm_split
+                if sm_overlap is not None:
+                    genes["overlap_size"] = sm_overlap
+                if sm_fooling and "fooling" not in genes:
+                    genes["fooling"] = sm_fooling
                 
                 # Add some randomization to parameters
                 if "ttl" in genes:
@@ -1496,7 +1517,9 @@ async def run_hybrid_mode(args):
     console.print(f"Loaded {len(dm.domains)} domain(s) for testing.")
 
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=bool(args.enable_enhanced_tracking))
+    hybrid_engine = HybridEngine(debug=args.debug,
+                                 enable_enhanced_tracking=bool(args.enable_enhanced_tracking),
+                                 enable_online_optimization=bool(args.enable_optimization))
 
     reporter = SimpleReporter(debug=args.debug)
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
@@ -1575,11 +1598,9 @@ async def run_hybrid_mode(args):
     # Корреляционный захват по меткам (offline-анализ по итоговому PCAP)
     if args.enable_enhanced_tracking and args.pcap:
         try:
-            if enhanced_packet_capturer_AVAILABLE:
-                corr_capturer = create_enhanced_packet_capturer(args.pcap, bpf=None, interface=args.capture_iface)
-            else:
-                from core.pcap.enhanced_packet_capturer import EnhancedPacketCapturer
-                corr_capturer = EnhancedPacketCapturer(args.pcap, bpf=None, interface=args.capture_iface)
+            from core.pcap.enhanced_packet_capturer import create_enhanced_packet_capturer
+            # Передадим пул IP (all_target_ips уже есть после DNS)
+            corr_capturer = create_enhanced_packet_capturer(args.pcap, target_ips=all_target_ips, port=args.port, interface=args.capture_iface)
             console.print("🔗 Enhanced tracking enabled: correlation capturer ready")
         except Exception as e:
             console.print(f"[yellow]⚠️ Could not init correlation capturer: {e}[/yellow]")
@@ -1863,6 +1884,16 @@ async def run_hybrid_mode(args):
                 strategies = optimized_strategies
     console.print("[dim]Parsing strategies into structured format...[/dim]")
     structured_strategies = []
+     # Попробуем достать микропараметры из StrategyManager
+     domain_for_priors = None
+     try:
+         from core.strategy_manager import StrategyManager
+         sm = StrategyManager()
+         # Возьмём первый домен из dns_cache как «ближайший» к текущему запуску
+         domain_for_priors = list(dns_cache.keys())[0] if dns_cache else None
+         ds = sm.get_strategy(domain_for_priors) if domain_for_priors else None
+     except Exception:
+         ds = None
     for s_str in strategies:
         try:
             # Используем исправленный интерпретатор стратегий
@@ -1873,6 +1904,15 @@ async def run_hybrid_mode(args):
                     "type": parsed_strategy.get("type", "unknown"),
                     "params": parsed_strategy.get("params", {})
                 }
+                 # Инъекция приоритетов из StrategyManager, если есть
+                 if ds and isinstance(engine_task.get("params"), dict):
+                     p = engine_task["params"]
+                     if ds.split_pos and "split_pos" not in p:
+                         p["split_pos"] = int(ds.split_pos)
+                     if ds.overlap_size and "overlap_size" not in p:
+                         p["overlap_size"] = int(ds.overlap_size)
+                     if ds.fooling_modes and "fooling" not in p:
+                         p["fooling"] = ds.fooling_modes
                 structured_strategies.append(engine_task)
                 console.print(f"[green]✓[/green] Parsed strategy: {engine_task['type']} with params: {engine_task['params']}")
             else:
