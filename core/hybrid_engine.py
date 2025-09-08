@@ -510,39 +510,42 @@ class HybridEngine:
             synthesized = None
             LOG.debug(f"Strategy synthesis failed: {e}")
 
-        # Базовый список (может содержать dict/str) → всегда приводим к строкам
-        base = strategies[:]
-        strategies_str: List[str] = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
-        strategies_to_test: List[str] = []
+        base: List[Union[str, Dict[str, Any]]] = strategies[:]  # сохранить тип
+        # Рабочие списки
+        dict_only = [s for s in base if isinstance(s, dict)]
+        str_only  = [s for s in base if isinstance(s, str)]
 
+        # Для ветки с реестром/адаптацией работаем только со строками, dict добавим как есть
+        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
         if use_modern and self.attack_registry:
-            if strategies_str:
-                strategies_to_test = self._enhance_strategies_with_registry(strategies_str, fingerprint, domain, port)
+            if str_only:
+                boosted = self._enhance_strategies_with_registry(str_only, fingerprint, domain, port)
+                strategies_to_test = dict_only + boosted
                 self.bypass_stats['attack_registry_queries'] += 1
+            else:
+                strategies_to_test = dict_only
         elif fingerprint:
-            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies_str, fingerprint)
+            adapted = self._adapt_strategies_for_fingerprint(str_only, fingerprint)
+            strategies_to_test = dict_only + adapted
             LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
         else:
-            strategies_to_test = strategies_str
+            strategies_to_test = base
             LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
 
-        # Merge synthesized first (dict), dedupe by pretty-string key
+        # synthesized dict — prepend
         if synthesized and isinstance(synthesized, dict):
-            pretty = self._task_to_str(synthesized)
-            merged = [pretty] + strategies_to_test
-            seen = set()
-            unique = []
+            merged = [synthesized] + strategies_to_test
+            uniq, seen = [], set()
             for s in merged:
-                key = s
+                key = s if isinstance(s, str) else self._task_to_str(s)
                 if key not in seen:
                     seen.add(key)
-                    unique.append(s)
-            strategies_to_test = unique
-            LOG.info(f"Prepended synthesized strategy: {pretty}")
+                    uniq.append(s)
+            strategies_to_test = uniq
 
-        # Если после всех оптимизаций стратегий нет — фолбэк к стандартному набору
         if not strategies_to_test:
-            strategies_to_test = strategies_str or ["--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"]
+            # fallback: если ничего не осталось
+            strategies_to_test = base or ["--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"]
             LOG.warning(f"No strategies after optimization, falling back to {len(strategies_to_test)}")
 
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
@@ -627,6 +630,18 @@ class HybridEngine:
                 # Дедупликация
                 already = {r.get("strategy") for r in results}
                 extra = [s for s in extra if s not in already]
+
+                # full-pool booster
+                try:
+                    booster = self._boost_with_full_pool(fingerprint)
+                    already = {r.get("strategy") for r in results}
+                    booster = [s for s in booster if s not in already]
+                    if booster:
+                        LOG.info(f'Full-pool booster added {len(booster)} strategies for second pass')
+                        extra.extend([s for s in booster if s not in extra])
+                except Exception as e:
+                    LOG.debug(f'Full-pool booster failed: {e}')
+
                 if extra:
                     LOG.info(f'Enhanced tracking generated {len(extra)} additional strategies for second pass')
                     for i, strategy in enumerate(extra[:6]):
@@ -747,6 +762,45 @@ class HybridEngine:
                 seen.add(s)
                 out.append(s)
         return out[:6]
+
+    def _boost_with_full_pool(self, fingerprint: Optional["DPIFingerprint"]) -> List[str]:
+        """
+        Быстрые шаблоны по всему пулу атак реестра.
+        Возвращает zapret-строки, которые стоит прогнать второй волной.
+        """
+        if not self.attack_registry:
+            return []
+
+        # Получим доступные атаки
+        try:
+            attacks = self.attack_registry.list_attacks(enabled_only=True) or []
+        except Exception:
+            attacks = []
+
+        out: List[str] = []
+
+        # Базовые «универсалы»
+        out.extend([
+            "--dpi-desync=multidisorder --dpi-desync-split-count=5 --dpi-desync-ttl=64",
+            "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-ttl=4",
+            "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
+            "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq",
+        ])
+
+        # Если DPI “commercial” → добавим ещё reordering/seqovl
+        if fingerprint and getattr(fingerprint, "dpi_type", None) and fingerprint.dpi_type.name.lower().startswith("commercial"):
+            out.extend([
+                "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=2",
+                "--dpi-desync=fake,split --dpi-desync-split-pos=5 --dpi-desync-ttl=2",
+            ])
+
+        # Дедуп
+        uniq, seen = [], set()
+        for s in out:
+            if s not in seen:
+                uniq.append(s)
+                seen.add(s)
+        return uniq[:10]
 
     async def fingerprint_target(self, domain: str, port: int=443, force_refresh: bool=False) -> Optional[DPIFingerprint]:
         """

@@ -968,6 +968,8 @@ if platform.system() == "Windows":
                         # Телеметрия: отметим использованный overlap
                         with self._tlock:
                             self._telemetry["overlaps"][int(cand.overlap_size)] += 1
+                            for _, rel_off in segments:
+                                self._telemetry["seq_offsets"][int(rel_off)] += 1
                         self._send_segments(packet, w, segments)
                     def _wait_outcome(timeout: float=0.25) -> Optional[str]:
                         got = inbound_ev.wait(timeout=timeout)

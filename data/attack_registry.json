@@ -55,427 +55,14 @@
       "examples": [],
       "tags": [],
       "created_at": "2025-08-27T21:52:29.645064",
-      "updated_at": "2025-09-04T16:36:48.085708",
+      "updated_at": "2025-09-08T08:46:16.389691",
       "version": "1.0.0",
       "author": null
     },
-    "dpi_response_adaptive": {
-      "id": "dpi_response_adaptive",
-      "name": "Dpi Response Adaptive",
-      "description": "DPI Response Adaptive Attack - adapts based on simulated DPI responses.",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "dpi_response_adaptive_basic_test",
-          "name": "Basic test for dpi_response_adaptive",
-          "description": "Basic functionality test for dpi_response_adaptive",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
-      "version": "1.0.0",
-      "author": null
-    },
-    "network_condition_adaptive": {
-      "id": "network_condition_adaptive",
-      "name": "Network Condition Adaptive",
-      "description": "Network Condition Adaptive Attack - adapts based on simulated network conditions.",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "network_condition_adaptive_basic_test",
-          "name": "Basic test for network_condition_adaptive",
-          "description": "Basic functionality test for network_condition_adaptive",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
-      "version": "1.0.0",
-      "author": null
-    },
-    "learning_adaptive": {
-      "id": "learning_adaptive",
-      "name": "Learning Adaptive",
-      "description": "Learning Adaptive Attack - learns from previous attempts and adapts.\n    Now uses persistent learning memory with SQLite storage.",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "learning_adaptive_basic_test",
-          "name": "Basic test for learning_adaptive",
-          "description": "Basic functionality test for learning_adaptive",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
-      "version": "1.0.0",
-      "author": null
-    },
-    "baseline": {
-      "id": "baseline",
-      "name": "Baseline",
-      "description": "A special attack that applies no modifications. It sends the payload as-is\n    to measure the baseline connectivity and latency without any bypass techniques.",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "baseline_basic_test",
-          "name": "Basic test for baseline",
-          "description": "Basic functionality test for baseline",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
-      "version": "1.0.0",
-      "author": null
-    },
-    "dynamic_combo": {
-      "id": "dynamic_combo",
-      "name": "Dynamic Combo",
-      "description": "Dynamic Combo Attack - выполняет последовательность атак.\n\n    Эта атака является заглушкой для совместимости с существующим кодом.\n    В реальной реализации она должна выполнять последовательность других атак.",
-      "category": "combo_attack",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "dynamic_combo_basic_test",
-          "name": "Basic test for dynamic_combo",
-          "description": "Basic functionality test for dynamic_combo",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
-      "version": "1.0.0",
-      "author": null
-    },
-    "full_session_simulation": {
-      "id": "full_session_simulation",
-      "name": "Full Session Simulation",
-      "description": "Full Session Simulation Attack that creates a complete realistic user session\n    from DNS resolution through application data to session teardown.",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "full_session_simulation_basic_test",
-          "name": "Basic test for full_session_simulation",
-          "description": "Basic functionality test for full_session_simulation",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
-      "version": "1.0.0",
-      "author": null
-    },
-    "multi_flow_correlation": {
-      "id": "multi_flow_correlation",
-      "name": "Multi Flow Correlation",
-      "description": "Multi-Flow Correlation Attack that creates background legitimate traffic\n    to mask the main bypass attempt and confuse DPI correlation analysis.",
-      "category": "combo_attack",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "multi_flow_correlation_basic_test",
-          "name": "Basic test for multi_flow_correlation",
-          "description": "Basic functionality test for multi_flow_correlation",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
-      "version": "1.0.0",
-      "author": null
-    },
-    "tcp_http_combo": {
-      "id": "tcp_http_combo",
-      "name": "Tcp Http Combo",
-      "description": "TCP + HTTP Combo Attack - combines TCP segmentation with HTTP obfuscation.",
+    "tcp_window_scaling": {
+      "id": "tcp_window_scaling",
+      "name": "Tcp Window Scaling",
+      "description": "TCP Window Scaling Attack - manipulates TCP window scaling options.\n\n    Migrated from:\n    - apply_tcp_window_scaling (fast_bypass.py)",
       "category": "tcp_fragmentation",
       "complexity": 1,
       "stability": "stable",
@@ -492,9 +79,9 @@
       "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "tcp_http_combo_basic_test",
-          "name": "Basic test for tcp_http_combo",
-          "description": "Basic functionality test for tcp_http_combo",
+          "id": "tcp_window_scaling_basic_test",
+          "name": "Basic test for tcp_window_scaling",
+          "description": "Basic functionality test for tcp_window_scaling",
           "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {},
@@ -526,15 +113,131 @@
       "documentation_url": null,
       "examples": [],
       "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
+      "created_at": "2025-09-08T08:46:16.386673",
+      "updated_at": "2025-09-08T08:46:16.386682",
       "version": "1.0.0",
       "author": null
     },
-    "tls_fragmentation_combo": {
-      "id": "tls_fragmentation_combo",
-      "name": "Tls Fragmentation Combo",
-      "description": "TLS + Fragmentation Combo Attack - combines TLS manipulation with IP fragmentation.",
+    "tcp_options_modification": {
+      "id": "tcp_options_modification",
+      "name": "TCP Options Modification",
+      "description": "Modify TCP options to evade DPI detection while fragmenting",
+      "category": "tcp_fragmentation",
+      "complexity": 3,
+      "stability": "mostly_stable",
+      "parameters": {
+        "split_pos": {
+          "type": "int",
+          "default": 5,
+          "min": 1,
+          "max": 50,
+          "description": "Position to split payload"
+        },
+        "options_type": {
+          "type": "str",
+          "default": "mss",
+          "choices": [
+            "mss",
+            "window_scale",
+            "timestamp",
+            "sack_permitted",
+            "md5_signature",
+            "custom"
+          ],
+          "description": "Type of TCP options to add"
+        },
+        "bad_checksum": {
+          "type": "bool",
+          "default": false,
+          "description": "Use bad TCP checksum"
+        }
+      },
+      "default_parameters": {
+        "split_pos": 5,
+        "options_type": "mss",
+        "bad_checksum": false
+      },
+      "required_parameters": [
+        "split_pos",
+        "options_type"
+      ],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "tcp_options_mss",
+          "name": "TCP options with MSS test",
+          "description": "Test TCP options modification with MSS option",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {
+            "split_pos": 5,
+            "options_type": "mss"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        },
+        {
+          "id": "tcp_options_timestamp",
+          "name": "TCP options with timestamp test",
+          "description": "Test TCP options modification with timestamp option",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {
+            "split_pos": 5,
+            "options_type": "timestamp"
+          },
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [
+        "advanced",
+        "modification",
+        "tcp",
+        "options"
+      ],
+      "created_at": "2025-09-08T08:46:17.749035",
+      "updated_at": "2025-09-08T08:46:17.749037",
+      "version": "1.0.0",
+      "author": null
+    },
+    "tcp_sequence_manipulation": {
+      "id": "tcp_sequence_manipulation",
+      "name": "Tcp Sequence Manipulation",
+      "description": "TCP Sequence Number Manipulation Attack - creates ambiguity in TCP sequence numbers.\n    This is intended for testing DPI resilience to non-standard sequence numbering.",
       "category": "tcp_fragmentation",
       "complexity": 1,
       "stability": "stable",
@@ -551,9 +254,9 @@
       "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "tls_fragmentation_combo_basic_test",
-          "name": "Basic test for tls_fragmentation_combo",
-          "description": "Basic functionality test for tls_fragmentation_combo",
+          "id": "tcp_sequence_manipulation_basic_test",
+          "name": "Basic test for tcp_sequence_manipulation",
+          "description": "Basic functionality test for tcp_sequence_manipulation",
           "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {},
@@ -585,251 +288,15 @@
       "documentation_url": null,
       "examples": [],
       "tags": [],
-      "created_at": "2025-08-28T17:04:45.527845",
-      "updated_at": "2025-09-04T16:36:48.085708",
+      "created_at": "2025-09-08T08:46:16.386778",
+      "updated_at": "2025-09-08T08:46:16.386784",
       "version": "1.0.0",
       "author": null
     },
-    "payload_tunneling_combo": {
-      "id": "payload_tunneling_combo",
-      "name": "Payload Tunneling Combo",
-      "description": "Payload + Tunneling Combo Attack - combines payload obfuscation with protocol tunneling.",
-      "category": "combo_attack",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "payload_tunneling_combo_basic_test",
-          "name": "Basic test for payload_tunneling_combo",
-          "description": "Basic functionality test for payload_tunneling_combo",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.085708",
-      "version": "1.0.0",
-      "author": null
-    },
-    "adaptive_multi_layer": {
-      "id": "adaptive_multi_layer",
-      "name": "Adaptive Multi Layer",
-      "description": "Adaptive Multi-Layer Attack - dynamically combines multiple techniques.",
-      "category": "combo_attack",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "adaptive_multi_layer_basic_test",
-          "name": "Basic test for adaptive_multi_layer",
-          "description": "Basic functionality test for adaptive_multi_layer",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
-      "version": "1.0.0",
-      "author": null
-    },
-    "zapret_strategy": {
-      "id": "zapret_strategy",
-      "name": "Zapret Strategy",
-      "description": "Legacy attack: zapret_strategy",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "zapret_strategy_basic_test",
-          "name": "Basic test for zapret_strategy",
-          "description": "Basic functionality test for zapret_strategy",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-27T21:52:29.645064",
-      "updated_at": "2025-09-04T16:36:48.086707",
-      "version": "1.0.0",
-      "author": null
-    },
-    "image_steganography": {
-      "id": "image_steganography",
-      "name": "Image Steganography",
-      "description": "Image Steganography Attack - hides data in fake image headers.",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "image_steganography_basic_test",
-          "name": "Basic test for image_steganography",
-          "description": "Basic functionality test for image_steganography",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
-      "version": "1.0.0",
-      "author": null
-    },
-    "tcp_timestamp_steganography": {
-      "id": "tcp_timestamp_steganography",
-      "name": "Tcp Timestamp Steganography",
-      "description": "TCP Timestamp Steganography Attack - hides data in TCP timestamp options.",
+    "tcp_window_manipulation": {
+      "id": "tcp_window_manipulation",
+      "name": "Tcp Window Manipulation",
+      "description": "Advanced TCP Window Manipulation Attack - modifies TCP window size in various ways.\n    This is intended for testing DPI resilience to non-standard window sizes.",
       "category": "tcp_fragmentation",
       "complexity": 1,
       "stability": "stable",
@@ -846,9 +313,9 @@
       "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "tcp_timestamp_steganography_basic_test",
-          "name": "Basic test for tcp_timestamp_steganography",
-          "description": "Basic functionality test for tcp_timestamp_steganography",
+          "id": "tcp_window_manipulation_basic_test",
+          "name": "Basic test for tcp_window_manipulation",
+          "description": "Basic functionality test for tcp_window_manipulation",
           "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {},
@@ -880,15 +347,74 @@
       "documentation_url": null,
       "examples": [],
       "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
+      "created_at": "2025-09-08T08:46:16.386823",
+      "updated_at": "2025-09-08T08:46:16.386830",
       "version": "1.0.0",
       "author": null
     },
-    "ip_id_steganography": {
-      "id": "ip_id_steganography",
-      "name": "Ip Id Steganography",
-      "description": "IP ID Steganography Attack - hides data in IP identification fields.",
+    "tcp_fragmentation": {
+      "id": "tcp_fragmentation",
+      "name": "Tcp Fragmentation",
+      "description": "TCP Fragmentation Attack - splits TCP payload into multiple segments.",
+      "category": "tcp_fragmentation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "tcp_fragmentation_basic_test",
+          "name": "Basic test for tcp_fragmentation",
+          "description": "Basic functionality test for tcp_fragmentation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.386868",
+      "updated_at": "2025-09-08T08:46:16.386874",
+      "version": "1.0.0",
+      "author": null
+    },
+    "urgent_pointer_manipulation": {
+      "id": "urgent_pointer_manipulation",
+      "name": "Urgent Pointer Manipulation",
+      "description": "Urgent Pointer Attack - manipulates TCP urgent pointer.\n\n    Migrated from:\n    - apply_urgent_pointer_manipulation (fast_bypass.py)",
       "category": "experimental",
       "complexity": 1,
       "stability": "stable",
@@ -905,9 +431,9 @@
       "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "ip_id_steganography_basic_test",
-          "name": "Basic test for ip_id_steganography",
-          "description": "Basic functionality test for ip_id_steganography",
+          "id": "urgent_pointer_manipulation_basic_test",
+          "name": "Basic test for urgent_pointer_manipulation",
+          "description": "Basic functionality test for urgent_pointer_manipulation",
           "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {},
@@ -939,16 +465,16 @@
       "documentation_url": null,
       "examples": [],
       "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
+      "created_at": "2025-09-08T08:46:16.386917",
+      "updated_at": "2025-09-08T08:46:16.386923",
       "version": "1.0.0",
       "author": null
     },
-    "combined_field_steganography": {
-      "id": "combined_field_steganography",
-      "name": "Combined Field Steganography",
-      "description": "Combined Field Steganography Attack - uses multiple protocol fields simultaneously.",
-      "category": "combo_attack",
+    "tcp_options_padding": {
+      "id": "tcp_options_padding",
+      "name": "Tcp Options Padding",
+      "description": "TCP Options Padding Attack - adds TCP options padding.\n\n    Migrated from:\n    - apply_tcp_options_padding (fast_bypass.py)",
+      "category": "tcp_fragmentation",
       "complexity": 1,
       "stability": "stable",
       "parameters": {},
@@ -964,9 +490,9 @@
       "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "combined_field_steganography_basic_test",
-          "name": "Basic test for combined_field_steganography",
-          "description": "Basic functionality test for combined_field_steganography",
+          "id": "tcp_options_padding_basic_test",
+          "name": "Basic test for tcp_options_padding",
+          "description": "Basic functionality test for tcp_options_padding",
           "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {},
@@ -998,15 +524,192 @@
       "documentation_url": null,
       "examples": [],
       "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
+      "created_at": "2025-09-08T08:46:16.386971",
+      "updated_at": "2025-09-08T08:46:16.386977",
       "version": "1.0.0",
       "author": null
     },
-    "network_protocol_steganography": {
-      "id": "network_protocol_steganography",
-      "name": "Network Protocol Steganography",
-      "description": "Network Protocol Steganography Attack - hides data in protocol fields.",
+    "tcp_multisplit": {
+      "id": "tcp_multisplit",
+      "name": "Tcp Multisplit",
+      "description": "TCP Multi-Split Attack - splits payload into multiple segments.\n    ENHANCED: Now handles split_count, seqovl, and fooling parameters directly.",
+      "category": "tcp_fragmentation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "tcp_multisplit_basic_test",
+          "name": "Basic test for tcp_multisplit",
+          "description": "Basic functionality test for tcp_multisplit",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387012",
+      "updated_at": "2025-09-08T08:46:16.387018",
+      "version": "1.0.0",
+      "author": null
+    },
+    "tcp_timestamp_manipulation": {
+      "id": "tcp_timestamp_manipulation",
+      "name": "Tcp Timestamp Manipulation",
+      "description": "TCP Timestamp Attack - manipulates TCP timestamps.\n\n    Migrated from:\n    - apply_tcp_timestamp_manipulation (fast_bypass.py)",
+      "category": "tcp_fragmentation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "tcp_timestamp_manipulation_basic_test",
+          "name": "Basic test for tcp_timestamp_manipulation",
+          "description": "Basic functionality test for tcp_timestamp_manipulation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387281",
+      "updated_at": "2025-09-08T08:46:16.387290",
+      "version": "1.0.0",
+      "author": null
+    },
+    "tcp_wssize_limit": {
+      "id": "tcp_wssize_limit",
+      "name": "Tcp Wssize Limit",
+      "description": "TCP Window Size Limit Attack - limits TCP window size to confuse DPI.\n\n    This attack sets the TCP window size to a very small value (typically 1 or 2)\n    to make the connection appear slow or constrained, potentially bypassing\n    DPI systems that expect normal window sizes.\n\n    Migrated from:\n    - apply_wssize_limit (fast_bypass.py)",
+      "category": "tcp_fragmentation",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "tcp_wssize_limit_basic_test",
+          "name": "Basic test for tcp_wssize_limit",
+          "description": "Basic functionality test for tcp_wssize_limit",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387338",
+      "updated_at": "2025-09-08T08:46:16.387388",
+      "version": "1.0.0",
+      "author": null
+    },
+    "badsum_race": {
+      "id": "badsum_race",
+      "name": "Badsum Race",
+      "description": "Bad Checksum Race Attack.\n\n    This attack exploits race conditions by sending a fake packet with an\n    invalid checksum followed immediately by a real packet. The goal is to\n    poison the DPI cache with the fake packet while the real packet reaches\n    the target successfully.\n\n    The attack sequence:\n    1. Send fake packet with bad checksum (will be dropped by target)\n    2. Immediately send real packet with correct checksum\n    3. DPI may cache the fake packet and miss the real one",
       "category": "experimental",
       "complexity": 1,
       "stability": "stable",
@@ -1023,9 +726,9 @@
       "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "network_protocol_steganography_basic_test",
-          "name": "Basic test for network_protocol_steganography",
-          "description": "Basic functionality test for network_protocol_steganography",
+          "id": "badsum_race_basic_test",
+          "name": "Basic test for badsum_race",
+          "description": "Basic functionality test for badsum_race",
           "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {},
@@ -1057,15 +760,251 @@
       "documentation_url": null,
       "examples": [],
       "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
+      "created_at": "2025-09-08T08:46:16.387459",
+      "updated_at": "2025-09-08T08:46:16.387467",
       "version": "1.0.0",
       "author": null
     },
-    "timing_channel_steganography": {
-      "id": "timing_channel_steganography",
-      "name": "Timing Channel Steganography",
-      "description": "Timing Channel Steganography Attack - uses timing patterns to encode data.",
+    "low_ttl_poisoning": {
+      "id": "low_ttl_poisoning",
+      "name": "Low Ttl Poisoning",
+      "description": "Low TTL Cache Poisoning Attack.\n\n    This attack sends packets with progressively low TTL values to poison\n    DPI caches at different network hops. The packets expire before reaching\n    the target but may be cached by intermediate DPI systems.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "low_ttl_poisoning_basic_test",
+          "name": "Basic test for low_ttl_poisoning",
+          "description": "Basic functionality test for low_ttl_poisoning",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387517",
+      "updated_at": "2025-09-08T08:46:16.387523",
+      "version": "1.0.0",
+      "author": null
+    },
+    "cache_confusion_race": {
+      "id": "cache_confusion_race",
+      "name": "Cache Confusion Race",
+      "description": "Cache Confusion Attack using Multiple Race Conditions.\n\n    This attack combines multiple race condition techniques to create\n    maximum confusion in DPI caching systems by sending competing\n    packets with different characteristics simultaneously.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "cache_confusion_race_basic_test",
+          "name": "Basic test for cache_confusion_race",
+          "description": "Basic functionality test for cache_confusion_race",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387569",
+      "updated_at": "2025-09-08T08:46:16.387576",
+      "version": "1.0.0",
+      "author": null
+    },
+    "md5sig_race": {
+      "id": "md5sig_race",
+      "name": "Md5Sig Race",
+      "description": "MD5 Signature Race Attack.\n\n    This attack exploits race conditions by sending a fake packet with an\n    MD5 signature followed immediately by a real packet. The goal is to\n    poison the DPI cache with the fake packet while the real packet reaches\n    the target successfully.\n\n    The attack sequence:\n    1. Send fake packet with MD5 signature (will be processed by DPI)\n    2. Immediately send real packet without MD5 signature\n    3. DPI may cache the fake packet and miss the real one",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "md5sig_race_basic_test",
+          "name": "Basic test for md5sig_race",
+          "description": "Basic functionality test for md5sig_race",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387629",
+      "updated_at": "2025-09-08T08:46:16.387635",
+      "version": "1.0.0",
+      "author": null
+    },
+    "drip_feed": {
+      "id": "drip_feed",
+      "name": "Drip Feed",
+      "description": "Drip Feed Attack for Gradual Data Transmission.\n\n    This attack sends data in very small chunks with controlled timing\n    to bypass DPI systems that have thresholds for data rate analysis\n    or that timeout on slow connections.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "drip_feed_basic_test",
+          "name": "Basic test for drip_feed",
+          "description": "Basic functionality test for drip_feed",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387679",
+      "updated_at": "2025-09-08T08:46:16.387685",
+      "version": "1.0.0",
+      "author": null
+    },
+    "timing_based_evasion": {
+      "id": "timing_based_evasion",
+      "name": "Timing Based Evasion",
+      "description": "Timing-Based Evasion Attack - introduces delays between segments.\n\n    Migrated from:\n    - apply_timing_based_evasion (fast_bypass.py)",
       "category": "packet_timing",
       "complexity": 1,
       "stability": "stable",
@@ -1082,9 +1021,9 @@
       "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "timing_channel_steganography_basic_test",
-          "name": "Basic test for timing_channel_steganography",
-          "description": "Basic functionality test for timing_channel_steganography",
+          "id": "timing_based_evasion_basic_test",
+          "name": "Basic test for timing_based_evasion",
+          "description": "Basic functionality test for timing_based_evasion",
           "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {},
@@ -1116,192 +1055,15 @@
       "documentation_url": null,
       "examples": [],
       "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
+      "created_at": "2025-09-08T08:46:16.387728",
+      "updated_at": "2025-09-08T08:46:16.387734",
       "version": "1.0.0",
       "author": null
     },
-    "covert_channel_combo": {
-      "id": "covert_channel_combo",
-      "name": "Covert Channel Combo",
-      "description": "Covert Channel Combo Attack - combines multiple covert channel techniques.",
-      "category": "combo_attack",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "covert_channel_combo_basic_test",
-          "name": "Basic test for covert_channel_combo",
-          "description": "Basic functionality test for covert_channel_combo",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
-      "version": "1.0.0",
-      "author": null
-    },
-    "advanced_image_steganography": {
-      "id": "advanced_image_steganography",
-      "name": "Advanced Image Steganography",
-      "description": "Advanced Image Steganography with real LSB pixel manipulation.",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "advanced_image_steganography_basic_test",
-          "name": "Basic test for advanced_image_steganography",
-          "description": "Basic functionality test for advanced_image_steganography",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
-      "version": "1.0.0",
-      "author": null
-    },
-    "advanced_protocol_field_steganography": {
-      "id": "advanced_protocol_field_steganography",
-      "name": "Advanced Protocol Field Steganography",
-      "description": "Advanced Protocol Field Steganography with real field manipulation.",
-      "category": "experimental",
-      "complexity": 1,
-      "stability": "stable",
-      "parameters": {},
-      "default_parameters": {},
-      "required_parameters": [],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "advanced_protocol_field_steganography_basic_test",
-          "name": "Basic test for advanced_protocol_field_steganography",
-          "description": "Basic functionality test for advanced_protocol_field_steganography",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {},
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
-      "version": "1.0.0",
-      "author": null
-    },
-    "advanced_timing_channel_steganography": {
-      "id": "advanced_timing_channel_steganography",
-      "name": "Advanced Timing Channel Steganography",
-      "description": "Advanced Timing Channel Steganography with precise timing control.",
+    "burst_timing_evasion": {
+      "id": "burst_timing_evasion",
+      "name": "Burst Timing Evasion",
+      "description": "Burst Timing Evasion Attack - sends payload in bursts with delays.\n\n    Migrated from:\n    - apply_burst_timing_evasion (fast_bypass.py)",
       "category": "packet_timing",
       "complexity": 1,
       "stability": "stable",
@@ -1318,9 +1080,9 @@
       "overall_score": 0.0,
       "test_cases": [
         {
-          "id": "advanced_timing_channel_steganography_basic_test",
-          "name": "Basic test for advanced_timing_channel_steganography",
-          "description": "Basic functionality test for advanced_timing_channel_steganography",
+          "id": "burst_timing_evasion_basic_test",
+          "name": "Basic test for burst_timing_evasion",
+          "description": "Basic functionality test for burst_timing_evasion",
           "target_domain": "httpbin.org",
           "expected_success": true,
           "test_parameters": {},
@@ -1352,8 +1114,244 @@
       "documentation_url": null,
       "examples": [],
       "tags": [],
-      "created_at": "2025-08-28T17:04:45.528844",
-      "updated_at": "2025-09-04T16:36:48.086707",
+      "created_at": "2025-09-08T08:46:16.387777",
+      "updated_at": "2025-09-08T08:46:16.387783",
+      "version": "1.0.0",
+      "author": null
+    },
+    "badsum_fooling": {
+      "id": "badsum_fooling",
+      "name": "Badsum Fooling",
+      "description": "Bad Checksum Fooling Attack - corrupts TCP checksum to fool DPI.\n\n    Migrated from:\n    - apply_badsum_fooling (fast_bypass.py)",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "badsum_fooling_basic_test",
+          "name": "Basic test for badsum_fooling",
+          "description": "Basic functionality test for badsum_fooling",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387824",
+      "updated_at": "2025-09-08T08:46:16.387830",
+      "version": "1.0.0",
+      "author": null
+    },
+    "md5sig_fooling": {
+      "id": "md5sig_fooling",
+      "name": "Md5Sig Fooling",
+      "description": "MD5 Signature Fooling Attack - adds fake MD5 signature to fool DPI.\n\n    Migrated from:\n    - apply_md5sig_fooling (fast_bypass.py)",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "md5sig_fooling_basic_test",
+          "name": "Basic test for md5sig_fooling",
+          "description": "Basic functionality test for md5sig_fooling",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387874",
+      "updated_at": "2025-09-08T08:46:16.387880",
+      "version": "1.0.0",
+      "author": null
+    },
+    "badseq_fooling": {
+      "id": "badseq_fooling",
+      "name": "Badseq Fooling",
+      "description": "Bad Sequence Fooling Attack - corrupts TCP sequence numbers to fool DPI.\n\n    Migrated from:\n    - apply_badseq_fooling (fast_bypass.py)",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "badseq_fooling_basic_test",
+          "name": "Basic test for badseq_fooling",
+          "description": "Basic functionality test for badseq_fooling",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387920",
+      "updated_at": "2025-09-08T08:46:16.387926",
+      "version": "1.0.0",
+      "author": null
+    },
+    "ttl_manipulation": {
+      "id": "ttl_manipulation",
+      "name": "Ttl Manipulation",
+      "description": "TTL Manipulation Attack - manipulates IP TTL values to fool DPI.\n\n    This attack uses low TTL values to make packets expire before reaching\n    the target, potentially poisoning DPI caches.",
+      "category": "experimental",
+      "complexity": 1,
+      "stability": "stable",
+      "parameters": {},
+      "default_parameters": {},
+      "required_parameters": [],
+      "compatibility": [
+        "native"
+      ],
+      "external_tool_mappings": {},
+      "stability_score": 0.0,
+      "effectiveness_score": 0.0,
+      "performance_score": 0.0,
+      "overall_score": 0.0,
+      "test_cases": [
+        {
+          "id": "ttl_manipulation_basic_test",
+          "name": "Basic test for ttl_manipulation",
+          "description": "Basic functionality test for ttl_manipulation",
+          "target_domain": "httpbin.org",
+          "expected_success": true,
+          "test_parameters": {},
+          "timeout_seconds": 30,
+          "validation_criteria": [
+            "http_response",
+            "content_check"
+          ]
+        }
+      ],
+      "last_tested": null,
+      "test_results": {},
+      "enabled": true,
+      "deprecated": false,
+      "deprecation_reason": null,
+      "replacement_attack": null,
+      "supported_protocols": [
+        "tcp"
+      ],
+      "supported_ports": [
+        80,
+        443
+      ],
+      "requires_handshake": false,
+      "dependencies": [],
+      "conflicts_with": [],
+      "requires_root": false,
+      "platform_specific": [],
+      "documentation_url": null,
+      "examples": [],
+      "tags": [],
+      "created_at": "2025-09-08T08:46:16.387965",
+      "updated_at": "2025-09-08T08:46:16.387971",
       "version": "1.0.0",
       "author": null
     },
@@ -1468,8 +1466,8 @@
         "stable",
         "http"
       ],
-      "created_at": "2025-09-04T16:36:48.847870",
-      "updated_at": "2025-09-04T16:36:48.847870",
+      "created_at": "2025-09-08T08:46:16.390681",
+      "updated_at": "2025-09-08T08:46:16.390684",
       "version": "1.0.0",
       "author": null
     },
@@ -1556,8 +1554,8 @@
         "stable",
         "http"
       ],
-      "created_at": "2025-09-04T16:36:48.847870",
-      "updated_at": "2025-09-04T16:36:48.847870",
+      "created_at": "2025-09-08T08:46:16.390693",
+      "updated_at": "2025-09-08T08:46:16.390695",
       "version": "1.0.0",
       "author": null
     },
@@ -1653,12 +1651,12 @@
       "examples": [],
       "tags": [
         "encoding",
-        "fragmentation",
         "chunked",
+        "fragmentation",
         "http"
       ],
-      "created_at": "2025-09-04T16:36:48.847870",
-      "updated_at": "2025-09-04T16:36:48.847870",
+      "created_at": "2025-09-08T08:46:16.390705",
+      "updated_at": "2025-09-08T08:46:16.390707",
       "version": "1.0.0",
       "author": null
     },
@@ -1741,13 +1739,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "multiple",
+        "advanced",
         "pipeline",
-        "http",
-        "advanced"
+        "multiple",
+        "http"
       ],
-      "created_at": "2025-09-04T16:36:48.847870",
-      "updated_at": "2025-09-04T16:36:48.847870",
+      "created_at": "2025-09-08T08:46:16.390716",
+      "updated_at": "2025-09-08T08:46:16.390718",
       "version": "1.0.0",
       "author": null
     },
@@ -1830,13 +1828,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "segmentation",
+        "splitting",
         "headers",
-        "http",
-        "splitting"
+        "segmentation",
+        "http"
       ],
-      "created_at": "2025-09-04T16:36:48.847870",
-      "updated_at": "2025-09-04T16:36:48.847870",
+      "created_at": "2025-09-08T08:46:16.390726",
+      "updated_at": "2025-09-08T08:46:16.390727",
       "version": "1.0.0",
       "author": null
     },
@@ -1927,13 +1925,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "case",
         "manipulation",
+        "case",
         "evasion",
         "http"
       ],
-      "created_at": "2025-09-04T16:36:48.847870",
-      "updated_at": "2025-09-04T16:36:48.847870",
+      "created_at": "2025-09-08T08:46:16.390739",
+      "updated_at": "2025-09-08T08:46:16.390742",
       "version": "1.0.0",
       "author": null
     },
@@ -2021,13 +2019,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "https",
         "tunneling",
         "dns",
+        "https",
         "doh"
       ],
-      "created_at": "2025-09-04T16:36:48.656024",
-      "updated_at": "2025-09-04T16:36:48.656024",
+      "created_at": "2025-09-08T08:46:16.797308",
+      "updated_at": "2025-09-08T08:46:16.797320",
       "version": "1.0.0",
       "author": null
     },
@@ -2095,13 +2093,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "tls",
         "tunneling",
+        "tls",
         "dns",
         "dot"
       ],
-      "created_at": "2025-09-04T16:36:48.656024",
-      "updated_at": "2025-09-04T16:36:48.656024",
+      "created_at": "2025-09-08T08:46:16.797376",
+      "updated_at": "2025-09-08T08:46:16.797381",
       "version": "1.0.0",
       "author": null
     },
@@ -2184,12 +2182,12 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "evasion",
+        "manipulation",
         "dns",
-        "manipulation"
+        "evasion"
       ],
-      "created_at": "2025-09-04T16:36:48.656024",
-      "updated_at": "2025-09-04T16:36:48.656024",
+      "created_at": "2025-09-08T08:46:16.797398",
+      "updated_at": "2025-09-08T08:46:16.797401",
       "version": "1.0.0",
       "author": null
     },
@@ -2270,13 +2268,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
+        "dnssec",
         "dns",
         "security",
-        "dnssec",
         "validation"
       ],
-      "created_at": "2025-09-04T16:36:48.656024",
-      "updated_at": "2025-09-04T16:36:48.656024",
+      "created_at": "2025-09-08T08:46:16.797412",
+      "updated_at": "2025-09-08T08:46:16.797414",
       "version": "1.0.0",
       "author": null
     },
@@ -2378,13 +2376,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "stable",
-        "fragmentation",
+        "basic",
         "tcp",
-        "basic"
+        "stable",
+        "fragmentation"
       ],
-      "created_at": "2025-09-04T16:36:49.025258",
-      "updated_at": "2025-09-04T16:36:49.025258",
+      "created_at": "2025-09-08T08:46:17.748961",
+      "updated_at": "2025-09-08T08:46:17.748970",
       "version": "1.0.0",
       "author": null
     },
@@ -2477,12 +2475,12 @@
       "examples": [],
       "tags": [
         "ttl",
-        "fake",
         "advanced",
-        "disorder"
+        "disorder",
+        "fake"
       ],
-      "created_at": "2025-09-04T16:36:49.025258",
-      "updated_at": "2025-09-04T16:36:49.025258",
+      "created_at": "2025-09-08T08:46:17.748983",
+      "updated_at": "2025-09-08T08:46:17.748985",
       "version": "1.0.0",
       "author": null
     },
@@ -2573,12 +2571,12 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "fragmentation",
         "multisplit",
-        "advanced"
+        "advanced",
+        "fragmentation"
       ],
-      "created_at": "2025-09-04T16:36:49.025258",
-      "updated_at": "2025-09-04T16:36:49.025258",
+      "created_at": "2025-09-08T08:46:17.748995",
+      "updated_at": "2025-09-08T08:46:17.748997",
       "version": "1.0.0",
       "author": null
     },
@@ -2671,13 +2669,13 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
+        "advanced",
         "sequence",
-        "overlap",
         "tcp",
-        "advanced"
+        "overlap"
       ],
-      "created_at": "2025-09-04T16:36:49.025258",
-      "updated_at": "2025-09-04T16:36:49.025258",
+      "created_at": "2025-09-08T08:46:17.749009",
+      "updated_at": "2025-09-08T08:46:17.749011",
       "version": "1.0.0",
       "author": null
     },
@@ -2769,141 +2767,25 @@
       "documentation_url": null,
       "examples": [],
       "tags": [
-        "size",
+        "timing",
+        "tcp",
         "window",
-        "tcp",
-        "timing"
+        "size"
       ],
-      "created_at": "2025-09-04T16:36:49.025258",
-      "updated_at": "2025-09-04T16:36:49.025258",
-      "version": "1.0.0",
-      "author": null
-    },
-    "tcp_options_modification": {
-      "id": "tcp_options_modification",
-      "name": "TCP Options Modification",
-      "description": "Modify TCP options to evade DPI detection while fragmenting",
-      "category": "tcp_fragmentation",
-      "complexity": 3,
-      "stability": "mostly_stable",
-      "parameters": {
-        "split_pos": {
-          "type": "int",
-          "default": 5,
-          "min": 1,
-          "max": 50,
-          "description": "Position to split payload"
-        },
-        "options_type": {
-          "type": "str",
-          "default": "mss",
-          "choices": [
-            "mss",
-            "window_scale",
-            "timestamp",
-            "sack_permitted",
-            "md5_signature",
-            "custom"
-          ],
-          "description": "Type of TCP options to add"
-        },
-        "bad_checksum": {
-          "type": "bool",
-          "default": false,
-          "description": "Use bad TCP checksum"
-        }
-      },
-      "default_parameters": {
-        "split_pos": 5,
-        "options_type": "mss",
-        "bad_checksum": false
-      },
-      "required_parameters": [
-        "split_pos",
-        "options_type"
-      ],
-      "compatibility": [
-        "native"
-      ],
-      "external_tool_mappings": {},
-      "stability_score": 0.0,
-      "effectiveness_score": 0.0,
-      "performance_score": 0.0,
-      "overall_score": 0.0,
-      "test_cases": [
-        {
-          "id": "tcp_options_mss",
-          "name": "TCP options with MSS test",
-          "description": "Test TCP options modification with MSS option",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {
-            "split_pos": 5,
-            "options_type": "mss"
-          },
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        },
-        {
-          "id": "tcp_options_timestamp",
-          "name": "TCP options with timestamp test",
-          "description": "Test TCP options modification with timestamp option",
-          "target_domain": "httpbin.org",
-          "expected_success": true,
-          "test_parameters": {
-            "split_pos": 5,
-            "options_type": "timestamp"
-          },
-          "timeout_seconds": 30,
-          "validation_criteria": [
-            "http_response",
-            "content_check"
-          ]
-        }
-      ],
-      "last_tested": null,
-      "test_results": {},
-      "enabled": true,
-      "deprecated": false,
-      "deprecation_reason": null,
-      "replacement_attack": null,
-      "supported_protocols": [
-        "tcp"
-      ],
-      "supported_ports": [
-        80,
-        443
-      ],
-      "requires_handshake": false,
-      "dependencies": [],
-      "conflicts_with": [],
-      "requires_root": false,
-      "platform_specific": [],
-      "documentation_url": null,
-      "examples": [],
-      "tags": [
-        "modification",
-        "options",
-        "tcp",
-        "advanced"
-      ],
-      "created_at": "2025-09-04T16:36:49.025258",
-      "updated_at": "2025-09-04T16:36:49.025258",
+      "created_at": "2025-09-08T08:46:17.749021",
+      "updated_at": "2025-09-08T08:46:17.749023",
       "version": "1.0.0",
       "author": null
     }
   },
   "test_results": {},
   "stats": {
-    "total_attacks": 39,
-    "enabled_attacks": 39,
+    "total_attacks": 37,
+    "enabled_attacks": 37,
     "deprecated_attacks": 0,
     "tests_run": 0,
-    "last_updated": "2025-09-04T16:36:49.057962"
+    "last_updated": "2025-09-08T08:46:17.773705"
   },
   "version": "1.0.0",
-  "saved_at": "2025-09-04T16:36:49.059470"
+  "saved_at": "2025-09-08T08:46:17.774145"
 }

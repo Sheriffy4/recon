@@ -1,9 +1,9 @@
 {
   "learning_mode": "moderate",
-  "buffer_size": 10,
-  "min_confidence_threshold": 0.7,
-  "performance_window_size": 5,
-  "retraining_threshold": 0.1,
+  "buffer_size": 500,
+  "min_confidence_threshold": 0.75,
+  "performance_window_size": 50,
+  "retraining_threshold": 0.08,
   "learning_buffer": [
     {
       "metrics": {
