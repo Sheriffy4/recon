@@ -9,7 +9,10 @@ import copy
 from collections import defaultdict
 from typing import List, Dict, Optional, Tuple, Set, Any
 from core.bypass.attacks.base import AttackResult, AttackStatus
-from quic_handler import QuicHandler
+try:
+    from core.quic.quic_handler import QuicHandler
+except Exception:
+    from quic_handler import QuicHandler
 
 # Calibrator and alias map integration
 from core.bypass.attacks.alias_map import normalize_attack_name
@@ -109,13 +112,28 @@ class BypassTechniques:
 
     @staticmethod
     def apply_tlsrec_split(payload: bytes, split_pos: int = 5) -> bytes:
-        if split_pos >= len(payload) or split_pos < 5:
+        """
+        Безопасный split одного TLS record (ClientHello) на два записи.
+        Поддерживает TLS 1.0–1.3 (версия 0x0301..0x0303). Сохраняет хвост после record.
+        """
+        try:
+            if not payload or len(payload) < 5:
+                return payload
+            # TLS record header: ContentType(1)=0x16, Version(2)=0x03 xx, Length(2)
+            if payload[0] != 0x16 or payload[1] != 0x03 or payload[2] not in (0x00, 0x01, 0x02, 0x03):
+                return payload
+            rec_len = int.from_bytes(payload[3:5], "big")
+            content = payload[5:5 + rec_len] if 5 + rec_len <= len(payload) else payload[5:]
+            tail = payload[5 + rec_len:] if 5 + rec_len <= len(payload) else b""
+            if split_pos < 1 or split_pos >= len(content):
+                return payload
+            part1, part2 = content[:split_pos], content[split_pos:]
+            ver = payload[1:3]
+            rec1 = bytes([0x16]) + ver + len(part1).to_bytes(2, "big") + part1
+            rec2 = bytes([0x16]) + ver + len(part2).to_bytes(2, "big") + part2
+            return rec1 + rec2 + tail
+        except Exception:
             return payload
-        tls_data = payload[5:] if payload.startswith(b"\x16\x03\x01") else payload
-        part1, part2 = (tls_data[:split_pos], tls_data[split_pos:])
-        record1 = b"\x16\x03\x01" + len(part1).to_bytes(2, "big") + part1
-        record2 = b"\x16\x03\x01" + len(part2).to_bytes(2, "big") + part2
-        return record1 + record2
 
     @staticmethod
     def apply_wssize_limit(
@@ -186,6 +204,7 @@ if platform.system() == "Windows":
             )
             self.current_params = {}
             self.quic_handler = QuicHandler(debug=debug)
+            self._telemetry_max_targets = 1000
             
             # Adaptive strategy controller and flow tracking
             # Маркер для собственных инжекций (чтобы не перехватывать их повторно)
@@ -370,6 +389,27 @@ if platform.system() == "Windows":
                     "last_outcome": None, "last_outcome_ts": None
                 })
             }
+
+        def _cleanup_old_telemetry(self):
+            """Clean up old telemetry entries to prevent memory leak."""
+            with self._tlock:
+                if len(self._telemetry["per_target"]) > self._telemetry_max_targets:
+                    sorted_targets = sorted(
+                        self._telemetry["per_target"].items(),
+                        key=lambda x: x[1].get("last_outcome_ts", 0) or 0,
+                        reverse=True
+                    )
+                    self._telemetry["per_target"] = dict(sorted_targets[:self._telemetry_max_targets])
+            # Clean up old flow entries under lock
+            try:
+                with self._lock:
+                    current_time = time.time()
+                    old_flows = [k for k, v in self.flow_table.items()
+                                 if current_time - v.get("start_ts", 0) > 30]
+                    for flow in old_flows:
+                        self.flow_table.pop(flow, None)
+            except Exception:
+                pass
 
         def _is_target_ip(self, ip_str: str, target_ips: Set[str]) -> bool:
             """
@@ -688,10 +728,15 @@ if platform.system() == "Windows":
                         self.logger.debug(f"WinDivert set_param failed: {e}")
 
                     self.logger.info("✅ WinDivert запущен успешно.")
+                    last_cleanup = time.time()
                     while self.running:
                         packet = w.recv()
                         if packet is None:
                             continue
+                        # Periodic cleanup (each ~5s)
+                        if time.time() - last_cleanup >= 5.0:
+                            last_cleanup = time.time()
+                            self._cleanup_old_telemetry()
                         # Не обрабатываем собственные инжектированные пакеты (по mark)
                         try:
                             pkt_mark = getattr(packet, "mark", 0)
@@ -1314,36 +1359,44 @@ if platform.system() == "Windows":
                 tcp_header_len = (raw_data[ip_header_len + 12] >> 4 & 15) * 4
                 payload_start = ip_header_len + tcp_header_len
                 fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-                fake_raw = raw_data[:payload_start] + fake_payload[:20]
-                
-                # CRITICAL TTL FIX: Validate and set TTL with logging
+                seg_raw = bytearray(raw_data[:payload_start] + fake_payload[:20])
+                # TTL
                 if ttl is not None and 1 <= ttl <= 255:
-                    fake_raw[8] = ttl
+                    seg_raw[8] = ttl
                     self.logger.debug(f"🔧 Set fake packet TTL to {ttl}")
                 else:
-                    fake_raw[8] = 64  # Better default
-                    self.logger.warning(f"⚠️ Invalid TTL {ttl}, using default 64")
-                
-                fake_raw[2:4] = struct.pack("!H", len(fake_raw))
-                fake_packet = pydivert.Packet(
-                    bytes(fake_raw),
-                    original_packet.interface,
-                    original_packet.direction,
-                )
-                w.send(fake_packet)
+                    # fallback: используем текущие вычисленные параметры, либо безопасный 2
+                    fallback_ttl = int(self.current_params.get("fake_ttl", 2))
+                    seg_raw[8] = fallback_ttl
+                    self.logger.warning(f"⚠️ Invalid TTL {ttl}, using fallback {fallback_ttl}")
+                # Total length
+                seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+                # IP checksum
+                ip_hl = (seg_raw[0] & 0x0F) * 4
+                seg_raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                seg_raw[10:12] = struct.pack("!H", ip_csum)
+                # TCP checksum
+                tcp_hl = ((seg_raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                tcp_start = ip_hl
+                tcp_end = ip_hl + tcp_hl
+                csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
+                # Safe send
+                self._safe_send_packet(w, bytes(seg_raw), original_packet)
                 self.stats["fake_packets_sent"] += 1
                 # Телеметрия
                 with self._tlock:
                     self._telemetry["aggregate"]["fake_packets_sent"] += 1
-                    self._telemetry["ttls"]["fake"][int(fake_raw[8])] += 1
+                    self._telemetry["ttls"]["fake"][int(seg_raw[8])] += 1
                     try:
                         tgt = original_packet.dst_addr
                         per = self._telemetry["per_target"][tgt]
                         per["fake_packets_sent"] += 1
-                        per["ttls_fake"][int(fake_raw[8])] += 1
+                        per["ttls_fake"][int(seg_raw[8])] += 1
                     except Exception:
                         pass
-                self.logger.debug(f"✅ Sent fake packet with TTL={fake_raw[8]} to {original_packet.dst_addr}")
+                self.logger.debug(f"✅ Sent fake packet with TTL={seg_raw[8]} to {original_packet.dst_addr}")
                 time.sleep(0.002)
             except Exception as e:
                 self.logger.debug(f"Ошибка отправки fake packet: {e}")
@@ -1363,32 +1416,39 @@ if platform.system() == "Windows":
                 tcp_header_len = (raw_data[ip_header_len + 12] >> 4 & 15) * 4
                 payload_start = ip_header_len + tcp_header_len
                 fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-                fake_raw = raw_data[:payload_start] + fake_payload[:20]
-                
-                # CRITICAL TTL FIX: Validate and set TTL with logging
+                seg_raw = bytearray(raw_data[:payload_start] + fake_payload[:20])
+                # TTL
                 if ttl is not None and 1 <= ttl <= 255:
-                    fake_raw[8] = ttl
+                    seg_raw[8] = ttl
                     self.logger.debug(f"🔧 Set fake packet (badsum) TTL to {ttl}")
                 else:
-                    fake_raw[8] = 64  # Better default
-                    self.logger.warning(f"⚠️ Invalid TTL {ttl}, using default 64 for badsum packet")
-                
-                fake_raw = self.techniques.apply_badsum_fooling(fake_raw)
-                fake_raw[2:4] = struct.pack("!H", len(fake_raw))
-                fake_packet = pydivert.Packet(
-                    bytes(fake_raw),
-                    original_packet.interface,
-                    original_packet.direction,
-                )
-                w.send(fake_packet)
+                    fallback_ttl = int(self.current_params.get("fake_ttl", 2))
+                    seg_raw[8] = fallback_ttl
+                    self.logger.warning(f"⚠️ Invalid TTL {ttl}, using fallback {fallback_ttl} for badsum packet")
+                # Length
+                seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+                # IP checksum
+                ip_hl = (seg_raw[0] & 0x0F) * 4
+                seg_raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                seg_raw[10:12] = struct.pack("!H", ip_csum)
+                # TCP checksum -> then corrupt
+                tcp_hl = ((seg_raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                tcp_start = ip_hl
+                tcp_end = ip_hl + tcp_hl
+                good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                bad_csum = good_csum ^ 0xFFFF
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
+                # Safe send
+                self._safe_send_packet(w, bytes(seg_raw), original_packet)
                 self.stats["fake_packets_sent"] += 1
                 with self._tlock:
                     self._telemetry["aggregate"]["fake_packets_sent"] += 1
-                    self._telemetry["ttls"]["fake"][int(fake_raw[8])] += 1
+                    self._telemetry["ttls"]["fake"][int(seg_raw[8])] += 1
                     tgt = original_packet.dst_addr
                     per = self._telemetry["per_target"][tgt]
-                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(fake_raw[8])] += 1
-                self.logger.debug(f"✅ Sent fake packet (badsum) with TTL={fake_raw[8]} to {original_packet.dst_addr}")
+                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(seg_raw[8])] += 1
+                self.logger.debug(f"✅ Sent fake packet (badsum) with TTL={seg_raw[8]} to {original_packet.dst_addr}")
             except Exception as e:
                 self.logger.debug(f"Ошибка fake packet with badsum: {e}")
 
@@ -1407,32 +1467,39 @@ if platform.system() == "Windows":
                 tcp_header_len = (raw_data[ip_header_len + 12] >> 4 & 15) * 4
                 payload_start = ip_header_len + tcp_header_len
                 fake_payload = b"EHLO example.com\r\n"
-                fake_raw = raw_data[:payload_start] + fake_payload
-                
-                # CRITICAL TTL FIX: Validate and set TTL with logging
+                seg_raw = bytearray(raw_data[:payload_start] + fake_payload)
+                # TTL
                 if ttl is not None and 1 <= ttl <= 255:
-                    fake_raw[8] = ttl
+                    seg_raw[8] = ttl
                     self.logger.debug(f"🔧 Set fake packet (md5sig) TTL to {ttl}")
                 else:
-                    fake_raw[8] = 64  # Better default
-                    self.logger.warning(f"⚠️ Invalid TTL {ttl}, using default 64 for md5sig packet")
-                
-                fake_raw = self.techniques.apply_md5sig_fooling(fake_raw)
-                fake_raw[2:4] = struct.pack("!H", len(fake_raw))
-                fake_packet = pydivert.Packet(
-                    bytes(fake_raw),
-                    original_packet.interface,
-                    original_packet.direction,
-                )
-                w.send(fake_packet)
+                    fallback_ttl = int(self.current_params.get("fake_ttl", 2))
+                    seg_raw[8] = fallback_ttl
+                    self.logger.warning(f"⚠️ Invalid TTL {ttl}, using fallback {fallback_ttl} for md5sig packet")
+                # Length
+                seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+                # IP checksum
+                ip_hl = (seg_raw[0] & 0x0F) * 4
+                seg_raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                seg_raw[10:12] = struct.pack("!H", ip_csum)
+                # TCP checksum -> corrupt (md5sig "fooling")
+                tcp_hl = ((seg_raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                tcp_start = ip_hl
+                tcp_end = ip_hl + tcp_hl
+                good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                bad_csum = good_csum ^ 0xFFFF
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
+                # Safe send
+                self._safe_send_packet(w, bytes(seg_raw), original_packet)
                 self.stats["fake_packets_sent"] += 1
                 with self._tlock:
                     self._telemetry["aggregate"]["fake_packets_sent"] += 1
-                    self._telemetry["ttls"]["fake"][int(fake_raw[8])] += 1
+                    self._telemetry["ttls"]["fake"][int(seg_raw[8])] += 1
                     tgt = original_packet.dst_addr
                     per = self._telemetry["per_target"][tgt]
-                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(fake_raw[8])] += 1
-                self.logger.debug(f"✅ Sent fake packet (md5sig) with TTL={fake_raw[8]} to {original_packet.dst_addr}")
+                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(seg_raw[8])] += 1
+                self.logger.debug(f"✅ Sent fake packet (md5sig) with TTL={seg_raw[8]} to {original_packet.dst_addr}")
             except Exception as e:
                 self.logger.debug(f"Ошибка fake packet with md5sig: {e}")
 
@@ -1450,37 +1517,41 @@ if platform.system() == "Windows":
                 tcp_header_len = (raw_data[ip_header_len + 12] >> 4 & 15) * 4
                 payload_start = ip_header_len + tcp_header_len
                 fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-                fake_raw = raw_data[:payload_start] + fake_payload[:20]
-                
-                # CRITICAL TTL FIX: Validate and set TTL with logging
+                seg_raw = bytearray(raw_data[:payload_start] + fake_payload[:20])
+                # TTL
                 if ttl is not None and 1 <= ttl <= 255:
-                    fake_raw[8] = ttl
+                    seg_raw[8] = ttl
                     self.logger.debug(f"🔧 Set fake packet (badseq) TTL to {ttl}")
                 else:
-                    fake_raw[8] = 64  # Better default
-                    self.logger.warning(f"⚠️ Invalid TTL {ttl}, using default 64 for badseq packet")
-                
+                    fallback_ttl = int(self.current_params.get("fake_ttl", 2))
+                    seg_raw[8] = fallback_ttl
+                    self.logger.warning(f"⚠️ Invalid TTL {ttl}, using fallback {fallback_ttl} for badseq packet")
                 # Apply bad sequence number (offset by -10000 as per zapret)
-                seq_offset = ip_header_len + 4  # TCP sequence number offset
-                original_seq = struct.unpack("!I", fake_raw[seq_offset:seq_offset+4])[0]
+                ip_header_len = (seg_raw[0] & 15) * 4
+                tcp_header_len = (seg_raw[ip_header_len + 12] >> 4 & 15) * 4
+                seq_offset = ip_header_len + 4
+                original_seq = struct.unpack("!I", seg_raw[seq_offset:seq_offset+4])[0]
                 bad_seq = (original_seq - 10000) & 0xFFFFFFFF  # Zapret-style badseq
-                fake_raw[seq_offset:seq_offset+4] = struct.pack("!I", bad_seq)
-                
-                fake_raw[2:4] = struct.pack("!H", len(fake_raw))
-                fake_packet = pydivert.Packet(
-                    bytes(fake_raw),
-                    original_packet.interface,
-                    original_packet.direction,
-                )
-                w.send(fake_packet)
+                seg_raw[seq_offset:seq_offset+4] = struct.pack("!I", bad_seq)
+                # Length & checksums
+                seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+                seg_raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(seg_raw[:ip_header_len])
+                seg_raw[10:12] = struct.pack("!H", ip_csum)
+                tcp_start = ip_header_len
+                tcp_end = ip_header_len + tcp_header_len
+                csum = self._tcp_checksum(seg_raw[:ip_header_len], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
+                # Safe send
+                self._safe_send_packet(w, bytes(seg_raw), original_packet)
                 self.stats["fake_packets_sent"] += 1
                 with self._tlock:
                     self._telemetry["aggregate"]["fake_packets_sent"] += 1
-                    self._telemetry["ttls"]["fake"][int(fake_raw[8])] += 1
+                    self._telemetry["ttls"]["fake"][int(seg_raw[8])] += 1
                     tgt = original_packet.dst_addr
                     per = self._telemetry["per_target"][tgt]
-                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(fake_raw[8])] += 1
-                self.logger.debug(f"✅ Sent fake packet (badseq) with TTL={fake_raw[8]} to {original_packet.dst_addr}")
+                    per["fake_packets_sent"] += 1; per["ttls_fake"][int(seg_raw[8])] += 1
+                self.logger.debug(f"✅ Sent fake packet (badseq) with TTL={seg_raw[8]} to {original_packet.dst_addr}")
             except Exception as e:
                 self.logger.debug(f"Ошибка fake packet with badseq: {e}")
 
@@ -1490,12 +1561,20 @@ if platform.system() == "Windows":
                 ip_header_len = (raw_data[0] & 15) * 4
                 tcp_header_len = (raw_data[ip_header_len + 12] >> 4 & 15) * 4
                 payload_start = ip_header_len + tcp_header_len
-                new_raw = raw_data[:payload_start] + modified_payload
-                new_raw[2:4] = struct.pack("!H", len(new_raw))
-                new_packet = pydivert.Packet(
-                    bytes(new_raw), original_packet.interface, original_packet.direction
-                )
-                w.send(new_packet)
+                seg_raw = bytearray(raw_data[:payload_start] + modified_payload)
+                # Total length
+                seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+                # IP checksum
+                seg_raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(seg_raw[:ip_header_len])
+                seg_raw[10:12] = struct.pack("!H", ip_csum)
+                # TCP checksum
+                tcp_start = ip_header_len
+                tcp_end = ip_header_len + tcp_header_len
+                csum = self._tcp_checksum(seg_raw[:ip_header_len], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
+                # Safe send
+                self._safe_send_packet(w, bytes(seg_raw), original_packet)
                 self.stats["fragments_sent"] += 1
                 return True
             except Exception as e:
@@ -1519,8 +1598,7 @@ if platform.system() == "Windows":
                 for i, (segment_data, seq_offset) in enumerate(segments):
                     if not segment_data:
                         continue
-                    seg_raw = bytearray(raw_data[:payload_start])
-                    seg_raw.extend(segment_data)
+                    seg_raw = bytearray(raw_data[:payload_start] + segment_data)
                     new_seq = base_seq + seq_offset & 4294967295
                     seg_raw[tcp_seq_start : tcp_seq_start + 4] = struct.pack(
                         "!I", new_seq
@@ -1529,15 +1607,18 @@ if platform.system() == "Windows":
                     seg_raw[tcp_window_start : tcp_window_start + 2] = struct.pack(
                         "!H", window_size
                     )
+                    # Total length & checksums
                     seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+                    # IP checksum
+                    seg_raw[10:12] = b"\x00\x00"
+                    ip_csum = self._ip_header_checksum(seg_raw[:ip_header_len])
+                    seg_raw[10:12] = struct.pack("!H", ip_csum)
+                    # TCP checksum
+                    csum = self._tcp_checksum(seg_raw[:ip_header_len], seg_raw[ip_header_len:payload_start], seg_raw[payload_start:])
+                    seg_raw[ip_header_len+16:ip_header_len+18] = struct.pack("!H", csum)
                     if i == len(segments) - 1:
                         seg_raw[ip_header_len + 13] |= 8
-                    seg_packet = pydivert.Packet(
-                        bytes(seg_raw),
-                        original_packet.interface,
-                        original_packet.direction,
-                    )
-                    w.send(seg_packet)
+                    self._safe_send_packet(w, bytes(seg_raw), original_packet)
                     self.stats["fragments_sent"] += 1
                     if i < len(segments) - 1:
                         time.sleep(0.05)

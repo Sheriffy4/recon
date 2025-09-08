@@ -420,6 +420,9 @@ class EnhancedStrategyInterpreter:
                     parsed.split_positions.append(int(pos))
             self.logger.debug(f"Parsed split positions: {parsed.split_positions}")
         
+        if "--filter-udp=443" in strategy_string:
+            parsed.desync_methods.append("filter_udp_443")
+
         # Parse optional string parameters
         string_params = ["fake-tls", "fake-http", "fake-syndata"]
         for param_name in string_params:
@@ -524,6 +527,9 @@ class EnhancedStrategyInterpreter:
         # Если в методах есть 'fake' + другая основная атака — включаем префиксный fake
         if "fake" in parsed.desync_methods and primary_attack not in ("fake",):
             params["pre_fake"] = True
+
+        if "filter_udp_443" in parsed.desync_methods:
+            params["filter_udp_443"] = True
             if parsed.ttl:
                 params["fake_ttl"] = parsed.ttl
         
@@ -542,6 +548,8 @@ class EnhancedStrategyInterpreter:
             params.update(self._build_badsum_race_params(parsed))
         elif primary_attack == "md5sig_race":
             params.update(self._build_md5sig_race_params(parsed))
+        elif primary_attack == "ip_fragmentation":
+            params.update(self._build_ip_fragmentation_params(parsed))
         
         task = {
             "type": primary_attack,
@@ -572,45 +580,34 @@ class EnhancedStrategyInterpreter:
     def _determine_primary_attack(self, parsed: ParsedStrategy) -> str:
         """
         Determine the primary attack type based on parsed parameters.
-        
-        CRITICAL FIXES (Task 24.4):
-        - fake,fakeddisorder -> fakeddisorder (NOT seqovl!)
-        - Proper parameter mapping for internal format
-        
-        Requirements: 7.1, 7.2, 8.2, 8.3, 10.2, 10.3
         """
-        # CRITICAL FIX: fake,fakeddisorder combination -> fakeddisorder attack (NOT seqovl!)
-        if "fake" in parsed.desync_methods and "fakeddisorder" in parsed.desync_methods:
-            self.logger.info("CRITICAL FIX: fake,fakeddisorder -> fakeddisorder attack (NOT seqovl!)")
-            return "fakeddisorder"  # CRITICAL: Return fakeddisorder, not fake_fakeddisorder
+        desync = parsed.desync_methods
+        fooling = parsed.fooling_methods
+
+        if "fake" in desync and ("disorder" in desync or "fakeddisorder" in desync):
+            return "fakedisorder"
         
-        # Check for standalone fakeddisorder - this is the primary attack type
-        if "fakeddisorder" in parsed.desync_methods:
-            self.logger.info("Detected fakeddisorder attack")
-            return "fakeddisorder"
-        
-        # Check for fake method
-        if "fake" in parsed.desync_methods:
-            return "fake"
-        
-        # Check for fooling-based attacks
-        if "badsum" in parsed.fooling_methods and "md5sig" in parsed.fooling_methods:
-            return "combined_fooling"
-        elif "badsum" in parsed.fooling_methods:
-            return "badsum_race"
-        elif "md5sig" in parsed.fooling_methods:
-            return "md5sig_race"
-        
-        # Check for other desync methods
-        if "multisplit" in parsed.desync_methods:
+        if "multisplit" in desync:
             return "multisplit"
-        elif "multidisorder" in parsed.desync_methods:
+
+        if "multidisorder" in desync:
             return "multidisorder"
-        elif "seqovl" in parsed.desync_methods:
+
+        if "ipfrag2" in desync:
+            return "ip_fragmentation"
+
+        if "fake" in desync:
+            if "badsum" in fooling:
+                return "badsum_race"
+            if "md5sig" in fooling:
+                return "md5sig_race"
+            return "fake"
+
+        if "seqovl" in desync:
             return "seqovl"
         
         # Default fallback
-        return "fakeddisorder"
+        return "fakedisorder"
     
     def _build_fake_fakeddisorder_params(self, parsed: ParsedStrategy) -> Dict[str, Any]:
         """Build parameters for fake,fakeddisorder attack - CRITICAL FIX."""
@@ -729,6 +726,7 @@ class EnhancedStrategyInterpreter:
         params = {}
         
         if parsed.split_count:
+            params["split_count"] = parsed.split_count
             # Generate positions based on split count
             positions = []
             base_offset = 6
@@ -745,6 +743,9 @@ class EnhancedStrategyInterpreter:
             params["positions"] = parsed.split_positions
         else:
             params["positions"] = [10, 25, 40, 55, 70]
+
+        if parsed.split_seqovl is not None:
+            params["split_seqovl"] = parsed.split_seqovl
         
         return params
     
@@ -773,6 +774,13 @@ class EnhancedStrategyInterpreter:
             "extra_ttl": (parsed.ttl or 64) + 2,  # Changed default from 3 to 64
             "delay_ms": 7
         }
+        return params
+
+    def _build_ip_fragmentation_params(self, parsed: ParsedStrategy) -> Dict[str, Any]:
+        """Build parameters for ip_fragmentation attack."""
+        params = {}
+        if parsed.split_positions:
+            params["fragment_size"] = parsed.split_positions[0]
         return params
 
 

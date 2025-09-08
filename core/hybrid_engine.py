@@ -353,7 +353,8 @@ class HybridEngine:
         initial_ttl: Optional[int] = None,
         fingerprint: Optional[DPIFingerprint] = None,
         return_details: bool = False,
-        prefer_retry_on_timeout: bool = False
+        prefer_retry_on_timeout: bool = False,
+        warmup_ms: Optional[float] = None
     ) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
@@ -366,16 +367,19 @@ class HybridEngine:
         strategy_map = {'default': engine_task}
         bypass_thread = bypass_engine.start(target_ips, strategy_map)
         try:
-            # Чуть больше времени на прогрев хука, если нет DPI‑контекста
-            wait_time = 2.5
-            if fingerprint:
+            # Чуть больше времени на прогрев хука
+            wait_time_s = 2.5 # default
+            if warmup_ms is not None:
+                 wait_time_s = warmup_ms / 1000.0
+            elif fingerprint:
                 if fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU:
-                    wait_time = 1.0
+                    wait_time_s = 1.0
                 elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI:
-                    wait_time = 2.0
+                    wait_time_s = 2.0
                 elif fingerprint.connection_reset_timing > 0:
-                    wait_time = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
-            await asyncio.sleep(wait_time)
+                    wait_time_s = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
+
+            await asyncio.sleep(wait_time_s)
             try:
                 # Первичный прогон с ретраями для «первых» стратегий по желанию
                 results = await self._test_sites_connectivity(

@@ -12,7 +12,7 @@ from core.bypass.engines.factory import create_engine, detect_best_engine
 from core.bypass.engines.base import EngineConfig
 from core.bypass.attacks.base import BaselineResult, BypassResult, EffectivenessResult
 from core.bypass.types import BlockType
-from core.dns.pinned_resolver import StaticResolver
+from core.dns.pinned_resolver import StaticResolver as PinnedResolver
 
 LOG = logging.getLogger("RealEffectivenessTester")
 HEADERS = {
@@ -20,7 +20,7 @@ HEADERS = {
 }
 
 
-class StaticResolver(AbstractResolver):
+class AiohttpStaticResolver(AbstractResolver):
     """Кастомный резолвер для aiohttp, который привязывает домен к статическому IP."""
 
     def __init__(self, mapping: Dict[str, str]):
@@ -72,6 +72,7 @@ class RealEffectivenessTester:
         max_retries: int = 2,
         engine_config: Optional[EngineConfig] = None,
         pinned_dns: Optional[Dict[str, str]] = None,
+        debug: bool = False,
     ):
         self.timeout = timeout
         self.max_retries = max_retries
@@ -80,6 +81,7 @@ class RealEffectivenessTester:
         self._session: Optional[aiohttp.ClientSession] = None
         self._ssl_context = self._create_ssl_context()
         self._pinned_dns = pinned_dns or {}
+        self.debug = debug
 
     def set_pinned_dns_map(self, pinned_map: Dict[str, str]):
         """Позволяет динамически установить карту пиннинга перед тестом."""
@@ -133,6 +135,14 @@ class RealEffectivenessTester:
         except Exception as e:
             self.logger.debug(f"Failed to measure RST TTL distance for {domain}: {e}")
             return None
+
+    async def _capture_rst_packet(self, server_ip: str, port: int) -> Optional[int]:
+        """Stub for RST TTL capture (not implemented yet)."""
+        return None
+
+    async def _get_normal_response_ttl(self, server_ip: str, port: int) -> Optional[int]:
+        """Stub for normal TTL estimation (not implemented yet)."""
+        return None
     
     async def _check_sni_consistency(
         self, domain: str, port: int = 443
@@ -512,7 +522,7 @@ class RealEffectivenessTester:
         """Создает или возвращает aiohttp сессию с кастомным резолвером."""
         if self._session and (not self._session.closed):
             return self._session
-        resolver = StaticResolver(self._pinned_dns) if self._pinned_dns else None
+        resolver = AiohttpStaticResolver(self._pinned_dns) if self._pinned_dns else None
         connector = aiohttp.TCPConnector(
             ssl=self._ssl_context,
             resolver=resolver,
@@ -528,12 +538,12 @@ class RealEffectivenessTester:
         return self._session
 
     async def _http_get(
-        self, url: str
+        self, url: str, **kwargs
     ) -> Tuple[Optional[bytes], Optional[Dict[str, str]], Optional[int], Optional[str]]:
         """Выполняет HTTP GET запрос и возвращает (content, headers, status_code, error)."""
         session = await self._get_session()
         try:
-            async with session.get(url, allow_redirects=True) as response:
+            async with session.get(url, allow_redirects=True, **kwargs) as response:
                 content = await response.read()
                 return (content, dict(response.headers), response.status, None)
         except asyncio.TimeoutError:
@@ -643,7 +653,7 @@ class RealEffectivenessTester:
             return final_results
         except Exception as e:
             self.logger.error(
-                f"Group bypass test failed with an exception: {e}", exc_info=self.debug
+                f"Group bypass test failed with an exception: {e}", exc_info=False
             )
             return {
                 site: BypassResult(domain=site, success=False, error=str(e))
@@ -663,7 +673,8 @@ class RealEffectivenessTester:
         start_time = time.monotonic()
         url = f"https://{domain}" if port == 443 else f"http://{domain}:{port}"
         try:
-            async with self.session.get(url, allow_redirects=True) as response:
+            session = await self._get_session()
+            async with session.get(url, allow_redirects=True) as response:
                 await response.content.read(1024)
                 latency = (time.monotonic() - start_time) * 1000
                 if 200 <= response.status < 400:
@@ -935,7 +946,7 @@ class RealEffectivenessTester:
         )
         start_time = time.time()
         try:
-            content, headers, status_code = await self._http_get(
+            content, headers, status_code, error = await self._http_get(
                 url,
                 allow_redirects=True,
                 ssl=self._ssl_context if protocol == "https" else None,
@@ -949,6 +960,7 @@ class RealEffectivenessTester:
                 bypass_applied=True,
                 attack_name=attack_name,
                 status_code=status_code,
+                error=error,
                 block_type=block_type,
                 response_size=len(content) if content else 0,
                 server_ip=server_ip,
@@ -1096,7 +1108,7 @@ class RealEffectivenessTester:
             self._session = None
 
     async def __aenter__(self):
-        resolver = StaticResolver(self._pinned_dns) if self._pinned_dns else None
+        resolver = AiohttpStaticResolver(self._pinned_dns) if self._pinned_dns else None
         connector = aiohttp.TCPConnector(
             ssl=self._ssl_context,
             resolver=resolver,
