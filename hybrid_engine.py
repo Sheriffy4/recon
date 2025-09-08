@@ -4,27 +4,38 @@ import asyncio
 import aiohttp
 import socket
 import ssl
-from typing import Dict, List, Tuple, Optional, Set, Any
+from typing import Dict, List, Tuple, Optional, Set, Any, Union
 from urllib.parse import urlparse
-from recon.bypass_engine import BypassEngine
-from recon.zapret_parser import ZapretStrategyParser
+from core.bypass_engine import BypassEngine
+from core.zapret_parser import ZapretStrategyParser
+from core.bypass.attacks.alias_map import normalize_attack_name
+
+# Initialize modern bypass engine availability
+MODERN_BYPASS_ENGINE_AVAILABLE = False
+BypassStrategy = Any  # Default fallback
+
 try:
-    from recon.bypass.attacks.modern_registry import ModernAttackRegistry
-    from recon.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
-    from recon.bypass.modes.mode_controller import ModeController, OperationMode
-    from recon.bypass.validation.reliability_validator import ReliabilityValidator
-    from recon.bypass.protocols.multi_port_handler import MultiPortHandler
+    from core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.strategies.pool_management import StrategyPoolManager, BypassStrategy
+    from core.bypass.modes.mode_controller import ModeController
+    from core.bypass.validation.reliability_validator import ReliabilityValidator
+    from core.bypass.protocols.multi_port_handler import MultiPortHandler
+    from core.bypass.modes.mode_controller import OperationMode  # Move the import statement here
     MODERN_BYPASS_ENGINE_AVAILABLE = True
 except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Modern bypass engine not available: {e}')
-    MODERN_BYPASS_ENGINE_AVAILABLE = False
+    OperationMode = Any
+    
+
+# Initialize advanced fingerprinting availability
+ADVANCED_FINGERPRINTING_AVAILABLE = False
 try:
     from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType, FingerprintingError
     ADVANCED_FINGERPRINTING_AVAILABLE = True
 except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Advanced fingerprinting not available: {e}')
-    ADVANCED_FINGERPRINTING_AVAILABLE = False
+
 LOG = logging.getLogger('hybrid_engine')
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6753.0 Safari/537.36'}
 
@@ -39,6 +50,8 @@ class HybridEngine:
     def __init__(self, debug: bool=False, enable_advanced_fingerprinting: bool=True, enable_modern_bypass: bool=True):
         self.debug = debug
         self.parser = ZapretStrategyParser()
+        
+        # Initialize modern bypass engine components
         self.modern_bypass_enabled = enable_modern_bypass and MODERN_BYPASS_ENGINE_AVAILABLE
         if self.modern_bypass_enabled:
             try:
@@ -57,6 +70,8 @@ class HybridEngine:
             self.mode_controller = None
             self.reliability_validator = None
             self.multi_port_handler = None
+        
+        # Initialize advanced fingerprinting
         self.advanced_fingerprinting_enabled = enable_advanced_fingerprinting and ADVANCED_FINGERPRINTING_AVAILABLE
         if self.advanced_fingerprinting_enabled:
             try:
@@ -73,27 +88,44 @@ class HybridEngine:
                 LOG.info('Advanced fingerprinting disabled - module not available')
             else:
                 LOG.info('Advanced fingerprinting disabled by configuration')
-        self.fingerprint_stats = {'fingerprints_created': 0, 'fingerprint_cache_hits': 0, 'fingerprint_failures': 0, 'fingerprint_aware_tests': 0, 'fallback_tests': 0}
-        self.bypass_stats = {'modern_engine_tests': 0, 'legacy_engine_tests': 0, 'pool_assignments': 0, 'attack_registry_queries': 0, 'mode_switches': 0}
+        
+        # Initialize statistics
+        self.fingerprint_stats = {
+            'fingerprints_created': 0, 
+            'fingerprint_cache_hits': 0, 
+            'fingerprint_failures': 0, 
+            'fingerprint_aware_tests': 0, 
+            'fallback_tests': 0
+        }
+        
+        self.bypass_stats = {
+            'modern_engine_tests': 0, 
+            'legacy_engine_tests': 0, 
+            'pool_assignments': 0, 
+            'attack_registry_queries': 0, 
+            'mode_switches': 0
+        }
 
     def _translate_zapret_to_engine_task(self, params: Dict) -> Optional[Dict]:
         """
         ИСПРАВЛЕНИЕ: Унифицированный и надежный транслятор zapret-строки в задачу для BypassEngine.
         """
-        desync = params.get('dpi_desync', [])
-        fooling = params.get('dpi_desync_fooling', [])
+        # Нормализуем имена атак для консистентности
+        desync = [normalize_attack_name(d) for d in params.get('dpi_desync', [])]
+        fooling = [normalize_attack_name(f) for f in params.get('dpi_desync_fooling', [])]
+
         if not desync:
             return None
         task_type = 'none'
         task_params = {}
         if 'fakeddisorder' in desync:
-            task_type = 'fakedisorder'
+            task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
             task_type = 'multidisorder'
         elif 'multisplit' in desync:
             task_type = 'multisplit'
-        elif 'disorder' in desync or 'disorder2' in desync:
-            task_type = 'fakedisorder'
+        elif 'disorder' in desync or 'disorder2' in desync: # Legacy aliases
+            task_type = 'fakeddisorder'
         if task_type in ['fakedisorder', 'multidisorder', 'multisplit']:
             split_pos_raw = params.get('dpi_desync_split_pos', [])
             if any((p.get('type') == 'midsld' for p in split_pos_raw)):
@@ -126,6 +158,31 @@ class HybridEngine:
             LOG.warning(f'Не удалось транслировать zapret-стратегию в задачу для движка: {params}')
             return None
         return {'type': task_type, 'params': task_params}
+
+    def _task_to_str(self, task: Dict[str, Any]) -> str:
+        try:
+            t = task.get('type') or task.get('name') or 'unknown'
+            p = task.get('params', {})
+            pairs = []
+            for k, v in p.items():
+                try:
+                    pairs.append(f"{k}={v}")
+                except Exception:
+                    pairs.append(f"{k}=<obj>")
+            return f"{t}({', '.join(pairs)})"
+        except Exception:
+            return str(task)
+
+    def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        # dict → нормализуем
+        if isinstance(strategy, dict):
+            t = strategy.get('type') or strategy.get('name')
+            if not t:
+                return None
+            return {'type': t, 'params': strategy.get('params', {})}
+        # str → парсим zapret-строку
+        parsed_params = self.parser.parse(strategy)
+        return self._translate_zapret_to_engine_task(parsed_params)
 
     async def _test_sites_connectivity(self, sites: List[str], dns_cache: Dict[str, str], max_concurrent: int=10) -> Dict[str, Tuple[str, str, float, int]]:
         """
@@ -187,13 +244,12 @@ class HybridEngine:
         LOG.info('Тестируем базовую доступность сайтов (без bypass) с DNS-кэшем...')
         return await self._test_sites_connectivity(test_sites, dns_cache)
 
-    async def execute_strategy_real_world(self, strategy_str: str, test_sites: List[str], target_ips: Set[str], dns_cache: Dict[str, str], target_port: int=443, initial_ttl: Optional[int]=None, fingerprint: Optional[DPIFingerprint]=None) -> Tuple[str, int, int, float]:
+    async def execute_strategy_real_world(self, strategy: Union[str, Dict[str, Any]], test_sites: List[str], target_ips: Set[str], dns_cache: Dict[str, str], target_port: int=443, initial_ttl: Optional[int]=None, fingerprint: Optional[DPIFingerprint]=None) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
         Теперь с поддержкой контекстной информации от фингерпринтинга.
         """
-        parsed_params = self.parser.parse(strategy_str)
-        engine_task = self._translate_zapret_to_engine_task(parsed_params)
+        engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
         bypass_engine = BypassEngine(debug=self.debug)
@@ -246,7 +302,7 @@ class HybridEngine:
                 bypass_thread.join(timeout=2.0)
             await asyncio.sleep(0.5)
 
-    async def test_strategies_hybrid(self, strategies: List[str], test_sites: List[str], ips: Set[str], dns_cache: Dict[str, str], port: int, domain: str, fast_filter: bool=True, initial_ttl: Optional[int]=None, enable_fingerprinting: bool=True, use_modern_engine: bool=True) -> List[Dict]:
+    async def test_strategies_hybrid(self, strategies: List[Union[str, Dict[str, Any]]], test_sites: List[str], ips: Set[str], dns_cache: Dict[str, str], port: int, domain: str, fast_filter: bool=True, initial_ttl: Optional[int]=None, enable_fingerprinting: bool=True, use_modern_engine: bool=True) -> List[Dict]:
         """
         Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
         1. Выполняет фингерпринтинг DPI для целевого домена
@@ -286,21 +342,40 @@ class HybridEngine:
                 self.fingerprint_stats['fallback_tests'] += 1
         else:
             self.fingerprint_stats['fallback_tests'] += 1
+        # Базовый список (может содержать dict/str)
+        base = strategies[:]
+        registry_strats: List[str] = []
         if use_modern and self.attack_registry:
-            strategies_to_test = self._enhance_strategies_with_registry(strategies, fingerprint, domain, port)
-            self.bypass_stats['attack_registry_queries'] += 1
+            # В реестр передаем только строки
+            only_strings = [s for s in base if isinstance(s, str)]
+            if only_strings:
+                registry_strats = self._enhance_strategies_with_registry(only_strings, fingerprint, domain, port)
+                self.bypass_stats['attack_registry_queries'] += 1
         elif fingerprint:
-            strategies_to_test = self._adapt_strategies_for_fingerprint(strategies, fingerprint)
-            LOG.info(f'Using {len(strategies_to_test)} fingerprint-adapted strategies')
+            # Адаптация — также только для строк
+            only_strings = [s if isinstance(s, str) else self._task_to_str(s) for s in base]
+            adapted = self._adapt_strategies_for_fingerprint(only_strings, fingerprint)
+            registry_strats = adapted
+            LOG.info(f'Using {len(adapted)} fingerprint-adapted strategies')
         else:
-            strategies_to_test = strategies
-            LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
+            LOG.info(f'Using {len(base)} standard strategies (no fingerprint)')
+
+        # Объединяем base (dict/str) + registry (str), дедуп по строковому ключу
+        seen = set()
+        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
+        for s in base + registry_strats:
+            key = s if isinstance(s, str) else self._task_to_str(s)
+            if key not in seen:
+                seen.add(key)
+                strategies_to_test.append(s)
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
         for i, strategy in enumerate(strategies_to_test):
-            LOG.info(f'--> Тест {i + 1}/{len(strategies_to_test)}: {strategy}')
-            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(strategy, test_sites, ips, dns_cache, port, initial_ttl)
+            pretty = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
+            LOG.info(f'--> Тест {i + 1}/{len(strategies_to_test)}: {pretty}')
+            result_status, successful_count, total_count, avg_latency = await self.execute_strategy_real_world(strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint)
             success_rate = successful_count / total_count if total_count > 0 else 0.0
-            result_data = {'strategy': strategy, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
+            result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
+
             results.append(result_data)
             if success_rate > 0:
                 LOG.info(f'✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms')
@@ -394,22 +469,47 @@ class HybridEngine:
         LOG.info(f'Adapted {len(strategies)} strategies to {len(unique_strategies)} fingerprint-aware strategies')
         return unique_strategies
 
-    def _enhance_strategies_with_registry(self, strategies: List[str], fingerprint: Optional[DPIFingerprint], domain: str, port: int) -> List[str]:
+    def _enhance_strategies_with_registry(self, strategies: List[Union[str, Dict[str, Any]]], fingerprint: Optional[DPIFingerprint], domain: str, port: int) -> List[str]:
         """
         Enhance strategies using the modern attack registry.
-
+ 
         Args:
             strategies: Original list of strategies
             fingerprint: DPI fingerprint (optional)
             domain: Target domain
             port: Target port
-
+ 
         Returns:
             Enhanced strategy list with registry-based optimizations
         """
         if not self.attack_registry:
-            return strategies
-        enhanced_strategies = []
+            # Гарантируем строки на выходе
+            base = [s if isinstance(s, str) else self._task_to_str(s) for s in strategies]
+            # Даже без реестра добавляем fingerprint-based кандидаты
+            extra: List[str] = []
+            if fingerprint:
+                if getattr(fingerprint, 'rst_injection_detected', False):
+                    # Классические zapret-совместимые профили под быстрый RST
+                    extra.append('--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum')
+                    extra.append('--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq')
+                if getattr(fingerprint, 'tcp_window_manipulation', False):
+                    extra.append('--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10')
+                if getattr(fingerprint, 'http_header_filtering', False):
+                    extra.append('--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum')
+                if getattr(fingerprint, 'quic_preference', False) is False or getattr(fingerprint, 'udp_blocking_detected', False):
+                    # Отключаем QUIC/UDP 443 как гипотезу
+                    extra.append('--filter-udp=443 --dpi-desync=fake,disorder')
+            # Дедуп и возврат
+            seen = set()
+            out: List[str] = []
+            for s in (extra + base):
+                if s not in seen:
+                    seen.add(s)
+                    out.append(s)
+            return out
+        # Гарантируем, что вход — строки
+        strategies = [s if isinstance(s, str) else self._task_to_str(s) for s in strategies]
+        enhanced_strategies: List[str] = []
         available_attacks = self.attack_registry.list_attacks(enabled_only=True)
         LOG.info(f'Found {len(available_attacks)} available attacks in registry')
         if fingerprint:
@@ -423,13 +523,26 @@ class HybridEngine:
         if fingerprint and available_attacks:
             registry_strategies = self._generate_registry_strategies(available_attacks, fingerprint, domain, port)
             enhanced_strategies.extend(registry_strategies)
+        # Добавим fingerprint-based кандидаты (поверх реестра)
+        extra: List[str] = []
+        if fingerprint:
+            if getattr(fingerprint, 'rst_injection_detected', False):
+                extra.append('--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum')
+                extra.append('--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq')
+            if getattr(fingerprint, 'tcp_window_manipulation', False):
+                extra.append('--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10')
+            if getattr(fingerprint, 'http_header_filtering', False):
+                extra.append('--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum')
+            if getattr(fingerprint, 'quic_preference', False) is False or getattr(fingerprint, 'udp_blocking_detected', False):
+                extra.append('--filter-udp=443 --dpi-desync=fake,disorder')
+        # Дедуп и возврат
         seen = set()
-        unique_strategies = []
-        for strategy in enhanced_strategies:
-            if strategy not in seen:
-                seen.add(strategy)
-                unique_strategies.append(strategy)
-        LOG.info(f'Enhanced {len(strategies)} strategies to {len(unique_strategies)} registry-optimized strategies')
+        unique_strategies: List[str] = []
+        for s in (extra + enhanced_strategies):
+            if s not in seen:
+                seen.add(s)
+                unique_strategies.append(s)
+        LOG.info(f'Enhanced {len(strategies)} strategies to {len(unique_strategies)} registry-optimized strategies (with fingerprint extras: {len(extra)})')
         return unique_strategies
 
     def _enhance_single_strategy(self, strategy: str, available_attacks: List[str], fingerprint: Optional[DPIFingerprint]) -> Optional[str]:

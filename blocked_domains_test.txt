@@ -1,0 +1,38 @@
+# Список заблокированных доменов для тестирования
+# Домены, заблокированные в России по IP
+
+# Социальные сети
+x.com
+twitter.com
+instagram.com
+facebook.com
+threads.net
+
+# Видео платформы  
+youtube.com
+tiktok.com
+
+# Мессенджеры
+telegram.org
+discord.com
+whatsapp.com
+
+# Профессиональные сети
+linkedin.com
+
+# Новостные сайты
+bbc.com
+cnn.com
+dw.com
+
+# Технологические платформы
+github.com
+stackoverflow.com
+medium.com
+
+# Обычно доступные домены (для сравнения)
+google.com
+yandex.ru
+mail.ru
+vk.com
+ok.ru

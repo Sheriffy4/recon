@@ -1,28 +1,38 @@
 """
 Main configuration management interface for bypass engine.
 """
+
 import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from core.bypass.config.config_models import PoolConfiguration, ConfigurationVersion, MigrationResult, StrategyPool, BypassStrategy
+from core.bypass.config.config_models import (
+    PoolConfiguration,
+    ConfigurationVersion,
+    MigrationResult,
+    StrategyPool,
+    BypassStrategy,
+)
 from core.bypass.config.config_migrator import ConfigurationMigrator
 from core.bypass.config.config_validator import ConfigurationValidator, ValidationError
 from core.bypass.config.backup_manager import BackupManager
 
+
 class ConfigurationManager:
     """Main interface for configuration management."""
 
-    def __init__(self, config_dir: str='config', backup_dir: str='config_backups'):
+    def __init__(self, config_dir: str = "config", backup_dir: str = "config_backups"):
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(exist_ok=True)
         self.migrator = ConfigurationMigrator()
         self.validator = ConfigurationValidator()
         self.backup_manager = BackupManager(backup_dir)
-        self.default_config_path = self.config_dir / 'pool_config.json'
-        self.legacy_config_path = self.config_dir / 'best_strategy.json'
+        self.default_config_path = self.config_dir / "pool_config.json"
+        self.legacy_config_path = self.config_dir / "best_strategy.json"
 
-    def load_configuration(self, config_path: Optional[str]=None) -> PoolConfiguration:
+    def load_configuration(
+        self, config_path: Optional[str] = None
+    ) -> PoolConfiguration:
         """
         Load configuration from file.
 
@@ -37,25 +47,32 @@ class ConfigurationManager:
         config_path = Path(config_path)
         if not config_path.exists():
             if self.legacy_config_path.exists():
-                print(f'Legacy configuration found, migrating to {config_path}')
-                migration_result = self.migrate_legacy_configuration(str(self.legacy_config_path), str(config_path))
+                print(f"Legacy configuration found, migrating to {config_path}")
+                migration_result = self.migrate_legacy_configuration(
+                    str(self.legacy_config_path), str(config_path)
+                )
                 if not migration_result.success:
-                    raise RuntimeError(f'Migration failed: {migration_result.errors}')
+                    raise RuntimeError(f"Migration failed: {migration_result.errors}")
             else:
                 return self._create_default_configuration()
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         config = PoolConfiguration.from_dict(data)
         validation_errors = self.validator.validate_configuration(config)
-        error_count = len([e for e in validation_errors if e.level == 'error'])
+        error_count = len([e for e in validation_errors if e.level == "error"])
         if error_count > 0:
-            print(f'Warning: Configuration has {error_count} validation errors')
+            print(f"Warning: Configuration has {error_count} validation errors")
             for error in validation_errors:
-                if error.level == 'error':
-                    print(f'  {error}')
+                if error.level == "error":
+                    print(f"  {error}")
         return config
 
-    def save_configuration(self, config: PoolConfiguration, config_path: Optional[str]=None, create_backup: bool=True) -> None:
+    def save_configuration(
+        self,
+        config: PoolConfiguration,
+        config_path: Optional[str] = None,
+        create_backup: bool = True,
+    ) -> None:
         """
         Save configuration to file.
 
@@ -68,18 +85,23 @@ class ConfigurationManager:
             config_path = str(self.default_config_path)
         config_path = Path(config_path)
         validation_errors = self.validator.validate_configuration(config)
-        error_count = len([e for e in validation_errors if e.level == 'error'])
+        error_count = len([e for e in validation_errors if e.level == "error"])
         if error_count > 0:
-            raise ValueError(f'Configuration has {error_count} validation errors')
+            raise ValueError(f"Configuration has {error_count} validation errors")
         if create_backup and config_path.exists():
-            backup_id = self.backup_manager.create_backup(str(config_path), f'Auto-backup before save at {datetime.now().isoformat()}')
-            print(f'Created backup: {backup_id}')
+            backup_id = self.backup_manager.create_backup(
+                str(config_path),
+                f"Auto-backup before save at {datetime.now().isoformat()}",
+            )
+            print(f"Created backup: {backup_id}")
         config.updated_at = datetime.now()
         config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, 'w', encoding='utf-8') as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             f.write(config.to_json())
 
-    def migrate_legacy_configuration(self, legacy_path: str, target_path: Optional[str]=None) -> MigrationResult:
+    def migrate_legacy_configuration(
+        self, legacy_path: str, target_path: Optional[str] = None
+    ) -> MigrationResult:
         """
         Migrate legacy configuration to new format.
 
@@ -90,7 +112,11 @@ class ConfigurationManager:
         Returns:
             Migration result
         """
-        backup_id = self.backup_manager.create_backup(legacy_path, 'Backup before migration to pool format', ConfigurationVersion.LEGACY_V1)
+        backup_id = self.backup_manager.create_backup(
+            legacy_path,
+            "Backup before migration to pool format",
+            ConfigurationVersion.LEGACY_V1,
+        )
         result = self.migrator.migrate_legacy_to_pool(legacy_path, target_path)
         result.backup_path = backup_id
         return result
@@ -119,9 +145,21 @@ class ConfigurationManager:
         """
         errors = self.validate_configuration_file(config_path)
         summary = self.validator.get_validation_summary(errors)
-        return {'summary': summary, 'errors': [str(e) for e in errors if e.level == 'error'], 'warnings': [str(e) for e in errors if e.level == 'warning'], 'info': [str(e) for e in errors if e.level == 'info']}
+        return {
+            "summary": summary,
+            "errors": [str(e) for e in errors if e.level == "error"],
+            "warnings": [str(e) for e in errors if e.level == "warning"],
+            "info": [str(e) for e in errors if e.level == "info"],
+        }
 
-    def create_pool(self, pool_id: str, name: str, strategy: BypassStrategy, description: str='', domains: Optional[List[str]]=None) -> StrategyPool:
+    def create_pool(
+        self,
+        pool_id: str,
+        name: str,
+        strategy: BypassStrategy,
+        description: str = "",
+        domains: Optional[List[str]] = None,
+    ) -> StrategyPool:
         """
         Create new strategy pool.
 
@@ -135,9 +173,18 @@ class ConfigurationManager:
         Returns:
             Created strategy pool
         """
-        return StrategyPool(id=pool_id, name=name, description=description, strategy=strategy, domains=domains or [], priority=1)
+        return StrategyPool(
+            id=pool_id,
+            name=name,
+            description=description,
+            strategy=strategy,
+            domains=domains or [],
+            priority=1,
+        )
 
-    def add_pool_to_configuration(self, config: PoolConfiguration, pool: StrategyPool) -> None:
+    def add_pool_to_configuration(
+        self, config: PoolConfiguration, pool: StrategyPool
+    ) -> None:
         """
         Add pool to configuration.
 
@@ -151,7 +198,9 @@ class ConfigurationManager:
         config.pools.append(pool)
         config.updated_at = datetime.now()
 
-    def remove_pool_from_configuration(self, config: PoolConfiguration, pool_id: str) -> None:
+    def remove_pool_from_configuration(
+        self, config: PoolConfiguration, pool_id: str
+    ) -> None:
         """
         Remove pool from configuration.
 
@@ -164,7 +213,9 @@ class ConfigurationManager:
             config.default_pool = config.pools[0].id if config.pools else None
         config.updated_at = datetime.now()
 
-    def get_pool_by_id(self, config: PoolConfiguration, pool_id: str) -> Optional[StrategyPool]:
+    def get_pool_by_id(
+        self, config: PoolConfiguration, pool_id: str
+    ) -> Optional[StrategyPool]:
         """
         Get pool by ID.
 
@@ -180,7 +231,9 @@ class ConfigurationManager:
                 return pool
         return None
 
-    def update_pool_strategy(self, config: PoolConfiguration, pool_id: str, strategy: BypassStrategy) -> None:
+    def update_pool_strategy(
+        self, config: PoolConfiguration, pool_id: str, strategy: BypassStrategy
+    ) -> None:
         """
         Update strategy for a pool.
 
@@ -198,12 +251,42 @@ class ConfigurationManager:
 
     def _create_default_configuration(self) -> PoolConfiguration:
         """Create default configuration."""
-        default_strategy = BypassStrategy(id='default_strategy', name='Default Bypass Strategy', attacks=['tcp_fragmentation', 'http_host_case'], parameters={'split_pos': 2, 'split_count': 2}, target_ports=[80, 443])
-        default_pool = StrategyPool(id='default', name='Default Pool', description='Default strategy pool for all domains', strategy=default_strategy, domains=['*'], priority=1)
-        fallback_strategy = BypassStrategy(id='fallback', name='Fallback Strategy', attacks=['tcp_fragmentation'], parameters={'split_pos': 1}, target_ports=[443])
-        return PoolConfiguration(version=ConfigurationVersion.POOL_V1, pools=[default_pool], default_pool='default', fallback_strategy=fallback_strategy, metadata={'created_by': 'ConfigurationManager', 'description': 'Default configuration created automatically'})
+        default_strategy = BypassStrategy(
+            id="default_strategy",
+            name="Default Bypass Strategy",
+            attacks=["tcp_fragmentation", "http_host_case"],
+            parameters={"split_pos": 2, "split_count": 2},
+            target_ports=[80, 443],
+        )
+        default_pool = StrategyPool(
+            id="default",
+            name="Default Pool",
+            description="Default strategy pool for all domains",
+            strategy=default_strategy,
+            domains=["*"],
+            priority=1,
+        )
+        fallback_strategy = BypassStrategy(
+            id="fallback",
+            name="Fallback Strategy",
+            attacks=["tcp_fragmentation"],
+            parameters={"split_pos": 1},
+            target_ports=[443],
+        )
+        return PoolConfiguration(
+            version=ConfigurationVersion.POOL_V1,
+            pools=[default_pool],
+            default_pool="default",
+            fallback_strategy=fallback_strategy,
+            metadata={
+                "created_by": "ConfigurationManager",
+                "description": "Default configuration created automatically",
+            },
+        )
 
-    def export_configuration(self, config: PoolConfiguration, export_path: str, format: str='json') -> None:
+    def export_configuration(
+        self, config: PoolConfiguration, export_path: str, format: str = "json"
+    ) -> None:
         """
         Export configuration to file.
 
@@ -214,11 +297,11 @@ class ConfigurationManager:
         """
         export_path = Path(export_path)
         export_path.parent.mkdir(parents=True, exist_ok=True)
-        if format.lower() == 'json':
-            with open(export_path, 'w', encoding='utf-8') as f:
+        if format.lower() == "json":
+            with open(export_path, "w", encoding="utf-8") as f:
                 f.write(config.to_json())
         else:
-            raise ValueError(f'Unsupported export format: {format}')
+            raise ValueError(f"Unsupported export format: {format}")
 
     def import_configuration(self, import_path: str) -> PoolConfiguration:
         """
@@ -232,17 +315,21 @@ class ConfigurationManager:
         """
         import_path = Path(import_path)
         if not import_path.exists():
-            raise FileNotFoundError(f'Import file not found: {import_path}')
-        with open(import_path, 'r', encoding='utf-8') as f:
+            raise FileNotFoundError(f"Import file not found: {import_path}")
+        with open(import_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         config = PoolConfiguration.from_dict(data)
         validation_errors = self.validator.validate_configuration(config)
-        error_count = len([e for e in validation_errors if e.level == 'error'])
+        error_count = len([e for e in validation_errors if e.level == "error"])
         if error_count > 0:
-            raise ValueError(f'Imported configuration has {error_count} validation errors')
+            raise ValueError(
+                f"Imported configuration has {error_count} validation errors"
+            )
         return config
 
-    def get_configuration_info(self, config_path: Optional[str]=None) -> Dict[str, Any]:
+    def get_configuration_info(
+        self, config_path: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Get information about configuration file.
 
@@ -255,16 +342,24 @@ class ConfigurationManager:
         if config_path is None:
             config_path = str(self.default_config_path)
         config_path = Path(config_path)
-        info = {'path': str(config_path.absolute()), 'exists': config_path.exists(), 'size': 0, 'modified': None, 'version': None, 'pools': 0, 'domains': 0}
+        info = {
+            "path": str(config_path.absolute()),
+            "exists": config_path.exists(),
+            "size": 0,
+            "modified": None,
+            "version": None,
+            "pools": 0,
+            "domains": 0,
+        }
         if config_path.exists():
             stat = config_path.stat()
-            info['size'] = stat.st_size
-            info['modified'] = datetime.fromtimestamp(stat.st_mtime).isoformat()
+            info["size"] = stat.st_size
+            info["modified"] = datetime.fromtimestamp(stat.st_mtime).isoformat()
             try:
                 config = self.load_configuration(str(config_path))
-                info['version'] = config.version.value
-                info['pools'] = len(config.pools)
-                info['domains'] = sum((len(pool.domains) for pool in config.pools))
+                info["version"] = config.version.value
+                info["pools"] = len(config.pools)
+                info["domains"] = sum((len(pool.domains) for pool in config.pools))
             except Exception as e:
-                info['error'] = str(e)
+                info["error"] = str(e)
         return info

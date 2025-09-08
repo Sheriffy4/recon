@@ -251,10 +251,13 @@ class FailureAnalyzer:
                 failed_techniques[failure_type].append(technique)
                 fingerprint_failure_map[(dpi_type, technique)]["failures"] += 1
 
-
         # Detect patterns
         detected_patterns = self._detect_failure_patterns(
-            failure_types, failed_techniques, success_rates, latency_patterns, fingerprint_failure_map
+            failure_types,
+            failed_techniques,
+            success_rates,
+            latency_patterns,
+            fingerprint_failure_map,
         )
 
         # Generate strategic recommendations
@@ -303,7 +306,10 @@ class FailureAnalyzer:
                     or "rst" in result.bypass_error.lower()
                 ):
                     # Check for more specific RST cause from fingerprint
-                    if result.fingerprint and result.fingerprint.get("rst_source_analysis") == "middlebox":
+                    if (
+                        result.fingerprint
+                        and result.fingerprint.get("rst_source_analysis") == "middlebox"
+                    ):
                         return "MIDDLEBOX_RST_RECEIVED"
                     return "RST_RECEIVED"
                 elif "handshake" in result.bypass_error.lower():
@@ -411,17 +417,23 @@ class FailureAnalyzer:
         for (dpi_type, attack_name), stats in fingerprint_failure_map.items():
             total_runs = stats.get("total_runs", 0)
             failures = stats.get("failures", 0)
-            if total_runs > 3 and failures / total_runs > 0.8: # High failure rate after enough runs
+            if (
+                total_runs > 3 and failures / total_runs > 0.8
+            ):  # High failure rate after enough runs
                 pattern = FailurePattern(
                     pattern_type="technique_ineffective_vs_dpi",
                     frequency=failures,
                     confidence=0.9,
-                    likely_causes=[f"Technique '{attack_name}' is consistently blocked by '{dpi_type}'."],
-                    recommended_actions=[f"Avoid using '{attack_name}' against '{dpi_type}'.", "Prioritize other attacks for this DPI signature."],
+                    likely_causes=[
+                        f"Technique '{attack_name}' is consistently blocked by '{dpi_type}'."
+                    ],
+                    recommended_actions=[
+                        f"Avoid using '{attack_name}' against '{dpi_type}'.",
+                        "Prioritize other attacks for this DPI signature.",
+                    ],
                     affected_techniques=[attack_name],
                 )
                 patterns.append(pattern)
-
 
         return patterns
 

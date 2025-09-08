@@ -15,6 +15,7 @@ core_dir = os.path.dirname(bypass_dir)
 recon_dir = os.path.dirname(core_dir)
 sys.path.insert(0, recon_dir)
 
+
 async def main():
     try:
         # Test imports
@@ -108,7 +109,9 @@ async def main():
         print("- Payload Encryption (XOR, AES, ChaCha20, Multi-layer)")
         print("- Protocol Mimicry (HTTP, TLS, SMTP, FTP)")
         print("- Traffic Obfuscation (Pattern, Size, Timing, Flow)")
-        print("- ICMP Obfuscation (Data tunneling, Timestamp, Redirect, Covert channels)")
+        print(
+            "- ICMP Obfuscation (Data tunneling, Timestamp, Redirect, Covert channels)"
+        )
         print("- QUIC Obfuscation (Fragmentation)")
 
     except Exception as e:
@@ -117,6 +120,7 @@ async def main():
 
         traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

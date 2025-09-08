@@ -11,6 +11,13 @@ import json
 import time
 import threading
 import os
+
+# Add the parent directories to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(current_dir)
+recon_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, recon_dir)
+
 import sys
 from unittest.mock import Mock, patch
 
@@ -32,7 +39,7 @@ try:
     )
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType
 except ImportError:
-    from core.fingerprint.diagnostics import (
+    from recon.core.fingerprint.diagnostics import (
         MetricsCollector,
         HealthChecker,
         DiagnosticLogger,
@@ -42,7 +49,7 @@ except ImportError:
         get_diagnostic_system,
         monitor_operation,
     )
-    from core.fingerprint.advanced_models import DPIFingerprint, DPIType
+    from recon.core.fingerprint.advanced_models import DPIFingerprint, DPIType
 
 
 class TestMetricsCollector(unittest.TestCase):

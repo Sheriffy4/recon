@@ -24,7 +24,9 @@ try:
     from core.bypass.validation.reliability_validator import AccessibilityResult
     from core.bypass.validation.reliability_validator import StrategyEffectivenessResult
     from core.bypass.validation.reliability_validator import ReliabilityValidator
-    from core.bypass.validation.reliability_validator import get_global_reliability_validator
+    from core.bypass.validation.reliability_validator import (
+        get_global_reliability_validator,
+    )
 
     print("✓ Successfully imported ReliabilityValidator")
 except ImportError as e:

@@ -1,0 +1,78 @@
+{
+  "version": "2.0",
+  "last_updated": "2025-09-01T10:00:00.000000",
+  "domain_strategies": {
+    "default": {
+      "domain": "default",
+      "strategy": "--dpi-desync=badsum_race --dpi-desync-ttl=4 --dpi-desync-split-pos=3",
+      "success_rate": 0.70,
+      "avg_latency_ms": 300.0,
+      "last_tested": "2025-09-01T10:30:00.000000",
+      "test_count": 500
+    },
+    "x.com": {
+      "domain": "x.com",
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "success_rate": 0.38,
+      "avg_latency_ms": 259.3,
+      "last_tested": "2025-09-01T11:54:17.932897",
+      "test_count": 390
+    },
+    "abs.twimg.com": {
+      "domain": "abs.twimg.com",
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "success_rate": 0.38,
+      "avg_latency_ms": 259.3,
+      "last_tested": "2025-09-01T11:54:17.933910",
+      "test_count": 204
+    },
+    "abs-0.twimg.com": {
+      "domain": "abs-0.twimg.com",
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "success_rate": 0.38,
+      "avg_latency_ms": 259.3,
+      "last_tested": "2025-09-01T11:54:17.933910",
+      "test_count": 204
+    },
+    "pbs.twimg.com": {
+      "domain": "pbs.twimg.com",
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "success_rate": 0.38,
+      "avg_latency_ms": 259.3,
+      "last_tested": "2025-09-01T11:54:17.933910",
+      "test_count": 133
+    },
+    "video.twimg.com": {
+      "domain": "video.twimg.com",
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "success_rate": 0.38,
+      "avg_latency_ms": 259.3,
+      "last_tested": "2025-09-01T11:54:17.933910",
+      "test_count": 133
+    },
+    "ton.twimg.com": {
+      "domain": "ton.twimg.com",
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "success_rate": 0.38,
+      "avg_latency_ms": 259.3,
+      "last_tested": "2025-09-01T11:54:17.933910",
+      "test_count": 133
+    },
+    "youtube.com": {
+      "domain": "youtube.com",
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "success_rate": 0.38,
+      "avg_latency_ms": 259.3,
+      "last_tested": "2025-09-01T11:54:17.932897",
+      "test_count": 204
+    },
+    "www.youtube.com": {
+      "domain": "www.youtube.com",
+      "strategy": "seqovl(split_pos=76, overlap_size=336, ttl=1)",
+      "success_rate": 0.38,
+      "avg_latency_ms": 259.3,
+      "last_tested": "2025-09-01T11:54:17.933910",
+      "test_count": 133
+    }
+  }
+}

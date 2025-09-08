@@ -253,7 +253,13 @@ class BackwardCompatibilityLayer:
         # Try pickle first
         try:
             return self._load_pickle_cache(file_path)
-        except (pickle.UnpicklingError, ValueError, EOFError, AttributeError, LegacyFormatError):
+        except (
+            pickle.UnpicklingError,
+            ValueError,
+            EOFError,
+            AttributeError,
+            LegacyFormatError,
+        ):
             pass
 
         # Try JSON
@@ -268,13 +274,15 @@ class BackwardCompatibilityLayer:
             if not data and file_path.stat().st_size > 0:
                 # Heuristic: if file has content but we parsed nothing, it's probably not a text file.
                 is_effectively_empty = True
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     for line in f:
-                        if line.strip() and not line.strip().startswith('#'):
+                        if line.strip() and not line.strip().startswith("#"):
                             is_effectively_empty = False
                             break
                 if not is_effectively_empty:
-                    raise LegacyFormatError("File has non-comment content but produced no data.")
+                    raise LegacyFormatError(
+                        "File has non-comment content but produced no data."
+                    )
             return data
         except LegacyFormatError:
             pass
@@ -350,7 +358,9 @@ class BackwardCompatibilityLayer:
         target = key.split("_")[0] if "_" in key else key
 
         # Map legacy DPI type
-        legacy_dpi_type = str(value.get("dpi_type", value.get("type", "UNKNOWN"))).upper()
+        legacy_dpi_type = str(
+            value.get("dpi_type", value.get("type", "UNKNOWN"))
+        ).upper()
         dpi_type = self.legacy_dpi_type_mapping.get(legacy_dpi_type, DPIType.UNKNOWN)
 
         # Extract confidence

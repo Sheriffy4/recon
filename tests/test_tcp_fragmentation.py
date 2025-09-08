@@ -489,7 +489,7 @@ class TestTCPFragmentationRegistration(unittest.TestCase):
         """Test registration of all TCP fragmentation attacks."""
         # Test that the registration function exists and can be called
         try:
-            from core.bypass.attacks.tcp_fragmentation import register_tcp_fragmentation_attacks
+            from tcp_fragmentation import register_tcp_fragmentation_attacks
 
             # Just test that the function exists and doesn't crash
             # The actual registration is tested in integration tests

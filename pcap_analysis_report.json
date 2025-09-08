@@ -1,0 +1,213 @@
+{
+  "file_path": "out.pcap",
+  "analysis_timestamp": "2025-09-01T17:12:06.175411",
+  "total_packets": 858,
+  "total_connections": 74,
+  "successful_connections": 59,
+  "failed_connections": 15,
+  "overall_success_rate": 0.7972972972972973,
+  "domain_analyses": {
+    "192.168.18.188": {
+      "domain": "192.168.18.188",
+      "total_connections": 36,
+      "successful_connections": 26,
+      "failed_connections": 10,
+      "success_rate": 0.7222222222222222,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 266643,
+      "rst_packet_count": 4,
+      "strategies_used": []
+    },
+    "104.21.32.39": {
+      "domain": "104.21.32.39",
+      "total_connections": 2,
+      "successful_connections": 2,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 4724,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "172.66.0.227": {
+      "domain": "172.66.0.227",
+      "total_connections": 4,
+      "successful_connections": 4,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 2738,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "162.159.140.229": {
+      "domain": "162.159.140.229",
+      "total_connections": 5,
+      "successful_connections": 4,
+      "failed_connections": 1,
+      "success_rate": 0.8,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 3077,
+      "rst_packet_count": 9,
+      "strategies_used": []
+    },
+    "104.21.16.1": {
+      "domain": "104.21.16.1",
+      "total_connections": 2,
+      "successful_connections": 2,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 4472,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "64.233.162.190": {
+      "domain": "64.233.162.190",
+      "total_connections": 2,
+      "successful_connections": 1,
+      "failed_connections": 1,
+      "success_rate": 0.5,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 4473,
+      "rst_packet_count": 1,
+      "strategies_used": []
+    },
+    "31.13.72.36": {
+      "domain": "31.13.72.36",
+      "total_connections": 2,
+      "successful_connections": 2,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 4458,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "149.154.167.99": {
+      "domain": "149.154.167.99",
+      "total_connections": 1,
+      "successful_connections": 1,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 854,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "104.244.43.131": {
+      "domain": "104.244.43.131",
+      "total_connections": 2,
+      "successful_connections": 2,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 4138,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "199.232.172.159": {
+      "domain": "199.232.172.159",
+      "total_connections": 2,
+      "successful_connections": 2,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 3621,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "31.13.72.53": {
+      "domain": "31.13.72.53",
+      "total_connections": 6,
+      "successful_connections": 6,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 12878,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "31.13.72.12": {
+      "domain": "31.13.72.12",
+      "total_connections": 2,
+      "successful_connections": 2,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 4468,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "209.85.233.119": {
+      "domain": "209.85.233.119",
+      "total_connections": 2,
+      "successful_connections": 1,
+      "failed_connections": 1,
+      "success_rate": 0.5,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 4474,
+      "rst_packet_count": 4,
+      "strategies_used": []
+    },
+    "142.250.74.174": {
+      "domain": "142.250.74.174",
+      "total_connections": 2,
+      "successful_connections": 1,
+      "failed_connections": 1,
+      "success_rate": 0.5,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 4475,
+      "rst_packet_count": 5,
+      "strategies_used": []
+    },
+    "216.239.36.60": {
+      "domain": "216.239.36.60",
+      "total_connections": 2,
+      "successful_connections": 1,
+      "failed_connections": 1,
+      "success_rate": 0.5,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 3958,
+      "rst_packet_count": 3,
+      "strategies_used": []
+    },
+    "151.101.193.57": {
+      "domain": "151.101.193.57",
+      "total_connections": 1,
+      "successful_connections": 1,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 541,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    },
+    "151.101.194.35": {
+      "domain": "151.101.194.35",
+      "total_connections": 1,
+      "successful_connections": 1,
+      "failed_connections": 0,
+      "success_rate": 1.0,
+      "avg_latency_ms": 0.0,
+      "total_data_transferred": 790,
+      "rst_packet_count": 0,
+      "strategies_used": []
+    }
+  },
+  "strategy_effectiveness": {
+    "unknown": 0.7972972972972973
+  },
+  "quic_traffic_detected": false,
+  "recommendations": [
+    "Low success rate for 64.233.162.190 (50.0%). Consider optimizing strategy.",
+    "Low success rate for 209.85.233.119 (50.0%). Consider optimizing strategy.",
+    "Low success rate for 142.250.74.174 (50.0%). Consider optimizing strategy.",
+    "Low success rate for 216.239.36.60 (50.0%). Consider optimizing strategy.",
+    "High RST packet count for 162.159.140.229. Current strategy may be triggering DPI detection.",
+    "High RST packet count for 64.233.162.190. Current strategy may be triggering DPI detection.",
+    "High RST packet count for 209.85.233.119. Current strategy may be triggering DPI detection.",
+    "High RST packet count for 142.250.74.174. Current strategy may be triggering DPI detection.",
+    "High RST packet count for 216.239.36.60. Current strategy may be triggering DPI detection."
+  ]
+}

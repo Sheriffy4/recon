@@ -1,0 +1,71 @@
+{
+  "timestamp": "2025-08-29T16:22:11.281013",
+  "analysis_summary": {
+    "best_strategy": "seqovl(positions=[1], split_pos=1, overlap_size=10)",
+    "success_rate": "5/28",
+    "successful_domains": [
+      "www.x.com",
+      "nnmclub.to",
+      "youtubei.googleapis.com",
+      "rutracker.org",
+      "mobile.x.com",
+      "x.com",
+      "api.x.com"
+    ],
+    "failed_domains": [
+      "safebrowsing.googleapis.com",
+      "www.youtube.com",
+      "ton.twimg.com",
+      "youtube.com",
+      "scontent-arn2-1.cdninstagram.com",
+      "abs.twimg.com",
+      "static.cdninstagram.com",
+      "facebook.com",
+      "abs-0.twimg.com",
+      "www.facebook.com",
+      "edge-chat.instagram.com",
+      "pbs.twimg.com"
+    ],
+    "pcap_domains_detected": 19
+  },
+  "strategy_options": {
+    "option_1_best_for_successful": {
+      "www.x.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "nnmclub.to": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "youtubei.googleapis.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "rutracker.org": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "mobile.x.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "x.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "api.x.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+    },
+    "option_3_comprehensive": {
+      "www.x.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "nnmclub.to": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "youtubei.googleapis.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "rutracker.org": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "mobile.x.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "x.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "api.x.com": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "safebrowsing.googleapis.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "www.youtube.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "ton.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "youtube.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "scontent-arn2-1.cdninstagram.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "abs.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "static.cdninstagram.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "facebook.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "abs-0.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "www.facebook.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "edge-chat.instagram.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "pbs.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+    }
+  },
+  "zapret_formats": {
+    "best_strategy": "--dpi-desync=multisplit --dpi-desync-split-pos=1 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+    "alternatives": [
+      "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "--dpi-desync=multisplit --dpi-desync-split-pos=3 --dpi-desync-split-count=6 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+    ]
+  }
+}

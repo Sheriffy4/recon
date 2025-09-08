@@ -6,13 +6,21 @@ Tests basic online learning capabilities without complex dependencies.
 
 import sys
 import os
+
+# Add the parent directories to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(current_dir)
+recon_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, recon_dir)
+
 from unittest.mock import Mock
 
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from core.fingerprint.online_learning import OnlineLearningSystem, LearningMode, ABTestConfig
-from ml_classifier import MLClassifier
+from core.fingerprint.online_learning import (
+    OnlineLearningSystem,
+    LearningMode,
+    ABTestConfig,
+)
+from core.fingerprint.ml_classifier import MLClassifier
 
 
 def test_basic_functionality():
@@ -155,7 +163,7 @@ def test_ab_testing():
     import unittest.mock
 
     with unittest.mock.patch(
-        "online_learning.MLClassifier", return_value=test_classifier
+        "core.fingerprint.online_learning.MLClassifier", return_value=test_classifier
     ):
         config = ABTestConfig(
             test_name="test_experiment",

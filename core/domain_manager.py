@@ -26,13 +26,24 @@ class DomainManager:
     def _load_domains(self, filename: str, defaults: List[str]) -> List[str]:
         """Загружает домены из файла или использует дефолтные."""
         if filename and Path(filename).exists():
-            with open(filename, "r", encoding="utf-8") as f:
-                # --- ИСПРАВЛЕНИЕ: Добавлена проверка на комментарии ---
-                return [
-                    line.strip()
-                    for line in f
-                    if line.strip() and not line.strip().startswith(("#", "/"))
-                ]
+            encodings_to_try = ["utf-8-sig", "utf-8", "utf-16", "cp1251"]
+            last_error = None
+            for enc in encodings_to_try:
+                try:
+                    with open(filename, "r", encoding=enc) as f:
+                        return [
+                            line.strip()
+                            for line in f
+                            if line.strip() and not line.strip().startswith(("#", "/"))
+                        ]
+                except UnicodeDecodeError as e:
+                    # Попробуем следующую кодировку
+                    last_error = e
+            # Если все варианты не подошли — бросаем исключение с пояснением
+            raise UnicodeDecodeError(
+                f"Не удалось прочитать файл {filename} в кодировках {encodings_to_try}. "
+                f"Последняя ошибка: {last_error}"
+            )
         return defaults or []
 
     def test_strategy_on_all(

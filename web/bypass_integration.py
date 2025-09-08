@@ -2,10 +2,13 @@
 Integration module for bypass engine web management.
 Combines API and dashboard components with the existing monitoring server.
 """
+
 import logging
 from typing import Optional
+
 try:
     from aiohttp.web import Application
+
     AIOHTTP_AVAILABLE = True
 except ImportError:
     AIOHTTP_AVAILABLE = False
@@ -16,13 +19,20 @@ from core.bypass.attacks.modern_registry import ModernAttackRegistry
 from core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
 from core.bypass.validation.reliability_validator import ReliabilityValidator
 
+
 class BypassWebIntegration:
     """
     Integration class for bypass engine web management.
     Provides a unified interface for adding bypass management to web applications.
     """
 
-    def __init__(self, pool_manager: Optional[StrategyPoolManager]=None, attack_registry: Optional[ModernAttackRegistry]=None, test_runner: Optional[ComprehensiveTestSuite]=None, reliability_validator: Optional[ReliabilityValidator]=None):
+    def __init__(
+        self,
+        pool_manager: Optional[StrategyPoolManager] = None,
+        attack_registry: Optional[ModernAttackRegistry] = None,
+        test_runner: Optional[ComprehensiveTestSuite] = None,
+        reliability_validator: Optional[ReliabilityValidator] = None,
+    ):
         """
         Initialize bypass web integration.
 
@@ -33,15 +43,22 @@ class BypassWebIntegration:
             reliability_validator: Reliability validator instance
         """
         if not AIOHTTP_AVAILABLE:
-            raise ImportError('aiohttp is required for bypass web integration. Install with: pip install aiohttp')
+            raise ImportError(
+                "aiohttp is required for bypass web integration. Install with: pip install aiohttp"
+            )
         self.logger = logging.getLogger(__name__)
         self.pool_manager = pool_manager or StrategyPoolManager()
         self.attack_registry = attack_registry or ModernAttackRegistry()
         self.test_runner = test_runner
         self.reliability_validator = reliability_validator
-        self.api = BypassEngineAPI(pool_manager=self.pool_manager, attack_registry=self.attack_registry, test_runner=self.test_runner, reliability_validator=self.reliability_validator)
+        self.api = BypassEngineAPI(
+            pool_manager=self.pool_manager,
+            attack_registry=self.attack_registry,
+            test_runner=self.test_runner,
+            reliability_validator=self.reliability_validator,
+        )
         self.dashboard = BypassDashboard(self.api)
-        self.logger.info('Bypass web integration initialized')
+        self.logger.info("Bypass web integration initialized")
 
     def setup_routes(self, app: Application):
         """
@@ -53,9 +70,9 @@ class BypassWebIntegration:
         try:
             self.api.setup_routes(app)
             self.dashboard.setup_routes(app)
-            self.logger.info('Bypass management routes configured')
+            self.logger.info("Bypass management routes configured")
         except Exception as e:
-            self.logger.error(f'Failed to setup bypass routes: {e}')
+            self.logger.error(f"Failed to setup bypass routes: {e}")
             raise
 
     def get_pool_manager(self) -> StrategyPoolManager:
@@ -74,7 +91,10 @@ class BypassWebIntegration:
         """Get the dashboard instance."""
         return self.dashboard
 
-def create_bypass_integration(pool_config_path: Optional[str]=None, attack_registry_path: Optional[str]=None) -> BypassWebIntegration:
+
+def create_bypass_integration(
+    pool_config_path: Optional[str] = None, attack_registry_path: Optional[str] = None
+) -> BypassWebIntegration:
     """
     Factory function to create a bypass web integration with default components.
 
@@ -88,6 +108,7 @@ def create_bypass_integration(pool_config_path: Optional[str]=None, attack_regis
     try:
         pool_manager = StrategyPoolManager(config_path=pool_config_path)
         from pathlib import Path
+
         registry_path = Path(attack_registry_path) if attack_registry_path else None
         attack_registry = ModernAttackRegistry(storage_path=registry_path)
         test_runner = None
@@ -95,18 +116,28 @@ def create_bypass_integration(pool_config_path: Optional[str]=None, attack_regis
         try:
             test_runner = ComprehensiveTestSuite(attack_registry)
         except Exception as e:
-            logging.getLogger(__name__).warning(f'Could not create test runner: {e}')
+            logging.getLogger(__name__).warning(f"Could not create test runner: {e}")
         try:
             reliability_validator = ReliabilityValidator()
         except Exception as e:
-            logging.getLogger(__name__).warning(f'Could not create reliability validator: {e}')
-        integration = BypassWebIntegration(pool_manager=pool_manager, attack_registry=attack_registry, test_runner=test_runner, reliability_validator=reliability_validator)
+            logging.getLogger(__name__).warning(
+                f"Could not create reliability validator: {e}"
+            )
+        integration = BypassWebIntegration(
+            pool_manager=pool_manager,
+            attack_registry=attack_registry,
+            test_runner=test_runner,
+            reliability_validator=reliability_validator,
+        )
         return integration
     except Exception as e:
-        logging.getLogger(__name__).error(f'Failed to create bypass integration: {e}')
+        logging.getLogger(__name__).error(f"Failed to create bypass integration: {e}")
         raise
 
-def integrate_with_monitoring_server(monitoring_server, bypass_integration: BypassWebIntegration):
+
+def integrate_with_monitoring_server(
+    monitoring_server, bypass_integration: BypassWebIntegration
+):
     """
     Integrate bypass management with the existing monitoring server.
 
@@ -115,10 +146,12 @@ def integrate_with_monitoring_server(monitoring_server, bypass_integration: Bypa
         bypass_integration: BypassWebIntegration instance
     """
     try:
-        if not hasattr(monitoring_server, 'app') or not monitoring_server.app:
-            raise ValueError('Monitoring server must have an initialized app')
+        if not hasattr(monitoring_server, "app") or not monitoring_server.app:
+            raise ValueError("Monitoring server must have an initialized app")
         bypass_integration.setup_routes(monitoring_server.app)
-        original_get_status_report = monitoring_server.monitoring_system.get_status_report
+        original_get_status_report = (
+            monitoring_server.monitoring_system.get_status_report
+        )
 
         def enhanced_get_status_report():
             """Enhanced status report including bypass engine stats."""
@@ -126,43 +159,69 @@ def integrate_with_monitoring_server(monitoring_server, bypass_integration: Bypa
             try:
                 pool_stats = bypass_integration.get_pool_manager().get_pool_statistics()
                 attack_stats = bypass_integration.get_attack_registry().get_stats()
-                status['bypass_engine'] = {'pools': pool_stats, 'attacks': attack_stats, 'status': 'healthy'}
+                status["bypass_engine"] = {
+                    "pools": pool_stats,
+                    "attacks": attack_stats,
+                    "status": "healthy",
+                }
             except Exception as e:
-                status['bypass_engine'] = {'status': 'error', 'error': str(e)}
+                status["bypass_engine"] = {"status": "error", "error": str(e)}
             return status
-        monitoring_server.monitoring_system.get_status_report = enhanced_get_status_report
-        logging.getLogger(__name__).info('Bypass integration added to monitoring server')
+
+        monitoring_server.monitoring_system.get_status_report = (
+            enhanced_get_status_report
+        )
+        logging.getLogger(__name__).info(
+            "Bypass integration added to monitoring server"
+        )
     except Exception as e:
-        logging.getLogger(__name__).error(f'Failed to integrate with monitoring server: {e}')
+        logging.getLogger(__name__).error(
+            f"Failed to integrate with monitoring server: {e}"
+        )
         raise
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     import asyncio
 
     async def test_bypass_integration():
         """Test the bypass web integration."""
-        print('Testing bypass web integration...')
+        print("Testing bypass web integration...")
         try:
             integration = create_bypass_integration()
             pool_manager = integration.get_pool_manager()
             from core.bypass.strategies.pool_management import BypassStrategy
-            test_strategy = BypassStrategy(id='test_strategy', name='Test Strategy', attacks=['tcp_fragmentation', 'http_manipulation'], parameters={'split_pos': 3})
-            pool = pool_manager.create_pool(name='Test Pool', strategy=test_strategy, description='Test pool for web integration')
-            pool_manager.add_domain_to_pool(pool.id, 'example.com')
-            pool_manager.add_domain_to_pool(pool.id, 'google.com')
-            print(f'✅ Created test pool: {pool.name} with {len(pool.domains)} domains')
+
+            test_strategy = BypassStrategy(
+                id="test_strategy",
+                name="Test Strategy",
+                attacks=["tcp_fragmentation", "http_manipulation"],
+                parameters={"split_pos": 3},
+            )
+            pool = pool_manager.create_pool(
+                name="Test Pool",
+                strategy=test_strategy,
+                description="Test pool for web integration",
+            )
+            pool_manager.add_domain_to_pool(pool.id, "example.com")
+            pool_manager.add_domain_to_pool(pool.id, "google.com")
+            print(f"✅ Created test pool: {pool.name} with {len(pool.domains)} domains")
             attack_registry = integration.get_attack_registry()
             attacks = attack_registry.list_attacks()
-            print(f'✅ Attack registry loaded with {len(attacks)} attacks')
+            print(f"✅ Attack registry loaded with {len(attacks)} attacks")
             api = integration.get_api()
-            print(f'✅ API initialized with {len(api.websockets)} WebSocket connections')
+            print(
+                f"✅ API initialized with {len(api.websockets)} WebSocket connections"
+            )
             dashboard = integration.get_dashboard()
-            print('✅ Dashboard initialized')
+            print("✅ Dashboard initialized")
             pool_stats = pool_manager.get_pool_statistics()
             attack_stats = attack_registry.get_stats()
-            print(f'📊 Pool statistics: {pool_stats}')
-            print(f'📊 Attack statistics: {attack_stats}')
-            print('✅ Bypass web integration test completed successfully!')
+            print(f"📊 Pool statistics: {pool_stats}")
+            print(f"📊 Attack statistics: {attack_stats}")
+            print("✅ Bypass web integration test completed successfully!")
         except Exception as e:
-            print(f'❌ Test failed: {e}')
+            print(f"❌ Test failed: {e}")
             raise
+
     asyncio.run(test_bypass_integration())

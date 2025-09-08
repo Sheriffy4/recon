@@ -23,7 +23,7 @@ if project_root not in sys.path:
 
 from core.bypass.attacks.combo.advanced_traffic_profiler import (
     AdvancedTrafficProfiler,
-    ProfilingResult, # <-- Правильное имя
+    ProfilingResult,  # <-- Правильное имя
 )
 
 # Пропускаем все тесты в этом файле, если Scapy не установлен

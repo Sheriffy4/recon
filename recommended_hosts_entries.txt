@@ -1,0 +1,7 @@
+# Рекомендуемые записи для hosts файла
+# Добавьте эти строки в C:\Windows\System32\drivers\etc\hosts
+
+172.67.182.196  www.rutracker.org
+172.67.182.196  www.nnmclub.to
+172.67.182.196  nnmclub.to
+172.67.182.196  rutracker.org

@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from datetime import datetime
 from dataclasses import dataclass, asdict
 
@@ -18,6 +18,11 @@ class DomainStrategy:
     avg_latency_ms: float
     last_tested: str
     test_count: int = 1
+    # --- Новые микропараметры для калибратора ---
+    split_pos: Optional[int] = None
+    overlap_size: Optional[int] = None
+    fake_ttl_source: Optional[Any] = None
+    fooling_modes: Optional[List[str]] = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -136,9 +141,9 @@ class StrategyManager:
             self.logger.error(f"Failed to save legacy format: {e}")
 
     def add_strategy(
-        self, domain: str, strategy: str, success_rate: float, avg_latency_ms: float
+        self, domain: str, strategy: str, success_rate: float, avg_latency_ms: float, **kwargs
     ):
-        """Добавляет или обновляет стратегию для домена."""
+        """Добавляет или обновляет стратегию для домена, включая микропараметры."""
         domain = domain.lower().strip()
 
         if domain in self.domain_strategies:
@@ -149,6 +154,11 @@ class StrategyManager:
             existing.avg_latency_ms = avg_latency_ms
             existing.last_tested = datetime.now().isoformat()
             existing.test_count += 1
+            # Update micro-parameters
+            existing.split_pos = kwargs.get("split_pos", existing.split_pos)
+            existing.overlap_size = kwargs.get("overlap_size", existing.overlap_size)
+            existing.fake_ttl_source = kwargs.get("fake_ttl_source", existing.fake_ttl_source)
+            existing.fooling_modes = kwargs.get("fooling_modes", existing.fooling_modes)
         else:
             # Создаем новую стратегию
             self.domain_strategies[domain] = DomainStrategy(
@@ -157,9 +167,14 @@ class StrategyManager:
                 success_rate=success_rate,
                 avg_latency_ms=avg_latency_ms,
                 last_tested=datetime.now().isoformat(),
+                # Add micro-parameters
+                split_pos=kwargs.get("split_pos"),
+                overlap_size=kwargs.get("overlap_size"),
+                fake_ttl_source=kwargs.get("fake_ttl_source"),
+                fooling_modes=kwargs.get("fooling_modes"),
             )
 
-        self.logger.info(f"Added strategy for {domain}: {strategy}")
+        self.logger.info(f"Added/updated strategy for {domain}: {strategy} with params {kwargs}")
 
     def get_strategy(self, domain: str) -> Optional[DomainStrategy]:
         """Получает стратегию для домена."""

@@ -135,6 +135,64 @@ class PerformanceConfig:
     cpu_limit_percent: int = 80
     enable_profiling: bool = False
     profile_output_dir: str = "profiles"
+    
+    # New parallel processing settings
+    max_parallel_targets: int = 15  # сколько доменов одновременно
+    semaphore_limit: int = 10  # ограничение на одномоментные задачи
+    
+    # Configurable timeouts (подхватываются методами)
+    connect_timeout: float = 1.5     # TCP connect
+    tls_timeout: float = 2.0         # TLS handshake
+    udp_timeout: float = 0.3         # UDP/QUIC
+    dns_timeout: float = 1.0         # DNS resolution
+    
+    # Analysis level control
+    analysis_level: str = "balanced"  # 'fast' | 'balanced' | 'full'
+    
+    # Feature toggles for performance
+    enable_scapy_probes: bool = False  # Heavy scapy operations
+    sni_probe_mode: str = "basic"      # 'off' | 'basic' | 'detailed'
+    enable_behavioral_probes: bool = True  # Advanced behavioral analysis
+    enable_extended_metrics: bool = True   # Extended metrics collection
+    
+    # Fail-fast settings
+    enable_fail_fast: bool = True  # Skip heavy probes on obvious blocks
+    early_exit_on_timeout: bool = True  # Exit early on connection timeouts
+    skip_heavy_on_block: bool = True     # Skip heavy analysis if blocked
+    
+    # Performance monitoring
+    collect_timing_metrics: bool = True  # Collect detailed timing info
+    log_slow_operations: bool = True     # Log operations taking > threshold
+    slow_operation_threshold: float = 2.0  # Seconds
+    
+    # New parallel processing settings
+    max_parallel_targets: int = 15  # сколько доменов одновременно
+    semaphore_limit: int = 10  # ограничение на одномоментные задачи
+    
+    # Configurable timeouts (подхватываются методами)
+    connect_timeout: float = 1.5     # TCP connect
+    tls_timeout: float = 2.0         # TLS handshake
+    udp_timeout: float = 0.3         # UDP/QUIC
+    dns_timeout: float = 1.0         # DNS resolution
+    
+    # Analysis level control
+    analysis_level: str = "balanced"  # 'fast' | 'balanced' | 'full'
+    
+    # Feature toggles for performance
+    enable_scapy_probes: bool = False  # Heavy scapy operations
+    sni_probe_mode: str = "basic"      # 'off' | 'basic' | 'detailed'
+    enable_behavioral_probes: bool = True  # Advanced behavioral analysis
+    enable_extended_metrics: bool = True   # Extended metrics collection
+    
+    # Fail-fast settings
+    enable_fail_fast: bool = True  # Skip heavy probes on obvious blocks
+    early_exit_on_timeout: bool = True  # Exit early on connection timeouts
+    skip_heavy_on_block: bool = True     # Skip heavy analysis if blocked
+    
+    # Performance monitoring
+    collect_timing_metrics: bool = True  # Collect detailed timing info
+    log_slow_operations: bool = True     # Log operations taking > threshold
+    slow_operation_threshold: float = 2.0  # Seconds
 
 
 @dataclass

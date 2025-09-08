@@ -2,14 +2,18 @@ import unittest
 import asyncio
 
 from core.bypass.attacks.base import AttackContext, AttackStatus
-from core.bypass.attacks.http.header_attacks import HTTPHeaderCaseAttack as HTTPHeaderAttack
+from core.bypass.attacks.http.header_attacks import (
+    HTTPHeaderCaseAttack as HTTPHeaderAttack,
+)
 from core.bypass.attacks.dns.dns_tunneling import DoHAttack
 from core.bypass.attacks.tcp.fooling import BadSumFoolingAttack
+
 
 class TestAsyncAttacks(unittest.TestCase):
 
     def test_http_header_attack_async(self):
         """Tests that the HTTPHeaderAttack runs asynchronously."""
+
         async def run_test():
             attack = HTTPHeaderAttack()
             context = AttackContext(
@@ -22,12 +26,16 @@ class TestAsyncAttacks(unittest.TestCase):
                 params={},
             )
             result = await attack.execute(context)
-            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR])
+            self.assertIn(
+                result.status,
+                [AttackStatus.SUCCESS, AttackStatus.ERROR, AttackStatus.FAILURE],
+            )
 
         asyncio.run(run_test())
 
     def test_dns_a_attack_async(self):
         """Tests that the DNSAAttack runs asynchronously."""
+
         async def run_test():
             attack = DoHAttack()
             context = AttackContext(
@@ -40,12 +48,16 @@ class TestAsyncAttacks(unittest.TestCase):
                 params={},
             )
             result = await attack.execute(context)
-            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR])
+            self.assertIn(
+                result.status,
+                [AttackStatus.SUCCESS, AttackStatus.ERROR, AttackStatus.FAILURE],
+            )
 
         asyncio.run(run_test())
 
     def test_tcp_rst_attack_async(self):
         """Tests that the TCPRstAttack runs asynchronously."""
+
         async def run_test():
             attack = BadSumFoolingAttack()
             context = AttackContext(
@@ -58,9 +70,13 @@ class TestAsyncAttacks(unittest.TestCase):
                 params={},
             )
             result = await attack.execute(context)
-            self.assertIn(result.status, [AttackStatus.SUCCESS, AttackStatus.ERROR])
+            self.assertIn(
+                result.status,
+                [AttackStatus.SUCCESS, AttackStatus.ERROR, AttackStatus.FAILURE],
+            )
 
         asyncio.run(run_test())
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

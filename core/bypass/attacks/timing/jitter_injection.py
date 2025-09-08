@@ -7,27 +7,36 @@ Implements various jitter patterns to disrupt DPI timing analysis:
 - Periodic jitter variations
 - Adaptive jitter based on network conditions
 """
+
 import random
 import math
 import time
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from core.bypass.attacks.timing.timing_base import TimingAttackBase, TimingConfiguration, TimingResult
+from core.bypass.attacks.timing.timing_base import (
+    TimingAttackBase,
+    TimingConfiguration,
+    TimingResult,
+)
+
 
 class JitterType:
     """Types of jitter patterns."""
-    UNIFORM = 'uniform'
-    GAUSSIAN = 'gaussian'
-    EXPONENTIAL = 'exponential'
-    PERIODIC = 'periodic'
-    SAWTOOTH = 'sawtooth'
-    TRIANGLE = 'triangle'
-    ADAPTIVE = 'adaptive'
+
+    UNIFORM = "uniform"
+    GAUSSIAN = "gaussian"
+    EXPONENTIAL = "exponential"
+    PERIODIC = "periodic"
+    SAWTOOTH = "sawtooth"
+    TRIANGLE = "triangle"
+    ADAPTIVE = "adaptive"
+
 
 @dataclass
 class JitterConfiguration(TimingConfiguration):
     """Configuration for jitter injection attacks."""
+
     jitter_type: str = JitterType.UNIFORM
     jitter_amplitude_ms: float = 10.0
     jitter_frequency: float = 1.0
@@ -52,6 +61,7 @@ class JitterConfiguration(TimingConfiguration):
         if self.packets_per_burst < 1:
             self.packets_per_burst = 1
 
+
 class JitterInjectionAttack(TimingAttackBase):
     """
     Jitter injection attack implementation.
@@ -60,7 +70,7 @@ class JitterInjectionAttack(TimingAttackBase):
     and pattern recognition systems.
     """
 
-    def __init__(self, config: Optional[JitterConfiguration]=None):
+    def __init__(self, config: Optional[JitterConfiguration] = None):
         """
         Initialize jitter injection attack.
 
@@ -78,9 +88,11 @@ class JitterInjectionAttack(TimingAttackBase):
     @property
     def name(self) -> str:
         """Unique name for this attack."""
-        return f'jitter_injection_{self.jitter_config.jitter_type}'
+        return f"jitter_injection_{self.jitter_config.jitter_type}"
 
-    def _execute_timing_attack(self, context: AttackContext, timing_result: TimingResult) -> AttackResult:
+    def _execute_timing_attack(
+        self, context: AttackContext, timing_result: TimingResult
+    ) -> AttackResult:
         """
         Execute jitter injection attack.
 
@@ -94,17 +106,36 @@ class JitterInjectionAttack(TimingAttackBase):
         try:
             payloads = self._generate_packet_payloads(context)
             jitter_delays = self._generate_jitter_sequence(len(payloads))
-            packet_results = self.execute_timed_packet_sequence(context, payloads, jitter_delays, timing_result)
-            success = any((result.status == AttackStatus.SUCCESS for result in packet_results))
+            packet_results = self.execute_timed_packet_sequence(
+                context, payloads, jitter_delays, timing_result
+            )
+            success = any(
+                (result.status == AttackStatus.SUCCESS for result in packet_results)
+            )
             timing_result.success = success
-            timing_result.response_received = any((getattr(result, 'response_received', False) for result in packet_results))
-            result = AttackResult(status=AttackStatus.SUCCESS if success else AttackStatus.FAILURE, technique_used=f'jitter_injection_{self.jitter_config.jitter_type}', packets_sent=len(payloads), bytes_sent=sum((len(p) for p in payloads)), response_received=timing_result.response_received)
+            timing_result.response_received = any(
+                (
+                    getattr(result, "response_received", False)
+                    for result in packet_results
+                )
+            )
+            result = AttackResult(
+                status=AttackStatus.SUCCESS if success else AttackStatus.FAILURE,
+                technique_used=f"jitter_injection_{self.jitter_config.jitter_type}",
+                packets_sent=len(payloads),
+                bytes_sent=sum((len(p) for p in payloads)),
+                response_received=timing_result.response_received,
+            )
             return result
         except Exception as e:
-            self.logger.error(f'Jitter injection attack failed: {e}')
+            self.logger.error(f"Jitter injection attack failed: {e}")
             timing_result.success = False
             timing_result.error_message = str(e)
-            return AttackResult(status=AttackStatus.ERROR, error_message=str(e), technique_used='jitter_injection_error')
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                technique_used="jitter_injection_error",
+            )
 
     def _generate_packet_payloads(self, context: AttackContext) -> List[bytes]:
         """
@@ -119,11 +150,11 @@ class JitterInjectionAttack(TimingAttackBase):
         payloads = []
         original_payload = context.payload
         if not original_payload:
-            original_payload = f'GET / HTTP/1.1\r\nHost: {context.domain or context.dst_ip}\r\n\r\n'.encode()
+            original_payload = f"GET / HTTP/1.1\r\nHost: {context.domain or context.dst_ip}\r\n\r\n".encode()
         if len(original_payload) > 100:
             chunk_size = len(original_payload) // self.jitter_config.packets_per_burst
             for i in range(0, len(original_payload), chunk_size):
-                chunk = original_payload[i:i + chunk_size]
+                chunk = original_payload[i : i + chunk_size]
                 if chunk:
                     payloads.append(chunk)
         else:
@@ -131,7 +162,7 @@ class JitterInjectionAttack(TimingAttackBase):
                 if i == 0:
                     payloads.append(original_payload)
                 else:
-                    varied_payload = original_payload + f' # Packet {i}'.encode()
+                    varied_payload = original_payload + f" # Packet {i}".encode()
                     payloads.append(varied_payload)
         return payloads
 
@@ -151,7 +182,11 @@ class JitterInjectionAttack(TimingAttackBase):
             jitter = self._calculate_jitter(i)
             delay = max(0.0, base_delay + jitter)
             delays.append(delay)
-            if self.jitter_config.jitter_type in [JitterType.PERIODIC, JitterType.SAWTOOTH, JitterType.TRIANGLE]:
+            if self.jitter_config.jitter_type in [
+                JitterType.PERIODIC,
+                JitterType.SAWTOOTH,
+                JitterType.TRIANGLE,
+            ]:
                 self.periodic_time += 1.0 / self.jitter_config.jitter_frequency
         return delays
 
@@ -170,7 +205,10 @@ class JitterInjectionAttack(TimingAttackBase):
         if jitter_type == JitterType.UNIFORM:
             return random.uniform(-amplitude, amplitude)
         elif jitter_type == JitterType.GAUSSIAN:
-            jitter = random.gauss(self.jitter_config.gaussian_mean_ms, self.jitter_config.gaussian_stddev_ms)
+            jitter = random.gauss(
+                self.jitter_config.gaussian_mean_ms,
+                self.jitter_config.gaussian_stddev_ms,
+            )
             return max(-amplitude, min(amplitude, jitter))
         elif jitter_type == JitterType.EXPONENTIAL:
             exp_jitter = random.expovariate(self.jitter_config.exponential_lambda)
@@ -209,17 +247,24 @@ class JitterInjectionAttack(TimingAttackBase):
             Adaptive jitter value in milliseconds
         """
         if not self.response_times or len(self.response_times) < 2:
-            return random.uniform(-self.jitter_config.jitter_amplitude_ms, self.jitter_config.jitter_amplitude_ms)
-        recent_times = self.response_times[-self.jitter_config.adaptive_memory:]
+            return random.uniform(
+                -self.jitter_config.jitter_amplitude_ms,
+                self.jitter_config.jitter_amplitude_ms,
+            )
+        recent_times = self.response_times[-self.jitter_config.adaptive_memory :]
         if len(recent_times) < 2:
             return 0.0
         trend = (recent_times[-1] - recent_times[0]) / len(recent_times)
         sensitivity = self.jitter_config.adaptive_sensitivity
         amplitude = self.jitter_config.jitter_amplitude_ms
         if trend > 0:
-            adaptive_amplitude = amplitude * (1.0 - sensitivity * min(1.0, trend / 100.0))
+            adaptive_amplitude = amplitude * (
+                1.0 - sensitivity * min(1.0, trend / 100.0)
+            )
         else:
-            adaptive_amplitude = amplitude * (1.0 + sensitivity * min(1.0, abs(trend) / 100.0))
+            adaptive_amplitude = amplitude * (
+                1.0 + sensitivity * min(1.0, abs(trend) / 100.0)
+            )
         base_jitter = random.uniform(-adaptive_amplitude, adaptive_amplitude)
         self.jitter_history.append(base_jitter)
         if len(self.jitter_history) > self.jitter_config.adaptive_memory:
@@ -245,10 +290,21 @@ class JitterInjectionAttack(TimingAttackBase):
             self.response_times.append(response_time)
             if len(self.response_times) > self.jitter_config.adaptive_memory * 2:
                 self.response_times.pop(0)
-            return AttackResult(status=AttackStatus.SUCCESS, latency_ms=response_time, packets_sent=1, bytes_sent=len(context.payload), response_received=True, technique_used=f'jitter_packet_{self.jitter_config.jitter_type}')
+            return AttackResult(
+                status=AttackStatus.SUCCESS,
+                latency_ms=response_time,
+                packets_sent=1,
+                bytes_sent=len(context.payload),
+                response_received=True,
+                technique_used=f"jitter_packet_{self.jitter_config.jitter_type}",
+            )
         except Exception as e:
-            self.logger.error(f'Failed to send jittered packet: {e}')
-            return AttackResult(status=AttackStatus.ERROR, error_message=str(e), technique_used='jitter_packet_error')
+            self.logger.error(f"Failed to send jittered packet: {e}")
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                technique_used="jitter_packet_error",
+            )
 
     def get_jitter_statistics(self) -> Dict[str, Any]:
         """
@@ -257,15 +313,41 @@ class JitterInjectionAttack(TimingAttackBase):
         Returns:
             Dictionary with jitter statistics
         """
-        stats = {'jitter_type': self.jitter_config.jitter_type, 'jitter_amplitude_ms': self.jitter_config.jitter_amplitude_ms, 'packets_per_burst': self.jitter_config.packets_per_burst, 'response_times_count': len(self.response_times), 'jitter_history_count': len(self.jitter_history)}
+        stats = {
+            "jitter_type": self.jitter_config.jitter_type,
+            "jitter_amplitude_ms": self.jitter_config.jitter_amplitude_ms,
+            "packets_per_burst": self.jitter_config.packets_per_burst,
+            "response_times_count": len(self.response_times),
+            "jitter_history_count": len(self.jitter_history),
+        }
         if self.response_times:
-            stats.update({'avg_response_time_ms': sum(self.response_times) / len(self.response_times), 'min_response_time_ms': min(self.response_times), 'max_response_time_ms': max(self.response_times)})
+            stats.update(
+                {
+                    "avg_response_time_ms": sum(self.response_times)
+                    / len(self.response_times),
+                    "min_response_time_ms": min(self.response_times),
+                    "max_response_time_ms": max(self.response_times),
+                }
+            )
         if self.jitter_history:
-            stats.update({'avg_jitter_ms': sum(self.jitter_history) / len(self.jitter_history), 'min_jitter_ms': min(self.jitter_history), 'max_jitter_ms': max(self.jitter_history)})
+            stats.update(
+                {
+                    "avg_jitter_ms": sum(self.jitter_history)
+                    / len(self.jitter_history),
+                    "min_jitter_ms": min(self.jitter_history),
+                    "max_jitter_ms": max(self.jitter_history),
+                }
+            )
         stats.update(self.get_timing_statistics())
         return stats
 
-    def configure_jitter(self, jitter_type: str=None, amplitude_ms: float=None, frequency: float=None, **kwargs):
+    def configure_jitter(
+        self,
+        jitter_type: str = None,
+        amplitude_ms: float = None,
+        frequency: float = None,
+        **kwargs,
+    ):
         """
         Configure jitter parameters.
 
@@ -284,16 +366,18 @@ class JitterInjectionAttack(TimingAttackBase):
         for key, value in kwargs.items():
             if hasattr(self.jitter_config, key):
                 setattr(self.jitter_config, key, value)
-                self.logger.debug(f'Updated jitter config {key} to {value}')
+                self.logger.debug(f"Updated jitter config {key} to {value}")
 
     def reset_adaptive_state(self):
         """Reset adaptive jitter state."""
         self.response_times.clear()
         self.jitter_history.clear()
         self.periodic_time = 0.0
-        self.logger.debug('Reset adaptive jitter state')
+        self.logger.debug("Reset adaptive jitter state")
 
-    def benchmark_jitter_patterns(self, test_count: int=100) -> Dict[str, Dict[str, Any]]:
+    def benchmark_jitter_patterns(
+        self, test_count: int = 100
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Benchmark different jitter patterns.
 
@@ -305,7 +389,14 @@ class JitterInjectionAttack(TimingAttackBase):
         """
         results = {}
         original_type = self.jitter_config.jitter_type
-        for jitter_type in [JitterType.UNIFORM, JitterType.GAUSSIAN, JitterType.EXPONENTIAL, JitterType.PERIODIC, JitterType.SAWTOOTH, JitterType.TRIANGLE]:
+        for jitter_type in [
+            JitterType.UNIFORM,
+            JitterType.GAUSSIAN,
+            JitterType.EXPONENTIAL,
+            JitterType.PERIODIC,
+            JitterType.SAWTOOTH,
+            JitterType.TRIANGLE,
+        ]:
             self.jitter_config.jitter_type = jitter_type
             self.periodic_time = 0.0
             jitter_values = []
@@ -316,6 +407,14 @@ class JitterInjectionAttack(TimingAttackBase):
                 end_time = time.perf_counter()
                 jitter_values.append(jitter)
                 generation_times.append((end_time - start_time) * 1000)
-            results[jitter_type] = {'avg_jitter_ms': sum(jitter_values) / len(jitter_values), 'min_jitter_ms': min(jitter_values), 'max_jitter_ms': max(jitter_values), 'jitter_range_ms': max(jitter_values) - min(jitter_values), 'avg_generation_time_ms': sum(generation_times) / len(generation_times), 'max_generation_time_ms': max(generation_times), 'values_generated': len(jitter_values)}
+            results[jitter_type] = {
+                "avg_jitter_ms": sum(jitter_values) / len(jitter_values),
+                "min_jitter_ms": min(jitter_values),
+                "max_jitter_ms": max(jitter_values),
+                "jitter_range_ms": max(jitter_values) - min(jitter_values),
+                "avg_generation_time_ms": sum(generation_times) / len(generation_times),
+                "max_generation_time_ms": max(generation_times),
+                "values_generated": len(jitter_values),
+            }
         self.jitter_config.jitter_type = original_type
         return results

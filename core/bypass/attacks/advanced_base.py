@@ -2,12 +2,14 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Literal, Type
 from abc import ABC, abstractmethod
 from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult
-AttackComplexity = Literal['Low', 'Medium', 'High']
-'Defines the complexity level of an attack. Used for matching against DPI sophistication.'
-Protocol = Literal['tcp', 'udp', 'http', 'tls', 'quic', 'dns']
-'Defines the network protocol an attack targets.'
+
+AttackComplexity = Literal["Low", "Medium", "High"]
+"Defines the complexity level of an attack. Used for matching against DPI sophistication."
+Protocol = Literal["tcp", "udp", "http", "tls", "quic", "dns"]
+"Defines the network protocol an attack targets."
 DPISignature = str
 "Represents a specific DPI signature, e.g., 'ROSKOMNADZOR_TSPU' or 'generic_rst_injector'."
+
 
 @dataclass
 class AdvancedAttackConfig:
@@ -16,33 +18,35 @@ class AdvancedAttackConfig:
     This object holds all the metadata required by the AdvancedAttackRegistry
     to manage, select, and execute an attack.
     """
+
     name: str
     "Unique identifier for the attack, e.g., 'stateful_fragmentation'."
     priority: int
-    'Execution priority (lower number is higher priority). Used to sort attacks.'
+    "Execution priority (lower number is higher priority). Used to sort attacks."
     complexity: AttackComplexity
-    'Complexity level of the attack.'
+    "Complexity level of the attack."
     target_protocols: List[Protocol]
-    'List of network protocols this attack is designed for.'
+    "List of network protocols this attack is designed for."
     dpi_signatures: List[DPISignature]
     "\n    List of DPI signatures this attack is known to be effective against.\n    Can include 'all' for general-purpose attacks.\n    "
-    description: str = ''
-    'Human-readable description of what the attack does.'
+    description: str = ""
+    "Human-readable description of what the attack does."
     ml_integration: bool = False
     "Flag indicating if this attack's parameters can be tuned by an ML model."
     learning_enabled: bool = True
-    'Flag indicating if the system should learn the effectiveness of this attack over time.'
+    "Flag indicating if the system should learn the effectiveness of this attack over time."
     expected_improvement: float = 0.1
-    'Expected effectiveness improvement (0.0 to 1.0) for making a-priori decisions.'
+    "Expected effectiveness improvement (0.0 to 1.0) for making a-priori decisions."
     default_params: Dict[str, Any] = field(default_factory=dict)
-    'Default parameters for the attack if none are provided in the strategy.'
+    "Default parameters for the attack if none are provided in the strategy."
     dependencies: List[str] = field(default_factory=list)
     "List of dependencies required for this attack (e.g., 'raw_sockets')."
 
     @property
     def requires_raw_sockets(self) -> bool:
         """Check if the attack requires raw socket permissions."""
-        return 'raw_sockets' in self.dependencies
+        return "raw_sockets" in self.dependencies
+
 
 class AdvancedAttack(BaseAttack, ABC):
     """
@@ -74,7 +78,7 @@ class AdvancedAttack(BaseAttack, ABC):
         """
         if self.config.target_protocols:
             return self.config.target_protocols[0]
-        return 'unknown'
+        return "unknown"
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -104,6 +108,8 @@ class AdvancedAttack(BaseAttack, ABC):
         if not super().validate_context(context):
             return False
         if context.protocol not in self.config.target_protocols:
-            self.logger.warning(f'Attack {self.name} does not support protocol {context.protocol}.')
+            self.logger.warning(
+                f"Attack {self.name} does not support protocol {context.protocol}."
+            )
             return False
         return True

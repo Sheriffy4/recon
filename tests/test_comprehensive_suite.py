@@ -11,6 +11,13 @@ import concurrent.futures
 import tempfile
 import shutil
 import os
+
+# Add the parent directories to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(current_dir)
+recon_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, recon_dir)
+
 import sys
 from unittest.mock import patch
 

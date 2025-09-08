@@ -1,0 +1,221 @@
+{
+  "timestamp": 1756388531.4520605,
+  "bypass_engine_stats": {
+    "total_requests": 4,
+    "successful_bypasses": 4,
+    "failed_bypasses": 0,
+    "success_rate_percent": 100.0,
+    "unique_domains_processed": 4,
+    "methods_used": {
+      "system_dns": 4
+    },
+    "domain_detection_stats": {
+      "total_domains": 7,
+      "blocked_domains": 0,
+      "bypass_required": 4,
+      "block_types": {
+        "none": 7
+      },
+      "domains_status": {
+        "x.com": {
+          "is_blocked": false,
+          "block_type": "none",
+          "bypass_required": true,
+          "system_ips": [
+            "172.66.0.227"
+          ],
+          "doh_ips": [
+            "172.66.0.227",
+            "162.159.140.229"
+          ],
+          "hosts_ips": [
+            "172.66.0.227"
+          ]
+        },
+        "instagram.com": {
+          "is_blocked": false,
+          "block_type": "none",
+          "bypass_required": true,
+          "system_ips": [
+            "157.240.245.174"
+          ],
+          "doh_ips": [
+            "31.13.72.174"
+          ],
+          "hosts_ips": [
+            "157.240.245.174"
+          ]
+        },
+        "facebook.com": {
+          "is_blocked": false,
+          "block_type": "none",
+          "bypass_required": true,
+          "system_ips": [
+            "31.13.72.36"
+          ],
+          "doh_ips": [
+            "31.13.72.36"
+          ],
+          "hosts_ips": []
+        },
+        "youtube.com": {
+          "is_blocked": false,
+          "block_type": "none",
+          "bypass_required": true,
+          "system_ips": [
+            "142.250.74.78"
+          ],
+          "doh_ips": [
+            "108.177.14.91",
+            "74.125.131.190"
+          ],
+          "hosts_ips": []
+        },
+        "google.com": {
+          "is_blocked": false,
+          "block_type": "none",
+          "bypass_required": false,
+          "system_ips": [
+            "142.250.74.78"
+          ],
+          "doh_ips": [
+            "173.194.73.139",
+            "64.233.161.138"
+          ],
+          "hosts_ips": []
+        },
+        "github.com": {
+          "is_blocked": false,
+          "block_type": "none",
+          "bypass_required": false,
+          "system_ips": [
+            "140.82.121.4"
+          ],
+          "doh_ips": [
+            "140.82.121.4"
+          ],
+          "hosts_ips": []
+        },
+        "stackoverflow.com": {
+          "is_blocked": false,
+          "block_type": "none",
+          "bypass_required": false,
+          "system_ips": [
+            "8.6.112.6",
+            "8.47.69.6"
+          ],
+          "doh_ips": [
+            "8.6.112.0",
+            "8.47.69.0"
+          ],
+          "hosts_ips": []
+        }
+      }
+    }
+  },
+  "domain_detection_report": {
+    "total_domains": 7,
+    "blocked_domains": 0,
+    "bypass_required": 4,
+    "block_types": {
+      "none": 7
+    },
+    "domains_status": {
+      "x.com": {
+        "is_blocked": false,
+        "block_type": "none",
+        "bypass_required": true,
+        "system_ips": [
+          "172.66.0.227"
+        ],
+        "doh_ips": [
+          "172.66.0.227",
+          "162.159.140.229"
+        ],
+        "hosts_ips": [
+          "172.66.0.227"
+        ]
+      },
+      "instagram.com": {
+        "is_blocked": false,
+        "block_type": "none",
+        "bypass_required": true,
+        "system_ips": [
+          "157.240.245.174"
+        ],
+        "doh_ips": [
+          "31.13.72.174"
+        ],
+        "hosts_ips": [
+          "157.240.245.174"
+        ]
+      },
+      "facebook.com": {
+        "is_blocked": false,
+        "block_type": "none",
+        "bypass_required": true,
+        "system_ips": [
+          "31.13.72.36"
+        ],
+        "doh_ips": [
+          "31.13.72.36"
+        ],
+        "hosts_ips": []
+      },
+      "youtube.com": {
+        "is_blocked": false,
+        "block_type": "none",
+        "bypass_required": true,
+        "system_ips": [
+          "142.250.74.78"
+        ],
+        "doh_ips": [
+          "108.177.14.91",
+          "74.125.131.190"
+        ],
+        "hosts_ips": []
+      },
+      "google.com": {
+        "is_blocked": false,
+        "block_type": "none",
+        "bypass_required": false,
+        "system_ips": [
+          "142.250.74.78"
+        ],
+        "doh_ips": [
+          "173.194.73.139",
+          "64.233.161.138"
+        ],
+        "hosts_ips": []
+      },
+      "github.com": {
+        "is_blocked": false,
+        "block_type": "none",
+        "bypass_required": false,
+        "system_ips": [
+          "140.82.121.4"
+        ],
+        "doh_ips": [
+          "140.82.121.4"
+        ],
+        "hosts_ips": []
+      },
+      "stackoverflow.com": {
+        "is_blocked": false,
+        "block_type": "none",
+        "bypass_required": false,
+        "system_ips": [
+          "8.6.112.6",
+          "8.47.69.6"
+        ],
+        "doh_ips": [
+          "8.6.112.0",
+          "8.47.69.0"
+        ],
+        "hosts_ips": []
+      }
+    }
+  },
+  "configuration": {},
+  "recommendations": []
+}

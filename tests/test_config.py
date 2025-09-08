@@ -9,6 +9,13 @@ import tempfile
 import shutil
 import yaml
 import os
+
+# Add the parent directories to the path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+tests_dir = os.path.dirname(current_dir)
+recon_dir = os.path.dirname(tests_dir)
+sys.path.insert(0, recon_dir)
+
 import sys
 
 # Add the recon directory to the path
@@ -37,7 +44,7 @@ try:
         create_default_config,
     )
 except ImportError:
-    from core.fingerprint.config import (
+    from recon.core.fingerprint.config import (
         AdvancedFingerprintingConfig,
         ConfigurationManager,
         NetworkConfig,

@@ -1,0 +1,38 @@
+{
+  "timestamp": 1756375130.1122596,
+  "bypass_engine_stats": {
+    "total_requests": 0,
+    "successful_bypasses": 0,
+    "failed_bypasses": 0,
+    "success_rate_percent": 0.0,
+    "unique_domains_processed": 0,
+    "methods_used": {},
+    "domain_detection_stats": {
+      "total_domains": 0,
+      "blocked_domains": 0,
+      "bypass_required": 0,
+      "block_types": {},
+      "domains_status": {}
+    }
+  },
+  "domain_detection_report": {
+    "total_domains": 0,
+    "blocked_domains": 0,
+    "bypass_required": 0,
+    "block_types": {},
+    "domains_status": {}
+  },
+  "configuration": {
+    "doh_providers": [
+      "cloudflare",
+      "google",
+      "quad9"
+    ],
+    "cache_ttl": 300,
+    "doh_cache_ttl": 600,
+    "hosts_file_path": null
+  },
+  "recommendations": [
+    "Низкий процент успешных обходов. Рекомендуется проверить конфигурацию DoH серверов."
+  ]
+}

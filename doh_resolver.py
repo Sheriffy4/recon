@@ -6,6 +6,7 @@ import random
 import time
 from typing import Optional, Set, Dict, Any, List
 import logging
+import json
 
 LOG = logging.getLogger("doh_resolver")
 
@@ -104,7 +105,14 @@ class DoHResolver:
                 server, params=params, headers=headers, timeout=5
             ) as response:
                 if response.status == 200:
-                    data = await response.json()
+                    # Get text response and parse as JSON manually
+                    text = await response.text()
+                    try:
+                        data = json.loads(text)
+                    except json.JSONDecodeError:
+                        LOG.warning(f"Failed to parse DoH response from {server}")
+                        return None
+                    
                     if data.get("Answer"):
                         # Use random answer if multiple are returned
                         answer = random.choice(data["Answer"])
@@ -180,3 +188,44 @@ class DoHResolver:
         """Resolves a hostname to a single IP using DoH."""
         ips = await self.resolve_all(hostname)
         return random.choice(list(ips)) if ips else None
+
+    def save_cache_to_file(self, filepath: str):
+        """Сохраняет кэш DNS в файл для последующего использования."""
+        try:
+            cache_data = {}
+            current_time = time.time()
+            
+            for hostname, entry in self.cache.items():
+                if current_time < entry["expires"]:
+                    cache_data[hostname] = {
+                        "ips": list(entry["ips"]),
+                        "expires": entry["expires"]
+                    }
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, indent=2)
+            
+            LOG.info(f"DNS кэш сохранен в {filepath} ({len(cache_data)} записей)")
+        except Exception as e:
+            LOG.error(f"Ошибка сохранения DNS кэша: {e}")
+
+    def load_cache_from_file(self, filepath: str):
+        """Загружает кэш DNS из файла."""
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+            
+            current_time = time.time()
+            loaded_count = 0
+            
+            for hostname, entry in cache_data.items():
+                if current_time < entry["expires"]:
+                    self.cache[hostname] = {
+                        "ips": set(entry["ips"]),
+                        "expires": entry["expires"]
+                    }
+                    loaded_count += 1
+            
+            LOG.info(f"DNS кэш загружен из {filepath} ({loaded_count} записей)")
+        except Exception as e:
+            LOG.error(f"Ошибка загрузки DNS кэша: {e}")

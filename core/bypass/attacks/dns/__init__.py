@@ -1,6 +1,5 @@
 """
 DNS tunneling and evasion attacks module.
-Implements various DNS-based bypass techniques including DoH, DoT, and query manipulation.
+Implements various DNS-based bypass techniques.
+Attack modules are loaded explicitly by the main application entry point.
 """
-from core.bypass.attacks.dns.dns_tunneling import DNSTunnelingAttack, DoHAttack, DoTAttack, DNSQueryManipulation, DNSCachePoisoningPrevention
-__all__ = ['DNSTunnelingAttack', 'DoHAttack', 'DoTAttack', 'DNSQueryManipulation', 'DNSCachePoisoningPrevention']

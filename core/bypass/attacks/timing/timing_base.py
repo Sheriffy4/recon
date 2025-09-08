@@ -2,6 +2,7 @@
 Base class for timing-based DPI bypass attacks.
 Provides common functionality for all timing attack implementations.
 """
+
 import time
 import random
 import logging
@@ -9,22 +10,35 @@ from abc import abstractmethod
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from enum import Enum
-from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
-from core.bypass.attacks.timing_controller import PreciseTimingController, TimingStrategy, TimingMeasurement
+from core.bypass.attacks.base import (
+    BaseAttack,
+    AttackContext,
+    AttackResult,
+    AttackStatus,
+)
+from core.bypass.attacks.timing_controller import (
+    PreciseTimingController,
+    TimingStrategy,
+    TimingMeasurement,
+)
+
 
 class TimingPattern(Enum):
     """Types of timing patterns for attacks."""
-    CONSTANT = 'constant'
-    LINEAR = 'linear'
-    EXPONENTIAL = 'exponential'
-    RANDOM = 'random'
-    JITTER = 'jitter'
-    BURST = 'burst'
-    ADAPTIVE = 'adaptive'
+
+    CONSTANT = "constant"
+    LINEAR = "linear"
+    EXPONENTIAL = "exponential"
+    RANDOM = "random"
+    JITTER = "jitter"
+    BURST = "burst"
+    ADAPTIVE = "adaptive"
+
 
 @dataclass
 class TimingConfiguration:
     """Configuration for timing attacks."""
+
     base_delay_ms: float = 0.0
     min_delay_ms: float = 0.0
     max_delay_ms: float = 1000.0
@@ -52,9 +66,11 @@ class TimingConfiguration:
         if self.jitter_percentage > 100:
             self.jitter_percentage = 100.0
 
+
 @dataclass
 class TimingResult:
     """Result of timing attack execution."""
+
     success: bool = False
     error_message: Optional[str] = None
     timing_measurements: List[TimingMeasurement] = field(default_factory=list)
@@ -73,12 +89,18 @@ class TimingResult:
         self.timing_measurements.append(measurement)
         self.delays_executed += 1
         if self.timing_measurements:
-            total_requested = sum((m.requested_delay_ms for m in self.timing_measurements))
+            total_requested = sum(
+                (m.requested_delay_ms for m in self.timing_measurements)
+            )
             total_actual = sum((m.actual_delay_ms for m in self.timing_measurements))
             self.average_delay_ms = total_actual / len(self.timing_measurements)
             if total_requested > 0:
-                accuracy_sum = sum((m.accuracy_percentage for m in self.timing_measurements))
-                self.delay_accuracy_percentage = accuracy_sum / len(self.timing_measurements)
+                accuracy_sum = sum(
+                    (m.accuracy_percentage for m in self.timing_measurements)
+                )
+                self.delay_accuracy_percentage = accuracy_sum / len(
+                    self.timing_measurements
+                )
 
     def get_timing_statistics(self) -> Dict[str, Any]:
         """Get comprehensive timing statistics."""
@@ -86,7 +108,22 @@ class TimingResult:
             return {}
         accuracies = [m.accuracy_percentage for m in self.timing_measurements]
         errors = [abs(m.accuracy_error_ms) for m in self.timing_measurements]
-        return {'total_delays': len(self.timing_measurements), 'average_accuracy': sum(accuracies) / len(accuracies), 'min_accuracy': min(accuracies), 'max_accuracy': max(accuracies), 'average_error_ms': sum(errors) / len(errors), 'max_error_ms': max(errors), 'min_error_ms': min(errors), 'total_requested_time_ms': sum((m.requested_delay_ms for m in self.timing_measurements)), 'total_actual_time_ms': sum((m.actual_delay_ms for m in self.timing_measurements))}
+        return {
+            "total_delays": len(self.timing_measurements),
+            "average_accuracy": sum(accuracies) / len(accuracies),
+            "min_accuracy": min(accuracies),
+            "max_accuracy": max(accuracies),
+            "average_error_ms": sum(errors) / len(errors),
+            "max_error_ms": max(errors),
+            "min_error_ms": min(errors),
+            "total_requested_time_ms": sum(
+                (m.requested_delay_ms for m in self.timing_measurements)
+            ),
+            "total_actual_time_ms": sum(
+                (m.actual_delay_ms for m in self.timing_measurements)
+            ),
+        }
+
 
 class TimingAttackBase(BaseAttack):
     """
@@ -96,7 +133,7 @@ class TimingAttackBase(BaseAttack):
     and precision control.
     """
 
-    def __init__(self, config: Optional[TimingConfiguration]=None):
+    def __init__(self, config: Optional[TimingConfiguration] = None):
         """
         Initialize timing attack base.
 
@@ -122,21 +159,31 @@ class TimingAttackBase(BaseAttack):
             AttackResult with timing information
         """
         start_time = time.perf_counter()
-        timing_result = TimingResult(pattern_used=self.config.pattern, configuration=self.config)
+        timing_result = TimingResult(
+            pattern_used=self.config.pattern, configuration=self.config
+        )
         try:
             attack_result = self._execute_timing_attack(context, timing_result)
             end_time = time.perf_counter()
             timing_result.total_execution_time_ms = (end_time - start_time) * 1000
-            result = self._convert_timing_result_to_attack_result(attack_result, timing_result)
+            result = self._convert_timing_result_to_attack_result(
+                attack_result, timing_result
+            )
             return result
         except Exception as e:
-            self.logger.error(f'Timing attack failed: {e}')
+            self.logger.error(f"Timing attack failed: {e}")
             timing_result.success = False
             timing_result.error_message = str(e)
-            return AttackResult(status=AttackStatus.ERROR, error_message=str(e), metadata={'timing_result': timing_result})
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=str(e),
+                metadata={"timing_result": timing_result},
+            )
 
     @abstractmethod
-    def _execute_timing_attack(self, context: AttackContext, timing_result: TimingResult) -> AttackResult:
+    def _execute_timing_attack(
+        self, context: AttackContext, timing_result: TimingResult
+    ) -> AttackResult:
         """
         Execute the specific timing attack implementation.
 
@@ -166,19 +213,29 @@ class TimingAttackBase(BaseAttack):
             elif self.config.pattern == TimingPattern.LINEAR:
                 if count > 1:
                     progress = i / (count - 1)
-                    delay = self.config.min_delay_ms + progress * (self.config.max_delay_ms - self.config.min_delay_ms)
+                    delay = self.config.min_delay_ms + progress * (
+                        self.config.max_delay_ms - self.config.min_delay_ms
+                    )
                 else:
                     delay = self.config.base_delay_ms
             elif self.config.pattern == TimingPattern.EXPONENTIAL:
                 if count > 1:
                     progress = i / (count - 1)
-                    delay = self.config.min_delay_ms * (self.config.max_delay_ms / self.config.min_delay_ms) ** progress
+                    delay = (
+                        self.config.min_delay_ms
+                        * (self.config.max_delay_ms / self.config.min_delay_ms)
+                        ** progress
+                    )
                 else:
                     delay = self.config.base_delay_ms
             elif self.config.pattern == TimingPattern.RANDOM:
-                delay = random.uniform(self.config.min_delay_ms, self.config.max_delay_ms)
+                delay = random.uniform(
+                    self.config.min_delay_ms, self.config.max_delay_ms
+                )
             elif self.config.pattern == TimingPattern.JITTER:
-                jitter_amount = self.config.base_delay_ms * (self.config.jitter_percentage / 100.0)
+                jitter_amount = self.config.base_delay_ms * (
+                    self.config.jitter_percentage / 100.0
+                )
                 jitter = random.uniform(-jitter_amount, jitter_amount)
                 delay = max(0, self.config.base_delay_ms + jitter)
             elif self.config.pattern == TimingPattern.BURST:
@@ -208,11 +265,19 @@ class TimingAttackBase(BaseAttack):
         if self.last_response_time is None or index == 0:
             return self.config.base_delay_ms
         if self.last_response_time > self.config.response_timeout_ms:
-            return max(self.config.min_delay_ms, self.config.base_delay_ms / self.config.adaptation_factor)
+            return max(
+                self.config.min_delay_ms,
+                self.config.base_delay_ms / self.config.adaptation_factor,
+            )
         else:
-            return min(self.config.max_delay_ms, self.config.base_delay_ms * self.config.adaptation_factor)
+            return min(
+                self.config.max_delay_ms,
+                self.config.base_delay_ms * self.config.adaptation_factor,
+            )
 
-    def execute_delay(self, delay_ms: float, timing_result: TimingResult) -> TimingMeasurement:
+    def execute_delay(
+        self, delay_ms: float, timing_result: TimingResult
+    ) -> TimingMeasurement:
         """
         Execute a single delay with measurement.
 
@@ -223,12 +288,22 @@ class TimingAttackBase(BaseAttack):
         Returns:
             TimingMeasurement for this delay
         """
-        measurement = self.timing_controller.delay(delay_ms, self.config.timing_strategy)
+        measurement = self.timing_controller.delay(
+            delay_ms, self.config.timing_strategy
+        )
         timing_result.add_timing_measurement(measurement)
-        self.logger.debug(f'Executed delay: {delay_ms:.3f}ms, actual: {measurement.actual_delay_ms:.3f}ms, accuracy: {measurement.accuracy_percentage:.1f}%')
+        self.logger.debug(
+            f"Executed delay: {delay_ms:.3f}ms, actual: {measurement.actual_delay_ms:.3f}ms, accuracy: {measurement.accuracy_percentage:.1f}%"
+        )
         return measurement
 
-    def execute_timed_packet_sequence(self, context: AttackContext, payloads: List[bytes], delays: List[float], timing_result: TimingResult) -> List[AttackResult]:
+    def execute_timed_packet_sequence(
+        self,
+        context: AttackContext,
+        payloads: List[bytes],
+        delays: List[float],
+        timing_result: TimingResult,
+    ) -> List[AttackResult]:
         """
         Execute sequence of packets with precise timing.
 
@@ -263,9 +338,13 @@ class TimingAttackBase(BaseAttack):
         Returns:
             AttackResult for the packet transmission
         """
-        return AttackResult(status=AttackStatus.SUCCESS, packets_sent=1, bytes_sent=len(context.payload))
+        return AttackResult(
+            status=AttackStatus.SUCCESS, packets_sent=1, bytes_sent=len(context.payload)
+        )
 
-    def _convert_timing_result_to_attack_result(self, attack_result: AttackResult, timing_result: TimingResult) -> AttackResult:
+    def _convert_timing_result_to_attack_result(
+        self, attack_result: AttackResult, timing_result: TimingResult
+    ) -> AttackResult:
         """
         Convert timing result to standard attack result.
 
@@ -281,7 +360,20 @@ class TimingAttackBase(BaseAttack):
         attack_result.bytes_sent = timing_result.bytes_sent
         if not attack_result.metadata:
             attack_result.metadata = {}
-        attack_result.metadata.update({'timing_result': timing_result, 'timing_statistics': timing_result.get_timing_statistics(), 'pattern_used': timing_result.pattern_used.value if timing_result.pattern_used else None, 'delays_executed': timing_result.delays_executed, 'average_delay_ms': timing_result.average_delay_ms, 'delay_accuracy_percentage': timing_result.delay_accuracy_percentage})
+        attack_result.metadata.update(
+            {
+                "timing_result": timing_result,
+                "timing_statistics": timing_result.get_timing_statistics(),
+                "pattern_used": (
+                    timing_result.pattern_used.value
+                    if timing_result.pattern_used
+                    else None
+                ),
+                "delays_executed": timing_result.delays_executed,
+                "average_delay_ms": timing_result.average_delay_ms,
+                "delay_accuracy_percentage": timing_result.delay_accuracy_percentage,
+            }
+        )
         return attack_result
 
     def get_timing_statistics(self) -> Dict[str, Any]:
@@ -302,7 +394,7 @@ class TimingAttackBase(BaseAttack):
         for key, value in kwargs.items():
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
-                self.logger.debug(f'Updated timing config {key} to {value}')
+                self.logger.debug(f"Updated timing config {key} to {value}")
 
     def benchmark_timing_accuracy(self, test_delays: List[float]) -> Dict[str, Any]:
         """

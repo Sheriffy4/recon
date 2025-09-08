@@ -2,8 +2,5 @@
 Tunneling-based DPI bypass attacks.
 
 This package contains all tunneling attacks for bypassing DPI systems.
+Attack modules are loaded explicitly by the main application entry point.
 """
-from core.bypass.attacks import dns_tunneling
-from core.bypass.attacks import icmp_tunneling
-from core.bypass.attacks import protocol_tunneling
-__all__ = []

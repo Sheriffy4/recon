@@ -1,0 +1,204 @@
+{
+  "version": "3.0",
+  "strategy_priority": ["domain", "ip", "global"],
+  "last_updated": "2025-01-01T12:00:00.000Z",
+  "domain_strategies": {
+    "*.twimg.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 1,
+        "description": "Optimized multisplit strategy for Twitter CDN - handles all twimg.com subdomains including abs, abs-0, pbs, video, ton",
+        "success_rate": 0.87,
+        "avg_latency_ms": 125.3,
+        "last_tested": "2025-01-01T11:45:00.000Z",
+        "test_count": 156,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T11:45:00.000Z"
+      },
+      "is_wildcard": true
+    },
+    "x.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 1,
+        "description": "Optimized multisplit strategy for X.com main domain with badseq fooling",
+        "success_rate": 0.92,
+        "avg_latency_ms": 98.7,
+        "last_tested": "2025-01-01T11:50:00.000Z",
+        "test_count": 203,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T11:50:00.000Z"
+      },
+      "is_wildcard": false
+    },
+    "twitter.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 1,
+        "description": "Legacy Twitter domain strategy matching x.com configuration",
+        "success_rate": 0.89,
+        "avg_latency_ms": 105.2,
+        "last_tested": "2025-01-01T11:30:00.000Z",
+        "test_count": 87,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T11:30:00.000Z"
+      },
+      "is_wildcard": false
+    },
+    "instagram.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=6 --dpi-desync-split-seqovl=25 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=5",
+      "metadata": {
+        "priority": 1,
+        "description": "Instagram main domain with optimized multisplit parameters",
+        "success_rate": 0.84,
+        "avg_latency_ms": 142.1,
+        "last_tested": "2025-01-01T11:20:00.000Z",
+        "test_count": 134,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T11:20:00.000Z"
+      },
+      "is_wildcard": false
+    },
+    "*.cdninstagram.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=6 --dpi-desync-split-seqovl=25 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=5",
+      "metadata": {
+        "priority": 1,
+        "description": "Instagram CDN wildcard strategy for all CDN subdomains",
+        "success_rate": 0.81,
+        "avg_latency_ms": 156.8,
+        "last_tested": "2025-01-01T11:15:00.000Z",
+        "test_count": 89,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T11:15:00.000Z"
+      },
+      "is_wildcard": true
+    },
+    "youtube.com": {
+      "strategy": "--dpi-desync=fakedisorder --dpi-desync-split-pos=4 --dpi-desync-fooling=badsum --dpi-desync-ttl=3",
+      "metadata": {
+        "priority": 1,
+        "description": "YouTube main domain using fakedisorder technique",
+        "success_rate": 0.78,
+        "avg_latency_ms": 167.3,
+        "last_tested": "2025-01-01T11:10:00.000Z",
+        "test_count": 112,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T11:10:00.000Z"
+      },
+      "is_wildcard": false
+    },
+    "*.googlevideo.com": {
+      "strategy": "--dpi-desync=fakedisorder --dpi-desync-split-pos=4 --dpi-desync-fooling=badsum --dpi-desync-ttl=3",
+      "metadata": {
+        "priority": 1,
+        "description": "YouTube video CDN wildcard strategy",
+        "success_rate": 0.75,
+        "avg_latency_ms": 189.4,
+        "last_tested": "2025-01-01T11:05:00.000Z",
+        "test_count": 67,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T11:05:00.000Z"
+      },
+      "is_wildcard": true
+    },
+    "facebook.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=4 --dpi-desync-split-seqovl=15 --dpi-desync-fooling=md5sig --dpi-desync-repeats=1 --dpi-desync-ttl=6",
+      "metadata": {
+        "priority": 1,
+        "description": "Facebook main domain with md5sig fooling",
+        "success_rate": 0.73,
+        "avg_latency_ms": 198.7,
+        "last_tested": "2025-01-01T11:00:00.000Z",
+        "test_count": 95,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T11:00:00.000Z"
+      },
+      "is_wildcard": false
+    },
+    "*.fbcdn.net": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=4 --dpi-desync-split-seqovl=15 --dpi-desync-fooling=md5sig --dpi-desync-repeats=1 --dpi-desync-ttl=6",
+      "metadata": {
+        "priority": 1,
+        "description": "Facebook CDN wildcard strategy",
+        "success_rate": 0.69,
+        "avg_latency_ms": 215.2,
+        "last_tested": "2025-01-01T10:55:00.000Z",
+        "test_count": 43,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T10:55:00.000Z"
+      },
+      "is_wildcard": true
+    },
+    "discord.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badseq --dpi-desync-repeats=1 --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 1,
+        "description": "Discord main domain with conservative multisplit",
+        "success_rate": 0.91,
+        "avg_latency_ms": 87.6,
+        "last_tested": "2025-01-01T10:50:00.000Z",
+        "test_count": 78,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T10:50:00.000Z"
+      },
+      "is_wildcard": false
+    },
+    "*.discordapp.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badseq --dpi-desync-repeats=1 --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 1,
+        "description": "Discord CDN and API wildcard strategy",
+        "success_rate": 0.88,
+        "avg_latency_ms": 92.3,
+        "last_tested": "2025-01-01T10:45:00.000Z",
+        "test_count": 56,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T10:45:00.000Z"
+      },
+      "is_wildcard": true
+    }
+  },
+  "ip_strategies": {
+    "104.244.42.0/24": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 2,
+        "description": "Twitter IP range optimization",
+        "success_rate": 0.85,
+        "avg_latency_ms": 110.5,
+        "last_tested": "2025-01-01T10:40:00.000Z",
+        "test_count": 34,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T10:40:00.000Z"
+      },
+      "is_wildcard": false
+    },
+    "199.16.156.0/22": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 2,
+        "description": "Twitter additional IP range",
+        "success_rate": 0.83,
+        "avg_latency_ms": 118.2,
+        "last_tested": "2025-01-01T10:35:00.000Z",
+        "test_count": 28,
+        "created_at": "2025-01-01T10:00:00.000Z",
+        "updated_at": "2025-01-01T10:35:00.000Z"
+      },
+      "is_wildcard": false
+    }
+  },
+  "global_strategy": {
+    "strategy": "--dpi-desync=badsum_race --dpi-desync-ttl=4 --dpi-desync-split-pos=3 --dpi-desync-window-div=6 --dpi-desync-delay=10",
+    "metadata": {
+      "priority": 0,
+      "description": "Global fallback strategy using badsum_race with optimized parameters for general compatibility",
+      "success_rate": 0.68,
+      "avg_latency_ms": 234.7,
+      "last_tested": "2025-01-01T10:30:00.000Z",
+      "test_count": 456,
+      "created_at": "2025-01-01T10:00:00.000Z",
+      "updated_at": "2025-01-01T10:30:00.000Z"
+    }
+  }
+}

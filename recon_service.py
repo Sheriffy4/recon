@@ -66,7 +66,23 @@ class DPIBypassService:
         """Загружает стратегии из файлов конфигурации."""
         strategies_loaded = 0
 
-        # 1. Пытаемся загрузить из нового формата (domain_strategies.json)
+        # 1. Пытаемся загрузить из strategies.json (основной файл)
+        strategies_file = Path("strategies.json")
+        if strategies_file.exists():
+            try:
+                with open(strategies_file, "r", encoding="utf-8") as f:
+                    self.domain_strategies = json.load(f)
+
+                strategies_loaded = len(self.domain_strategies)
+                if strategies_loaded > 0:
+                    self.logger.info(
+                        f"✅ Loaded {strategies_loaded} domain-specific strategies"
+                    )
+                    return True
+            except Exception as e:
+                self.logger.warning(f"Failed to load strategies.json: {e}")
+
+        # 2. Пытаемся загрузить из domain_strategies.json
         domain_strategies_file = Path("domain_strategies.json")
         if domain_strategies_file.exists():
             try:
@@ -88,7 +104,7 @@ class DPIBypassService:
             except Exception as e:
                 self.logger.warning(f"Failed to load domain strategies: {e}")
 
-        # 2. Fallback к старому формату (best_strategy.json)
+        # 3. Fallback к старому формату (best_strategy.json)
         legacy_file = Path("best_strategy.json")
         if legacy_file.exists():
             try:
@@ -171,33 +187,31 @@ class DPIBypassService:
         try:
             from core.bypass_engine import BypassEngine
 
-            # Создаем движок обхода без отладки для чистого вывода
-            self.bypass_engine = BypassEngine(debug=False)
+            # Создаем движок обхода с отладкой для диагностики
+            self.bypass_engine = BypassEngine(debug=True)
 
-            # Собираем все уникальные стратегии
-            unique_strategies = set()
-            domain_strategy_map = {}
+            # Собираем стратегии по доменам для BypassEngine
+            strategy_map = {}
+            target_ips = set()
 
             for domain in self.monitored_domains:
-                strategy = self.get_strategy_for_domain(domain)
-                if strategy:
-                    unique_strategies.add(strategy)
-                    domain_strategy_map[domain] = strategy
-                    self.logger.info(f"Mapped {domain} -> {strategy}")
+                strategy_str = self.get_strategy_for_domain(domain)
+                if strategy_str:
+                    strategy_config = self.parse_strategy_config(strategy_str)
+                    strategy_task = self._config_to_strategy_task(strategy_config)
+                    strategy_map[domain] = strategy_task
+                    self.logger.info(f"Mapped {domain} -> {strategy_task['type']}({strategy_task['params']})")
 
-            if not unique_strategies:
+            # Добавляем стратегию по умолчанию
+            if self.domain_strategies.get("default"):
+                default_config = self.parse_strategy_config(self.domain_strategies["default"])
+                default_task = self._config_to_strategy_task(default_config)
+                strategy_map["default"] = default_task
+                self.logger.info(f"Default strategy: {default_task['type']}({default_task['params']})")
+
+            if not strategy_map:
                 self.logger.error("❌ No strategies found for any domain")
                 return False
-
-            # Запускаем движок обхода с первой стратегией
-            # (BypassEngine применяет стратегию ко всему трафику на порт 443)
-            primary_strategy = next(iter(unique_strategies))
-            self.logger.info(
-                f"🚀 Starting BypassEngine with primary strategy: {primary_strategy}"
-            )
-
-            # Парсим стратегию для BypassEngine
-            strategy_config = self.parse_strategy_config(primary_strategy)
 
             # Проверяем права администратора
             import ctypes
@@ -251,8 +265,8 @@ class DPIBypassService:
             except Exception as e:
                 self.logger.warning(f"⚠️ Could not optimize network parameters: {e}")
 
-            # Запускаем движок с улучшенной конфигурацией
-            self.bypass_engine.start_with_config(strategy_config)
+            # Запускаем движок с стратегиями по доменам
+            self.bypass_engine.start(target_ips, strategy_map)
 
             # Проверяем, запустился ли движок успешно
             if not self.bypass_engine.running:
@@ -344,6 +358,77 @@ class DPIBypassService:
         except Exception as e:
             self.logger.warning(f"Failed to parse strategy config: {e}, using defaults")
             return config
+
+    def _config_to_strategy_task(self, config: dict) -> dict:
+        """Конвертирует конфигурацию в стратегию для BypassEngine."""
+        desync_method = config.get("desync_method", "fake")
+        fooling = config.get("fooling", "none")
+        ttl = config.get("ttl", 3)
+        split_pos = config.get("split_pos", 3)
+        
+        if desync_method == "multisplit":
+            positions = []
+            split_count = config.get("split_count", 3)
+            overlap = config.get("overlap_size", 20)
+            if split_count > 0:
+                if split_count <= 3:
+                    positions = [6, 12, 18][:split_count]
+                else:
+                    positions = []
+                    base_offset = 6
+                    gaps = [8, 12, 16, 20, 24]
+                    last_pos = base_offset
+                    for i in range(split_count):
+                        positions.append(last_pos)
+                        gap = gaps[i] if i < len(gaps) else gaps[-1]
+                        last_pos += gap
+            return {
+                "type": "multisplit",
+                "params": {
+                    "ttl": ttl,
+                    "split_pos": split_pos,
+                    "positions": positions,
+                    "overlap_size": overlap,
+                    "fooling": fooling,
+                    "window_div": 2,
+                    "tcp_flags": {"psh": True, "ack": True},
+                    "ipid_step": 2048,
+                    "delay_ms": 5,
+                },
+            }
+        elif desync_method in ("fake", "fakeddisorder", "seqovl"):
+            base_params = {
+                "ttl": ttl,
+                "split_pos": split_pos,
+                "window_div": 8,
+                "tcp_flags": {"psh": True, "ack": True},
+                "ipid_step": 2048,
+            }
+            if fooling == "badsum":
+                task_type = "badsum_race"
+                base_params["extra_ttl"] = ttl + 1
+                base_params["delay_ms"] = 5
+            elif fooling == "md5sig":
+                task_type = "md5sig_race"
+                base_params["extra_ttl"] = ttl + 2
+                base_params["delay_ms"] = 7
+            elif desync_method == "seqovl":
+                task_type = "seqovl"
+                base_params["overlap_size"] = config.get("overlap_size", 20)
+            else:
+                task_type = "fakedisorder"
+            return {"type": task_type, "params": base_params}
+        
+        return {
+            "type": "fakedisorder",
+            "params": {
+                "ttl": ttl,
+                "split_pos": split_pos,
+                "window_div": 8,
+                "tcp_flags": {"psh": True, "ack": True},
+                "ipid_step": 2048,
+            },
+        }
 
     def stop_bypass_engine(self):
         """Останавливает движок обхода DPI."""

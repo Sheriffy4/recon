@@ -32,6 +32,7 @@ class GoodbyeDPIConfig:
     raw_command: str = ""
     active_flags: Set[str] = field(default_factory=set)
     fragment_positions: List[int] = field(default_factory=list)
+    unknown_flags: List[str] = field(default_factory=list)
 
     def to_native_format(self) -> Dict[str, Any]:
         """Convert to native bypass engine format."""
@@ -236,30 +237,39 @@ class GoodbyeDPIParser:
                     parameter_type="flag",
                     description=flag_def["description"],
                 )
+            else:
+                config.unknown_flags.append(flag)
 
     def _parse_long_options(self, command: str, config: GoodbyeDPIConfig):
         """Parse long options from command string."""
+        tokens = command.split()
+        i = 0
+        while i < len(tokens):
+            token = tokens[i]
+            if token.startswith("--"):
+                option_name = token[2:]
+                if option_name in self.long_option_defs:
+                    option_def = self.long_option_defs[option_name]
+                    option_value = None
+                    # Check if the next token is a value for this option
+                    if (
+                        option_def["type"] != "flag"
+                        and (i + 1) < len(tokens)
+                        and not tokens[i + 1].startswith("-")
+                    ):
+                        option_value = tokens[i + 1]
+                        i += 1  # Consume the value token
 
-        # Pattern to match --option=value or --option
-        option_pattern = re.compile(r"--([a-zA-Z0-9-]+)(?:=([^\s]+))?")
+                    parsed_value = self._parse_option_value(option_value, option_def)
 
-        for match in option_pattern.finditer(command):
-            option_name = match.group(1)
-            option_value = match.group(2)
-
-            if option_name in self.long_option_defs:
-                option_def = self.long_option_defs[option_name]
-
-                # Parse value based on type
-                parsed_value = self._parse_option_value(option_value, option_def)
-
-                config.parameters[option_name] = GoodbyeDPIParameter(
-                    name=option_name,
-                    value=parsed_value,
-                    raw_value=option_value or "",
-                    parameter_type=option_def["type"],
-                    description=option_def["description"],
-                )
+                    config.parameters[option_name] = GoodbyeDPIParameter(
+                        name=option_name,
+                        value=parsed_value,
+                        raw_value=option_value or "",
+                        parameter_type=option_def["type"],
+                        description=option_def["description"],
+                    )
+            i += 1
 
     def _parse_option_value(
         self, value: Optional[str], option_def: Dict[str, Any]
@@ -325,7 +335,10 @@ class GoodbyeDPIParser:
                 issues.append(f"Fragment position {pos} must be positive")
 
         # Validate TTL values
-        if "set-ttl" in config.parameters:
+        if (
+            "set-ttl" in config.parameters
+            and config.parameters["set-ttl"].value is not None
+        ):
             ttl = config.parameters["set-ttl"].value
             if ttl < 1 or ttl > 255:
                 issues.append(f"TTL value {ttl} must be between 1 and 255")
@@ -336,6 +349,11 @@ class GoodbyeDPIParser:
             blacklist_path = config.parameters["blacklist"].value
             if not blacklist_path:
                 issues.append("Blacklist path cannot be empty")
+
+        # Check for unknown flags
+        if config.unknown_flags:
+            for flag in config.unknown_flags:
+                issues.append(f"Unknown flag '-{flag}'")
 
         return issues
 

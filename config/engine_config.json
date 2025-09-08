@@ -1,1 +1,27 @@
-{"profiles": {"external_tool": {"default_config": {"timeout": 120.0}}}}
+{
+  "profiles": {
+    "external_tool": {
+      "default_config": {
+        "timeout": 120.0
+      }
+    }
+  },
+  "dns": {
+    "use_doh": true,
+    "doh_providers": [
+      "cloudflare",
+      "google",
+      "quad9"
+    ],
+    "fallback_to_system": true,
+    "cache_ttl": 600,
+    "resolve_timeout": 5,
+    "max_retries": 3
+  },
+  "timeouts": {
+    "connection_timeout": 10,
+    "handshake_timeout": 15,
+    "read_timeout": 20,
+    "max_retries": 3
+  }
+}

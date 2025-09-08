@@ -461,6 +461,14 @@ class MLClassifier:
 
         return "UNKNOWN", 0.3
 
+    def get_stats(self) -> Dict[str, Any]:
+        """Get statistics about the classifier."""
+        return self.get_model_info()
+
+    def is_healthy(self) -> bool:
+        """Check if the classifier is healthy."""
+        return self.sklearn_available and self.is_trained
+
     def get_model_info(self) -> Dict[str, Any]:
         """
         Get information about the current model state.

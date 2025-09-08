@@ -1,0 +1,9 @@
+{
+  "connector_limit": 50,
+  "connector_limit_per_host": 10,
+  "timeout_total": 90,
+  "timeout_connect": 45,
+  "timeout_sock_read": 60,
+  "keepalive_timeout": 30,
+  "enable_cleanup_closed": true
+}

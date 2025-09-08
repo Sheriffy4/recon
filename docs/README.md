@@ -1,592 +1,271 @@
-# Engine Factory System
+# Enhanced Strategy Configuration System
 
-This directory contains the engine factory system for creating and managing DPI bypass engines.
+This module provides an enhanced configuration management system for DPI bypass strategies with support for wildcard patterns, priorities, and backward compatibility.
 
-## Components
+## Features
 
-### Original Factory (`factory.py`)
-- `create_engine(engine_type, config)` - Original engine creation function
-- `detect_best_engine()` - Automatic engine type detection
-- `create_best_engine(config)` - Create best available engine
-- `create_engine_with_validation()` - Bridge to enhanced factory
+- **Wildcard Pattern Support**: Use `*.domain.com` patterns to match multiple subdomains
+- **Strategy Priorities**: Clear priority order (domain > IP > global) with configurable metadata
+- **Backward Compatibility**: Automatic migration from legacy v2.0 configuration format
+- **Configuration Validation**: Syntax validation and error handling for strategy configurations
+- **Metadata Support**: Rich metadata including success rates, latency, test counts, and descriptions
 
-### Enhanced Factory (`enhanced_factory.py`)
-- `EnhancedEngineFactory` - Advanced factory class with validation and error handling
-- `create_engine_enhanced()` - Enhanced engine creation with automatic fallback
-- Comprehensive validation and error reporting
-- Detailed creation results and diagnostics
+## Quick Start
 
-### Engine Type Detector (`engine_type_detector.py`)
-- `EngineTypeDetector` - Service for automatic engine type detection and validation
-- `detect_available_engines()` - Get all available engine types
-- `get_recommended_engine()` - Get best engine for current system
-- `check_engine_dependencies()` - Validate engine requirements
-- System capability assessment and installation recommendations
+### Basic Usage
 
-### Engine Validator (`engine_validator.py`)
-- `EngineValidator` - Service for parameter and requirement validation
-- `validate_engine_type()` - Validate engine type support and availability
-- `validate_parameters()` - Validate engine-specific parameters
-- `check_permissions()` - Check required permissions for engine types
-- `validate_dependencies()` - Validate engine dependencies with detailed messages
-- `validate_config()` - Validate EngineConfig objects
-- Comprehensive validation with detailed error reporting and suggestions
-
-### Engine Configuration Manager (`engine_config_manager.py`)
-- `EngineConfigManager` - Centralized configuration management service
-- `get_default_engine_type()` - Get configured default engine type
-- `get_engine_config()` - Get configuration for specific engine types
-- `get_fallback_order()` - Get engine fallback order based on configuration
-- `validate_config()` - Validate configuration dictionaries
-- Configuration loading from files and environment variables
-- Priority management and engine enable/disable functionality
-- Configuration overrides and hot-reloading support
-
-### Configuration Models (`config_models.py`)
-- `EnhancedEngineConfig` - Enhanced engine configuration with serialization support
-- `EngineCreationRequest` - Serializable engine creation request model
-- `EngineCreationResult` - Serializable engine creation result model
-- `ValidationResult` - Comprehensive validation result with detailed issues
-- `EngineConfigProfile` - Serializable engine configuration profile
-- `ConfigurationState` - Serializable configuration state information
-- `ConfigurationManager` - Utilities for configuration serialization and validation
-- Full JSON serialization/deserialization support
-- File save/load operations with format support
-- Comprehensive validation with detailed error reporting
-
-### Error Handling Framework (`error_handling.py`)
-- `BaseEngineError` - Base exception class with structured error information
-- `EngineDependencyError` - Errors related to missing dependencies
-- `EnginePermissionError` - Errors related to insufficient permissions
-- `EnginePlatformError` - Errors related to platform compatibility
-- `EngineConfigurationError` - Errors related to configuration issues
-- `ErrorHandler` - Centralized error handling with categorization and suggestions
-- `ErrorContext` - Rich context information for errors
-- `ResolutionSuggestion` - Actionable suggestions for resolving errors
-- Comprehensive error categorization and severity levels
-- Automatic resolution suggestions with installation commands
-- Error serialization and structured logging support
-
-## Usage Examples
-
-### Basic Usage (Original Factory)
 ```python
-from core.bypass.engines.factory import create_engine, EngineType, EngineConfig
+from recon.core.config import StrategyConfigManager, StrategyMetadata
 
-# Create specific engine type
-config = EngineConfig(debug=True)
-engine = create_engine(EngineType.NATIVE_PYDIVERT, config)
+# Initialize manager
+manager = StrategyConfigManager("path/to/config")
 
-# Create best available engine
-engine = create_best_engine(config)
-```
-
-### Enhanced Usage (With Validation)
-```python
-from core.bypass.engines.factory import create_engine_with_validation
-
-# Auto-detect engine with validation
-engine = create_engine_with_validation()
-
-# Create specific engine with fallback
-engine = create_engine_with_validation("native_pydivert", debug=True)
-```
-
-### Advanced Usage (Enhanced Factory)
-```python
-from core.bypass.engines.enhanced_factory import EnhancedEngineFactory, EngineCreationRequest
-
-factory = EnhancedEngineFactory()
-
-# Get detailed creation results
-request = EngineCreationRequest(
-    engine_type="native_pydivert",
-    allow_fallback=True,
-    validate_dependencies=True
+# Add a wildcard strategy for Twitter CDN
+metadata = StrategyMetadata(
+    priority=1,
+    description="Twitter CDN optimization",
+    success_rate=0.85
 )
 
-result = factory.create_engine_with_result(request)
+manager.add_domain_strategy(
+    "*.twimg.com",
+    "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30",
+    metadata
+)
 
-if result.success:
-    print(f"Created: {result.engine.__class__.__name__}")
-    print(f"Validation: {result.validation_results}")
-    print(f"Warnings: {result.warnings}")
-else:
-    print(f"Failed: {result.error_message}")
-
-# Check available engines
-available = factory.get_available_engines()
-print(f"Available engines: {[e.value for e in available]}")
-
-# Get system capabilities
-capabilities = factory.get_system_capabilities()
-print(f"Platform: {capabilities['platform']}")
-print(f"Admin: {capabilities['is_admin']}")
-
-# Get installation recommendations
-recommendations = factory.get_installation_recommendations()
-for engine, hints in recommendations.items():
-    print(f"{engine}: {hints}")
+# Save configuration
+manager.save_configuration(manager._config)
 ```
 
-### Engine Type Detection Usage
+### Loading and Converting Legacy Configurations
+
 ```python
-from core.bypass.engines.engine_type_detector import get_engine_type_detector
+# Load existing configuration (auto-converts from v2.0 to v3.0)
+config = manager.load_configuration("domain_strategies.json")
 
-detector = get_engine_type_detector()
-
-# Check system capabilities
-capabilities = detector.check_system_capabilities()
-print(f"Platform: {capabilities.platform}")
-print(f"Available packages: {capabilities.available_packages}")
-
-# Get detailed detection results
-from core.bypass.engines.base import EngineType
-result = detector.get_detection_details(EngineType.NATIVE_PYDIVERT)
-print(f"PyDivert available: {result.available}")
-print(f"Missing dependencies: {result.missing_dependencies}")
-print(f"Installation hints: {result.installation_hints}")
-
-# Get all available engines
-available = detector.detect_available_engines()
-print(f"Available engines: {[e.value for e in available]}")
-
-# Get recommended engine
-recommended = detector.get_recommended_engine()
-print(f"Recommended: {recommended.value}")
+# The system automatically detects and converts legacy formats
+print(f"Loaded configuration version: {config.version}")
 ```
 
-### Engine Validation Usage
-```python
-from core.bypass.engines.engine_validator import get_engine_validator
-from core.bypass.engines.base import EngineType, EngineConfig
+## Configuration Format
 
-validator = get_engine_validator()
+### Version 3.0 Format (Enhanced)
 
-# Validate engine type
-result = validator.validate_engine_type(EngineType.NATIVE_PYDIVERT)
-print(f"Engine valid: {result.valid}")
-print(f"Errors: {result.errors}")
-print(f"Warnings: {result.warnings}")
-
-# Validate parameters
-params = {"debug": True, "timeout": 30.0, "invalid_param": "value"}
-result = validator.validate_parameters(EngineType.NATIVE_PYDIVERT, params)
-print(f"Parameters valid: {result.valid}")
-
-# Check permissions
-result = validator.check_permissions(EngineType.NATIVE_PYDIVERT)
-print(f"Has permissions: {result.valid}")
-
-# Validate dependencies
-result = validator.validate_dependencies(EngineType.NATIVE_PYDIVERT)
-print(f"Dependencies met: {result.valid}")
-
-# Comprehensive validation
-config = EngineConfig(debug=True, timeout=30.0)
-result = validator.validate_all(EngineType.NATIVE_PYDIVERT, config, params)
-print(f"Overall valid: {result.valid}")
-
-# Get detailed issue information
-for issue in result.issues:
-    print(f"{issue.severity.value}: {issue.message}")
-    if issue.suggestion:
-        print(f"  Suggestion: {issue.suggestion}")
-```
-
-### Enhanced Factory with Validation
-```python
-from core.bypass.engines.enhanced_factory import EnhancedEngineFactory
-from core.bypass.engines.base import EngineType, EngineConfig
-
-factory = EnhancedEngineFactory()
-
-# Validate engine configuration
-config = EngineConfig(debug=True, timeout=30.0)
-validation = factory.validate_engine_configuration(EngineType.NATIVE_PYDIVERT, config)
-print(f"Config valid: {validation['valid']}")
-print(f"Issues: {len(validation['issues'])}")
-
-# Check permissions through factory
-permissions = factory.check_engine_permissions(EngineType.NATIVE_PYDIVERT)
-print(f"Has permissions: {permissions['has_required_permissions']}")
-
-# Validate dependencies through factory
-dependencies = factory.validate_engine_dependencies(EngineType.NATIVE_PYDIVERT)
-print(f"Dependencies valid: {dependencies['valid']}")
-```
-
-### Configuration Management Usage
-```python
-from core.bypass.engines.engine_config_manager import get_engine_config_manager
-from core.bypass.engines.base import EngineType
-
-config_manager = get_engine_config_manager()
-
-# Get default engine type
-default_engine = config_manager.get_default_engine_type()
-print(f"Default engine: {default_engine.value}")
-
-# Get engine configuration
-config = config_manager.get_engine_config(EngineType.NATIVE_PYDIVERT)
-print(f"PyDivert config: {config}")
-
-# Get EngineConfig object
-config_obj = config_manager.get_engine_config_object(EngineType.NATIVE_PYDIVERT)
-print(f"Config object: {config_obj}")
-
-# Get fallback order
-fallback_order = config_manager.get_fallback_order()
-print(f"Fallback order: {[e.value for e in fallback_order]}")
-
-# Set engine priority
-config_manager.set_engine_priority(EngineType.EXTERNAL_TOOL, 75)
-
-# Enable/disable engines
-config_manager.enable_engine(EngineType.NATIVE_NETFILTER, False)
-
-# Set configuration overrides
-config_manager.set_config_override(EngineType.EXTERNAL_TOOL, {"debug": True})
-
-# Get configuration state
-state = config_manager.get_configuration_state()
-print(f"Loaded from: {state['loaded_from']}")
-print(f"Config files: {state['config_files']}")
-
-# Reload configuration
-config_manager.reload_configuration()
-```
-
-### Configuration File Format
-Create `config/engine_config.json`:
 ```json
 {
-  "global": {
-    "default_engine": "native_pydivert",
-    "enable_fallback": true,
-    "validate_dependencies": true,
-    "log_level": "INFO"
-  },
-  "profiles": {
-    "native_pydivert": {
-      "priority": 100,
-      "enabled": true,
-      "default_config": {
-        "debug": false,
-        "timeout": 30.0,
-        "packet_buffer_size": 65535,
-        "log_packets": false
+  "version": "3.0",
+  "strategy_priority": ["domain", "ip", "global"],
+  "last_updated": "2025-09-01T12:00:00.000000",
+  "domain_strategies": {
+    "*.twimg.com": {
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 1,
+        "description": "Twitter CDN optimization with multisplit strategy",
+        "success_rate": 0.85,
+        "avg_latency_ms": 180.5,
+        "last_tested": "2025-09-01T11:30:00.000000",
+        "test_count": 150,
+        "created_at": "2025-09-01T10:00:00.000000",
+        "updated_at": "2025-09-01T11:30:00.000000"
       },
-      "platform_specific": {
-        "Windows": {
-          "packet_buffer_size": 65535
-        }
+      "is_wildcard": true
+    }
+  },
+  "ip_strategies": {
+    "192.168.1.0/24": {
+      "strategy": "--dpi-desync=badsum_race --dpi-desync-ttl=4",
+      "metadata": {
+        "priority": 2,
+        "description": "Local network strategy"
       }
-    },
-    "external_tool": {
-      "priority": 50,
-      "enabled": true,
-      "default_config": {
-        "debug": false,
-        "timeout": 30.0,
-        "tool_name": "zapret"
-      }
+    }
+  },
+  "global_strategy": {
+    "strategy": "--dpi-desync=badsum_race --dpi-desync-ttl=4 --dpi-desync-split-pos=3",
+    "metadata": {
+      "priority": 0,
+      "description": "Global fallback strategy"
     }
   }
 }
 ```
 
-### Environment Variables
-Set configuration via environment variables:
-```bash
-# Global configuration
-export ENGINE_DEFAULT_ENGINE=external_tool
-export ENGINE_LOG_LEVEL=DEBUG
-export ENGINE_ENABLE_FALLBACK=true
+### Legacy Version 2.0 Format (Supported)
 
-# Engine-specific configuration
-export ENGINE_PYDIVERT_DEBUG=true
-export ENGINE_EXTERNAL_TOOL_TIMEOUT=45.0
-```
-
-### Configuration Models Usage
-```python
-from core.bypass.engines.config_models import (
-    EnhancedEngineConfig, EngineCreationRequest, EngineCreationResult,
-    ValidationResult, EngineConfigProfile, ConfigurationManager
-)
-from core.bypass.engines.base import EngineType
-
-# Create enhanced configuration
-config = EnhancedEngineConfig(
-    debug=True,
-    timeout=45.0,
-    packet_buffer_size=32768,
-    custom_parameters={"custom_setting": "value"},
-    retry_attempts=3,
-    enable_metrics=True
-)
-
-# Validate configuration
-errors = config.validate()
-print(f"Validation errors: {errors}")
-
-# Serialize configuration
-config_json = config.to_json(indent=2)
-config_dict = config.to_dict()
-
-# Save/load from file
-config.save_to_file("engine_config.json")
-loaded_config = EnhancedEngineConfig.load_from_file("engine_config.json")
-
-# Create engine creation request
-request = EngineCreationRequest(
-    engine_type=EngineType.NATIVE_PYDIVERT,
-    config=config,
-    parameters={"additional": "param"},
-    tags=["production", "high-priority"],
-    metadata={"source": "api"}
-)
-
-# Serialize request
-request_json = request.to_json()
-request_from_json = EngineCreationRequest.from_json(request_json)
-
-# Create configuration profile
-profile = EngineConfigProfile(
-    engine_type=EngineType.NATIVE_PYDIVERT,
-    priority=100,
-    enabled=True,
-    default_config=config,
-    required_permissions=["administrator"],
-    dependencies=["pydivert"],
-    fallback_engines=[EngineType.EXTERNAL_TOOL],
-    description="High-performance Windows engine"
-)
-
-# Serialize profile
-profile.save_to_file("pydivert_profile.json")
-
-# Configuration management
-config_manager = ConfigurationManager()
-
-# Validate configuration file
-validation = config_manager.validate_configuration_file("config.json")
-print(f"Config valid: {validation.valid}")
-print(f"Errors: {validation.errors}")
-
-# Serialize multiple profiles
-profiles = {
-    EngineType.NATIVE_PYDIVERT: profile,
-    # ... more profiles
+```json
+{
+  "version": "2.0",
+  "domain_strategies": {
+    "default": {
+      "domain": "default",
+      "strategy": "--dpi-desync=badsum_race",
+      "success_rate": 0.70,
+      "avg_latency_ms": 300.0
+    },
+    "example.com": {
+      "domain": "example.com", 
+      "strategy": "--dpi-desync=multisplit",
+      "success_rate": 0.85
+    }
+  }
 }
-serialized = config_manager.serialize_profiles(profiles)
-deserialized = config_manager.deserialize_profiles(serialized)
 ```
 
-### Enhanced Factory with Models
-```python
-from core.bypass.engines.enhanced_factory import EnhancedEngineFactory
-from core.bypass.engines.config_models import (
-    EnhancedEngineConfig, EngineCreationRequest, SerializationFormat
-)
+## Strategy Priority System
 
-factory = EnhancedEngineFactory()
+The configuration system uses a clear priority hierarchy:
 
-# Create enhanced configuration
-config = factory.create_enhanced_config(
-    debug=True,
-    timeout=60.0,
-    custom_parameters={"test": True}
-)
+1. **Domain Strategies** (Priority 1): Exact domain matches and wildcard patterns
+2. **IP Strategies** (Priority 2): IP address and subnet matches  
+3. **Global Strategy** (Priority 0): Fallback strategy for unmatched connections
 
-# Create engine from request
-request = EngineCreationRequest(
-    engine_type="native_pydivert",
-    config=config,
-    tags=["test"]
-)
+### Wildcard Pattern Matching
 
-result = factory.create_engine_from_request(request)
-print(f"Success: {result.success}")
-print(f"Summary: {result.get_summary()}")
+- `*.twimg.com` matches `abs.twimg.com`, `pbs.twimg.com`, etc.
+- `test?.example.com` matches `test1.example.com`, `testa.example.com`, etc.
+- Exact domain matches take priority over wildcard patterns
 
-# Export configuration
-factory.export_configuration("factory_config.json")
+## Migration and Optimization Tools
 
-# Validate configuration file
-validation = factory.validate_configuration_file("config.json")
-print(f"Valid: {validation.valid}")
+### Configuration Analysis
 
-# Get serializable state
-state = factory.get_serializable_state()
-print(f"State: {state}")
+```bash
+python -m recon.core.config.config_migration_tool analyze domain_strategies.json
 ```
 
-### Error Handling Usage
-```python
-from core.bypass.engines.error_handling import (
-    BaseEngineError, EngineDependencyError, EnginePermissionError,
-    ErrorHandler, ErrorContext, ResolutionSuggestion, get_error_handler
-)
-from core.bypass.engines.base import EngineType
+Output:
+```
+Configuration Analysis for domain_strategies.json
+Current version: 2.0
+Domain rules: 39
 
-# Create structured errors
-dependency_error = EngineDependencyError(
-    "PyDivert package not found",
-    missing_dependencies=["pydivert"],
-    context=ErrorContext(
-        engine_type=EngineType.NATIVE_PYDIVERT,
-        operation="engine_creation"
+Wildcard opportunities (4):
+  *.twimg.com: 4 rules can be consolidated
+  *.x.com: 3 rules can be consolidated
+
+Recommendations:
+  • Upgrade from version 2.0 to 3.0 for enhanced features
+  • Use wildcards to reduce 11 domain rules
+```
+
+### Configuration Migration
+
+```bash
+python -m recon.core.config.config_migration_tool migrate domain_strategies.json
+```
+
+### Configuration Optimization
+
+```bash
+python -m recon.core.config.config_migration_tool optimize domain_strategies.json -o optimized_config.json
+```
+
+## API Reference
+
+### StrategyConfigManager
+
+Main class for configuration management.
+
+#### Methods
+
+- `load_configuration(config_file=None)`: Load configuration with auto-conversion
+- `save_configuration(config, config_file=None, create_backup=True)`: Save configuration
+- `add_domain_strategy(pattern, strategy, metadata=None)`: Add domain strategy rule
+- `remove_domain_strategy(pattern)`: Remove domain strategy rule
+- `get_domain_strategies()`: Get all domain strategy rules
+- `get_wildcard_patterns()`: Get wildcard domain patterns
+- `validate_strategy_syntax(strategy)`: Validate strategy syntax
+
+### StrategyRule
+
+Represents a strategy rule with pattern, strategy, and metadata.
+
+#### Properties
+
+- `pattern`: Domain pattern (can include wildcards)
+- `strategy`: Strategy command string
+- `metadata`: StrategyMetadata object
+- `is_wildcard`: Boolean indicating if pattern contains wildcards
+
+### StrategyMetadata
+
+Metadata for strategy rules.
+
+#### Properties
+
+- `priority`: Strategy priority (1=high, 0=low)
+- `description`: Human-readable description
+- `success_rate`: Success rate (0.0-1.0)
+- `avg_latency_ms`: Average latency in milliseconds
+- `last_tested`: ISO timestamp of last test
+- `test_count`: Number of tests performed
+- `created_at`: ISO timestamp of creation
+- `updated_at`: ISO timestamp of last update
+
+## Twitter/X.com Optimization Example
+
+The enhanced configuration system is specifically designed to optimize Twitter/X.com access:
+
+```python
+# Instead of multiple individual rules:
+# abs.twimg.com, abs-0.twimg.com, pbs.twimg.com, video.twimg.com, ton.twimg.com
+
+# Use a single optimized wildcard rule:
+manager.add_domain_strategy(
+    "*.twimg.com",
+    "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+    StrategyMetadata(
+        priority=1,
+        description="Twitter CDN optimization",
+        success_rate=0.85  # Improved from 0.38 with old seqovl strategy
     )
 )
-
-permission_error = EnginePermissionError(
-    "Administrator privileges required",
-    required_permissions=["administrator"]
-)
-
-# Handle errors with resolution suggestions
-error_handler = get_error_handler()
-result = error_handler.handle_error(dependency_error)
-
-print(f"Error handled: {result['handled']}")
-print(f"Suggestions: {result['suggestions_count']}")
-
-# Get detailed error information
-print(f"Detailed message: {dependency_error.get_detailed_message()}")
-print(f"Resolution text: {dependency_error.get_resolution_text()}")
-
-# Serialize errors
-error_dict = dependency_error.to_dict()
-print(f"Serialized error: {error_dict}")
-
-# Create errors from exceptions
-try:
-    import non_existent_module
-except ImportError as e:
-    structured_error = error_handler.create_error_from_exception(e)
-    print(f"Created error: {structured_error.__class__.__name__}")
-
-# Enhanced factory error handling
-from core.bypass.engines.enhanced_factory import EnhancedEngineFactory
-
-factory = EnhancedEngineFactory()
-
-# Create error context
-context = factory.create_error_context(
-    engine_type=EngineType.NATIVE_PYDIVERT,
-    operation="engine_creation",
-    user_action="create_engine"
-)
-
-# Handle errors through factory
-error = BaseEngineError("Test error")
-result = factory.handle_engine_error(error, context)
-
-# Get error suggestions
-suggestions = factory.get_error_suggestions("PYDIVERT_NOT_FOUND", context)
-for suggestion in suggestions:
-    print(f"Suggestion: {suggestion['action']}")
-    if suggestion['command']:
-        print(f"  Command: {suggestion['command']}")
 ```
-
-### Error Categories and Types
-The framework provides comprehensive error categorization:
-
-**Error Categories:**
-- `CONFIGURATION` - Configuration-related errors
-- `DEPENDENCY` - Missing or invalid dependencies
-- `PERMISSION` - Insufficient permissions
-- `PLATFORM` - Platform compatibility issues
-- `VALIDATION` - Validation failures
-- `CREATION` - Engine creation errors
-- `RUNTIME` - Runtime operation errors
-- `NETWORK` - Network-related errors
-- `SYSTEM` - General system errors
-
-**Error Severity Levels:**
-- `LOW` - Minor issues that don't prevent operation
-- `MEDIUM` - Issues that may affect functionality
-- `HIGH` - Serious issues that prevent normal operation
-- `CRITICAL` - Critical failures that require immediate attention
-
-**Automatic Resolution Suggestions:**
-- Dependency installation commands
-- Permission elevation instructions
-- Platform-specific guidance
-- Configuration fix suggestions
-- Alternative engine recommendations
-
-## Engine Types
-
-- `NATIVE_PYDIVERT` - Windows-only, high-performance packet interception
-- `EXTERNAL_TOOL` - Cross-platform, uses external tools like zapret
-- `NATIVE_NETFILTER` - Linux-only, direct netfilter integration (not implemented)
 
 ## Error Handling
 
-The enhanced factory provides detailed error categorization:
+The configuration system provides comprehensive error handling:
 
-- `MissingParameterError` - Required parameters not provided
-- `InvalidEngineTypeError` - Unknown or invalid engine type
-- `DependencyError` - Required dependencies missing
-- `PermissionError` - Insufficient permissions
-- `EngineCreationError` - General creation failure
+- `ConfigurationError`: Raised for configuration-related errors
+- Automatic backup creation before saving
+- Validation of strategy syntax and configuration structure
+- Graceful handling of missing or corrupted configuration files
 
-## Validation
+## Testing
 
-The enhanced factory validates:
+Run the test suite:
 
-- Platform compatibility
-- Required dependencies (PyDivert, etc.)
-- System permissions
-- Engine-specific requirements
-
-## Fallback Mechanisms
-
-When primary engine creation fails, the system automatically tries:
-
-1. Alternative engines based on platform
-2. Engines with fewer requirements
-3. Mock engines for testing (if available)
-
-## Configuration
-
-Engine configuration is handled through the `EngineConfig` dataclass:
-
-```python
-@dataclass
-class EngineConfig:
-    debug: bool = False
-    timeout: float = 30.0
-    base_path: Optional[str] = None
-    tool_name: Optional[str] = None
-    packet_buffer_size: int = 65535
-    max_concurrent_connections: int = 1000
-    log_packets: bool = False
+```bash
+python -m pytest recon/core/config/test_strategy_config_manager.py -v
 ```
 
-## Migration Guide
+Run the demonstration:
 
-### From Original Factory
-Replace:
-```python
-from core.bypass.engines.factory import create_engine
-engine = create_engine(engine_type, config)
+```bash
+python -m recon.core.config.demo_enhanced_config
 ```
 
-With:
-```python
-from core.bypass.engines.factory import create_engine_with_validation
-engine = create_engine_with_validation(engine_type, config)
-```
+## Requirements Addressed
 
-### Benefits of Enhanced Factory
-- Automatic engine type detection
-- Comprehensive validation
-- Detailed error messages
-- Fallback mechanisms
-- Better debugging information
-- Forward compatibility
+This implementation addresses the following requirements from the specification:
+
+- **4.1**: Wildcard pattern support (`*.domain.com`)
+- **4.2**: Exact domain priority over wildcard patterns  
+- **4.3**: Backward compatibility with existing `domain_strategies.json` format
+- **4.4**: Configuration validation and error handling
+- **Metadata Support**: Priority, description, success_rate tracking
+
+## Performance Considerations
+
+- Wildcard pattern matching is optimized for common use cases
+- Configuration loading is cached to avoid repeated file I/O
+- Large rule sets are supported with efficient lookup algorithms
+- Memory usage is optimized for production deployments
+
+## Security Considerations
+
+- Strategy strings are validated to prevent injection attacks
+- Configuration files are validated before loading
+- Backup files are created automatically to prevent data loss
+- Access control should be implemented at the file system level

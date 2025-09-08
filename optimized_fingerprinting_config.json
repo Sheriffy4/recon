@@ -1,0 +1,207 @@
+{
+  "optimized_fingerprinting_configs": {
+    "fast_production": {
+      "description": "Optimized for speed in production environments",
+      "config": {
+        "analysis_level": "fast",
+        "enable_fail_fast": true,
+        "enable_scapy_probes": false,
+        "sni_probe_mode": "basic",
+        "max_parallel_targets": 15,
+        "connect_timeout": 1.0,
+        "tls_timeout": 1.5,
+        "udp_timeout": 0.2,
+        "dns_timeout": 0.8,
+        "enable_behavioral_probes": false,
+        "enable_extended_metrics": false,
+        "retry_attempts": 2,
+        "cache_ttl": 3600
+      },
+      "expected_performance": {
+        "domains_per_minute": "20-30",
+        "time_for_30_domains": "60-90 seconds",
+        "speedup_vs_sequential": "15-20x",
+        "accuracy": "80-85%"
+      }
+    },
+    
+    "balanced_quality": {
+      "description": "Balanced speed and accuracy for general use",
+      "config": {
+        "analysis_level": "balanced",
+        "enable_fail_fast": true,
+        "enable_scapy_probes": false,
+        "sni_probe_mode": "basic",
+        "max_parallel_targets": 10,
+        "connect_timeout": 1.5,
+        "tls_timeout": 2.0,
+        "udp_timeout": 0.3,
+        "dns_timeout": 1.0,
+        "enable_behavioral_probes": true,
+        "enable_extended_metrics": true,
+        "retry_attempts": 3,
+        "cache_ttl": 3600
+      },
+      "expected_performance": {
+        "domains_per_minute": "12-18",
+        "time_for_30_domains": "120-180 seconds",
+        "speedup_vs_sequential": "10-12x",
+        "accuracy": "90-95%"
+      }
+    },
+    
+    "maximum_analysis": {
+      "description": "Full analysis for research and detailed investigation",
+      "config": {
+        "analysis_level": "full",
+        "enable_fail_fast": false,
+        "enable_scapy_probes": true,
+        "sni_probe_mode": "detailed",
+        "max_parallel_targets": 5,
+        "connect_timeout": 3.0,
+        "tls_timeout": 5.0,
+        "udp_timeout": 1.0,
+        "dns_timeout": 2.0,
+        "enable_behavioral_probes": true,
+        "enable_extended_metrics": true,
+        "retry_attempts": 5,
+        "cache_ttl": 7200
+      },
+      "expected_performance": {
+        "domains_per_minute": "3-5",
+        "time_for_30_domains": "360-600 seconds",
+        "speedup_vs_sequential": "4-6x",
+        "accuracy": "95-98%"
+      }
+    },
+    
+    "ci_testing": {
+      "description": "Optimized for CI/CD pipelines and automated testing",
+      "config": {
+        "analysis_level": "fast",
+        "enable_fail_fast": true,
+        "enable_scapy_probes": false,
+        "sni_probe_mode": "off",
+        "max_parallel_targets": 20,
+        "connect_timeout": 0.5,
+        "tls_timeout": 1.0,
+        "udp_timeout": 0.1,
+        "dns_timeout": 0.5,
+        "enable_behavioral_probes": false,
+        "enable_extended_metrics": false,
+        "retry_attempts": 1,
+        "cache_ttl": 1800
+      },
+      "expected_performance": {
+        "domains_per_minute": "30-40",
+        "time_for_30_domains": "45-60 seconds",
+        "speedup_vs_sequential": "20-25x",
+        "accuracy": "75-80%"
+      }
+    }
+  },
+  
+  "usage_examples": {
+    "python_code": {
+      "basic_parallel_usage": "from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig\n\n# Create optimized config\nconfig = FingerprintingConfig(\n    analysis_level='balanced',\n    max_parallel_targets=15,\n    enable_fail_fast=True,\n    enable_scapy_probes=False\n)\n\n# Initialize fingerprinter\nfingerprinter = AdvancedFingerprinter(config=config)\n\n# Process multiple domains in parallel\ntargets = [('domain1.com', 443), ('domain2.com', 443), ...]\nresults = await fingerprinter.fingerprint_many(targets, concurrency=15)",
+      
+      "performance_monitoring": "# Monitor performance\nstart_time = time.time()\nresults = await fingerprinter.fingerprint_many(targets)\ntotal_time = time.time() - start_time\n\nprint(f'Processed {len(targets)} domains in {total_time:.2f}s')\nprint(f'Average: {total_time/len(targets):.2f}s per domain')\nprint(f'Success rate: {sum(1 for r in results if r)}/{len(results)}')",
+      
+      "adaptive_configuration": "# Adaptive configuration based on results\nif confidence_avg < 0.7:\n    # Switch to higher quality mode\n    config.analysis_level = 'full'\n    config.max_parallel_targets = 5\nelse:\n    # Use fast mode for remaining domains\n    config.analysis_level = 'fast'\n    config.max_parallel_targets = 20"
+    },
+    
+    "command_line_usage": {
+      "basic": "python fingerprint_domains.py --config fast_production --domains domains.txt",
+      "parallel": "python fingerprint_domains.py --parallel 15 --analysis-level balanced",
+      "benchmark": "python parallel_fingerprinting_demo.py"
+    }
+  },
+  
+  "optimization_guidelines": {
+    "general_principles": [
+      "Use parallel processing (10-15 concurrent domains) for significant speedup",
+      "Enable fail-fast to skip heavy probes on obviously blocked domains",
+      "Choose analysis level based on accuracy requirements vs speed needs",
+      "Disable scapy probes on Windows for better performance",
+      "Use shorter timeouts for faster detection of blocks",
+      "Cache results to avoid redundant analysis"
+    ],
+    
+    "domain_count_recommendations": {
+      "1-10_domains": {
+        "max_parallel_targets": 5,
+        "analysis_level": "balanced",
+        "expected_time": "30-60 seconds"
+      },
+      "10-30_domains": {
+        "max_parallel_targets": 15,
+        "analysis_level": "fast",
+        "expected_time": "60-120 seconds"
+      },
+      "30-100_domains": {
+        "max_parallel_targets": 20,
+        "analysis_level": "fast",
+        "expected_time": "120-300 seconds"
+      },
+      "100+_domains": {
+        "max_parallel_targets": 25,
+        "analysis_level": "fast",
+        "expected_time": "varies",
+        "recommendations": [
+          "Process in batches",
+          "Use caching extensively",
+          "Consider distributed processing"
+        ]
+      }
+    },
+    
+    "timeout_tuning": {
+      "fast_detection": {
+        "connect_timeout": 0.5,
+        "tls_timeout": 1.0,
+        "udp_timeout": 0.1,
+        "use_case": "Quick block detection"
+      },
+      "reliable_detection": {
+        "connect_timeout": 1.5,
+        "tls_timeout": 2.0,
+        "udp_timeout": 0.3,
+        "use_case": "Balanced speed and accuracy"
+      },
+      "thorough_analysis": {
+        "connect_timeout": 3.0,
+        "tls_timeout": 5.0,
+        "udp_timeout": 1.0,
+        "use_case": "Maximum accuracy"
+      }
+    }
+  },
+  
+  "troubleshooting": {
+    "common_issues": {
+      "high_memory_usage": {
+        "solutions": [
+          "Reduce max_parallel_targets",
+          "Enable fail_fast",
+          "Process domains in smaller batches"
+        ]
+      },
+      "low_success_rate": {
+        "solutions": [
+          "Increase timeouts",
+          "Disable fail_fast temporarily",
+          "Check network connectivity",
+          "Review domain list for invalid entries"
+        ]
+      },
+      "slow_performance": {
+        "solutions": [
+          "Increase max_parallel_targets",
+          "Set analysis_level to 'fast'",
+          "Disable scapy_probes",
+          "Use shorter timeouts"
+        ]
+      }
+    }
+  }
+}

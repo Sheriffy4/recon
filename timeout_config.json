@@ -1,0 +1,30 @@
+{
+  "connection_timeouts": {
+    "tcp_connect": 10.0,
+    "tls_handshake": 15.0,
+    "http_request": 20.0,
+    "total_request": 30.0
+  },
+  "retry_policy": {
+    "max_retries": 3,
+    "retry_delay": 1.0,
+    "backoff_multiplier": 2.0,
+    "retry_on_timeout": true,
+    "retry_on_handshake_failure": true
+  },
+  "tls_options": {
+    "verify_ssl": false,
+    "check_hostname": false,
+    "use_sni": true,
+    "fallback_no_sni": true,
+    "cipher_suites": "ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:!aNULL:!eNULL",
+    "protocols": [
+      "TLSv1.2",
+      "TLSv1.3"
+    ],
+    "alpn_protocols": [
+      "h2",
+      "http/1.1"
+    ]
+  }
+}

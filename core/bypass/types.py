@@ -4,6 +4,7 @@
 Централизованные и строго типизированные определения для системы обхода DPI.
 Этот модуль является фундаментом для всех компонентов, обеспечивая консистентность данных.
 """
+from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
@@ -41,31 +42,25 @@ class ProtocolType(Enum):
 
 class BlockType(Enum):
     """
-    Типы блокировок, обнаруженные при тестировании.
-    Единый источник истины для всей системы.
+    Типы блокировок, обнаруженные при тестировании. Единый источник истины.
     """
-
-    # Успешные или нейтральные состояния
-    NONE = "none"  # Блокировки нет
-
-    # Типы блокировок, определенные по поведению сети
-    RST_INJECTION = "rst_injection"  # Получен RST-пакет от DPI
-    TIMEOUT = "timeout"  # Соединение истекло по таймауту
-    CONNECTION_REFUSED = "connection_refused"  # Соединение было активно отклонено
-
-    # Типы блокировок, определенные по содержимому ответа
-    HTTP_BLOCK_PAGE = "http_block_page"  # Получена HTTP-страница заглушка
-    CONTENT = (
-        "content"  # Обнаружена блокировка по содержимому (синоним HTTP_BLOCK_PAGE)
-    )
-
-    # Типы блокировок на уровне протоколов
-    TLS_HANDSHAKE_FAILURE = "tls_handshake_failure"  # Ошибка TLS handshake
-
-    # Общие и неопределенные состояния
-    HTTP_ERROR = "http_error"  # Общая ошибка HTTP (4xx, 5xx)
-    INVALID = "invalid"  # Невалидный или неожиданный ответ
-    UNKNOWN = "unknown"  # Не удалось классифицировать тип блокировки
+    # Успешные / нейтральные
+    NONE = "none"
+    # По поведению сети
+    RST_INJECTION = "rst_injection"
+    TIMEOUT = "timeout"
+    CONNECTION_REFUSED = "connection_refused"
+    ICMP_UNREACH = "icmp_unreach"
+    # По содержимому
+    HTTP_BLOCK_PAGE = "http_block_page"
+    CONTENT = "content"
+    HTTP_ERROR = "http_error"
+    # На уровне протоколов
+    TLS_ALERT = "tls_alert"
+    TLS_HANDSHAKE_FAILURE = "tls_handshake_failure"
+    # Прочее
+    INVALID = "invalid"
+    UNKNOWN = "unknown"
 
 
 # --- Основные структуры данных ---
