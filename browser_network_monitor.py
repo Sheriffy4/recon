@@ -9,6 +9,7 @@ import json
 import time
 from typing import Dict, List, Set
 import logging
+from core.doh_resolver import DoHResolver
 
 LOG = logging.getLogger("browser_monitor")
 

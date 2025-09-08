@@ -1,0 +1,1801 @@
+{
+  "analysis_time": "2025-08-29T11:22:13.853486",
+  "total_handshakes": 418,
+  "target_handshakes": 296,
+  "domain_stats": {
+    "rutracker.org": 7,
+    "youtube.com": 138,
+    "x.com": 22,
+    "instagram.com": 107,
+    "www.instagram.com": 22
+  },
+  "problematic_domains": [],
+  "strategy_attempts": {
+    "rutracker.org": [
+      {
+        "timestamp": 1756392992.122691,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392992.433087,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392993.037869,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392994.252248,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392996.657292,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393001.468734,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393435.920889,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      }
+    ],
+    "youtube.com": [
+      {
+        "timestamp": 1756392992.13833,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392992.448113,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392993.05329,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392994.26761,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392995.474096,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392996.688208,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756392999.103832,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393003.91046,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393435.929014,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393436.239677,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393436.515094,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393437.127448,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393438.330049,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756393440.736867,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451722.133707,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451724.543163,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451729.345354,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452015.995917,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452016.267338,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452016.574402,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452017.176412,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452018.388143,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452020.801714,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452025.608589,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452027.266878,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452027.540734,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452027.850785,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452028.459542,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452029.661792,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452032.067244,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452036.870855,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452039.428998,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452039.7004,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452040.010519,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452040.614706,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452041.829229,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452044.240882,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452049.052569,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452051.131949,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452051.413937,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452051.723694,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452052.330511,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452053.543621,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452055.957388,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452058.309799,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452060.770698,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452065.927763,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452066.198327,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452066.508035,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452067.115197,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452068.329419,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452070.731303,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452073.063552,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452073.325665,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452073.638318,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452074.244735,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452075.445427,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452075.543119,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452077.859235,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452080.146674,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452080.41377,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452080.721414,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452081.333206,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452082.543623,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452082.669775,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452084.947295,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452087.208141,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452087.484641,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452087.788796,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452088.402982,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452089.610937,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452089.748847,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452092.023211,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452094.296352,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452096.838551,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452101.902888,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452102.179084,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452102.492097,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452103.098841,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452104.3128,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452106.717141,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452109.092052,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452109.370452,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452109.676597,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452110.291629,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452111.510771,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452111.53266,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452113.904786,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452116.187415,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452116.460197,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452116.776785,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452117.382684,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452118.602793,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452118.717182,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452121.005338,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452123.31223,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452123.581523,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452123.886535,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452124.488117,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452125.700748,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452125.809618,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452128.108978,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452130.431668,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452130.709891,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452131.022227,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452131.626533,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452132.828223,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452132.92182,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452135.243826,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452137.514623,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452137.781597,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452138.102208,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452138.710447,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452139.92313,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452140.047231,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452142.330187,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452151.96466,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452152.263764,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452152.559453,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452153.165782,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452154.378632,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452156.789845,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452166.376024,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452166.64104,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452166.952647,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452167.557989,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452168.770308,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452171.180342,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452173.447863,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452175.99315,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452180.696717,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452180.973578,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452181.269411,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452181.884967,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452183.091285,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452185.505621,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452188.090205,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452190.31161,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      }
+    ],
+    "x.com": [
+      {
+        "timestamp": 1756393435.901639,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451726.687987,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451757.757655,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451804.824785,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452051.108333,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452058.28698,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452065.882452,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452073.012836,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452080.113736,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452087.1891,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452094.285044,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452101.872366,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452109.055534,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452116.163967,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452123.273884,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452130.393608,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452137.493336,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452151.929812,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452166.340386,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452173.418905,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452180.651023,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452188.054652,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      }
+    ],
+    "instagram.com": [
+      {
+        "timestamp": 1756451723.42312,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451726.952266,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451734.012134,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451865.027224,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451865.444853,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451865.926572,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451866.764584,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451868.443224,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451871.774333,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451878.433725,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452051.219846,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452051.639611,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452052.120806,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452052.945367,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452054.594045,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452057.894945,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452058.400621,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452065.998571,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452066.410813,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452066.891842,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452067.733211,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452069.399294,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452072.706632,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452073.131424,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452073.544108,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452074.026508,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452074.865553,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452076.537279,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452079.321278,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452079.879455,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452080.223722,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452080.643377,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452081.129341,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452081.968739,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452083.636389,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452086.54431,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452086.965462,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452087.303254,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452087.726083,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452088.212637,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452089.062176,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452090.741615,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452093.633544,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452094.110332,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452094.383269,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452100.845904,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452101.986108,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452102.4123,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452102.912592,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452103.778914,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452105.495349,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452108.92652,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452109.172998,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452109.598458,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452110.096628,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452110.968653,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452112.713211,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452115.776401,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452116.199612,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452116.272883,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452116.693394,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452117.179116,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452118.035443,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452119.75417,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452123.110466,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452123.173816,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452123.388937,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452123.807272,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452124.301118,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452125.154553,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452126.862834,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452130.000019,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452130.2651,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452130.504589,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452130.919819,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452131.400351,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452132.229645,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452133.882127,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452137.053845,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452137.178024,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452137.612911,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452138.033821,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452138.533995,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452139.434195,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452141.207209,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452151.892102,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452152.04803,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452152.468411,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452152.962761,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452153.835332,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452155.566192,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452165.959146,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452166.44428,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452166.858475,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452167.343135,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452168.179311,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452169.862663,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452173.212603,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452173.530229,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452179.908119,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452180.768894,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452181.192521,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452181.676532,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452182.528584,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452184.208692,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452187.583763,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452188.171309,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      }
+    ],
+    "www.instagram.com": [
+      {
+        "timestamp": 1756451724.230123,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451820.431359,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451843.019773,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451983.947942,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756451984.279825,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452000.762589,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452006.03621,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452023.753168,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452058.927759,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452059.336078,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452059.804278,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452060.624199,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452062.259197,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452065.527571,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452072.066261,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452094.915383,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452095.350868,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452095.879672,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452096.814698,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452098.689228,
+        "strategy": "tcp_flags",
+        "flags": 24,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452102.420738,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      },
+      {
+        "timestamp": 1756452109.862677,
+        "strategy": "tcp_flags",
+        "flags": 25,
+        "pattern": "psh_flag"
+      }
+    ]
+  }
+}

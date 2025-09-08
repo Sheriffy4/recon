@@ -10,7 +10,7 @@ from pathlib import Path
 # Добавляем путь к модулям
 sys.path.append(str(Path(__file__).parent))
 
-from doh_resolver_fixed import DoHResolver
+from core.doh_resolver import DoHResolver
 import asyncio
 
 async def fix_hosts_duplicates():

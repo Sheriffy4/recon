@@ -10,6 +10,7 @@ import time
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from pathlib import Path
+from core.doh_resolver import DoHResolver
 
 try:
     from .blocked_domain_detector import BlockedDomainDetector, DomainStatus

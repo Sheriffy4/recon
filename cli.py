@@ -150,10 +150,7 @@ except Exception:
 
 import config
 from core.domain_manager import DomainManager
-try:
-    from core.doh_resolver import DoHResolver
-except ImportError:
-    from doh_resolver_fixed import DoHResolver
+from core.doh_resolver import DoHResolver
 from core.hybrid_engine import HybridEngine
 from ml.zapret_strategy_generator import ZapretStrategyGenerator
 from apply_bypass import apply_system_bypass

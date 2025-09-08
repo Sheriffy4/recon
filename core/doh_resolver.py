@@ -18,14 +18,24 @@ class DoHResolver:
         "cloudflare": [
             "https://1.1.1.1/dns-query",
             "https://1.0.0.1/dns-query",
+            "https://[2606:4700:4700::1111]/dns-query",
+            "https://cloudflare-dns.com/dns-query",
         ],
         "google": [
             "https://8.8.8.8/resolve",
             "https://8.8.4.4/resolve",
+            "https://dns.google/resolve",
         ],
         "quad9": [
             "https://9.9.9.9/dns-query",
+            "https://149.112.112.112/dns-query",
+            "https://dns9.quad9.net/dns-query",
         ],
+        "opendns": [
+            "https://doh.opendns.com/dns-query",
+            "https://dns.opendns.com/dns-query",
+        ],
+        "adguard": ["https://dns.adguard.com/dns-query"],
     }
 
     def __init__(self, preferred_providers=None, cache_ttl=300):
@@ -142,35 +152,39 @@ class DoHResolver:
                 if ip:
                     ips.add(ip)
                     self._update_provider_health(provider, True)
-                    if len(ips) >= 2:  # Stop after getting 2+ IPs
+                    if len(ips) >= 2:
                         break
                 else:
                     errors += 1
                     self._update_provider_health(provider, False)
-
             except Exception as e:
                 errors += 1
                 self._update_provider_health(provider, False)
                 LOG.debug(f"DoH query failed for {hostname} via {server}: {e}")
 
-        # Fallback to system DNS if DoH fails
-        if not ips:
-            LOG.warning(f"Used system DNS fallback for {hostname}")
-            try:
-                system_ips = socket.gethostbyname_ex(hostname)[2]
-                ips.update(system_ips)
-            except socket.gaierror:
-                LOG.error(f"System DNS also failed for {hostname}")
+            # Early fallback after several errors
+            if errors >= 3:
+                try:
+                    results = await asyncio.get_event_loop().getaddrinfo(
+                        hostname, None, family=socket.AF_INET
+                    )
+                    system_ips = {result[4][0] for result in results}
+                    ips.update(system_ips)
+                    LOG.warning(f"Used system DNS fallback for {hostname}")
+                except Exception as e:
+                    LOG.error(f"System DNS fallback failed for {hostname}: {e}")
+                break
 
-        # Cache results
+        # Cache results if any
         if ips:
             self.cache[hostname] = {
                 "ips": ips.copy(),
                 "expires": time.time() + self.cache_ttl,
             }
             LOG.info(f"Resolved {hostname} -> {ips} via DoH")
+            return ips
 
-        return ips
+        return set()
 
     async def resolve_one(self, hostname: str) -> Optional[str]:
         """Resolves one IP for a hostname using DoH."""
@@ -207,3 +221,38 @@ class DoHResolver:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self._cleanup()
+
+    def save_cache_to_file(self, filepath: str):
+        """Сохраняет кэш DNS в файл для последующего использования."""
+        try:
+            cache_data = {}
+            current_time = time.time()
+            for hostname, entry in self.cache.items():
+                if current_time < entry["expires"]:
+                    cache_data[hostname] = {
+                        "ips": list(entry["ips"]),
+                        "expires": entry["expires"],
+                    }
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f, indent=2)
+            LOG.info(f"DNS кэш сохранен в {filepath} ({len(cache_data)} записей)")
+        except Exception as e:
+            LOG.error(f"Ошибка сохранения DNS кэша: {e}")
+
+    def load_cache_from_file(self, filepath: str):
+        """Загружает кэш DNS из файла."""
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                cache_data = json.load(f)
+            current_time = time.time()
+            loaded_count = 0
+            for hostname, entry in cache_data.items():
+                if current_time < entry["expires"]:
+                    self.cache[hostname] = {
+                        "ips": set(entry["ips"]),
+                        "expires": entry["expires"],
+                    }
+                    loaded_count += 1
+            LOG.info(f"DNS кэш загружен из {filepath} ({loaded_count} записей)")
+        except Exception as e:
+            LOG.error(f"Ошибка загрузки DNS кэша: {e}")

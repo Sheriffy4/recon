@@ -11,10 +11,7 @@ import logging
 from typing import Dict, Set, List, Optional, Tuple
 from pathlib import Path
 from dataclasses import dataclass
-try:
-    from .doh_resolver import DoHResolver
-except ImportError:
-    from doh_resolver_fixed import DoHResolver
+from core.doh_resolver import DoHResolver
 
 LOG = logging.getLogger("blocked_domain_detector")
 

@@ -1,1 +1,0 @@
-python cli.py -d sites.txt --strategy "--dpi-desync=fakeddisorder --dpi-desync-split-seqovl=336 --dpi-desync-autottl=2 --dpi-desync-fooling=md5sig,badsum,badseq --dpi-desync-repeats=1 --dpi-desync-split-pos=76 --dpi-desync-ttl=1" --pcap out_fixed.pcap

@@ -16,7 +16,7 @@ import logging
 sys.path.append(str(Path(__file__).parent))
 
 from core.smart_bypass_engine import SmartBypassEngine
-from doh_resolver_fixed import DoHResolver
+from core.doh_resolver import DoHResolver
 
 LOG = logging.getLogger("subdomain_detector")
 

@@ -8,7 +8,7 @@ import asyncio
 import logging
 import time
 
-from hybrid_engine import HybridEngine
+from core.hybrid_engine import HybridEngine
 
 # Configure logging
 logging.basicConfig(

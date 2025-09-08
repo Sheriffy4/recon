@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from comprehensive_attack_tester import ComprehensiveAttackTester, AttackDefinitions
+from core.bypass_engine import BypassTechniques
 
 # Configure logging
 logging.basicConfig(

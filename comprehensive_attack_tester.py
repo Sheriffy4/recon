@@ -26,6 +26,7 @@ from typing import Dict, List, Tuple, Optional, Set
 from dataclasses import dataclass, asdict
 from datetime import datetime
 import statistics
+from core.bypass_engine import BypassEngine, BypassTechniques
 
 # Add recon directory to path
 sys.path.insert(0, str(Path(__file__).parent))

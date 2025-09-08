@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from doh_resolver_fixed import DoHResolver
+from core.doh_resolver import DoHResolver
 
 LOG = logging.getLogger(__name__)
 

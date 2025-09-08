@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 # Import recon modules
 from core.attack_combinator import AttackCombinator, AttackResult
 from core.strategy_selector import StrategySelector
-from bypass_engine import BypassEngine, BypassTechniques
+from core.bypass_engine import BypassEngine, BypassTechniques
 from cli import resolve_all_ips
 
 # Configure logging
