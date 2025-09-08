@@ -205,6 +205,70 @@ class QUICFragmentationAttack(BaseAttack):
             fragments.append(fragment)
         return fragments
 
+    def _fragment_by_frames(self, payload: bytes, fallback_size: int) -> List[bytes]:
+        """Fragment payload on CRYPTO/STREAM frame boundaries when possible."""
+        # Очень простой сканер: ищем 0x06(CRYPTO)/0x00(PADDING)/STREAM(0x08..0x0f)
+        parts = []
+        try:
+            # Заголовок long header до PN — возьмем предположительно 20..50 байт.
+            # Здесь берём эвристику — работаем на синтетике, где формат нам известен.
+            # Для простоты режем «как есть» по целым фреймам.
+            p = 0
+            n = len(payload)
+            # ищем первый CRYPTO
+            frames = []
+            i = 0
+            while i < n:
+                ftype = payload[i]
+                if ftype == 0x00:
+                    j = i + 1
+                    while j < n and payload[j] == 0x00: j += 1
+                    frames.append((i, j))
+                    i = j; continue
+                if ftype == 0x06:
+                    j = i + 1
+                    off, l1 = self._decode_varint(payload[j:]); j += l1
+                    ln, l2 = self._decode_varint(payload[j:]); j += l2
+                    j = min(n, j + ln)
+                    frames.append((i, j)); i = j; continue
+                if 0x08 <= ftype <= 0x0F:
+                    j = i + 1
+                    _, lsid = self._decode_varint(payload[j:]); j += lsid
+                    _, loff = self._decode_varint(payload[j:]); j += loff
+                    ln, llen = self._decode_varint(payload[j:]); j += llen
+                    j = min(n, j + ln)
+                    frames.append((i, j)); i = j; continue
+                i += 1
+            if not frames:
+                return self._fragment_with_techniques(payload, fallback_size)
+            last = 0
+            for (s, e) in frames:
+                if s > last:
+                    # вставим «межкадровый» кусок
+                    parts.append(payload[last:s])
+                parts.append(payload[s:e])
+                last = e
+            if last < n:
+                parts.append(payload[last:])
+            # выкидываем пустые
+            parts = [p for p in parts if p]
+            # гарантируем не слишком мелкие куски
+            if all(len(p) < 16 for p in parts):
+                return self._fragment_with_techniques(payload, fallback_size)
+            return parts
+        except Exception:
+            return self._fragment_with_techniques(payload, fallback_size)
+
+    def _decode_varint(self, data: bytes) -> tuple[int, int]:
+        if not data:
+            return 0, 0
+        fb = data[0]; pref = fb >> 6; length = 1 << pref
+        if len(data) < length: return 0, 1
+        val = fb & 0x3F
+        for i in range(1, length):
+            val = (val << 8) | data[i]
+        return val, length
+
     def _create_version_negotiation_packet(self) -> bytes:
         """Create a QUIC Version Negotiation packet to confuse DPI."""
         header = struct.pack("!B", 128 | random.randint(0, 63))
@@ -225,6 +289,9 @@ class QUICFragmentationAttack(BaseAttack):
         start_time = time.time()
         try:
             fragment_size = context.params.get("fragment_size", 100)
+            split_by_frames = bool(context.params.get("split_by_frames", True))
+            coalesce_count = int(context.params.get("coalesce_count", 0))
+            padding_ratio = float(context.params.get("padding_ratio", 0.0))
             domain = context.domain or "example.com"
             use_coalescing = context.params.get("use_coalescing", False)
             add_version_negotiation = context.params.get(
@@ -236,11 +303,22 @@ class QUICFragmentationAttack(BaseAttack):
                 )
             else:
                 full_quic_packet = self._create_quic_initial_packet(domain)
-            fragments = self._fragment_with_techniques(full_quic_packet, fragment_size)
+            if split_by_frames:
+                fragments = self._fragment_by_frames(full_quic_packet, fragment_size)
+            else:
+                fragments = self._fragment_with_techniques(full_quic_packet, fragment_size)
             segments = []
             if add_version_negotiation:
                 vn_packet = self._create_version_negotiation_packet()
                 segments.append((vn_packet, 0))
+            # Коалесцирование: объединим несколько небольших фрагментов в один UDP‑датаграм
+            if coalesce_count > 1 and len(fragments) > coalesce_count:
+                fused = b"".join(fragments[:coalesce_count])
+                fragments = [fused] + fragments[coalesce_count:]
+            # Padding в конец первого фрагмента
+            if padding_ratio > 0 and fragments:
+                pad_len = int(len(fragments[0]) * padding_ratio)
+                fragments[0] = fragments[0] + (b"\x00" * pad_len)
             for i, fragment in enumerate(fragments):
                 delay = random.randint(0, 20) if i > 0 else 0
                 segments.append((fragment, delay))
@@ -256,6 +334,9 @@ class QUICFragmentationAttack(BaseAttack):
                 data_transmitted=True,
                 metadata={
                     "fragment_size": fragment_size,
+                    "split_by_frames": split_by_frames,
+                    "coalesce_count": coalesce_count,
+                    "padding_ratio": padding_ratio,
                     "fragment_count": len(fragments),
                     "original_size": len(full_quic_packet),
                     "version_negotiation_added": add_version_negotiation,

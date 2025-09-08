@@ -50,6 +50,8 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
         try:
             payload = context.payload
             fragment_size = context.params.get("fragment_size", 300)
+            coalesce_count = int(context.params.get("coalesce_count", 0))
+            padding_ratio = float(context.params.get("padding_ratio", 0.0))
             add_version_negotiation = context.params.get(
                 "add_version_negotiation", False
             )
@@ -75,6 +77,12 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
                     dummy_payload, fragment_size, connection_id_length
                 )
                 quic_packets.extend(fragment_packets)
+            if coalesce_count > 1 and len(quic_packets) > coalesce_count:
+                fused = b"".join(quic_packets[:coalesce_count])
+                quic_packets = [fused] + quic_packets[coalesce_count:]
+            if padding_ratio > 0 and quic_packets:
+                pad_len = int(len(quic_packets[0]) * padding_ratio)
+                quic_packets[0] = quic_packets[0] + (b"\x00" * pad_len)
             segments = []
             for i, packet in enumerate(quic_packets):
                 delay = await self._calculate_quic_delay(i, add_version_negotiation)
@@ -103,6 +111,8 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
                 technique_used="quic_fragmentation_obfuscation",
                 metadata={
                     "fragment_size": fragment_size,
+                    "coalesce_count": coalesce_count,
+                    "padding_ratio": padding_ratio,
                     "fragment_count": (
                         len(fragment_packets) if "fragment_packets" in locals() else 0
                     ),

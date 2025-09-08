@@ -61,7 +61,9 @@ class QuicHandler:
         self, payload: bytes, positions: List[int]
     ) -> List[Tuple[bytes, int]]:
         """
-        Разделяет QUIC Initial пакет на несколько частей для обхода DPI.
+        Разделяет QUIC Initial пакет на несколько частей.
+        Попытка «осмысленной» сегментации по границам фреймов (CRYPTO/STREAM/PADDING),
+        если распознаются (актуально для синтетических пакетов наших атак).
 
         Args:
             payload (bytes): Исходный QUIC пакет
@@ -70,31 +72,31 @@ class QuicHandler:
         Returns:
             List[Tuple[bytes, int]]: Список кортежей (фрагмент, смещение)
         """
-        if not positions:
-            return [(payload, 0)]
-
         try:
-            # Находим начало Protected Payload
             header_len = self._get_header_length(payload)
             if not header_len:
                 return [(payload, 0)]
-
-            # Разделяем Protected Payload по указанным позициям
+            # Попробуем найти границы фреймов (актуально для синтетики: фреймы незашифрованы)
+            frames = self._scan_frames(payload, header_len)
+            if frames:
+                segs: List[Tuple[bytes, int]] = []
+                # заголовок отдельным сегментом
+                segs.append((payload[:header_len], 0))
+                for (start, end, _ftype) in frames:
+                    segs.append((payload[start:end], start))
+                return segs
+            # Иначе — fallback к старой логике с positions
+            if not positions:
+                return [(payload, 0)]
             segments = []
             last_pos = header_len
-
-            # Сохраняем заголовок
             segments.append((payload[:header_len], 0))
-
-            # Разделяем зашифрованную часть
             for pos in sorted(positions):
                 if pos > last_pos and pos < len(payload):
                     segments.append((payload[last_pos:pos], last_pos))
                     last_pos = pos
-
             if last_pos < len(payload):
                 segments.append((payload[last_pos:], last_pos))
-
             return segments
 
         except Exception as e:
@@ -136,14 +138,14 @@ class QuicHandler:
             # Token Length (variable-length integer)
             if pos >= len(payload):
                 return None
-            token_len, bytes_read = self._decode_varint(payload[pos:])
-            pos += bytes_read + token_len
+            token_len, tl = self._decode_varint(payload[pos:])
+            pos += tl + token_len
 
             # Length of the rest of the packet (variable-length integer)
             if pos >= len(payload):
                 return None
-            _, bytes_read = self._decode_varint(payload[pos:])
-            pos += bytes_read
+            _, ll = self._decode_varint(payload[pos:])
+            pos += ll
 
             return pos
 
@@ -176,3 +178,57 @@ class QuicHandler:
             value = (value << 8) + data[i]
 
         return value, length
+
+    def _scan_frames(self, payload: bytes, start: int) -> List[Tuple[int, int, str]]:
+        """
+        Простая эвристика: пытаемся распознать фреймы CRYPTO(0x06)/PADDING(0x00)/STREAM(0x08..0x0F)
+        для синтетических Initial (настоящие Initial зашифрованы и здесь не распознаются).
+        Возвращает список (start, end, type_name) границ фреймов внутри payload.
+        """
+        frames = []
+        pos = start
+        n = len(payload)
+        try:
+            while pos < n:
+                ftype = payload[pos]
+                # PADDING (0x00): может тянуться подряд
+                if ftype == 0x00:
+                    end = pos + 1
+                    while end < n and payload[end] == 0x00:
+                        end += 1
+                    frames.append((pos, end, "PADDING"))
+                    pos = end
+                    continue
+                # CRYPTO (0x06): varint offset + varint length + data
+                if ftype == 0x06:
+                    p = pos + 1
+                    off, l1 = self._decode_varint(payload[p:])
+                    p += l1
+                    ln, l2 = self._decode_varint(payload[p:])
+                    p += l2
+                    end = min(n, p + ln)
+                    frames.append((pos, end, "CRYPTO"))
+                    pos = end
+                    continue
+                # STREAM (0x08..0x0f) — упрощённо считаем формат с length
+                if 0x08 <= ftype <= 0x0F:
+                    p = pos + 1
+                    # stream id
+                    _, lsid = self._decode_varint(payload[p:])
+                    p += lsid
+                    # offset (может быть 0)
+                    _, loff = self._decode_varint(payload[p:])
+                    p += loff
+                    # length
+                    ln, llen = self._decode_varint(payload[p:])
+                    p += llen
+                    end = min(n, p + ln)
+                    frames.append((pos, end, "STREAM"))
+                    pos = end
+                    continue
+                # прочее — завершаем сканирование
+                break
+        except Exception:
+            # На любом сбое — кадрируется то, что успели собрать
+            pass
+        return frames
