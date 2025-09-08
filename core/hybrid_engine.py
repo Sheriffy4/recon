@@ -61,11 +61,13 @@ class HybridEngine:
     """
 
     def __init__(self, debug: bool=False, enable_advanced_fingerprinting: bool=True,
-                 enable_modern_bypass: bool=True, verbosity: str="normal", enable_enhanced_tracking: bool=False):
+                 enable_modern_bypass: bool=True, verbosity: str="normal",
+                 enable_enhanced_tracking: bool=False, enable_online_optimization: bool=False):
         self.debug = debug
         self.verbosity = verbosity
         self.parser = ZapretStrategyParser()
         self.enhanced_tracking = bool(enable_enhanced_tracking)
+        self.enable_online_optimization = bool(enable_online_optimization)
 
         # Initialize modern bypass engine components
         self.modern_bypass_enabled = enable_modern_bypass and MODERN_BYPASS_ENGINE_AVAILABLE
@@ -354,7 +356,8 @@ class HybridEngine:
         fingerprint: Optional[DPIFingerprint] = None,
         return_details: bool = False,
         prefer_retry_on_timeout: bool = False,
-        warmup_ms: Optional[float] = None
+        warmup_ms: Optional[float] = None,
+        enable_online_optimization: bool = False
     ) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
@@ -364,6 +367,25 @@ class HybridEngine:
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
         bypass_engine = BypassEngine(debug=self.debug)
+        # Опционально подключаем онлайн-контроллер
+        if enable_online_optimization:
+            try:
+                base_rules = {}
+                try:
+                    from core.strategy_manager import StrategyManager
+                    sm = StrategyManager()
+                    base_rules = sm.get_strategies_for_service() or {}
+                except Exception:
+                    base_rules = {}
+                # Если нет готовых правил — используем текущую стратегию как default
+                if not base_rules:
+                    base_rules = {"default": strategy if isinstance(strategy, str) else self._task_to_str(strategy)}
+                parser = self.parser
+                def task_translator(parsed_params: Dict[str, Any]) -> Dict[str, Any]:
+                    return self._translate_zapret_to_engine_task(parsed_params)
+                bypass_engine.attach_controller(base_rules, parser, task_translator, store_path="learned_strategies.json", epsilon=0.1)
+            except Exception as e:
+                LOG.debug(f"Adaptive controller attach failed: {e}")
         strategy_map = {'default': engine_task}
         bypass_thread = bypass_engine.start(target_ips, strategy_map)
         try:
@@ -562,7 +584,8 @@ class HybridEngine:
             ret = await self.execute_strategy_real_world(
                 strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
                 prefer_retry_on_timeout=(i < 2),
-                return_details=True
+                return_details=True,
+                enable_online_optimization=self.enable_online_optimization
             )
             engine_telemetry = {}
             if len(ret) == 6:
@@ -658,7 +681,8 @@ class HybridEngine:
                         ret = await self.execute_strategy_real_world(
                             strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
                             prefer_retry_on_timeout=True,  # агрессивнее ретраи для 2го прохода
-                            return_details=True
+                            return_details=True,
+                            enable_online_optimization=self.enable_online_optimization
                         )
                         if len(ret) == 5:
                             result_status, successful_count, total_count, avg_latency, site_results = ret
