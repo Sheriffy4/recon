@@ -7,6 +7,7 @@ import socket
 import ssl
 from collections import defaultdict
 import random
+import hashlib
 from typing import Dict, List, Tuple, Optional, Set, Any, Union
 from urllib.parse import urlparse
 from core.bypass_engine import BypassEngine
@@ -468,9 +469,28 @@ class HybridEngine:
                 bypass_thread.join(timeout=2.0)
             await asyncio.sleep(0.5)
 
-    async def test_strategies_hybrid(self, strategies: List[Union[str, Dict[str, Any]]], test_sites: List[str], ips: Set[str], dns_cache: Dict[str, str], port: int, domain: str, fast_filter: bool=True, initial_ttl: Optional[int]=None, enable_fingerprinting: bool=True, use_modern_engine: bool=True, capturer: Optional[Any]=None, telemetry_full: bool=False) -> List[Dict]:
+    async def test_strategies_hybrid(
+        self,
+        strategies: List[Union[str, Dict[str, Any]]],
+        test_sites: List[str],
+        ips: Set[str],
+        dns_cache: Dict[str, str],
+        port: int,
+        domain: str,
+        fast_filter: bool = True,
+        initial_ttl: Optional[int] = None,
+        enable_fingerprinting: bool = True,
+        use_modern_engine: bool = True,
+        capturer: Optional[Any] = None,
+        telemetry_full: bool = False,
+        # --- Online optimization hooks ---
+        optimization_callback: Optional[callable] = None,
+        strategy_evaluation_mode: bool = False
+    ) -> List[Dict]:
         """
         Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
+        - optimization_callback: функция, вызываемая после каждого теста сайта для онлайн-оптимизации
+        - strategy_evaluation_mode: если True, возвращает только необработанные данные о производительности
         1. Выполняет фингерпринтинг DPI для целевого домена
         2. Адаптирует стратегии под обнаруженный тип DPI
         3. Использует современный движок обхода если доступен
@@ -577,9 +597,10 @@ class HybridEngine:
         LOG.info(f'Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine...')
         for i, strategy in enumerate(strategies_to_test):
             pretty = strategy if isinstance(strategy, str) else self._task_to_str(strategy)
+            sid = hashlib.sha1(str(pretty).encode('utf-8')).hexdigest()[:12]
             LOG.info(f'--> Тест {i + 1}/{len(strategies_to_test)}: {pretty}')
             if capturer:
-                try: capturer.mark_strategy_start(str(strategy))
+                try: capturer.mark_strategy_start(sid)
                 except Exception: pass
             ret = await self.execute_strategy_real_world(
                 strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
@@ -597,7 +618,7 @@ class HybridEngine:
                 site_results = {}
 
             if capturer:
-                try: capturer.mark_strategy_end(str(strategy))
+                try: capturer.mark_strategy_end(sid)
                 except Exception: pass
             success_rate = successful_count / total_count if total_count > 0 else 0.0
 
@@ -611,7 +632,7 @@ class HybridEngine:
                     "SH": engine_telemetry.get("serverhellos", 0),
                     "RST": engine_telemetry.get("rst_count", 0),
                 }
-            result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None, 'engine_telemetry': tel_sum}
+            result_data = {'strategy_id': sid, 'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None, 'engine_telemetry': tel_sum}
             if telemetry_full and engine_telemetry:
                 result_data['engine_telemetry_full'] = engine_telemetry
 
@@ -725,10 +746,10 @@ class HybridEngine:
         # cap_metrics: { strategy_id: {tls_clienthellos, tls_serverhellos, ...} }
         map_by_strategy = cap_metrics
         for r in results:
-            sid = r.get("strategy")
+            sid = r.get("strategy_id") or r.get("strategy")
             if not sid:
                 continue
-            m = map_by_strategy.get(str(sid))
+            m = map_by_strategy.get(str(sid)) or map_by_strategy.get(str(r.get("strategy")))
             if not m:
                 continue
             r["pcap_total_packets"] = m.get("total_packets", 0)

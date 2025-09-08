@@ -30,6 +30,12 @@ class ScapyPacketMock:
     def __getitem__(self, item):
         return self._layers[item]
 
+class RawLayerMock:
+    def __init__(self, payload):
+        self._payload = payload
+    def __bytes__(self):
+        return self._payload
+
 class TestEnhancedPacketCapturer(unittest.TestCase):
 
     def test_create_capturer_bpf(self):
@@ -70,20 +76,22 @@ class TestEnhancedPacketCapturer(unittest.TestCase):
         for i in range(10):
             tcp_layer = mock.Mock()
             tcp_layer.flags = 0x10
-            raw_layer = mock.Mock()
-            layers = {TCP: tcp_layer, Raw: raw_layer}
 
+            payload = b''
             if i == 2:
-                raw_layer.load = b'\x16\x03\x01\x00\x58\x01' + os.urandom(87)
+                payload = b'\x16\x03\x01\x00\x58\x01' + os.urandom(87)
             elif i == 3:
-                raw_layer.load = b'\x16\x03\x03\x00\x30\x02' + os.urandom(46)
+                payload = b'\x16\x03\x03\x00\x30\x02' + os.urandom(46)
             elif i == 6:
-                raw_layer.load = b'\x16\x03\x01\x00\x58\x01' + os.urandom(87)
+                payload = b'\x16\x03\x01\x00\x58\x01' + os.urandom(87)
             elif i == 8:
                 tcp_layer.flags = 0x04
-                raw_layer.load = b''
+                payload = b''
             else:
-                raw_layer.load = os.urandom(20)
+                payload = os.urandom(20)
+
+            raw_layer = RawLayerMock(payload)
+            layers = {TCP: tcp_layer, Raw: raw_layer}
 
             pkt = ScapyPacketMock(time=float(1000 + i * 0.1), layers=layers)
             mock_packets.append(pkt)

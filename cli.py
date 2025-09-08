@@ -1599,8 +1599,12 @@ async def run_hybrid_mode(args):
     if args.enable_enhanced_tracking and args.pcap:
         try:
             from core.pcap.enhanced_packet_capturer import create_enhanced_packet_capturer
-            # Передадим пул IP (all_target_ips уже есть после DNS)
-            corr_capturer = create_enhanced_packet_capturer(args.pcap, target_ips=all_target_ips, port=args.port, interface=args.capture_iface)
+            corr_capturer = create_enhanced_packet_capturer(
+                pcap_file=args.pcap,
+                target_ips=all_target_ips,
+                port=args.port,
+                interface=args.capture_iface
+            )
             console.print("🔗 Enhanced tracking enabled: correlation capturer ready")
         except Exception as e:
             console.print(f"[yellow]⚠️ Could not init correlation capturer: {e}[/yellow]")
@@ -1884,16 +1888,16 @@ async def run_hybrid_mode(args):
                 strategies = optimized_strategies
     console.print("[dim]Parsing strategies into structured format...[/dim]")
     structured_strategies = []
-     # Попробуем достать микропараметры из StrategyManager
-     domain_for_priors = None
-     try:
-         from core.strategy_manager import StrategyManager
-         sm = StrategyManager()
-         # Возьмём первый домен из dns_cache как «ближайший» к текущему запуску
-         domain_for_priors = list(dns_cache.keys())[0] if dns_cache else None
-         ds = sm.get_strategy(domain_for_priors) if domain_for_priors else None
-     except Exception:
-         ds = None
+    # Попробуем достать микропараметры из StrategyManager
+    domain_for_priors = None
+    try:
+        from core.strategy_manager import StrategyManager
+        sm = StrategyManager()
+        # Возьмём первый домен из dns_cache как «ближайший» к текущему запуску
+        domain_for_priors = list(dns_cache.keys())[0] if dns_cache else None
+        ds = sm.get_strategy(domain_for_priors) if domain_for_priors else None
+    except Exception:
+        ds = None
     for s_str in strategies:
         try:
             # Используем исправленный интерпретатор стратегий
@@ -1904,15 +1908,15 @@ async def run_hybrid_mode(args):
                     "type": parsed_strategy.get("type", "unknown"),
                     "params": parsed_strategy.get("params", {})
                 }
-                 # Инъекция приоритетов из StrategyManager, если есть
-                 if ds and isinstance(engine_task.get("params"), dict):
-                     p = engine_task["params"]
-                     if ds.split_pos and "split_pos" not in p:
-                         p["split_pos"] = int(ds.split_pos)
-                     if ds.overlap_size and "overlap_size" not in p:
-                         p["overlap_size"] = int(ds.overlap_size)
-                     if ds.fooling_modes and "fooling" not in p:
-                         p["fooling"] = ds.fooling_modes
+                # Инъекция приоритетов из StrategyManager, если есть
+                if ds and isinstance(engine_task.get("params"), dict):
+                    p = engine_task["params"]
+                    if ds.split_pos and "split_pos" not in p:
+                        p["split_pos"] = int(ds.split_pos)
+                    if ds.overlap_size and "overlap_size" not in p:
+                        p["overlap_size"] = int(ds.overlap_size)
+                    if ds.fooling_modes and "fooling" not in p:
+                        p["fooling"] = ds.fooling_modes
                 structured_strategies.append(engine_task)
                 console.print(f"[green]✓[/green] Parsed strategy: {engine_task['type']} with params: {engine_task['params']}")
             else:
@@ -1927,12 +1931,11 @@ async def run_hybrid_mode(args):
             "[bold red]Fatal Error: No valid strategies could be parsed.[/bold red]"
         )
         return
-    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
     # Шаг 4: Гибридное тестирование
     console.print("\n[yellow]Step 4: Hybrid testing with forced DNS...[/yellow]")
     test_results = await hybrid_engine.test_strategies_hybrid(
-        strategies=structured_strategies,  # передаем dict-стратегии как есть
+        strategies=structured_strategies,
         test_sites=blocked_sites,
         ips=set(dns_cache.values()),
         dns_cache=dns_cache,
@@ -2720,10 +2723,113 @@ async def run_closed_loop_mode(args):
             "[bold magenta]Recon: Closed Loop Optimization[/bold magenta]", expand=False
         )
     )
-    console.print(
-        "[yellow]Closed loop mode is not yet implemented. Using hybrid mode.[/yellow]"
+    # Most of the setup is similar to evolutionary mode
+    if args.domains_file:
+        domains_file = args.target
+        default_domains = [config.DEFAULT_DOMAIN]
+    else:
+        domains_file = None
+        default_domains = [args.target]
+    dm = DomainManager(domains_file, default_domains=default_domains)
+    if not dm.domains:
+        console.print("[bold red]Error:[/bold red] No domains to test.")
+        return
+    normalized_domains = []
+    for site in dm.domains:
+        if not site.startswith(("http://", "https://")):
+            site = f"https://{site}"
+        normalized_domains.append(site)
+    dm.domains = normalized_domains
+    console.print(f"Loaded {len(dm.domains)} domain(s) for closed-loop optimization.")
+
+    doh_resolver = DoHResolver()
+    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
+
+    console.print("\n[yellow]Step 1: DNS Resolution...[/yellow]")
+    dns_cache: Dict[str, str] = {}
+    all_target_ips: Set[str] = set()
+    for site in dm.domains:
+        hostname = urlparse(site).hostname if site.startswith("http") else site
+        ip = await doh_resolver.resolve(hostname)
+        if ip:
+            dns_cache[hostname] = ip
+            all_target_ips.add(ip)
+    if not dns_cache:
+        console.print("[bold red]Fatal Error:[/bold red] Could not resolve any domains.")
+        return
+
+    console.print("\n[yellow]Step 2: Baseline Testing...[/yellow]")
+    baseline_results = await hybrid_engine.test_baseline_connectivity(dm.domains, dns_cache)
+    blocked_sites = [
+        site
+        for site, (status, _, _, _) in baseline_results.items()
+        if status not in ["WORKING"]
+    ]
+    if not blocked_sites:
+        console.print("[bold green]✓ All sites are accessible! No optimization needed.[/bold green]")
+        return
+    console.print(f"Found {len(blocked_sites)} blocked sites for optimization.")
+
+    console.print("\n[yellow]Step 3: Preparing base strategies...[/yellow]")
+    generator = ZapretStrategyGenerator()
+    strategies = generator.generate_strategies(None, count=args.count)
+    structured_strategies = []
+    for s_str in strategies:
+        try:
+            parsed_strategy = interpret_strategy(s_str)
+            if parsed_strategy:
+                engine_task = {
+                    "type": parsed_strategy.get("type", "unknown"),
+                    "params": parsed_strategy.get("params", {})
+                }
+                structured_strategies.append(engine_task)
+        except Exception:
+            pass
+
+    if not structured_strategies:
+        console.print("[bold red]Error: Could not generate any valid base strategies.[/bold red]")
+        return
+
+    console.print(f"Generated {len(structured_strategies)} base strategies.")
+
+    # This is where the ParametricOptimizer comes in
+    from core.parametric_optimizer import ParametricOptimizer
+    optimizer = ParametricOptimizer(
+        engine=hybrid_engine,
+        sites=blocked_sites,
+        ips=all_target_ips,
+        dns_cache=dns_cache,
+        port=args.port,
+        base_strategies=structured_strategies,
+        optimization_strategy=args.optimization_strategy,
+        max_iterations=args.optimization_iterations
     )
-    await run_hybrid_mode(args)
+
+    console.print(f"\n[bold magenta]🚀 Starting Parametric Optimization ({args.optimization_strategy}, {args.optimization_iterations} iterations)...[/bold magenta]")
+
+    start_time = time.time()
+    best_strategy_task = await optimizer.run_optimization()
+    optimization_time = time.time() - start_time
+
+    if not best_strategy_task:
+        console.print("[bold red]❌ Optimization failed to find a working strategy.[/bold red]")
+        return
+
+    console.print("\n" + "=" * 60)
+    console.print("[bold green]🎉 Closed-Loop Optimization Complete! 🎉[/bold green]")
+    console.print(f"Optimization time: {optimization_time:.1f}s")
+    console.print(f"Best score: [green]{optimizer.best_score:.3f}[/green]")
+    console.print(f"Best strategy: [cyan]{best_strategy_task}[/cyan]")
+
+    # Save the best strategy
+    try:
+        with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
+            json.dump(best_strategy_task, f, indent=2, ensure_ascii=False)
+        console.print(f"[green]💾 Best strategy saved to '{STRATEGY_FILE}'[/green]")
+    except Exception as e:
+        console.print(f"[red]Error saving best strategy: {e}[/red]")
+
+    hybrid_engine.cleanup()
 
 
 def load_all_attacks():
