@@ -458,6 +458,10 @@ class DPIBehaviorProfile:
     checksum_validation: Optional[bool] = None  # Checksum validation strictness
     rst_latency_ms: Optional[float] = None  # Average RST response latency
     ech_support: Optional[bool] = None  # ECH (Encrypted Client Hello) support
+    # Новые признаки по ECH/HTTP3
+    ech_present: Optional[bool] = None
+    ech_blocked: Optional[bool] = None
+    http3_support: Optional[bool] = None
 
     # Timing sensitivity analysis
     timing_sensitivity_profile: Dict[str, float] = field(

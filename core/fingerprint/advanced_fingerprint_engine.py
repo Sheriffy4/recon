@@ -24,6 +24,7 @@ from core.fingerprint.models import EnhancedFingerprint, DPIBehaviorProfile
 from core.fingerprint.analyzer import PacketAnalyzer
 from core.bypass.attacks.registry import AttackRegistry
 from core.bypass.attacks.base import AttackResult, AttackStatus
+from core.fingerprint.ech_detector import ECHDetector
 from core.interfaces import IProber, IClassifier, IAttackAdapter, IFingerprintEngine
 
 LOG = logging.getLogger("ultimate_fingerprint_engine")
@@ -187,9 +188,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         )
         return fp
 
-    async def analyze_dpi_behavior(
-        self, domain: str, fingerprint: EnhancedFingerprint = None
-    ) -> DPIBehaviorProfile:
+    async def analyze_dpi_behavior(self, fingerprint: "EnhancedFingerprint", extended_metrics: Optional[Dict[str, Any]] = None) -> "DPIBehaviorProfile":
         """
         Create comprehensive behavioral profile with enhanced behavioral analysis
         """
@@ -197,7 +196,18 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         if not fingerprint:
             fingerprint = await self.create_comprehensive_fingerprint(domain)
         profile = DPIBehaviorProfile(
-            dpi_system_id=f"{domain}_{fingerprint.dpi_type}_{fingerprint.short_hash()}"
+            dpi_system_id=f"{domain}_{fingerprint.dpi_type}_{fingerprint.short_hash()}",
+            ech_support=(
+                extended_metrics.get("ech_support")
+                if extended_metrics is not None
+                else getattr(fingerprint, "ech_support", None)
+            ),
+        )
+        # Новые флаги из ECHDetector (если есть)
+        if extended_metrics:
+            profile.ech_present = extended_metrics.get("ech_present")
+            profile.ech_blocked = extended_metrics.get("ech_blocked")
+            profile.http3_support = extended_metrics.get("http3_support")
         )
         profile.signature_based_detection = self._check_signature_detection(fingerprint)
         profile.behavioral_analysis = fingerprint.stateful_inspection or False
@@ -363,6 +373,44 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         self._update_cache(cache_key, refined_fp)
         LOG.info(f"Fingerprint refinement completed for {refined_fp.domain}")
         return refined_fp
+        
+    def collect_extended_fingerprint_metrics(self, domain: str) -> Dict[str, Any]:
+        """
+        Сбор расширенных метрик через единую точку правды: ECHDetector.
+        Возвращает словарь с ключами ech_present/ech_support/ech_blocked/quic_support/http3_support и доп. полями.
+        """
+        import asyncio
+
+        detector = ECHDetector(dns_timeout=getattr(self, "dns_timeout", 1.2))
+
+        async def _gather():
+            dns_info = await detector.detect_ech_dns(domain)
+            quic_info = await detector.probe_quic(domain)
+            ech_block = await detector.detect_ech_blockage(domain)
+            http3_info = await detector.probe_http3(domain)
+            return dns_info, quic_info, ech_block, http3_info
+
+        try:
+            results = asyncio.run(_gather())
+        except RuntimeError:
+            # На случай, если уже есть запущенный event loop
+            loop = asyncio.get_event_loop()
+            results = loop.run_until_complete(_gather())
+
+        dns_info, quic_info, ech_block, http3_info = results
+
+        metrics: Dict[str, Any] = {
+            "ech_present": bool(dns_info.get("ech_present")),
+            # Поддержку ECH считаем по наличию валидного ECHConfigList в DNS
+            "ech_support": bool(dns_info.get("ech_present")),
+            "ech_blocked": ech_block.get("ech_blocked"),
+            "quic_support": bool(quic_info.get("success")),
+            "quic_rtt_ms": quic_info.get("rtt_ms"),
+            "http3_support": bool(http3_info.get("supported")),
+            "alpn": dns_info.get("alpn"),
+            "ech_dns_records": dns_info.get("records"),
+        }
+        return metrics
 
     async def collect_extended_fingerprint_metrics(
         self, domain: str, target_ips: List[str] = None

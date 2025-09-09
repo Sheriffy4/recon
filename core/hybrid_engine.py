@@ -536,13 +536,17 @@ class HybridEngine:
         asn = None
         kb_profile = {}
         primary_ip = dns_cache.get(domain) if dns_cache else None
+        kb_recs: Dict[str, Any] = {}
         if self.knowledge_base and primary_ip:
             try:
-                info = self.knowledge_base.identify(primary_ip)
-                cdn = info.get("cdn")
-                asn = info.get("asn")
-                kb_profile = self.knowledge_base.get_profile(cdn=cdn, asn=asn) or {}
-                LOG.info(f"KB: identified cdn={cdn}, asn={asn}")
+                # Новая интеграция с KB: используем get_recommendations(ip)
+                if hasattr(self.knowledge_base, "get_recommendations"):
+                    kb_recs = self.knowledge_base.get_recommendations(primary_ip) or {}
+                    cdn = kb_recs.get("cdn")
+                    LOG.info(f"KB: recommendations for {primary_ip}: {kb_recs}")
+                else:
+                    # совместимость, если есть иной API (не ожидается)
+                    LOG.debug("Knowledge base without get_recommendations, skipping")
             except Exception as e:
                 LOG.debug(f"KB identify failed: {e}")
 
@@ -550,7 +554,7 @@ class HybridEngine:
         try:
             ctx = AttackContext(domain=domain, ip=primary_ip, port=port,
                                 fingerprint=fingerprint, cdn=cdn, asn=asn,
-                                kb_profile=kb_profile)
+                                kb_profile=kb_profile or kb_recs)
             synthesized = synthesize_strategy(ctx)
         except Exception as e:
             synthesized = None
@@ -588,6 +592,38 @@ class HybridEngine:
                     seen.add(key)
                     uniq.append(s)
             strategies_to_test = uniq
+
+        # Препенд рекомендаций KB: dict для современного движка + строка для совместимости
+        if kb_recs:
+            try:
+                split_pos = kb_recs.get("split_pos")
+                overlap_size = kb_recs.get("overlap_size")
+                fool = kb_recs.get("fooling_methods") or []
+                if isinstance(fool, str):
+                    fool = [x.strip() for x in fool.split(",") if x.strip()]
+                # Dict‑стратегия (для modern engine)
+                kb_dict = {
+                    "type": "desync",
+                    "params": {
+                        "fooling": ",".join(fool) if fool else "badsum",
+                        "split_pos": int(split_pos) if isinstance(split_pos, int) else 76,
+                        "overlap_size": int(overlap_size) if isinstance(overlap_size, int) else 336,
+                        "ttl": 3,
+                    }
+                }
+                # Zapret‑строка (legacy совместимость; overlap напрямую может не поддерживаться)
+                kb_str = f"--dpi-desync={','.join(fool) if fool else 'badsum'},disorder --dpi-desync-split-pos={kb_dict['params']['split_pos']} --dpi-desync-ttl=3"
+                merged = [kb_dict, kb_str] + strategies_to_test
+                uniq, seen = [], set()
+                for s in merged:
+                    key = s if isinstance(s, str) else self._task_to_str(s)
+                    if key not in seen:
+                        seen.add(key)
+                        uniq.append(s)
+                strategies_to_test = uniq
+                LOG.info("KB‑recommended strategies prepended")
+            except Exception as e:
+                LOG.debug(f"Failed to prepend KB recommendations: {e}")
 
         if not strategies_to_test:
             # fallback: если ничего не осталось

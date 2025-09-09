@@ -76,12 +76,25 @@ class StrategySynthesizer:
         fp = ctx.fingerprint
         cdn = (ctx.cdn or "").lower()
 
+        # 0) Попробуем получить KB‑рекомендации сразу (если есть IP и KB)
+        kb_recs = None
+        try:
+            if self.kb and ctx.dst_ip:
+                kb_recs = self.kb.get_recommendations(ctx.dst_ip)
+        except Exception:
+            kb_recs = None
+
         # 1) Быстрые шаблоны при RST injection
         if fp and getattr(fp, "rst_injection_detected", False):
             ttl = 1 if profile == "speedy" else 2
             fool = ["badsum"]
             if profile == "robust":
                 fool = ["badsum", "badseq"]
+            # Обогощаем fooling KB-рекомендациями при наличии
+            if kb_recs and kb_recs.get("fooling_methods"):
+                for m in kb_recs["fooling_methods"]:
+                    if m not in fool:
+                        fool.append(m)
             return {
                 "type": "fake",
                 "params": {
@@ -93,25 +106,34 @@ class StrategySynthesizer:
             }
 
         # 2) База: fakeddisorder с auto/midsld
-        # KB seed
+        # KB seed (из kb_profile) + kb_recs (из KB по IP)
         kb_seed = self._kb_seed(ctx)
         split_pos = None
         if kb_seed:
             split_pos = kb_seed.get("split_pos")
+        # если KB дал split_pos и наш не определён — используем его
+        if (split_pos is None) and kb_recs and ("split_pos" in kb_recs):
+            split_pos = kb_recs["split_pos"]
         if not split_pos:
             split_pos = self._auto_split_pos(ctx.tls_clienthello) or "midsld"
 
         overlap = 336 if profile == "robust" else 160
         if kb_seed and "overlap_size" in kb_seed:
             overlap = kb_seed["overlap_size"]
+        elif kb_recs and "overlap" in kb_recs:
+            overlap = int(kb_recs["overlap"])
 
-        # Fooling по совместимости пути (через селектор)
+        # Fooling по совместимости пути (через селектор) + KB рекомендации
         fooling_list: List[str] = []
         try:
             if self.fooling_selector:
                 fooling_list = self.fooling_selector.get_compatible_methods(cdn) or []
         except Exception:
             pass
+        if kb_recs and kb_recs.get("fooling_methods"):
+            for m in kb_recs["fooling_methods"]:
+                if m not in fooling_list:
+                    fooling_list.append(m)
 
         task = {
             "type": "fakeddisorder",

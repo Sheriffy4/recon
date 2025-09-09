@@ -32,6 +32,9 @@ from core.fingerprint.http_analyzer import HTTPAnalyzer
 from core.fingerprint.dns_analyzer import DNSAnalyzer
 from core.fingerprint.ml_classifier import MLClassifier
 from core.protocols.tls import TLSParser, ClientHelloInfo
+from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
+from core.fingerprint.ech_detector import ECHDetector
+from core.fingerprint.models import DPIBehaviorProfile
 
 # Try to import sklearn for ML features
 try:
@@ -291,6 +294,18 @@ class AdvancedFingerprinter:
                 self.logger.warning(f"Could not initialize RealEffectivenessTester: {e}")
                 self.effectiveness_tester = None
 
+        # Новое: база знаний CDN/ASN и ECH-детектор
+        try:
+            self.kb = CdnAsnKnowledgeBase()
+        except Exception as e:
+            self.logger.warning(f"Failed to init CdnAsnKnowledgeBase: {e}")
+            self.kb = None
+        try:
+            self.ech_detector = ECHDetector(dns_timeout=self.config.dns_timeout)
+        except Exception as e:
+            self.logger.warning(f"Failed to init ECHDetector: {e}")
+            self.ech_detector = None
+
     def _load_effectiveness_model(self):
         """Load ML model for attack effectiveness prediction"""
         try:
@@ -375,6 +390,155 @@ class AdvancedFingerprinter:
         
         return fingerprints
 
+    async def _perform_comprehensive_analysis(
+        self, target: str, port: int, protocols: Optional[List[str]] = None
+    ) -> DPIFingerprint:
+        """
+        Enhanced comprehensive DPI analysis with fail-fast optimization
+        """
+        fingerprint = DPIFingerprint(target=f"{target}:{port}", timestamp=time.time())
+        analysis_start = time.time()
+        
+        # Quick connectivity check for fail-fast
+        preliminary_block_type = await self._quick_connectivity_check(target, port)
+        fingerprint.block_type = preliminary_block_type
+        
+        # Fail-fast: при явном тяжелом блоке, пропускаем тяжелые пробы
+        fast_mode = (self.config.analysis_level == "fast" or 
+                    (self.config.enable_fail_fast and 
+                     preliminary_block_type in ["tcp_timeout", "dns_resolution_failed", "connection_reset"]))
+        
+        if fast_mode:
+            self.logger.info(f"Fast mode enabled for {target}:{port} (block_type: {preliminary_block_type})")
+            
+            # Только базовые метрики и классификация
+            tasks = []
+            if self.metrics_collector:
+                tasks.append(("metrics_collection",
+                              self.metrics_collector.collect_comprehensive_metrics(target, port, protocols)))
+            if self.tcp_analyzer:
+                tasks.append(("tcp_analysis",
+                              self.tcp_analyzer.analyze_tcp_behavior(target, port)))
+
+            if tasks:
+                results = await asyncio.gather(
+                    *(self._safe_async_call(name, coro) for name, coro in tasks),
+                    return_exceptions=True,
+                )
+                for i, (name, _) in enumerate(tasks):
+                    result = results[i]
+                    if not isinstance(result, Exception):
+                        task_name, task_result = result
+                        if task_result:
+                            self._integrate_analysis_result(fingerprint, task_name, task_result)
+
+            fingerprint.raw_metrics["rst_ttl_stats"] = self._analyze_rst_ttl_stats(fingerprint)
+            await self._classify_dpi_type(fingerprint)
+            fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
+            fingerprint.analysis_duration = time.time() - analysis_start
+            return fingerprint
+
+        # Full analysis mode
+        # Capture ClientHello for TLS analysis
+        client_hello_bytes = await self._capture_client_hello(target, port)
+        if client_hello_bytes:
+            client_hello_info = TLSParser.parse_client_hello(client_hello_bytes)
+            if client_hello_info:
+                self._populate_coherent_fingerprint_features(fingerprint, client_hello_info)
+            # JA3 hash
+            fingerprint.raw_metrics["ja3"] = self._compute_ja3(client_hello_bytes)
+        
+        # Core analysis tasks
+        tasks = []
+        if self.metrics_collector:
+            tasks.append(("metrics_collection", 
+                         self.metrics_collector.collect_comprehensive_metrics(target, port, protocols)))
+        if self.tcp_analyzer:
+            tasks.append(("tcp_analysis", 
+                         self.tcp_analyzer.analyze_tcp_behavior(target, port)))
+        if self.http_analyzer:
+            tasks.append(("http_analysis",
+                         self.http_analyzer.analyze_http_behavior(target, port)))
+        if self.dns_analyzer:
+            tasks.append(("dns_analysis",
+                         self.dns_analyzer.analyze_dns_behavior(target)))
+        
+        # Extras — по уровню анализа
+        extra_tasks = []
+        if self.config.analysis_level in ("balanced", "full"):
+            extra_tasks.append(("quic_probe", self._probe_quic_initial(target, port)))
+            extra_tasks.append(("tls_caps", self._probe_tls_capabilities(target, port)))
+            # Новое: параллельно — ECH через DNS (HTTPS/SVCB) и быстрый QUIC‑handshake
+            if self.ech_detector:
+                extra_tasks.append(("ech_dns", self.ech_detector.detect_ech_dns(target)))
+                extra_tasks.append(("quic_handshake", self.ech_detector.probe_quic(domain=target, port=port, timeout=self.config.udp_timeout)))
+            if self.config.analysis_level == "full":
+                if self.config.enable_behavioral_probes:
+                    extra_tasks.append(("behavioral_probes", self._probe_dpi_behavioral_patterns(target, port)))
+
+        # SNI probing по режиму
+        if self.config.enable_sni_probing and self.config.sni_probe_mode != "off":
+            extra_tasks.append(("sni_probe", self._probe_sni_sensitivity(target, port)))
+            if self.config.sni_probe_mode == "detailed":
+                extra_tasks.append(("sni_probe_detailed", self._probe_sni_sensitivity_detailed(target, port)))
+            self.stats["sni_probes_executed"] += 1
+        
+        # Execute all tasks concurrently
+        if tasks:
+            results = await asyncio.gather(
+                *(self._safe_async_call(name, coro) for name, coro in tasks),
+                return_exceptions=True,
+            )
+            for i, (name, _) in enumerate(tasks):
+                result = results[i]
+                if not isinstance(result, Exception):
+                    task_name, task_result = result
+                    if task_result:
+                        self._integrate_analysis_result(fingerprint, task_name, task_result)
+        
+        # Execute extra probes
+        if extra_tasks:
+            extras = await asyncio.gather(*(c for _, c in extra_tasks), return_exceptions=True)
+            for i, (name, _) in enumerate(extra_tasks):
+                res = extras[i]
+                if not isinstance(res, Exception):
+                    if name == "behavioral_probes":
+                        self._apply_behavioral_metrics_to_fingerprint(fingerprint, res)
+                    fingerprint.raw_metrics[name] = res
+
+        # Новое: упрощённые флаги из ECH/QUIC результатов
+        rm = fingerprint.raw_metrics
+        try:
+            ech_dns = rm.get("ech_dns") or {}
+            quic_hs = rm.get("quic_handshake") or {}
+            if "ech_support" not in rm:
+                rm["ech_support"] = bool(ech_dns.get("ech_present", False))
+            if "quic_support" not in rm:
+                rm["quic_support"] = bool(quic_hs.get("success", False))
+            # Не делаем жёстких выводов об ech_blocked на основе UDP, оставляем None/False
+            rm.setdefault("ech_blocked", False)
+        except Exception:
+            pass
+        
+        # Analysis and classification
+        fingerprint.raw_metrics["rst_ttl_stats"] = self._analyze_rst_ttl_stats(fingerprint)
+        fingerprint.raw_metrics["sni_sensitivity"] = {"likely": self._infer_sni_sensitivity(fingerprint)}
+        
+        # Predict weaknesses and attacks
+        fingerprint.predicted_weaknesses = self._predict_weaknesses(fingerprint)
+        fingerprint.recommended_attacks = self._predict_best_attacks(fingerprint)
+        
+        # Initial classification
+        await self._classify_dpi_type(fingerprint)
+        
+        # Generate strategy hints
+        fingerprint.raw_metrics["strategy_hints"] = self._generate_strategy_hints(fingerprint)
+        
+        fingerprint.analysis_duration = time.time() - analysis_start
+        fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
+        
+        return fingerprint
+
     async def fingerprint_target(
         self,
         target: str,
@@ -397,11 +561,36 @@ class AdvancedFingerprinter:
             include_extended_metrics = self.config.enable_extended_metrics
         
         try:
+            # Новое: быстрая проверка кэша по домену/CDN до любых зондов
+            cdn_name = None
+            domain_key = f"domain:{target}:{port}"
+            cdn_key = None
+            if not force_refresh and self.cache:
+                cached_fp = self.cache.get(domain_key)
+                if cached_fp and getattr(cached_fp, "reliability_score", 0) > 0.8:
+                    self.stats["cache_hits"] += 1
+                    self.logger.info(f"Using domain-cache fingerprint for {target}:{port}")
+                    return cached_fp
+                # вычислим CDN-ключ (требует резолва)
+                try:
+                    ip = socket.gethostbyname(target)
+                    if self.kb:
+                        cdn_name = self.kb.identify_cdn(ip) or None
+                    if cdn_name:
+                        cdn_key = f"cdn:{cdn_name}:{port}"
+                        cached_fp = self.cache.get(cdn_key)
+                        if cached_fp and getattr(cached_fp, "reliability_score", 0) > 0.8:
+                            self.stats["cache_hits"] += 1
+                            self.logger.info(f"Using CDN-cache fingerprint for {target}:{port} (cdn={cdn_name})")
+                            return cached_fp
+                except Exception:
+                    pass
+
             # Phase 1: Shallow probe for quick classification
             preliminary_fp = await self._run_shallow_probe(target, port)
             dpi_hash = preliminary_fp.short_hash()
             
-            # Check cache
+            # Check cache по dpihash (существующее поведение)
             if not force_refresh and self.cache:
                 cached_fp = self.cache.get(dpi_hash)
                 if cached_fp and cached_fp.reliability_score > 0.8:
@@ -450,9 +639,26 @@ class AdvancedFingerprinter:
             # Final reliability score calculation
             final_fingerprint.reliability_score = self._calculate_reliability_score(final_fingerprint)
             
-            # Cache the result
+            # Новое: кэширование по всем ключам (domain/cdn/dpihash)
             if self.cache and final_fingerprint.reliability_score > 0.7:
-                self.cache.set(dpi_hash, final_fingerprint)
+                try:
+                    # домен
+                    self.cache.set(domain_key, final_fingerprint)
+                    # CDN
+                    if cdn_name is None:
+                        try:
+                            ip = socket.gethostbyname(target)
+                            if self.kb:
+                                cdn_name = self.kb.identify_cdn(ip) or None
+                        except Exception:
+                            cdn_name = None
+                    if cdn_name:
+                        cdn_key = f"cdn:{cdn_name}:{port}"
+                        self.cache.set(cdn_key, final_fingerprint)
+                    # dpihash
+                    self.cache.set(dpi_hash, final_fingerprint)
+                except Exception as e:
+                    self.logger.debug(f"Failed to persist all cache keys: {e}")
             
             analysis_time = time.time() - start_time
             self.stats["fingerprints_created"] += 1
@@ -779,6 +985,36 @@ class AdvancedFingerprinter:
             self.logger.error(f"Extended metrics collection failed: {e}")
             metrics["error"] = str(e)
         
+        # Дополнительно: ECH/HTTP3 через ECHDetector
+        try:
+            ed = ECHDetector(timeout=getattr(self.config, "tls_timeout", 2.0))
+            dns_info = await ed.detect_ech_dns(target)
+            if dns_info:
+                metrics["ech_present"] = bool(dns_info.get("ech_present", False))
+                # признак наличия h3 в DNS тоже может быть полезен
+                alpn = dns_info.get("alpn", [])
+                if alpn and isinstance(alpn, (list, tuple)):
+                    metrics["ech_dns_alpn"] = alpn
+            # HTTP/3 поддержка (aioquic при наличии либо QUIC fallback)
+            try:
+                http3_ok = await ed.probe_http3(target, port)
+                metrics["http3_support"] = bool(http3_ok)
+            except Exception as e:
+                self.logger.debug(f"HTTP/3 probe failed: {e}")
+
+            # Эвристика ech_blocked
+            try:
+                ech_blk = await ed.detect_ech_blockage(target, port)
+                if ech_blk:
+                    metrics["ech_blocked"] = bool(ech_blk.get("ech_blocked", False))
+                    # Также можно сохранить вспомогательные флаги
+                    metrics.setdefault("ech_details", {})["tls_ok"] = ech_blk.get("tls_ok", False)
+                    metrics["ech_present"] = metrics.get("ech_present", False) or bool(ech_blk.get("ech_present", False))
+            except Exception as e:
+                self.logger.debug(f"ECH blockage heuristic failed: {e}")
+        except Exception as e:
+            self.logger.debug(f"ECHDetector integration skipped: {e}")
+
         return metrics
 
     def _apply_extended_metrics_to_fingerprint(
@@ -807,6 +1043,13 @@ class AdvancedFingerprinter:
         for proto in ["http2_support", "quic_support", "ech_support"]:
             if proto in https_metrics:
                 rm[proto] = https_metrics[proto]
+        # Добавили новые признаки
+        if "http3_support" in https_metrics:
+            rm["http3_support"] = bool(https_metrics["http3_support"])
+        if "ech_present" in https_metrics:
+            rm["ech_present"] = bool(https_metrics["ech_present"])
+        if "ech_blocked" in https_metrics:
+            rm["ech_blocked"] = bool(https_metrics["ech_blocked"])
         
         # SNI consistency
         if "sni_consistency_blocked" in https_metrics:
@@ -1495,8 +1738,17 @@ class AdvancedFingerprinter:
             fingerprint = await self.fingerprint_target(domain)
         
         profile = DPIBehaviorProfile(
-            dpi_system_id=f"{domain}_{fingerprint.dpi_type}_{fingerprint.short_hash()}"
+            dpi_system_id=raw_metrics.get("dpi_system_id", "unknown"),
+            signature_based_detection=raw_metrics.get("signature_based_detection", False),
+            behavioral_analysis=raw_metrics.get("behavioral_analysis", False),
+            ml_detection=raw_metrics.get("ml_detection", False),
+            statistical_analysis=raw_metrics.get("statistical_analysis", False),
         )
+        # Прокидываем ECH/QUIC флаги, если дошли из collector
+        profile.ech_support = raw_metrics.get("ech_support")
+        profile.ech_present = raw_metrics.get("ech_present")
+        profile.ech_blocked = raw_metrics.get("ech_blocked")
+        profile.http3_support = raw_metrics.get("http3_support")
         
         # Detection capabilities
         profile.signature_based_detection = bool(
@@ -1514,6 +1766,19 @@ class AdvancedFingerprinter:
             getattr(fingerprint, 'rate_limiting_detected', False),
             fingerprint.raw_metrics.get("traffic_analysis_detected", False)
         ])
+        
+        # Дополнительно: перенесённые сигналы ECH/HTTP3 в профиль
+        try:
+            rm = fingerprint.raw_metrics or {}
+            # ech_support можно трактовать как присутствие ECH в DNS/поддержке
+            profile.ech_support = bool(
+                rm.get("ech_support", False) or rm.get("ech_present", False)
+            )
+            profile.ech_present = rm.get("ech_present")
+            profile.ech_blocked = rm.get("ech_blocked")
+            profile.http3_support = rm.get("http3_support")
+        except Exception:
+            pass
         
         # Timing sensitivity
         profile.timing_sensitivity_profile = await self._analyze_timing_sensitivity_detailed(

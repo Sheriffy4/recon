@@ -10,7 +10,7 @@ from collections import defaultdict
 from typing import List, Dict, Optional, Tuple, Set, Any
 from core.bypass.attacks.base import AttackResult, AttackStatus
 try:
-    from core.quic.quic_handler import QuicHandler
+    from core.quic_handler import QuicHandler
 except Exception:
     from quic_handler import QuicHandler
 

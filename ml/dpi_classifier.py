@@ -85,6 +85,9 @@ class DPIClassifier:
             "checksum_validation",
             "rst_latency_ms",
             "ech_support",
+            "ech_present",
+            "ech_blocked",
+            "http3_support",
             "timing_sensitivity_score",
             "burst_tolerance",
             "tcp_state_tracking_depth",
@@ -137,6 +140,9 @@ class DPIClassifier:
         features.append(1.0 if profile.checksum_validation else 0.0)
         features.append(float(profile.rst_latency_ms or 0.0) / 1000.0)
         features.append(1.0 if profile.ech_support else 0.0)
+        features.append(1.0 if getattr(profile, "ech_present", False) else 0.0)
+        features.append(1.0 if getattr(profile, "ech_blocked", False) else 0.0)
+        features.append(1.0 if getattr(profile, "http3_support", False) else 0.0)
         timing_scores = (
             list(profile.timing_sensitivity_profile.values())
             if profile.timing_sensitivity_profile

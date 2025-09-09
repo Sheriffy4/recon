@@ -1,27 +1,26 @@
 {
-  "strategy": "multidisorder(ttl=64, split_pos=2, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, positions=[2, 7, 15], fooling=[])",
+  "strategy_id": "b5841ff9592b",
+  "strategy": "multidisorder(fooling=['badsum', 'badseq'], split_pos=1, ttl=15)",
   "result_status": "PARTIAL_SUCCESS",
-  "successful_sites": 10,
-  "total_sites": 25,
-  "success_rate": 0.4,
-  "avg_latency_ms": 321.7437505722046,
+  "successful_sites": 13,
+  "total_sites": 26,
+  "success_rate": 0.5,
+  "avg_latency_ms": 348.96061970637396,
   "fingerprint_used": true,
   "dpi_type": "unknown",
   "dpi_confidence": 0.1,
   "engine_telemetry": {
-    "segments_sent": 88,
+    "segments_sent": 124,
     "fake_packets_sent": 0,
-    "CH": 22,
-    "SH": 21,
-    "RST": 6,
-    "ttls_real": {},
-    "ttls_fake": {}
+    "CH": 31,
+    "SH": 31,
+    "RST": 0
   },
   "engine_telemetry_full": {
-    "start_ts": 1757317037.8428779,
-    "strategy_key": "multidisorder(ttl=64, split_pos=2, window_div=8, tcp_flags={'psh': True, 'ack': True}, ipid_step=2048, repeats=1, autottl=None, positions=[2, 7, 15], fooling=[])",
+    "start_ts": 1757401000.0819063,
+    "strategy_key": "multidisorder(split_pos=1, ttl=15, fooling=['badsum', 'badseq'])",
     "aggregate": {
-      "segments_sent": 88,
+      "segments_sent": 124,
       "fake_packets_sent": 0,
       "modified_packets_sent": 0,
       "quic_segments_sent": 0
@@ -29,88 +28,27 @@
     "ttls": {
       "fake": {},
       "real": {
-        "128": 22
+        "128": 31
       }
     },
     "seq_offsets": {
-      "15": 22,
-      "7": 22,
-      "2": 22,
-      "0": 22
+      "40": 31,
+      "25": 31,
+      "10": 31,
+      "0": 31
     },
     "overlaps": {},
-    "clienthellos": 22,
-    "serverhellos": 21,
-    "rst_count": 6,
+    "clienthellos": 31,
+    "serverhellos": 31,
+    "rst_count": 0,
     "per_target": {
-      "80.77.172.17": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "rst",
-        "last_outcome_ts": 1757317038.51522
-      },
-      "162.159.140.229": {
-        "segments_sent": 16,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 4,
-          "7": 4,
-          "2": 4,
-          "0": 4
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 4
-        },
-        "overlaps": {},
-        "last_outcome": "rst",
-        "last_outcome_ts": 1757317040.4631727
-      },
-      "104.21.32.39": {
-        "segments_sent": 8,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 2,
-          "7": 2,
-          "2": 2,
-          "0": 2
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 2
-        },
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1757317040.4101675
-      },
-      "104.21.16.1": {
-        "segments_sent": 4,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 1,
-          "7": 1,
-          "2": 1,
-          "0": 1
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 1
-        },
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1757317040.0774567
-      },
-      "31.13.72.36": {
+      "31.13.72.12": {
         "segments_sent": 12,
         "fake_packets_sent": 0,
         "seq_offsets": {
-          "15": 3,
-          "7": 3,
-          "2": 3,
+          "40": 3,
+          "25": 3,
+          "10": 3,
           "0": 3
         },
         "ttls_fake": {},
@@ -119,15 +57,15 @@
         },
         "overlaps": {},
         "last_outcome": "ok",
-        "last_outcome_ts": 1757317040.313067
+        "last_outcome_ts": 1757401003.6155741
       },
-      "209.85.233.93": {
+      "104.21.112.1": {
         "segments_sent": 4,
         "fake_packets_sent": 0,
         "seq_offsets": {
-          "15": 1,
-          "7": 1,
-          "2": 1,
+          "40": 1,
+          "25": 1,
+          "10": 1,
           "0": 1
         },
         "ttls_fake": {},
@@ -136,7 +74,255 @@
         },
         "overlaps": {},
         "last_outcome": "ok",
-        "last_outcome_ts": 1757317040.1156013
+        "last_outcome_ts": 1757401002.7316885
+      },
+      "104.21.32.39": {
+        "segments_sent": 8,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 2,
+          "25": 2,
+          "10": 2,
+          "0": 2
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 2
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.0071828
+      },
+      "172.66.0.227": {
+        "segments_sent": 12,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 3,
+          "25": 3,
+          "10": 3,
+          "0": 3
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 3
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.273116
+      },
+      "162.159.140.229": {
+        "segments_sent": 8,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 2,
+          "25": 2,
+          "10": 2,
+          "0": 2
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 2
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401002.7773366
+      },
+      "142.250.74.78": {
+        "segments_sent": 4,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 1,
+          "25": 1,
+          "10": 1,
+          "0": 1
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 1
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401002.8040574
+      },
+      "31.13.72.36": {
+        "segments_sent": 12,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 3,
+          "25": 3,
+          "10": 3,
+          "0": 3
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 3
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.064182
+      },
+      "74.125.205.198": {
+        "segments_sent": 8,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 2,
+          "25": 2,
+          "10": 2,
+          "0": 2
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 2
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.0462651
+      },
+      "199.232.172.159": {
+        "segments_sent": 12,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 3,
+          "25": 3,
+          "10": 3,
+          "0": 3
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 3
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401007.837381
+      },
+      "104.244.43.131": {
+        "segments_sent": 4,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 1,
+          "25": 1,
+          "10": 1,
+          "0": 1
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 1
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401005.4157498
+      },
+      "172.64.151.110": {
+        "segments_sent": 4,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 1,
+          "25": 1,
+          "10": 1,
+          "0": 1
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 1
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.3559916
+      },
+      "31.13.72.53": {
+        "segments_sent": 12,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 3,
+          "25": 3,
+          "10": 3,
+          "0": 3
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 3
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.4499645
+      },
+      "142.250.74.170": {
+        "segments_sent": 4,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 1,
+          "25": 1,
+          "10": 1,
+          "0": 1
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 1
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401005.602987
+      },
+      "142.250.74.150": {
+        "segments_sent": 4,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 1,
+          "25": 1,
+          "10": 1,
+          "0": 1
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 1
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.7271485
+      },
+      "142.250.74.174": {
+        "segments_sent": 4,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 1,
+          "25": 1,
+          "10": 1,
+          "0": 1
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 1
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.7438986
+      },
+      "216.239.38.60": {
+        "segments_sent": 12,
+        "fake_packets_sent": 0,
+        "seq_offsets": {
+          "40": 3,
+          "25": 3,
+          "10": 3,
+          "0": 3
+        },
+        "ttls_fake": {},
+        "ttls_real": {
+          "128": 3
+        },
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.806684
+      },
+      "77.88.21.119": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1757401003.9626985
       },
       "95.163.61.56": {
         "segments_sent": 0,
@@ -146,175 +332,15 @@
         "ttls_real": {},
         "overlaps": {},
         "last_outcome": "ok",
-        "last_outcome_ts": 1757317040.1483061
-      },
-      "199.232.172.159": {
-        "segments_sent": 4,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 1,
-          "7": 1,
-          "2": 1,
-          "0": 1
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 1
-        },
-        "overlaps": {},
-        "last_outcome": null,
-        "last_outcome_ts": null
-      },
-      "104.244.43.131": {
-        "segments_sent": 4,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 1,
-          "7": 1,
-          "2": 1,
-          "0": 1
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 1
-        },
-        "overlaps": {},
-        "last_outcome": null,
-        "last_outcome_ts": null
-      },
-      "172.64.151.110": {
-        "segments_sent": 4,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 1,
-          "7": 1,
-          "2": 1,
-          "0": 1
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 1
-        },
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1757317040.5496635
-      },
-      "31.13.72.53": {
-        "segments_sent": 12,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 3,
-          "7": 3,
-          "2": 3,
-          "0": 3
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 3
-        },
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1757317040.9507692
-      },
-      "31.13.72.12": {
-        "segments_sent": 8,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 2,
-          "7": 2,
-          "2": 2,
-          "0": 2
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 2
-        },
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1757317041.2510545
-      },
-      "173.194.222.119": {
-        "segments_sent": 4,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 1,
-          "7": 1,
-          "2": 1,
-          "0": 1
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 1
-        },
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1757317041.432111
-      },
-      "80.77.175.46": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "rst",
-        "last_outcome_ts": 1757317041.3949459
-      },
-      "142.251.1.138": {
-        "segments_sent": 4,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 1,
-          "7": 1,
-          "2": 1,
-          "0": 1
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 1
-        },
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1757317041.4817386
-      },
-      "64.233.165.198": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "rst",
-        "last_outcome_ts": 1757317041.4418085
-      },
-      "216.239.38.60": {
-        "segments_sent": 4,
-        "fake_packets_sent": 0,
-        "seq_offsets": {
-          "15": 1,
-          "7": 1,
-          "2": 1,
-          "0": 1
-        },
-        "ttls_fake": {},
-        "ttls_real": {
-          "128": 1
-        },
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1757317041.622762
-      },
-      "173.194.151.28": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "rst",
-        "last_outcome_ts": 1757317042.1912344
+        "last_outcome_ts": 1757401006.4286451
       }
     },
-    "duration_sec": 7.632472515106201
-  }
+    "duration_sec": 11.477411985397339
+  },
+  "pcap_total_packets": 921,
+  "pcap_tls_clienthellos": 0,
+  "pcap_tls_serverhellos": 0,
+  "pcap_rst_packets": 133,
+  "pcap_success_indicator": false,
+  "pcap_success_score": 0.0
 }
