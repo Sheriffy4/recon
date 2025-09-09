@@ -913,15 +913,64 @@ if platform.system() == "Windows":
                 except Exception:
                     pass
 
+                # UDP/QUIC путь: используем реальную атаку quic_fragmentation и отправляем UDP-дейтаграммы
                 if self._is_udp(packet) and packet.dst_port == 443:
-                    segments = self.quic_handler.split_quic_initial(payload, [10, 25, 40])
-                    success = self._send_segments(packet, w, segments)
-                    # Телеметрия QUIC
-                    if success:
-                        with self._tlock:
-                            self._telemetry["aggregate"]["quic_segments_sent"] += len(segments or [])
-                    if not success: w.send(packet)
-                    return
+                    try:
+                        from core.bypass.attacks.tunneling.quic_fragmentation import QUICFragmentationAttack
+                        from core.bypass.attacks.base import AttackContext
+                        sni = self._extract_sni(payload)
+                        attack = QUICFragmentationAttack()
+                        # Настроим параметры атаки из strategy_task (если есть)
+                        ap = strategy_task.get("params", {}) if isinstance(strategy_task, dict) else {}
+                        # Зададим дефолты, если не передано
+                        ap.setdefault("fragment_size", 120)  # мелкая фрагментация QUIC Initial
+                        ap.setdefault("split_by_frames", True)
+                        ap.setdefault("coalesce_count", 0)
+                        ap.setdefault("padding_ratio", 0.0)
+                        ctx = AttackContext(
+                            dst_ip=packet.dst_addr,
+                            dst_port=packet.dst_port,
+                            src_ip=packet.src_addr,
+                            src_port=packet.src_port,
+                            domain=sni or getattr(packet, "domain", None),
+                            payload=None,     # для синтетического Initial
+                            protocol="udp",
+                            params=ap,
+                            timeout=1.0,
+                            debug=self.debug
+                        )
+                        ares = attack.execute(ctx)
+                        udp_segments = []
+                        if ares and ares.status.name == "SUCCESS":
+                            segs = (ares.metadata or {}).get("segments", [])
+                            for s in segs:
+                                if isinstance(s, tuple) and len(s) >= 1:
+                                    b = s[0]
+                                    d = s[1] if len(s) >= 2 else 0
+                                    if isinstance(b, (bytes, bytearray)):
+                                        udp_segments.append((bytes(b), int(d)))
+                        # Если атака не предоставила сегменты — fallback к позиционному split
+                        if not udp_segments:
+                            positions = ap.get("positions") or [10, 25, 40, 80, 160]
+                            split_segs = self.quic_handler.split_quic_initial(payload, positions)
+                            # split_quic_initial возвращает [(data, rel_off)] — нам нужны UDP payload без заголовка
+                            # Для совместимости возьмём только сырой payload к отправке и нулевые задержки
+                            udp_segments = []
+                            for seg, _ in split_segs:
+                                udp_segments.append((seg, 0))
+                        ok = self._send_udp_segments(packet, w, udp_segments)
+                        if ok:
+                            with self._tlock:
+                                self._telemetry["aggregate"]["quic_segments_sent"] += len(udp_segments or [])
+                        if not ok:
+                            self.logger.error("UDP/QUIC send failed; forwarding original")
+                            w.send(packet)
+                        return
+                    except Exception as e:
+                        self.logger.debug(f"QUIC fragmentation path failed: {e}")
+                        # Последний fallback: отправим оригинал
+                        w.send(packet)
+                        return
 
                 if params.get("split_pos") == "midsld":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
@@ -1346,6 +1395,80 @@ if platform.system() == "Windows":
                 except Exception:
                     pass
 
+        def _send_udp_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]) -> bool:
+            """
+            Отправляет список UDP дейтаграмм, построенных на основе заголовков исходного пакета.
+            segments: [(payload_bytes, delay_ms), ...]
+            Пересчитывает IPv4 total_length, IP checksum, UDP length, UDP checksum (RFC 768).
+            """
+            try:
+                if not segments:
+                    return False
+                raw = bytearray(original_packet.raw)
+                # Проверка IPv4
+                ip_ver = (raw[0] >> 4) & 0xF
+                if ip_ver != 4:
+                    self.logger.warning("Non-IPv4 UDP packet, forwarding original")
+                    w.send(original_packet)
+                    return False
+                ip_hl = (raw[0] & 0x0F) * 4
+                # UDP header: 8 bytes
+                udp_start = ip_hl
+                udp_end = udp_start + 8
+                base_ip_id = struct.unpack("!H", raw[4:6])[0]
+                ipid_step = int(self.current_params.get("ipid_step", 2048))
+                base_ttl = raw[8]
+                # IP src/dst for pseudo header
+                src_ip = bytes(raw[12:16])
+                dst_ip = bytes(raw[16:20])
+                # UDP src/dst ports
+                src_port = struct.unpack("!H", raw[udp_start:udp_start+2])[0]
+                dst_port = struct.unpack("!H", raw[udp_start+2:udp_start+4])[0]
+                # Отправка
+                for i, item in enumerate(segments):
+                    if isinstance(item, tuple) and len(item) >= 1:
+                        data = item[0]
+                        delay_ms = int(item[1]) if len(item) >= 2 else 0
+                    else:
+                        data = item; delay_ms = 0
+                    if not data:
+                        continue
+                    # Собираем IP+UDP
+                    ip_hdr = bytearray(raw[:ip_hl])
+                    udp_hdr = bytearray(raw[udp_start:udp_end])
+                    # IPv4: total length
+                    total_len = ip_hl + 8 + len(data)
+                    ip_hdr[2:4] = struct.pack("!H", total_len)
+                    # TTL, IP ID
+                    ip_hdr[8] = base_ttl
+                    new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
+                    ip_hdr[4:6] = struct.pack("!H", new_ip_id)
+                    # UDP length
+                    udp_len = 8 + len(data)
+                    udp_hdr[4:6] = struct.pack("!H", udp_len)
+                    # UDP checksum: compute on pseudo header + UDP hdr (csum=0) + data
+                    udp_hdr[6:8] = b"\x00\x00"
+                    seg_raw = bytearray(ip_hdr + udp_hdr + data)
+                    # IP checksum
+                    seg_raw[10:12] = b"\x00\x00"
+                    ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                    seg_raw[10:12] = struct.pack("!H", ip_csum)
+                    # UDP checksum
+                    udp_csum = self._udp_checksum(seg_raw[:ip_hl], seg_raw[ip_hl:ip_hl+8], seg_raw[ip_hl+8:])
+                    seg_raw[ip_hl+6:ip_hl+8] = struct.pack("!H", udp_csum)
+                    # Safe send
+                    ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                    if not ok:
+                        self.logger.error("WinDivert send failed for UDP segment")
+                        return False
+                    # задержка между датаграммами
+                    if i < len(segments) - 1 and delay_ms > 0:
+                        time.sleep(delay_ms / 1000.0)
+                return True
+            except Exception as e:
+                self.logger.error(f"UDP send error: {e}", exc_info=self.debug)
+                return False
+
         def _send_fake_packet(self, original_packet, w, ttl: Optional[int] = 64):
             """
             Send fake packet with specified TTL.
@@ -1656,6 +1779,26 @@ if platform.system() == "Windows":
             tcp_hdr_wo_csum[16:18] = b"\x00\x00"
             s = self._ones_complement_sum(pseudo + bytes(tcp_hdr_wo_csum) + payload)
             return (~s) & 0xFFFF
+
+        def _udp_checksum(self, ip_hdr: bytes, udp_hdr: bytes, payload: bytes) -> int:
+            """
+            RFC 768: checksum of pseudo-header (IPv4), UDP header (csum=0) and data.
+            For IPv4, 0 means no checksum, но мы рассчитываем реальную.
+            """
+            try:
+                src = ip_hdr[12:16]
+                dst = ip_hdr[16:20]
+                proto = ip_hdr[9]
+                udp_len = len(udp_hdr) + len(payload)
+                pseudo = src + dst + bytes([0, proto]) + struct.pack("!H", udp_len)
+                hdr = bytearray(udp_hdr)
+                hdr[6:8] = b"\x00\x00"
+                s = self._ones_complement_sum(pseudo + bytes(hdr) + payload)
+                csum = (~s) & 0xFFFF
+                # Если checksum получился 0 — оставляем 0 (допустимо в IPv4), но чаще ставят 0xFFFF
+                return csum if csum != 0 else 0xFFFF
+            except Exception:
+                return 0
 
         def _inject_md5sig_option(self, tcp_hdr: bytes) -> bytes:
             """

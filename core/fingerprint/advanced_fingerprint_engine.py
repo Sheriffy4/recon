@@ -208,7 +208,6 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
             profile.ech_present = extended_metrics.get("ech_present")
             profile.ech_blocked = extended_metrics.get("ech_blocked")
             profile.http3_support = extended_metrics.get("http3_support")
-        )
         profile.signature_based_detection = self._check_signature_detection(fingerprint)
         profile.behavioral_analysis = fingerprint.stateful_inspection or False
         profile.ml_detection = fingerprint.ml_detection_blocked or False
