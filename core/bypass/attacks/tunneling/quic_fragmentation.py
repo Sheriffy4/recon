@@ -238,6 +238,12 @@ class QUICFragmentationAttack(BaseAttack):
             else:
                 full_quic_packet = self._create_quic_initial_packet(domain)
             fragments = self._fragment_with_techniques(full_quic_packet, fragment_size)
+
+            coalesce_count = context.params.get("coalesce_count", 0)
+            if coalesce_count > 1 and len(fragments) >= coalesce_count:
+                coalesced_part = b"".join(fragments[:coalesce_count])
+                fragments = [coalesced_part] + fragments[coalesce_count:]
+
             segments = []
             if add_version_negotiation:
                 vn_packet = self._create_version_negotiation_packet()
