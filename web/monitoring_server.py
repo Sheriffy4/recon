@@ -45,6 +45,7 @@ class MonitoringWebServer:
         app.router.add_get("/api/config", self.api_get_config)
         app.router.add_post("/api/config", self.api_set_config)
         app.router.add_get("/api/quic", self.api_quic)
+        app.router.add_get("/api/health", self.handle_health)
         app.router.add_get("/ws", self.websocket_handler)
         app.router.add_get("/", self.index_handler)
         app.router.add_static("/", path=Path(__file__).parent / "static", name="static")
@@ -70,6 +71,10 @@ class MonitoringWebServer:
         except Exception as e:
             data["error"] = str(e)
         return web.json_response(data)
+
+    async def handle_health(self, request: Request) -> Response:
+        """API: Health status (alias for /api/status)."""
+        return await self.api_status(request)
 
     async def api_sites(self, request: Request) -> Response:
         """API: Список всех сайтов."""
@@ -218,344 +223,84 @@ class MonitoringWebServer:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DPI Bypass Monitor</title>
+    <title>Recon Monitoring</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .header {
-            background: rgba(255,255,255,0.95);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-        }
-        .header h1 {
-            color: #4a5568;
-            margin-bottom: 10px;
-            font-size: 2.5em;
-        }
-        .status-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .card {
-            background: rgba(255,255,255,0.95);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-            transition: transform 0.3s ease;
-        }
-        .card:hover { transform: translateY(-5px); }
-        .card h3 { color: #4a5568; margin-bottom: 10px; }
-        .card .value { font-size: 2em; font-weight: bold; color: #2d3748; }
-        .sites-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        .site-card {
-            background: rgba(255,255,255,0.95);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-        }
-        .site-status {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 10px;
-        }
-        .status-ok { background: #48bb78; }
-        .status-error { background: #f56565; }
-        .site-details { font-size: 0.9em; color: #666; }
-        .controls {
-            margin-top: 15px;
-        }
-        .btn {
-            background: #4299e1;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-right: 10px;
-            transition: background 0.3s ease;
-        }
-        .btn:hover { background: #3182ce; }
-        .btn-danger { background: #f56565; }
-        .btn-danger:hover { background: #e53e3e; }
-        .add-site {
-            background: rgba(255,255,255,0.95);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-        .connection-status { font-size: 0.8em; margin-top: 5px; }
-        .online { color: #48bb78; }
-        .offline { color: #f56565; }
+        body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 20px; background-color: #f0f2f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2 { margin: 0 0 16px 0; color: #333; }
+        #health { white-space:pre; font-family:monospace; background: #fafafa; padding: 10px; border-radius: 4px; }
+        #quic { white-space:pre; font-family:monospace; background: #fafafa; padding: 10px; border-radius: 4px; margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🛡️ DPI Bypass Monitor</h1>
-            <p>Real-time monitoring and auto-recovery system</p>
-            <div class="connection-status" id="connectionStatus">
-                <span class="offline">⚫ Connecting...</span>
-            </div>
+        <div class="card">
+            <h1>Recon Monitoring</h1>
+            <div id='health'></div>
         </div>
-
-        <div class="status-cards">
-            <div class="card">
-                <h3>📊 Total Sites</h3>
-                <div class="value" id="totalSites">0</div>
-            </div>
-            <div class="card">
-                <h3>✅ Accessible</h3>
-                <div class="value" id="accessibleSites">0</div>
-            </div>
-            <div class="card">
-                <h3>🔧 With Bypass</h3>
-                <div class="value" id="bypassSites">0</div>
-            </div>
-            <div class="card">
-                <h3>⚡ Avg Response</h3>
-                <div class="value" id="avgResponse">0ms</div>
-            </div>
-        </div>
-
-        <div class="add-site">
-            <h3>➕ Add Site to Monitor</h3>
-            <div style="display: flex; gap: 15px; align-items: end;">
-                <div class="form-group" style="flex: 1;">
-                    <label for="newDomain">Domain:</label>
-                    <input type="text" id="newDomain" placeholder="example.com" />
-                </div>
-                <div class="form-group">
-                    <label for="newPort">Port:</label>
-                    <input type="number" id="newPort" value="443" style="width: 80px;" />
-                </div>
-                <button class="btn" onclick="addSite()">Add Site</button>
-            </div>
-        </div>
-
-        <div class="sites-grid" id="sitesGrid">
-            <!-- Sites will be populated by JavaScript -->
-        </div>
-
-        <div class="card" style="margin-top: 20px;">
-            <h3>QUIC Metrics</h3>
-            <pre id="quic" style="white-space:pre-wrap;font-family:monospace;"></pre>
+        <div class="card">
+            <h2>QUIC Metrics (PCAP-derived SH/CH ratio)</h2>
+            <canvas id="quicChart" height="120"></canvas>
+            <div id='quic'></div>
         </div>
     </div>
-
     <script>
-        let ws = null;
-        let reconnectInterval = null;
-
-        function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-
-            ws.onopen = function() {
-                console.log('WebSocket connected');
-                document.getElementById('connectionStatus').innerHTML = '<span class="online">🟢 Connected</span>';
-                if (reconnectInterval) {
-                    clearInterval(reconnectInterval);
-                    reconnectInterval = null;
-                }
-                loadInitialData();
-            };
-
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.type === 'status_update') {
-                    updateDashboard(data.data);
-                }
-            };
-
-            ws.onclose = function() {
-                console.log('WebSocket disconnected');
-                document.getElementById('connectionStatus').innerHTML = '<span class="offline">🔴 Disconnected</span>';
-
-                if (!reconnectInterval) {
-                    reconnectInterval = setInterval(connectWebSocket, 5000);
-                }
-            };
-
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-            };
-        }
-
-        async function loadInitialData() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                updateDashboard(data);
-            } catch (error) {
-                console.error('Failed to load initial data:', error);
-            }
-        }
-
-        function updateDashboard(data) {
-            document.getElementById('totalSites').textContent = data.total_sites;
-            document.getElementById('accessibleSites').textContent = data.accessible_sites;
-            document.getElementById('bypassSites').textContent = data.sites_with_bypass;
-            document.getElementById('avgResponse').textContent = Math.round(data.average_response_time) + 'ms';
-
-            updateSitesGrid(data.sites);
-        }
-
-        function updateSitesGrid(sites) {
-            const grid = document.getElementById('sitesGrid');
-            grid.innerHTML = '';
-
-            for (const [siteKey, site] of Object.entries(sites)) {
-                const card = document.createElement('div');
-                card.className = 'site-card';
-
-                const statusClass = site.is_accessible ? 'status-ok' : 'status-error';
-                const statusText = site.is_accessible ? 'Online' : 'Offline';
-                const bypassText = site.bypass_active ? `🔧 ${site.current_strategy || 'Active'}` : '⚪ No bypass';
-
-                card.innerHTML = `
-                    <div class="site-status">
-                        <div class="status-indicator ${statusClass}"></div>
-                        <strong>${site.domain}:${site.port}</strong>
-                    </div>
-                    <div class="site-details">
-                        <div>Status: ${statusText}</div>
-                        <div>Response: ${Math.round(site.response_time_ms)}ms</div>
-                        <div>IP: ${site.ip}</div>
-                        <div>Bypass: ${bypassText}</div>
-                        <div>Failures: ${site.consecutive_failures}</div>
-                        <div>Last check: ${new Date(site.last_check).toLocaleTimeString()}</div>
-                    </div>
-                    <div class="controls">
-                        <button class="btn" onclick="triggerRecovery('${site.domain}', ${site.port})">🔄 Recover</button>
-                        <button class="btn btn-danger" onclick="removeSite('${site.domain}', ${site.port})">🗑️ Remove</button>
-                    </div>
-                `;
-
-                grid.appendChild(card);
-            }
-        }
-
-        async function loadQuicMetrics() {
-            try {
-                const response = await fetch('/api/quic');
-                const data = await response.json();
-                document.getElementById('quic').textContent = JSON.stringify(data, null, 2);
-            } catch (error) {
-                console.error('Failed to load QUIC metrics:', error);
-                document.getElementById('quic').textContent = 'Error loading QUIC metrics.';
-            }
-        }
-
-        async function addSite() {
-            const domain = document.getElementById('newDomain').value.trim();
-            const port = parseInt(document.getElementById('newPort').value);
-
-            if (!domain) {
-                alert('Please enter a domain');
+        let quicChart = null;
+        function renderChart(scores){
+            const ctx = document.getElementById('quicChart').getContext('2d');
+            const labels = Object.keys(scores);
+            const data = labels.map(k => scores[k]);
+            if (!labels.length) {
+                if (quicChart) { quicChart.destroy(); quicChart = null; }
                 return;
             }
-
-            try {
-                const response = await fetch('/api/sites', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ domain, port })
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    document.getElementById('newDomain').value = '';
-                    document.getElementById('newPort').value = '443';
-                } else {
-                    alert('Error: ' + result.error);
+            const cfg = {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'QUIC success score',
+                        data: data,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: true }, tooltip: { enabled: true } },
+                    scales: { y: { beginAtZero: true, max: 1.0 } }
                 }
-            } catch (error) {
-                alert('Failed to add site: ' + error.message);
+            };
+            if (quicChart) {
+                quicChart.data.labels = labels;
+                quicChart.data.datasets[0].data = data;
+                quicChart.update();
+            } else {
+                quicChart = new Chart(ctx, cfg);
             }
         }
-
-        async function removeSite(domain, port) {
-            if (!confirm(`Remove ${domain}:${port} from monitoring?`)) return;
+        async function load(){
+            try {
+                const h_res = await fetch('/api/health');
+                const h = await h_res.json();
+                document.getElementById('health').innerText = JSON.stringify(h, null, 2);
+            } catch (e) { document.getElementById('health').innerText = 'Failed to load health data.'; }
 
             try {
-                const response = await fetch(`/api/sites/${domain}?port=${port}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
-                if (!result.success) {
-                    alert('Error: ' + result.error);
+                const q_res = await fetch('/api/quic');
+                const q = await q_res.json();
+                document.getElementById('quic').innerText = JSON.stringify(q, null, 2);
+                if (q && q.domain_quic_scores) {
+                    renderChart(q.domain_quic_scores);
                 }
-            } catch (error) {
-                alert('Failed to remove site: ' + error.message);
-            }
+            } catch (e) { document.getElementById('quic').innerText = 'Failed to load QUIC data.'; }
         }
-
-        async function triggerRecovery(domain, port) {
-            try {
-                const response = await fetch(`/api/recovery/${domain}?port=${port}`, {
-                    method: 'POST'
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    alert(`Recovery triggered for ${domain}:${port}`);
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                alert('Failed to trigger recovery: ' + error.message);
-            }
-        }
-
-        // Initialize
-        connectWebSocket();
-        loadQuicMetrics();
-        setInterval(loadQuicMetrics, 10000);
+        load();
+        setInterval(load, 5000);
     </script>
 </body>
 </html>
-        """
+"""
