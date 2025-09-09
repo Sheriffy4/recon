@@ -144,6 +144,12 @@ class HybridEngine:
         fooling = [normalize_attack_name(f) for f in params.get('dpi_desync_fooling', [])]
 
         if not desync:
+            # Support QUIC fragmentation from zapret-like flag
+            qfrag = params.get('quic_frag') or params.get('quic_fragment')
+            if qfrag:
+                try: fs = int(qfrag)
+                except Exception: fs = 120
+                return {'type': 'quic_fragmentation', 'params': {'fragment_size': fs}}
             return None
         task_type = 'none'
         task_params = {}
@@ -215,15 +221,71 @@ class HybridEngine:
             return str(task)
 
     def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        # dict → нормализуем
         if isinstance(strategy, dict):
             t = strategy.get('type') or strategy.get('name')
             if not t:
                 return None
             return {'type': t, 'params': strategy.get('params', {})}
-        # str → парсим zapret-строку
-        parsed_params = self.parser.parse(strategy)
-        return self._translate_zapret_to_engine_task(parsed_params)
+
+        s = str(strategy).strip()
+
+        # 1) Simple DSL parser: func(key=value, ...)
+        import re
+        match = re.match(r'(\w+)\((.*)\)', s)
+        if match:
+            func_name = match.group(1).strip()
+            params_str = match.group(2).strip()
+            params = {}
+            if params_str:
+                try:
+                    for part in params_str.split(','):
+                        if '=' in part:
+                            key, value = part.split('=', 1)
+                            key = key.strip()
+                            value = value.strip()
+                            if value.isdigit():
+                                params[key] = int(value)
+                            elif value.lower() == 'true':
+                                params[key] = True
+                            elif value.lower() == 'false':
+                                params[key] = False
+                            else:
+                                params[key] = value.strip('\'"')
+                except Exception:
+                     pass
+
+            from core.bypass.attacks.alias_map import normalize_attack_name
+            ntp = normalize_attack_name(func_name)
+            if ntp == 'desync':
+                ntp = 'fakeddisorder'
+            return {'type': ntp, 'params': params}
+
+        # 2) zapret CLI style
+        if s.startswith('--'):
+            try:
+                parsed_params = self.parser.parse(s)
+                task = self._translate_zapret_to_engine_task(parsed_params)
+                if task:
+                    return task
+            except Exception:
+                pass
+
+        # 3) Fallback for adhoc strategy names like "desync" or "multisplit"
+        try:
+            from core.strategy_interpreter import interpret_strategy as interp
+            ps = interp(s) or {}
+            tp = ps.get('type')
+            p = ps.get('params', {}) or {}
+            if tp:
+                from core.bypass.attacks.alias_map import normalize_attack_name
+                ntp = normalize_attack_name(tp)
+                if ntp == 'desync':
+                    ntp = 'fakeddisorder'
+                return {'type': ntp, 'params': p}
+        except Exception:
+            pass
+
+        return None
 
     def _is_rst_error(self, e: BaseException) -> bool:
         """Эвристика: распознать сброс соединения (RST) по типу/сообщению исключения."""
@@ -709,6 +771,18 @@ class HybridEngine:
                 cap_path = getattr(capturer, "pcap_file", None)
                 cap_metrics = capturer.analyze_pcap_file(cap_path)
                 self._merge_capture_metrics_into_results(results, cap_metrics if isinstance(cap_metrics, dict) else {})
+                # KB: update QUIC metrics (ServerHello/ClientHello ratio) per domain
+                try:
+                    if self.knowledge_base and isinstance(cap_metrics, dict) and cap_metrics:
+                        total_ch = sum(m.get("tls_clienthellos", 0) for m in cap_metrics.values())
+                        total_sh = sum(m.get("tls_serverhellos", 0) for m in cap_metrics.values())
+                        quic_score = (total_sh / total_ch) if total_ch > 0 else 0.0
+                        primary_ip = dns_cache.get(domain) if dns_cache else None
+                        if primary_ip:
+                            self.knowledge_base.update_quic_metrics(domain, primary_ip, quic_score)
+                            LOG.info(f'KB: updated QUIC success score for {domain}: {quic_score:.2f}')
+                except Exception as e:
+                    LOG.debug(f"KB QUIC update failed: {e}")
 
                 # Генерация доп. стратегий на основе PCAP
                 extra = self._suggest_strategies_from_pcap(cap_metrics if isinstance(cap_metrics, dict) else {}, fingerprint)

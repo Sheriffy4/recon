@@ -32,9 +32,9 @@ class ScapyPacketMock:
 
 class RawLayerMock:
     def __init__(self, payload):
-        self._payload = payload
+        self.load = payload
     def __bytes__(self):
-        return self._payload
+        return self.load
 
 class TestEnhancedPacketCapturer(unittest.TestCase):
 
