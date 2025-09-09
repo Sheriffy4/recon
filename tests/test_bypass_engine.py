@@ -141,5 +141,107 @@ class TestBypassEngineTTL(unittest.TestCase):
         self.assertEqual(self.engine.current_params['fake_ttl'], 15)
 
 
+class TestSendAttackSegments(unittest.TestCase):
+    def setUp(self):
+        with mock.patch('platform.system', return_value='Windows'):
+            from core.bypass_engine import BypassEngine
+            self.engine = BypassEngine(debug=False)
+        self.mock_w = mock.Mock()
+
+        # Create a realistic-looking packet mock
+        self.mock_packet = mock.Mock()
+        self.mock_packet.src_addr = "192.168.1.100"
+        self.mock_packet.dst_addr = "8.8.8.8"
+        self.mock_packet.src_port = 12345
+        self.mock_packet.dst_port = 443
+
+        ip_header = b'\x45\x00\x00\x3c\x1c\x46\x40\x00\x40\x06\xb5\xb5\xc0\xa8\x01\x64\x08\x08\x08\x08'
+        tcp_header = b'\x30\x39\x01\xbb\x00\x00\x00\x01\x00\x00\x00\x02\x50\x18\xfa\xf0\xfe\x18\x00\x00'
+        payload = b"test_payload"
+        self.mock_packet.raw = bytearray(ip_header + tcp_header + payload)
+        self.mock_packet.payload = payload
+
+        self.engine.current_params = {'fake_ttl': 2}
+        self.engine._safe_send_packet = mock.Mock(return_value=True)
+        self.engine._inject_md5sig_option = mock.Mock(side_effect=lambda x: x)
+        self.engine._tcp_checksum = mock.Mock(return_value=0xABCD)
+        self.engine._ip_header_checksum = mock.Mock(return_value=0x1234)
+
+    def test_explicit_ttl(self):
+        segments = [(b'data', 0, {'ttl': 123})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+        sent_packet = self.engine._safe_send_packet.call_args[0][1]
+        self.assertEqual(sent_packet[8], 123)
+
+    def test_fake_ttl(self):
+        segments = [(b'data', 0, {'is_fake': True})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+        sent_packet = self.engine._safe_send_packet.call_args[0][1]
+        self.assertEqual(sent_packet[8], 2)
+
+    def test_base_ttl(self):
+        segments = [(b'data', 0, {})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+        sent_packet = self.engine._safe_send_packet.call_args[0][1]
+        base_ttl = self.mock_packet.raw[8]
+        self.assertEqual(sent_packet[8], base_ttl)
+
+    def test_seq_offset(self):
+        segments = [(b'data', 10, {'seq_offset': -5})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+        sent_packet = self.engine._safe_send_packet.call_args[0][1]
+        base_seq = 1
+        expected_seq = (base_seq + 10 - 5) & 0xFFFFFFFF
+        sent_seq = int.from_bytes(sent_packet[24:28], 'big')
+        self.assertEqual(sent_seq, expected_seq)
+
+    def test_corrupt_sequence(self):
+        segments = [(b'data', 0, {'corrupt_sequence': True})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+        sent_packet = self.engine._safe_send_packet.call_args[0][1]
+        base_seq = 1
+        expected_seq = (base_seq - 10000) & 0xFFFFFFFF
+        sent_seq = int.from_bytes(sent_packet[24:28], 'big')
+        self.assertEqual(sent_seq, expected_seq)
+
+    def test_tcp_flags(self):
+        segments = [(b'data1', 0, {}), (b'data2', 5, {'tcp_flags': 0x19})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+
+        # First segment should have ACK flag
+        sent_packet1 = self.engine._safe_send_packet.call_args_list[0][0][1]
+        self.assertEqual(sent_packet1[33], 0x10) # ACK
+
+        # Second segment should have custom flags
+        sent_packet2 = self.engine._safe_send_packet.call_args_list[1][0][1]
+        self.assertEqual(sent_packet2[33], 0x19) # FIN + PSH + ACK
+
+    def test_last_segment_psh_flag(self):
+        segments = [(b'data1', 0, {}), (b'data2', 5, {})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+
+        # Last segment should have PSH + ACK
+        sent_packet = self.engine._safe_send_packet.call_args_list[1][0][1]
+        self.assertEqual(sent_packet[33], 0x18) # PSH + ACK
+
+    def test_corrupt_tcp_checksum(self):
+        segments = [(b'data', 0, {'corrupt_tcp_checksum': True})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+        sent_packet = self.engine._safe_send_packet.call_args[0][1]
+        sent_csum = int.from_bytes(sent_packet[36:38], 'big')
+        self.assertEqual(sent_csum, 0xABCD ^ 0xFFFF)
+
+    def test_add_md5sig_option(self):
+        segments = [(b'data', 0, {'add_md5sig_option': True})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+        self.engine._inject_md5sig_option.assert_called_once()
+
+    @mock.patch('time.sleep')
+    def test_delay_ms(self, mock_sleep):
+        segments = [(b'data1', 0, {'delay_ms': 50}), (b'data2', 5, {})]
+        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
+        mock_sleep.assert_called_once_with(0.05)
+
+
 if __name__ == '__main__':
     unittest.main()
