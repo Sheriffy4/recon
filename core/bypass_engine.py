@@ -1868,6 +1868,21 @@ if platform.system() == "Windows":
             return bytes(new_hdr)
         
         def _send_attack_segments(self, original_packet, w, segments):
+            """
+            Recipe mode sender: принимает segments как список кортежей
+            (payload: bytes, rel_off: int, opts: dict) и конструирует
+            L3/L4 сегменты с учётом опций.
+
+            Поддерживаемые ключи в opts:
+              - ttl: int (1..255) — принудительный TTL для сегмента
+              - is_fake: bool — помечает сегмент как «fake» (TTL по self.current_params['fake_ttl'], если ttl не задан)
+              - corrupt_tcp_checksum: bool — инвертировать TCP checksum (zapret badsum)
+              - add_md5sig_option: bool — инъекция TCP MD5SIG (kind=19,len=18) при возможности
+              - corrupt_sequence: bool — испортить SEQ (если seq_offset не задан — по умолчанию -10000)
+              - seq_offset: int — дополнительный сдвиг SEQ относительно rel_off
+              - tcp_flags: int — явная маска TCP флагов (по умолчанию ACK, а для последнего сегмента добавляется PSH)
+              - delay_ms: int — задержка после отправки сегмента (мс)
+            """
             try:
                 raw = bytearray(original_packet.raw)
                 ip_ver = (raw[0] >> 4) & 0xF
@@ -1909,29 +1924,48 @@ if platform.system() == "Windows":
                     orig_tcp_hdr = bytearray(raw[ip_hl:ip_hl+max(20, tcp_hl)])
                     tcp_hdr = bytearray(orig_tcp_hdr)
 
-                    seq_extra = opts.get("seq_offset", 0) if opts.get("corrupt_sequence") else 0
-                    seq = (base_seq + rel_off + seq_extra) & 0xFFFFFFFF
+                    # SEQ: применяем seq_offset всегда; если corrupt_sequence=True и не задан seq_offset — используем -10000
+                    seq_extra = 0
+                    if "seq_offset" in opts:
+                        try:
+                            seq_extra = int(opts.get("seq_offset", 0))
+                        except Exception:
+                            seq_extra = 0
+                    elif opts.get("corrupt_sequence"):
+                        seq_extra = -10000
+                    seq = (base_seq + int(rel_off) + seq_extra) & 0xFFFFFFFF
                     tcp_hdr[4:8] = struct.pack("!I", seq)
                     tcp_hdr[8:12] = struct.pack("!I", base_ack)
 
+                    # Флаги TCP: по умолчанию ACK, для последнего сегмента добавляем PSH
                     flags = opts.get("tcp_flags")
                     if flags is None:
-                        flags = 0x10
+                        flags = 0x10  # ACK
                         if i == len(segments) - 1:
-                            flags |= 0x08
-                    tcp_hdr[13] = flags & 0xFF
+                            flags |= 0x08  # PSH
+                    tcp_hdr[13] = int(flags) & 0xFF
                     tcp_hdr[14:16] = struct.pack("!H", reduced_win)
 
-                    ttl = opts.get("ttl", base_ttl)
-                    if not isinstance(ttl, int) or not (1 <= ttl <= 255):
-                        ttl = base_ttl
-                    ip_hdr[8] = ttl
+                    # TTL: явный ttl в opts имеет приоритет; иначе для fake — self.current_params['fake_ttl'], иначе base_ttl
+                    ttl_opt = opts.get("ttl", None)
+                    ttl_to_use = None
+                    if isinstance(ttl_opt, int) and 1 <= ttl_opt <= 255:
+                        ttl_to_use = ttl_opt
+                    elif opts.get("is_fake"):
+                        try:
+                            ttl_to_use = int(self.current_params.get("fake_ttl", 2))
+                        except Exception:
+                            ttl_to_use = 2
+                    else:
+                        ttl_to_use = int(base_ttl)
+                    ttl_to_use = max(1, min(255, ttl_to_use))
+                    ip_hdr[8] = ttl_to_use
 
                     new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
                     ip_hdr[4:6] = struct.pack("!H", new_ip_id)
 
-                    # MD5SIG — пробуем добавить
-                    if opts.get("is_fake") and opts.get("add_md5sig_option"):
+                    # MD5SIG опция: по флагу add_md5sig_option (не обязательно только для fake)
+                    if opts.get("add_md5sig_option"):
                         tcp_hdr = bytearray(self._inject_md5sig_option(bytes(tcp_hdr)))
                     # Контроль: не превысили ли 60?
                     tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
@@ -1960,10 +1994,10 @@ if platform.system() == "Windows":
                     tcp_hdr_bytes = bytes(seg_raw[tcp_start:tcp_end])
                     payload_bytes = bytes(seg_raw[tcp_end:])
 
-                    if opts.get("is_fake") and opts.get("corrupt_tcp_checksum"):
+                    # Порча TCP checksum (badsum): по флагу corrupt_tcp_checksum
+                    if opts.get("corrupt_tcp_checksum"):
                         good_csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
-                        bad_csum = good_csum ^ 0xFFFF
-                        seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
+                        seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum ^ 0xFFFF)
                     else:
                         csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
                         seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
@@ -1974,6 +2008,7 @@ if platform.system() == "Windows":
                         return False
                     self.stats["fragments_sent"] += 1
 
+                    # Задержка между сегментами
                     delay_ms = float(opts.get("delay_ms", self.current_params.get("delay_ms", 2)))
                     if i < len(segments) - 1 and delay_ms > 0:
                         time.sleep(delay_ms / 1000.0)
