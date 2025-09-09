@@ -1,116 +1,161 @@
 """
-Simple Attack Executor
-
-A simple executor that converts strategy dictionaries to AttackResult objects
-for use with the native PyDivert engine.
+Simple attack executor (recipe-prep only).
+Converts high-level strategy params into AttackResult with engine-ready segments.
+Не отправляет пакеты сам — это делают движки (recipe mode).
 """
 
-import time
 import logging
-from typing import Dict, Any
-from core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
+from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
 
 LOG = logging.getLogger("SimpleAttackExecutor")
 
 
 class SimpleAttackExecutor:
     """
-    Simple attack executor that converts strategy dictionaries to AttackResult objects.
-
-    This is used by the native PyDivert engine to execute attacks based on strategy
-    configurations.
+    Простой исполнитель атак, который готовит "рецепты" для движков.
     """
-
     def __init__(self):
         self.logger = LOG
 
-    def execute_strategy(self, strategy: Dict[str, Any]) -> AttackResult:
+    def execute_attack(self, attack_type: str, context: AttackContext) -> AttackResult:
         """
-        Execute a strategy and return an AttackResult.
-
-        Args:
-            strategy: Strategy dictionary containing attack configuration
-
-        Returns:
-            AttackResult with execution results
+        Produce AttackResult with segments suitable for recipe engines.
+        Не заменяет BypassEngine; рассчитан на test/pipeline, где движок вызывает
+        start_with_segments_recipe(..., attack_result.segments).
         """
-        start_time = time.time()
+        self.logger.debug(f"Executing attack type: {attack_type}")
         try:
-            attack_name = strategy.get("name", "unknown")
-            params = strategy.get("params", {})
-            self.logger.debug(
-                f"Executing strategy: {attack_name} with params: {params}"
-            )
-            latency_ms = (time.time() - start_time) * 1000
-            return AttackResult(
-                status=AttackStatus.SUCCESS,
-                latency_ms=latency_ms,
-                packets_sent=1,
-                bytes_sent=len(strategy.get("payload", b"")),
-                connection_established=True,
-                data_transmitted=True,
-                technique_used=attack_name,
-                metadata={
-                    "strategy": attack_name,
-                    "params": params,
-                    "execution_method": "simple_executor",
-                },
-            )
+            if attack_type == "fake_split":
+                return self._execute_fake_split(context)
+            elif attack_type == "disorder":
+                return self._execute_disorder(context)
+            elif attack_type == "fake":
+                return self._execute_fake(context)
+            else:
+                # Generic passthrough: отправим оригинал одним сегментом
+                segs = [(context.payload or b"", 0, {"tcp_flags": 0x18})]
+                result = AttackResult(
+                    status=AttackStatus.SUCCESS,
+                    technique_used=attack_type,
+                    packets_sent=len(segs),
+                    metadata={"note": "generic passthrough"}
+                )
+                result.segments = segs
+                return result
         except Exception as e:
-            self.logger.error(f"Strategy execution failed: {e}")
+            self.logger.error(f"Attack execution error: {e}")
             return AttackResult(
                 status=AttackStatus.ERROR,
-                error_message=f"Strategy execution failed: {str(e)}",
-                latency_ms=(time.time() - start_time) * 1000,
-                technique_used=strategy.get("name", "unknown"),
-            )
-
-    def execute_attack(
-        self, attack_type: str, context: "AttackContext"
-    ) -> AttackResult:
-        """
-        Execute an attack with the given type and context.
-
-        Args:
-            attack_type: Type of attack to execute
-            context: Attack execution context
-
-        Returns:
-            AttackResult with execution results
-        """
-        start_time = time.time()
-        try:
-            self.logger.debug(
-                f"Executing attack: {attack_type} with context: {context}"
-            )
-            latency_ms = (time.time() - start_time) * 1000
-            return AttackResult(
-                status=AttackStatus.SUCCESS,
-                latency_ms=latency_ms,
-                packets_sent=1,
-                bytes_sent=len(context.payload) if hasattr(context, "payload") else 0,
-                connection_established=True,
-                data_transmitted=True,
                 technique_used=attack_type,
-                metadata={
-                    "attack_type": attack_type,
-                    "execution_method": "simple_executor",
-                    "segments": (
-                        [(context.payload, 0, {})]
-                        if hasattr(context, "payload")
-                        else []
-                    ),
-                },
-            )
-        except Exception as e:
-            self.logger.error(f"Attack execution failed: {e}")
-            return AttackResult(
-                status=AttackStatus.ERROR,
-                error_message=f"Attack execution failed: {str(e)}",
-                latency_ms=(time.time() - start_time) * 1000,
-                technique_used=attack_type,
+                error_message=str(e),
             )
 
-    def __call__(self, strategy: Dict[str, Any]) -> AttackResult:
-        """Make the executor callable."""
-        return self.execute_strategy(strategy)
+    # ---------- helpers ----------
+    def _mk_opts(self, ttl: int = None, fooling=None, is_fake=False,
+                 corrupt_seq=False, seq_offset=0, tcp_flags=0x18, delay_ms=None):
+        """
+        Build opts dict compatible with recipe engines (и BypassEngine._send_attack_segments).
+        """
+        fooling = fooling or []
+        opts = {"tcp_flags": tcp_flags}
+        if ttl is not None:
+            opts["ttl"] = int(ttl)
+        if is_fake:
+            opts["is_fake"] = True
+        if "badsum" in fooling:
+            opts["corrupt_tcp_checksum"] = True
+        if "md5sig" in fooling:
+            opts["add_md5sig_option"] = True
+        if corrupt_seq or ("badseq" in fooling):
+            opts["corrupt_sequence"] = True
+            # Запрет-стиль badseq: смещение SEQ назад
+            if "seq_offset" not in opts:
+                opts["seq_offset"] = -10000
+        if seq_offset:
+            opts["seq_offset"] = int(seq_offset)
+        if isinstance(delay_ms, (int, float)) and delay_ms > 0:
+            opts["delay_ms"] = int(delay_ms)
+        return opts
+
+    def _mk_segment(self, payload: bytes, rel_off: int = 0, opts: dict = None):
+        return (payload or b"", int(rel_off), opts or {})
+
+    def _execute_fake_split(self, context: AttackContext) -> AttackResult:
+        """
+        Fake + fakeddisorder-like split:
+        segments:
+          1) fake (is_fake, fooling, ttl)
+          2) part2 with rel_off=split_pos
+          3) part1 with rel_off=(split_pos - overlap_size) — для “перекрытия”.
+        """
+        payload = context.payload or b""
+        params = getattr(context, "params", {}) or {}
+        split_pos = int(params.get("split_pos", 76))
+        overlap = int(params.get("overlap_size", 336))
+        ttl = params.get("ttl")
+        fooling = params.get("fooling", []) or []
+
+        p1 = payload[:split_pos]
+        p2 = payload[split_pos:]
+        segs = []
+        # fake first (как в zapret race)
+        fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
+        segs.append(self._mk_segment(fake_payload, 0, self._mk_opts(ttl=ttl, fooling=fooling, is_fake=True)))
+        # real parts in disorder/overlap style
+        segs.append(self._mk_segment(p2, split_pos, self._mk_opts(ttl=None)))
+        segs.append(self._mk_segment(p1, max(split_pos - overlap, 0), self._mk_opts(ttl=None)))
+        meta = {"fooling": fooling, "ttl": ttl, "split_pos": split_pos, "overlap_size": overlap}
+        result = AttackResult(
+            status=AttackStatus.SUCCESS,
+            technique_used="fake_split",
+            packets_sent=len(segs),
+            metadata=meta,
+        )
+        result.segments = segs
+        return result
+
+    def _execute_disorder(self, context: AttackContext) -> AttackResult:
+        """
+        Простая перестановка части (без overlap):
+          part2 @ rel_off=split_pos, затем part1 @ rel_off=0
+        """
+        payload = context.payload or b""
+        params = getattr(context, "params", {}) or {}
+        split_pos = int(params.get("split_pos", 3))
+        ttl = params.get("ttl")
+        fooling = params.get("fooling", []) or []
+        part1 = payload[:split_pos]
+        part2 = payload[split_pos:]
+        segs = [
+            self._mk_segment(part2, split_pos, self._mk_opts()),
+            self._mk_segment(part1, 0, self._mk_opts(ttl=ttl, fooling=fooling)),
+        ]
+        meta = {"fooling": fooling, "ttl": ttl, "split_pos": split_pos}
+        result = AttackResult(
+            status=AttackStatus.SUCCESS,
+            technique_used="disorder",
+            packets_sent=len(segs),
+            metadata=meta,
+        )
+        result.segments = segs
+        return result
+
+    def _execute_fake(self, context: AttackContext) -> AttackResult:
+        """Fake packet + оригинальный payload как отдельный сегмент."""
+        params = getattr(context, "params", {}) or {}
+        ttl = params.get("ttl")
+        fooling = params.get("fooling", []) or []
+        fake_payload = b"GET / HTTP/1.1\r\nHost: example.org\r\n\r\n"
+        segs = [
+            self._mk_segment(fake_payload, 0, self._mk_opts(ttl=ttl, fooling=fooling, is_fake=True, tcp_flags=0x18)),
+            self._mk_segment(context.payload or b"", 0, self._mk_opts(tcp_flags=0x18)),
+        ]
+        meta = {"fooling": fooling, "ttl": ttl}
+        result = AttackResult(
+            status=AttackStatus.SUCCESS,
+            technique_used="fake",
+            packets_sent=len(segs),
+            metadata=meta,
+        )
+        result.segments = segs
+        return result
