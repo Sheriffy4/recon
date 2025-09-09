@@ -49,6 +49,7 @@ class CdnAsnKnowledgeBase:
         self.ip_to_asn: Dict[str, int] = {}
         # Новое: причины блокировок по доменам
         self.domain_block_reasons: Dict[str, Dict[str, int]] = {}
+        self.domain_quic_scores: Dict[str, float] = {}
         self._init_known_cdns()
         self.load()
 
@@ -124,6 +125,7 @@ class CdnAsnKnowledgeBase:
                 'ip_to_cdn': self.ip_to_cdn,
                 'ip_to_asn': self.ip_to_asn,
                 'domain_block_reasons': self.domain_block_reasons,
+                'domain_quic_scores': self.domain_quic_scores,
             }
             with open(self.DB_FILE, 'wb') as f:
                 pickle.dump(data, f)
@@ -141,6 +143,7 @@ class CdnAsnKnowledgeBase:
                 self.ip_to_cdn.update(data.get('ip_to_cdn', {}))
                 self.ip_to_asn.update(data.get('ip_to_asn', {}))
                 self.domain_block_reasons.update(data.get('domain_block_reasons', {}))
+                self.domain_quic_scores.update(data.get('domain_quic_scores', {}))
         except Exception as e:
             print(f"Failed to load knowledge base: {e}")
 
@@ -230,6 +233,17 @@ class CdnAsnKnowledgeBase:
         except Exception as e:
             print(f"KB update_with_result failed: {e}")
 
+    def update_quic_metrics(self, domain: str, ip: str, success_score: float):
+        """Обновляет QUIC-метрики (ServerHello/ClientHello ratio) для домена."""
+        try:
+            d = (domain or "").lower()
+            if not d: return
+            alpha = 0.3
+            old = self.domain_quic_scores.get(d, 0.0)
+            self.domain_quic_scores[d] = (1 - alpha) * old + alpha * float(success_score or 0.0)
+        except Exception as e:
+            print(f"KB update_quic_metrics failed: {e}")
+    
     def update_with_success(self, domain: str, ip: str, strategy: dict | str, 
                             latency_ms: float = 0.0, asn: int = 0, cdn: str = ""):
         self.update_with_result(domain, ip, strategy, True, "none", latency_ms, asn, cdn)
