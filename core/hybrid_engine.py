@@ -49,6 +49,12 @@ try:
     ADVANCED_FINGERPRINTING_AVAILABLE = True
 except ImportError as e:
     logging.getLogger('hybrid_engine').warning(f'Advanced fingerprinting not available: {e}')
+try:
+    from core.fingerprint.ech_detector import ECHDetector
+    ECH_AVAILABLE = True
+except Exception as e:
+    logging.getLogger('hybrid_engine').debug(f'ECHDetector not available: {e}')
+    ECH_AVAILABLE = False
 
 LOG = logging.getLogger('hybrid_engine')
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6753.0 Safari/537.36'}
@@ -612,6 +618,21 @@ class HybridEngine:
             except Exception as e:
                 LOG.debug(f"KB identify failed: {e}")
 
+        # QUIC/ECH detection (fast) to auto-prepend QUIC strategies
+        quic_signals = {"ech_present": False, "quic_ping_ok": False, "http3_support": False}
+        if ECH_AVAILABLE:
+            try:
+                det = ECHDetector(dns_timeout=1.0)
+                ech = await det.detect_ech_dns(domain)
+                quic_signals["ech_present"] = bool(ech and ech.get("ech_present"))
+                quic = await det.probe_quic(domain, port, timeout=0.5)
+                quic_signals["quic_ping_ok"] = bool(quic and quic.get("success"))
+                http3_ok = await det.probe_http3(domain, port, timeout=1.2)
+                quic_signals["http3_support"] = bool(http3_ok)
+                LOG.info(f"QUIC/ECH signals for {domain}: {quic_signals}")
+            except Exception as e:
+                LOG.debug(f"QUIC/ECH detection failed: {e}")
+
         # Prepend synthesized strategy based on context (fingerprint + KB)
         try:
             ctx = AttackContext(domain=domain, ip=primary_ip, port=port,
@@ -686,6 +707,28 @@ class HybridEngine:
                 LOG.info("KB‑recommended strategies prepended")
             except Exception as e:
                 LOG.debug(f"Failed to prepend KB recommendations: {e}")
+
+        # Auto-prepend QUIC fragmentation strategies if signals say QUIC/HTTP3/ECH
+        try:
+            if quic_signals.get("quic_ping_ok") or quic_signals.get("http3_support") or quic_signals.get("ech_present"):
+                quic_strats: List[Dict[str, Any]] = [
+                    {"type": "quic_fragmentation", "params": {"fragment_size": 300, "add_version_negotiation": True}},
+                    {"type": "quic_fragmentation", "params": {"fragment_size": 200}}
+                ]
+                # prepend unique
+                seen_keys = set()
+                def _key(s):
+                    return s if isinstance(s, str) else (s.get("type"), tuple(sorted((s.get("params") or {}).items())))
+                merged = []
+                for s in quic_strats + strategies_to_test:
+                    k = _key(s)
+                    if k in seen_keys: continue
+                    seen_keys.add(k)
+                    merged.append(s)
+                strategies_to_test = merged
+                LOG.info("QUIC fragmentation strategies prepended")
+        except Exception as e:
+            LOG.debug(f"Prepend QUIC strategies failed: {e}")
 
         if not strategies_to_test:
             # fallback: если ничего не осталось

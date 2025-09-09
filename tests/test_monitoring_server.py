@@ -72,6 +72,19 @@ class TestMonitoringServerAPI(AioHTTPTestCase):
         self.assertEqual(data["error"], "Failed to load KB")
         self.assertEqual(data["domain_quic_scores"], {})
 
+    @unittest_run_loop
+    async def test_dashboard_html_contains_chart_elements(self):
+        """Test that the main dashboard HTML contains the Chart.js script and canvas element."""
+        resp = await self.client.get("/")
+        self.assertEqual(resp.status, 200)
+        html = await resp.text()
+
+        # Check for Chart.js script
+        self.assertIn('<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>', html)
+
+        # Check for the canvas element for the chart
+        self.assertIn('<canvas id="quicChart"', html)
+
 if __name__ == '__main__':
     # This allows running the test file directly
     if AIOHTTP_AVAILABLE:

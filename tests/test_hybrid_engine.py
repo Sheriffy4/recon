@@ -81,5 +81,52 @@ class TestHybridEngine(unittest.TestCase):
 
         mock_kb_instance.save.assert_called_once()
 
+    @patch('core.hybrid_engine.ECHDetector')
+    def test_prepend_quic_strategies_on_signal(self, MockECHDetector):
+        """Test that QUIC strategies are prepended when QUIC/ECH signals are detected."""
+
+        # Mock ECHDetector to return positive signals
+        mock_ech_detector_instance = MockECHDetector.return_value
+
+        async def detect_ech_dns(domain):
+            return {"ech_present": True}
+        mock_ech_detector_instance.detect_ech_dns = detect_ech_dns
+
+        async def probe_quic(domain, port, timeout):
+            return {"success": True}
+        mock_ech_detector_instance.probe_quic = probe_quic
+
+        async def probe_http3(domain, port, timeout):
+            return True
+        mock_ech_detector_instance.probe_http3 = probe_http3
+
+        base_strategies = ["--dpi-desync=fake"]
+
+        async def run_test():
+            with patch.object(self.engine, 'execute_strategy_real_world', return_value=('ALL_SITES_WORKING', 1, 1, 10.0, {}, {})) as mock_execute:
+                await self.engine.test_strategies_hybrid(
+                    strategies=base_strategies.copy(),
+                    test_sites=["https://example.com"],
+                    ips={"1.2.3.4"},
+                    dns_cache={'example.com': '1.2.3.4'},
+                    port=443,
+                    domain="example.com"
+                )
+
+                self.assertTrue(mock_execute.called)
+
+                called_strategies = [call[0][0] for call in mock_execute.call_args_list]
+
+                expected_quic_strat1 = {'type': 'quic_fragmentation', 'params': {'fragment_size': 300, 'add_version_negotiation': True}}
+                expected_quic_strat2 = {'type': 'quic_fragmentation', 'params': {'fragment_size': 200}}
+
+                # Check that the first two strategies are the prepended QUIC ones
+                self.assertEqual(called_strategies[0], expected_quic_strat1)
+                self.assertEqual(called_strategies[1], expected_quic_strat2)
+                # Check that the original strategy is still there
+                self.assertIn("--dpi-desync=fake", called_strategies)
+
+        asyncio.run(run_test())
+
 if __name__ == '__main__':
     unittest.main()
