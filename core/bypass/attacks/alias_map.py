@@ -24,6 +24,8 @@ _ALIAS_MAP = {
     "fake_packet": "fake",
     "fakeonly": "fake",
     "fake-desync": "fake",
+    # generic DSL alias
+    "desync": "fakeddisorder",
 }
 
 def normalize_attack_name(name: str) -> str:

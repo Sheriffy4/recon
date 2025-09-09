@@ -91,4 +91,18 @@ class ZapretStrategyParser:
                     parsed_positions.append({"type": "absolute", "value": int(pos)})
             params["dpi_desync_split_pos"] = parsed_positions
 
+        # 5. QUIC fragmentation parameters
+        q_params = {
+            "quic-frag": "quic_frag",
+            "quic-fragment": "quic_fragment",
+        }
+        for param_name, key in q_params.items():
+            match = re.search(rf"--{param_name}=([-\d]+)", strategy)
+            if match:
+                try:
+                    # Use the key directly, not a new one
+                    params[key] = int(match.group(1))
+                except ValueError:
+                    LOG.warning(f"Could not parse integer for {param_name}")
+
         return params

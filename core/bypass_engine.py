@@ -893,6 +893,11 @@ if platform.system() == "Windows":
                         fake_ttl = 1
                 else:
                     fake_ttl = 1 if task_type == "fakeddisorder" else 3
+                # Clamp fake TTL for fake/race families
+                if task_type in ("fakeddisorder", "multidisorder", "multisplit", "badsum_race", "md5sig_race", "fake"):
+                    if fake_ttl > 8:
+                        self.logger.debug(f"Clamping fake TTL from {fake_ttl} to 8 for {task_type}")
+                        fake_ttl = 8
                 self.current_params["fake_ttl"] = fake_ttl
                 self.logger.info(f"Base TTL for FAKE packets set to: {fake_ttl}")
 
