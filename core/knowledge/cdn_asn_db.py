@@ -31,6 +31,7 @@ class CdnProfile:
     successful_strategies: Dict[str, float] = field(default_factory=dict)
     optimal_split_pos: Optional[int] = None
     optimal_overlap_size: Optional[int] = None
+    optimal_fragment_size: Optional[int] = None
     optimal_ttl_range: Tuple[int, int] = (1, 8)
     working_fooling: List[str] = field(default_factory=list)
     broken_fooling: List[str] = field(default_factory=list)
@@ -114,6 +115,8 @@ class CdnAsnKnowledgeBase:
                 recommendations['overlap_size'] = profile.optimal_overlap_size
             if profile.working_fooling:
                 recommendations['fooling_methods'] = profile.working_fooling
+            if profile.optimal_fragment_size:
+                recommendations['optimal_fragment_size'] = profile.optimal_fragment_size
         return recommendations
 
     def save(self):

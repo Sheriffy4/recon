@@ -228,6 +228,7 @@ if platform.system() == "Windows":
             # --- Телеметрия инжектов/исходов ---
             self._tlock = threading.Lock()
             self._telemetry = self._init_telemetry()
+            self._strategy_manager = None  # lazy StrategyManager cache
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -1000,11 +1001,16 @@ if platform.system() == "Windows":
                     sp_guess = self._estimate_split_pos_from_ch(payload) if is_tls_ch else None
                     init_sp = params.get("split_pos") or sp_guess or (76 if is_tls_ch else max(16, len(payload)//2))
 
-                    # Seed из StrategyManager
+                    # Seed из StrategyManager (lazy)
                     seed = None
-                    if StrategyManager:
+                    if StrategyManager and self._strategy_manager is None:
                         try:
-                            sm = StrategyManager()
+                            self._strategy_manager = StrategyManager()
+                        except Exception:
+                            self._strategy_manager = False
+                    if self._strategy_manager:
+                        try:
+                            sm = self._strategy_manager
                             sni = self._extract_sni(payload)
                             key_domain = getattr(packet, "domain", None) or sni or packet.dst_addr
                             ds = sm.get_strategy(key_domain)
@@ -1056,7 +1062,14 @@ if platform.system() == "Windows":
                     if "badsum" in fooling_list and prof["badsum_allowed"] is False:
                         fooling_list = [f for f in fooling_list if f != "badsum"]
                     autottl = params.get("autottl")
+                    # TTL sweep: для Cloudflare/«badsum» расширим до [1,2,3]
                     ttl_list = list(range(1, min(int(autottl), 8) + 1)) if autottl else [self.current_params["fake_ttl"]]
+                    try:
+                        cf = packet.dst_addr.startswith(("104.", "172.64.", "172.66.", "172.67.", "162.158.", "162.159."))
+                        if cf or ("badsum" in (fooling_list or [])):
+                            ttl_list = [1, 2, 3]
+                    except Exception:
+                        pass
 
                     # Sweep с тайм-бюджетом (350мс)
                     def _send_try(cand: CalibCandidate, ttl: int, d_ms: int):
@@ -1081,7 +1094,7 @@ if platform.system() == "Windows":
                         delays=[1,2,3],
                         send_func=_send_try,
                         wait_func=_wait_outcome,
-                        time_budget_ms=350
+                        time_budget_ms=450
                     )
                     got_inbound = best_cand is not None
                     if got_inbound:
@@ -1122,7 +1135,7 @@ if platform.system() == "Windows":
 
                     success = (best_cand is not None)
                     if not success:
-                        # Фоллбэк: пробуем seqovl, затем multisplit
+                        # Фоллбэк: seqovl -> multisplit -> race
                         self.logger.warning("Calibrator failed. Trying fallbacks (seqovl -> multisplit)...")
                         try:
                             sp_fb = init_sp
@@ -1140,6 +1153,16 @@ if platform.system() == "Windows":
                                     _ev = self._get_inbound_event_for_flow(packet)
                                     if _ev.wait(timeout=0.25) and self._inbound_results.get(rev_key) == "ok":
                                         success = True
+                            # Быстрый race‑fallback: fake+badsum → оригинал
+                            if not success:
+                                self.logger.warning("Fallback race (fake+badsum)...")
+                                self._send_fake_packet_with_badsum(packet, w, ttl=1)
+                                time.sleep(0.003)
+                                w.send(packet)
+                                # дождёмся SH
+                                _ev = self._get_inbound_event_for_flow(packet)
+                                if _ev.wait(timeout=0.3) and self._inbound_results.get(rev_key) == "ok":
+                                    success = True
                         except Exception:
                             pass
 

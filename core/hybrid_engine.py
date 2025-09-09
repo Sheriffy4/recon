@@ -159,7 +159,7 @@ class HybridEngine:
             return None
         task_type = 'none'
         task_params = {}
-        if 'fakeddisorder' in desync:
+        if 'fakeddisorder' in desync or 'desync' in desync:
             task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
             task_type = 'multidisorder'
@@ -207,6 +207,10 @@ class HybridEngine:
             positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
             task_params['split_pos'] = positions[0] if positions else 3
 
+        # QUIC fragmentation
+        for qk in ('quic_frag', 'quic_fragment'):
+            if qk in params and isinstance(params[qk], int):
+                return {'type': 'quic_fragmentation', 'params': {'fragment_size': int(params[qk])}}
         if task_type == 'none':
             LOG.warning(f'Не удалось транслировать zapret-стратегию в задачу для движка: {params}')
             return None
@@ -711,9 +715,12 @@ class HybridEngine:
         # Auto-prepend QUIC fragmentation strategies if signals say QUIC/HTTP3/ECH
         try:
             if quic_signals.get("quic_ping_ok") or quic_signals.get("http3_support") or quic_signals.get("ech_present"):
+                frag_size = 300
+                if kb_profile and kb_profile.get("optimal_fragment_size"):
+                    frag_size = int(kb_profile["optimal_fragment_size"])
                 quic_strats: List[Dict[str, Any]] = [
-                    {"type": "quic_fragmentation", "params": {"fragment_size": 300, "add_version_negotiation": True}},
-                    {"type": "quic_fragmentation", "params": {"fragment_size": 200}}
+                    {"type": "quic_fragmentation", "params": {"fragment_size": frag_size, "add_version_negotiation": True}},
+                    {"type": "quic_fragmentation", "params": {"fragment_size": max(200, frag_size - 100)}}
                 ]
                 # prepend unique
                 seen_keys = set()
@@ -813,17 +820,25 @@ class HybridEngine:
             if self.enhanced_tracking and capturer and hasattr(capturer, "analyze_pcap_file"):
                 cap_path = getattr(capturer, "pcap_file", None)
                 cap_metrics = capturer.analyze_pcap_file(cap_path)
+                if self.knowledge_base and isinstance(cap_metrics, dict):
+                    total_ch = sum(m.get('tls_clienthellos', 0) for m in cap_metrics.values())
+                    total_sh = sum(m.get('tls_serverhellos', 0) for m in cap_metrics.values())
+                    ratio = total_sh / total_ch if total_ch > 0 else 0.0
+                    primary_ip = dns_cache.get(domain)
+                    if domain and primary_ip:
+                        self.knowledge_base.update_quic_metrics(domain, primary_ip, ratio)
+
                 self._merge_capture_metrics_into_results(results, cap_metrics if isinstance(cap_metrics, dict) else {})
-                # KB: update QUIC metrics (ServerHello/ClientHello ratio) per domain
+                # Update KB QUIC score
                 try:
-                    if self.knowledge_base and isinstance(cap_metrics, dict) and cap_metrics:
-                        total_ch = sum(m.get("tls_clienthellos", 0) for m in cap_metrics.values())
-                        total_sh = sum(m.get("tls_serverhellos", 0) for m in cap_metrics.values())
-                        quic_score = (total_sh / total_ch) if total_ch > 0 else 0.0
-                        primary_ip = dns_cache.get(domain) if dns_cache else None
-                        if primary_ip:
-                            self.knowledge_base.update_quic_metrics(domain, primary_ip, quic_score)
-                            LOG.info(f'KB: updated QUIC success score for {domain}: {quic_score:.2f}')
+                    if self.knowledge_base and isinstance(cap_metrics, dict):
+                        # simple aggregate score per domain: use first test_sites domain
+                        dname = (urlparse(test_sites[0]).hostname if test_sites else domain) or domain
+                        sc = 0.0
+                        for m in cap_metrics.values():
+                            sc = max(sc, float(m.get("success_score", 0.0)))
+                        if hasattr(self.knowledge_base, "domain_quic_scores"):
+                            self.knowledge_base.domain_quic_scores[dname] = sc
                 except Exception as e:
                     LOG.debug(f"KB QUIC update failed: {e}")
 
