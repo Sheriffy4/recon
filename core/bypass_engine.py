@@ -232,6 +232,12 @@ if platform.system() == "Windows":
             self.strategy_override = None  # forced strategy override for all flows
             # Track whether an explicit override is active and should disable calibrator/fallbacks
             self._forced_strategy_active = False
+            self._exec_handlers = {}
+            try:
+                from core.bypass.attacks.exec_handlers import EXEC_HANDLERS
+                self._exec_handlers.update(EXEC_HANDLERS)
+            except Exception:
+                pass
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -1397,12 +1403,18 @@ if platform.system() == "Windows":
                         self._telemetry["ttls"]["fake"][int(self.current_params.get("fake_ttl", 1))] += 1
                         self._telemetry["aggregate"]["fake_packets_sent"] += 1
                     success = self._send_segments(packet, w, segments)
-                elif task_type == "tlsrec_split":
-                    modified_payload = self.techniques.apply_tlsrec_split(payload, params.get("split_pos", 5))
-                    success = self._send_modified_packet(packet, w, modified_payload)
-                elif task_type == "wssize_limit":
-                    segments = self.techniques.apply_wssize_limit(payload, params.get("window_size", 2))
-                    success = self._send_segments_with_window(packet, w, segments)
+                elif task_type in ("tlsrec_split", "wssize_limit"):
+                    handler = self._exec_handlers.get(task_type)
+                    if handler:
+                        success = handler(self, packet, w, params, payload)
+                    else:
+                        if task_type == "tlsrec_split":
+                            sp = int(params.get("split_pos", 5))
+                            modified_payload = self.techniques.apply_tlsrec_split(payload, sp)
+                            success = self._send_modified_packet(packet, w, modified_payload)
+                        else:
+                            segments = self.techniques.apply_wssize_limit(payload, params.get("window_size", 2))
+                            success = self._send_segments_with_window(packet, w, segments)
                 elif task_type == "badsum_race":
                     self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params.get("fake_ttl"))
                     time.sleep(0.005)
@@ -2184,6 +2196,97 @@ if platform.system() == "Windows":
                 except Exception:
                     pass
 
+        def _send_tlsrec_split_segments(self, original_packet, w, orig_payload: bytes, split_pos: int, delay_ms: int = 2) -> bool:
+            """
+            TLS record split c TCP-сегментацией: строим два сегмента с разнесёнными TLS‑записями.
+            1) Разделяем TLS ClientHello внутри record на две записи (rec1, rec2, tail).
+            2) Отправляем два TCP‑сегмента подряд: первый с rec1(+возможный tail_start), второй — с rec2+остальной хвост.
+            """
+            try:
+                # Распарсим record и получим (rec1, rec2, tail)
+                recs = self._split_tls_record(orig_payload, split_pos)
+                if not recs:
+                    # fallback — отправим один модифицированный пакет
+                    mod = self.techniques.apply_tlsrec_split(orig_payload, split_pos)
+                    return self._send_modified_packet(original_packet, w, mod)
+                rec1, rec2, tail = recs
+
+                raw = bytearray(original_packet.raw)
+                ip_hl = (raw[0] & 0x0F) * 4
+                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                if tcp_hl < 20: tcp_hl = 20
+
+                base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
+                base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
+                base_win = struct.unpack("!H", raw[ip_hl+14:ip_hl+16])[0]
+                base_ttl = raw[8]
+                base_ip_id = struct.unpack("!H", raw[4:6])[0]
+                ipid_step = int(self.current_params.get("ipid_step", 2048))
+                window_div = int(self.current_params.get("window_div", 8))
+                reduced_win = max(base_win // window_div, 1024)
+
+                segments_payloads = [rec1, rec2 + tail]
+                for i, data in enumerate(segments_payloads):
+                    if not data:
+                        continue
+                    ip_hdr = bytearray(raw[:ip_hl])
+                    tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
+                    # seq offset — 0 для первого, len(rec1) для второго
+                    rel_off = 0 if i == 0 else len(rec1)
+                    new_seq = (base_seq + rel_off) & 0xFFFFFFFF
+                    tcp_hdr[4:8] = struct.pack("!I", new_seq)
+                    tcp_hdr[8:12] = struct.pack("!I", base_ack)
+                    # Флаги: ACK на первом, PSH|ACK на втором
+                    flags = 0x10 if i == 0 else 0x18
+                    tcp_hdr[13] = flags
+                    tcp_hdr[14:16] = struct.pack("!H", reduced_win)
+                    # TTL и IP ID
+                    ip_hdr[8] = base_ttl
+                    new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
+                    ip_hdr[4:6] = struct.pack("!H", new_ip_id)
+                    seg_raw = bytearray(ip_hdr + tcp_hdr + data)
+                    # Total length, IP checksum
+                    seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+                    seg_raw[10:12] = b"\x00\x00"
+                    ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                    seg_raw[10:12] = struct.pack("!H", ip_csum)
+                    # TCP checksum
+                    tcp_start = ip_hl; tcp_end = ip_hl + tcp_hl
+                    csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                    seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
+                    ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                    if not ok:
+                        return False
+                    if i == 0 and delay_ms > 0:
+                        time.sleep(delay_ms / 1000.0)
+                with self._tlock:
+                    self._telemetry["aggregate"]["segments_sent"] += len([p for p in segments_payloads if p])
+                return True
+            except Exception as e:
+                self.logger.error(f"tlsrec split send error: {e}", exc_info=self.debug)
+                return False
+
+        def _split_tls_record(self, payload: bytes, split_pos: int):
+            """
+            Разделяет один TLS record (ClientHello) на две записи rec1/rec2 + tail.
+            Возвращает (rec1, rec2, tail) или None при ошибке.
+            """
+            try:
+                if not payload or len(payload) < 5: return None
+                if payload[0] != 0x16 or payload[1] != 0x03 or payload[2] not in (0x00, 0x01, 0x02, 0x03):
+                    return None
+                reclen = int.from_bytes(payload[3:5], "big")
+                content = payload[5:5+reclen] if 5+reclen <= len(payload) else payload[5:]
+                tail = payload[5+reclen:] if 5+reclen <= len(payload) else b""
+                if split_pos < 1 or split_pos >= len(content):
+                    return None
+                part1, part2 = content[:split_pos], content[split_pos:]
+                ver = payload[1:3]
+                rec1 = bytes([0x16]) + ver + len(part1).to_bytes(2, "big") + part1
+                rec2 = bytes([0x16]) + ver + len(part2).to_bytes(2, "big") + part2
+                return (rec1, rec2, tail)
+            except Exception:
+                return None
         def _send_aligned_fake_segment(self, original_packet, w, seq_offset: int, data: bytes, ttl: int, fooling: List[str]) -> bool:
             """
             Отправляет фейковый сегмент, выровненный по реальному SEQ (base_seq + seq_offset)
