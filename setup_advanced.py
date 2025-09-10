@@ -115,6 +115,9 @@ class AdvancedSetupManager:
             'monitors': [
                 {'file': 'subdomain_detector.py monitor', 'name': 'Мониторинг доменов', 'desc': 'Автоматический мониторинг и исправление доменов'},
                 {'file': 'browser_network_monitor.py diagnose-xcom', 'name': 'Диагностика X.com', 'desc': 'Автоматическая диагностика проблем X.com'}
+            ],
+            'brute_force_tools': [
+                {'file': 'tools/strategy_bruteforce.py', 'name': 'Strategy Bruteforcer', 'desc': 'Test all available attacks against a domain.'}
             ]
         }
     
@@ -190,9 +193,10 @@ class AdvancedSetupManager:
 [6] Тесты и проверки
 [7] Утилиты и настройки
 [8] Мониторинг и автоматизация
+[9] Брутфорс стратегий
 
 [bold]ИНФОРМАЦИЯ:[/bold]
-[9] Помощь и документация
+[10] Помощь и документация
 [0] Выход
             """
             
@@ -208,7 +212,7 @@ class AdvancedSetupManager:
             
             choice = Prompt.ask(
                 "Выберите пункт", 
-                choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], 
+                choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "0"],
                 default="0"
             )
             
@@ -229,6 +233,8 @@ class AdvancedSetupManager:
             elif choice == "8":
                 self.show_monitoring_menu()
             elif choice == "9":
+                self.show_brute_force_menu()
+            elif choice == "10":
                 self.show_help()
             elif choice == "0":
                 self.console.print("[bold]Выход...[/bold]")
@@ -489,6 +495,38 @@ class AdvancedSetupManager:
         if Confirm.ask("Запустить службу?", default=True):
             self.run_command([self.service_script], needs_admin=True)
     
+    def show_brute_force_menu(self):
+        """Показывает меню брутфорс инструментов."""
+        while True:
+            self.console.print("\n")
+
+            table = Table(title="Advanced Tools (Bruteforce)", show_header=True, header_style="bold red")
+            table.add_column("№", style="dim", width=3)
+            table.add_column("Название", style="cyan")
+            table.add_column("Описание", style="white")
+
+            for i, tool in enumerate(self.modules['brute_force_tools'], 1):
+                table.add_row(str(i), tool['name'], tool['desc'])
+
+            table.add_row("0", "Назад", "Вернуться в главное меню")
+
+            self.console.print(table)
+
+            choice = Prompt.ask("Выберите инструмент", default="0")
+
+            if choice == "0":
+                break
+
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(self.modules['brute_force_tools']):
+                    tool = self.modules['brute_force_tools'][idx]
+                    domain = Prompt.ask("Введите домен для брутфорса", default="x.com")
+                    if Confirm.ask(f"Запустить {tool['name']} для домена {domain}?", default=True):
+                        self.run_command([tool['file'], domain])
+            except ValueError:
+                self.console.print("[red]Неверный выбор[/red]")
+
     def action_quick_test(self):
         """Быстрый тест системы."""
         self.console.print(Panel(
