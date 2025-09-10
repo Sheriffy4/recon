@@ -57,7 +57,7 @@ def create_engine(
         raise ValueError(f"Unknown engine type: {engine_type}")
 
 
-def detect_best_engine() -> EngineType:
+def detect_best_engine() -> str:
     """
     Automatically detect the best available engine for current platform.
 
@@ -86,7 +86,7 @@ def detect_best_engine() -> EngineType:
             return EngineType.EXTERNAL_TOOL
 
 
-def create_best_engine(config: Optional[EngineConfig] = None) -> BaseBypassEngine:
+def create_best_engine(engine_override: Optional[str] = None, **kwargs):
     """
     Create the best available engine for current platform.
 
@@ -96,7 +96,19 @@ def create_best_engine(config: Optional[EngineConfig] = None) -> BaseBypassEngin
     Returns:
         Best available engine instance
     """
-    engine_type = detect_best_engine()
+    # engine_override: 'native' | 'external' | None
+    if engine_override:
+        override = engine_override.lower()
+        if override == "native":
+            engine_type = EngineType.NATIVE_PYDIVERT
+        elif override == "external":
+            engine_type = EngineType.EXTERNAL_TOOL
+        else:
+            engine_type = detect_best_engine()
+    else:
+        engine_type = detect_best_engine()
+
+    config = kwargs.get("config", None)
     return create_engine(engine_type, config)
 
 

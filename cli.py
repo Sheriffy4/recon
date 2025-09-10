@@ -708,12 +708,13 @@ class SimpleEvolutionarySearcher:
         all_target_ips: Set[str],
         dns_cache: Dict[str, str],
         port: int,
+        engine_override: Optional[str] = None,
     ) -> float:
         try:
             strategy = self.genes_to_zapret_strategy(chromosome.genes)
             result_status, successful_count, total_count, avg_latency = (
                 await hybrid_engine.execute_strategy_real_world(
-                    strategy, blocked_sites, all_target_ips, dns_cache, port
+                    strategy, blocked_sites, all_target_ips, dns_cache, port, engine_override=engine_override
                 )
             )
             if successful_count == 0:
@@ -748,7 +749,8 @@ class SimpleEvolutionarySearcher:
         port: int,
         learning_cache=None,
         domain: str = None,
-        dpi_hash: str = None
+        dpi_hash: str = None,
+        engine_override: Optional[str] = None
     ) -> "EvolutionaryChromosome":
         console.print("[bold magenta]🧬 Starting evolutionary search...[/bold magenta]")
         console.print(
@@ -776,6 +778,7 @@ class SimpleEvolutionarySearcher:
                         all_target_ips,
                         dns_cache,
                         port,
+                        engine_override=engine_override,
                     )
                     chromosome.generation = generation
                     progress.update(task, advance=1)
@@ -1945,6 +1948,7 @@ async def run_hybrid_mode(args):
         initial_ttl=None,
         enable_fingerprinting=bool(args.fingerprint and fingerprints),
         telemetry_full=args.telemetry_full,
+        engine_override=args.engine,
         capturer=corr_capturer
     )
 
@@ -2417,7 +2421,8 @@ async def run_evolutionary_mode(args):
     start_time = time.time()
     best_chromosome = await searcher.evolve(
         hybrid_engine, blocked_sites, all_target_ips, dns_cache, args.port,
-        learning_cache=learning_cache, domain=first_domain, dpi_hash=dpi_hash
+        learning_cache=learning_cache, domain=first_domain, dpi_hash=dpi_hash,
+        engine_override=args.engine
     )
     evolution_time = time.time() - start_time
     best_strategy = searcher.genes_to_zapret_strategy(best_chromosome.genes)
@@ -2651,6 +2656,7 @@ async def run_per_domain_mode(args):
             fast_filter=not args.no_fast_filter,
             initial_ttl=None,
             enable_fingerprinting=False,  # Per-domain mode doesn't use fingerprinting
+            engine_override=args.engine,
         )
         working_strategies = [r for r in domain_results if r["success_rate"] > 0]
         if working_strategies:
@@ -2955,6 +2961,12 @@ def main():
         choices=["zapret", "goodbyedpi"],
         default="zapret",
         help="System tool to use for bypass (default: zapret).",
+    )
+    parser.add_argument(
+        "--engine",
+        choices=["native", "external"],
+        default=None,
+        help="Force engine selection: native (WinDivert) or external",
     )
     parser.add_argument(
         "--advanced-dns",

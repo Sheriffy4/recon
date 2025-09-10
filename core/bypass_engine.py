@@ -172,7 +172,7 @@ if platform.system() == "Windows":
 
     class BypassEngine:
 
-        def __init__(self, debug=True):
+        def __init__(self, debug=True, *args, **kwargs):
             self.debug = debug
             self.running = False
             self.techniques = BypassTechniques()
@@ -229,6 +229,9 @@ if platform.system() == "Windows":
             self._tlock = threading.Lock()
             self._telemetry = self._init_telemetry()
             self._strategy_manager = None  # lazy StrategyManager cache
+            self.strategy_override = None  # forced strategy override for all flows
+            # Track whether an explicit override is active and should disable calibrator/fallbacks
+            self._forced_strategy_active = False
 
         def attach_controller(self, base_rules, zapret_parser, task_translator,
                               store_path="learned_strategies.json", epsilon=0.1):
@@ -253,11 +256,12 @@ if platform.system() == "Windows":
             self.logger.info("✅ AdaptiveStrategyController attached")
             return True
 
-        def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict], reset_telemetry: bool = False):
+        def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict], reset_telemetry: bool = False, strategy_override: Optional[Dict[str, Any]] = None):
             """Запускает движок обхода в отдельном потоке."""
             if reset_telemetry:
                 with self._tlock:
                     self._telemetry = self._init_telemetry()
+            self.strategy_override = strategy_override
             self.running = True
             self.logger.info("🚀 Запуск универсального движка обхода DPI...")
             thread = threading.Thread(
@@ -271,13 +275,54 @@ if platform.system() == "Windows":
                 self._inbound_thread = self._start_inbound_observer()
             return thread
 
-        def start_with_config(self, config: dict):
+        def start_with_config(self, config: dict, strategy_override: Optional[Dict[str, Any]] = None):
             """Запускает движок обхода с упрощенной конфигурацией для службы."""
             strategy_task = self._config_to_strategy_task(config)
             target_ips = set()
             strategy_map = {"default": strategy_task}
+            self.strategy_override = strategy_override
             self.logger.info(f"🚀 Starting service mode with strategy: {strategy_task}")
-            return self.start(target_ips, strategy_map)
+            return self.start(target_ips, strategy_map, strategy_override=strategy_override)
+
+        def set_strategy_override(self, strategy_task: Dict[str, Any]) -> None:
+            """
+            Принудительно задаёт стратегию для всех подходящих потоков.
+            HybridEngine вызывает это до запуска перехвата.
+            Также нормализует параметры и делает override авторитетным (отключает фоллбэки).
+            """
+            # Normalize and mark override as authoritative (no fallbacks)
+            task = dict(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
+            params = dict(task.get("params", {}))
+
+            # Normalize fooling -> list
+            if "fooling" in params and not isinstance(params["fooling"], (list, tuple)):
+                if isinstance(params["fooling"], str):
+                    if "," in params["fooling"]:
+                        params["fooling"] = [f.strip() for f in params["fooling"].split(",") if f.strip()]
+                    elif params["fooling"]:
+                        params["fooling"] = [params["fooling"]]
+
+            # Ensure fake_ttl is present (respect explicit ttl; default to 1 for fakeddisorder if missing)
+            if "fake_ttl" not in params:
+                if "ttl" in params and params["ttl"] is not None:
+                    try:
+                        params["fake_ttl"] = int(params["ttl"])
+                    except Exception:
+                        pass
+                if "fake_ttl" not in params and str(task.get("type", "")).lower() == "fakeddisorder":
+                    params["fake_ttl"] = 1
+
+            task["params"] = params
+            task["no_fallbacks"] = True
+
+            self.strategy_override = task
+            self._forced_strategy_active = True
+
+            try:
+                # Try to keep the same wording as your logs
+                self.logger.info(f"Принудительная стратегия установлена: {self._format_task(task) if hasattr(self, '_format_task') else task}")
+            except Exception:
+                self.logger.info(f"Принудительная стратегия установлена: {task}")
 
         def _config_to_strategy_task(self, config: dict) -> dict:
             """
@@ -761,6 +806,38 @@ if platform.system() == "Windows":
                                         _ = self._telemetry["per_target"][packet.dst_addr]
                             except Exception:
                                 pass
+                            # Принудительное применение стратегии, если задано strategy_override
+                            if self.strategy_override:
+                                strategy_task = self.strategy_override
+                                # Привязываем попытку к потоку для последующего исхода (ServerHello/RST)
+                                try:
+                                    flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
+                                    sni = self._extract_sni(packet.payload) if packet.payload else None
+                                    with self._lock:
+                                        self.flow_table[flow_id] = {
+                                            "start_ts": time.time(),
+                                            "key": sni or packet.dst_addr,
+                                            "strategy": strategy_task
+                                        }
+                                    with self._tlock:
+                                        self._telemetry["strategy_key"] = self._strategy_key(strategy_task)
+                                except Exception:
+                                    pass
+                                # Применяем стратегию немедленно
+                                if self._is_udp(packet) and packet.dst_port == 443:
+                                    if strategy_task and self.quic_handler.is_quic_initial(packet.payload):
+                                        self.stats["quic_packets_bypassed"] += 1
+                                        self.logger.info(f"Обнаружен QUIC Initial к {packet.dst_addr}. Применяем принудительную стратегию...")
+                                        self.apply_bypass(packet, w, strategy_task)
+                                    else:
+                                        w.send(packet)
+                                elif strategy_task and self._is_tls_clienthello(packet.payload):
+                                    self.stats["tls_packets_bypassed"] += 1
+                                    self.logger.info(f"Обнаружен TLS ClientHello к {packet.dst_addr}. Применяем принудительную стратегию...")
+                                    self.apply_bypass(packet, w, strategy_task)
+                                else:
+                                    w.send(packet)
+                                continue
                             # Сначала пытаемся применить контроллер (SNI->wildcard->IP->default)
                             if self.controller and self._is_tls_clienthello(packet.payload):
                                 sni = self._extract_sni(packet.payload)
@@ -878,8 +955,29 @@ if platform.system() == "Windows":
                 # Нормализуем ключи из интерпретатора: fooling_methods -> fooling
                 if "fooling" not in params and "fooling_methods" in params:
                     params["fooling"] = params.get("fooling_methods", [])
+                # Normalize fooling -> list
+                if "fooling" in params and not isinstance(params["fooling"], (list, tuple)):
+                    if isinstance(params["fooling"], str):
+                        if "," in params["fooling"]:
+                            params["fooling"] = [f.strip() for f in params["fooling"].split(",") if f.strip()]
+                        elif params["fooling"]:
+                            params["fooling"] = [params["fooling"]]
                 self.current_params = params
                 task_type = normalize_attack_name(strategy_task.get("type"))
+                # Ensure fake_ttl is present in params
+                if "fake_ttl" not in params:
+                    if "ttl" in params and params["ttl"] is not None:
+                        try:
+                            params["fake_ttl"] = int(params["ttl"])
+                        except Exception:
+                            pass
+                    elif task_type == "fakeddisorder":
+                        params["fake_ttl"] = 1
+                # Reattach normalized params
+                try:
+                    strategy_task["params"] = params
+                except Exception:
+                    pass
 
                 # --- Улучшенная логика TTL ---
                 fake_ttl_source = params.get("autottl") or params.get("ttl")
@@ -982,6 +1080,51 @@ if platform.system() == "Windows":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
 
                 if task_type == "fakeddisorder":
+                    forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
+                    # Simple or forced two-packet fakeddisorder path
+                    try:
+                        if forced_nofallback or params.get("simple", False) or params.get("force_simple", False):
+                            if forced_nofallback:
+                                self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
+                            payload = bytes(packet.payload)
+                            split_pos = int(params.get("split_pos", 76))
+                            overlap = int(params.get("overlap_size", 336))
+                            ttl_simple_src = params.get("fake_ttl", params.get("ttl", self.current_params.get("fake_ttl", 1)))
+                            try:
+                                ttl_simple = int(ttl_simple_src)
+                            except Exception:
+                                ttl_simple = int(self.current_params.get("fake_ttl", 1))
+
+                            fooling_list = params.get("fooling", []) or []
+                            if isinstance(fooling_list, str):
+                                fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
+
+                            left = payload[:split_pos] if split_pos < len(payload) else payload
+                            right = payload[split_pos:] if split_pos < len(payload) else b""
+
+                            segs = []
+                            opts1 = {"is_fake": True, "ttl": max(1, min(255, int(ttl_simple))), "delay_ms": 2}
+                            if "badsum" in fooling_list:
+                                opts1["corrupt_tcp_checksum"] = True
+                            if "md5sig" in fooling_list:
+                                opts1["add_md5sig_option"] = True
+                            if "badseq" in fooling_list:
+                                opts1["corrupt_sequence"] = True
+
+                            segs.append((right, split_pos, opts1))
+                            segs.append((left, split_pos - int(overlap), {"tcp_flags": 0x18, "delay_ms": 2}))
+
+                            if self._send_attack_segments(packet, w, segs):
+                                self.logger.debug("Simple/forced fakeddisorder path succeeded")
+                                return
+                            if forced_nofallback:
+                                # Do not run calibrator/fallbacks when forced; forward original if sending failed
+                                w.send(packet)
+                                return
+                    except Exception:
+                        if forced_nofallback:
+                            w.send(packet)
+                            return
                     # --- Логика с калибратором и ранней остановкой ---
                     flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
                     if flow_id in self._active_flows:

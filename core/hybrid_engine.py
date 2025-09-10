@@ -153,53 +153,95 @@ class HybridEngine:
             # Support QUIC fragmentation from zapret-like flag
             qfrag = params.get('quic_frag') or params.get('quic_fragment')
             if qfrag:
-                try: fs = int(qfrag)
-                except Exception: fs = 120
+                try:
+                    fs = int(qfrag)
+                except Exception:
+                    fs = 120
                 return {'type': 'quic_fragmentation', 'params': {'fragment_size': fs}}
             return None
         task_type = 'none'
         task_params = {}
+        # Нормализация составных алиасов: fake + fakeddisorder трактуем как fakeddisorder
         if 'fakeddisorder' in desync or 'desync' in desync:
             task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
             task_type = 'multidisorder'
         elif 'multisplit' in desync:
             task_type = 'multisplit'
-        elif 'disorder' in desync or 'disorder2' in desync: # Legacy aliases
+        elif 'disorder' in desync or 'disorder2' in desync:  # Legacy aliases
             task_type = 'fakeddisorder'
-        if task_type in ['fakedisorder', 'multidisorder', 'multisplit']:
+
+        # Флаг: присутствует ли семейство fakeddisorder
+        has_faked = (
+            ('fakeddisorder' in desync) or ('desync' in desync)
+            or ('disorder' in desync) or ('disorder2' in desync)
+        )
+
+        # Настройка позиций сплита
+        if task_type in ['fakeddisorder', 'multidisorder', 'multisplit']:
             split_pos_raw = params.get('dpi_desync_split_pos', [])
             if any((p.get('type') == 'midsld' for p in split_pos_raw)):
                 task_params['split_pos'] = 'midsld'
             else:
                 positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                if task_type == 'fakedisorder':
-                    task_params['split_pos'] = positions[0] if positions else 3
+                if task_type == 'fakeddisorder':
+                    task_params['split_pos'] = positions[0] if positions else 76
                 else:
                     task_params['positions'] = positions if positions else [1, 5, 10]
+
+        # Обработка fake‑ветки
         if 'fake' in desync:
-            if 'badsum' in fooling:
-                task_type = 'badsum_race'
-            elif 'md5sig' in fooling:
-                task_type = 'md5sig_race'
-            elif params.get('dpi_desync_ttl') or params.get('dpi_desync_fake_tls'):
-                # есть 'fake' без fooling — поддерживаем чистый fake
-                task_type = 'fake' if task_type == 'none' else task_type
-            else:
-                # чистый 'fake' без TTL/параметров — тоже поддержим
-                if task_type == 'none':
+            if not has_faked and task_type == 'none':
+                # Чистый fake → допускаем race-типы
+                if 'badsum' in fooling:
+                    task_type = 'badsum_race'
+                elif 'md5sig' in fooling:
+                    task_type = 'md5sig_race'
+                elif params.get('dpi_desync_ttl') or params.get('dpi_desync_fake_tls'):
                     task_type = 'fake'
-        if params.get('dpi_desync_split_seqovl'):
-            task_type = 'seqovl'
-            split_pos_raw = params.get('dpi_desync_split_pos', [])
-            if any((p.get('type') == 'midsld' for p in split_pos_raw)):
-                task_params['split_pos'] = 'midsld'
+                else:
+                    task_type = 'fake'
             else:
-                positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                task_params['split_pos'] = positions[0] if positions else 3
-            task_params['overlap_size'] = params.get('dpi_desync_split_seqovl')
+                # В сочетании с fakeddisorder НЕ переопределяем тип, а только оставляем fooling в параметрах
+                if fooling:
+                    task_params['fooling'] = fooling
+
+        # seqovl: если указан и нет fakeddisorder-семейства, можно выделить отдельный тип;
+        # иначе — это параметр fakeddisorder
+        if params.get('dpi_desync_split_seqovl'):
+            if not has_faked and task_type == 'none':
+                task_type = 'seqovl'
+                split_pos_raw = params.get('dpi_desync_split_pos', [])
+                if any((p.get('type') == 'midsld' for p in split_pos_raw)):
+                    task_params['split_pos'] = 'midsld'
+                else:
+                    positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
+                    task_params['split_pos'] = positions[0] if positions else 3
+                task_params['overlap_size'] = params.get('dpi_desync_split_seqovl')
+            else:
+                # Остаёмся в fakeddisorder и просто добавляем overlap_size
+                task_params.setdefault('overlap_size', params.get('dpi_desync_split_seqovl'))
+
+        # TTL
         if params.get('dpi_desync_ttl'):
             task_params['ttl'] = params.get('dpi_desync_ttl')
+
+        # Значения по умолчанию для fakeddisorder (zapret-совместимые)
+        if task_type == 'fakeddisorder':
+            if 'ttl' not in task_params:
+                task_params['ttl'] = 1
+            if 'split_pos' not in task_params:
+                split_pos_raw = params.get('dpi_desync_split_pos', [])
+                if any((p.get('type') == 'midsld' for p in split_pos_raw)):
+                    task_params['split_pos'] = 'midsld'
+                else:
+                    positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
+                    task_params['split_pos'] = positions[0] if positions else 76
+            if 'overlap_size' not in task_params and not params.get('dpi_desync_split_seqovl'):
+                task_params['overlap_size'] = 336
+            if fooling:
+                task_params['fooling'] = fooling
+
         # split без seqovl → простая фрагментация
         if task_type == 'none' and 'split' in desync:
             task_type = 'simple_fragment'
@@ -239,6 +281,20 @@ class HybridEngine:
 
         s = str(strategy).strip()
 
+        # Fast path: zapret CLI style detection with normalization
+        if isinstance(strategy, str) and "--dpi-desync=" in s:
+            try:
+                parsed_params = self.parser.parse(s)
+                task = self._translate_zapret_to_engine_task(parsed_params)
+                if task:
+                    # Normalize combined type aliases if any
+                    t = task.get('type')
+                    if t in ("fake,fakeddisorder", "fakeddisorder,fake"):
+                        task['type'] = 'fakeddisorder'
+                    return task
+            except Exception:
+                pass
+
         # 1) Simple DSL parser: func(key=value, ...)
         import re
         match = re.match(r'(\w+)\((.*)\)', s)
@@ -276,6 +332,10 @@ class HybridEngine:
                 parsed_params = self.parser.parse(s)
                 task = self._translate_zapret_to_engine_task(parsed_params)
                 if task:
+                    # Normalize combined type aliases if any
+                    t = task.get('type')
+                    if t in ("fake,fakeddisorder", "fakeddisorder,fake"):
+                        task['type'] = 'fakeddisorder'
                     return task
             except Exception:
                 pass
@@ -430,7 +490,8 @@ class HybridEngine:
         return_details: bool = False,
         prefer_retry_on_timeout: bool = False,
         warmup_ms: Optional[float] = None,
-        enable_online_optimization: bool = False
+        enable_online_optimization: bool = False,
+        engine_override: Optional[str] = None
     ) -> Tuple[str, int, int, float]:
         """
         Реальное тестирование стратегии с использованием нового BypassEngine.
@@ -439,7 +500,22 @@ class HybridEngine:
         engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
-        bypass_engine = BypassEngine(debug=self.debug)
+        # Create engine with optional override via a simple factory shim
+        class _EngineFactoryShim:
+            def __init__(self, debug: bool):
+                self.debug = debug
+            def create_best_engine(self, engine_override: Optional[str] = None):
+                # Future: select different engine types based on engine_override
+                return BypassEngine(debug=self.debug)
+        factory = _EngineFactoryShim(debug=self.debug)
+        bypass_engine = factory.create_best_engine(engine_override=engine_override)
+        LOG.info(f"Using engine: {bypass_engine.__class__.__name__} (override={engine_override})")
+        # Optionally attach external adaptive controller if present
+        if hasattr(self, "adaptive_controller") and getattr(self, "adaptive_controller"):
+            try:
+                bypass_engine.attach_controller(self.adaptive_controller)
+            except Exception as e:
+                LOG.debug(f"Adaptive controller attach via override failed: {e}")
         # Опционально подключаем онлайн-контроллер
         if enable_online_optimization:
             try:
@@ -459,8 +535,29 @@ class HybridEngine:
                 bypass_engine.attach_controller(base_rules, parser, task_translator, store_path="learned_strategies.json", epsilon=0.1)
             except Exception as e:
                 LOG.debug(f"Adaptive controller attach failed: {e}")
+        # Apply forced strategy override if engine supports it
+        try:
+            if hasattr(bypass_engine, "set_strategy_override") and callable(getattr(bypass_engine, "set_strategy_override")):
+                bypass_engine.set_strategy_override(engine_task)
+                LOG.info("Forced strategy override applied to engine")
+        except Exception as e:
+            LOG.debug(f"Failed to apply strategy override: {e}")
         strategy_map = {'default': engine_task}
-        bypass_thread = bypass_engine.start(target_ips, strategy_map)
+        bypass_thread = None
+        try:
+            if hasattr(bypass_engine, "start_with_strategy") and callable(getattr(bypass_engine, "start_with_strategy")):
+                bypass_thread = bypass_engine.start_with_strategy(target_ips, engine_task)
+            elif hasattr(bypass_engine, "start"):
+                bypass_thread = bypass_engine.start(target_ips, strategy_map)
+            else:
+                raise AttributeError("BypassEngine has no suitable start method")
+        except Exception as e:
+            LOG.debug(f"Engine start failed with override path, falling back to default start: {e}")
+            try:
+                bypass_thread = bypass_engine.start(target_ips, strategy_map)
+            except Exception as e2:
+                LOG.error(f"Engine failed to start: {e2}")
+                raise
         try:
             # Чуть больше времени на прогрев хука
             wait_time_s = 2.5 # default
@@ -557,7 +654,8 @@ class HybridEngine:
         telemetry_full: bool = False,
         # --- Online optimization hooks ---
         optimization_callback: Optional[callable] = None,
-        strategy_evaluation_mode: bool = False
+        strategy_evaluation_mode: bool = False,
+        engine_override: Optional[str] = None
     ) -> List[Dict]:
         """
         Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
@@ -754,7 +852,8 @@ class HybridEngine:
                 strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
                 prefer_retry_on_timeout=(i < 2),
                 return_details=True,
-                enable_online_optimization=self.enable_online_optimization
+                enable_online_optimization=self.enable_online_optimization,
+                engine_override=engine_override
             )
             engine_telemetry = {}
             if len(ret) == 6:
@@ -871,7 +970,8 @@ class HybridEngine:
                             strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
                             prefer_retry_on_timeout=True,  # агрессивнее ретраи для 2го прохода
                             return_details=True,
-                            enable_online_optimization=self.enable_online_optimization
+                            enable_online_optimization=self.enable_online_optimization,
+                            engine_override=engine_override
                         )
                         if len(ret) == 5:
                             result_status, successful_count, total_count, avg_latency, site_results = ret
