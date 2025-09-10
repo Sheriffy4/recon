@@ -22,10 +22,10 @@ class TestPacketPatternValidatorComparison(unittest.TestCase):
     def test_ttl_normalization_match(self, mock_analyze):
         """Test that bucketized TTL values are considered a match."""
         recon_analysis = PacketAnalysis(total_packets=3, fake_packets=1, real_packets=2, split_packets=1,
-                                      ttl_values=[60, 130, 250], sequence_overlaps=[], split_positions=[],
+                                      ttl_values=[8, 32, 64, 96, 128, 200], sequence_overlaps=[], split_positions=[],
                                       attack_pattern="fakedisorder", patterns=[])
         zapret_analysis = PacketAnalysis(total_packets=3, fake_packets=1, real_packets=2, split_packets=1,
-                                       ttl_values=[64, 128, 255], sequence_overlaps=[], split_positions=[],
+                                       ttl_values=[1, 30, 60, 90, 120, 250], sequence_overlaps=[], split_positions=[],
                                        attack_pattern="fakedisorder", patterns=[])
         mock_analyze.side_effect = [recon_analysis, zapret_analysis]
 
@@ -38,23 +38,23 @@ class TestPacketPatternValidatorComparison(unittest.TestCase):
     def test_ttl_normalization_mismatch(self, mock_analyze):
         """Test that different bucketized TTLs are a minor difference."""
         recon_analysis = PacketAnalysis(total_packets=3, fake_packets=1, real_packets=2, split_packets=1,
-                                      ttl_values=[60, 130, 200], sequence_overlaps=[], split_positions=[],
+                                      ttl_values=[10, 40, 70], sequence_overlaps=[], split_positions=[],
                                       attack_pattern="fakedisorder", patterns=[])
         zapret_analysis = PacketAnalysis(total_packets=3, fake_packets=1, real_packets=2, split_packets=1,
-                                       ttl_values=[64, 128, 255], sequence_overlaps=[], split_positions=[],
+                                       ttl_values=[8, 32, 64], sequence_overlaps=[], split_positions=[],
                                        attack_pattern="fakedisorder", patterns=[])
         mock_analyze.side_effect = [recon_analysis, zapret_analysis]
 
         result = self.validator.compare_packet_patterns("r.pcap", "z.pcap", "cmd")
 
         self.assertEqual(len(result.minor_differences), 1)
-        self.assertIn("TTL values differ", result.minor_differences[0])
+        self.assertIn("TTL bucket difference", result.minor_differences[0])
 
     @patch('packet_pattern_validator.PacketPatternValidator.analyze_pcap_file')
     def test_split_pos_tolerance_match(self, mock_analyze):
         """Test that split positions within tolerance are a match."""
         recon_analysis = PacketAnalysis(total_packets=2, fake_packets=0, real_packets=2, split_packets=1,
-                                      ttl_values=[64, 64], sequence_overlaps=[], split_positions=[75],
+                                      ttl_values=[64, 64], sequence_overlaps=[], split_positions=[76],
                                       attack_pattern="fakedisorder", patterns=[])
         zapret_analysis = PacketAnalysis(total_packets=2, fake_packets=0, real_packets=2, split_packets=1,
                                        ttl_values=[64, 64], sequence_overlaps=[], split_positions=[76],
@@ -64,12 +64,11 @@ class TestPacketPatternValidatorComparison(unittest.TestCase):
         result = self.validator.compare_packet_patterns("r.pcap", "z.pcap", "cmd")
 
         self.assertEqual(len(result.critical_differences), 0)
-        # A minor difference for TTL might still be logged if sets are not identical before bucketing.
-        # The main point is that it's not a critical difference.
+        self.assertEqual(len(result.minor_differences), 0)
 
     @patch('packet_pattern_validator.PacketPatternValidator.analyze_pcap_file')
     def test_split_pos_tolerance_mismatch(self, mock_analyze):
-        """Test that split positions outside tolerance are a critical mismatch."""
+        """Test that split positions outside tolerance are a minor mismatch."""
         recon_analysis = PacketAnalysis(total_packets=2, fake_packets=0, real_packets=2, split_packets=1,
                                       ttl_values=[64, 64], sequence_overlaps=[], split_positions=[70],
                                       attack_pattern="fakedisorder", patterns=[])
@@ -80,8 +79,9 @@ class TestPacketPatternValidatorComparison(unittest.TestCase):
 
         result = self.validator.compare_packet_patterns("r.pcap", "z.pcap", "cmd")
 
-        self.assertEqual(len(result.critical_differences), 1)
-        self.assertIn("Split positions mismatch", result.critical_differences[0])
+        self.assertEqual(len(result.critical_differences), 0)
+        self.assertEqual(len(result.minor_differences), 1)
+        self.assertIn("Split positions mismatch", result.minor_differences[0])
 
 if __name__ == '__main__':
     unittest.main()

@@ -68,16 +68,18 @@ class ZapretStrategyParser:
             "fake-syndata": "dpi_desync_fake_syndata",
         }
         for param_name, key in flag_params.items():
-            # Ищем параметр, который может быть как с `=значение`, так и без
-            # (?:\s|$) - означает пробел или конец строки
             match = re.search(
                 rf"--dpi-desync-{param_name}(?:=([^\s]+))?(?:\s|$)", strategy
             )
             if match:
-                # Если параметр найден, устанавливаем его значение.
-                # Если значения нет (group(1) is None), ставим True как флаг.
                 value = match.group(1)
-                params[key] = value if value is not None else True
+                if value is not None:
+                    try:
+                        params[key] = int(value)
+                    except ValueError:
+                        params[key] = value
+                else:
+                    params[key] = 2 if key == "dpi_desync_autottl" else True
 
         # 4. Парсинг позиций для сплита
         match = re.search(r"--dpi-desync-split-pos=([^\s]+)", strategy)

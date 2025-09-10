@@ -162,6 +162,7 @@ class HybridEngine:
         task_type = 'none'
         task_params = {}
         # Нормализация составных алиасов: fake + fakeddisorder трактуем как fakeddisorder
+        # Алиас 'desync' → fakeddisorder
         if 'fakeddisorder' in desync or 'desync' in desync:
             task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
@@ -187,6 +188,11 @@ class HybridEngine:
                 if task_type == 'fakeddisorder':
                     task_params['split_pos'] = positions[0] if positions else 76
                 else:
+                    # Если задан split-count без positions — сгенерируем равномерную сетку
+                    count = params.get('dpi_desync_split_count')
+                    if not positions and isinstance(count, int) and count > 1:
+                        base, gap = 6, max(4, 120 // min(count, 10))
+                        positions = [base + i * gap for i in range(count)]
                     task_params['positions'] = positions if positions else [1, 5, 10]
 
         # Обработка fake‑ветки
@@ -223,8 +229,12 @@ class HybridEngine:
                 task_params.setdefault('overlap_size', params.get('dpi_desync_split_seqovl'))
 
         # TTL
-        if params.get('dpi_desync_ttl'):
-            task_params['ttl'] = params.get('dpi_desync_ttl')
+        if params.get('dpi_desync_ttl') is not None:
+            task_params['ttl'] = int(params.get('dpi_desync_ttl'))
+        if params.get('dpi_desync_autottl') is not None:
+            task_params['autottl'] = int(params.get('dpi_desync_autottl'))
+        if params.get('dpi_desync_repeats') is not None:
+            task_params['repeats'] = int(params.get('dpi_desync_repeats'))
 
         # Значения по умолчанию для fakeddisorder (zapret-совместимые)
         if task_type == 'fakeddisorder':
@@ -274,10 +284,15 @@ class HybridEngine:
 
     def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         if isinstance(strategy, dict):
-            t = strategy.get('type') or strategy.get('name')
+            # Нормализация нативных типов/алиасов прямо для dict-стратегий
+            t = (strategy.get('type') or strategy.get('name') or '').strip().lower()
             if not t:
                 return None
-            return {'type': t, 'params': strategy.get('params', {})}
+            from core.bypass.attacks.alias_map import normalize_attack_name
+            ntp = normalize_attack_name(t)
+            if ntp == 'desync':
+                ntp = 'fakeddisorder'
+            return {'type': ntp, 'params': strategy.get('params', {}) or {}}
 
         s = str(strategy).strip()
 
@@ -786,18 +801,21 @@ class HybridEngine:
                 fool = kb_recs.get("fooling_methods") or []
                 if isinstance(fool, str):
                     fool = [x.strip() for x in fool.split(",") if x.strip()]
-                # Dict‑стратегия (для modern engine)
                 kb_dict = {
-                    "type": "desync",
+                    "type": "fakeddisorder",
                     "params": {
-                        "fooling": ",".join(fool) if fool else "badsum",
+                        "fooling": fool if fool else ["badsum"],
                         "split_pos": int(split_pos) if isinstance(split_pos, int) else 76,
                         "overlap_size": int(overlap_size) if isinstance(overlap_size, int) else 336,
                         "ttl": 3,
                     }
                 }
-                # Zapret‑строка (legacy совместимость; overlap напрямую может не поддерживаться)
-                kb_str = f"--dpi-desync={','.join(fool) if fool else 'badsum'},disorder --dpi-desync-split-pos={kb_dict['params']['split_pos']} --dpi-desync-ttl=3"
+                kb_str = (
+                    f"--dpi-desync=fake,disorder "
+                    f"--dpi-desync-fooling={','.join(fool) if fool else 'badsum'} "
+                    f"--dpi-desync-split-pos={kb_dict['params']['split_pos']} "
+                    f"--dpi-desync-ttl=3"
+                )
                 merged = [kb_dict, kb_str] + strategies_to_test
                 uniq, seen = [], set()
                 for s in merged:
