@@ -9,6 +9,13 @@ class DummyPacket:
         self.dst_addr = "2.2.2.2"
         self.src_port = 50000
         self.dst_port = 443
+        self.protocol = 6  # TCP
+        # Minimal fake IP/TCP header for BypassEngine to read TTL, etc.
+        ip_header = b'\x45\x00\x00\x34\x00\x01\x00\x00\x40\x06\x7c\xb0\x01\x01\x01\x01\x02\x02\x02\x02'
+        tcp_header = b'\xc3\x50\x00\x2b\x00\x00\x00\x01\x00\x00\x00\x02\x50\x18\x72\x10\xe5\xd8\x00\x00'
+        self.raw = ip_header + tcp_header + self.payload
+        self.interface = (0, 0)
+        self.direction = 0  # OUTBOUND
 
 class DummyWriter:
     def __init__(self):
@@ -28,9 +35,9 @@ def test_fakeddisorder_forced_simple_applies_params():
         captured["segs"] = segs
         return True
 
-    with patch.object(BPypassEngine if False else BypassEngine, "_send_attack_segments", side_effect=fake_send_attack_segments):
+    with patch.object(BypassEngine, "_send_attack_segments", side_effect=fake_send_attack_segments):
         task = {"type": "fakeddisorder", "params": {"split_pos": 76, "overlap_size": 336, "ttl": 2, "fooling": ["badsum","badseq"], "force_simple": True}}
-        be.apply_bypass(pkt, w, task, task["params"], "fakeddisorder", pkt.payload)
+        be.apply_bypass(pkt, w, task)
 
     segs = captured["segs"]
     # ожидаем 2 сегмента: сначала right с offset=split_pos, затем left с offset=split_pos-overlap
@@ -44,21 +51,16 @@ def test_fakeddisorder_forced_simple_applies_params():
     assert opts1.get("corrupt_tcp_checksum") is True
     assert opts1.get("corrupt_sequence") is True
 
-def test_badsum_race_builds_two_packets():
+def test_badsum_race_sends_fake_then_original():
     be = BypassEngine(debug=False)
     pkt = DummyPacket()
     w = DummyWriter()
-    captured = {}
-    def fake_send_attack_segments(packet, writer, segs):
-        captured["segs"] = segs
-        return True
-    with patch.object(BypassEngine, "_send_attack_segments", side_effect=fake_send_attack_segments):
-        task = {"type": "badsum_race", "params": {"fake_ttl": 1, "real_ttl": 64, "delay_ms": 2}}
-        be.apply_bypass(pkt, w, task, task["params"], "badsum_race", pkt.payload)
 
-    segs = captured["segs"]
-    assert len(segs) == 2
-    fake_opts = segs[0][2]
-    real_opts = segs[1][2]
-    assert fake_opts.get("is_fake") is True and fake_opts.get("corrupt_tcp_checksum") is True
-    assert real_opts.get("ttl") == 64
+    with patch.object(be, '_send_fake_packet_with_badsum') as mock_send_fake, \
+         patch.object(w, 'send') as mock_send_orig:
+
+        task = {"type": "badsum_race", "params": {"fake_ttl": 1}}
+        be.apply_bypass(pkt, w, task)
+
+        mock_send_fake.assert_called_once()
+        mock_send_orig.assert_called_once_with(pkt)

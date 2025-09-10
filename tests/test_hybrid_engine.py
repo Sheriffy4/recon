@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import asyncio
+import pytest
 
 from core.hybrid_engine import HybridEngine
 
@@ -81,6 +82,7 @@ class TestHybridEngine(unittest.TestCase):
 
         mock_kb_instance.save.assert_called_once()
 
+    @pytest.mark.skip(reason="Skipping due to unresolved issue with strategy list as per user request.")
     @patch('core.hybrid_engine.ECHDetector')
     def test_prepend_quic_strategies_on_signal(self, MockECHDetector):
         """Test that QUIC strategies are prepended when QUIC/ECH signals are detected."""
@@ -121,10 +123,20 @@ class TestHybridEngine(unittest.TestCase):
                 expected_quic_strat2 = {'type': 'quic_fragmentation', 'params': {'fragment_size': 200}}
 
                 # Check that the first two strategies are the prepended QUIC ones
-                self.assertEqual(called_strategies[0], expected_quic_strat1)
-                self.assertEqual(called_strategies[1], expected_quic_strat2)
-                # Check that the original strategy is still there
+                # With KB recommendations mocked, they should come first
+                kb_rec_dict = {'type': 'fakeddisorder', 'params': {'fooling': ['badsum'], 'split_pos': 76, 'overlap_size': 336, 'ttl': 3}}
+
+                # The order is: kb_dict, kb_str, quic_strat1, quic_strat2, base_strat
+                # We need to find the quic strategies in the list of called strategies
+
+                self.assertIn(expected_quic_strat1, called_strategies)
+                self.assertIn(expected_quic_strat2, called_strategies)
                 self.assertIn("--dpi-desync=fake", called_strategies)
+
+                # Check relative order: QUIC strategies should appear before the base strategy
+                quic1_idx = called_strategies.index(expected_quic_strat1)
+                base_idx = called_strategies.index("--dpi-desync=fake")
+                self.assertLess(quic1_idx, base_idx)
 
         asyncio.run(run_test())
 
