@@ -5,6 +5,7 @@ from typing import Set, Dict, Any, Optional
 
 # This is the primary, refactored engine implementation
 from core.bypass.engine.windows_engine import WindowsBypassEngine
+from core.bypass.engine.base_engine import EngineConfig
 
 # For backward compatibility, some components might still import these from here
 from core.bypass.techniques.primitives import BypassTechniques
@@ -41,7 +42,8 @@ class BypassEngine:
 
         # Instantiate the real engine and store it in a private attribute.
         # The tests rely on this attribute being named `_engine`.
-        self._engine = WindowsBypassEngine(debug=debug)
+        config = EngineConfig(debug=debug)
+        self._engine = WindowsBypassEngine(config=config)
 
         # Expose the logger for convenience, as the old engine did.
         self.logger = self._engine.logger

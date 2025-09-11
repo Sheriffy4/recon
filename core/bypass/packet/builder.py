@@ -272,70 +272,88 @@ class PacketBuilder:
 
     @staticmethod
     def is_tls_clienthello(payload: Optional[bytes]) -> bool:
-        """Check if payload is a TLS ClientHello."""
+        """Check if payload is TLS ClientHello."""
         return (
             payload
             and len(payload) > 6
-            and payload[0] == 22          # ContentType: Handshake
-            and payload[1] == 3           # Version: 3.x
-            and payload[5] == 1           # HandshakeType: ClientHello
+            and payload[0] == 22  # Handshake
+            and payload[5] == 1   # ClientHello
         )
 
     @staticmethod
     def is_tls_serverhello(payload: Optional[bytes]) -> bool:
-        """Check if payload is a TLS ServerHello."""
+        """Check if payload is TLS ServerHello."""
         return (
             payload
             and len(payload) > 6
-            and payload[0] == 22          # ContentType: Handshake
-            and payload[1] == 3           # Version: 3.x
-            and payload[5] == 2           # HandshakeType: ServerHello
+            and payload[0] == 22  # Handshake
+            and payload[5] == 2   # ServerHello
         )
 
     @staticmethod
-    def extract_sni(payload: Optional[bytes]) -> Optional[str]:
-        """Extract Server Name Indication (SNI) from a TLS ClientHello."""
-        if not payload or not PacketBuilder.is_tls_clienthello(payload):
+    def extract_sni(payload: bytes) -> Optional[str]:
+        """Extract SNI from TLS ClientHello."""
+        if not PacketBuilder.is_tls_clienthello(payload):
             return None
+
         try:
-            # Find the start of extensions
-            session_id_len = payload[38]
-            pos = 39 + session_id_len
-
-            cipher_suites_len = struct.unpack('!H', payload[pos:pos+2])[0]
-            pos += 2 + cipher_suites_len
-
-            compression_methods_len = payload[pos]
-            pos += 1 + compression_methods_len
-
-            if pos + 2 > len(payload):
+            # Skip to extensions
+            pos = 43  # Min position after fixed fields
+            if pos >= len(payload):
                 return None
 
-            extensions_len = struct.unpack('!H', payload[pos:pos+2])[0]
-            pos += 2
-            extensions_end = pos + extensions_len
+            # Session ID length
+            sid_len = payload[pos]
+            pos += 1 + sid_len
 
-            # Iterate through extensions to find SNI
-            while pos + 4 < extensions_end:
-                ext_type = struct.unpack('!H', payload[pos:pos+2])[0]
-                ext_len = struct.unpack('!H', payload[pos+2:pos+4])[0]
+            # Cipher suites length
+            if pos + 2 > len(payload):
+                return None
+            cs_len = int.from_bytes(payload[pos:pos+2], "big")
+            pos += 2 + cs_len
+
+            # Compression methods length
+            if pos >= len(payload):
+                return None
+            comp_len = payload[pos]
+            pos += 1 + comp_len
+
+            # Extensions length
+            if pos + 2 > len(payload):
+                return None
+            ext_len = int.from_bytes(payload[pos:pos+2], "big")
+            pos += 2
+
+            ext_end = min(pos + ext_len, len(payload))
+
+            # Find SNI extension (type 0)
+            while pos + 4 <= ext_end:
+                ext_type = int.from_bytes(payload[pos:pos+2], "big")
+                ext_data_len = int.from_bytes(payload[pos+2:pos+4], "big")
                 pos += 4
 
-                if ext_type == 0: # SNI
-                    list_len = struct.unpack('!H', payload[pos:pos+2])[0]
+                if ext_type == 0 and pos + ext_data_len <= len(payload):  # SNI extension
+                    # Skip list length
+                    if pos + 2 > len(payload):
+                        break
                     pos += 2
-                    if pos + list_len > extensions_end: return None
-
-                    name_type = payload[pos]
+                    # Skip name type
+                    if pos + 1 > len(payload):
+                        break
                     pos += 1
-                    if name_type == 0: # host_name
-                        name_len = struct.unpack('!H', payload[pos:pos+2])[0]
-                        pos += 2
-                        if pos + name_len > extensions_end: return None
+                    # Get name length
+                    if pos + 2 > len(payload):
+                        break
+                    name_len = int.from_bytes(payload[pos:pos+2], "big")
+                    pos += 2
+                    # Extract name
+                    if pos + name_len <= len(payload):
+                        name = payload[pos:pos+name_len]
+                        return name.decode('ascii', errors='ignore')
 
-                        return payload[pos:pos+name_len].decode('utf-8')
+                pos += ext_data_len
 
-                pos += ext_len
         except Exception:
-            return None
+            pass
+
         return None

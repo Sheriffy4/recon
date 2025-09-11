@@ -14,6 +14,7 @@ sys.modules["pydivert"] = mock.Mock()
 with mock.patch("platform.system", return_value="Windows"):
     from core.bypass_engine import BypassEngine
     from core.bypass.engine.windows_engine import WindowsBypassEngine
+    from core.bypass.engine.base_engine import EngineConfig
     from core.bypass.techniques.primitives import BypassTechniques
 
 
@@ -87,7 +88,8 @@ class TestWindowsBypassEngine(unittest.TestCase):
 
     def setUp(self):
         with mock.patch("platform.system", return_value="Windows"):
-            self.engine = WindowsBypassEngine(debug=False)
+            config = EngineConfig(debug=False)
+            self.engine = WindowsBypassEngine(config=config)
         self.mock_packet = mock.Mock()
         self.mock_packet.dst_addr = "1.2.3.4"
         self.mock_packet.payload = b"\x16\x03\x01\x00\x58\x01\x00\x00\x54" + os.urandom(

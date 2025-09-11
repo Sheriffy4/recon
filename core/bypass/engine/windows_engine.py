@@ -6,42 +6,45 @@ import threading
 import time
 from typing import Dict, Any, Optional, Set, List, Tuple
 
+# Import base class
+from .base_engine import IBypassEngine, EngineConfig
+
 # Import components
 from core.bypass.telemetry.manager import TelemetryManager
 from core.bypass.flow.manager import FlowManager
 from core.bypass.techniques.registry import TechniqueRegistry
-from core.bypass.packet import PacketBuilder, PacketSender, TCPSegmentSpec, UDPDatagramSpec
+from core.bypass.packet import PacketBuilder, PacketSender, TCPSegmentSpec
 from core.bypass.attacks.alias_map import normalize_attack_name
-from core.bypass.techniques.primitives import BypassTechniques
 
 if platform.system() == "Windows":
     import pydivert
 
 
-class WindowsBypassEngine:
+class WindowsBypassEngine(IBypassEngine):
     """
     Windows-specific bypass engine using WinDivert.
-    Refactored to use isolated components.
+    Now inherits from abstract base class.
     """
 
-    def __init__(self, debug: bool = True):
-        self.debug = debug
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.running = False
+    def __init__(self, config: Optional[EngineConfig] = None):
+        """Initialize Windows bypass engine with optional config."""
+        if config is None:
+            config = EngineConfig()
+
+        super().__init__(config)
 
         # Initialize components
-        self.telemetry = TelemetryManager(max_targets=1000)
-        self.flow_manager = FlowManager(ttl_sec=3.0)
-        self.technique_registry = TechniqueRegistry(debug=debug)
-        self.techniques = BypassTechniques() # For legacy methods
+        self.telemetry = TelemetryManager(max_targets=config.telemetry_max_targets)
+        self.flow_manager = FlowManager(ttl_sec=config.flow_ttl_sec)
+        self.technique_registry = TechniqueRegistry(debug=config.debug)
 
         # Packet handling
-        self._packet_builder = PacketBuilder(debug=debug)
+        self._packet_builder = PacketBuilder(debug=config.debug)
         self._packet_sender = PacketSender(
             builder=self._packet_builder,
             logger=self.logger,
-            inject_mark=0xC0DE,
-            debug=debug
+            inject_mark=config.inject_mark,
+            debug=config.debug
         )
 
         # Configuration
@@ -67,7 +70,7 @@ class WindowsBypassEngine:
         self._inbound_thread = None
         self._inject_sema = threading.Semaphore(12)
 
-        if debug:
+        if self.config.debug:
             self.logger.setLevel(logging.DEBUG)
 
     def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict],
@@ -129,7 +132,7 @@ class WindowsBypassEngine:
                 return self._apply_legacy_bypass(packet, w, strategy_task)
 
         except Exception as e:
-            self.logger.error(f"Error applying bypass: {e}", exc_info=self.debug)
+            self.logger.error(f"Error applying bypass: {e}", exc_info=self.config.debug)
             w.send(packet) # Send original on error
             return False
         finally:
@@ -216,7 +219,7 @@ class WindowsBypassEngine:
                         wi.send(pkt)
             except Exception as e:
                 if self.running:
-                    self.logger.error(f"Inbound observer error: {e}", exc_info=self.debug)
+                    self.logger.error(f"Inbound observer error: {e}", exc_info=self.config.debug)
 
         t = threading.Thread(target=run, daemon=True)
         t.start()
