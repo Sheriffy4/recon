@@ -11,3 +11,4 @@ numpy
 pydivert
 pytest-asyncio
 cryptography
+aiodns

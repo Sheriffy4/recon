@@ -14,6 +14,9 @@ from core.bypass_engine import BypassEngine
 from core.zapret_parser import ZapretStrategyParser
 from core.bypass.attacks.alias_map import normalize_attack_name
 from core.bypass.types import BlockType
+from core.bypass.hybrid.strategy_adapter import StrategyAdapter
+from core.bypass.hybrid.connectivity_tester import ConnectivityTester
+
 try:
     from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
 except Exception:
@@ -61,22 +64,29 @@ HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 
 class HybridEngine:
     """
-    Гибридный движок, который сочетает:
-    1. Парсинг zapret-стратегий.
-    2. Реальное тестирование через запущенный BypassEngine с синхронизированным DNS.
-    3. Продвинутый фингерпринтинг DPI для контекстно-зависимой генерации стратегий.
+    Refactored hybrid engine with component separation.
     """
 
     def __init__(self, debug: bool=False, enable_advanced_fingerprinting: bool=True,
                  enable_modern_bypass: bool=True, verbosity: str="normal",
                  enable_enhanced_tracking: bool=False, enable_online_optimization: bool=False):
+        # Existing initialization
         self.debug = debug
         self.verbosity = verbosity
         self.parser = ZapretStrategyParser()
         self.enhanced_tracking = bool(enable_enhanced_tracking)
         self.enable_online_optimization = bool(enable_online_optimization)
 
-        # Initialize modern bypass engine components
+        # Initialize new components
+        self.strategy_adapter = StrategyAdapter(self.parser)
+        self.connectivity_tester = ConnectivityTester(debug=debug)
+
+        # Replace methods with component methods
+        self._translate_zapret_to_engine_task = self.strategy_adapter.translate_zapret_to_task
+        self._ensure_engine_task = self.strategy_adapter.ensure_engine_task
+        self._task_to_str = self.strategy_adapter.task_to_str
+
+        # ... rest of initialization remains the same ...
         self.modern_bypass_enabled = enable_modern_bypass and MODERN_BYPASS_ENGINE_AVAILABLE
         if self.modern_bypass_enabled:
             try:
@@ -96,7 +106,6 @@ class HybridEngine:
             self.reliability_validator = None
             self.multi_port_handler = None
 
-        # Initialize advanced fingerprinting
         self.advanced_fingerprinting_enabled = enable_advanced_fingerprinting and ADVANCED_FINGERPRINTING_AVAILABLE
         if self.advanced_fingerprinting_enabled:
             try:
@@ -114,7 +123,6 @@ class HybridEngine:
             else:
                 LOG.info('Advanced fingerprinting disabled by configuration')
 
-        # Initialize statistics
         self.fingerprint_stats = {
             'fingerprints_created': 0,
             'fingerprint_cache_hits': 0,
@@ -130,9 +138,7 @@ class HybridEngine:
             'attack_registry_queries': 0,
             'mode_switches': 0
         }
-        # Knowledge base (optional)
         self.knowledge_base = CdnAsnKnowledgeBase() if CdnAsnKnowledgeBase else None
-        # Tuning noisy loggers if verbosity is quiet
         if self.verbosity.lower() in ("quiet", "warn", "warning"):
             for noisy in ("core.fingerprint.advanced_fingerprinter", "core.fingerprint.http_analyzer",
                           "core.fingerprint.dns_analyzer", "core.fingerprint.tcp_analyzer"):
@@ -141,236 +147,29 @@ class HybridEngine:
                 except Exception:
                     pass
 
-    def _translate_zapret_to_engine_task(self, params: Dict) -> Optional[Dict]:
-        """
-        ИСПРАВЛЕНИЕ: Унифицированный и надежный транслятор zapret-строки в задачу для BypassEngine.
-        """
-        # Нормализуем имена атак для консистентности
-        desync = [normalize_attack_name(d) for d in params.get('dpi_desync', [])]
-        fooling = [normalize_attack_name(f) for f in params.get('dpi_desync_fooling', [])]
+    async def test_baseline_connectivity(self, test_sites: List[str],
+                                        dns_cache: Dict[str, str]) -> Dict[str, Tuple[str, str, float, int]]:
+        """Check baseline connectivity using connectivity tester."""
+        LOG.info('Testing baseline connectivity with DNS cache...')
+        return await self.connectivity_tester.test_sites(test_sites, dns_cache)
 
-        if not desync:
-            # Support QUIC fragmentation from zapret-like flag
-            qfrag = params.get('quic_frag') or params.get('quic_fragment')
-            if qfrag:
-                try:
-                    fs = int(qfrag)
-                except Exception:
-                    fs = 120
-                return {'type': 'quic_fragmentation', 'params': {'fragment_size': fs}}
-            return None
-        task_type = 'none'
-        task_params = {}
-        # Нормализация составных алиасов: fake + fakeddisorder трактуем как fakeddisorder
-        # Алиас 'desync' → fakeddisorder
-        if 'fakeddisorder' in desync or 'desync' in desync:
-            task_type = 'fakeddisorder'
-        elif 'multidisorder' in desync:
-            task_type = 'multidisorder'
-        elif 'multisplit' in desync:
-            task_type = 'multisplit'
-        elif 'disorder' in desync or 'disorder2' in desync:  # Legacy aliases
-            task_type = 'fakeddisorder'
-
-        # Флаг: присутствует ли семейство fakeddisorder
-        has_faked = (
-            ('fakeddisorder' in desync) or ('desync' in desync)
-            or ('disorder' in desync) or ('disorder2' in desync)
+    async def _test_sites_connectivity(
+        self,
+        sites: List[str],
+        dns_cache: Dict[str, str],
+        max_concurrent: int = 10,
+        retries: int = 0,
+        backoff_base: float = 0.4,
+        timeout_profile: str = "balanced",
+        connect_timeout: Optional[float] = None,
+        sock_read_timeout: Optional[float] = None,
+        total_timeout: Optional[float] = None
+    ) -> Dict[str, Tuple[str, str, float, int]]:
+        """Test sites connectivity using component."""
+        return await self.connectivity_tester.test_sites(
+            sites, dns_cache, max_concurrent, retries, backoff_base,
+            timeout_profile, connect_timeout, sock_read_timeout, total_timeout
         )
-
-        # Настройка позиций сплита
-        if task_type in ['fakeddisorder', 'multidisorder', 'multisplit']:
-            split_pos_raw = params.get('dpi_desync_split_pos', [])
-            if any((p.get('type') == 'midsld' for p in split_pos_raw)):
-                task_params['split_pos'] = 'midsld'
-            else:
-                positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                if task_type == 'fakeddisorder':
-                    task_params['split_pos'] = positions[0] if positions else 76
-                else:
-                    # Если задан split-count без positions — сгенерируем равномерную сетку
-                    count = params.get('dpi_desync_split_count')
-                    if not positions and isinstance(count, int) and count > 1:
-                        base, gap = 6, max(4, 120 // min(count, 10))
-                        positions = [base + i * gap for i in range(count)]
-                    task_params['positions'] = positions if positions else [1, 5, 10]
-
-        # Обработка fake‑ветки
-        if 'fake' in desync:
-            if not has_faked and task_type == 'none':
-                # Чистый fake → допускаем race-типы
-                if 'badsum' in fooling:
-                    task_type = 'badsum_race'
-                elif 'md5sig' in fooling:
-                    task_type = 'md5sig_race'
-                elif params.get('dpi_desync_ttl') or params.get('dpi_desync_fake_tls'):
-                    task_type = 'fake'
-                else:
-                    task_type = 'fake'
-            else:
-                # В сочетании с fakeddisorder НЕ переопределяем тип, а только оставляем fooling в параметрах
-                if fooling:
-                    task_params['fooling'] = fooling
-
-        # seqovl: если указан и нет fakeddisorder-семейства, можно выделить отдельный тип;
-        # иначе — это параметр fakeddisorder
-        if params.get('dpi_desync_split_seqovl'):
-            if not has_faked and task_type == 'none':
-                task_type = 'seqovl'
-                split_pos_raw = params.get('dpi_desync_split_pos', [])
-                if any((p.get('type') == 'midsld' for p in split_pos_raw)):
-                    task_params['split_pos'] = 'midsld'
-                else:
-                    positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                    task_params['split_pos'] = positions[0] if positions else 3
-                task_params['overlap_size'] = params.get('dpi_desync_split_seqovl')
-            else:
-                # Остаёмся в fakeddisorder и просто добавляем overlap_size
-                task_params.setdefault('overlap_size', params.get('dpi_desync_split_seqovl'))
-
-        # TTL
-        if params.get('dpi_desync_ttl') is not None:
-            task_params['ttl'] = int(params.get('dpi_desync_ttl'))
-        if params.get('dpi_desync_autottl') is not None:
-            task_params['autottl'] = int(params.get('dpi_desync_autottl'))
-        if params.get('dpi_desync_repeats') is not None:
-            task_params['repeats'] = int(params.get('dpi_desync_repeats'))
-
-        # Значения по умолчанию для fakeddisorder (zapret-совместимые)
-        if task_type == 'fakeddisorder':
-            if 'ttl' not in task_params:
-                task_params['ttl'] = 1
-            if 'split_pos' not in task_params:
-                split_pos_raw = params.get('dpi_desync_split_pos', [])
-                if any((p.get('type') == 'midsld' for p in split_pos_raw)):
-                    task_params['split_pos'] = 'midsld'
-                else:
-                    positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                    task_params['split_pos'] = positions[0] if positions else 76
-            if 'overlap_size' not in task_params and not params.get('dpi_desync_split_seqovl'):
-                task_params['overlap_size'] = 336
-            if fooling:
-                task_params['fooling'] = fooling
-
-        # split без seqovl → простая фрагментация
-        if task_type == 'none' and 'split' in desync:
-            task_type = 'simple_fragment'
-            split_pos_raw = params.get('dpi_desync_split_pos', [])
-            positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-            task_params['split_pos'] = positions[0] if positions else 3
-
-        # QUIC fragmentation
-        for qk in ('quic_frag', 'quic_fragment'):
-            if qk in params and isinstance(params[qk], int):
-                return {'type': 'quic_fragmentation', 'params': {'fragment_size': int(params[qk])}}
-        if task_type == 'none':
-            LOG.warning(f'Не удалось транслировать zapret-стратегию в задачу для движка: {params}')
-            return None
-        return {'type': task_type, 'params': task_params}
-
-    def _task_to_str(self, task: Dict[str, Any]) -> str:
-        try:
-            t = task.get('type') or task.get('name') or 'unknown'
-            p = task.get('params', {})
-            pairs = []
-            for k, v in sorted(p.items(), key=lambda kv: kv[0]):
-                try:
-                    pairs.append(f"{k}={v}")
-                except Exception:
-                    pairs.append(f"{k}=<obj>")
-            return f"{t}({', '.join(pairs)})"
-        except Exception:
-            return str(task)
-
-    def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        if isinstance(strategy, dict):
-            # Нормализация нативных типов/алиасов прямо для dict-стратегий
-            t = (strategy.get('type') or strategy.get('name') or '').strip().lower()
-            if not t:
-                return None
-            from core.bypass.attacks.alias_map import normalize_attack_name
-            ntp = normalize_attack_name(t)
-            if ntp == 'desync':
-                ntp = 'fakeddisorder'
-            return {'type': ntp, 'params': strategy.get('params', {}) or {}}
-
-        s = str(strategy).strip()
-
-        # Fast path: zapret CLI style detection with normalization
-        if isinstance(strategy, str) and "--dpi-desync=" in s:
-            try:
-                parsed_params = self.parser.parse(s)
-                task = self._translate_zapret_to_engine_task(parsed_params)
-                if task:
-                    # Normalize combined type aliases if any
-                    t = task.get('type')
-                    if t in ("fake,fakeddisorder", "fakeddisorder,fake"):
-                        task['type'] = 'fakeddisorder'
-                    return task
-            except Exception:
-                pass
-
-        # 1) Simple DSL parser: func(key=value, ...)
-        import re
-        match = re.match(r'(\w+)\((.*)\)', s)
-        if match:
-            func_name = match.group(1).strip()
-            params_str = match.group(2).strip()
-            params = {}
-            if params_str:
-                try:
-                    for part in params_str.split(','):
-                        if '=' in part:
-                            key, value = part.split('=', 1)
-                            key = key.strip()
-                            value = value.strip()
-                            if value.isdigit():
-                                params[key] = int(value)
-                            elif value.lower() == 'true':
-                                params[key] = True
-                            elif value.lower() == 'false':
-                                params[key] = False
-                            else:
-                                params[key] = value.strip('\'"')
-                except Exception:
-                     pass
-
-            from core.bypass.attacks.alias_map import normalize_attack_name
-            ntp = normalize_attack_name(func_name)
-            if ntp == 'desync':
-                ntp = 'fakeddisorder'
-            return {'type': ntp, 'params': params}
-
-        # 2) zapret CLI style
-        if s.startswith('--'):
-            try:
-                parsed_params = self.parser.parse(s)
-                task = self._translate_zapret_to_engine_task(parsed_params)
-                if task:
-                    # Normalize combined type aliases if any
-                    t = task.get('type')
-                    if t in ("fake,fakeddisorder", "fakeddisorder,fake"):
-                        task['type'] = 'fakeddisorder'
-                    return task
-            except Exception:
-                pass
-
-        # 3) Fallback for adhoc strategy names like "desync" or "multisplit"
-        try:
-            from core.strategy_interpreter import interpret_strategy as interp
-            ps = interp(s) or {}
-            tp = ps.get('type')
-            p = ps.get('params', {}) or {}
-            if tp:
-                from core.bypass.attacks.alias_map import normalize_attack_name
-                ntp = normalize_attack_name(tp)
-                if ntp == 'desync':
-                    ntp = 'fakeddisorder'
-                return {'type': ntp, 'params': p}
-        except Exception:
-            pass
-
-        return None
 
     def _is_rst_error(self, e: BaseException) -> bool:
         """Эвристика: распознать сброс соединения (RST) по типу/сообщению исключения."""
@@ -388,111 +187,6 @@ class HybridEngine:
                               getattr(aiohttp, "ClientOSError", Exception)))
         )
 
-    async def _test_sites_connectivity(
-        self,
-        sites: List[str],
-        dns_cache: Dict[str, str],
-        max_concurrent: int = 10,
-        retries: int = 0,
-        backoff_base: float = 0.4,
-        timeout_profile: str = "balanced",
-        connect_timeout: Optional[float] = None,
-        sock_read_timeout: Optional[float] = None,
-        total_timeout: Optional[float] = None
-    ) -> Dict[str, Tuple[str, str, float, int]]:
-        """
-        ИСПРАВЛЕНИЕ: Более устойчивый тестовый клиент на aiohttp с принудительным DNS и увеличенными таймаутами.
-        """
-        results = {}
-        semaphore = asyncio.Semaphore(max_concurrent)
-
-        class CustomResolver(aiohttp.resolver.AsyncResolver):
-
-            def __init__(self, cache):
-                super().__init__()
-                self._custom_cache = cache
-
-            async def resolve(self, host, port, family=socket.AF_INET):
-                if host in self._custom_cache:
-                    ip = self._custom_cache[host]
-                    LOG.debug(f'CustomResolver: Forcing {host} -> {ip}')
-                    return [{'hostname': host, 'host': ip, 'port': port, 'family': family, 'proto': 0, 'flags': 0}]
-                LOG.debug(f'CustomResolver: Fallback for {host}')
-                return await super().resolve(host, port, family)
-        ssl_context = ssl.create_default_context()
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
-        connector = aiohttp.TCPConnector(ssl=ssl_context, limit_per_host=5, resolver=CustomResolver(dns_cache))
-
-        def _make_timeouts(profile: str) -> aiohttp.ClientTimeout:
-            # Профили таймаутов: подбираем под худшие сети
-            presets = {
-                "fast":      dict(connect=5.0,  sock_read=8.0,  total=15.0),
-                "balanced":  dict(connect=8.0,  sock_read=15.0, total=25.0),
-                "slow":      dict(connect=12.0, sock_read=25.0, total=40.0),
-            }
-            p = presets.get(profile, presets["balanced"]).copy()
-            if connect_timeout is not None:   p["connect"] = float(connect_timeout)
-            if sock_read_timeout is not None: p["sock_read"] = float(sock_read_timeout)
-            if total_timeout is not None:     p["total"] = float(total_timeout)
-            return aiohttp.ClientTimeout(total=p["total"], connect=p["connect"], sock_read=p["sock_read"])
-
-        async def test_with_semaphore(session, site):
-            async with semaphore:
-                hostname = urlparse(site).hostname or site
-                ip_used = dns_cache.get(hostname, 'N/A')
-                attempt = 0
-                while True:
-                    start_time = time.time()
-                    try:
-                        # Эскалация профиля на повторных попытках
-                        prof = timeout_profile if attempt == 0 else "slow"
-                        client_timeout = _make_timeouts(prof)
-                        async with session.get(site, headers=HEADERS, allow_redirects=True, timeout=client_timeout) as response:
-                            # немного данных достаточно, чтобы проверить установку канала
-                            await response.content.readexactly(1)
-                            latency = (time.time() - start_time) * 1000
-                            return (site, ('WORKING', ip_used, latency, response.status))
-                    except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError) as e:
-                        latency = (time.time() - start_time) * 1000
-                        # Классифицируем RST отдельно
-                        if self._is_rst_error(e):
-                            LOG.debug(f'Connectivity test for {site} -> RST ({type(e).__name__})')
-                            return (site, ('RST', ip_used, latency, 0))
-                        # TIMEOUT с экспоненциальным бэкоффом
-                        if attempt < retries:
-                            delay = backoff_base * (2 ** attempt) + random.uniform(0.0, 0.2)
-                            LOG.debug(f'Connectivity TIMEOUT for {site}, retrying in {delay:.2f}s (attempt {attempt+1}/{retries})')
-                            await asyncio.sleep(delay)
-                            attempt += 1
-                            continue
-                        LOG.debug(f'Connectivity test for {site} failed with TIMEOUT ({type(e).__name__})')
-                        return (site, ('TIMEOUT', ip_used, latency, 0))
-                    except Exception as e:
-                        latency = (time.time() - start_time) * 1000
-                        LOG.debug(f'Неожиданная ошибка при тестировании {site}: {e}')
-                        return (site, ('ERROR', ip_used, latency, 0))
-        try:
-            async with aiohttp.ClientSession(connector=connector) as session:
-                tasks = [test_with_semaphore(session, site) for site in sites]
-                task_results = await asyncio.gather(*tasks)
-                for site, result_tuple in task_results:
-                    results[site] = result_tuple
-        finally:
-            try:
-                await connector.close()
-            except Exception:
-                pass
-        return results
-
-    async def test_baseline_connectivity(self, test_sites: List[str], dns_cache: Dict[str, str]) -> Dict[str, Tuple[str, str, float, int]]:
-        """
-        Проверяет базовую доступность, отправляя ClientHello, чтобы спровоцировать DPI.
-        Использует aiohttp, так как он корректно обрабатывает сброс соединения.
-        """
-        LOG.info('Тестируем базовую доступность сайтов (без bypass) с DNS-кэшем...')
-        return await self._test_sites_connectivity(test_sites, dns_cache)
-
     async def execute_strategy_real_world(
         self,
         strategy: Union[str, Dict[str, Any]],
@@ -501,7 +195,7 @@ class HybridEngine:
         dns_cache: Dict[str, str],
         target_port: int = 443,
         initial_ttl: Optional[int] = None,
-        fingerprint: Optional[DPIFingerprint] = None,
+        fingerprint: Optional[Any] = None,
         return_details: bool = False,
         prefer_retry_on_timeout: bool = False,
         warmup_ms: Optional[float] = None,
@@ -515,23 +209,22 @@ class HybridEngine:
         engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
-        # Create engine with optional override via a simple factory shim
+
         class _EngineFactoryShim:
             def __init__(self, debug: bool):
                 self.debug = debug
             def create_best_engine(self, engine_override: Optional[str] = None):
-                # Future: select different engine types based on engine_override
                 return BypassEngine(debug=self.debug)
         factory = _EngineFactoryShim(debug=self.debug)
         bypass_engine = factory.create_best_engine(engine_override=engine_override)
         LOG.info(f"Using engine: {bypass_engine.__class__.__name__} (override={engine_override})")
-        # Optionally attach external adaptive controller if present
+
         if hasattr(self, "adaptive_controller") and getattr(self, "adaptive_controller"):
             try:
                 bypass_engine.attach_controller(self.adaptive_controller)
             except Exception as e:
                 LOG.debug(f"Adaptive controller attach via override failed: {e}")
-        # Опционально подключаем онлайн-контроллер
+
         if enable_online_optimization:
             try:
                 base_rules = {}
@@ -541,7 +234,6 @@ class HybridEngine:
                     base_rules = sm.get_strategies_for_service() or {}
                 except Exception:
                     base_rules = {}
-                # Если нет готовых правил — используем текущую стратегию как default
                 if not base_rules:
                     base_rules = {"default": strategy if isinstance(strategy, str) else self._task_to_str(strategy)}
                 parser = self.parser
@@ -550,13 +242,14 @@ class HybridEngine:
                 bypass_engine.attach_controller(base_rules, parser, task_translator, store_path="learned_strategies.json", epsilon=0.1)
             except Exception as e:
                 LOG.debug(f"Adaptive controller attach failed: {e}")
-        # Apply forced strategy override if engine supports it
+
         try:
             if hasattr(bypass_engine, "set_strategy_override") and callable(getattr(bypass_engine, "set_strategy_override")):
                 bypass_engine.set_strategy_override(engine_task)
                 LOG.info("Forced strategy override applied to engine")
         except Exception as e:
             LOG.debug(f"Failed to apply strategy override: {e}")
+
         strategy_map = {'default': engine_task}
         bypass_thread = None
         try:
@@ -573,9 +266,9 @@ class HybridEngine:
             except Exception as e2:
                 LOG.error(f"Engine failed to start: {e2}")
                 raise
+
         try:
-            # Чуть больше времени на прогрев хука
-            wait_time_s = 2.5 # default
+            wait_time_s = 2.5
             if warmup_ms is not None:
                  wait_time_s = warmup_ms / 1000.0
             elif fingerprint:
@@ -587,8 +280,8 @@ class HybridEngine:
                     wait_time_s = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
 
             await asyncio.sleep(wait_time_s)
+
             try:
-                # Первичный прогон с ретраями для «первых» стратегий по желанию
                 results = await self._test_sites_connectivity(
                     test_sites,
                     dns_cache,
@@ -605,7 +298,7 @@ class HybridEngine:
                     results = await self._test_sites_connectivity(test_sites, dns_cache, timeout_profile="slow", retries=1, max_concurrent=6)
                 else:
                     raise
-            # Эвристика: подозрение на TCP window manipulation даже без фингерпринта
+
             try:
                 statuses = [st for (st, _, _, _) in results.values()]
                 latencies = [lt for (_, _, lt, _) in results.values()]
@@ -618,15 +311,18 @@ class HybridEngine:
                     results = await self._test_sites_connectivity(test_sites, dns_cache, max_concurrent=5, retries=1, backoff_base=0.5, timeout_profile="slow")
             except Exception:
                 pass
+
             successful_count = sum((1 for status, _, _, _ in results.values() if status == 'WORKING'))
             successful_latencies = [latency for status, _, latency, _ in results.values() if status == 'WORKING']
             avg_latency = sum(successful_latencies) / len(successful_latencies) if successful_latencies else 0.0
+
             if successful_count == 0:
                 result_status = 'NO_SITES_WORKING'
             elif successful_count == len(test_sites):
                 result_status = 'ALL_SITES_WORKING'
             else:
                 result_status = 'PARTIAL_SUCCESS'
+
             if fingerprint and self.debug:
                 LOG.debug(f'Strategy test with DPI context: {fingerprint.dpi_type.value}, RST injection: {fingerprint.rst_injection_detected}, TCP manipulation: {fingerprint.tcp_window_manipulation}')
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
@@ -636,9 +332,11 @@ class HybridEngine:
                 telemetry = bypass_engine.get_telemetry_snapshot()
             except Exception:
                 telemetry = {}
+
             if return_details:
                 return (result_status, successful_count, len(test_sites), avg_latency, results, telemetry)
             return (result_status, successful_count, len(test_sites), avg_latency)
+
         except Exception as e:
             LOG.error(f'Ошибка во время реального тестирования: {e}', exc_info=self.debug)
             if fingerprint:
@@ -647,6 +345,7 @@ class HybridEngine:
                 elif fingerprint.dns_hijacking_detected and 'dns' in str(e).lower():
                     LOG.info('DNS issues detected - consistent with fingerprint analysis')
             return ('REAL_WORLD_ERROR', 0, len(test_sites), 0.0)
+
         finally:
             bypass_engine.stop()
             if bypass_thread:
@@ -667,20 +366,10 @@ class HybridEngine:
         use_modern_engine: bool = True,
         capturer: Optional[Any] = None,
         telemetry_full: bool = False,
-        # --- Online optimization hooks ---
         optimization_callback: Optional[callable] = None,
         strategy_evaluation_mode: bool = False,
         engine_override: Optional[str] = None
     ) -> List[Dict]:
-        """
-        Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
-        - optimization_callback: функция, вызываемая после каждого теста сайта для онлайн-оптимизации
-        - strategy_evaluation_mode: если True, возвращает только необработанные данные о производительности
-        1. Выполняет фингерпринтинг DPI для целевого домена
-        2. Адаптирует стратегии под обнаруженный тип DPI
-        3. Использует современный движок обхода если доступен
-        4. Проводит реальное тестирование с помощью BypassEngine
-        """
         results = []
         fingerprint = None
         use_modern = use_modern_engine and self.modern_bypass_enabled
@@ -690,6 +379,7 @@ class HybridEngine:
         else:
             self.bypass_stats['legacy_engine_tests'] += 1
             LOG.info('Using legacy bypass engine for strategy testing')
+
         if use_modern and self.pool_manager:
             existing_strategy = self.pool_manager.get_strategy_for_domain(domain, port)
             if existing_strategy:
@@ -697,6 +387,7 @@ class HybridEngine:
                 pool_strategy_str = existing_strategy.to_zapret_format()
                 if pool_strategy_str not in strategies:
                     strategies.insert(0, pool_strategy_str)
+
         if enable_fingerprinting and self.advanced_fingerprinting_enabled:
             try:
                 LOG.info(f'Performing DPI fingerprinting for {domain}:{port}')
@@ -711,12 +402,11 @@ class HybridEngine:
                 LOG.error(f'DPI fingerprinting error: {e}')
                 self.fingerprint_stats['fingerprint_failures'] += 1
                 self.fingerprint_stats['fallback_tests'] += 1
-                # Анализ PCAP даже при неудачном фингерпринтинге
                 if capturer and self.enhanced_tracking:
                     capturer.trigger_pcap_analysis(force=True)
                 else:
                     self.fingerprint_stats['fallback_tests'] += 1
-        # Knowledge init: derive CDN/ASN profile for primary domain
+
         cdn = None
         asn = None
         kb_profile = {}
@@ -724,18 +414,15 @@ class HybridEngine:
         kb_recs: Dict[str, Any] = {}
         if self.knowledge_base and primary_ip:
             try:
-                # Новая интеграция с KB: используем get_recommendations(ip)
                 if hasattr(self.knowledge_base, "get_recommendations"):
                     kb_recs = self.knowledge_base.get_recommendations(primary_ip) or {}
                     cdn = kb_recs.get("cdn")
                     LOG.info(f"KB: recommendations for {primary_ip}: {kb_recs}")
                 else:
-                    # совместимость, если есть иной API (не ожидается)
                     LOG.debug("Knowledge base without get_recommendations, skipping")
             except Exception as e:
                 LOG.debug(f"KB identify failed: {e}")
 
-        # QUIC/ECH detection (fast) to auto-prepend QUIC strategies
         quic_signals = {"ech_present": False, "quic_ping_ok": False, "http3_support": False}
         if ECH_AVAILABLE:
             try:
@@ -750,7 +437,6 @@ class HybridEngine:
             except Exception as e:
                 LOG.debug(f"QUIC/ECH detection failed: {e}")
 
-        # Prepend synthesized strategy based on context (fingerprint + KB)
         try:
             ctx = AttackContext(domain=domain, ip=primary_ip, port=port,
                                 fingerprint=fingerprint, cdn=cdn, asn=asn,
@@ -760,12 +446,10 @@ class HybridEngine:
             synthesized = None
             LOG.debug(f"Strategy synthesis failed: {e}")
 
-        base: List[Union[str, Dict[str, Any]]] = strategies[:]  # сохранить тип
-        # Рабочие списки
+        base: List[Union[str, Dict[str, Any]]] = strategies[:]
         dict_only = [s for s in base if isinstance(s, dict)]
         str_only  = [s for s in base if isinstance(s, str)]
 
-        # Для ветки с реестром/адаптацией работаем только со строками, dict добавим как есть
         strategies_to_test: List[Union[str, Dict[str, Any]]] = []
         if use_modern and self.attack_registry:
             if str_only:
@@ -782,7 +466,6 @@ class HybridEngine:
             strategies_to_test = base
             LOG.info(f'Using {len(strategies_to_test)} standard strategies (no fingerprint)')
 
-        # synthesized dict — prepend
         if synthesized and isinstance(synthesized, dict):
             merged = [synthesized] + strategies_to_test
             uniq, seen = [], set()
@@ -793,7 +476,6 @@ class HybridEngine:
                     uniq.append(s)
             strategies_to_test = uniq
 
-        # Препенд рекомендаций KB: dict для современного движка + строка для совместимости
         if kb_recs:
             try:
                 split_pos = kb_recs.get("split_pos")
@@ -828,7 +510,6 @@ class HybridEngine:
             except Exception as e:
                 LOG.debug(f"Failed to prepend KB recommendations: {e}")
 
-        # Auto-prepend QUIC fragmentation strategies if signals say QUIC/HTTP3/ECH
         try:
             if quic_signals.get("quic_ping_ok") or quic_signals.get("http3_support") or quic_signals.get("ech_present"):
                 frag_size = 300
@@ -838,7 +519,6 @@ class HybridEngine:
                     {"type": "quic_fragmentation", "params": {"fragment_size": frag_size, "add_version_negotiation": True}},
                     {"type": "quic_fragmentation", "params": {"fragment_size": max(200, frag_size - 100)}}
                 ]
-                # prepend unique
                 seen_keys = set()
                 def _key(s):
                     return s if isinstance(s, str) else (s.get("type"), tuple(sorted((s.get("params") or {}).items())))
@@ -854,7 +534,6 @@ class HybridEngine:
             LOG.debug(f"Prepend QUIC strategies failed: {e}")
 
         if not strategies_to_test:
-            # fallback: если ничего не осталось
             strategies_to_test = base or ["--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"]
             LOG.warning(f"No strategies after optimization, falling back to {len(strategies_to_test)}")
 
@@ -902,7 +581,6 @@ class HybridEngine:
                 result_data['engine_telemetry_full'] = engine_telemetry
 
             results.append(result_data)
-            # Пишем результат по каждому домену в KB
             try:
                 if self.knowledge_base and site_results:
                     for site, (st, ip_used, lat_ms, _http) in site_results.items():
@@ -922,7 +600,6 @@ class HybridEngine:
             else:
                 LOG.info(f'✗ Провал: ни один сайт не заработал. Причина: {result_status}')
             if tel_sum:
-                # Печатаем чуть расширенную сводку
                 LOG.info(f"   Telemetry: SegsSent={tel_sum.get('segments_sent',0)} FakesSent={tel_sum.get('fake_packets_sent',0)} CH={tel_sum.get('CH',0)} SH={tel_sum.get('SH',0)} RST={tel_sum.get('RST',0)}")
         if results:
             if fingerprint:
@@ -932,7 +609,6 @@ class HybridEngine:
         if results and fingerprint:
             LOG.info(f'Strategy testing completed with DPI fingerprint: {fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f})')
 
-        # ==== NEW: Enhanced tracking auto-analysis and second pass ====
         try:
             if self.enhanced_tracking and capturer and hasattr(capturer, "analyze_pcap_file"):
                 cap_path = getattr(capturer, "pcap_file", None)
@@ -946,10 +622,8 @@ class HybridEngine:
                         self.knowledge_base.update_quic_metrics(domain, primary_ip, ratio)
 
                 self._merge_capture_metrics_into_results(results, cap_metrics if isinstance(cap_metrics, dict) else {})
-                # Update KB QUIC score
                 try:
                     if self.knowledge_base and isinstance(cap_metrics, dict):
-                        # simple aggregate score per domain: use first test_sites domain
                         dname = (urlparse(test_sites[0]).hostname if test_sites else domain) or domain
                         sc = 0.0
                         for m in cap_metrics.values():
@@ -959,13 +633,10 @@ class HybridEngine:
                 except Exception as e:
                     LOG.debug(f"KB QUIC update failed: {e}")
 
-                # Генерация доп. стратегий на основе PCAP
                 extra = self._suggest_strategies_from_pcap(cap_metrics if isinstance(cap_metrics, dict) else {}, fingerprint)
-                # Дедупликация
                 already = {r.get("strategy") for r in results}
                 extra = [s for s in extra if s not in already]
 
-                # full-pool booster
                 try:
                     booster = self._boost_with_full_pool(fingerprint)
                     already = {r.get("strategy") for r in results}
@@ -986,7 +657,7 @@ class HybridEngine:
                             except Exception: pass
                         ret = await self.execute_strategy_real_world(
                             strategy, test_sites, ips, dns_cache, port, initial_ttl, fingerprint,
-                            prefer_retry_on_timeout=True,  # агрессивнее ретраи для 2го прохода
+                            prefer_retry_on_timeout=True,
                             return_details=True,
                             enable_online_optimization=self.enable_online_optimization,
                             engine_override=engine_override
@@ -1002,7 +673,6 @@ class HybridEngine:
                         success_rate = successful_count / total_count if total_count > 0 else 0.0
                         result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
                         results.append(result_data)
-                    # Пересортировка после добавления
                     if results:
                         if fingerprint:
                             results.sort(key=lambda x: (x.get('success_rate', 0.0), -x.get('avg_latency_ms', 0.0), 1 if x.get('fingerprint_used') else 0), reverse=True)
@@ -1011,7 +681,6 @@ class HybridEngine:
         except Exception as e:
             LOG.debug(f'Enhanced tracking second pass failed: {e}')
 
-        # Сохраняем обновленную базу знаний (если используется)
         if self.knowledge_base and any(r.get('success_rate', 0) > 0 for r in results):
             try:
                 self.knowledge_base.save()
@@ -1021,15 +690,9 @@ class HybridEngine:
 
         return results
 
-    # ==== NEW: Enhanced tracking helpers ====
     def _merge_capture_metrics_into_results(self, results: List[Dict[str, Any]], cap_metrics: Dict[str, Dict[str, Any]]) -> None:
-        """
-        Вливает PCAP‑метрики по стратегиям в результирующие записи.
-        Ключ соответствия — pretty‑строка стратегии (как передавалась в mark_strategy_start).
-        """
         if not cap_metrics or "error" in cap_metrics:
             return
-        # cap_metrics: { strategy_id: {tls_clienthellos, tls_serverhellos, ...} }
         map_by_strategy = cap_metrics
         for r in results:
             sid = r.get("strategy_id") or r.get("strategy")
@@ -1046,21 +709,13 @@ class HybridEngine:
             r["pcap_success_score"] = m.get("success_score", 0.0)
 
     def _suggest_strategies_from_pcap(self, cap_metrics: Dict[str, Dict[str, Any]], fingerprint: Optional["DPIFingerprint"]) -> List[str]:
-        """
-        На основании PCAP‑метрик предлагает дополнительные стратегии для второго прохода.
-        Простые эвристики:
-          - много RST или ServerHello=0 → попробовать fake+badsum TTL=1..2 и multisplit/multidisorder
-          - если какой‑то класс уже частично сработал → варьировать параметры
-        """
         if not cap_metrics or "error" in cap_metrics:
             return []
-        # Аггрегированные признаки
         total_ch = sum(m.get("tls_clienthellos", 0) for m in cap_metrics.values())
         total_sh = sum(m.get("tls_serverhellos", 0) for m in cap_metrics.values())
         total_rst = sum(m.get("rst_packets", 0) for m in cap_metrics.values())
 
         suggestions: List[str] = []
-        # 1) Полный провал (нет ServerHello): усилить агрессивные техники
         if total_sh == 0:
             suggestions.extend([
                 "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
@@ -1068,13 +723,11 @@ class HybridEngine:
                 "--dpi-desync=multidisorder --dpi-desync-split-count=5 --dpi-desync-ttl=64",
                 "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-ttl=4"
             ])
-        # 2) Много RST → упор на badsum/badseq и низкий TTL
         if total_rst >= 3:
             suggestions.extend([
                 "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
                 "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum,badseq"
             ])
-        # 3) Если какая‑то стратегия дала success_score>0 (ServerHello/ClientHello), усилим её семейство
         best_sid = None
         best_score = 0.0
         for sid, m in cap_metrics.items():
@@ -1091,8 +744,6 @@ class HybridEngine:
                 suggestions.append("--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-ttl=4")
             elif "fake" in sid_low:
                 suggestions.append("--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum")
-        # Небольшой лимит
-        # Дедупликат
         out, seen = [], set()
         for s in suggestions:
             if s not in seen:
@@ -1101,14 +752,9 @@ class HybridEngine:
         return out[:6]
 
     def _boost_with_full_pool(self, fingerprint: Optional["DPIFingerprint"]) -> List[str]:
-        """
-        Быстрые шаблоны по всему пулу атак реестра.
-        Возвращает zapret-строки, которые стоит прогнать второй волной.
-        """
         if not self.attack_registry:
             return []
 
-        # Получим доступные атаки
         try:
             attacks = self.attack_registry.list_attacks(enabled_only=True) or []
         except Exception:
@@ -1116,7 +762,6 @@ class HybridEngine:
 
         out: List[str] = []
 
-        # Базовые «универсалы»
         out.extend([
             "--dpi-desync=multidisorder --dpi-desync-split-count=5 --dpi-desync-ttl=64",
             "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-ttl=4",
@@ -1124,14 +769,12 @@ class HybridEngine:
             "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq",
         ])
 
-        # Если DPI “commercial” → добавим ещё reordering/seqovl
         if fingerprint and getattr(fingerprint, "dpi_type", None) and fingerprint.dpi_type.name.lower().startswith("commercial"):
             out.extend([
                 "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=2",
                 "--dpi-desync=fake,split --dpi-desync-split-pos=5 --dpi-desync-ttl=2",
             ])
 
-        # Дедуп
         uniq, seen = [], set()
         for s in out:
             if s not in seen:
@@ -1140,17 +783,6 @@ class HybridEngine:
         return uniq[:10]
 
     async def fingerprint_target(self, domain: str, port: int=443, force_refresh: bool=False) -> Optional[DPIFingerprint]:
-        """
-        Perform advanced DPI fingerprinting for target.
-
-        Args:
-            domain: Target domain name
-            port: Target port
-            force_refresh: Force new analysis even if cached
-
-        Returns:
-            DPIFingerprint object or None if fingerprinting fails/disabled
-        """
         if not self.advanced_fingerprinting_enabled:
             return None
         try:
@@ -1172,16 +804,6 @@ class HybridEngine:
             return None
 
     def _adapt_strategies_for_fingerprint(self, strategies: List[str], fingerprint: DPIFingerprint) -> List[str]:
-        """
-        Adapt and prioritize strategies based on DPI fingerprint.
-
-        Args:
-            strategies: Original list of strategies
-            fingerprint: DPI fingerprint with detected characteristics
-
-        Returns:
-            Reordered and potentially modified strategy list
-        """
         if not fingerprint:
             return strategies
         adapted_strategies = []
@@ -1224,17 +846,12 @@ class HybridEngine:
         return unique_strategies
 
     def _enhance_strategies_with_registry(self, strategies: List[str], fingerprint: Optional[DPIFingerprint], domain: str, port: int) -> List[str]:
-        """
-        Enhance strategies using the modern attack registry.
-        """
         if not self.attack_registry:
-            # Нормализуем на случай, если сюда попали dict
             return [s if isinstance(s, str) else self._task_to_str(s) for s in strategies]
 
         normalized_in: List[str] = [s if isinstance(s, str) else self._task_to_str(s) for s in strategies]
         enhanced_strategies: List[str] = []
 
-        # Fast fingerprint-based templates
         if fingerprint:
             if getattr(fingerprint, "rst_injection_detected", False):
                 enhanced_strategies.extend([
@@ -1286,11 +903,9 @@ class HybridEngine:
         return unique_strategies
 
     def _enhance_single_strategy(self, strategy: str, available_attacks: List[str], fingerprint: Optional[DPIFingerprint]) -> Optional[str]:
-        """Enhance a single strategy using registry information."""
         return strategy
 
     def _generate_registry_strategies(self, available_attacks: List[str], fingerprint: DPIFingerprint, domain: str, port: int) -> List[str]:
-        """Generate new strategies based on registry attacks and fingerprint."""
         registry_strategies = []
         if fingerprint.rst_injection_detected and fingerprint.connection_reset_timing < 100:
             registry_strategies.extend(['--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum', '--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq'])
@@ -1299,17 +914,6 @@ class HybridEngine:
         return registry_strategies[:5]
 
     def assign_domain_to_pool(self, domain: str, port: int=443, strategy: Optional[BypassStrategy]=None) -> bool:
-        """
-        Assign a domain to a strategy pool.
-
-        Args:
-            domain: Domain to assign
-            port: Target port
-            strategy: Optional specific strategy to use
-
-        Returns:
-            True if assignment successful
-        """
         if not self.modern_bypass_enabled or not self.pool_manager:
             return False
         try:
@@ -1328,21 +932,11 @@ class HybridEngine:
             return False
 
     def get_pool_strategy_for_domain(self, domain: str, port: int=443) -> Optional[BypassStrategy]:
-        """Get the pool strategy for a domain."""
         if not self.modern_bypass_enabled or not self.pool_manager:
             return None
         return self.pool_manager.get_strategy_for_domain(domain, port)
 
     def switch_bypass_mode(self, mode: OperationMode) -> bool:
-        """
-        Switch the bypass engine operation mode.
-
-        Args:
-            mode: Target operation mode
-
-        Returns:
-            True if switch successful
-        """
         if not self.modern_bypass_enabled or not self.mode_controller:
             return False
         try:
@@ -1356,17 +950,6 @@ class HybridEngine:
             return False
 
     def validate_strategy_reliability(self, domain: str, strategy: BypassStrategy, port: int=443) -> Optional[float]:
-        """
-        Validate strategy reliability using the modern validation system.
-
-        Args:
-            domain: Target domain
-            strategy: Strategy to validate
-            port: Target port
-
-        Returns:
-            Reliability score (0.0-1.0) or None if validation failed
-        """
         if not self.modern_bypass_enabled or not self.reliability_validator:
             return None
         try:
@@ -1379,16 +962,6 @@ class HybridEngine:
             return None
 
     def _prioritize_strategies(self, strategies: List[str], priority_patterns: List[str]) -> List[str]:
-        """
-        Prioritize strategies matching given patterns.
-
-        Args:
-            strategies: List of strategies to prioritize
-            priority_patterns: List of regex patterns for prioritization
-
-        Returns:
-            List of strategies matching priority patterns
-        """
         import re
         prioritized = []
         for pattern in priority_patterns:
@@ -1398,7 +971,6 @@ class HybridEngine:
         return prioritized
 
     def get_fingerprint_stats(self) -> Dict[str, int]:
-        """Get fingerprinting statistics"""
         stats = self.fingerprint_stats.copy()
         if self.advanced_fingerprinter:
             try:
@@ -1409,7 +981,6 @@ class HybridEngine:
         return stats
 
     def get_bypass_stats(self) -> Dict[str, Any]:
-        """Get bypass engine statistics"""
         stats = self.bypass_stats.copy()
         if self.modern_bypass_enabled:
             if self.attack_registry:
@@ -1433,7 +1004,6 @@ class HybridEngine:
         return stats
 
     def get_comprehensive_stats(self) -> Dict[str, Any]:
-        """Get comprehensive statistics from all components"""
         return {'fingerprint_stats': self.get_fingerprint_stats(), 'bypass_stats': self.get_bypass_stats(), 'modern_engine_enabled': self.modern_bypass_enabled, 'advanced_fingerprinting_enabled': self.advanced_fingerprinting_enabled}
 
     def cleanup(self):
