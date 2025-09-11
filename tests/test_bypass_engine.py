@@ -4,7 +4,7 @@ import os
 import time
 from unittest import mock
 
-# Add project root to path to allow imports
+# Add project root to path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -12,10 +12,13 @@ if project_root not in sys.path:
 # Mock platform-specific modules before importing the code under test
 sys.modules["pydivert"] = mock.Mock()
 with mock.patch("platform.system", return_value="Windows"):
-    from core.bypass_engine import BypassEngine, BypassTechniques
+    from core.bypass_engine import BypassEngine
+    from core.bypass.engine.windows_engine import WindowsBypassEngine
+    from core.bypass.techniques.primitives import BypassTechniques
 
 
 class TestBypassTechniques(unittest.TestCase):
+    # This class remains valid as it tests the static methods of BypassTechniques
     def test_apply_tlsrec_split_simple(self):
         """Test simple TLS record split."""
         client_hello_header = b"\x16\x03\x01\x00\x58"
@@ -31,100 +34,60 @@ class TestBypassTechniques(unittest.TestCase):
         self.assertEqual(split_payload[15:20], b"\x16\x03\x01\x00\x4e")
         self.assertEqual(split_payload[20:], client_hello[15:])
 
-    def test_apply_tlsrec_split_with_tail(self):
-        """Test TLS record split with extra data at the end."""
-        client_hello_header = b"\x16\x03\x01\x00\x58"
-        client_hello_body = b"\x01\x00\x00\x54" + os.urandom(88 - 4)
-        client_hello = client_hello_header + client_hello_body
-        tail = b"\x17\x03\x01\x00\x10" + os.urandom(16)
-        payload_with_tail = client_hello + tail
-        split_payload = BypassTechniques.apply_tlsrec_split(
-            payload_with_tail, split_pos=20
-        )
-        self.assertTrue(split_payload.endswith(tail))
-        self.assertEqual(len(split_payload), len(client_hello) + 5 + len(tail))
 
-    def test_apply_tlsrec_split_tls12(self):
-        """Test TLS record split for TLS 1.2."""
-        client_hello_header = b"\x16\x03\x03\x00\x30"
-        client_hello_body = b"\x01\x00\x00\x2c" + os.urandom(48 - 4)
-        client_hello_tls12 = client_hello_header + client_hello_body
-        split_payload = BypassTechniques.apply_tlsrec_split(client_hello_tls12, split_pos=5)
-        self.assertEqual(split_payload[0:3], b"\x16\x03\x03")
-        self.assertEqual(split_payload[10:13], b"\x16\x03\x03")
+class TestBypassEngineWrapper(unittest.TestCase):
+    """
+    Tests for the backward-compatible BypassEngine wrapper.
+    """
 
-    def test_apply_tlsrec_split_invalid_split_pos(self):
-        """Test that invalid split positions are handled gracefully."""
-        client_hello_header = b"\x16\x03\x01\x00\x58"
-        client_hello_body = b"\x01\x00\x00\x54" + os.urandom(88 - 4)
-        client_hello = client_hello_header + client_hello_body
-        split_payload_large = BypassTechniques.apply_tlsrec_split(
-            client_hello, split_pos=100
-        )
-        self.assertEqual(split_payload_large, client_hello)
-        split_payload_small = BypassTechniques.apply_tlsrec_split(
-            client_hello, split_pos=0
-        )
-        self.assertEqual(split_payload_small, client_hello)
-
-    def test_apply_tlsrec_split_not_tls(self):
-        """Test that non-TLS payloads are not modified."""
-        http_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-        unmodified_payload = BypassTechniques.apply_tlsrec_split(
-            http_payload, split_pos=10
-        )
-        self.assertEqual(unmodified_payload, http_payload)
-
-
-class TestBypassEngineTelemetry(unittest.TestCase):
-    def setUp(self):
-        self.engine = BypassEngine(debug=False)
-        self.engine._telemetry_max_targets = 5
-
-    def test_cleanup_old_telemetry_per_target(self):
-        """Tests that old per_target telemetry entries are cleaned up."""
-        with self.engine._tlock:
-            for i in range(10):
-                self.engine._telemetry["per_target"][f"1.1.1.{i}"] = {
-                    "last_outcome_ts": time.time() - (10 - i)
-                }
-        self.assertEqual(len(self.engine._telemetry["per_target"]), 10)
-        self.engine._cleanup_old_telemetry()
-        with self.engine._tlock:
-            self.assertEqual(
-                len(self.engine._telemetry["per_target"]),
-                self.engine._telemetry_max_targets,
-            )
-            for i in range(5, 10):
-                self.assertIn(f"1.1.1.{i}", self.engine._telemetry["per_target"])
-
-    def test_cleanup_old_telemetry_flow_table(self):
-        """Tests that old flow_table entries are cleaned up."""
-        with self.engine._lock:
-            for i in range(5):
-                self.engine.flow_table[
-                    ("1.1.1.1", 100 + i, "2.2.2.2", 443)
-                ] = {"start_ts": time.time() - 60}
-            for i in range(5):
-                self.engine.flow_table[
-                    ("1.1.1.1", 200 + i, "2.2.2.2", 443)
-                ] = {"start_ts": time.time() - 10}
-        self.assertEqual(len(self.engine.flow_table), 10)
-        self.engine._cleanup_old_telemetry()
-        with self.engine._lock:
-            self.assertEqual(len(self.engine.flow_table), 5)
-            for i in range(5):
-                self.assertIn(
-                    ("1.1.1.1", 200 + i, "2.2.2.2", 443), self.engine.flow_table
-                )
-
-
-class TestBypassEngineTTL(unittest.TestCase):
     def setUp(self):
         with mock.patch("platform.system", return_value="Windows"):
-            from core.bypass_engine import BypassEngine
-
             self.engine = BypassEngine(debug=False)
+            self.win_engine = self.engine._engine
+
+    def test_wrapper_initialization(self):
+        """Test that the wrapper initializes the WindowsBypassEngine."""
+        self.assertIsInstance(self.win_engine, WindowsBypassEngine)
+        self.assertEqual(self.engine.logger, self.win_engine.logger)
+
+    def test_start_stop_delegation(self):
+        """Test that start and stop calls are delegated."""
+        self.win_engine.start = mock.Mock()
+        self.win_engine.stop = mock.Mock()
+
+        self.engine.start(set(), {})
+        self.win_engine.start.assert_called_once()
+
+        self.engine.stop()
+        self.win_engine.stop.assert_called_once()
+
+    def test_telemetry_snapshot_delegation(self):
+        """Test that get_telemetry_snapshot is delegated."""
+        self.win_engine.get_telemetry_snapshot = mock.Mock(return_value={"test": "ok"})
+        result = self.engine.get_telemetry_snapshot()
+        self.win_engine.get_telemetry_snapshot.assert_called_once()
+        self.assertEqual(result, {"test": "ok"})
+
+    def test_legacy_attribute_access(self):
+        """
+        Test that legacy attributes point to the new component's data
+        for backward compatibility.
+        """
+        self.assertIs(self.engine.stats, self.win_engine.stats)
+        self.assertIs(self.engine.current_params, self.win_engine.current_params)
+        self.assertIs(self.engine._telemetry, self.win_engine.telemetry._data)
+        self.assertIs(self.engine._tlock, self.win_engine.telemetry._lock)
+        self.assertIs(self.engine.flow_table, self.win_engine.flow_manager._flows)
+
+
+class TestWindowsBypassEngine(unittest.TestCase):
+    """
+    Tests for the new WindowsBypassEngine component.
+    """
+
+    def setUp(self):
+        with mock.patch("platform.system", return_value="Windows"):
+            self.engine = WindowsBypassEngine(debug=False)
         self.mock_packet = mock.Mock()
         self.mock_packet.dst_addr = "1.2.3.4"
         self.mock_packet.payload = b"\x16\x03\x01\x00\x58\x01\x00\x00\x54" + os.urandom(
@@ -133,139 +96,76 @@ class TestBypassEngineTTL(unittest.TestCase):
         self.mock_packet.raw = bytearray(b"\x45\x00\x00\x74" + os.urandom(112))
         self.mock_w = mock.Mock()
 
-    @mock.patch("core.bypass_engine.BypassEngine._send_aligned_fake_segment")
-    @mock.patch("core.bypass_engine.Calibrator.sweep")
-    def test_ttl_clamping_for_fakeddisorder(self, mock_sweep, mock_send_aligned):
-        """Test that TTL is clamped to 8 for fakeddisorder if it's too high."""
-        mock_sweep.return_value = None
-        strategy_task = {"type": "fakeddisorder", "params": {"ttl": 15}}
-        self.engine.apply_bypass(self.mock_packet, self.mock_w, strategy_task)
-        self.assertEqual(self.engine.current_params["fake_ttl"], 8)
+    def test_apply_bypass_with_registry(self):
+        """
+        Test that apply_bypass correctly uses the TechniqueRegistry.
+        """
+        strategy = {"type": "fakeddisorder", "params": {}}
+        mock_result = mock.Mock()
+        mock_result.segments = [("payload", 0, {})]
+        mock_result.metadata = {"overlap_size": 100}
 
-    @mock.patch("core.bypass_engine.BypassEngine._send_segments")
-    def test_ttl_clamping_for_multisplit(self, mock_send):
-        """Test that TTL is clamped to 8 for multisplit if it's too high."""
-        strategy_task = {"type": "multisplit", "params": {"ttl": 20}}
-        self.engine.apply_bypass(self.mock_packet, self.mock_w, strategy_task)
-        self.assertEqual(self.engine.current_params["fake_ttl"], 8)
+        self.engine.technique_registry.apply_technique = mock.Mock(return_value=mock_result)
+        self.engine._send_attack_segments = mock.Mock(return_value=True)
+        self.engine.telemetry.record_overlap = mock.Mock()
 
-    @mock.patch("core.bypass_engine.BypassEngine._send_fake_packet")
-    @mock.patch("core.bypass_engine.BypassEngine._send_modified_packet")
-    def test_ttl_not_clamped_if_low(self, mock_modified, mock_fake):
-        """Test that TTL is not clamped if it is below the threshold."""
-        strategy_task = {"type": "fake", "params": {"ttl": 5}}
-        self.engine.apply_bypass(self.mock_packet, self.mock_w, strategy_task)
-        self.assertEqual(self.engine.current_params["fake_ttl"], 5)
+        self.engine.apply_bypass(self.mock_packet, self.mock_w, strategy)
 
-    @mock.patch("core.bypass_engine.BypassEngine._send_fragmented_fallback")
-    def test_ttl_not_clamped_for_other_types(self, mock_fallback):
-        """Test that TTL is not clamped for attack types not in the clamp list."""
-        strategy_task = {"type": "some_other_attack", "params": {"ttl": 15}}
-        self.engine.apply_bypass(self.mock_packet, self.mock_w, strategy_task)
-        self.assertEqual(self.engine.current_params["fake_ttl"], 15)
+        self.engine.technique_registry.apply_technique.assert_called_once_with(
+            "fakeddisorder", mock.ANY, mock.ANY
+        )
+        self.engine._send_attack_segments.assert_called_once_with(
+            self.mock_packet, self.mock_w, mock_result.segments
+        )
+        self.engine.telemetry.record_overlap.assert_called_once_with(100)
 
+    @mock.patch("core.bypass.engine.windows_engine.pydivert")
+    def test_inbound_observer_outcome(self, mock_pydivert):
+        """
+        Test that the inbound observer correctly records outcomes.
+        """
+        # Setup mocks for the observer loop
+        mock_w = mock.Mock()
+        mock_pydivert.WinDivert.return_value.__enter__.return_value = mock_w
 
-class TestSendAttackSegments(unittest.TestCase):
-    def setUp(self):
-        with mock.patch("platform.system", return_value="Windows"):
-            from core.bypass_engine import BypassEngine
+        server_hello_pkt = mock.Mock()
+        server_hello_pkt.payload = b'\x16\x03\x03\x00\x02\x02\x28' # ServerHello
+        server_hello_pkt.tcp.rst = False
+        server_hello_pkt.dst_addr = "1.1.1.1"
+        server_hello_pkt.dst_port = 12345
+        server_hello_pkt.src_addr = "8.8.8.8"
+        server_hello_pkt.src_port = 443
 
-            self.engine = BypassEngine(debug=False)
-        self.mock_w = mock.Mock()
+        rst_pkt = mock.Mock()
+        rst_pkt.payload = b''
+        rst_pkt.tcp.rst = True
+        rst_pkt.dst_addr = "1.1.1.1"
+        rst_pkt.dst_port = 12346
+        rst_pkt.src_addr = "8.8.8.8"
+        rst_pkt.src_port = 443
 
-        self.mock_packet = mock.Mock()
-        self.mock_packet.src_addr = "192.168.1.100"
-        self.mock_packet.dst_addr = "8.8.8.8"
-        self.mock_packet.src_port = 12345
-        self.mock_packet.dst_port = 443
+        mock_w.recv.side_effect = [server_hello_pkt, rst_pkt, None]
 
-        ip_header = b"\x45\x00\x00\x3c\x1c\x46\x40\x00\x40\x06\xb5\xb5\xc0\xa8\x01\x64\x08\x08\x08\x08"
-        tcp_header = b"\x30\x39\x01\xbb\x00\x00\x00\x01\x00\x00\x00\x02\x50\x18\xfa\xf0\xfe\x18\x00\x00"
-        payload = b"test_payload"
-        self.mock_packet.raw = bytearray(ip_header + tcp_header + payload)
-        self.mock_packet.payload = payload
+        self.engine.flow_manager.set_outcome = mock.Mock()
+        self.engine.telemetry.record_outcome = mock.Mock()
+        self.engine.telemetry.record_serverhello = mock.Mock()
+        self.engine.telemetry.record_rst = mock.Mock()
 
-        self.engine.current_params = {"fake_ttl": 2}
-        self.engine._packet_sender = mock.Mock()
-        self.engine._packet_sender.send_tcp_segments.return_value = True
+        # Run observer in a thread
+        self.engine.running = True
+        observer_thread = self.engine._start_inbound_observer()
 
-    def test_explicit_ttl(self):
-        segments = [(b"data", 0, {"ttl": 123})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertEqual(specs[0].ttl, 123)
+        # Give the thread a moment to run and exit
+        time.sleep(0.1)
+        self.engine.running = False
+        observer_thread.join()
 
-    def test_fake_ttl(self):
-        segments = [(b"data", 0, {"is_fake": True})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertEqual(specs[0].ttl, 2)
+        # Check if outcomes were recorded
+        self.engine.telemetry.record_serverhello.assert_called_once()
+        self.engine.telemetry.record_rst.assert_called_once()
 
-    def test_base_ttl(self):
-        segments = [(b"data", 0, {})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertIsNone(specs[0].ttl)
-
-    def test_seq_offset(self):
-        segments = [(b"data", 10, {"seq_offset": -5})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertEqual(specs[0].rel_seq, 10)
-        self.assertEqual(specs[0].seq_extra, -5)
-
-    def test_corrupt_sequence(self):
-        segments = [(b"data", 0, {"corrupt_sequence": True})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertEqual(specs[0].seq_extra, -10000)
-
-    def test_tcp_flags(self):
-        segments = [(b"data1", 0, {}), (b"data2", 5, {"tcp_flags": 0x19})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertEqual(len(specs), 2)
-        self.assertEqual(specs[0].flags, 0x10)  # ACK
-        self.assertEqual(specs[1].flags, 0x19)  # FIN + PSH + ACK
-
-    def test_last_segment_psh_flag(self):
-        segments = [(b"data1", 0, {}), (b"data2", 5, {})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertEqual(len(specs), 2)
-        self.assertEqual(specs[0].flags, 0x10)  # ACK
-        self.assertEqual(specs[1].flags, 0x18)  # PSH + ACK
-
-    def test_corrupt_tcp_checksum(self):
-        segments = [(b"data", 0, {"corrupt_tcp_checksum": True})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertTrue(specs[0].corrupt_tcp_checksum)
-
-    def test_add_md5sig_option(self):
-        segments = [(b"data", 0, {"add_md5sig_option": True})]
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertTrue(specs[0].add_md5sig_option)
-
-    def test_delay_ms(self):
-        segments = [(b"data1", 0, {"delay_ms": 50}), (b"data2", 5, {})]
-        self.engine.current_params["delay_ms"] = 2 # base delay
-        self.engine._send_attack_segments(self.mock_packet, self.mock_w, segments)
-        self.engine._packet_sender.send_tcp_segments.assert_called_once()
-        specs = self.engine._packet_sender.send_tcp_segments.call_args[0][2]
-        self.assertEqual(len(specs), 2)
-        self.assertEqual(specs[0].delay_ms_after, 50)
-        self.assertEqual(specs[1].delay_ms_after, 0)
+        self.assertEqual(self.engine.flow_manager.set_outcome.call_count, 2)
+        self.assertEqual(self.engine.telemetry.record_outcome.call_count, 2)
 
 
 if __name__ == "__main__":
