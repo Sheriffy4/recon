@@ -1,196 +1,229 @@
-"""Registry system for bypass techniques."""
+"""Registry for bypass techniques."""
 
 import logging
-from typing import Dict, Optional, List, Callable, Any
-from functools import wraps
-import inspect
-from recon.core.bypass.types import TechniqueType, TechniqueParams
-from recon.core.bypass.exceptions import TechniqueNotFoundError, InvalidStrategyError
+from typing import Dict, Any, Optional, List, Protocol
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+# Import existing technique implementations
+from core.bypass.techniques.primitives import BypassTechniques
+
+
+@dataclass
+class TechniqueResult:
+    """Result of applying a technique."""
+    segments: List[Any]  # List of segments to send
+    success: bool = True
+    metadata: Dict[str, Any] = None
+
+
+class IBypassTechnique(ABC):
+    """Abstract base class for bypass techniques."""
+
+    @abstractmethod
+    def apply(self, payload: bytes, params: Dict[str, Any]) -> TechniqueResult:
+        """Apply the technique to payload."""
+        pass
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Get technique name."""
+        pass
+
+    def validate_params(self, params: Dict[str, Any]) -> bool:
+        """Validate technique parameters."""
+        return True
+
+
+class FakeddisorderTechnique(IBypassTechnique):
+    """Fakeddisorder technique implementation."""
+
+    @property
+    def name(self) -> str:
+        return "fakeddisorder"
+
+    def apply(self, payload: bytes, params: Dict[str, Any]) -> TechniqueResult:
+        """Apply fakeddisorder technique."""
+        split_pos = params.get("split_pos", 76)
+        overlap_size = params.get("overlap_size", 336)
+        fooling = params.get("fooling", [])
+        fake_ttl = params.get("fake_ttl", 1)
+
+        # Use existing implementation
+        segments = BypassTechniques.apply_fakeddisorder(
+            payload, split_pos, overlap_size
+        )
+
+        # Convert to attack segments format
+        attack_segments = []
+        for i, (seg_payload, rel_off) in enumerate(segments):
+            if i == 0:  # First segment (fake)
+                opts = {
+                    "is_fake": True,
+                    "ttl": fake_ttl,
+                    "delay_ms": 2
+                }
+                if "badsum" in fooling:
+                    opts["corrupt_tcp_checksum"] = True
+                if "md5sig" in fooling:
+                    opts["add_md5sig_option"] = True
+                if "badseq" in fooling:
+                    opts["corrupt_sequence"] = True
+            else:  # Second segment (real)
+                opts = {
+                    "tcp_flags": 0x18,  # PSH+ACK
+                    "delay_ms": 2
+                }
+
+            attack_segments.append((seg_payload, rel_off, opts))
+
+        return TechniqueResult(
+            segments=attack_segments,
+            success=True,
+            metadata={
+                "split_pos": split_pos,
+                "overlap_size": overlap_size,
+                "fooling": fooling
+            }
+        )
+
+
+class MultisplitTechnique(IBypassTechnique):
+    """Multisplit technique implementation."""
+
+    @property
+    def name(self) -> str:
+        return "multisplit"
+
+    def apply(self, payload: bytes, params: Dict[str, Any]) -> TechniqueResult:
+        """Apply multisplit technique."""
+        positions = params.get("positions", [10, 25, 40, 55, 70])
+
+        # Use existing implementation
+        segments = BypassTechniques.apply_multisplit(payload, positions)
+
+        # Convert to attack segments format
+        attack_segments = []
+        for i, (seg_payload, rel_off) in enumerate(segments):
+            opts = {
+                "tcp_flags": 0x18 if i == len(segments) - 1 else 0x10,
+                "delay_ms": 2 if i < len(segments) - 1 else 0
+            }
+            attack_segments.append((seg_payload, rel_off, opts))
+
+        return TechniqueResult(
+            segments=attack_segments,
+            success=True,
+            metadata={"positions": positions}
+        )
+
+
+class SeqovlTechnique(IBypassTechnique):
+    """Sequence overlap technique implementation."""
+
+    @property
+    def name(self) -> str:
+        return "seqovl"
+
+    def apply(self, payload: bytes, params: Dict[str, Any]) -> TechniqueResult:
+        """Apply sequence overlap technique."""
+        split_pos = params.get("split_pos", 3)
+        overlap_size = params.get("overlap_size", 20)
+
+        # Use existing implementation
+        segments = BypassTechniques.apply_seqovl(
+            payload, split_pos, overlap_size
+        )
+
+        # Convert to attack segments format
+        attack_segments = []
+        for seg_payload, rel_off in segments:
+            attack_segments.append((seg_payload, rel_off, {}))
+
+        return TechniqueResult(
+            segments=attack_segments,
+            success=True,
+            metadata={
+                "split_pos": split_pos,
+                "overlap_size": overlap_size
+            }
+        )
 
 
 class TechniqueRegistry:
-    """Central registry for all bypass techniques."""
+    """
+    Registry for bypass techniques.
+    Manages technique registration and execution.
+    """
 
-    _instance = None
-    _techniques: Dict[str, "TechniqueInfo"] = {}
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self):
-        if self._initialized:
-            return
+    def __init__(self, debug: bool = False):
+        self.debug = debug
         self.logger = logging.getLogger(self.__class__.__name__)
-        self._techniques = {}
-        self._categories = {}
-        self._initialized = True
+        self._techniques: Dict[str, IBypassTechnique] = {}
+        self._register_default_techniques()
 
-    def register(
-        self,
-        technique_type: TechniqueType,
-        category: str = "general",
-        description: str = "",
-        supported_protocols: List[str] = None,
-        required_params: List[str] = None,
-        optional_params: List[str] = None,
-    ) -> Callable:
-        """Decorator to register a technique.
+    def _register_default_techniques(self):
+        """Register default bypass techniques."""
+        self.register(FakeddisorderTechnique())
+        self.register(MultisplitTechnique())
+        self.register(SeqovlTechnique())
 
-        Usage:
-            @registry.register(TechniqueType.FAKE_DISORDER, category="segmentation")
-            def apply_fake_disorder(packet_data: bytes, params: TechniqueParams) -> List[Tuple[bytes, int]]:
-                ...
+        # Register aliases
+        self._register_alias("disorder", "fakeddisorder")
+        self._register_alias("disorder2", "fakeddisorder")
+        self._register_alias("desync", "fakeddisorder")
+
+    def register(self, technique: IBypassTechnique):
+        """Register a bypass technique."""
+        self._techniques[technique.name] = technique
+        self.logger.debug(f"Registered technique: {technique.name}")
+
+    def _register_alias(self, alias: str, original: str):
+        """Register an alias for a technique."""
+        if original in self._techniques:
+            self._techniques[alias] = self._techniques[original]
+
+    def get_technique(self, name: str) -> Optional[IBypassTechnique]:
+        """Get technique by name."""
+        # Normalize name
+        name = name.lower().strip()
+        return self._techniques.get(name)
+
+    def apply_technique(self, name: str, payload: bytes,
+                       params: Dict[str, Any]) -> Optional[TechniqueResult]:
         """
-
-        def decorator(func: Callable) -> Callable:
-            sig = inspect.signature(func)
-            info = TechniqueInfo(
-                technique_type=technique_type,
-                name=technique_type.value,
-                category=category,
-                description=description or func.__doc__ or "",
-                implementation=func,
-                supported_protocols=supported_protocols or ["tcp"],
-                required_params=required_params or [],
-                optional_params=optional_params or [],
-                signature=sig,
-            )
-            self._techniques[technique_type.value] = info
-            if category not in self._categories:
-                self._categories[category] = []
-            self._categories[category].append(technique_type.value)
-            self.logger.debug(
-                f"Registered technique: {technique_type.value} in category: {category}"
-            )
-
-            @wraps(func)
-            def wrapper(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            return wrapper
-
-        return decorator
-
-    def get_technique(self, technique_name: str) -> Optional["TechniqueInfo"]:
-        """Get technique info by name."""
-        return self._techniques.get(technique_name)
-
-    def get_techniques_by_category(self, category: str) -> List["TechniqueInfo"]:
-        """Get all techniques in a category."""
-        technique_names = self._categories.get(category, [])
-        return [
-            self._techniques[name]
-            for name in technique_names
-            if name in self._techniques
-        ]
-
-    def get_all_techniques(self) -> Dict[str, "TechniqueInfo"]:
-        """Get all registered techniques."""
-        return self._techniques.copy()
-
-    def get_categories(self) -> List[str]:
-        """Get all technique categories."""
-        return list(self._categories.keys())
-
-    def apply_technique(
-        self, technique_name: str, packet_data: bytes, params: TechniqueParams
-    ) -> Any:
-        """Apply a technique to packet data.
+        Apply a technique to payload.
 
         Args:
-            technique_name: Name of the technique
-            packet_data: Raw packet data
+            name: Technique name
+            payload: Payload to process
             params: Technique parameters
 
         Returns:
-            Result of technique application (varies by technique)
-
-        Raises:
-            TechniqueNotFoundError: If technique not found
-            InvalidStrategyError: If parameters are invalid
+            TechniqueResult or None if technique not found
         """
-        info = self.get_technique(technique_name)
-        if not info:
-            raise TechniqueNotFoundError(
-                f"Technique '{technique_name}' not found in registry"
-            )
-        missing_params = [
-            p
-            for p in info.required_params
-            if not hasattr(params, p) or getattr(params, p) is None
-        ]
-        if missing_params:
-            raise InvalidStrategyError(f"Missing required parameters: {missing_params}")
+        technique = self.get_technique(name)
+        if not technique:
+            self.logger.warning(f"Technique not found: {name}")
+            return None
+
+        # Validate parameters
+        if not technique.validate_params(params):
+            self.logger.error(f"Invalid parameters for technique {name}: {params}")
+            return None
+
         try:
-            return info.implementation(packet_data, params)
+            return technique.apply(payload, params)
         except Exception as e:
-            self.logger.error(f"Error applying technique {technique_name}: {e}")
-            raise
+            self.logger.error(f"Error applying technique {name}: {e}",
+                            exc_info=self.debug)
+            return None
 
-    def validate_technique_params(
-        self, technique_name: str, params: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
-        """Validate technique parameters.
-
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        info = self.get_technique(technique_name)
-        if not info:
-            return (False, f"Technique '{technique_name}' not found")
-        missing = [p for p in info.required_params if p not in params]
-        if missing:
-            return (False, f"Missing required parameters: {missing}")
-        return (True, None)
-
-
-class TechniqueInfo:
-    """Information about a registered technique."""
-
-    def __init__(
-        self,
-        technique_type: TechniqueType,
-        name: str,
-        category: str,
-        description: str,
-        implementation: Callable,
-        supported_protocols: List[str],
-        required_params: List[str],
-        optional_params: List[str],
-        signature: inspect.Signature,
-    ):
-        self.technique_type = technique_type
-        self.name = name
-        self.category = category
-        self.description = description
-        self.implementation = implementation
-        self.supported_protocols = supported_protocols
-        self.required_params = required_params
-        self.optional_params = optional_params
-        self.signature = signature
-
-    def supports_protocol(self, protocol: str) -> bool:
-        """Check if technique supports given protocol."""
-        return protocol.lower() in self.supported_protocols
-
-    def get_all_params(self) -> List[str]:
-        """Get all parameter names (required + optional)."""
-        return self.required_params + self.optional_params
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "name": self.name,
-            "type": self.technique_type.value,
-            "category": self.category,
-            "description": self.description,
-            "supported_protocols": self.supported_protocols,
-            "required_params": self.required_params,
-            "optional_params": self.optional_params,
-        }
-
-
-registry = TechniqueRegistry()
+    def list_techniques(self) -> List[str]:
+        """List all registered technique names."""
+        # Filter out aliases
+        unique_techniques = set()
+        for name, tech in self._techniques.items():
+            unique_techniques.add(tech.name)
+        return sorted(list(unique_techniques))

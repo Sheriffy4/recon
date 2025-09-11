@@ -95,7 +95,8 @@ class PacketBuilder:
             tcp_hdr[8:12] = struct.pack("!I", meta.base_ack)
 
             # Set flags
-            tcp_hdr[13] = spec.flags & 0xFF
+            if spec.flags is not None:
+                tcp_hdr[13] = spec.flags & 0xFF
 
             # Set window
             if spec.window_override is not None:
@@ -268,3 +269,73 @@ class PacketBuilder:
         new_hdr[12] = ((new_total_len // 4) << 4) | (new_hdr[12] & 0x0F)
 
         return bytes(new_hdr)
+
+    @staticmethod
+    def is_tls_clienthello(payload: Optional[bytes]) -> bool:
+        """Check if payload is a TLS ClientHello."""
+        return (
+            payload
+            and len(payload) > 6
+            and payload[0] == 22          # ContentType: Handshake
+            and payload[1] == 3           # Version: 3.x
+            and payload[5] == 1           # HandshakeType: ClientHello
+        )
+
+    @staticmethod
+    def is_tls_serverhello(payload: Optional[bytes]) -> bool:
+        """Check if payload is a TLS ServerHello."""
+        return (
+            payload
+            and len(payload) > 6
+            and payload[0] == 22          # ContentType: Handshake
+            and payload[1] == 3           # Version: 3.x
+            and payload[5] == 2           # HandshakeType: ServerHello
+        )
+
+    @staticmethod
+    def extract_sni(payload: Optional[bytes]) -> Optional[str]:
+        """Extract Server Name Indication (SNI) from a TLS ClientHello."""
+        if not payload or not PacketBuilder.is_tls_clienthello(payload):
+            return None
+        try:
+            # Find the start of extensions
+            session_id_len = payload[38]
+            pos = 39 + session_id_len
+
+            cipher_suites_len = struct.unpack('!H', payload[pos:pos+2])[0]
+            pos += 2 + cipher_suites_len
+
+            compression_methods_len = payload[pos]
+            pos += 1 + compression_methods_len
+
+            if pos + 2 > len(payload):
+                return None
+
+            extensions_len = struct.unpack('!H', payload[pos:pos+2])[0]
+            pos += 2
+            extensions_end = pos + extensions_len
+
+            # Iterate through extensions to find SNI
+            while pos + 4 < extensions_end:
+                ext_type = struct.unpack('!H', payload[pos:pos+2])[0]
+                ext_len = struct.unpack('!H', payload[pos+2:pos+4])[0]
+                pos += 4
+
+                if ext_type == 0: # SNI
+                    list_len = struct.unpack('!H', payload[pos:pos+2])[0]
+                    pos += 2
+                    if pos + list_len > extensions_end: return None
+
+                    name_type = payload[pos]
+                    pos += 1
+                    if name_type == 0: # host_name
+                        name_len = struct.unpack('!H', payload[pos:pos+2])[0]
+                        pos += 2
+                        if pos + name_len > extensions_end: return None
+
+                        return payload[pos:pos+name_len].decode('utf-8')
+
+                pos += ext_len
+        except Exception:
+            return None
+        return None

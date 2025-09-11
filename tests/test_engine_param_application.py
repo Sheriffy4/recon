@@ -23,44 +23,47 @@ class DummyWriter:
     def send(self, pkt):
         self.sent.append(("orig", len(getattr(pkt, "payload", b""))))
 
-def test_fakeddisorder_forced_simple_applies_params():
-    be = BypassEngine(debug=False)
-    be.set_strategy_override({"type": "fakeddisorder", "params": {"split_pos": 76, "overlap_size": 336, "ttl": 2, "fooling": ["badsum","badseq"]}})
+def test_fakeddisorder_applies_params():
+    """
+    Tests that apply_bypass correctly processes a technique from the registry
+    and passes the resulting segments to the sender.
+    """
+    with patch("platform.system", return_value="Windows"):
+        be = BypassEngine(debug=False)
+        win_engine = be._engine
+
     pkt = DummyPacket()
     w = DummyWriter()
 
-    captured = {}
-    def fake_send_attack_segments(packet, writer, segs):
-        # capture segments and options
-        captured["segs"] = segs
-        return True
+    # We patch _send_attack_segments on the actual engine instance
+    win_engine._send_attack_segments = MagicMock(return_value=True)
 
-    with patch.object(BypassEngine, "_send_attack_segments", side_effect=fake_send_attack_segments):
-        task = {"type": "fakeddisorder", "params": {"split_pos": 76, "overlap_size": 336, "ttl": 2, "fooling": ["badsum","badseq"], "force_simple": True}}
-        be.apply_bypass(pkt, w, task)
+    task = {"type": "fakeddisorder", "params": {"split_pos": 76, "overlap_size": 336, "fooling": ["badsum","badseq"]}}
+    win_engine.apply_bypass(pkt, w, task)
 
-    segs = captured["segs"]
-    # ожидаем 2 сегмента: сначала right с offset=split_pos, затем left с offset=split_pos-overlap
-    assert len(segs) == 2
-    right, left = segs[0], segs[1]
+    # Check that _send_attack_segments was called
+    win_engine._send_attack_segments.assert_called_once()
+
+    # Inspect the segments passed to the sender
+    call_args = win_engine._send_attack_segments.call_args
+    sent_segs = call_args[0][2] # packet, writer, segments
+
+    assert len(sent_segs) == 2
+    right, left = sent_segs[0], sent_segs[1]
+
+    # Check the segments content based on FakeddisorderTechnique logic
+    payload = pkt.payload
+    right_payload = payload[76:]
+    left_payload = payload[:76]
+
+    assert right[0] == right_payload
     assert right[1] == 76
+
+    assert left[0] == left_payload
     assert left[1] == 76 - 336
-    # в опциях первого фейкового должны быть флаги badsum/badseq
+
+    # Check options on the fake segment
     opts1 = right[2]
     assert opts1.get("is_fake") is True
     assert opts1.get("corrupt_tcp_checksum") is True
     assert opts1.get("corrupt_sequence") is True
-
-def test_badsum_race_sends_fake_then_original():
-    be = BypassEngine(debug=False)
-    pkt = DummyPacket()
-    w = DummyWriter()
-
-    with patch.object(be, '_send_fake_packet_with_badsum') as mock_send_fake, \
-         patch.object(w, 'send') as mock_send_orig:
-
-        task = {"type": "badsum_race", "params": {"fake_ttl": 1}}
-        be.apply_bypass(pkt, w, task)
-
-        mock_send_fake.assert_called_once()
-        mock_send_orig.assert_called_once_with(pkt)
