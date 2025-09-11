@@ -64,7 +64,6 @@ if PYDANTIC_AVAILABLE:
         class Config:
             use_enum_values = True
 
-    # ... (остальные классы конфигураций без изменений) ...
     class FingerprintEngineConfig(BaseModel):
         debug: bool = False
         ml_enabled: bool = True
@@ -98,6 +97,7 @@ if PYDANTIC_AVAILABLE:
         max_retries: int = 2
         request_delay_ms: int = 100
         user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        engine_override: Optional[str] = None
 
     class MonitoringConfig(BaseModel):
         monitor_interval_seconds: int = 60
@@ -243,7 +243,23 @@ if PYDANTIC_AVAILABLE:
                 self.closed_loop_manager.convergence_threshold = getattr(
                     args, "convergence_threshold", 0.9
                 )
-
+            # Обработка выбора движка из CLI + раннее предупреждение для неподходящей ОС
+            eng = getattr(args, "engine", None) if hasattr(args, "engine") else None
+            if eng is None or str(eng).lower() == "auto":
+                setattr(self.effectiveness_tester, "engine_override", None)
+            else:
+                override = str(eng).lower()
+                setattr(self.effectiveness_tester, "engine_override", override)
+                try:
+                    import platform
+                    if override == "native" and platform.system().lower() != "windows":
+                        LOG.warning(
+                            "Selected --engine=native on non-Windows platform; this engine may be unavailable. Auto-detection is recommended."
+                        )
+                except Exception:
+                    pass
+if eng is None:
+            self.effectiveness_tester.engine_override = None
 else:
     # Fallback to dataclasses when Pydantic is not available
     @dataclass

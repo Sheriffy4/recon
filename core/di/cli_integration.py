@@ -21,6 +21,7 @@ from core.domain_specific_strategies import DomainSpecificStrategies
 from ml.strategy_predictor import StrategyPredictor
 from core.optimization.dynamic_parameter_optimizer import DynamicParameterOptimizer
 from core.bypass.engines.packet_processing_engine import PacketProcessingEngine
+from core.bypass.strategies.native_generator_adapter import NativeStrategyGeneratorAdapter
 
 LOG = logging.getLogger("CLIIntegration")
 
@@ -180,7 +181,7 @@ class CLIIntegration:
             raise
 
     async def create_strategy_generator_for_fingerprint(
-        self, fingerprint_dict: Dict[str, Any]
+        self, fingerprint_dict: Dict[str, Any], telemetry_hint: Optional[Dict[str, Any]] = None
     ) -> IStrategyGenerator:
         """
         Create strategy generator configured for specific fingerprint.
@@ -197,6 +198,14 @@ class CLIIntegration:
             parameter_optimizer = self.provider.container.resolve(
                 DynamicParameterOptimizer
             )
+            if hasattr(self.args, "no_ml") and self.args.no_ml:
+                # В режиме без ML возвращаем нативный (ε-greedy/UCT-подобный) генератор
+                strategy_generator = NativeStrategyGeneratorAdapter(
+                    fingerprint_dict=fingerprint_dict,
+                    epsilon=0.2,
+                    telemetry_hint=telemetry_hint,  # теперь прокидываем телеметрию сразу
+                )
+                return strategy_generator
             strategy_generator = AdvancedStrategyGenerator(
                 attack_registry=attack_registry,
                 domain_strategies=domain_strategies,

@@ -3,16 +3,17 @@ import time
 import logging
 import socket
 import aiohttp
+import ssl
 import ssl as ssl_module
 from typing import Dict, Any, Optional, Union, List, Tuple
 from contextlib import asynccontextmanager
 from aiohttp.abc import AbstractResolver
 from core.bypass.attacks.base import AttackResult, AttackStatus
-from core.bypass.engines.factory import create_engine, detect_best_engine
+from core.bypass.engines.factory import create_best_engine
 from core.bypass.engines.base import EngineConfig
 from core.bypass.attacks.base import BaselineResult, BypassResult, EffectivenessResult
 from core.bypass.types import BlockType
-from core.dns.pinned_resolver import StaticResolver as PinnedResolver
+
 
 LOG = logging.getLogger("RealEffectivenessTester")
 HEADERS = {
@@ -73,6 +74,7 @@ class RealEffectivenessTester:
         engine_config: Optional[EngineConfig] = None,
         pinned_dns: Optional[Dict[str, str]] = None,
         debug: bool = False,
+        engine_override: Optional[str] = None,
     ):
         self.timeout = timeout
         self.max_retries = max_retries
@@ -82,6 +84,7 @@ class RealEffectivenessTester:
         self._ssl_context = self._create_ssl_context()
         self._pinned_dns = pinned_dns or {}
         self.debug = debug
+        self.engine_override = engine_override.lower() if engine_override else None
 
     def set_pinned_dns_map(self, pinned_map: Dict[str, str]):
         """Позволяет динамически установить карту пиннинга перед тестом."""
@@ -611,8 +614,7 @@ class RealEffectivenessTester:
         self.set_pinned_dns_map(domain_to_ip)
         engine = None
         try:
-            engine_type = detect_best_engine()
-            engine = create_engine(engine_type, self.engine_config)
+            engine = create_best_engine(engine_override=self.engine_override, config=self.engine_config)
             if not engine.start_with_segments_recipe(all_ips, attack_result.segments):
                 raise RuntimeError(
                     "Failed to start the bypass engine in recipe mode for group test."
@@ -668,7 +670,7 @@ class RealEffectivenessTester:
         self, domain: str, port: int, is_baseline: bool
     ) -> EffectivenessResult:
         """Общая логика для выполнения HTTP-теста."""
-        if not self.session:
+        if not self._session:
             raise RuntimeError("Tester must be used within an 'async with' context.")
         start_time = time.monotonic()
         url = f"https://{domain}" if port == 443 else f"http://{domain}:{port}"
@@ -755,7 +757,12 @@ class RealEffectivenessTester:
             self.logger.warning(
                 f"Bypass test for {domain} skipped: attack recipe generation failed."
             )
-            return EffectivenessResult(
+            return BypassResult(
+                domain=domain,
+                success=False,
+                latency_ms=(time.time() - start_time) * 1000,
+                bypass_applied=False,
+                attack_name=attack_name,
                 block_type=BlockType.INVALID,
                 error=f"Recipe generation failed: {attack_result.error_message or 'Unknown reason'}",
             )
@@ -763,8 +770,12 @@ class RealEffectivenessTester:
             self.logger.warning(
                 f"Bypass test for {domain} skipped: attack recipe is empty."
             )
-            return EffectivenessResult(
+            return BypassResult(
+                domain=domain,
                 success=False,
+                latency_ms=(time.time() - start_time) * 1000,
+                bypass_applied=False,
+                attack_name=attack_name,
                 block_type=BlockType.INVALID,
                 error="Attack produced an empty segment recipe.",
             )
@@ -798,8 +809,7 @@ class RealEffectivenessTester:
         url = f"{protocol}://{domain}/"
         engine = None
         try:
-            engine_type = detect_best_engine()
-            engine = create_engine(engine_type, self.engine_config)
+            engine = create_best_engine(engine_override=self.engine_override, config=self.engine_config)
             if not engine.start_with_segments_recipe(
                 {target_ip}, attack_result.segments
             ):

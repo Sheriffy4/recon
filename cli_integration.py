@@ -1101,6 +1101,8 @@ Examples:
     parser.add_argument('--log-level', default='INFO', 
                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                        help='Logging level')
+    parser.add_argument('--engine', choices=['auto', 'native', 'external'], default='auto',
+                       help='Force engine selection (auto/native/external)')
     
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     

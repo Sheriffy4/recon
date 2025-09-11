@@ -9,6 +9,16 @@ import copy
 from collections import defaultdict
 from typing import List, Dict, Optional, Tuple, Set, Any
 from core.bypass.attacks.base import AttackResult, AttackStatus
+# Use unified primitives implementation
+import warnings
+from core.bypass.techniques.primitives import BypassTechniques as _UnifiedBypassTechniques
+
+warnings.warn(
+    "core.bypass_engine.BypassTechniques is deprecated; using core.bypass.techniques.primitives.BypassTechniques",
+    DeprecationWarning,
+    stacklevel=2
+)
+BypassTechniques = _UnifiedBypassTechniques
 try:
     from core.quic_handler import QuicHandler
 except Exception:
@@ -32,8 +42,8 @@ if platform.system() == "Windows":
     import pydivert
 
 
-class BypassTechniques:
-    """Библиотека продвинутых техник обхода DPI."""
+class LegacyBypassTechniques:
+    """Библиотека продвинутых техник обхода DPI (legacy, не используется движком)."""
 
     @staticmethod
     def apply_fakeddisorder(
@@ -96,7 +106,7 @@ class BypassTechniques:
     def apply_multidisorder(
         payload: bytes, positions: List[int]
     ) -> List[Tuple[bytes, int]]:
-        segments = BypassTechniques.apply_multisplit(payload, positions)
+        segments = LegacyBypassTechniques.apply_multisplit(payload, positions)
         return segments[::-1] if len(segments) > 1 else segments
 
     @staticmethod
@@ -175,6 +185,7 @@ if platform.system() == "Windows":
         def __init__(self, debug=True, *args, **kwargs):
             self.debug = debug
             self.running = False
+            # Use unified primitives implementation
             self.techniques = BypassTechniques()
             self.logger = logging.getLogger("BypassEngine")
             self.logger.info(f"BypassEngine from {self.__class__.__module__}")
@@ -2468,3 +2479,188 @@ else:
         def start_with_config(self, *args, **kwargs):
             self.logger.warning("BypassEngine is disabled.")
             return None
+
+
+# === Phase1 PacketPipeline shim (auto-generated) ===
+# Мягкое делегирование отправки сегментов в новый слой без изменения API.
+try:
+    # Пытаемся использовать существующий билдeр из attacks, если он есть
+    try:
+        from core.bypass.attacks.segment_packet_builder import PacketBuilder as _CompatPacketBuilder
+    except Exception:
+        from core.bypass.packet.builder import PacketBuilder as _CompatPacketBuilder
+
+    from core.bypass.packet.types import TCPSegmentSpec as _TCPSegmentSpec
+    from core.bypass.packet.sender import PacketSender as _PacketSender
+
+    # Патчим __init__, чтобы создать sender
+    if hasattr(BypassEngine, "__init__") and not hasattr(BypassEngine, "__orig_init__"):
+        BypassEngine.__orig_init__ = BypassEngine.__init__
+        def __init__patched(self, *a, **kw):
+            BypassEngine.__orig_init__(self, *a, **kw)
+            try:
+                self._packet_builder = _CompatPacketBuilder()
+                self._packet_sender = _PacketSender(self._packet_builder, self.logger, getattr(self, "_INJECT_MARK", 0xC0DE))
+            except Exception as e:
+                try:
+                    self.logger.debug(f"PacketPipeline init failed: {e}")
+                except Exception:
+                    pass
+        BypassEngine.__init__ = __init__patched
+
+    # Патчим _safe_send_packet
+    if hasattr(BypassEngine, "_safe_send_packet") and not hasattr(BypassEngine, "_safe_send_packet_orig"):
+        BypassEngine._safe_send_packet_orig = BypassEngine._safe_send_packet
+        def _safe_send_packet_patched(self, w, pkt_bytes, original_packet):
+            try:
+                if hasattr(self, "_packet_sender") and self._packet_sender:
+                    return self._packet_sender.safe_send(w, pkt_bytes, original_packet)
+            except Exception:
+                pass
+            return BypassEngine._safe_send_packet_orig(self, w, pkt_bytes, original_packet)
+        BypassEngine._safe_send_packet = _safe_send_packet_patched
+
+    # Патчим _send_segments
+    if hasattr(BypassEngine, "_send_segments") and not hasattr(BypassEngine, "_send_segments_orig"):
+        BypassEngine._send_segments_orig = BypassEngine._send_segments
+        def _send_segments_patched(self, original_packet, w, segments):
+            try:
+                if hasattr(self, "_packet_sender") and self._packet_sender:
+                    delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
+                    specs = []
+                    for i, (payload, rel_off) in enumerate(segments or []):
+                        specs.append(_TCPSegmentSpec(
+                            payload=payload or b"",
+                            rel_seq=int(rel_off),
+                            flags=0x18,
+                            delay_ms_after=(delay_ms if i < len(segments) - 1 else 0)
+                        ))
+                    ok = self._packet_sender.send_tcp_segments(
+                        w, original_packet, specs,
+                        window_div=int(self.current_params.get("window_div", 8)) if hasattr(self, "current_params") else 8,
+                        ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
+                    )
+                    # обновляем телеметрию (как в старом finally)
+                    if ok:
+                        try:
+                            with self._tlock:
+                                if segments:
+                                    self._telemetry["aggregate"]["segments_sent"] += len(segments)
+                                    tgt = original_packet.dst_addr
+                                    per = self._telemetry["per_target"][tgt]
+                                    per["segments_sent"] += len(segments)
+                                    for seg_payload, rel_off in segments:
+                                        self._telemetry["seq_offsets"][int(rel_off)] += 1
+                                        per["seq_offsets"][int(rel_off)] += 1
+                                    real_ttl = int(bytearray(original_packet.raw)[8])
+                                    self._telemetry["ttls"]["real"][real_ttl] += 1
+                                    per["ttls_real"][real_ttl] += 1
+                        except Exception:
+                            pass
+                    return ok
+            except Exception as e:
+                try:
+                    self.logger.error(f"_send_segments shim error: {e}", exc_info=getattr(self, "debug", False))
+                except Exception:
+                    pass
+            return BypassEngine._send_segments_orig(self, original_packet, w, segments)
+        BypassEngine._send_segments = _send_segments_patched
+
+    # Патчим _send_attack_segments
+    if hasattr(BypassEngine, "_send_attack_segments") and not hasattr(BypassEngine, "_send_attack_segments_orig"):
+        BypassEngine._send_attack_segments_orig = BypassEngine._send_attack_segments
+        def _send_attack_segments_patched(self, original_packet, w, segments):
+            try:
+                if hasattr(self, "_packet_sender") and self._packet_sender:
+                    base_delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
+                    specs = []
+                    total = len(segments or [])
+                    for i, seg in enumerate(segments or []):
+                        if len(seg) == 3:
+                            payload, rel_off, opts = seg
+                        elif len(seg) == 2:
+                            payload, rel_off = seg
+                            opts = {}
+                        else:
+                            continue
+                        flags = opts.get("tcp_flags")
+                        if flags is None:
+                            flags = 0x10 | (0x08 if i == total - 1 else 0)
+                        ttl_opt = opts.get("ttl", None)
+                        if ttl_opt is None and opts.get("is_fake"):
+                            try:
+                                ttl_opt = int(self.current_params.get("fake_ttl", 2))
+                            except Exception:
+                                ttl_opt = 2
+                        if "seq_offset" in opts:
+                            seq_extra = int(opts.get("seq_offset", 0))
+                        elif opts.get("corrupt_sequence"):
+                            seq_extra = -10000
+                        else:
+                            seq_extra = 0
+                        specs.append(_TCPSegmentSpec(
+                            payload=payload or b"",
+                            rel_seq=int(rel_off),
+                            flags=int(flags) & 0xFF,
+                            ttl=(int(ttl_opt) if ttl_opt is not None else None),
+                            corrupt_tcp_checksum=bool(opts.get("corrupt_tcp_checksum")),
+                            add_md5sig_option=bool(opts.get("add_md5sig_option")),
+                            seq_extra=seq_extra,
+                            delay_ms_after=int(opts.get("delay_ms", base_delay_ms)) if i < total - 1 else 0
+                        ))
+                    ok = self._packet_sender.send_tcp_segments(
+                        w, original_packet, specs,
+                        window_div=int(self.current_params.get("window_div", 8)) if hasattr(self, "current_params") else 8,
+                        ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
+                    )
+                    if ok:
+                        try:
+                            with self._tlock:
+                                if segments:
+                                    self._telemetry["aggregate"]["segments_sent"] += len(segments)
+                                    tgt = original_packet.dst_addr
+                                    per = self._telemetry["per_target"][tgt]
+                                    per["segments_sent"] += len(segments)
+                                    for s in segments:
+                                        if len(s) >= 2:
+                                            rel_off = s[1]
+                                            self._telemetry["seq_offsets"][int(rel_off)] += 1
+                                            per["seq_offsets"][int(rel_off)] += 1
+                                    real_ttl = int(bytearray(original_packet.raw)[8])
+                                    self._telemetry["ttls"]["real"][real_ttl] += 1
+                                    per["ttls_real"][real_ttl] += 1
+                        except Exception:
+                            pass
+                    return ok
+            except Exception as e:
+                try:
+                    self.logger.error(f"_send_attack_segments shim error: {e}", exc_info=getattr(self, "debug", False))
+                except Exception:
+                    pass
+            return BypassEngine._send_attack_segments_orig(self, original_packet, w, segments)
+        BypassEngine._send_attack_segments = _send_attack_segments_patched
+
+    # Патчим _send_udp_segments
+    if hasattr(BypassEngine, "_send_udp_segments") and not hasattr(BypassEngine, "_send_udp_segments_orig"):
+        BypassEngine._send_udp_segments_orig = BypassEngine._send_udp_segments
+        def _send_udp_segments_patched(self, original_packet, w, segments):
+            try:
+                if hasattr(self, "_packet_sender") and self._packet_sender:
+                    ok = self._packet_sender.send_udp_datagrams(
+                        w, original_packet, segments or [],
+                        ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
+                    )
+                    return ok
+            except Exception as e:
+                try:
+                    self.logger.error(f"_send_udp_segments shim error: {e}", exc_info=getattr(self, "debug", False))
+                except Exception:
+                    pass
+            return BypassEngine._send_udp_segments_orig(self, original_packet, w, segments)
+        BypassEngine._send_udp_segments = _send_udp_segments_patched
+
+except Exception as _shim_e:
+    # Если что-то пошло не так — ничего не ломаем, оставляем старую реализацию
+    pass
+
+# === End of shim ===

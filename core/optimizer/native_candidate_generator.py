@@ -15,6 +15,7 @@ class NativeCandidateGenerator:
     def generate(self, kb_recs: Optional[Dict[str, Any]] = None,
                  telemetry_hint: Optional[Dict[str, Any]] = None,
                  count: int = 6) -> List[Dict[str, Any]]:
+        # Базовые значения из KB
         base = []
         split_pos = 76
         overlap = 336
@@ -26,26 +27,48 @@ class NativeCandidateGenerator:
             if fm:
                 fool = fm if isinstance(fm, list) else [fm]
 
-        # Эксплуатация: fakeddisorder и multisplit вокруг KB
+        # Эксплуатация вокруг KB
         base.extend([
             {"type": "fakeddisorder", "params": {"split_pos": split_pos, "overlap_size": overlap, "ttl": 1, "fooling": fool}},
             {"type": "multisplit", "params": {"positions": [6, 14, 26], "ttl": 2, "fooling": fool}},
         ])
 
-        # Исследование: вариации
-        cand = []
-        for _ in range(count - len(base)):
+        # Исследование (микро-вариации)
+        exploratory = []
+        while len(exploratory) + len(base) < count * 2:
             if random.random() < 0.5:
                 s = max(2, split_pos + random.choice([-8, -4, 0, 4, 8]))
-                o = max(8, min(overlap + random.choice([-64, -32, 0, 32, 64]), 512))
+                o = max(8, min(overlap + random.choice([-64, -32, 0, 32, 64]), 1024))
                 t = random.choice([1,2,3,4])
                 fl = fool[:]
-                if random.random() < 0.3:
-                    if "badseq" not in fl: fl.append("badseq")
-                cand.append({"type": "fakeddisorder", "params": {"split_pos": s, "overlap_size": o, "ttl": t, "fooling": fl}})
+                if random.random() < 0.3 and "badseq" not in fl:
+                    fl.append("badseq")
+                exploratory.append({"type": "fakeddisorder", "params": {"split_pos": s, "overlap_size": o, "ttl": t, "fooling": fl}})
             else:
-                positions = [6, 14, 26]
+                p0 = random.choice([4,6,8,10])
                 gap = random.choice([4,6,8,10,12])
-                positions = [positions[0], positions[0]+gap, positions[0]+2*gap]
-                cand.append({"type": "multisplit", "params": {"positions": positions, "ttl": random.choice([2,3]), "fooling": fool}})
-        return base + cand[:max(0, count - len(base))]
+                positions = [p0, p0+gap, p0+2*gap]
+                exploratory.append({"type": "multisplit", "params": {"positions": positions, "ttl": random.choice([2,3]), "fooling": fool}})
+
+        # ε-greedy: с вероятностью (1-ε) отдаём больше exploitation, с ε — exploration
+        if random.random() < (1.0 - self.epsilon):
+            pool = base + exploratory[: max(0, count - len(base))]
+        else:
+            pool = exploratory + base
+
+        # Упрощённая UCT-подобная переоценка по телеметрии если доступна
+        # Ожидаем в telemetry_hint ключи: success_by_type: {attack_type: rate}, avg_latency_by_type: {attack_type: ms}
+        def score(c):
+            a_type = c.get("type")
+            succ = 0.0
+            lat = 0.0
+            if telemetry_hint:
+                succ = float(telemetry_hint.get("success_by_type", {}).get(a_type, 0.0))
+                lat = float(telemetry_hint.get("avg_latency_by_type", {}).get(a_type, 0.0))
+            # Больше успеха и ниже задержка — выше score
+            return succ - 0.0005 * lat
+
+        pool.sort(key=score, reverse=True)
+
+        # Возвращаем top-N
+        return pool[:count]

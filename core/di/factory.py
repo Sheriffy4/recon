@@ -100,8 +100,9 @@ class ServiceFactory:
                 return RealEffectivenessTester(
                     timeout=config.effectiveness_tester.timeout,
                     max_retries=config.effectiveness_tester.max_retries,
+                    engine_config=EngineConfig(debug=config.debug_enabled),
+                    engine_override=getattr(config.effectiveness_tester, "engine_override", None),
                 )
-
             container.register_singleton(
                 IEffectivenessTester, factory=create_effectiveness_tester_factory
             )
@@ -140,8 +141,9 @@ class ServiceFactory:
                 return RealEffectivenessTester(
                     timeout=config.effectiveness_tester.timeout,
                     max_retries=config.effectiveness_tester.max_retries,
+                    engine_config=EngineConfig(debug=config.debug_enabled),
+                    engine_override=getattr(config.effectiveness_tester, "engine_override", None),
                 )
-
             container.register_singleton(
                 IEffectivenessTester, factory=create_effectiveness_tester_factory
             )

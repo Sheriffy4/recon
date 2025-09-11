@@ -78,7 +78,7 @@ def create_manual_fingerprint_engine(domain_ip: str, port: int):
 
 
 async def create_strategy_generator_from_di(
-    cli_integration, fingerprint_dict: Dict[str, Any], args
+    cli_integration, fingerprint_dict: Dict[str, Any], args, telemetry_hint: Optional[Dict[str, Any]] = None
 ):
     """
     Create strategy generator from DI for specific fingerprint.
@@ -88,7 +88,7 @@ async def create_strategy_generator_from_di(
     if cli_integration:
         try:
             return await cli_integration.create_strategy_generator_for_fingerprint(
-                fingerprint_dict
+                fingerprint_dict, telemetry_hint
             )
         except Exception as e:
             LOG.warning(f"Failed to create strategy generator from DI: {e}")

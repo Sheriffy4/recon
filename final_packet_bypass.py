@@ -14,24 +14,43 @@ import os
 import json
 from datetime import datetime
 from typing import List, Tuple
+from core.bypass.techniques.primitives import BypassTechniques
+import warnings
 
+warnings.warn(
+    "final_packet_bypass.AdvancedBypassTechniques is deprecated; use core.bypass.techniques.primitives.BypassTechniques",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-class AdvancedBypassTechniques:
-    """Продвинутые техники обхода DPI из zapret и engine.py."""
+class AdvancedBypassTechniques(BypassTechniques):
+    """Продвинутые техники обхода DPI из zapret и engine.py.
+    Наследуется от единых примитивов; переопределяем только уникальные/специфичные методы.
+    """
 
     @staticmethod
     def apply_fakeddisorder(
         payload: bytes, split_pos: int = 3
     ) -> List[Tuple[bytes, int]]:
-        """Техника fake disorder - отправляем части в обратном порядке."""
+        """Техника fake disorder - отправляем части в обратном порядке (семантика final_packet_bypass)."""
         if split_pos >= len(payload):
             return [(payload, 0)]
-
         part1 = payload[:split_pos]
         part2 = payload[split_pos:]
-
-        # Возвращаем в обратном порядке: сначала part2, потом part1
         return [(part2, split_pos), (part1, 0)]
+
+    @staticmethod
+    def apply_badseq_fooling(
+        packet_data: bytearray, seq_offset: int = -10000
+    ) -> bytearray:
+        """Применяет bad sequence number."""
+        ip_header_len = (packet_data[0] & 0x0F) * 4
+        tcp_seq_pos = ip_header_len + 4
+        if len(packet_data) > tcp_seq_pos + 3:
+            current_seq = struct.unpack("!I", packet_data[tcp_seq_pos : tcp_seq_pos + 4])[0]
+            new_seq = (current_seq + seq_offset) & 0xFFFFFFFF
+            packet_data[tcp_seq_pos : tcp_seq_pos + 4] = struct.pack("!I", new_seq)
+        return packet_data
 
     @staticmethod
     def apply_multisplit(
@@ -134,22 +153,7 @@ class AdvancedBypassTechniques:
 
         return packet_data
 
-    @staticmethod
-    def apply_badseq_fooling(
-        packet_data: bytearray, seq_offset: int = -10000
-    ) -> bytearray:
-        """Применяет bad sequence number."""
-        ip_header_len = (packet_data[0] & 0x0F) * 4
-        tcp_seq_pos = ip_header_len + 4
-
-        if len(packet_data) > tcp_seq_pos + 3:
-            current_seq = struct.unpack(
-                "!I", packet_data[tcp_seq_pos : tcp_seq_pos + 4]
-            )[0]
-            new_seq = (current_seq + seq_offset) & 0xFFFFFFFF
-            packet_data[tcp_seq_pos : tcp_seq_pos + 4] = struct.pack("!I", new_seq)
-
-        return packet_data
+    
 
     @staticmethod
     def apply_md5sig_fooling(packet_data: bytearray) -> bytearray:
@@ -169,19 +173,14 @@ class AdvancedBypassTechniques:
 
     @staticmethod
     def apply_ipfrag(payload: bytes, frag_size: int = 24) -> List[bytes]:
-        """Техника IP fragmentation."""
+        """Техника IP fragmentation (упрощенная версия)."""
         fragments = []
         pos = 0
         frag_id = random.randint(1000, 65535)
-
         while pos < len(payload):
             chunk = payload[pos : pos + frag_size]
-
-            # Создаем IP фрагмент (упрощенная версия)
-            # В реальности нужно правильно устанавливать флаги фрагментации
             fragments.append(chunk)
             pos += frag_size
-
         return fragments
 
     @staticmethod
