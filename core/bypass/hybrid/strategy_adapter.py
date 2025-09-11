@@ -134,6 +134,10 @@ class StrategyAdapter:
         if params.get('dpi_desync_autottl') is not None:
             task_params['autottl'] = int(params.get('dpi_desync_autottl'))
 
+        # Handle repeats parameter
+        if params.get('dpi_desync_repeats') is not None:
+            task_params['repeats'] = int(params.get('dpi_desync_repeats'))
+
         # Handle overlap
         if params.get('dpi_desync_split_seqovl'):
             task_params['overlap_size'] = params.get('dpi_desync_split_seqovl')

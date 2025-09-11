@@ -161,6 +161,15 @@ class TechniqueRegistry:
         self.debug = debug
         self.logger = logging.getLogger(self.__class__.__name__)
         self._techniques: Dict[str, IBypassTechnique] = {}
+
+        # Add exec handlers for backward compatibility with tests
+        self._exec_handlers = {}
+        try:
+            from core.bypass.attacks.exec_handlers import EXEC_HANDLERS
+            self._exec_handlers.update(EXEC_HANDLERS)
+        except Exception:
+            pass
+
         self._register_default_techniques()
 
     def _register_default_techniques(self):

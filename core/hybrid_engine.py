@@ -10,7 +10,7 @@ import random
 import hashlib
 from typing import Dict, List, Tuple, Optional, Set, Any, Union
 from urllib.parse import urlparse
-from core.bypass_engine import BypassEngine
+from core.bypass.engine.factory import BypassEngineFactory
 from core.zapret_parser import ZapretStrategyParser
 from core.bypass.attacks.alias_map import normalize_attack_name
 from core.bypass.types import BlockType
@@ -210,13 +210,14 @@ class HybridEngine:
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
 
-        class _EngineFactoryShim:
-            def __init__(self, debug: bool):
-                self.debug = debug
-            def create_best_engine(self, engine_override: Optional[str] = None):
-                return BypassEngine(debug=self.debug)
-        factory = _EngineFactoryShim(debug=self.debug)
-        bypass_engine = factory.create_best_engine(engine_override=engine_override)
+        factory = BypassEngineFactory()
+        bypass_engine = factory.create_engine(
+            debug=self.debug,
+            engine_type=engine_override
+        )
+        if not bypass_engine:
+            LOG.error("Failed to create bypass engine, aborting test.")
+            return ('ENGINE_CREATION_FAILED', 0, len(test_sites), 0.0)
         LOG.info(f"Using engine: {bypass_engine.__class__.__name__} (override={engine_override})")
 
         if hasattr(self, "adaptive_controller") and getattr(self, "adaptive_controller"):

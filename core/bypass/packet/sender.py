@@ -130,9 +130,9 @@ class PacketSender:
             return False
 
     def send_fake_packet(self, w: Any, original_packet: Any,
-                        fake_payload: bytes = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
-                        ttl: int = 2,
-                        fooling: List[str] = None) -> bool:
+                    fake_payload: bytes = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n",
+                    ttl: int = 2,
+                    fooling: List[str] = None) -> bool:
         """
         Send a fake packet with specified fooling techniques.
 
@@ -240,6 +240,22 @@ class PacketSender:
         except Exception as e:
             self.logger.error(f"Unexpected send error: {e}", exc_info=self.debug)
             self._stats['send_errors'] += 1
+            return False
+
+    def is_injected(self, packet: Any) -> bool:
+        """
+        Check if packet is our own injection to avoid loops.
+
+        Args:
+            packet: Packet object to check
+
+        Returns:
+            True if packet was injected by us
+        """
+        try:
+            pkt_mark = getattr(packet, "mark", 0)
+            return pkt_mark == self.inject_mark
+        except Exception:
             return False
 
     def get_stats(self) -> Dict[str, int]:
