@@ -751,11 +751,21 @@ if platform.system() == "Windows":
                 with pydivert.WinDivert(filter_str, priority=1000) as w:
                     # Увеличим очереди WinDivert для снижения вероятности таймаутов 258
                     try:
-                        from pydivert.windivert import WinDivertParam
-                        w.set_param(WinDivertParam.QueueLen, 8192)
-                        w.set_param(WinDivertParam.QueueTime, 2048)       # usec
-                        w.set_param(WinDivertParam.QueueSize, 64 * 1024)  # KB
-                        self.logger.debug("WinDivert queue params set: Len=8192, Time=2048, Size=64KB")
+                        # Робастный импорт для разных версий pydivert
+                        WinDivertParam = getattr(pydivert, "WinDivertParam", None)
+                        if WinDivertParam is None:
+                            try:
+                                from pydivert import windivert as _wd
+                                WinDivertParam = getattr(_wd, "WinDivertParam", None)
+                            except Exception:
+                                WinDivertParam = None
+                        if WinDivertParam:
+                            w.set_param(WinDivertParam.QueueLen, 8192)
+                            w.set_param(WinDivertParam.QueueTime, 2048)       # usec
+                            w.set_param(WinDivertParam.QueueSize, 64 * 1024)  # KB
+                            self.logger.debug("WinDivert queue params set: Len=8192, Time=2048, Size=64KB")
+                        else:
+                            self.logger.debug("WinDivertParam not available in this pydivert version")
                     except Exception as e:
                         self.logger.debug(f"WinDivert set_param failed: {e}")
 
@@ -915,13 +925,26 @@ if platform.system() == "Windows":
                 and (payload[5] == 1)
             )
 
-        def _is_udp(self, packet: pydivert.Packet) -> bool:
-            """Проверяет, является ли пакет UDP пакетом."""
-            return packet.protocol == 17
+        def _proto(self, packet) -> int:
+            """Нормализованный номер протокола (иногда приходит tuple)."""
+            p = getattr(packet, "protocol", None)
+            if isinstance(p, tuple) and p:
+                try:
+                    return int(p[0])
+                except Exception:
+                    return 0
+            try:
+                return int(p)
+            except Exception:
+                return 0
 
-        def _is_tcp(self, packet: pydivert.Packet) -> bool:
+        def _is_udp(self, packet) -> bool:
+            """Проверяет, является ли пакет UDP пакетом."""
+            return self._proto(packet) == 17
+
+        def _is_tcp(self, packet) -> bool:
             """Проверяет, является ли пакет TCP пакетом."""
-            return packet.protocol == 6
+            return self._proto(packet) == 6
 
         def apply_bypass(
             self, packet: pydivert.Packet, w: pydivert.WinDivert, strategy_task: Dict
@@ -993,7 +1016,7 @@ if platform.system() == "Windows":
                 # --- Конец логики TTL ---
 
                 self.logger.info(f"\uD83C\uDFAF Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
-                self.logger.debug(f"Packet protocol: {packet.protocol}, Is UDP: {self._is_udp(packet)}") # Added debug log
+                self.logger.debug(f"Packet protocol: {self._proto(packet)}, Is UDP: {self._is_udp(packet)}")  # normalized log
 
                 payload = bytes(packet.payload)
                 success = False
@@ -1067,56 +1090,42 @@ if platform.system() == "Windows":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
 
                 if task_type == "fakeddisorder":
-                # Проверяем флаг simple ДО forced_nofallback
-                is_simple = params.get("simple", False) or params.get("force_simple", False)
-                forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
-                
-                # Simple or forced two-packet fakeddisorder path
-                try:
-                    if is_simple or forced_nofallback:  # Обрабатываем simple первым
-                        if is_simple:
-                            self.logger.info("Simple mode requested: using two-packet fakeddisorder")
-                        elif forced_nofallback:
-                            self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
-                            
-                        payload = bytes(packet.payload)
-                        split_pos = int(params.get("split_pos", 76))
-                        overlap = int(params.get("overlap_size", 336))
-                        ttl_simple_src = params.get("fake_ttl", params.get("ttl", self.current_params.get("fake_ttl", 1)))
+                    forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
+                    # Простая (или принудительная) ветка без калибратора
+                    is_simple = forced_nofallback or bool(params.get("simple", False) or params.get("force_simple", False))
+                    if is_simple:
                         try:
-                            ttl_simple = int(ttl_simple_src)
+                            if forced_nofallback:
+                                self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
+                            payload = bytes(packet.payload)
+                            split_pos = int(params.get("split_pos", 76))
+                            overlap = int(params.get("overlap_size", 336))
+                            ttl_simple_src = params.get("fake_ttl", params.get("ttl", self.current_params.get("fake_ttl", 1)))
+                            try:
+                                ttl_simple = int(ttl_simple_src)
+                            except Exception:
+                                ttl_simple = int(self.current_params.get("fake_ttl", 1))
+                            fooling_list = params.get("fooling", []) or []
+                            if isinstance(fooling_list, str):
+                                fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
+                            segs = BypassTechniques.apply_fakeddisorder(
+                                payload,
+                                split_pos=split_pos,
+                                overlap_size=overlap,
+                                fake_ttl=ttl_simple,
+                                fooling_methods=fooling_list
+                            )
+                            if self._send_attack_segments(packet, w, segs):
+                                self.logger.debug("Simple/forced fakeddisorder path succeeded")
+                                return
+                            if forced_nofallback:
+                                # В режиме принудительной стратегии не используем калибратор/фоллбеки
+                                w.send(packet)
+                                return
                         except Exception:
-                            ttl_simple = int(self.current_params.get("fake_ttl", 1))
-
-                        fooling_list = params.get("fooling", []) or []
-                        if isinstance(fooling_list, str):
-                            fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
-
-                        # Use primitives.apply_fakeddisorder
-                        segs = BypassTechniques.apply_fakeddisorder(
-                            payload,
-                            split_pos=split_pos,
-                            overlap_size=overlap,
-                            fake_ttl=ttl_simple,
-                            fooling_methods=fooling_list
-                        )
-
-                        # Используем _send_attack_segments вместо _send_segments для поддержки opts
-                        if self._send_attack_segments(packet, w, segs):
-                            self.logger.debug("Simple/forced fakeddisorder path succeeded")
-                            return
-                        else:
-                            # Если не удалось отправить, переадресуем оригинал
-                            w.send(packet)
-                            return
-                except Exception as e:
-                    self.logger.error(f"Simple fakeddisorder failed: {e}")
-                    if is_simple or forced_nofallback:
-                        w.send(packet)
-                        return
-                
-                # Если мы здесь и simple=True не был установлен, запускаем калибратор
-                if not is_simple and not forced_nofallback:
+                            if forced_nofallback:
+                                w.send(packet)
+                                return
                     # --- Логика с калибратором и ранней остановкой ---
                     flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
                     if flow_id in self._active_flows:
@@ -1564,6 +1573,76 @@ if platform.system() == "Windows":
                 except Exception:
                     pass
 
+        def _fix_tcp_checksum(self, pkt_bytes: bytes) -> bytes:
+            """
+            Пересчитывает IPv4 и TCP checksum для готового кадра (IP+TCP+payload).
+            """
+            try:
+                raw = bytearray(pkt_bytes)
+                ip_hl = (raw[0] & 0x0F) * 4
+                if ip_hl < 20 or len(raw) < ip_hl + 20:
+                    return bytes(raw)
+                # total length
+                raw[2:4] = struct.pack("!H", len(raw))
+                # IP checksum
+                raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(raw[:ip_hl])
+                raw[10:12] = struct.pack("!H", ip_csum)
+                # TCP checksum
+                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                if tcp_hl < 20 or len(raw) < ip_hl + tcp_hl:
+                    return bytes(raw)
+                tcp_start = ip_hl
+                tcp_end = ip_hl + tcp_hl
+                raw[tcp_start + 16: tcp_start + 18] = b"\x00\x00"
+                tcp_csum = self._tcp_checksum(raw[:ip_hl], raw[tcp_start:tcp_end], raw[tcp_end:])
+                raw[tcp_start + 16: tcp_start + 18] = struct.pack("!H", tcp_csum)
+                return bytes(raw)
+            except Exception:
+                return pkt_bytes
+
+        def _extract_sni(self, payload: Optional[bytes]) -> Optional[str]:
+            """
+            Безопасный парсер SNI из TLS ClientHello. Возвращает None при любой ошибке.
+            """
+            try:
+                if not payload or len(payload) < 43:
+                    return None
+                if payload[0] != 0x16:
+                    return None
+                if payload[5] != 0x01:
+                    return None
+                pos = 9
+                pos += 2 + 32
+                if pos + 1 > len(payload): return None
+                sid_len = payload[pos]; pos += 1 + sid_len
+                if pos + 2 > len(payload): return None
+                cs_len = int.from_bytes(payload[pos:pos+2], "big"); pos += 2 + cs_len
+                if pos + 1 > len(payload): return None
+                comp_len = payload[pos]; pos += 1 + comp_len
+                if pos + 2 > len(payload): return None
+                ext_len = int.from_bytes(payload[pos:pos+2], "big")
+                ext_start = pos + 2; ext_end = min(len(payload), ext_start + ext_len)
+                s = ext_start
+                while s + 4 <= ext_end:
+                    etype = int.from_bytes(payload[s:s+2], "big")
+                    elen = int.from_bytes(payload[s+2:s+4], "big")
+                    epos = s + 4
+                    if epos + elen > ext_end: break
+                    if etype == 0 and elen >= 5:
+                        list_len = int.from_bytes(payload[epos:epos+2], "big")
+                        npos = epos + 2
+                        if npos + list_len <= epos + elen and npos + 3 <= len(payload):
+                            ntype = payload[npos]
+                            nlen = int.from_bytes(payload[npos+1:npos+3], "big")
+                            nstart = npos + 3
+                            if ntype == 0 and nstart + nlen <= len(payload):
+                                return payload[nstart:nstart+nlen].decode("idna", errors="strict")
+                    s = epos + elen
+                return None
+            except Exception:
+                return None
+
         def _send_udp_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]) -> bool:
             """
             Отправляет список UDP дейтаграмм, построенных на основе заголовков исходного пакета.
@@ -1638,12 +1717,12 @@ if platform.system() == "Windows":
                 self.logger.error(f"UDP send error: {e}", exc_info=self.debug)
                 return False
 
-        def _send_fake_packet(self, original_packet, w, ttl: Optional[int] = 64):
+        def _send_fake_packet(self, original_packet, w, ttl: Optional[int] = None):
             """
             Send fake packet with specified TTL.
 
             CRITICAL TTL FIX: Added comprehensive TTL logging and validation.
-            Changed default TTL from 2 to 64 for better compatibility.
+            Default TTL now taken from current_params['fake_ttl'] if not provided.
             """
             try:
                 raw_data = bytearray(original_packet.raw)
@@ -1653,11 +1732,11 @@ if platform.system() == "Windows":
                 fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
                 seg_raw = bytearray(raw_data[:payload_start] + fake_payload[:20])
                 # TTL
-                if ttl is not None and 1 <= ttl <= 255:
+                if isinstance(ttl, int) and 1 <= ttl <= 255:
                     seg_raw[8] = ttl
                     self.logger.debug(f"🔧 Set fake packet TTL to {ttl}")
                 else:
-                    # fallback: используем текущие вычисленные параметры, либо безопасный 2
+                    # fallback: используем текущие вычисленные параметры
                     fallback_ttl = int(self.current_params.get("fake_ttl", 2))
                     seg_raw[8] = fallback_ttl
                     self.logger.warning(f"⚠️ Invalid TTL {ttl}, using fallback {fallback_ttl}")
@@ -1694,13 +1773,13 @@ if platform.system() == "Windows":
                 self.logger.debug(f"Ошибка отправки fake packet: {e}")
 
         def _send_fake_packet_with_badsum(
-            self, original_packet, w, ttl: Optional[int] = 64
+            self, original_packet, w, ttl: Optional[int] = None
         ):
             """
             Send fake packet with bad checksum and specified TTL.
 
             CRITICAL TTL FIX: Added comprehensive TTL logging and validation.
-            Changed default TTL from 2 to 64 for better compatibility.
+            Default TTL now taken from current_params['fake_ttl'] if not provided.
             """
             try:
                 raw_data = bytearray(original_packet.raw)
@@ -1710,7 +1789,7 @@ if platform.system() == "Windows":
                 fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
                 seg_raw = bytearray(raw_data[:payload_start] + fake_payload[:20])
                 # TTL
-                if ttl is not None and 1 <= ttl <= 255:
+                if isinstance(ttl, int) and 1 <= ttl <= 255:
                     seg_raw[8] = ttl
                     self.logger.debug(f"🔧 Set fake packet (badsum) TTL to {ttl}")
                 else:
@@ -1745,13 +1824,13 @@ if platform.system() == "Windows":
                 self.logger.debug(f"Ошибка fake packet with badsum: {e}")
 
         def _send_fake_packet_with_md5sig(
-            self, original_packet, w, ttl: Optional[int] = 64
+            self, original_packet, w, ttl: Optional[int] = None
         ):
             """
             Send fake packet with MD5 signature and specified TTL.
 
             CRITICAL TTL FIX: Added comprehensive TTL logging and validation.
-            Changed default TTL from 3 to 64 for better compatibility.
+            Default TTL now taken from current_params['fake_ttl'] if not provided.
             """
             try:
                 raw_data = bytearray(original_packet.raw)
@@ -1761,7 +1840,7 @@ if platform.system() == "Windows":
                 fake_payload = b"EHLO example.com\r\n"
                 seg_raw = bytearray(raw_data[:payload_start] + fake_payload)
                 # TTL
-                if ttl is not None and 1 <= ttl <= 255:
+                if isinstance(ttl, int) and 1 <= ttl <= 255:
                     seg_raw[8] = ttl
                     self.logger.debug(f"🔧 Set fake packet (md5sig) TTL to {ttl}")
                 else:
@@ -1796,7 +1875,7 @@ if platform.system() == "Windows":
                 self.logger.debug(f"Ошибка fake packet with md5sig: {e}")
 
         def _send_fake_packet_with_badseq(
-            self, original_packet, w, ttl: Optional[int] = 64
+            self, original_packet, w, ttl: Optional[int] = None
         ):
             """
             Send fake packet with bad sequence number and specified TTL.
@@ -1811,7 +1890,7 @@ if platform.system() == "Windows":
                 fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
                 seg_raw = bytearray(raw_data[:payload_start] + fake_payload[:20])
                 # TTL
-                if ttl is not None and 1 <= ttl <= 255:
+                if isinstance(ttl, int) and 1 <= ttl <= 255:
                     seg_raw[8] = ttl
                     self.logger.debug(f"🔧 Set fake packet (badseq) TTL to {ttl}")
                 else:
@@ -2122,26 +2201,32 @@ if platform.system() == "Windows":
                     if opts.get("is_fake"):
                         seg_payload = b"\xDE\xAD\xBE\xEF" + seg_payload
 
-                    # Формируем пакет
-                    packet_data = bytes(ip_hdr + tcp_hdr + seg_payload)
-                    # Обнуляем контрольную сумму TCP, если требуется
+                    # Формируем пакет и корректируем длины/чексамы
+                    seg_raw = bytearray(ip_hdr + tcp_hdr + seg_payload)
+                    # Total Length
+                    seg_raw[2:4] = struct.pack("!H", len(seg_raw))
+                    # IP checksum
+                    seg_raw[10:12] = b"\x00\x00"
+                    ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
+                    seg_raw[10:12] = struct.pack("!H", ip_csum)
+                    # TCP checksum (good)
+                    tcp_hl_eff = ((seg_raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                    tcp_start = ip_hl
+                    tcp_end = ip_hl + tcp_hl_eff
+                    good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                    # Порча checksum при необходимости (zapret-style)
                     if opts.get("corrupt_tcp_checksum") or opts.get("add_md5sig_option"):
-                        tcp_checksum_pos = ip_hl + 16
-                        packet_data = bytearray(packet_data)
-                        packet_data[tcp_checksum_pos : tcp_checksum_pos + 2] = b"\x00\x00"
-                        packet_data = bytes(packet_data)
+                        bad_csum = good_csum ^ 0xFFFF
+                        seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
                     else:
-                        # Пересчитываем контрольную сумму TCP
-                        packet_data = self._fix_tcp_checksum(packet_data)
+                        seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum)
 
-                    # Отправляем пакет
-                    try:
-                        w.send(pydivert.Packet(packet_data))
-                        if opts.get("delay_ms"):
-                            time.sleep(opts["delay_ms"] / 1000.0)
-                    except Exception as e:
-                        self.logger.error(f"Failed to send segment: {e}")
+                    # Безопасная отправка с маркировкой
+                    if not self._safe_send_packet(w, bytes(seg_raw), original_packet):
+                        self.logger.error("Failed to send segment")
                         return False
+                    if opts.get("delay_ms"):
+                        time.sleep(opts["delay_ms"] / 1000.0)
 
                 self.logger.debug(f"✨ Отправлено {len(segments)} сегментов (heavy/options)")
                 return True
