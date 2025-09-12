@@ -1563,7 +1563,6 @@ if platform.system() == "Windows":
                             tgt = original_packet.dst_addr
                             per = self._telemetry["per_target"][tgt]
                             per["segments_sent"] += len(segments)
-                            # учёт seq_offsets и реального TTL
                             for seg_payload, rel_off in segments:
                                 self._telemetry["seq_offsets"][int(rel_off)] += 1
                                 per["seq_offsets"][int(rel_off)] += 1
@@ -2092,16 +2091,6 @@ if platform.system() == "Windows":
             Recipe mode sender: принимает segments как список кортежей
             (payload: bytes, rel_off: int, opts: dict) и конструирует
             L3/L4 сегменты с учётом опций.
-
-            Поддерживаемые ключи в opts:
-              - ttl: int (1..255) — принудительный TTL для сегмента
-              - is_fake: bool — помечает сегмент как «fake» (TTL по self.current_params['fake_ttl'], если ttl не задан)
-              - corrupt_tcp_checksum: bool — инвертировать TCP checksum (zapret badsum)
-              - add_md5sig_option: bool — инъекция TCP MD5SIG (kind=19,len=18) при возможности
-              - corrupt_sequence: bool — испортить SEQ (если seq_offset не задан — по умолчанию -10000)
-              - seq_offset: int — дополнительный сдвиг SEQ относительно rel_off
-              - tcp_flags: int — явная маска TCP флагов (по умолчанию ACK, а для последнего сегмента добавляется PSH)
-              - delay_ms: int — задержка после отправки сегмента (мс)
             """
             try:
                 raw = bytearray(original_packet.raw)
@@ -2116,7 +2105,6 @@ if platform.system() == "Windows":
                 if tcp_hl < 20:
                     tcp_hl = 20
 
-                payload_start = ip_hl + tcp_hl
                 base_seq = struct.unpack("!I", raw[ip_hl+4:ip_hl+8])[0]
                 base_ack = struct.unpack("!I", raw[ip_hl+8:ip_hl+12])[0]
                 base_win = struct.unpack("!H", raw[ip_hl+14:ip_hl+16])[0]
