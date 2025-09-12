@@ -12,6 +12,57 @@ if project_root not in sys.path:
 from core.calibration.calibrator import Calibrator, CalibCandidate
 
 class TestCalibrator(unittest.TestCase):
+    def test_estimate_split_pos_from_ch_short(self):
+        payload = b"A" * 40
+        sp = Calibrator.estimate_split_pos_from_ch(payload)
+        self.assertTrue(20 <= sp <= 40)
+
+    def test_estimate_split_pos_from_ch_long(self):
+        payload = b"A" * 100
+        sp = Calibrator.estimate_split_pos_from_ch(payload)
+        self.assertEqual(sp, 76)
+
+    def test_estimate_overlap_size(self):
+        ov = Calibrator.estimate_overlap_size(50, 60, 40)
+        self.assertEqual(ov, 40)
+        ov2 = Calibrator.estimate_overlap_size(200, 300, 336)
+        self.assertEqual(ov2, 200)
+        ov3 = Calibrator.estimate_overlap_size(0, 10, 5)
+        self.assertEqual(ov3, 0)
+
+    def test_prepare_candidates(self):
+        payload = b"A" * 100
+        candidates = Calibrator.prepare_candidates(payload)
+        self.assertTrue(len(candidates) > 0)
+        for c in candidates:
+            self.assertTrue(c.split_pos > 0)
+            self.assertTrue(c.overlap_size > 0)
+
+    def test_sweep_success(self):
+        payload = b"A" * 100
+        candidates = [CalibCandidate(50, 40), CalibCandidate(60, 30)]
+        ttl_list = [1]
+        delays = [2]
+        called = []
+        def send_func(cand, t, d):
+            called.append((cand, t, d))
+        def wait_func(timeout=0.25):
+            return "ok"
+        result = Calibrator.sweep(payload, candidates, ttl_list, delays, send_func, wait_func)
+        self.assertEqual(result, candidates[0])
+        self.assertEqual(called[0][0], candidates[0])
+
+    def test_sweep_time_budget(self):
+        payload = b"A" * 100
+        candidates = [CalibCandidate(50, 40)]
+        ttl_list = [1]
+        delays = [2]
+        def send_func(cand, t, d):
+            pass
+        def wait_func(timeout=0.25):
+            return None
+        result = Calibrator.sweep(payload, candidates, ttl_list, delays, send_func, wait_func, time_budget_ms=1)
+        self.assertIsNone(result)
 
     def test_sweep_early_stop(self):
         """Tests that Calibrator.sweep stops early on a successful outcome."""

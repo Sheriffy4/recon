@@ -335,6 +335,114 @@ if platform.system() == "Windows":
             except Exception:
                 pass
 
+        def _fix_tcp_checksum(self, pkt_bytes: bytes) -> bytes:
+            """
+            Recalculate IPv4 header checksum and TCP checksum for a fully-built packet.
+            Assumes IPv4 + TCP, packet = IP hdr + TCP hdr + payload.
+            """
+            try:
+                raw = bytearray(pkt_bytes)
+                # IPv4 header length
+                ip_hl = (raw[0] & 0x0F) * 4
+                if ip_hl < 20 or len(raw) < ip_hl + 20:
+                    return bytes(raw)
+
+                # Set total length just in case
+                total_len = len(raw)
+                raw[2:4] = struct.pack("!H", total_len)
+
+                # IP checksum
+                raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(raw[:ip_hl])
+                raw[10:12] = struct.pack("!H", ip_csum)
+
+                # TCP header length
+                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                if tcp_hl < 20 or len(raw) < ip_hl + tcp_hl:
+                    return bytes(raw)
+
+                # TCP checksum
+                tcp_start = ip_hl
+                tcp_end = ip_hl + tcp_hl
+                raw[tcp_start + 16: tcp_start + 18] = b"\x00\x00"
+                tcp_csum = self._tcp_checksum(raw[:ip_hl], raw[tcp_start:tcp_end], raw[tcp_end:])
+                raw[tcp_start + 16: tcp_start + 18] = struct.pack("!H", tcp_csum)
+
+                return bytes(raw)
+            except Exception as e:
+                try:
+                    self.logger.debug(f"_fix_tcp_checksum failed: {e}")
+                except Exception:
+                    pass
+                return pkt_bytes
+
+        def _extract_sni(self, payload: Optional[bytes]) -> Optional[str]:
+            """
+            Very defensive TLS ClientHello SNI extractor. Returns None on any parse issue.
+            """
+            try:
+                if not payload or len(payload) < 43:
+                    return None
+                # TLS record header
+                if payload[0] != 0x16:  # handshake
+                    return None
+                # Handshake type at byte 5
+                if payload[5] != 0x01:  # ClientHello
+                    return None
+
+                # Handshake header starts at 5: type(1) + len(3)
+                pos = 9  # after hs header
+                # legacy_version(2) + random(32)
+                pos += 2 + 32
+                if pos + 1 > len(payload):
+                    return None
+
+                # session_id
+                sid_len = payload[pos]
+                pos += 1 + sid_len
+                if pos + 2 > len(payload):
+                    return None
+
+                # cipher_suites
+                cs_len = int.from_bytes(payload[pos:pos+2], "big")
+                pos += 2 + cs_len
+                if pos + 1 > len(payload):
+                    return None
+
+                # compression_methods
+                comp_len = payload[pos]
+                pos += 1 + comp_len
+                if pos + 2 > len(payload):
+                    return None
+
+                # extensions
+                ext_len = int.from_bytes(payload[pos:pos+2], "big")
+                ext_start = pos + 2
+                ext_end = min(len(payload), ext_start + ext_len)
+                s = ext_start
+                while s + 4 <= ext_end:
+                    etype = int.from_bytes(payload[s:s+2], "big")
+                    elen = int.from_bytes(payload[s+2:s+4], "big")
+                    epos = s + 4
+                    if epos + elen > ext_end:
+                        break
+                    if etype == 0 and elen >= 5:  # server_name
+                        list_len = int.from_bytes(payload[epos:epos+2], "big")
+                        npos = epos + 2
+                        if npos + list_len <= epos + elen and npos + 3 <= len(payload):
+                            ntype = payload[npos]
+                            nlen = int.from_bytes(payload[npos+1:npos+3], "big")
+                            nstart = npos + 3
+                            if ntype == 0 and nstart + nlen <= len(payload):
+                                try:
+                                    return payload[nstart:nstart+nlen].decode("idna", errors="strict")
+                                except Exception:
+                                    return None
+                    s = epos + elen
+                return None
+            except Exception:
+                return None
+        
         def _is_target_ip(self, ip_str: str, target_ips: Set[str]) -> bool:
             """
             ИСПРАВЛЕНИЕ: Улучшенная логика определения целевых IP.
@@ -884,7 +992,8 @@ if platform.system() == "Windows":
                 self.logger.info(f"TTL for REAL segments set to: {real_ttl} (from original packet)")
                 # --- Конец логики TTL ---
 
-                self.logger.info(f"🎯 Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
+                self.logger.info(f"\uD83C\uDFAF Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
+                self.logger.debug(f"Packet protocol: {packet.protocol}, Is UDP: {self._is_udp(packet)}") # Added debug log
 
                 payload = bytes(packet.payload)
                 success = False
@@ -958,51 +1067,56 @@ if platform.system() == "Windows":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
 
                 if task_type == "fakeddisorder":
-                    forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
-                    # Simple or forced two-packet fakeddisorder path
-                    try:
-                        if forced_nofallback or params.get("simple", False) or params.get("force_simple", False):
-                            if forced_nofallback:
-                                self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
-                            payload = bytes(packet.payload)
-                            split_pos = int(params.get("split_pos", 76))
-                            overlap = int(params.get("overlap_size", 336))
-                            ttl_simple_src = params.get("fake_ttl", params.get("ttl", self.current_params.get("fake_ttl", 1)))
-                            try:
-                                ttl_simple = int(ttl_simple_src)
-                            except Exception:
-                                ttl_simple = int(self.current_params.get("fake_ttl", 1))
+                # Проверяем флаг simple ДО forced_nofallback
+                is_simple = params.get("simple", False) or params.get("force_simple", False)
+                forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
+                
+                # Simple or forced two-packet fakeddisorder path
+                try:
+                    if is_simple or forced_nofallback:  # Обрабатываем simple первым
+                        if is_simple:
+                            self.logger.info("Simple mode requested: using two-packet fakeddisorder")
+                        elif forced_nofallback:
+                            self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
+                            
+                        payload = bytes(packet.payload)
+                        split_pos = int(params.get("split_pos", 76))
+                        overlap = int(params.get("overlap_size", 336))
+                        ttl_simple_src = params.get("fake_ttl", params.get("ttl", self.current_params.get("fake_ttl", 1)))
+                        try:
+                            ttl_simple = int(ttl_simple_src)
+                        except Exception:
+                            ttl_simple = int(self.current_params.get("fake_ttl", 1))
 
-                            fooling_list = params.get("fooling", []) or []
-                            if isinstance(fooling_list, str):
-                                fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
+                        fooling_list = params.get("fooling", []) or []
+                        if isinstance(fooling_list, str):
+                            fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
 
-                            left = payload[:split_pos] if split_pos < len(payload) else payload
-                            right = payload[split_pos:] if split_pos < len(payload) else b""
+                        # Use primitives.apply_fakeddisorder
+                        segs = BypassTechniques.apply_fakeddisorder(
+                            payload,
+                            split_pos=split_pos,
+                            overlap_size=overlap,
+                            fake_ttl=ttl_simple,
+                            fooling_methods=fooling_list
+                        )
 
-                            segs = []
-                            opts1 = {"is_fake": True, "ttl": max(1, min(255, int(ttl_simple))), "delay_ms": 2}
-                            if "badsum" in fooling_list:
-                                opts1["corrupt_tcp_checksum"] = True
-                            if "md5sig" in fooling_list:
-                                opts1["add_md5sig_option"] = True
-                            if "badseq" in fooling_list:
-                                opts1["corrupt_sequence"] = True
-
-                            segs.append((right, split_pos, opts1))
-                            segs.append((left, split_pos - int(overlap), {"tcp_flags": 0x18, "delay_ms": 2}))
-
-                            if self._send_attack_segments(packet, w, segs):
-                                self.logger.debug("Simple/forced fakeddisorder path succeeded")
-                                return
-                            if forced_nofallback:
-                                # Do not run calibrator/fallbacks when forced; forward original if sending failed
-                                w.send(packet)
-                                return
-                    except Exception:
-                        if forced_nofallback:
+                        # Используем _send_attack_segments вместо _send_segments для поддержки opts
+                        if self._send_attack_segments(packet, w, segs):
+                            self.logger.debug("Simple/forced fakeddisorder path succeeded")
+                            return
+                        else:
+                            # Если не удалось отправить, переадресуем оригинал
                             w.send(packet)
                             return
+                except Exception as e:
+                    self.logger.error(f"Simple fakeddisorder failed: {e}")
+                    if is_simple or forced_nofallback:
+                        w.send(packet)
+                        return
+                
+                # Если мы здесь и simple=True не был установлен, запускаем калибратор
+                if not is_simple and not forced_nofallback:
                     # --- Логика с калибратором и ранней остановкой ---
                     flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
                     if flow_id in self._active_flows:
@@ -1934,7 +2048,9 @@ if platform.system() == "Windows":
                 ipid_step = self.current_params.get("ipid_step", 2048)
                 MAX_TCP_HDR = 60
 
+                self.logger.debug(f"Attempting to send {len(segments)} segments.")
                 for i, seg in enumerate(segments):
+                    self.logger.debug(f"Processing segment {i+1}/{len(segments)}: {seg}")
                     if len(seg) == 3:
                         seg_payload, rel_off, opts = seg
                     elif len(seg) == 2:
@@ -1998,47 +2114,34 @@ if platform.system() == "Windows":
                     tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
                     if tcp_hl_new > MAX_TCP_HDR:
                         self.logger.warning(
-                            f"TCP header len {tcp_hl_new} > 60 after options. Reverting to original header."
+                            f"TCP header too long ({tcp_hl_new} > 60), skipping MD5SIG"
                         )
                         tcp_hdr = bytearray(orig_tcp_hdr)
-                        tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
-                        if tcp_hl_new < 20:
-                            tcp_hdr[12] = (5 << 4) | (tcp_hdr[12] & 0x0F)
-                            tcp_hl_new = 20
 
-                    seg_raw = bytearray(ip_hdr + tcp_hdr + seg_payload)
-                    total_len = len(seg_raw)
-                    seg_raw[2:4] = struct.pack("!H", total_len)
+                    # Добавляем маркер инъекции (0xDEADBEEF) к полезной нагрузке
+                    if opts.get("is_fake"):
+                        seg_payload = b"\xDE\xAD\xBE\xEF" + seg_payload
 
-                    # IP checksum
-                    seg_raw[10:12] = b"\x00\x00"
-                    ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
-                    seg_raw[10:12] = struct.pack("!H", ip_csum)
-
-                    # TCP checksum
-                    tcp_start = ip_hl
-                    tcp_end = ip_hl + tcp_hl_new
-                    tcp_hdr_bytes = bytes(seg_raw[tcp_start:tcp_end])
-                    payload_bytes = bytes(seg_raw[tcp_end:])
-
-                    # Порча TCP checksum (badsum): по флагу corrupt_tcp_checksum
-                    if opts.get("corrupt_tcp_checksum"):
-                        good_csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
-                        seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum ^ 0xFFFF)
+                    # Формируем пакет
+                    packet_data = bytes(ip_hdr + tcp_hdr + seg_payload)
+                    # Обнуляем контрольную сумму TCP, если требуется
+                    if opts.get("corrupt_tcp_checksum") or opts.get("add_md5sig_option"):
+                        tcp_checksum_pos = ip_hl + 16
+                        packet_data = bytearray(packet_data)
+                        packet_data[tcp_checksum_pos : tcp_checksum_pos + 2] = b"\x00\x00"
+                        packet_data = bytes(packet_data)
                     else:
-                        csum = self._tcp_checksum(seg_raw[:ip_hl], tcp_hdr_bytes, payload_bytes)
-                        seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", csum)
+                        # Пересчитываем контрольную сумму TCP
+                        packet_data = self._fix_tcp_checksum(packet_data)
 
-                    ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
-                    if not ok:
-                        self.logger.error("WinDivert send failed for segment (options). Aborting.")
+                    # Отправляем пакет
+                    try:
+                        w.send(pydivert.Packet(packet_data))
+                        if opts.get("delay_ms"):
+                            time.sleep(opts["delay_ms"] / 1000.0)
+                    except Exception as e:
+                        self.logger.error(f"Failed to send segment: {e}")
                         return False
-                    self.stats["fragments_sent"] += 1
-
-                    # Задержка между сегментами
-                    delay_ms = float(opts.get("delay_ms", self.current_params.get("delay_ms", 2)))
-                    if i < len(segments) - 1 and delay_ms > 0:
-                        time.sleep(delay_ms / 1000.0)
 
                 self.logger.debug(f"✨ Отправлено {len(segments)} сегментов (heavy/options)")
                 return True
