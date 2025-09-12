@@ -18,6 +18,17 @@ SegmentTuple = Tuple[bytes, int, Dict[str, Any]]
 
 # --- Перечисления (Enums) ---
 
+class TechniqueType(Enum):
+    FAKEDDISORDER = "fakeddisorder"
+    MULTISPLIT = "multisplit"
+    SEQOVL = "seqovl"
+    BADSUM_RACE = "badsum_race"
+    MD5SIG_RACE = "md5sig_race"
+    FAKE = "fake"
+    TLSREC_SPLIT = "tlsrec_split"
+    WSSIZE_LIMIT = "wssize_limit"
+
+TechniqueParams = Dict[str, Any]
 
 class EngineStatus(Enum):
     STOPPED = "stopped"

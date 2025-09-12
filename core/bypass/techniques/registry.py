@@ -1,7 +1,7 @@
 """Registry system for bypass techniques."""
 
 import logging
-from typing import Dict, Optional, List, Callable, Any
+from typing import Dict, Optional, List, Callable, Any, Tuple, Union
 from functools import wraps
 import inspect
 from core.bypass.types import TechniqueType, TechniqueParams
@@ -30,7 +30,7 @@ class TechniqueRegistry:
 
     def register(
         self,
-        technique_type: TechniqueType,
+        technique_type: Optional[TechniqueType],
         category: str = "general",
         description: str = "",
         supported_protocols: List[str] = None,
@@ -40,16 +40,30 @@ class TechniqueRegistry:
         """Decorator to register a technique.
 
         Usage:
-            @registry.register(TechniqueType.FAKE_DISORDER, category="segmentation")
+            @registry.register(TechniqueType.FAKE_DISORDER, category="segmentation")  # or @registry.register("fakeddisorder")
             def apply_fake_disorder(packet_data: bytes, params: TechniqueParams) -> List[Tuple[bytes, int]]:
                 ...
         """
 
         def decorator(func: Callable) -> Callable:
             sig = inspect.signature(func)
+            
+            # Handle both string and TechniqueType enum
+            if isinstance(technique_type, str):
+                technique_name = technique_type
+                # Try to find corresponding TechniqueType enum value
+                technique_enum = None
+                for tt in TechniqueType:
+                    if tt.value == technique_type:
+                        technique_enum = tt
+                        break
+            else:
+                technique_name = technique_type.value
+                technique_enum = technique_type
+            
             info = TechniqueInfo(
-                technique_type=technique_type,
-                name=technique_type.value,
+                technique_type=technique_enum,  # May be None if string doesn't match enum
+                name=technique_name,
                 category=category,
                 description=description or func.__doc__ or "",
                 implementation=func,
@@ -58,12 +72,12 @@ class TechniqueRegistry:
                 optional_params=optional_params or [],
                 signature=sig,
             )
-            self._techniques[technique_type.value] = info
+            self._techniques[technique_name] = info
             if category not in self._categories:
                 self._categories[category] = []
-            self._categories[category].append(technique_type.value)
+            self._categories[category].append(technique_name)
             self.logger.debug(
-                f"Registered technique: {technique_type.value} in category: {category}"
+                f"Registered technique: {technique_name} in category: {category}"
             )
 
             @wraps(func)
@@ -152,7 +166,7 @@ class TechniqueInfo:
 
     def __init__(
         self,
-        technique_type: TechniqueType,
+        technique_type: Union[TechniqueType, str],
         name: str,
         category: str,
         description: str,
@@ -184,7 +198,7 @@ class TechniqueInfo:
         """Convert to dictionary representation."""
         return {
             "name": self.name,
-            "type": self.technique_type.value,
+            "type": self.technique_type.value if self.technique_type else self.name,
             "category": self.category,
             "description": self.description,
             "supported_protocols": self.supported_protocols,
