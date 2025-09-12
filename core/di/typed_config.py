@@ -258,8 +258,6 @@ if PYDANTIC_AVAILABLE:
                         )
                 except Exception:
                     pass
-if eng is None:
-            self.effectiveness_tester.engine_override = None
 else:
     # Fallback to dataclasses when Pydantic is not available
     @dataclass
