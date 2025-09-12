@@ -20,9 +20,9 @@ from core.effectiveness.production_effectiveness_tester import (
 from core.bypass.engines.health_check import EngineHealthCheck
 
 if TYPE_CHECKING:
-    from recon.integration.attack_adapter import AttackAdapter
-from recon.core.bypass.attacks.registry import AttackRegistry
-from recon.core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
+    from core.integration.attack_adapter import AttackAdapter
+from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
 
 try:
     import pydivert

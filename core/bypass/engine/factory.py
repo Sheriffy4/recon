@@ -1,66 +1,42 @@
-"""Factory for creating platform-specific bypass engines."""
-
 import platform
 import logging
-from typing import Optional
+from typing import Optional, Type
 from .base_engine import IBypassEngine, EngineConfig
 
-
 class BypassEngineFactory:
-    """Factory for creating appropriate bypass engine based on platform."""
-
     @staticmethod
-    def create_engine(debug: bool = False,
-                     engine_type: Optional[str] = None) -> Optional[IBypassEngine]:
+    def create_engine(config: EngineConfig, force_engine: Optional[str] = None) -> Optional[IBypassEngine]:
         """
-        Create appropriate bypass engine for current platform.
+        Create a platform-specific bypass engine.
 
         Args:
-            debug: Enable debug mode
-            engine_type: Force specific engine type (for testing)
+            config: Engine configuration
+            force_engine: Force a specific engine implementation for testing
 
         Returns:
-            Platform-specific bypass engine or None if not supported
+            An instance of a bypass engine or None if not supported
         """
-        config = EngineConfig(debug=debug)
+        system = platform.system()
         logger = logging.getLogger("BypassEngineFactory")
 
-        # Override engine type if specified
-        if engine_type:
-            if engine_type.lower() == "windows":
-                from .windows_engine import WindowsBypassEngine
-                return WindowsBypassEngine(config)
-            elif engine_type.lower() == "linux":
-                # Future: LinuxBypassEngine
-                logger.warning("Linux engine not yet implemented")
-                return None
-            elif engine_type.lower() == "userland":
-                # Future: UserlandProxyEngine (no admin rights needed)
-                logger.warning("Userland proxy engine not yet implemented")
-                return None
+        engine_class: Optional[Type[IBypassEngine]] = None
 
-        # Auto-detect based on platform
-        system = platform.system()
-
-        if system == "Windows":
+        if force_engine == "windows" or (force_engine is None and system == "Windows"):
             try:
                 from .windows_engine import WindowsBypassEngine
-                logger.info("Creating Windows bypass engine")
-                return WindowsBypassEngine(config)
-            except ImportError as e:
-                logger.error(f"Failed to import Windows engine: {e}")
+                engine_class = WindowsBypassEngine
+            except ImportError:
+                logger.error("Failed to import WindowsBypassEngine.")
                 return None
-
-        elif system == "Linux":
-            # Future implementation
-            logger.warning("Linux bypass engine not yet implemented")
+        elif force_engine == "linux" or (force_engine is None and system == "Linux"):
+            logger.warning("Linux engine is not yet implemented.")
             return None
-
-        elif system == "Darwin":
-            # Future implementation for macOS
-            logger.warning("macOS bypass engine not yet implemented")
-            return None
-
         else:
-            logger.error(f"Unsupported platform: {system}")
+            logger.error(f"Unsupported system or forced engine: {system} / {force_engine}")
             return None
+
+        if engine_class:
+            logger.info(f"Creating instance of {engine_class.__name__}")
+            return engine_class(config)
+
+        return None

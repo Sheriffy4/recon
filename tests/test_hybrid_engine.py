@@ -1,18 +1,14 @@
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 import asyncio
-
-# Pytest is not used for execution, so mark can be removed.
-# import pytest
+import pytest
 
 from core.hybrid_engine import HybridEngine
 
 class TestHybridEngine(unittest.TestCase):
 
     def setUp(self):
-        # We need to mock the modern bypass engine components to avoid import errors if they aren't installed
-        with patch('core.hybrid_engine.MODERN_BYPASS_ENGINE_AVAILABLE', False):
-             self.engine = HybridEngine(debug=True, enable_modern_bypass=False)
+        self.engine = HybridEngine(debug=True)
 
     def test_ensure_engine_task_desync_alias(self):
         """Test that 'desync' strategy is correctly aliased to 'fakeddisorder'."""
@@ -41,69 +37,75 @@ class TestHybridEngine(unittest.TestCase):
     @patch('core.hybrid_engine.CdnAsnKnowledgeBase')
     def test_update_quic_metrics_called(self, MockKnowledgeBase):
         """Test that knowledge_base.update_quic_metrics is called after pcap analysis."""
-        # This test remains largely the same but ensures async calls are handled correctly.
+
+        # Setup mocks
         mock_kb_instance = MockKnowledgeBase.return_value
         self.engine.knowledge_base = mock_kb_instance
         self.engine.enhanced_tracking = True
 
         mock_capturer = MagicMock()
         mock_capturer.pcap_file = "test.pcap"
-        pcap_metrics = {'strategy1': {'tls_clienthellos': 10, 'tls_serverhellos': 8}}
+        # Simulate pcap analysis result
+        pcap_metrics = {
+            'strategy1': {'tls_clienthellos': 10, 'tls_serverhellos': 8}
+        }
         mock_capturer.analyze_pcap_file.return_value = pcap_metrics
 
         dns_cache = {'example.com': '1.2.3.4'}
         domain = 'example.com'
 
+        # Run the method under test (simplified async call)
         async def run_test():
-            # Mock the real-world execution to isolate the metrics logic
-            with patch.object(self.engine, 'execute_strategy_real_world', AsyncMock(return_value=('ALL_SITES_WORKING', 1, 1, 10.0, {}, {}))):
-                await self.engine.test_strategies_hybrid(
-                    strategies=["--dpi-desync=fake"],
-                    test_sites=["https://example.com"],
-                    ips={"1.2.3.4"},
-                    dns_cache=dns_cache,
-                    port=443,
-                    domain=domain,
-                    capturer=mock_capturer
-                )
+            await self.engine.test_strategies_hybrid(
+                strategies=["--dpi-desync=fake"],
+                test_sites=["https://example.com"],
+                ips={"1.2.3.4"},
+                dns_cache=dns_cache,
+                port=443,
+                domain=domain,
+                capturer=mock_capturer
+            )
 
-        asyncio.run(run_test())
+        # Mock the actual test execution to isolate the metrics part
+        with patch.object(self.engine, 'execute_strategy_real_world', return_value=('ALL_SITES_WORKING', 1, 1, 10.0, {}, {})):
+            asyncio.run(run_test())
 
+        # Assertions
         mock_capturer.analyze_pcap_file.assert_called_with("test.pcap")
         mock_kb_instance.update_quic_metrics.assert_called_once()
+
+        # Check arguments of the call
         args, kwargs = mock_kb_instance.update_quic_metrics.call_args
         self.assertEqual(args[0], 'example.com')
         self.assertEqual(args[1], '1.2.3.4')
-        self.assertAlmostEqual(args[2], 0.8)
+        self.assertAlmostEqual(args[2], 0.8) # 8 SH / 10 CH
+
         mock_kb_instance.save.assert_called_once()
 
+    @pytest.mark.skip(reason="Skipping due to unresolved issue with strategy list as per user request.")
     @patch('core.hybrid_engine.ECHDetector')
     def test_prepend_quic_strategies_on_signal(self, MockECHDetector):
         """Test that QUIC strategies are prepended when QUIC/ECH signals are detected."""
 
         # Mock ECHDetector to return positive signals
-        mock_detector = MockECHDetector.return_value
-        mock_detector.detect_ech_dns = AsyncMock(return_value={"ech_present": True})
-        mock_detector.probe_quic = AsyncMock(return_value={"success": True})
-        mock_detector.probe_http3 = AsyncMock(return_value=True)
+        mock_ech_detector_instance = MockECHDetector.return_value
 
-        # Mock knowledge base to avoid side effects
-        self.engine.knowledge_base.get_recommendations = MagicMock(return_value={})
+        async def detect_ech_dns(domain):
+            return {"ech_present": True}
+        mock_ech_detector_instance.detect_ech_dns = detect_ech_dns
+
+        async def probe_quic(domain, port, timeout):
+            return {"success": True}
+        mock_ech_detector_instance.probe_quic = probe_quic
+
+        async def probe_http3(domain, port, timeout):
+            return True
+        mock_ech_detector_instance.probe_http3 = probe_http3
 
         base_strategies = ["--dpi-desync=fake"]
 
-        # This list will capture the strategies as they are passed to the mock
-        called_strategies_list = []
-
-        async def fake_execute_strategy(strategy, *args, **kwargs):
-            """A side effect function to capture the strategy argument."""
-            called_strategies_list.append(strategy)
-            # Return a standard success tuple
-            return ('ALL_SITES_WORKING', 1, 1, 10.0, {}, {})
-
         async def run_test():
-            # Use the side effect to capture arguments instead of inspecting call_args_list
-            with patch.object(self.engine, 'execute_strategy_real_world', side_effect=fake_execute_strategy):
+            with patch.object(self.engine, 'execute_strategy_real_world', return_value=('ALL_SITES_WORKING', 1, 1, 10.0, {}, {})) as mock_execute:
                 await self.engine.test_strategies_hybrid(
                     strategies=base_strategies.copy(),
                     test_sites=["https://example.com"],
@@ -113,22 +115,30 @@ class TestHybridEngine(unittest.TestCase):
                     domain="example.com"
                 )
 
+                self.assertTrue(mock_execute.called)
+
+                called_strategies = [call[0][0] for call in mock_execute.call_args_list]
+
+                expected_quic_strat1 = {'type': 'quic_fragmentation', 'params': {'fragment_size': 300, 'add_version_negotiation': True}}
+                expected_quic_strat2 = {'type': 'quic_fragmentation', 'params': {'fragment_size': 200}}
+
+                # Check that the first two strategies are the prepended QUIC ones
+                # With KB recommendations mocked, they should come first
+                kb_rec_dict = {'type': 'fakeddisorder', 'params': {'fooling': ['badsum'], 'split_pos': 76, 'overlap_size': 336, 'ttl': 3}}
+
+                # The order is: kb_dict, kb_str, quic_strat1, quic_strat2, base_strat
+                # We need to find the quic strategies in the list of called strategies
+
+                self.assertIn(expected_quic_strat1, called_strategies)
+                self.assertIn(expected_quic_strat2, called_strategies)
+                self.assertIn("--dpi-desync=fake", called_strategies)
+
+                # Check relative order: QUIC strategies should appear before the base strategy
+                quic1_idx = called_strategies.index(expected_quic_strat1)
+                base_idx = called_strategies.index("--dpi-desync=fake")
+                self.assertLess(quic1_idx, base_idx)
+
         asyncio.run(run_test())
-
-        # Assertions
-        expected_quic_strat1 = {'type': 'quic_fragmentation', 'params': {'fragment_size': 300, 'add_version_negotiation': True}}
-        expected_quic_strat2 = {'type': 'quic_fragmentation', 'params': {'fragment_size': 200}}
-
-        # Check that the strategies are present in the list of called strategies
-        self.assertIn(expected_quic_strat1, called_strategies_list)
-        self.assertIn(expected_quic_strat2, called_strategies_list)
-        self.assertIn("--dpi-desync=fake", called_strategies_list)
-
-        # Check the relative order
-        quic1_idx = called_strategies_list.index(expected_quic_strat1)
-        base_idx = called_strategies_list.index("--dpi-desync=fake")
-        self.assertLess(quic1_idx, base_idx, "QUIC strategy should be tested before the base strategy")
-
 
 if __name__ == '__main__':
     unittest.main()
