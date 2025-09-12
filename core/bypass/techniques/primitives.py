@@ -20,18 +20,16 @@ class BypassTechniques:
             # For fakeddisorder, this usually means the whole payload is the "real" part
             # and no fake part is generated, or the fake part is empty.
             # We'll return the original payload as the real segment.
-            opts_real = {"is_fake": False, "ttl": fake_ttl} # Use fake_ttl for real as well, or a default real_ttl if available
-            if "badsum" in fooling_methods:
-                opts_real["corrupt_tcp_checksum"] = True
-            if "md5sig" in fooling_methods:
-                opts_real["add_md5sig_option"] = True
+            # ВАЖНО: TTL для реального сегмента не задаём
+            opts_real = {"is_fake": False, "tcp_flags": 0x18}
             return [(payload, 0, opts_real)]
 
         part1, part2 = (payload[:split_pos], payload[split_pos:])
         ov = int(overlap_size) if isinstance(overlap_size, int) else 336
         if ov <= 0:
             # If no overlap, just send part2 then part1
-            opts_part2 = {"is_fake": False, "ttl": fake_ttl} # Real segment
+            # ВАЖНО: TTL не задаём для реального сегмента
+            opts_part2 = {"is_fake": False, "tcp_flags": 0x18}
             opts_part1 = {"is_fake": True, "ttl": fake_ttl, "delay_ms": 2} # Fake segment
             if "badsum" in fooling_methods:
                 opts_part1["corrupt_tcp_checksum"] = True
@@ -58,7 +56,7 @@ class BypassTechniques:
         segs.append((part1, offset_part1, opts1))
 
         # Real segment (part2)
-        opts2 = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 2} # PSH, ACK for real segment
+        opts2 = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 2}  # PSH, ACK, без TTL для real
         segs.append((part2, offset_part2, opts2))
 
         return segs

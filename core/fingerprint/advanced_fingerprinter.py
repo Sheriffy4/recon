@@ -1737,6 +1737,7 @@ class AdvancedFingerprinter:
         if not fingerprint:
             fingerprint = await self.fingerprint_target(domain)
         
+        raw_metrics = getattr(fingerprint, "raw_metrics", {})
         profile = DPIBehaviorProfile(
             dpi_system_id=raw_metrics.get("dpi_system_id", "unknown"),
             signature_based_detection=raw_metrics.get("signature_based_detection", False),

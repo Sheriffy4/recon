@@ -4,8 +4,8 @@ import logging
 from typing import Dict, Optional, List, Callable, Any
 from functools import wraps
 import inspect
-from recon.core.bypass.types import TechniqueType, TechniqueParams
-from recon.core.bypass.exceptions import TechniqueNotFoundError, InvalidStrategyError
+from core.bypass.types import TechniqueType, TechniqueParams
+from core.bypass.exceptions import TechniqueNotFoundError, InvalidStrategyError
 
 
 class TechniqueRegistry:
