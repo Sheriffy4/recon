@@ -4,8 +4,8 @@ import abc
 from typing import List, Tuple, Optional, Any, Union
 import struct
 import random
-from recon.core.bypass.types import TechniqueParams, TechniqueType
-from recon.core.bypass.exceptions import InvalidPacketError
+from core.bypass.types import TechniqueParams, TechniqueType
+from core.bypass.exceptions import InvalidPacketError
 
 
 class BaseTechnique(abc.ABC):
