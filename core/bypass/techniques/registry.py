@@ -218,7 +218,23 @@ class TechniqueInfo:
             "required_params": self.required_params,
             "optional_params": self.optional_params,
         }
+class TechniqueResult:
+    """Simple container for technique execution result (compat layer)."""
+    def __init__(self, success: bool, data: Any = None, error: Optional[str] = None):
+        self.success = success
+        self.data = data
+        self.error = error
 
+class FakeddisorderTechnique(TechniqueInfo):
+   """Alias for compatibility with older tests expecting this symbol."""
+    pass
+
+__all__ = [
+    "TechniqueRegistry",
+    "TechniqueInfo",
+    "TechniqueResult",
+    "FakeddisorderTechnique",
+]
 
 registry = TechniqueRegistry()
 
@@ -230,3 +246,5 @@ registry._techniques["seqovl"] = BypassTechniques.apply_seqovl
 # For backward compatibility
 FakeddisorderTechnique = BypassTechniques.apply_fakeddisorder
 TechniqueResult = Union[List[Any], None]
+
+
