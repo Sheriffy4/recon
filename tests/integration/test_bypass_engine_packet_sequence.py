@@ -1,8 +1,12 @@
 import unittest
+import platform
 from unittest.mock import MagicMock, patch
-from core.bypass.engine.windows_engine import WindowsBypassEngine
-from core.bypass.engine.base_engine import EngineConfig
 
+if platform.system() == "Windows":
+    from core.bypass.engine.windows_engine import WindowsBypassEngine
+    from core.bypass.engine.base_engine import EngineConfig
+
+@unittest.skipIf(platform.system() != "Windows", "Windows-only test")
 class TestBypassEnginePacketSequence(unittest.TestCase):
     def setUp(self):
         self.config = EngineConfig(debug=True)

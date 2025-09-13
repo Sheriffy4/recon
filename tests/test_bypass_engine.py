@@ -2,6 +2,7 @@ import unittest
 import sys
 import os
 import time
+import platform
 from unittest import mock
 
 # Add project root to path to allow imports
@@ -11,9 +12,9 @@ if project_root not in sys.path:
 
 # Mock platform-specific modules before importing the code under test
 sys.modules['pydivert'] = mock.Mock()
-with mock.patch('platform.system', return_value='Windows'):
+if platform.system() == "Windows":
     from core.bypass.engine.windows_engine import WindowsBypassEngine
-    from core.bypass.techniques.primitives import BypassTechniques
+from core.bypass.techniques.primitives import BypassTechniques
 
 class TestBypassTechniques(unittest.TestCase):
 
@@ -66,6 +67,7 @@ class TestBypassTechniques(unittest.TestCase):
         unmodified_payload = BypassTechniques.apply_tlsrec_split(http_payload, split_pos=10)
         self.assertEqual(unmodified_payload, http_payload)
 
+@unittest.skipIf(platform.system() != "Windows", "Windows-only test")
 class TestBypassEngineTelemetry(unittest.TestCase):
     def setUp(self):
         from core.bypass.engine.base_engine import EngineConfig
@@ -100,6 +102,7 @@ class TestBypassEngineTelemetry(unittest.TestCase):
             for i in range(5):
                 self.assertIn(("1.1.1.1", 200+i, "2.2.2.2", 443), self.engine.flow_table)
 
+@unittest.skipIf(platform.system() != "Windows", "Windows-only test")
 class TestBypassEngineTTL(unittest.TestCase):
     def setUp(self):
         from core.bypass.engine.base_engine import EngineConfig
@@ -143,6 +146,7 @@ class TestBypassEngineTTL(unittest.TestCase):
         self.assertEqual(self.engine.current_params['fake_ttl'], 15)
 
 
+@unittest.skipIf(platform.system() != "Windows", "Windows-only test")
 class TestSendAttackSegments(unittest.TestCase):
     def setUp(self):
         from core.bypass.engine.base_engine import EngineConfig

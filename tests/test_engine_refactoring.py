@@ -1,4 +1,5 @@
 import unittest
+import platform
 from unittest.mock import patch, MagicMock
 
 # Add project root to path
@@ -6,8 +7,9 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from core.bypass.engine.windows_engine import WindowsBypassEngine
-from core.bypass.engine.base_engine import EngineConfig
+if platform.system() == "Windows":
+    from core.bypass.engine.windows_engine import WindowsBypassEngine
+    from core.bypass.engine.base_engine import EngineConfig
 
 class DummyPacket:
     def __init__(self, payload=b"A"*200):
@@ -27,6 +29,7 @@ class DummyWriter:
     def send(self, pkt):
         pass
 
+@unittest.skipIf(platform.system() != "Windows", "Windows-only test")
 class TestEngineRefactoring(unittest.TestCase):
     def test_tlsrec_split_handler_called(self):
         """Verify that the external handler for tlsrec_split is called."""
