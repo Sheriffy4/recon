@@ -226,7 +226,7 @@ class TechniqueResult:
         self.error = error
 
 class FakeddisorderTechnique(TechniqueInfo):
-   """Alias for compatibility with older tests expecting this symbol."""
+    """Alias for compatibility with older tests expecting this symbol."""
     pass
 
 __all__ = [

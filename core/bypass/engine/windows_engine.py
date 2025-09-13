@@ -1220,14 +1220,24 @@ if platform.system() == "Windows":
                         self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], ttl, fooling_list)
                         time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
                         self.current_params["delay_ms"] = d_ms
-                        segments = self.techniques.apply_fakeddisorder(payload, cand.split_pos, cand.overlap_size)
-                        # Телеметрия: отметим использованный overlap
+                        segments = self.techniques.apply_fakeddisorder(
+                            payload,
+                            cand.split_pos,
+                            cand.overlap_size,
+                            fake_ttl=int(ttl or self.current_params.get("fake_ttl", 1)),
+                            fooling_methods=fooling_list
+                        )
+                        # Телеметрия: отметим overlap/seq_offsets как и раньше
                         with self._tlock:
                             self._telemetry["overlaps"][int(cand.overlap_size)] += 1
-                            for _, rel_off in segments:
+                            for _, rel_off, *rest in segments:
                                 self._telemetry["seq_offsets"][int(rel_off)] += 1
-                        self._send_segments(packet, w, segments)
-                    def _wait_outcome(timeout: float=0.25) -> Optional[str]:
+                        # Если это «расширенные» сегменты (payload, rel_off, opts) — используем _send_attack_segments
+                        if segments and len(segments[0]) == 3:
+                            self._send_attack_segments(packet, w, segments)
+                        else:
+                            self._send_segments(packet, w, segments)
+                    def _wait_outcome(timeout: float=0.6) -> Optional[str]:
                         got = inbound_ev.wait(timeout=timeout)
                         if not got: return None
                         return self._inbound_results.get(rev_key)
@@ -1238,7 +1248,7 @@ if platform.system() == "Windows":
                         delays=[1,2,3],
                         send_func=_send_try,
                         wait_func=_wait_outcome,
-                        time_budget_ms=450
+                        time_budget_ms=900
                     )
                     got_inbound = best_cand is not None
                     if got_inbound:
@@ -1288,14 +1298,14 @@ if platform.system() == "Windows":
                             if self._send_segments(packet, w, segments):
                                 # чуть подождём входящий
                                 _ev = self._get_inbound_event_for_flow(packet)
-                                if _ev.wait(timeout=0.25) and self._inbound_results.get(rev_key) == "ok":
+                                if _ev.wait(timeout=0.6) and self._inbound_results.get(rev_key) == "ok":
                                     success = True
                             if not success:
                                 positions = [max(6, sp_fb//4), max(12, sp_fb//2), max(18, (3*sp_fb)//4)]
                                 segments = self.techniques.apply_multisplit(payload, positions)
                                 if self._send_segments(packet, w, segments):
                                     _ev = self._get_inbound_event_for_flow(packet)
-                                    if _ev.wait(timeout=0.25) and self._inbound_results.get(rev_key) == "ok":
+                                    if _ev.wait(timeout=0.6) and self._inbound_results.get(rev_key) == "ok":
                                         success = True
                             # Быстрый race‑fallback: fake+badsum → оригинал
                             if not success:
@@ -1305,7 +1315,7 @@ if platform.system() == "Windows":
                                 w.send(packet)
                                 # дождёмся SH
                                 _ev = self._get_inbound_event_for_flow(packet)
-                                if _ev.wait(timeout=0.3) and self._inbound_results.get(rev_key) == "ok":
+                                if _ev.wait(timeout=0.6) and self._inbound_results.get(rev_key) == "ok":
                                     success = True
                         except Exception:
                             pass
@@ -1467,6 +1477,12 @@ if platform.system() == "Windows":
             Тяжёлая версия без options: пересчитывает IP/TCP checksum, корректирует длины.
             Для fakeddisorder разумно задать TTL низким у второго сегмента (перекрывающего).
             """
+            try:
+                if segments and len(segments[0]) == 3:
+                    # Кто-то передал расширенный формат (payload, rel_off, opts) — переправим в корректный sender
+                    return self._send_attack_segments(original_packet, w, segments)
+            except Exception:
+                pass
             try:
                 raw = bytearray(original_packet.raw)
                 ip_ver = (raw[0] >> 4) & 0xF
@@ -2244,7 +2260,7 @@ if platform.system() == "Windows":
                 except Exception:
                     pass
 
-        def _send_tlsrec_split_segments(self, original_packet, w, orig_payload: bytes, split_pos: int, delay_ms: int = 2) -> bool:
+        def _send_tlsrec_split_segments(self, original_packet, w, orig_payload: bytes, split_pos: int, delay_ms: int = 4) -> bool:
             """
             TLS record split c TCP-сегментацией: строим два сегмента с разнесёнными TLS‑записями.
             1) Разделяем TLS ClientHello внутри record на две записи (rec1, rec2, tail).
@@ -2531,10 +2547,10 @@ try:
     from core.bypass.packet.sender import PacketSender as _PacketSender
 
     # Патчим __init__, чтобы создать sender
-    if hasattr(BypassEngine, "__init__") and not hasattr(BypassEngine, "__orig_init__"):
-        BypassEngine.__orig_init__ = BypassEngine.__init__
+    if hasattr(WindowsBypassEngine, "__init__") and not hasattr(WindowsBypassEngine, "__orig_init__"):
+        WindowsBypassEngine.__orig_init__ = WindowsBypassEngine.__init__
         def __init__patched(self, *a, **kw):
-            BypassEngine.__orig_init__(self, *a, **kw)
+            WindowsBypassEngine.__orig_init__(self, *a, **kw)
             try:
                 self._packet_builder = _CompatPacketBuilder()
                 self._packet_sender = _PacketSender(self._packet_builder, self.logger, getattr(self, "_INJECT_MARK", 0xC0DE))
@@ -2543,23 +2559,23 @@ try:
                     self.logger.debug(f"PacketPipeline init failed: {e}")
                 except Exception:
                     pass
-        BypassEngine.__init__ = __init__patched
+        WindowsBypassEngine.__init__ = __init__patched
 
     # Патчим _safe_send_packet
-    if hasattr(BypassEngine, "_safe_send_packet") and not hasattr(BypassEngine, "_safe_send_packet_orig"):
-        BypassEngine._safe_send_packet_orig = BypassEngine._safe_send_packet
+    if hasattr(WindowsBypassEngine, "_safe_send_packet") and not hasattr(WindowsBypassEngine, "_safe_send_packet_orig"):
+        WindowsBypassEngine._safe_send_packet_orig = WindowsBypassEngine._safe_send_packet
         def _safe_send_packet_patched(self, w, pkt_bytes, original_packet):
             try:
                 if hasattr(self, "_packet_sender") and self._packet_sender:
                     return self._packet_sender.safe_send(w, pkt_bytes, original_packet)
             except Exception:
                 pass
-            return BypassEngine._safe_send_packet_orig(self, w, pkt_bytes, original_packet)
-        BypassEngine._safe_send_packet = _safe_send_packet_patched
+            return WindowsBypassEngine._safe_send_packet_orig(self, w, pkt_bytes, original_packet)
+        WindowsBypassEngine._safe_send_packet = _safe_send_packet_patched
 
     # Патчим _send_segments
-    if hasattr(BypassEngine, "_send_segments") and not hasattr(BypassEngine, "_send_segments_orig"):
-        BypassEngine._send_segments_orig = BypassEngine._send_segments
+    if hasattr(WindowsBypassEngine, "_send_segments") and not hasattr(WindowsBypassEngine, "_send_segments_orig"):
+        WindowsBypassEngine._send_segments_orig = WindowsBypassEngine._send_segments
         def _send_segments_patched(self, original_packet, w, segments):
             try:
                 if hasattr(self, "_packet_sender") and self._packet_sender:
@@ -2600,12 +2616,12 @@ try:
                     self.logger.error(f"_send_segments shim error: {e}", exc_info=getattr(self, "debug", False))
                 except Exception:
                     pass
-            return BypassEngine._send_segments_orig(self, original_packet, w, segments)
-        BypassEngine._send_segments = _send_segments_patched
+            return WindowsBypassEngine._send_segments_orig(self, original_packet, w, segments)
+        WindowsBypassEngine._send_segments = _send_segments_patched
 
     # Патчим _send_attack_segments
-    if hasattr(BypassEngine, "_send_attack_segments") and not hasattr(BypassEngine, "_send_attack_segments_orig"):
-        BypassEngine._send_attack_segments_orig = BypassEngine._send_attack_segments
+    if hasattr(WindowsBypassEngine, "_send_attack_segments") and not hasattr(WindowsBypassEngine, "_send_attack_segments_orig"):
+        WindowsBypassEngine._send_attack_segments_orig = WindowsBypassEngine._send_attack_segments
         def _send_attack_segments_patched(self, original_packet, w, segments):
             try:
                 if hasattr(self, "_packet_sender") and self._packet_sender:
@@ -2674,12 +2690,12 @@ try:
                     self.logger.error(f"_send_attack_segments shim error: {e}", exc_info=getattr(self, "debug", False))
                 except Exception:
                     pass
-            return BypassEngine._send_attack_segments_orig(self, original_packet, w, segments)
-        BypassEngine._send_attack_segments = _send_attack_segments_patched
+            return WindowsBypassEngine._send_attack_segments_orig(self, original_packet, w, segments)
+        WindowsBypassEngine._send_attack_segments = _send_attack_segments_patched
 
     # Патчим _send_udp_segments
-    if hasattr(BypassEngine, "_send_udp_segments") and not hasattr(BypassEngine, "_send_udp_segments_orig"):
-        BypassEngine._send_udp_segments_orig = BypassEngine._send_udp_segments
+    if hasattr(WindowsBypassEngine, "_send_udp_segments") and not hasattr(WindowsBypassEngine, "_send_udp_segments_orig"):
+        WindowsBypassEngine._send_udp_segments_orig = WindowsBypassEngine._send_udp_segments
         def _send_udp_segments_patched(self, original_packet, w, segments):
             try:
                 if hasattr(self, "_packet_sender") and self._packet_sender:
@@ -2693,8 +2709,8 @@ try:
                     self.logger.error(f"_send_udp_segments shim error: {e}", exc_info=getattr(self, "debug", False))
                 except Exception:
                     pass
-            return BypassEngine._send_udp_segments_orig(self, original_packet, w, segments)
-        BypassEngine._send_udp_segments = _send_udp_segments_patched
+            return WindowsBypassEngine._send_udp_segments_orig(self, original_packet, w, segments)
+        WindowsBypassEngine._send_udp_segments = _send_udp_segments_patched
 
 except Exception as _shim_e:
     # Если что-то пошло не так — ничего не ломаем, оставляем старую реализацию
