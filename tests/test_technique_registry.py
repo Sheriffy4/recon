@@ -1,81 +1,58 @@
-import unittest
-import sys
-import os
-from typing import Any, Dict, List, Optional, Tuple
+import pytest
+from core.bypass.techniques.registry import TechniqueRegistry, FakeddisorderTechnique, TechniqueResult
+from core.bypass.exceptions import TechniqueNotFoundError
 
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+class TestTechniqueRegistry:
 
-from core.bypass.techniques.registry import TechniqueRegistry, TechniqueResult, FakeddisorderTechnique
-
-class TestTechniqueRegistry(unittest.TestCase):
-
-    def setUp(self):
+    def setup_method(self):
         self.registry = TechniqueRegistry()
 
     def test_default_techniques_registered(self):
-        self.assertIsNotNone(self.registry.get_technique("fakeddisorder"))
-        self.assertIsNotNone(self.registry.get_technique("multisplit"))
-        self.assertIsNotNone(self.registry.get_technique("seqovl"))
-
+        assert self.registry.get_technique("fakeddisorder") is not None
+        assert self.registry.get_technique("multisplit") is not None
+        assert self.registry.get_technique("seqovl") is not None
         # Test aliases
-        self.assertIsNotNone(self.registry.get_technique("disorder"))
-        self.assertEqual(self.registry.get_technique("disorder").name, "fakeddisorder")
+        assert self.registry.get_technique("disorder") is not None
+        assert self.registry.get_technique("disorder").__name__ == "apply_fakeddisorder"
 
     def test_list_techniques(self):
         techniques = self.registry.list_techniques()
-        self.assertIn("fakeddisorder", techniques)
-        self.assertIn("multisplit", techniques)
-        self.assertIn("seqovl", techniques)
-        self.assertNotIn("disorder", techniques) # Aliases should not be listed
+        assert "fakeddisorder" in techniques
+        assert "multisplit" in techniques
+        assert "seqovl" in techniques
+        assert "disorder" not in techniques  # Aliases should not be listed
 
     def test_apply_technique_found(self):
         payload = b"test payload"
-        params = {"split_pos": 4, "overlap_size": 2}
+        params = {"split_pos": 4, "overlap_size": 2, "fooling_methods": [], "fake_ttl": 1}
         result = self.registry.apply_technique("fakeddisorder", payload, params)
-
-        self.assertIsInstance(result, TechniqueResult)
-        self.assertTrue(result.success)
-        self.assertIsInstance(result.segments, list)
-        self.assertEqual(len(result.segments), 2)
-
-        # Check metadata
-        self.assertEqual(result.metadata["split_pos"], 4)
+        assert isinstance(result, list)
+        assert len(result) == 2
 
     def test_apply_technique_not_found(self):
         payload = b"test payload"
         params = {}
-        result = self.registry.apply_technique("nonexistent", payload, params)
-        self.assertIsNone(result)
+        with pytest.raises(TechniqueNotFoundError):
+            self.registry.apply_technique("nonexistent", payload, params)
 
     def test_fakeddisorder_technique_apply(self):
-        technique = FakeddisorderTechnique()
         payload = b"hello world"
         params = {
             "split_pos": 5,
             "overlap_size": 2,
-            "fooling": ["badsum", "badseq"],
+            "fooling_methods": ["badsum", "badseq"],
             "fake_ttl": 3
         }
-
-        result = technique.apply(payload, params)
-
-        self.assertEqual(len(result.segments), 2)
-
-        # First segment (fake part)
-        seg1_payload, seg1_rel_off, seg1_opts = result.segments[0]
-        self.assertEqual(seg1_payload, b" world")
-        self.assertEqual(seg1_rel_off, 5)
-        self.assertTrue(seg1_opts["is_fake"])
-        self.assertEqual(seg1_opts["ttl"], 3)
-        self.assertTrue(seg1_opts["corrupt_tcp_checksum"])
-        self.assertTrue(seg1_opts["corrupt_sequence"])
-
-        # Second segment (real part)
-        seg2_payload, seg2_rel_off, seg2_opts = result.segments[1]
-        self.assertEqual(seg2_payload, b"hello")
-        self.assertEqual(seg2_rel_off, 3) # 5 - 2
-        self.assertEqual(seg2_opts["tcp_flags"], 0x18)
-
-if __name__ == '__main__':
-    unittest.main()
+        result = FakeddisorderTechnique(payload, **params)
+        assert len(result) == 2
+        # Correct order: real then fake
+        real_seg, fake_seg = result
+        assert real_seg[0] == b" world"
+        assert real_seg[1] == 5
+        assert fake_seg[0] == b"hello"
+        assert fake_seg[1] == 3
+        assert fake_seg[2]["is_fake"] is True
+        assert fake_seg[2]["ttl"] == 3
+        assert fake_seg[2]["corrupt_tcp_checksum"] is True
+        assert fake_seg[2]["corrupt_sequence"] is True
+        assert real_seg[2]["is_fake"] is False

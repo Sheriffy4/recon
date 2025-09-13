@@ -28,14 +28,13 @@ class BypassTechniques:
         ov = int(overlap_size) if isinstance(overlap_size, int) else 336
         if ov <= 0:
             # If no overlap, just send part2 then part1
-            # ВАЖНО: TTL не задаём для реального сегмента
-            opts_part2 = {"is_fake": False, "tcp_flags": 0x18}
-            opts_part1 = {"is_fake": True, "ttl": fake_ttl, "delay_ms": 2} # Fake segment
+            opts_real = {"is_fake": False, "tcp_flags": 0x18} # PSH, ACK
+            opts_fake = {"is_fake": True, "ttl": fake_ttl, "delay_ms": 2}
             if "badsum" in fooling_methods:
-                opts_part1["corrupt_tcp_checksum"] = True
+                opts_fake["corrupt_tcp_checksum"] = True
             if "md5sig" in fooling_methods:
-                opts_part1["add_md5sig_option"] = True
-            return [(part2, split_pos, opts_part2), (part1, 0, opts_part1)]
+                opts_fake["add_md5sig_option"] = True
+            return [(part2, split_pos, opts_real), (part1, 0, opts_fake)]
 
         if ov > 4096:
             ov = 4096
@@ -43,21 +42,22 @@ class BypassTechniques:
         offset_part2 = split_pos
         offset_part1 = split_pos - ov
 
+        # ВАЖНО: сначала отправляем "правильный" (real) сегмент, затем "фейковый"
         segs = []
-        # Fake segment (part1)
-        opts1 = {"is_fake": True, "ttl": fake_ttl, "delay_ms": 2}
-        if "badsum" in fooling_methods:
-            opts1["corrupt_tcp_checksum"] = True
-        if "md5sig" in fooling_methods:
-            opts1["add_md5sig_option"] = True
-        if "badseq" in fooling_methods:
-            opts1["corrupt_sequence"] = True # Assuming badseq is handled here
-
-        segs.append((part1, offset_part1, opts1))
-
         # Real segment (part2)
-        opts2 = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 2}  # PSH, ACK, без TTL для real
-        segs.append((part2, offset_part2, opts2))
+        opts_real = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 2}  # PSH, ACK
+        segs.append((part2, offset_part2, opts_real))
+
+        # Fake segment (part1)
+        opts_fake = {"is_fake": True, "ttl": fake_ttl}
+        if "badsum" in fooling_methods:
+            opts_fake["corrupt_tcp_checksum"] = True
+        if "md5sig" in fooling_methods:
+            opts_fake["add_md5sig_option"] = True
+        if "badseq" in fooling_methods:
+            opts_fake["corrupt_sequence"] = True
+
+        segs.append((part1, offset_part1, opts_fake))
 
         return segs
 

@@ -1,8 +1,11 @@
+import pytest
+import platform
 import types
 from unittest.mock import patch, MagicMock
-from unittest.mock import patch
-from core.bypass.engine.windows_engine import WindowsBypassEngine
-from core.bypass.engine.base_engine import EngineConfig
+
+if platform.system() == "Windows":
+    from core.bypass.engine.windows_engine import WindowsBypassEngine
+    from core.bypass.engine.base_engine import EngineConfig
 
 class DummyPacket:
     def __init__(self, payload=b"A"*200):
@@ -25,6 +28,7 @@ class DummyWriter:
     def send(self, pkt):
         self.sent.append(("orig", len(getattr(pkt, "payload", b""))))
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Windows-only test")
 def test_fakeddisorder_forced_simple_applies_params():
     be = WindowsBypassEngine(config=EngineConfig(debug=False))
     be.set_strategy_override({"type": "fakeddisorder", "params": {"split_pos": 76, "overlap_size": 336, "ttl": 2, "fooling": ["badsum","badseq"]}})
@@ -53,6 +57,7 @@ def test_fakeddisorder_forced_simple_applies_params():
     assert opts1.get("corrupt_tcp_checksum") is True
     assert opts1.get("corrupt_sequence") is True
 
+@pytest.mark.skipif(platform.system() != "Windows", reason="Windows-only test")
 def test_badsum_race_sends_fake_then_original():
     be = WindowsBypassEngine(config=EngineConfig(debug=False))
     pkt = DummyPacket()

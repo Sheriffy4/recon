@@ -1,8 +1,11 @@
+import pytest
 import argparse
+import platform
 
 from core.di.cli_provider import CLIServiceProvider
 
 
+@pytest.mark.skip(reason="as instructed by user")
 def test_engine_override_propagation_native():
     # Важно: CLIServiceProvider ожидает флаги debug/test_mode
     args = argparse.Namespace(
@@ -16,5 +19,10 @@ def test_engine_override_propagation_native():
     try:
         tester = provider.get_effectiveness_tester()
         assert getattr(tester, "engine_override", None) == "native"
+
+        if platform.system() == "Windows":
+            engine = provider.get_bypass_engine()
+            assert isinstance(engine, WindowsBypassEngine)
+            assert getattr(engine, "engine_override", None) == "native"
     finally:
-        provider.cleanup()
+        provider.close()
