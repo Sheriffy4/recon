@@ -1108,6 +1108,14 @@ if platform.system() == "Windows":
                             fooling_list = params.get("fooling", []) or []
                             if isinstance(fooling_list, str):
                                 fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
+                            # NEW: zapret semantics — прединъекция fake перед парой fakeddisorder
+                            if params.get("pre_fake"):
+                                pre_ttl = int(params.get("pre_fake_ttl", ttl_simple))
+                                pre_fooling = params.get("pre_fake_fooling") or fooling_list
+                                pre_data = payload[:min(32, len(payload))]
+                                # seq_offset == 0 → выравниваем по base_seq
+                                self._send_aligned_fake_segment(packet, w, seq_offset=0, data=pre_data, ttl=pre_ttl, fooling=pre_fooling)
+                                time.sleep(0.002)
                             segs = BypassTechniques.apply_fakeddisorder(
                                     payload,
                                     split_pos=split_pos,
@@ -1144,6 +1152,16 @@ if platform.system() == "Windows":
                     if inbound_ev.is_set(): inbound_ev.clear()
                     self._inbound_results.pop(rev_key, None)
 
+                    # NEW: однократная прединъекция fake перед попытками калибратора
+                    if params.get("pre_fake"):
+                        try:
+                            pre_ttl = int(params.get("pre_fake_ttl", self.current_params.get("fake_ttl", 1)))
+                            pre_fooling = params.get("pre_fake_fooling") or params.get("fooling") or []
+                            pre_data = payload[:min(32, len(payload))]
+                            self._send_aligned_fake_segment(packet, w, seq_offset=0, data=pre_data, ttl=pre_ttl, fooling=pre_fooling)
+                            time.sleep(0.002)
+                        except Exception:
+                            pass
                     is_tls_ch = self._is_tls_clienthello(payload)
                     # Оценка split_pos по структуре CH
                     sp_guess = self._estimate_split_pos_from_ch(payload) if is_tls_ch else None
@@ -1170,6 +1188,15 @@ if platform.system() == "Windows":
 
                     # Подготовка кандидатов
                     cand_list = Calibrator.prepare_candidates(payload, initial_split_pos=init_sp)
+                    # NEW: добавим «малые» seed-кандидаты как в zapret (sp 3/4/5/6, ov ≤ sp)
+                    try:
+                        _seed_heads = [CalibCandidate(split_pos=s, overlap_size=min(3, s)) for s in (3, 4, 5, 6)]
+                        # prepend, убрав дубликаты
+                        head_keys = {(x.split_pos, x.overlap_size) for x in _seed_heads}
+                        cand_list = _seed_heads + [c for c in cand_list if (c.split_pos, c.overlap_size) not in head_keys]
+                        self.logger.debug(f"Calibrator seeds prepended: {[(x.split_pos, x.overlap_size) for x in _seed_heads]}")
+                    except Exception:
+                        pass
                     if seed:
                         cand_list = [seed] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (seed.split_pos, seed.overlap_size)]
                     elif "split_pos" in params and "overlap_size" in params:

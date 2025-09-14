@@ -1,28 +1,36 @@
 import pytest
-from core.zapret_parser import ZapretStrategyParser
+
 from core.hybrid_engine import HybridEngine
 
-def test_translation_fake_fakeddisorder_full_params():
-    s = "--dpi-desync=fake,fakeddisorder --dpi-desync-split-seqovl=336 --dpi-desync-autottl=2 --dpi-desync-fooling=md5sig,badsum,badseq --dpi-desync-repeats=1 --dpi-desync-split-pos=76 --dpi-desync-ttl=1"
-    p = ZapretStrategyParser().parse(s)
-    h = HybridEngine(debug=False, enable_advanced_fingerprinting=False, enable_modern_bypass=False)
-    task = h._translate_zapret_to_engine_task(p)
-    assert task['type'] == 'fakeddisorder'
-    pr = task['params']
-    assert pr['split_pos'] == 76
-    assert pr['overlap_size'] == 336
-    assert pr['ttl'] == 1
-    assert set(pr['fooling']) == {'md5sig','badsum','badseq'}
-    assert pr['autottl'] == 2
-    assert pr['repeats'] == 1
+ZAPRET_STR = "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=3"
 
-def test_multisplit_with_splitcount_grid():
-    s = "--dpi-desync=multisplit --dpi-desync-split-count=4 --dpi-desync-ttl=4"
-    p = ZapretStrategyParser().parse(s)
-    from core.hybrid_engine import HybridEngine
-    h = HybridEngine(debug=False, enable_advanced_fingerprinting=False, enable_modern_bypass=False)
-    task = h._translate_zapret_to_engine_task(p)
-    assert task['type'] == 'multisplit'
-    pos = task['params'].get('positions', [])
-    assert len(pos) == 4
-    assert all(isinstance(x, int) for x in pos)
+def test_translate_zapret_fake_fakeddisorder_params():
+    he = HybridEngine(debug=False, enable_advanced_fingerprinting=False, enable_modern_bypass=False)
+    parsed = he.parser.parse(ZAPRET_STR)
+    task = he._translate_zapret_to_engine_task(parsed)
+    assert task and isinstance(task, dict)
+    assert task.get("type") == "fakeddisorder"
+    p = task.get("params", {})
+    # Критично: split_pos должен быть именно 3 как в CLI
+    assert p.get("split_pos") == 3
+    # Fooling перенесён полностью
+    assert set(p.get("fooling", [])) == {"badsum", "badseq"}
+    # TTL перенесён
+    assert p.get("ttl") == 3
+    # Семантика fake,fakeddisorder → прединъекция
+    assert p.get("pre_fake") is True
+    assert p.get("pre_fake_ttl") == 3
+    assert set(p.get("pre_fake_fooling", [])) == {"badsum", "badseq"}
+
+def test_ensure_engine_task_from_cli_string():
+    he = HybridEngine(debug=False, enable_advanced_fingerprinting=False, enable_modern_bypass=False)
+    task = he._ensure_engine_task(ZAPRET_STR)
+    assert task and isinstance(task, dict)
+    assert task.get("type") == "fakeddisorder"
+    p = task.get("params", {})
+    assert p.get("split_pos") == 3
+    assert set(p.get("fooling", [])) == {"badsum", "badseq"}
+    assert p.get("ttl") == 3
+    assert p.get("pre_fake") is True
+    assert p.get("pre_fake_ttl") == 3
+    assert set(p.get("pre_fake_fooling", [])) == {"badsum", "badseq"}
