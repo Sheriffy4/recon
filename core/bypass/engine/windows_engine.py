@@ -1109,15 +1109,19 @@ if platform.system() == "Windows":
                             if isinstance(fooling_list, str):
                                 fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
                             segs = BypassTechniques.apply_fakeddisorder(
-                                payload,
-                                split_pos=split_pos,
-                                overlap_size=overlap,
-                                fake_ttl=ttl_simple,
-                                fooling_methods=fooling_list
-                            )
-                            if self._send_attack_segments(packet, w, segs):
-                                self.logger.debug("Simple/forced fakeddisorder path succeeded")
-                                return
+                                    payload,
+                                    split_pos=split_pos,
+                                    overlap_size=overlap,
+                                    fake_ttl=ttl_simple,
+                                    fooling_methods=fooling_list,
+                                    segment_order=(params.get("segment_order") or params.get("send_order") or "fake_first"),
+                                    badseq_delta=params.get("badseq_delta"),
+                                    psh_on_fake=bool(params.get("psh_on_fake", False)),
+                                    psh_on_real=bool(params.get("psh_on_real", True)),
+                                    fake_delay_ms=int(params.get("fake_delay_ms", 1)),
+                                    real_delay_ms=int(params.get("real_delay_ms", params.get("delay_ms", 1))),
+                                )
+                                self._send_attack_segments(packet, w, segs)
                             if forced_nofallback:
                                 # В режиме принудительной стратегии не используем калибратор/фоллбеки
                                 w.send(packet)
@@ -1225,14 +1229,15 @@ if platform.system() == "Windows":
                             cand.split_pos,
                             cand.overlap_size,
                             fake_ttl=int(ttl or self.current_params.get("fake_ttl", 1)),
-                            fooling_methods=fooling_list
+                            fooling_methods=fooling_list,
+                            segment_order=(params.get("segment_order") or params.get("send_order") or "fake_first"),
+                            badseq_delta=params.get("badseq_delta"),
+                            psh_on_fake=bool(params.get("psh_on_fake", False)),
+                            psh_on_real=bool(params.get("psh_on_real", True)),
+                            fake_delay_ms=int(params.get("fake_delay_ms", 1)),
+                            real_delay_ms=int(params.get("real_delay_ms", self.current_params.get("delay_ms", 1))),
                         )
-                        # Телеметрия: отметим overlap/seq_offsets как и раньше
-                        with self._tlock:
-                            self._telemetry["overlaps"][int(cand.overlap_size)] += 1
-                            for _, rel_off, *rest in segments:
-                                self._telemetry["seq_offsets"][int(rel_off)] += 1
-                        # Если это «расширенные» сегменты (payload, rel_off, opts) — используем _send_attack_segments
+                        # если триплеты — отправляем через _send_attack_segments
                         if segments and len(segments[0]) == 3:
                             self._send_attack_segments(packet, w, segments)
                         else:
@@ -1917,7 +1922,7 @@ if platform.system() == "Windows":
                 tcp_header_len = (seg_raw[ip_header_len + 12] >> 4 & 15) * 4
                 seq_offset = ip_header_len + 4
                 original_seq = struct.unpack("!I", seg_raw[seq_offset:seq_offset+4])[0]
-                bad_seq = (original_seq - 10000) & 0xFFFFFFFF  # Zapret-style badseq
+                bad_seq = (original_seq - 1) & 0xFFFFFFFF  # minimal badseq offset
                 seg_raw[seq_offset:seq_offset+4] = struct.pack("!I", bad_seq)
                 # Length & checksums
                 seg_raw[2:4] = struct.pack("!H", len(seg_raw))
@@ -2126,7 +2131,7 @@ if platform.system() == "Windows":
                 base_win = struct.unpack("!H", raw[ip_hl+14:ip_hl+16])[0]
                 base_ttl = raw[8]
                 window_div = self.current_params.get("window_div", 8)
-                reduced_win = max(base_win // window_div, 1024)
+                reduced_win = base_win
                 base_ip_id = struct.unpack("!H", raw[4:6])[0]
                 ipid_step = self.current_params.get("ipid_step", 2048)
                 MAX_TCP_HDR = 60
@@ -2150,7 +2155,7 @@ if platform.system() == "Windows":
                     orig_tcp_hdr = bytearray(raw[ip_hl:ip_hl+max(20, tcp_hl)])
                     tcp_hdr = bytearray(orig_tcp_hdr)
 
-                    # SEQ: применяем seq_offset всегда; если corrupt_sequence=True и не задан seq_offset — используем -10000
+                    # SEQ: минимальное «плохое» смещение для badseq
                     seq_extra = 0
                     if "seq_offset" in opts:
                         try:
@@ -2158,12 +2163,12 @@ if platform.system() == "Windows":
                         except Exception:
                             seq_extra = 0
                     elif opts.get("corrupt_sequence"):
-                        seq_extra = -10000
+                        seq_extra = -1
                     seq = (base_seq + int(rel_off) + seq_extra) & 0xFFFFFFFF
                     tcp_hdr[4:8] = struct.pack("!I", seq)
                     tcp_hdr[8:12] = struct.pack("!I", base_ack)
 
-                    # Флаги TCP: по умолчанию ACK, для последнего сегмента добавляем PSH
+                    # Флаги TCP
                     flags = opts.get("tcp_flags")
                     if flags is None:
                         flags = 0x10  # ACK
@@ -2172,7 +2177,7 @@ if platform.system() == "Windows":
                     tcp_hdr[13] = int(flags) & 0xFF
                     tcp_hdr[14:16] = struct.pack("!H", reduced_win)
 
-                    # TTL: явный ttl в opts имеет приоритет; иначе для fake — self.current_params['fake_ttl'], иначе base_ttl
+                    # TTL
                     ttl_opt = opts.get("ttl", None)
                     ttl_to_use = None
                     if isinstance(ttl_opt, int) and 1 <= ttl_opt <= 255:
@@ -2190,10 +2195,9 @@ if platform.system() == "Windows":
                     new_ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
                     ip_hdr[4:6] = struct.pack("!H", new_ip_id)
 
-                    # MD5SIG опция: по флагу add_md5sig_option (не обязательно только для fake)
+                    # MD5SIG опция (если запрошена)
                     if opts.get("add_md5sig_option"):
                         tcp_hdr = bytearray(self._inject_md5sig_option(bytes(tcp_hdr)))
-                    # Контроль: не превысили ли 60?
                     tcp_hl_new = ((tcp_hdr[12] >> 4) & 0x0F) * 4
                     if tcp_hl_new > MAX_TCP_HDR:
                         self.logger.warning(
@@ -2201,11 +2205,7 @@ if platform.system() == "Windows":
                         )
                         tcp_hdr = bytearray(orig_tcp_hdr)
 
-                    # Добавляем маркер инъекции (0xDEADBEEF) к полезной нагрузке
-                    if opts.get("is_fake"):
-                        seg_payload = b"\xDE\xAD\xBE\xEF" + seg_payload
-
-                    # Формируем пакет и корректируем длины/чексамы
+                    # НЕ модифицируем payload фейковых сегментов доп. маркерами
                     seg_raw = bytearray(ip_hdr + tcp_hdr + seg_payload)
                     # Total Length
                     seg_raw[2:4] = struct.pack("!H", len(seg_raw))
@@ -2213,19 +2213,17 @@ if platform.system() == "Windows":
                     seg_raw[10:12] = b"\x00\x00"
                     ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
                     seg_raw[10:12] = struct.pack("!H", ip_csum)
-                    # TCP checksum (good)
+                    # TCP checksum
                     tcp_hl_eff = ((seg_raw[ip_hl + 12] >> 4) & 0x0F) * 4
                     tcp_start = ip_hl
                     tcp_end = ip_hl + tcp_hl_eff
                     good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
-                    # Порча checksum при необходимости (zapret-style)
                     if opts.get("corrupt_tcp_checksum") or opts.get("add_md5sig_option"):
                         bad_csum = good_csum ^ 0xFFFF
                         seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
                     else:
                         seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum)
 
-                    # Безопасная отправка с маркировкой
                     if not self._safe_send_packet(w, bytes(seg_raw), original_packet):
                         self.logger.error("Failed to send segment")
                         return False
@@ -2399,7 +2397,7 @@ if platform.system() == "Windows":
 
                 # Применяем badseq — сдвиг sequence на -10000
                 if "badseq" in (fooling or []):
-                    bad_seq = (seq - 10000) & 0xFFFFFFFF
+                    bad_seq = (seq - 1) & 0xFFFFFFFF
                     tcp_hdr[4:8] = struct.pack("!I", bad_seq)
 
                 # Собираем пакет: IP + TCP + payload
@@ -2590,7 +2588,7 @@ try:
                         ))
                     ok = self._packet_sender.send_tcp_segments(
                         w, original_packet, specs,
-                        window_div=int(self.current_params.get("window_div", 8)) if hasattr(self, "current_params") else 8,
+                        window_div=1,
                         ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
                     )
                     # обновляем телеметрию (как в старом finally)
@@ -2648,7 +2646,7 @@ try:
                         if "seq_offset" in opts:
                             seq_extra = int(opts.get("seq_offset", 0))
                         elif opts.get("corrupt_sequence"):
-                            seq_extra = -10000
+                            seq_extra = -1
                         else:
                             seq_extra = 0
                         specs.append(_TCPSegmentSpec(
