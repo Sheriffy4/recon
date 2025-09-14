@@ -208,9 +208,16 @@ class HybridEngine:
                 else:
                     task_type = 'fake'
             else:
-                # В сочетании с fakeddisorder НЕ переопределяем тип, а только оставляем fooling в параметрах
+                # В сочетании с fakeddisorder трактуем 'fake' как прединъекцию (zapret semantics: fake,fakeddisorder)
+                # 1) сохраняем общий fooling для основной пары
                 if fooling:
                     task_params['fooling'] = fooling
+                # 2) добавляем явные поля pre_fake*
+                task_params['pre_fake'] = True
+                if fooling:
+                    task_params['pre_fake_fooling'] = list(fooling)
+                if params.get('dpi_desync_ttl') is not None:
+                    task_params['pre_fake_ttl'] = int(params['dpi_desync_ttl'])
 
         # seqovl: если указан и нет fakeddisorder-семейства, можно выделить отдельный тип;
         # иначе — это параметр fakeddisorder
@@ -246,6 +253,7 @@ class HybridEngine:
                     task_params['split_pos'] = 'midsld'
                 else:
                     positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
+                    # Если в CLI указан split_pos (например, 3) — обязаны его перенести без подмен
                     task_params['split_pos'] = positions[0] if positions else 76
             if 'overlap_size' not in task_params and not params.get('dpi_desync_split_seqovl'):
                 task_params['overlap_size'] = 336
