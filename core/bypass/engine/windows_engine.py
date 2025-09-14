@@ -1098,6 +1098,17 @@ if platform.system() == "Windows":
                             if forced_nofallback:
                                 self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
                             payload = bytes(packet.payload)
+                            # Прединъекция fake для zapret семантики: fake,fakeddisorder
+                            if params.get("pre_fake"):
+                                pre_ttl = int(params.get("pre_fake_ttl", self.current_params.get("fake_ttl", 1)))
+                                pre_fooling = params.get("pre_fake_fooling") or params.get("fooling") or []
+                                if isinstance(pre_fooling, str):
+                                    pre_fooling = [x.strip() for x in pre_fooling.split(",") if x.strip()]
+                                pre_data = payload[:min(32, len(payload))]
+                                # Выровнять по base_seq: seq_offset = 0
+                                self._send_aligned_fake_segment(packet, w, seq_offset=0, data=pre_data, ttl=pre_ttl, fooling=pre_fooling)
+                                time.sleep(0.002)
+
                             split_pos = int(params.get("split_pos", 76))
                             overlap = int(params.get("overlap_size", 336))
                             ttl_simple_src = params.get("fake_ttl", params.get("ttl", self.current_params.get("fake_ttl", 1)))
@@ -1108,14 +1119,6 @@ if platform.system() == "Windows":
                             fooling_list = params.get("fooling", []) or []
                             if isinstance(fooling_list, str):
                                 fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
-                            # NEW: zapret semantics — прединъекция fake перед парой fakeddisorder
-                            if params.get("pre_fake"):
-                                pre_ttl = int(params.get("pre_fake_ttl", ttl_simple))
-                                pre_fooling = params.get("pre_fake_fooling") or fooling_list
-                                pre_data = payload[:min(32, len(payload))]
-                                # seq_offset == 0 → выравниваем по base_seq
-                                self._send_aligned_fake_segment(packet, w, seq_offset=0, data=pre_data, ttl=pre_ttl, fooling=pre_fooling)
-                                time.sleep(0.002)
                             segs = BypassTechniques.apply_fakeddisorder(
                                     payload,
                                     split_pos=split_pos,
@@ -1129,7 +1132,7 @@ if platform.system() == "Windows":
                                     fake_delay_ms=int(params.get("fake_delay_ms", 1)),
                                     real_delay_ms=int(params.get("real_delay_ms", params.get("delay_ms", 1))),
                                 )
-                                self._send_attack_segments(packet, w, segs)
+                            self._send_attack_segments(packet, w, segs)
                             if forced_nofallback:
                                 # В режиме принудительной стратегии не используем калибратор/фоллбеки
                                 w.send(packet)
@@ -1152,11 +1155,13 @@ if platform.system() == "Windows":
                     if inbound_ev.is_set(): inbound_ev.clear()
                     self._inbound_results.pop(rev_key, None)
 
-                    # NEW: однократная прединъекция fake перед попытками калибратора
+                    # Однократная прединъекция fake перед калибратором (если задана)
                     if params.get("pre_fake"):
                         try:
                             pre_ttl = int(params.get("pre_fake_ttl", self.current_params.get("fake_ttl", 1)))
                             pre_fooling = params.get("pre_fake_fooling") or params.get("fooling") or []
+                            if isinstance(pre_fooling, str):
+                                pre_fooling = [x.strip() for x in pre_fooling.split(",") if x.strip()]
                             pre_data = payload[:min(32, len(payload))]
                             self._send_aligned_fake_segment(packet, w, seq_offset=0, data=pre_data, ttl=pre_ttl, fooling=pre_fooling)
                             time.sleep(0.002)
@@ -1188,13 +1193,13 @@ if platform.system() == "Windows":
 
                     # Подготовка кандидатов
                     cand_list = Calibrator.prepare_candidates(payload, initial_split_pos=init_sp)
-                    # NEW: добавим «малые» seed-кандидаты как в zapret (sp 3/4/5/6, ov ≤ sp)
+                    # Добавим «малые» seed-кандидаты (zapret‑like), если CLI явно не задал split_pos
                     try:
-                        _seed_heads = [CalibCandidate(split_pos=s, overlap_size=min(3, s)) for s in (3, 4, 5, 6)]
-                        # prepend, убрав дубликаты
-                        head_keys = {(x.split_pos, x.overlap_size) for x in _seed_heads}
-                        cand_list = _seed_heads + [c for c in cand_list if (c.split_pos, c.overlap_size) not in head_keys]
-                        self.logger.debug(f"Calibrator seeds prepended: {[(x.split_pos, x.overlap_size) for x in _seed_heads]}")
+                        if "split_pos" not in params:
+                            seed_heads = [CalibCandidate(split_pos=s, overlap_size=min(3, s)) for s in (3, 4, 5, 6)]
+                            head_keys = {(x.split_pos, x.overlap_size) for x in seed_heads}
+                            cand_list = seed_heads + [c for c in cand_list if (c.split_pos, c.overlap_size) not in head_keys]
+                            self.logger.debug(f"Calibrator seeds prepended: {[(x.split_pos, x.overlap_size) for x in seed_heads]}")
                     except Exception:
                         pass
                     if seed:
