@@ -223,6 +223,12 @@ class HybridEngine:
                     task_params['pre_fake_fooling'] = list(fooling)
                 if params.get('dpi_desync_ttl') is not None:
                     task_params['pre_fake_ttl'] = int(params['dpi_desync_ttl'])
+                # Принудительно активируем простой режим и zapret‑порядок сегментов
+                task_params['force_simple'] = True
+                task_params.setdefault('segment_order', 'fake_first')
+                # Явно зафиксируем badseq_delta, если требуется
+                if 'badseq' in fooling:
+                    task_params.setdefault('badseq_delta', -1)
 
         # seqovl: если указан и нет fakeddisorder-семейства, можно выделить отдельный тип;
         # иначе — это параметр fakeddisorder

@@ -169,8 +169,8 @@ if platform.system() == "Windows":
             Также нормализует параметры и делает override авторитетным (отключает фоллбэки).
             """
             # Normalize and mark override as authoritative (no fallbacks)
-            task = dict(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
-            params = dict(task.get("params", {}))
+            task = copy.deepcopy(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
+            params = (task.get("params", {}) or {}).copy()
 
             # Normalize fooling -> list
             if "fooling" in params and not isinstance(params["fooling"], (list, tuple)):
@@ -181,14 +181,26 @@ if platform.system() == "Windows":
                         params["fooling"] = [params["fooling"]]
 
             # Ensure fake_ttl is present (respect explicit ttl; default to 1 for fakeddisorder if missing)
-            if "fake_ttl" not in params:
-                if "ttl" in params and params["ttl"] is not None:
-                    try:
-                        params["fake_ttl"] = int(params["ttl"])
-                    except Exception:
-                        pass
-                if "fake_ttl" not in params and str(task.get("type", "")).lower() == "fakeddisorder":
-                    params["fake_ttl"] = 1
+            try:
+                if "fake_ttl" not in params:
+                    if "ttl" in params:
+                        try:
+                            params["fake_ttl"] = int(params["ttl"])
+                        except Exception:
+                            pass
+                    if "fake_ttl" not in params and str(task.get("type", "")).lower() == "fakeddisorder":
+                        params["fake_ttl"] = 1
+            except Exception:
+                pass
+
+            # CRITICAL: Для принудительного fakeddisorder всегда делаем простую ветку + фиксируем порядок сегментов
+            try:
+                if normalize_attack_name(str(task.get("type", ""))) == "fakeddisorder":
+                    params.setdefault("force_simple", True)
+                    params.setdefault("segment_order", "fake_first")
+                    params.setdefault("badseq_delta", -1)
+            except Exception:
+                pass
 
             task["params"] = params
             task["no_fallbacks"] = True
@@ -261,7 +273,11 @@ if platform.system() == "Windows":
                     task_type = "seqovl"
                     base_params["overlap_size"] = config.get("overlap_size", 20)
                 else:
+                    # fake + fakeddisorder: принудительно простая ветка и zapret-семантика
                     task_type = "fakedisorder"
+                    base_params["force_simple"] = True
+                    base_params["segment_order"] = "fake_first"
+                    base_params["badseq_delta"] = -1
                 return {"type": task_type, "params": base_params}
             return {
                 "type": "fakedisorder",
@@ -271,6 +287,9 @@ if platform.system() == "Windows":
                     "window_div": 8,
                     "tcp_flags": {"psh": True, "ack": True},
                     "ipid_step": 2048,
+                    "force_simple": True,
+                    "segment_order": "fake_first",
+                    "badseq_delta": -1,
                 },
             }
 
@@ -1090,7 +1109,9 @@ if platform.system() == "Windows":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
 
                 if task_type == "fakeddisorder":
-                    forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
+                    # Было: forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
+                    # Стало: полагаемся только на явные признаки «принудительности»
+                    forced_nofallback = bool(getattr(self, "_forced_strategy_active", False) or strategy_task.get("no_fallbacks", False))
                     # Простая (или принудительная) ветка без калибратора
                     is_simple = forced_nofallback or bool(params.get("simple", False) or params.get("force_simple", False))
                     if is_simple:
@@ -1133,14 +1154,15 @@ if platform.system() == "Windows":
                                     real_delay_ms=int(params.get("real_delay_ms", params.get("delay_ms", 1))),
                                 )
                             self._send_attack_segments(packet, w, segs)
-                            if forced_nofallback:
-                                # В режиме принудительной стратегии не используем калибратор/фоллбеки
-                                w.send(packet)
-                                return
+                            # В «простой» ветке всегда выходим, не запускаем калибратор/фоллбеки
+                            self.logger.debug("Simple fakeddisorder applied; skipping calibrator/fallbacks")
+                            w.send(packet)
+                            return
                         except Exception:
-                            if forced_nofallback:
-                                w.send(packet)
-                                return
+                            # При ошибке «простого» пути — пересылаем оригинал и выходим
+                            self.logger.debug("Simple fakeddisorder failed; forwarding original and skipping calibrator")
+                            w.send(packet)
+                            return
                     # --- Логика с калибратором и ранней остановкой ---
                     flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
                     if flow_id in self._active_flows:
@@ -2456,7 +2478,25 @@ if platform.system() == "Windows":
                 seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", tcp_csum)
 
                 # Отправляем через safe-отправку (с меткой и ретраем при 258)
-                return self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                if ok:
+                    try:
+                        # Increment global stats for fake packets as well
+                        self.stats["fake_packets_sent"] += 1
+                    except Exception:
+                        pass
+                    try:
+                        ttl_val = int(seg_raw[8])
+                        with self._tlock:
+                            self._telemetry["aggregate"]["fake_packets_sent"] += 1
+                            self._telemetry["ttls"]["fake"][ttl_val] += 1
+                            tgt = original_packet.dst_addr
+                            per = self._telemetry["per_target"][tgt]
+                            per["fake_packets_sent"] += 1
+                            per["ttls_fake"][ttl_val] += 1
+                    except Exception:
+                        pass
+                return ok
             except Exception as e:
                 self.logger.debug(f"_send_aligned_fake_segment error: {e}")
                 return False
@@ -2712,6 +2752,28 @@ try:
                                     real_ttl = int(bytearray(original_packet.raw)[8])
                                     self._telemetry["ttls"]["real"][real_ttl] += 1
                                     per["ttls_real"][real_ttl] += 1
+
+                            # Подсчёт и учёт фейковых сегментов и их TTL
+                            try:
+                                for s in (segments or []):
+                                    opts = (s[2] if len(s) == 3 else {}) or {}
+                                    if opts.get("is_fake"):
+                                        ttl_opt = opts.get("ttl", None)
+                                        if ttl_opt is None:
+                                            try:
+                                                ttl_opt = int(self.current_params.get("fake_ttl", 2))
+                                            except Exception:
+                                                ttl_opt = 2
+                                        ttl_fake_val = int(ttl_opt)
+                                        with self._tlock:
+                                            self._telemetry["aggregate"]["fake_packets_sent"] += 1
+                                            self._telemetry["ttls"]["fake"][ttl_fake_val] += 1
+                                            tgt = original_packet.dst_addr
+                                            per = self._telemetry["per_target"][tgt]
+                                            per["fake_packets_sent"] += 1
+                                            per["ttls_fake"][ttl_fake_val] += 1
+                            except Exception:
+                                pass
                         except Exception:
                             pass
                     return ok
