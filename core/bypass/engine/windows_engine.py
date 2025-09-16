@@ -101,6 +101,8 @@ if platform.system() == "Windows":
             self._tlock = threading.Lock()
             self._telemetry = self._init_telemetry()
             self._strategy_manager = None  # lazy StrategyManager cache
+            # Разрешим CDN-префиксы при наличии target_ips (чтобы не терять трафик в тестах)
+            self._accept_cdn_prefixes_when_filtered = True
             self.strategy_override = None  # forced strategy override for all flows
             # Track whether an explicit override is active and should disable calibrator/fallbacks
             self._forced_strategy_active = False
@@ -166,7 +168,7 @@ if platform.system() == "Windows":
             """
             Принудительно задаёт стратегию для всех подходящих потоков.
             HybridEngine вызывает это до запуска перехвата.
-            Также нормализует параметры и делает override авторитетным (отключает фоллбэки).
+            ИСПРАВЛЕНИЕ: zapret‑семантика для fake,fakeddisorder, отключаем фоллбэки.
             """
             task = copy.deepcopy(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
             params = (task.get("params", {}) or {}).copy()
@@ -179,17 +181,16 @@ if platform.system() == "Windows":
                     elif params["fooling"]:
                         params["fooling"] = [params["fooling"]]
 
-            # Для CLI fake,fakeddisorder хотим максимально zapret-совместимый simple путь
+            # zapret‑семантика для fake,fakeddisorder: simple + fake_first, без навязанного overlap
             try:
                 tnorm = normalize_attack_name(str(task.get("type", "")))
                 if tnorm == "fakeddisorder":
-                    # не навязываем overlap_size, если его нет
-                    if "overlap_size" in params and (params["overlap_size"] is None or params["overlap_size"] == ""):
-                        params.pop("overlap_size", None)
-                    # заплет‑семантика
                     params.setdefault("force_simple", True)
                     params.setdefault("segment_order", "fake_first")
-                    # fake_ttl по возможности берём из ttl, иначе 1
+                    # Если overlap_size пустой/невалидный — не добавляем его
+                    if "overlap_size" in params and (params["overlap_size"] in ("", None)):
+                        params.pop("overlap_size", None)
+                    # fake_ttl берём из ttl (если есть), иначе 1
                     if "fake_ttl" not in params and "ttl" in params:
                         try:
                             params["fake_ttl"] = int(params["ttl"])
@@ -209,7 +210,6 @@ if platform.system() == "Windows":
             self._forced_strategy_active = True
 
             try:
-                # Try to keep the same wording as your logs
                 self.logger.info(f"Принудительная стратегия установлена: {self._format_task(task) if hasattr(self, '_format_task') else task}")
             except Exception:
                 self.logger.info(f"Принудительная стратегия установлена: {task}")
@@ -464,16 +464,23 @@ if platform.system() == "Windows":
         
         def _is_target_ip(self, ip_str: str, target_ips: Set[str]) -> bool:
             """
-            Строгая логика: если задан target_ips — работаем только по нему.
-            Без расширений на CDN-префиксы (если явно не включено отдельным флагом).
+            ИСПРАВЛЕНИЕ: Если target_ips пустой — работаем со всем.
+            Если задан — проверяем точное совпадение + (по флагу) помогаем CDN‑префиксами,
+            чтобы в тестах не терять ClientHello на популярных CDN.
             """
             if not target_ips:
                 return True
             if ip_str in target_ips:
                 return True
             if getattr(self, "_accept_cdn_prefixes_when_filtered", False):
-                for prefix in ("104.", "172.64.", "172.67.", "162.158.", "162.159."):
-                    if ip_str.startswith(prefix):
+                cdn_prefixes = (
+                    "104.", "172.64.", "172.67.", "162.158.", "162.159.",
+                    "31.13.", "157.240.", "199.232.", "151.101.",
+                    "142.250.", "216.58.", "216.239.", "64.233.",
+                    "173.194.", "172.217.", "172.253."
+                )
+                for pref in cdn_prefixes:
+                    if ip_str.startswith(pref):
                         return True
             return False
 
@@ -960,30 +967,22 @@ if platform.system() == "Windows":
                     self.current_params["window_div"] = 1  # максимально близко к zapret
 
                 # --- Улучшенная логика TTL ---
-                fake_ttl_source = params.get("autottl") or params.get("ttl")
-                if fake_ttl_source is not None:
-                    try:
-                        fake_ttl = int(fake_ttl_source)
-                        if not (1 <= fake_ttl <= 255):
-                            self.logger.warning(f"Invalid fake TTL {fake_ttl}, using default 1 for fakes.")
-                            fake_ttl = 1
-                    except (ValueError, TypeError):
-                        self.logger.warning(f"Invalid fake TTL format '{fake_ttl_source}', using default 1.")
-                        fake_ttl = 1
+                # Приоритет TTL: fake_ttl > ttl > autottl > default
+                task_type = normalize_attack_name(strategy_task.get("type"))
+                if params.get("fake_ttl") is not None:
+                    fake_ttl = int(params["fake_ttl"])
+                elif params.get("ttl") is not None:
+                    fake_ttl = int(params["ttl"])
+                elif params.get("autottl") is not None:
+                    fake_ttl = int(params["autottl"])
                 else:
                     fake_ttl = 1 if task_type == "fakeddisorder" else 3
-                # Clamp fake TTL for fake/race families
-                if task_type in ("fakeddisorder", "multidisorder", "multisplit", "badsum_race", "md5sig_race", "fake"):
-                    if fake_ttl > 8:
-                        self.logger.debug(f"Clamping fake TTL from {fake_ttl} to 8 for {task_type}")
-                        fake_ttl = 8
+                fake_ttl = max(1, min(fake_ttl, 8))
                 self.current_params["fake_ttl"] = fake_ttl
-                self.logger.info(f"Base TTL for FAKE packets set to: {fake_ttl}")
-
                 orig_ttl = bytearray(packet.raw)[8]
                 real_ttl = orig_ttl if 1 <= orig_ttl <= 255 else 64
                 self.current_params["real_ttl"] = real_ttl
-                self.logger.info(f"TTL for REAL segments set to: {real_ttl} (from original packet)")
+                self.logger.info(f"TTL: fake={fake_ttl}, real={real_ttl}")
                 # --- Конец логики TTL ---
 
                 self.logger.info(f"\uD83C\uDFAF Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
@@ -1069,6 +1068,7 @@ if platform.system() == "Windows":
                         try:
                             if forced_nofallback:
                                 self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
+                            # В принудительном режиме — ближе к zapret
                             self.current_params["window_div"] = 1
                             payload = bytes(packet.payload)
                             # Прединъекция fake для zapret семантики: fake,fakeddisorder
@@ -1083,12 +1083,9 @@ if platform.system() == "Windows":
                                 time.sleep(0.002)
 
                             split_pos = int(params.get("split_pos", 76))
-                            overlap = int(params.get("overlap_size", 336))
-                            ttl_simple_src = params.get("fake_ttl", params.get("ttl", self.current_params.get("fake_ttl", 1)))
-                            try:
-                                ttl_simple = int(ttl_simple_src)
-                            except Exception:
-                                ttl_simple = int(self.current_params.get("fake_ttl", 1))
+                            overlap = int(params.get("overlap_size", 336)) if params.get("overlap_size") not in (None, "") else None
+                            # TTL для fake: берём из current_params (fake_ttl) — уже нормализован
+                            ttl_simple = int(self.current_params.get("fake_ttl", 1))
                             fooling_list = params.get("fooling", []) or []
                             if isinstance(fooling_list, str):
                                 fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
@@ -2510,6 +2507,7 @@ try:
             try:
                 self._packet_builder = _CompatPacketBuilder()
                 self._packet_sender = _PacketSender(self._packet_builder, self.logger, getattr(self, "_INJECT_MARK", 0xC0DE))
+                self._pipeline_shim_enabled = True
             except Exception as e:
                 try:
                     self.logger.debug(f"PacketPipeline init failed: {e}")
@@ -2534,7 +2532,14 @@ try:
         WindowsBypassEngine._send_segments_orig = WindowsBypassEngine._send_segments
         def _send_segments_patched(self, original_packet, w, segments):
             try:
-                if hasattr(self, "_packet_sender") and self._packet_sender:
+                # В принудительном режиме или при “рецептах” лучше использовать legacy sender (TTL/flags корректны)
+                force_legacy = False
+                try:
+                    if getattr(self, "_forced_strategy_active", False):
+                        force_legacy = True
+                except Exception:
+                    pass
+                if not force_legacy and hasattr(self, "_packet_sender") and self._packet_sender and getattr(self, "_pipeline_shim_enabled", True):
                     delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
                     specs = []
                     for i, (payload, rel_off) in enumerate(segments or []):
@@ -2567,6 +2572,8 @@ try:
                         except Exception:
                             pass
                     return ok
+                else:
+                    return WindowsBypassEngine._send_segments_orig(self, original_packet, w, segments)
             except Exception as e:
                 try:
                     self.logger.error(f"_send_segments shim error: {e}", exc_info=getattr(self, "debug", False))
@@ -2580,7 +2587,21 @@ try:
         WindowsBypassEngine._send_attack_segments_orig = WindowsBypassEngine._send_attack_segments
         def _send_attack_segments_patched(self, original_packet, w, segments):
             try:
-                if hasattr(self, "_packet_sender") and self._packet_sender:
+                # Если forced override или есть рецептурные opts (is_fake/ttl) — используем legacy sender
+                force_legacy = False
+                try:
+                    if getattr(self, "_forced_strategy_active", False):
+                        force_legacy = True
+                    else:
+                        for s in (segments or []):
+                            if len(s) >= 3:
+                                opts = (s[2] or {})
+                                if opts.get("is_fake") or ("ttl" in opts):
+                                    force_legacy = True
+                                    break
+                except Exception:
+                    pass
+                if not force_legacy and hasattr(self, "_packet_sender") and self._packet_sender and getattr(self, "_pipeline_shim_enabled", True):
                     base_delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
                     specs = []
                     total = len(segments or [])
@@ -2668,6 +2689,7 @@ try:
                     self.logger.error(f"_send_attack_segments shim error: {e}", exc_info=getattr(self, "debug", False))
                 except Exception:
                     pass
+            # forced/fallback: используем оригинальный sender
             return WindowsBypassEngine._send_attack_segments_orig(self, original_packet, w, segments)
         WindowsBypassEngine._send_attack_segments = _send_attack_segments_patched
 
@@ -2676,7 +2698,14 @@ try:
         WindowsBypassEngine._send_udp_segments_orig = WindowsBypassEngine._send_udp_segments
         def _send_udp_segments_patched(self, original_packet, w, segments):
             try:
-                if hasattr(self, "_packet_sender") and self._packet_sender:
+                # UDP можно через shim, но в принудительном режиме — на всякий legacy
+                force_legacy = False
+                try:
+                    if getattr(self, "_forced_strategy_active", False):
+                        force_legacy = True
+                except Exception:
+                    pass
+                if not force_legacy and hasattr(self, "_packet_sender") and self._packet_sender and getattr(self, "_pipeline_shim_enabled", True):
                     ok = self._packet_sender.send_udp_datagrams(
                         w, original_packet, segments or [],
                         ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
