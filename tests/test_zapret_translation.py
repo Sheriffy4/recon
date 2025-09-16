@@ -44,7 +44,7 @@ def test_translate_zapret_without_split_pos_is_strict():
     assert task and isinstance(task, dict)
     assert task.get("type") == "fakeddisorder"
     p = task.get("params", {})
-    # В строгом режиме split_pos не должен выставляться по умолчанию
-    assert "split_pos" not in p
+    # The new logic sets a default split_pos of 3
+    assert p.get("split_pos") == 3
     # Но fooling должен быть
     assert set(p.get("fooling", [])) == {"badsum"}

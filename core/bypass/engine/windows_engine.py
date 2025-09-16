@@ -101,8 +101,6 @@ if platform.system() == "Windows":
             self._tlock = threading.Lock()
             self._telemetry = self._init_telemetry()
             self._strategy_manager = None  # lazy StrategyManager cache
-            # Strict targeting by default: do NOT widen to CDN prefixes when target_ips is provided
-            self._accept_cdn_prefixes_when_filtered = False
             self.strategy_override = None  # forced strategy override for all flows
             # Track whether an explicit override is active and should disable calibrator/fallbacks
             self._forced_strategy_active = False
@@ -170,7 +168,6 @@ if platform.system() == "Windows":
             HybridEngine вызывает это до запуска перехвата.
             Также нормализует параметры и делает override авторитетным (отключает фоллбэки).
             """
-            # Normalize and mark override as authoritative (no fallbacks)
             task = copy.deepcopy(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
             params = (task.get("params", {}) or {}).copy()
 
@@ -182,32 +179,33 @@ if platform.system() == "Windows":
                     elif params["fooling"]:
                         params["fooling"] = [params["fooling"]]
 
-            # Ensure fake_ttl is present (respect explicit ttl; default to 1 for fakeddisorder if missing)
+            # Для CLI fake,fakeddisorder хотим максимально zapret-совместимый simple путь
             try:
-                if "fake_ttl" not in params:
-                    if "ttl" in params:
+                tnorm = normalize_attack_name(str(task.get("type", "")))
+                if tnorm == "fakeddisorder":
+                    # не навязываем overlap_size, если его нет
+                    if "overlap_size" in params and (params["overlap_size"] is None or params["overlap_size"] == ""):
+                        params.pop("overlap_size", None)
+                    # заплет‑семантика
+                    params.setdefault("force_simple", True)
+                    params.setdefault("segment_order", "fake_first")
+                    # fake_ttl по возможности берём из ttl, иначе 1
+                    if "fake_ttl" not in params and "ttl" in params:
                         try:
                             params["fake_ttl"] = int(params["ttl"])
                         except Exception:
                             pass
-                    if "fake_ttl" not in params and str(task.get("type", "")).lower() == "fakeddisorder":
+                    if "fake_ttl" not in params:
                         params["fake_ttl"] = 1
             except Exception:
                 pass
 
-            # CRITICAL: Для принудительного fakeddisorder всегда делаем простую ветку + фиксируем порядок сегментов
-            try:
-                if normalize_attack_name(str(task.get("type", ""))) == "fakeddisorder":
-                    params.setdefault("force_simple", True)
-                    params.setdefault("segment_order", "fake_first")
-                    params.setdefault("badseq_delta", -1)
-            except Exception:
-                pass
-
             task["params"] = params
+            # Принудительное отключение калибратора/фоллбеков
             task["no_fallbacks"] = True
 
             self.strategy_override = task
+            # Флаг для всех путей внутри apply_bypass
             self._forced_strategy_active = True
 
             try:
@@ -473,7 +471,6 @@ if platform.system() == "Windows":
                 return True
             if ip_str in target_ips:
                 return True
-            # Опционально можно разрешить CDN-префиксы при включенном флаге
             if getattr(self, "_accept_cdn_prefixes_when_filtered", False):
                 for prefix in ("104.", "172.64.", "172.67.", "162.158.", "162.159."):
                     if ip_str.startswith(prefix):
@@ -1064,8 +1061,7 @@ if platform.system() == "Windows":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
 
                 if task_type == "fakeddisorder":
-                    # Было: forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
-                    # Стало: полагаемся только на явные признаки «принудительности»
+                    # при принудительной стратегии — только simple-путь, без калибратора
                     forced_nofallback = bool(getattr(self, "_forced_strategy_active", False) or strategy_task.get("no_fallbacks", False))
                     # Простая (или принудительная) ветка без калибратора
                     is_simple = forced_nofallback or bool(params.get("simple", False) or params.get("force_simple", False))
@@ -1073,7 +1069,6 @@ if platform.system() == "Windows":
                         try:
                             if forced_nofallback:
                                 self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
-                            # окно не урезаем — запоминаем для шима/старого sender'а
                             self.current_params["window_div"] = 1
                             payload = bytes(packet.payload)
                             # Прединъекция fake для zapret семантики: fake,fakeddisorder
