@@ -143,7 +143,7 @@ class HybridEngine:
 
     def _translate_zapret_to_engine_task(self, params: Dict, strict_cli: bool = False) -> Optional[Dict]:
         """
-        ИСПРАВЛЕНИЕ: Унифицированный и надежный транслятор zapret-строки в задачу для BypassEngine.
+        ИСПРАВЛЕНИЕ: Точная трансляция zapret-строки без добавления лишних параметров.
         """
         # Нормализуем имена атак для консистентности
         desync = [normalize_attack_name(d) for d in params.get('dpi_desync', [])]
@@ -161,46 +161,43 @@ class HybridEngine:
             return None
         task_type = 'none'
         task_params = {}
-        # strict_cli: переносим ТОЛЬКО явно указанные в CLI параметры (без неявных дефолтов)
         strict = bool(strict_cli)
-        # Нормализация составных алиасов: fake + fakeddisorder трактуем как fakeddisorder
-        # Алиас 'desync' → fakeddisorder
-        if 'fakeddisorder' in desync or 'desync' in desync:
+        # Специальная обработка fake,fakeddisorder (zapret: fake -> disorder)
+        if 'fake' in desync and 'fakeddisorder' in desync:
+            task_type = 'fakeddisorder'
+            task_params['pre_fake'] = True
+            task_params['force_simple'] = True
+            task_params['segment_order'] = 'fake_first'
+            # TTL: применим и к fake_ttl, и как инфо ttl
+            if params.get('dpi_desync_ttl') is not None:
+                t = int(params['dpi_desync_ttl'])
+                task_params['ttl'] = t
+                task_params['fake_ttl'] = t
+            # split_pos как указано, без overlap по умолчанию
+            split_pos_raw = params.get('dpi_desync_split_pos', [])
+            if split_pos_raw:
+                positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
+                if positions:
+                    task_params['split_pos'] = positions[0]
+            else:
+                task_params['split_pos'] = 3
+            if fooling:
+                task_params['fooling'] = list(fooling)
+                task_params['pre_fake_fooling'] = list(fooling)
+            # НЕ добавляем overlap_size если его нет
+        elif 'fakeddisorder' in desync or 'desync' in desync:
             task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
             task_type = 'multidisorder'
         elif 'multisplit' in desync:
             task_type = 'multisplit'
-        elif 'disorder' in desync or 'disorder2' in desync:  # Legacy aliases
+        elif 'disorder' in desync or 'disorder2' in desync:
             task_type = 'fakeddisorder'
-
         # Флаг: присутствует ли семейство fakeddisorder
         has_faked = (
             ('fakeddisorder' in desync) or ('desync' in desync)
             or ('disorder' in desync) or ('disorder2' in desync)
         )
-
-        # Настройка позиций сплита
-        if task_type in ['fakeddisorder', 'multidisorder', 'multisplit']:
-            split_pos_raw = params.get('dpi_desync_split_pos', [])
-            if any((p.get('type') == 'midsld' for p in split_pos_raw)):
-                task_params['split_pos'] = 'midsld'
-            else:
-                positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                if task_type == 'fakeddisorder':
-                    if positions:
-                        task_params['split_pos'] = positions[0]
-                    elif not strict:
-                        task_params['split_pos'] = 76
-                else:
-                    count = params.get('dpi_desync_split_count')
-                    if not positions and isinstance(count, int) and count > 1:
-                        base, gap = 6, max(4, 120 // min(count, 10))
-                        positions = [base + i * gap for i in range(count)]
-                    if positions:
-                        task_params['positions'] = positions
-                    elif not strict:
-                        task_params['positions'] = [1, 5, 10]
 
         # Обработка fake‑ветки
         if 'fake' in desync:
@@ -530,24 +527,15 @@ class HybridEngine:
         engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
-
-        # 0) Быстрый префлайт: исключаем явно мёртвые сайты, чтобы не портить статистику стратегии
+        # 0) Быстрый префлайт: убираем явные TIMEOUT'ы, чтобы не портить оценку стратегии
         try:
-            baseline = await self._test_sites_connectivity(
-                test_sites,
-                dns_cache,
-                timeout_profile="fast",
-                retries=0,
-                max_concurrent=8
-            )
+            baseline = await self._test_sites_connectivity(test_sites, dns_cache, timeout_profile="fast", retries=0, max_concurrent=8)
             alive = [s for s, (st, _, _, _) in baseline.items() if st in ("WORKING", "RST", "ERROR")]
             if not alive:
                 return ('NO_SITES_WORKING', 0, len(test_sites), 0.0)
-            # Тестируем только живые: RST/ERROR считаем “живыми” (есть реакция DPI/сервера)
             test_sites = alive
         except Exception:
             pass
-
         # Create engine with optional override via a simple factory shim
         class _EngineFactoryShim:
             def __init__(self, debug: bool):

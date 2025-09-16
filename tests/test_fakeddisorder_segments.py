@@ -3,7 +3,7 @@ from core.bypass.techniques.primitives import BypassTechniques
 
 def test_fakeddisorder_offsets():
     payload = b"A"*200
-    segs = BypassTechniques.apply_fakeddisorder(payload, 76, 336, 1, [])
+    segs = BypassTechniques.apply_fakeddisorder(payload, 76, 336, 1, [], segment_order="real_first")
     assert len(segs) == 2
     # Correct order: first "right" (real), then "left" (fake)
     real_seg, fake_seg = segs[0], segs[1]

@@ -51,8 +51,6 @@ class BypassTechniques:
                 ov = 0
             if ov < 0:
                 ov = 0
-            if ov > split_pos:
-                ov = split_pos
 
             part1 = payload[:split_pos]
             part2 = payload[split_pos:]
@@ -72,12 +70,14 @@ class BypassTechniques:
             if "md5sig" in fooling_methods:
                 opts_fake["add_md5sig_option"] = True
             if "badseq" in fooling_methods:
+                # Минимальный сдвиг по умолчанию — ближе к zapret
                 if badseq_delta is None:
                     badseq_delta = -1
                 try:
                     opts_fake["seq_offset"] = int(badseq_delta)
                 except Exception:
                     opts_fake["seq_offset"] = -1
+                # Для совместимости: помечаем как corrupt_sequence, но в sender приоритет у seq_offset
                 opts_fake["corrupt_sequence"] = True
 
             opts_real = {
@@ -102,9 +102,10 @@ class BypassTechniques:
 
             return segs
         except Exception:
-            # Защитный fallback
+            # Защитный fallback (никогда не должен понадобиться)
             if split_pos >= len(payload):
                 return [(payload, 0, {"is_fake": False, "tcp_flags": 0x18})]
+            # «простой» порядок: fake -> real
             return [
                 (payload[:split_pos], 0, {
                     "is_fake": True, "ttl": int(fake_ttl or 1), "tcp_flags": 0x10,

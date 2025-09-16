@@ -43,6 +43,7 @@ class TestTechniqueRegistry:
             "fooling_methods": ["badsum", "badseq"],
             "fake_ttl": 3
         }
+        params["segment_order"] = "real_first"
         result = FakeddisorderTechnique(payload, **params)
         assert len(result) == 2
         # Correct order: real then fake
