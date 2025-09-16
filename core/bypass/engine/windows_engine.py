@@ -164,15 +164,15 @@ if platform.system() == "Windows":
 
         def set_strategy_override(self, strategy_task: Dict[str, Any]) -> None:
             """
-            Принудительно задаёт стратегию для всех подходящих потоков.
-            HybridEngine вызывает это до запуска перехвата.
-            Также нормализует параметры и делает override авторитетным (отключает фоллбэки).
+            ИСПРАВЛЕНИЕ: Не добавляем параметры, которых нет в оригинале
             """
-            # Normalize and mark override as authoritative (no fallbacks)
             task = copy.deepcopy(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
-            params = (task.get("params", {}) or {}).copy()
+            params = task.get("params", {}).copy()
 
-            # Normalize fooling -> list
+            # НЕ добавляем overlap_size автоматически!
+            # НЕ форсируем simple для всех
+
+            # Только нормализуем fooling если нужно
             if "fooling" in params and not isinstance(params["fooling"], (list, tuple)):
                 if isinstance(params["fooling"], str):
                     if "," in params["fooling"]:
@@ -180,33 +180,9 @@ if platform.system() == "Windows":
                     elif params["fooling"]:
                         params["fooling"] = [params["fooling"]]
 
-            # Ensure fake_ttl is present (respect explicit ttl; default to 1 for fakeddisorder if missing)
-            try:
-                if "fake_ttl" not in params:
-                    if "ttl" in params:
-                        try:
-                            params["fake_ttl"] = int(params["ttl"])
-                        except Exception:
-                            pass
-                    if "fake_ttl" not in params and str(task.get("type", "")).lower() == "fakeddisorder":
-                        params["fake_ttl"] = 1
-            except Exception:
-                pass
-
-            # CRITICAL: Для принудительного fakeddisorder всегда делаем простую ветку + фиксируем порядок сегментов
-            try:
-                if normalize_attack_name(str(task.get("type", ""))) == "fakeddisorder":
-                    params.setdefault("force_simple", True)
-                    params.setdefault("segment_order", "fake_first")
-                    params.setdefault("badseq_delta", -1)
-            except Exception:
-                pass
-
             task["params"] = params
-            task["no_fallbacks"] = True
-
             self.strategy_override = task
-            self._forced_strategy_active = True
+            self._forced_strategy_active = False  # Не блокируем калибратор по умолчанию
 
             try:
                 # Try to keep the same wording as your logs
@@ -1008,30 +984,36 @@ if platform.system() == "Windows":
                     pass
 
                 # --- Улучшенная логика TTL ---
-                fake_ttl_source = params.get("autottl") or params.get("ttl")
-                if fake_ttl_source is not None:
-                    try:
-                        fake_ttl = int(fake_ttl_source)
-                        if not (1 <= fake_ttl <= 255):
-                            self.logger.warning(f"Invalid fake TTL {fake_ttl}, using default 1 for fakes.")
-                            fake_ttl = 1
-                    except (ValueError, TypeError):
-                        self.logger.warning(f"Invalid fake TTL format '{fake_ttl_source}', using default 1.")
-                        fake_ttl = 1
-                else:
-                    fake_ttl = 1 if task_type == "fakeddisorder" else 3
-                # Clamp fake TTL for fake/race families
-                if task_type in ("fakeddisorder", "multidisorder", "multisplit", "badsum_race", "md5sig_race", "fake"):
-                    if fake_ttl > 8:
-                        self.logger.debug(f"Clamping fake TTL from {fake_ttl} to 8 for {task_type}")
-                        fake_ttl = 8
-                self.current_params["fake_ttl"] = fake_ttl
-                self.logger.info(f"Base TTL for FAKE packets set to: {fake_ttl}")
+                # Для fake пакетов ВСЕГДА используем низкий TTL (1-2)
+                # Для real сегментов используем оригинальный TTL из пакета
 
+                task_type = normalize_attack_name(strategy_task.get("type"))
+
+                # Определяем fake_ttl в зависимости от типа атаки
+                if task_type in ("fakeddisorder", "multidisorder", "fake", "badsum_race", "md5sig_race"):
+                    # Для fake-based атак используем низкий TTL
+                    fake_ttl = params.get("fake_ttl")
+                    if fake_ttl is None:
+                        # Если fake_ttl не задан явно, используем 1 для fakeddisorder, 2 для остальных
+                        if task_type == "fakeddisorder":
+                            fake_ttl = 1
+                        else:
+                            fake_ttl = 2
+                    else:
+                        # Ограничиваем fake_ttl разумными значениями
+                        fake_ttl = max(1, min(int(fake_ttl), 8))
+                else:
+                    # Для не-fake атак используем обычный TTL
+                    fake_ttl = params.get("ttl", 3)
+
+                self.current_params["fake_ttl"] = fake_ttl
+
+                # Real TTL всегда из оригинального пакета
                 orig_ttl = bytearray(packet.raw)[8]
                 real_ttl = orig_ttl if 1 <= orig_ttl <= 255 else 64
                 self.current_params["real_ttl"] = real_ttl
-                self.logger.info(f"TTL for REAL segments set to: {real_ttl} (from original packet)")
+
+                self.logger.info(f"TTL: fake={fake_ttl}, real={real_ttl}")
                 # --- Конец логики TTL ---
 
                 self.logger.info(f"\uD83C\uDFAF Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
@@ -1109,15 +1091,60 @@ if platform.system() == "Windows":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
 
                 if task_type == "fakeddisorder":
-                    # Было: forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
-                    # Стало: полагаемся только на явные признаки «принудительности»
-                    forced_nofallback = bool(getattr(self, "_forced_strategy_active", False) or strategy_task.get("no_fallbacks", False))
-                    # Простая (или принудительная) ветка без калибратора
-                    is_simple = forced_nofallback or bool(params.get("simple", False) or params.get("force_simple", False))
-                    if is_simple:
+                    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ для fake,fakeddisorder
+                    is_fake_disorder_combo = params.get("pre_fake", False)
+
+                    if is_fake_disorder_combo:
+                        # Это комбинация fake,fakeddisorder из zapret
+                        # Используем ТОЛЬКО простую ветку без калибратора
+                        payload = bytes(packet.payload)
+
+                        # 1. Отправляем fake пакет
+                        fake_ttl = int(params.get("fake_ttl", params.get("ttl", 3)))
+                        fooling = params.get("pre_fake_fooling", params.get("fooling", []))
+
+                        # Создаем fake пакет с начальными байтами payload
+                        fake_data = payload[:min(100, len(payload))]
+                        self._send_aligned_fake_segment(packet, w, 0, fake_data, fake_ttl, fooling)
+                        time.sleep(0.001)  # Минимальная задержка
+
+                        # 2. Применяем disorder БЕЗ overlap если не задан явно
+                        split_pos = int(params.get("split_pos", 3))
+                        overlap = params.get("overlap_size")  # Может быть None!
+
+                        if overlap is None:
+                            # БЕЗ overlap - просто разделяем на два сегмента
+                            part1 = payload[:split_pos]
+                            part2 = payload[split_pos:]
+
+                            # Отправляем второй сегмент первым (disorder)
+                            segments = [
+                                (part2, split_pos),  # Второй сегмент со смещением split_pos
+                                (part1, 0)            # Первый сегмент с начала
+                            ]
+                        else:
+                            # С overlap - используем стандартную логику
+                            overlap = int(overlap)
+                            segments = BypassTechniques.apply_fakeddisorder(
+                                payload,
+                                split_pos=split_pos,
+                                overlap_size=overlap,
+                                fake_ttl=fake_ttl,
+                                fooling_methods=fooling,
+                                segment_order="disorder_first",  # Важно!
+                                badseq_delta=-1 if "badseq" in fooling else None
+                            )
+
+                        self._send_segments(packet, w, segments)
+                        return  # Выходим, не запускаем калибратор
+
+                    # ИСПРАВЛЕНИЕ: Не всегда используем простую ветку
+                    forced_nofallback = bool(strategy_task.get("no_fallbacks", False))
+                    is_simple = bool(params.get("simple", False) or params.get("force_simple", False))
+
+                    if is_simple or forced_nofallback:
+                        # Простая ветка как раньше
                         try:
-                            if forced_nofallback:
-                                self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
                             payload = bytes(packet.payload)
                             # Прединъекция fake для zapret семантики: fake,fakeddisorder
                             if params.get("pre_fake"):
