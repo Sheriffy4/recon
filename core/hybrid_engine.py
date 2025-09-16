@@ -143,8 +143,9 @@ class HybridEngine:
 
     def _translate_zapret_to_engine_task(self, params: Dict, strict_cli: bool = False) -> Optional[Dict]:
         """
-        ИСПРАВЛЕНИЕ: Точная трансляция zapret-строки без добавления лишних параметров
+        ИСПРАВЛЕНИЕ: Точная трансляция zapret-строки без добавления лишних параметров.
         """
+        # Нормализуем имена атак для консистентности
         desync = [normalize_attack_name(d) for d in params.get('dpi_desync', [])]
         fooling = [normalize_attack_name(f) for f in params.get('dpi_desync_fooling', [])]
 
@@ -160,13 +161,15 @@ class HybridEngine:
             return None
         task_type = 'none'
         task_params = {}
-        # Спец.кейс: fake,fakeddisorder → zapret-последовательность
+
+        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: fake,fakeddisorder обрабатываем особо
         if 'fake' in desync and 'fakeddisorder' in desync:
             task_type = 'fakeddisorder'
             task_params['pre_fake'] = True
             task_params['force_simple'] = True
             task_params['segment_order'] = 'fake_first'
-            # split_pos: только явно заданный, иначе 3
+
+            # split_pos из параметров
             split_pos_raw = params.get('dpi_desync_split_pos', [])
             if split_pos_raw:
                 positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
@@ -174,23 +177,26 @@ class HybridEngine:
                     task_params['split_pos'] = positions[0]
             else:
                 task_params['split_pos'] = 3
-            # НЕ добавляем overlap_size, если его явно нет
+
+            # НЕ добавляем overlap_size для fake,fakeddisorder!
             if params.get('dpi_desync_split_seqovl'):
                 task_params['overlap_size'] = params['dpi_desync_split_seqovl']
-            # TTL переносим в fake_ttl и ttl
+
+            # TTL из параметров применяется к fake пакету
             if params.get('dpi_desync_ttl') is not None:
-                t = int(params['dpi_desync_ttl'])
-                task_params['fake_ttl'] = t
-                task_params['ttl'] = t
-                task_params['pre_fake_ttl'] = t
+                ttl = int(params['dpi_desync_ttl'])
+                task_params['fake_ttl'] = ttl
+                task_params['ttl'] = ttl
+                task_params['pre_fake_ttl'] = ttl # Для pre_fake
+
+            # Fooling
             if fooling:
                 task_params['fooling'] = list(fooling)
                 task_params['pre_fake_fooling'] = list(fooling)
+
             return {'type': task_type, 'params': task_params}
 
-        # strict_cli: переносим ТОЛЬКО явно указанные параметры
-        strict = bool(strict_cli)
-        if 'fakeddisorder' in desync or 'desync' in desync:
+        elif 'fakeddisorder' in desync or 'desync' in desync:
             task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
             task_type = 'multidisorder'
@@ -251,20 +257,20 @@ class HybridEngine:
         # TTL
         if params.get('dpi_desync_ttl') is not None:
             task_params['ttl'] = int(params['dpi_desync_ttl'])
-        elif not strict and task_type == 'fakeddisorder':
+        elif not strict_cli and task_type == 'fakeddisorder':
             task_params.setdefault('ttl', 1)
-        if params.get('dpi_desync_autottl') is not None and not strict:
+        if params.get('dpi_desync_autottl') is not None and not strict_cli:
             task_params['autottl'] = int(params['dpi_desync_autottl'])
         if params.get('dpi_desync_repeats') is not None:
             task_params['repeats'] = int(params.get('dpi_desync_repeats'))
 
         # Значения по умолчанию для fakeddisorder (zapret-совместимые)
         if task_type == 'fakeddisorder':
-            if not strict:
+            if not strict_cli:
                 task_params.setdefault('ttl', 1)
             # split_pos уже установлен выше если был; в strict не подставляем 76
             if 'overlap_size' not in task_params and not params.get('dpi_desync_split_seqovl'):
-                if not strict:
+                if not strict_cli:
                     task_params['overlap_size'] = 336
             if fooling and 'fooling' not in task_params:
                 task_params['fooling'] = list(fooling)
@@ -532,8 +538,7 @@ class HybridEngine:
         engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
-
-        # 0) Быстрый префлайт: исключаем TIMEOUT-домены, чтобы не портить оценку стратегии и не получить CH=0
+        # 0) Быстрый префлайт: убираем явные TIMEOUT'ы, чтобы не портить оценку стратегии
         try:
             baseline = await self._test_sites_connectivity(test_sites, dns_cache, timeout_profile="fast", retries=0, max_concurrent=8)
             alive = [s for s, (st, _, _, _) in baseline.items() if st in ("WORKING", "RST", "ERROR")]
