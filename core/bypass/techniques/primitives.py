@@ -8,7 +8,7 @@ class BypassTechniques:
     def apply_fakeddisorder(
         payload: bytes,
         split_pos: int = 76,
-        overlap_size: Optional[int] = None,  # Может быть None
+        overlap_size: int = 336,
         fake_ttl: int = 1,
         fooling_methods: Optional[List[str]] = None,
         segment_order: str = "fake_first",      # "fake_first" | "real_first"
@@ -19,60 +19,17 @@ class BypassTechniques:
         real_delay_ms: int = 1,
     ) -> List[Tuple[bytes, int, dict]]:
         """
-        ИСПРАВЛЕНИЕ: Поддержка режима без overlap для точного соответствия zapret
         Возвращает список сегментов: [(payload, rel_off, opts), ...]
           - opts: {
               is_fake: bool,
-              ttl: int,
-              corrupt_tcp_checksum: bool,
-              corrupt_sequence: bool,
-              add_md5sig_option: bool,
-              tcp_flags: int,
+              ttl: int (только для fake),
+              tcp_flags: int (ACK/PSH|ACK),
+              corrupt_tcp_checksum: bool (если "badsum"),
+              add_md5sig_option: bool (если "md5sig"),
+              seq_offset: int (если "badseq"),
               delay_ms: int (ТОЛЬКО для первого сегмента — пауза перед вторым)
             }
         """
-
-        if overlap_size is None:
-            # Режим без overlap - просто disorder
-            part1 = payload[:split_pos]
-            part2 = payload[split_pos:]
-
-            segments = []
-
-            # Fake сегмент (если нужен)
-            if segment_order == "fake_first":
-                fake_opts = {
-                    "is_fake": True,
-                    "ttl": fake_ttl,
-                    "tcp_flags": 0x18 if psh_on_fake else 0x10,
-                    "delay_ms": fake_delay_ms
-                }
-                if fooling_methods:
-                    if "badsum" in fooling_methods:
-                        fake_opts["corrupt_tcp_checksum"] = True
-                    if "badseq" in fooling_methods:
-                        fake_opts["corrupt_sequence"] = True
-                    if "md5sig" in fooling_methods:
-                        fake_opts["add_md5sig_option"] = True
-
-                # Fake с частью данных
-                segments.append((part1[:min(10, len(part1))], 0, fake_opts))
-
-            # Реальные сегменты в обратном порядке (disorder)
-            real_opts = {"tcp_flags": 0x18 if psh_on_real else 0x10}
-
-            if segment_order == "disorder_first":
-                # Сначала второй сегмент
-                segments.append((part2, split_pos, real_opts))
-                segments.append((part1, 0, {"tcp_flags": 0x18, "delay_ms": real_delay_ms}))
-            else:
-                # Обычный порядок
-                segments.append((part1, 0, real_opts))
-                segments.append((part2, split_pos, {"tcp_flags": 0x18, "delay_ms": real_delay_ms}))
-
-            return segments
-
-        # Существующая логика с overlap
         try:
             if not payload:
                 return []
@@ -115,14 +72,12 @@ class BypassTechniques:
             if "md5sig" in fooling_methods:
                 opts_fake["add_md5sig_option"] = True
             if "badseq" in fooling_methods:
-                # Минимальный сдвиг по умолчанию — ближе к zapret
                 if badseq_delta is None:
                     badseq_delta = -1
                 try:
                     opts_fake["seq_offset"] = int(badseq_delta)
                 except Exception:
                     opts_fake["seq_offset"] = -1
-                # Для совместимости: помечаем как corrupt_sequence, но в sender приоритет у seq_offset
                 opts_fake["corrupt_sequence"] = True
 
             opts_real = {
@@ -147,10 +102,9 @@ class BypassTechniques:
 
             return segs
         except Exception:
-            # Защитный fallback (никогда не должен понадобиться)
+            # Защитный fallback
             if split_pos >= len(payload):
                 return [(payload, 0, {"is_fake": False, "tcp_flags": 0x18})]
-            # «простой» порядок: fake -> real
             return [
                 (payload[:split_pos], 0, {
                     "is_fake": True, "ttl": int(fake_ttl or 1), "tcp_flags": 0x10,
