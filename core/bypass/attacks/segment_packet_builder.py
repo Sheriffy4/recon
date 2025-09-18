@@ -79,25 +79,29 @@ class SegmentPacketBuilder:
         try:
             tcp_seq = context.tcp_seq + seq_offset
             tcp_ack = context.tcp_ack
-            tcp_flags = options.get("flags", context.tcp_flags)
+            # Совместимость ключей флагов
+            tcp_flags = options.get("tcp_flags", options.get("flags", context.tcp_flags))
             tcp_window = options.get("window_size", context.tcp_window_size)
             ttl = options.get("ttl", 64)
-            bad_checksum = options.get("bad_checksum", False)
+            # Синонимы badsum
+            bad_checksum = options.get("bad_checksum", options.get("corrupt_tcp_checksum", False))
             src_ip = context.src_ip or self._get_source_ip(context.dst_ip)
             src_port = context.src_port or self._get_source_port()
+            # seq_extra для badseq
+            seq_extra = int(options.get("seq_extra", -1 if options.get("corrupt_sequence") else 0))
             packet_bytes = self._build_raw_tcp_packet(
                 src_ip=src_ip,
                 dst_ip=context.dst_ip,
                 src_port=src_port,
                 dst_port=context.dst_port,
-                seq=tcp_seq,
+                seq=tcp_seq + seq_extra,
                 ack=tcp_ack,
                 flags=tcp_flags,
                 window=tcp_window,
                 ttl=ttl,
                 payload=payload,
                 corrupt_checksum=bad_checksum,
-                tcp_options=context.tcp_options,
+                tcp_options=self._merge_tcp_options(context.tcp_options, options),
             )
             construction_time = (time.time() - start_time) * 1000
             self.stats["packets_built"] += 1
@@ -229,6 +233,18 @@ class SegmentPacketBuilder:
         )
         tcp_header += options_padded
         return tcp_header
+
+    def _merge_tcp_options(self, base_opts: bytes, options: Dict[str, Any]) -> bytes:
+        """
+        Добавить MD5SIG (kind=19,len=18) при необходимости к base_opts с выравниванием.
+        """
+        out = base_opts or b""
+        if options.get("add_md5sig_option"):
+            md5opt = b"\x13\x12" + b"\x00" * 16
+            out = out + md5opt
+            if len(out) % 4 != 0:
+                out += b"\x00" * (4 - len(out) % 4)
+        return out
 
     def _build_ip_header(
         self, src_ip_bytes: bytes, dst_ip_bytes: bytes, total_length: int, ttl: int
