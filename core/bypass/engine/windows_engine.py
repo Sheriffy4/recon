@@ -2537,10 +2537,7 @@ import os
 if os.getenv("BYPASS_PIPELINE_SHIM", "1") == "1":
     try:
         # Пытаемся использовать существующий билдeр из attacks, если он есть
-        try:
-            from core.bypass.attacks.segment_packet_builder import PacketBuilder as _CompatPacketBuilder
-        except Exception:
-            from core.bypass.packet.builder import PacketBuilder as _CompatPacketBuilder
+        from core.bypass.packet.builder import PacketBuilder as _CompatPacketBuilder
 
         from core.bypass.packet.types import TCPSegmentSpec as _TCPSegmentSpec
         from core.bypass.packet.sender import PacketSender as _PacketSender
