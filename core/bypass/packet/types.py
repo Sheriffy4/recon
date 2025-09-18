@@ -3,6 +3,7 @@ from typing import Optional
 
 @dataclass
 class TCPSegmentSpec:
+    """Спецификация одного TCP-сегмента для отправки через PacketSender/PacketBuilder."""
     payload: bytes
     rel_seq: int = 0
     flags: int = 0x10

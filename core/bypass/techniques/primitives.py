@@ -36,7 +36,7 @@ class BypassTechniques:
                 opts_fake["add_md5sig_option"] = True
             if "badseq" in fooling_methods:
                 opts_fake["corrupt_sequence"] = True
-            opts_real = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 1}
+            opts_real = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 0}
             return [(part1, 0, opts_fake), (part2, split_pos, opts_real)]
 
         offset_part2 = split_pos
@@ -53,7 +53,7 @@ class BypassTechniques:
             opts_fake["corrupt_sequence"] = True
         segs.append((part1, offset_part1, opts_fake))
 
-        opts_real = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 1}
+        opts_real = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 0}
         segs.append((part2, offset_part2, opts_real))
 
         return segs
