@@ -1222,7 +1222,7 @@ if platform.system() == "Windows":
                     # Sweep с тайм-бюджетом (350мс)
                     def _send_try(cand: CalibCandidate, ttl: int, d_ms: int):
                         self._send_aligned_fake_segment(packet, w, cand.split_pos, payload[cand.split_pos:cand.split_pos + 100], ttl, fooling_list)
-                        time.sleep((d_ms * random.uniform(0.85, 1.35)) / 1000.0)
+                        time.sleep(d_ms / 1000.0)
                         self.current_params["delay_ms"] = d_ms
                         segments = self.techniques.apply_fakeddisorder(
                             payload,
@@ -1249,7 +1249,7 @@ if platform.system() == "Windows":
                         payload=payload,
                         candidates=cand_list,
                         ttl_list=ttl_list,
-                        delays=[1,2,3],
+                        delays=[0,1,2],
                         send_func=_send_try,
                         wait_func=_wait_outcome,
                         time_budget_ms=900
@@ -1605,33 +1605,6 @@ if platform.system() == "Windows":
                 except Exception:
                     pass
 
-        def _fix_tcp_checksum(self, pkt_bytes: bytes) -> bytes:
-            """
-            Пересчитывает IPv4 и TCP checksum для готового кадра (IP+TCP+payload).
-            """
-            try:
-                raw = bytearray(pkt_bytes)
-                ip_hl = (raw[0] & 0x0F) * 4
-                if ip_hl < 20 or len(raw) < ip_hl + 20:
-                    return bytes(raw)
-                # total length
-                raw[2:4] = struct.pack("!H", len(raw))
-                # IP checksum
-                raw[10:12] = b"\x00\x00"
-                ip_csum = self._ip_header_checksum(raw[:ip_hl])
-                raw[10:12] = struct.pack("!H", ip_csum)
-                # TCP checksum
-                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
-                if tcp_hl < 20 or len(raw) < ip_hl + tcp_hl:
-                    return bytes(raw)
-                tcp_start = ip_hl
-                tcp_end = ip_hl + tcp_hl
-                raw[tcp_start + 16: tcp_start + 18] = b"\x00\x00"
-                tcp_csum = self._tcp_checksum(raw[:ip_hl], raw[tcp_start:tcp_end], raw[tcp_end:])
-                raw[tcp_start + 16: tcp_start + 18] = struct.pack("!H", tcp_csum)
-                return bytes(raw)
-            except Exception:
-                return pkt_bytes
 
         def _extract_sni(self, payload: Optional[bytes]) -> Optional[str]:
             """
@@ -2310,8 +2283,8 @@ if platform.system() == "Windows":
                 base_ttl = raw[8]
                 base_ip_id = struct.unpack("!H", raw[4:6])[0]
                 ipid_step = int(self.current_params.get("ipid_step", 2048))
-                window_div = int(self.current_params.get("window_div", 8))
-                reduced_win = max(base_win // window_div, 1024)
+                # Для tlsrec_split не уменьшаем окно
+                reduced_win = base_win
 
                 segments_payloads = [rec1, rec2 + tail]
                 for i, data in enumerate(segments_payloads):
@@ -2560,6 +2533,8 @@ else:
 
 # === Phase1 PacketPipeline shim (auto-generated) ===
 # Мягкое делегирование отправки сегментов в новый слой без изменения API.
+import os
+if os.getenv("BYPASS_PIPELINE_SHIM", "1") == "1":
 try:
     # Пытаемся использовать существующий билдeр из attacks, если он есть
     try:
@@ -2605,12 +2580,16 @@ try:
                 if hasattr(self, "_packet_sender") and self._packet_sender:
                     delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
                     specs = []
+                    total = len(segments or [])
                     for i, (payload, rel_off) in enumerate(segments or []):
+                        # Флаги: ACK для промежуточных, PSH|ACK для последнего
+                        flags = 0x10 | (0x08 if i == total - 1 else 0)
                         specs.append(_TCPSegmentSpec(
                             payload=payload or b"",
                             rel_seq=int(rel_off),
-                            flags=0x18,
-                            delay_ms_after=(delay_ms if i < len(segments) - 1 else 0)
+                            flags=flags,
+                            # Для базовой отправки задержку оставляем как есть
+                            delay_ms_after=(delay_ms if i < total - 1 else 0)
                         ))
                     ok = self._packet_sender.send_tcp_segments(
                         w, original_packet, specs,
@@ -2649,7 +2628,8 @@ try:
         def _send_attack_segments_patched(self, original_packet, w, segments):
             try:
                 if hasattr(self, "_packet_sender") and self._packet_sender:
-                    base_delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
+                    # Для fakeddisorder дефолтная задержка между fake->real = 0ms
+                    base_delay_ms = int(self.current_params.get("delay_ms", 0)) if hasattr(self, "current_params") else 0
                     specs = []
                     total = len(segments or [])
                     for i, seg in enumerate(segments or []):
@@ -2687,7 +2667,8 @@ try:
                         ))
                     ok = self._packet_sender.send_tcp_segments(
                         w, original_packet, specs,
-                        window_div=int(self.current_params.get("window_div", 8)) if hasattr(self, "current_params") else 8,
+                        # Для техник с «фейком» окно не режем
+                        window_div=1,
                         ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
                     )
                     if ok:
@@ -2740,4 +2721,4 @@ except Exception as _shim_e:
     # Если что-то пошло не так — ничего не ломаем, оставляем старую реализацию
     pass
 
-# === End of shim ===
+# end if BYPASS_PIPELINE_SHIM

@@ -1,6 +1,7 @@
 import time
 import logging
 from typing import List, Any, Tuple
+from typing import Optional
 
 class PacketSender:
     def __init__(self, builder, logger: logging.Logger, inject_mark: int):
@@ -9,6 +10,7 @@ class PacketSender:
         self.inject_mark = inject_mark
 
     def safe_send(self, w: Any, pkt_bytes: bytes, original_packet: Any) -> bool:
+        pkt = None
         try:
             import pydivert
             pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
@@ -19,15 +21,37 @@ class PacketSender:
             w.send(pkt)
             return True
         except OSError as e:
-            if getattr(e, "winerror", None) == 258:
-                self.logger.debug("WinDivert send timeout (258). Retrying once...")
+            winerr = getattr(e, "winerror", None)
+            if winerr == 258:
+                # Таймаут очереди — небольшой ретрай + попытка пересчитать checksum helper'ом
+                self.logger.debug("WinDivert send timeout (258). Retrying with checksum helper...")
                 time.sleep(0.001)
                 try:
-                    w.send(pkt)
+                    # Попробуем пересчитать checksum через WinDivertHelper
+                    from pydivert.windivert import WinDivertHelper, WinDivertLayer
+                    buf = bytearray(pkt_bytes)
+                    WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
+                    pkt2 = pydivert.Packet(bytes(buf), original_packet.interface, original_packet.direction)
+                    try:
+                        pkt2.mark = self.inject_mark
+                    except Exception:
+                        pass
+                    w.send(pkt2)
                     return True
                 except Exception as e2:
-                    self.logger.error(f"WinDivert retry failed after 258: {e2}")
-                    return False
+                    self.logger.debug(f"Checksum helper not available or failed: {e2}")
+                    try:
+                        # Последняя попытка — отправить как есть ещё раз
+                        pkt3 = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                        try:
+                            pkt3.mark = self.inject_mark
+                        except Exception:
+                            pass
+                        w.send(pkt3)
+                        return True
+                    except Exception as e3:
+                        self.logger.error(f"WinDivert retry failed after 258: {e3}")
+                        return False
             self.logger.error(f"WinDivert send error: {e}")
             return False
         except Exception as e:
