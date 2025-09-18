@@ -141,9 +141,9 @@ class HybridEngine:
                 except Exception:
                     pass
 
-    def _translate_zapret_to_engine_task(self, params: Dict, strict_cli: bool = False) -> Optional[Dict]:
+    def _translate_zapret_to_engine_task(self, params: Dict) -> Optional[Dict]:
         """
-        ИСПРАВЛЕНИЕ: Точная трансляция zapret-строки без добавления лишних параметров.
+        ИСПРАВЛЕНИЕ: Унифицированный и надежный транслятор zapret-строки в задачу для BypassEngine.
         """
         # Нормализуем имена атак для консистентности
         desync = [normalize_attack_name(d) for d in params.get('dpi_desync', [])]
@@ -161,54 +161,39 @@ class HybridEngine:
             return None
         task_type = 'none'
         task_params = {}
-
-        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: fake,fakeddisorder обрабатываем особо
-        if 'fake' in desync and 'fakeddisorder' in desync:
-            task_type = 'fakeddisorder'
-            task_params['pre_fake'] = True
-            task_params['force_simple'] = True
-            task_params['segment_order'] = 'fake_first'
-
-            # split_pos из параметров
-            split_pos_raw = params.get('dpi_desync_split_pos', [])
-            if split_pos_raw:
-                positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                if positions:
-                    task_params['split_pos'] = positions[0]
-            else:
-                task_params['split_pos'] = 3
-
-            # НЕ добавляем overlap_size для fake,fakeddisorder!
-            if params.get('dpi_desync_split_seqovl'):
-                task_params['overlap_size'] = params['dpi_desync_split_seqovl']
-
-            # TTL из параметров применяется к fake пакету
-            if params.get('dpi_desync_ttl') is not None:
-                ttl = int(params['dpi_desync_ttl'])
-                task_params['fake_ttl'] = ttl
-                task_params['ttl'] = ttl
-                task_params['pre_fake_ttl'] = ttl # Для pre_fake
-
-            # Fooling
-            if fooling:
-                task_params['fooling'] = list(fooling)
-                task_params['pre_fake_fooling'] = list(fooling)
-
-            return {'type': task_type, 'params': task_params}
-
-        elif 'fakeddisorder' in desync or 'desync' in desync:
+        # Нормализация составных алиасов: fake + fakeddisorder трактуем как fakeddisorder
+        # Алиас 'desync' → fakeddisorder
+        if 'fakeddisorder' in desync or 'desync' in desync:
             task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
             task_type = 'multidisorder'
         elif 'multisplit' in desync:
             task_type = 'multisplit'
-        elif 'disorder' in desync or 'disorder2' in desync:
+        elif 'disorder' in desync or 'disorder2' in desync:  # Legacy aliases
             task_type = 'fakeddisorder'
+
         # Флаг: присутствует ли семейство fakeddisorder
         has_faked = (
             ('fakeddisorder' in desync) or ('desync' in desync)
             or ('disorder' in desync) or ('disorder2' in desync)
         )
+
+        # Настройка позиций сплита
+        if task_type in ['fakeddisorder', 'multidisorder', 'multisplit']:
+            split_pos_raw = params.get('dpi_desync_split_pos', [])
+            if any((p.get('type') == 'midsld' for p in split_pos_raw)):
+                task_params['split_pos'] = 'midsld'
+            else:
+                positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
+                if task_type == 'fakeddisorder':
+                    task_params['split_pos'] = positions[0] if positions else 76
+                else:
+                    # Если задан split-count без positions — сгенерируем равномерную сетку
+                    count = params.get('dpi_desync_split_count')
+                    if not positions and isinstance(count, int) and count > 1:
+                        base, gap = 6, max(4, 120 // min(count, 10))
+                        positions = [base + i * gap for i in range(count)]
+                    task_params['positions'] = positions if positions else [1, 5, 10]
 
         # Обработка fake‑ветки
         if 'fake' in desync:
@@ -223,20 +208,9 @@ class HybridEngine:
                 else:
                     task_type = 'fake'
             else:
-                # В сочетании с fakeddisorder → это прединъекция (zapret semantics: fake,fakeddisorder)
+                # В сочетании с fakeddisorder НЕ переопределяем тип, а только оставляем fooling в параметрах
                 if fooling:
-                    task_params['fooling'] = list(fooling)
-                task_params['pre_fake'] = True
-                if fooling:
-                    task_params['pre_fake_fooling'] = list(fooling)
-                if params.get('dpi_desync_ttl') is not None:
-                    task_params['pre_fake_ttl'] = int(params['dpi_desync_ttl'])
-                # Принудительно активируем простой режим и zapret‑порядок сегментов
-                task_params['force_simple'] = True
-                task_params.setdefault('segment_order', 'fake_first')
-                # Явно зафиксируем badseq_delta, если требуется
-                if 'badseq' in fooling:
-                    task_params.setdefault('badseq_delta', -1)
+                    task_params['fooling'] = fooling
 
         # seqovl: если указан и нет fakeddisorder-семейства, можно выделить отдельный тип;
         # иначе — это параметр fakeddisorder
@@ -256,24 +230,27 @@ class HybridEngine:
 
         # TTL
         if params.get('dpi_desync_ttl') is not None:
-            task_params['ttl'] = int(params['dpi_desync_ttl'])
-        elif not strict_cli and task_type == 'fakeddisorder':
-            task_params.setdefault('ttl', 1)
-        if params.get('dpi_desync_autottl') is not None and not strict_cli:
-            task_params['autottl'] = int(params['dpi_desync_autottl'])
+            task_params['ttl'] = int(params.get('dpi_desync_ttl'))
+        if params.get('dpi_desync_autottl') is not None:
+            task_params['autottl'] = int(params.get('dpi_desync_autottl'))
         if params.get('dpi_desync_repeats') is not None:
             task_params['repeats'] = int(params.get('dpi_desync_repeats'))
 
         # Значения по умолчанию для fakeddisorder (zapret-совместимые)
         if task_type == 'fakeddisorder':
-            if not strict_cli:
-                task_params.setdefault('ttl', 1)
-            # split_pos уже установлен выше если был; в strict не подставляем 76
+            if 'ttl' not in task_params:
+                task_params['ttl'] = 1
+            if 'split_pos' not in task_params:
+                split_pos_raw = params.get('dpi_desync_split_pos', [])
+                if any((p.get('type') == 'midsld' for p in split_pos_raw)):
+                    task_params['split_pos'] = 'midsld'
+                else:
+                    positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
+                    task_params['split_pos'] = positions[0] if positions else 76
             if 'overlap_size' not in task_params and not params.get('dpi_desync_split_seqovl'):
-                if not strict_cli:
-                    task_params['overlap_size'] = 336
-            if fooling and 'fooling' not in task_params:
-                task_params['fooling'] = list(fooling)
+                task_params['overlap_size'] = 336
+            if fooling:
+                task_params['fooling'] = fooling
 
         # split без seqovl → простая фрагментация
         if task_type == 'none' and 'split' in desync:
@@ -323,7 +300,7 @@ class HybridEngine:
         if isinstance(strategy, str) and "--dpi-desync=" in s:
             try:
                 parsed_params = self.parser.parse(s)
-                task = self._translate_zapret_to_engine_task(parsed_params, strict_cli=True)
+                task = self._translate_zapret_to_engine_task(parsed_params)
                 if task:
                     # Normalize combined type aliases if any
                     t = task.get('type')
@@ -368,7 +345,7 @@ class HybridEngine:
         if s.startswith('--'):
             try:
                 parsed_params = self.parser.parse(s)
-                task = self._translate_zapret_to_engine_task(parsed_params, strict_cli=True)
+                task = self._translate_zapret_to_engine_task(parsed_params)
                 if task:
                     # Normalize combined type aliases if any
                     t = task.get('type')
@@ -538,15 +515,6 @@ class HybridEngine:
         engine_task = self._ensure_engine_task(strategy)
         if not engine_task:
             return ('TRANSLATION_FAILED', 0, len(test_sites), 0.0)
-        # 0) Быстрый префлайт: убираем явные TIMEOUT'ы, чтобы не портить оценку стратегии
-        try:
-            baseline = await self._test_sites_connectivity(test_sites, dns_cache, timeout_profile="fast", retries=0, max_concurrent=8)
-            alive = [s for s, (st, _, _, _) in baseline.items() if st in ("WORKING", "RST", "ERROR")]
-            if not alive:
-                return ('NO_SITES_WORKING', 0, len(test_sites), 0.0)
-            test_sites = alive
-        except Exception:
-            pass
         # Create engine with optional override via a simple factory shim
         class _EngineFactoryShim:
             def __init__(self, debug: bool):

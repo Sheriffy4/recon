@@ -156,8 +156,15 @@ class ZapretStrategy:
         if DPIMethod.FAKEDDISORDER in self.methods:
             if self.split_pos is None:
                 self.split_pos = 76  # zapret default for fakeddisorder
+            
+            # CRITICAL FIX: If 'fake' is also present, it implies a simple split (overlap=0)
+            # not a seqovl. Only apply default overlap if 'fake' is NOT present.
             if self.split_seqovl is None:
-                self.split_seqovl = 336  # zapret default for fakeddisorder
+                if DPIMethod.FAKE in self.methods:
+                    self.split_seqovl = 0  # This means simple split, no overlap
+                else:
+                    self.split_seqovl = 336  # zapret default for fakeddisorder without 'fake'
+
             if self.ttl is None and self.autottl is None:
                 self.ttl = 1  # CRITICAL FIX: TTL=1 required for fakeddisorder DPI bypass
         

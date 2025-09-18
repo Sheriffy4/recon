@@ -697,8 +697,8 @@ class EnhancedStrategyInterpreter:
         else:
             # Default TTL for fakeddisorder (changed from 1 to 64 for better compatibility)
             default_ttl = self._get_default_ttl("fakeddisorder")
-            params["ttl"] = default_ttl
-            self.logger.info(f"Using default ttl={default_ttl} for fakeddisorder (improved from ttl=1)")
+            params["ttl"] = 1
+            self.logger.info(f"Using default ttl=1 for fakeddisorder (reverted from 64)")
         
         # Fooling methods support
         if parsed.fooling_methods:

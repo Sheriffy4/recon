@@ -1,10 +1,11 @@
 import platform
 import logging
-from typing import Set, Dict, Any, Optional
+from typing import Set, Dict, Any, Optional, Union, List, Tuple
 
 from core.bypass.engine.factory import BypassEngineFactory
 from core.bypass.engine.base_engine import EngineConfig
 from core.bypass.techniques.primitives import BypassTechniques
+from core.fingerprint.advanced_models import DPIFingerprint # Corrected import for DPIFingerprint
 
 class BypassEngine:
     """
@@ -27,6 +28,54 @@ class BypassEngine:
             self.logger.warning(
                 "Pydivert is not supported on this platform or engine creation failed. BypassEngine is disabled."
             )
+
+    def _strategy_to_map(self, strategy: Union[str, Dict[str, Any]], target_ips: Set[str]) -> Dict[str, Dict]:
+        """Converts a single strategy or strategy dict to a strategy_map."""
+        if isinstance(strategy, str):
+            # Apply the same strategy string to all target IPs
+            return {ip: {"strategy": strategy} for ip in target_ips}
+        elif isinstance(strategy, dict):
+            # Assume it's already a strategy_map or a single strategy dict for all IPs
+            # If it's a single strategy dict, wrap it for all IPs
+            if "strategy" in strategy or "fooling_methods" in strategy: # Check for common strategy keys
+                return {ip: strategy for ip in target_ips}
+            return strategy # Assume it's already a strategy_map
+        return {}
+
+    def start_with_strategy(
+        self,
+        target_ips: Set[str],
+        dns_cache: Optional[Dict[str, str]],  # игнорируем, но оставляем для совместимости вызова
+        engine_task: Dict[str, Any],
+        reset_telemetry: bool = False
+    ):
+        """
+        Запускает движок строго с переданной стратегией.
+        dns_cache не используется движком, оставлен для совместимости вызова из HybridEngine.
+        """
+        if not self._engine:
+            self.logger.warning("BypassEngine is disabled, cannot start.")
+            return None
+
+        # Принудительно фиксируем стратегию для всех подходящих потоков
+        try:
+            if hasattr(self._engine, "set_strategy_override") and callable(getattr(self._engine, "set_strategy_override")):
+                self._engine.set_strategy_override(engine_task)
+        except Exception:
+            pass
+
+        strategy_map = {"default": engine_task}
+        try:
+            # Передаем strategy_override, чтобы движок шёл по simple/forced пути
+            return self._engine.start(
+                target_ips=target_ips,
+                strategy_map=strategy_map,
+                reset_telemetry=reset_telemetry,
+                strategy_override=engine_task
+            )
+        except TypeError:
+            # На случай, если сигнатура start другая — fallback без reset_telemetry/override
+            return self._engine.start(target_ips=target_ips, strategy_map=strategy_map)
 
     def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict], reset_telemetry: bool = False, strategy_override: Optional[Dict[str, Any]] = None):
         """Delegates the start call to the underlying engine."""

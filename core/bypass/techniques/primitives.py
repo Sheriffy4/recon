@@ -1,5 +1,5 @@
 import struct
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 
 class BypassTechniques:
     """Библиотека продвинутых техник обхода DPI."""
@@ -10,109 +10,53 @@ class BypassTechniques:
         split_pos: int = 76,
         overlap_size: int = 336,
         fake_ttl: int = 1,
-        fooling_methods: Optional[List[str]] = None,
-        segment_order: str = "fake_first",      # "fake_first" | "real_first"
-        badseq_delta: Optional[int] = None,     # только если есть "badseq"
-        psh_on_fake: bool = False,
-        psh_on_real: bool = True,
-        fake_delay_ms: int = 1,
-        real_delay_ms: int = 1,
+        fooling_methods: List[str] = None
     ) -> List[Tuple[bytes, int, dict]]:
-        """
-        Возвращает список сегментов: [(payload, rel_off, opts), ...]
-          - opts: {
-              is_fake: bool,
-              ttl: int (только для fake),
-              tcp_flags: int (ACK/PSH|ACK),
-              corrupt_tcp_checksum: bool (если "badsum"),
-              add_md5sig_option: bool (если "md5sig"),
-              seq_offset: int (если "badseq"),
-              delay_ms: int (ТОЛЬКО для первого сегмента — пауза перед вторым)
-            }
-        """
-        try:
-            if not payload:
-                return []
-            # Нормализация входов
-            if split_pos <= 0:
-                split_pos = 1
-            if fooling_methods is None:
-                fooling_methods = []
+        if fooling_methods is None:
+            fooling_methods = []
 
-            # Если нечего делить — отдаём один «реальный» сегмент
-            if split_pos >= len(payload):
-                return [(payload, 0, {"is_fake": False, "tcp_flags": 0x18})]
+        if split_pos >= len(payload):
+            opts_real = {"is_fake": False, "tcp_flags": 0x18}
+            return [(payload, 0, opts_real)]
 
-            # Ограничим overlap
+        part1, part2 = (payload[:split_pos], payload[split_pos:])
+        ov = int(overlap_size) if isinstance(overlap_size, int) else 336
+        # Критично: overlap не должен превышать split_pos
+        if ov < 0:
             ov = 0
-            try:
-                ov = int(overlap_size)
-            except Exception:
-                ov = 0
-            if ov < 0:
-                ov = 0
+        if ov > split_pos:
+            ov = split_pos
 
-            part1 = payload[:split_pos]
-            part2 = payload[split_pos:]
-
-            offset_real = split_pos
-            offset_fake = split_pos - ov
-
-            # Сборка опций
-            ttl_clamped = int(max(1, min(255, int(fake_ttl) if fake_ttl is not None else 1)))
-            opts_fake = {
-                "is_fake": True,
-                "ttl": ttl_clamped,
-                "tcp_flags": (0x10 | (0x08 if psh_on_fake else 0)),
-            }
+        if ov == 0:
+            # fake -> real (без перекрытия)
+            opts_fake = {"is_fake": True, "ttl": fake_ttl, "tcp_flags": 0x10}
             if "badsum" in fooling_methods:
                 opts_fake["corrupt_tcp_checksum"] = True
             if "md5sig" in fooling_methods:
                 opts_fake["add_md5sig_option"] = True
             if "badseq" in fooling_methods:
-                # Минимальный сдвиг по умолчанию — ближе к zapret
-                if badseq_delta is None:
-                    badseq_delta = -1
-                try:
-                    opts_fake["seq_offset"] = int(badseq_delta)
-                except Exception:
-                    opts_fake["seq_offset"] = -1
-                # Для совместимости: помечаем как corrupt_sequence, но в sender приоритет у seq_offset
                 opts_fake["corrupt_sequence"] = True
+            opts_real = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 1}
+            return [(part1, 0, opts_fake), (part2, split_pos, opts_real)]
 
-            opts_real = {
-                "is_fake": False,
-                "tcp_flags": (0x10 | (0x08 if psh_on_real else 0)),
-            }
+        offset_part2 = split_pos
+        offset_part1 = split_pos - ov
 
-            # Формируем порядок + задержку на первом сегменте
-            segs: List[Tuple[bytes, int, dict]] = []
-            if segment_order == "real_first":
-                first_opts = dict(opts_real)
-                if real_delay_ms and real_delay_ms > 0:
-                    first_opts["delay_ms"] = int(real_delay_ms)
-                segs.append((part2, offset_real, first_opts))
-                segs.append((part1, offset_fake, dict(opts_fake)))
-            else:
-                first_opts = dict(opts_fake)
-                if fake_delay_ms and fake_delay_ms > 0:
-                    first_opts["delay_ms"] = int(fake_delay_ms)
-                segs.append((part1, offset_fake, first_opts))
-                segs.append((part2, offset_real, dict(opts_real)))
+        segs = []
+        # Сначала фейк (ACK), затем реал (PSH|ACK)
+        opts_fake = {"is_fake": True, "ttl": fake_ttl, "tcp_flags": 0x10}
+        if "badsum" in fooling_methods:
+            opts_fake["corrupt_tcp_checksum"] = True
+        if "md5sig" in fooling_methods:
+            opts_fake["add_md5sig_option"] = True
+        if "badseq" in fooling_methods:
+            opts_fake["corrupt_sequence"] = True
+        segs.append((part1, offset_part1, opts_fake))
 
-            return segs
-        except Exception:
-            # Защитный fallback (никогда не должен понадобиться)
-            if split_pos >= len(payload):
-                return [(payload, 0, {"is_fake": False, "tcp_flags": 0x18})]
-            # «простой» порядок: fake -> real
-            return [
-                (payload[:split_pos], 0, {
-                    "is_fake": True, "ttl": int(fake_ttl or 1), "tcp_flags": 0x10,
-                    "corrupt_tcp_checksum": ("badsum" in (fooling_methods or []))
-                }),
-                (payload[split_pos:], split_pos, {"is_fake": False, "tcp_flags": 0x18}),
-            ]
+        opts_real = {"is_fake": False, "tcp_flags": 0x18, "delay_ms": 1}
+        segs.append((part2, offset_part2, opts_real))
+
+        return segs
 
     @staticmethod
     def apply_multisplit(

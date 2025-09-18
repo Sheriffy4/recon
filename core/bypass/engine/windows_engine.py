@@ -39,24 +39,7 @@ except (ImportError, ModuleNotFoundError):
 
 
 if platform.system() == "Windows":
-    try:
-        import pydivert
-    except ImportError:
-        # Create a dummy pydivert for non-Windows platforms for testing
-        class DummyPydivert:
-            class Packet:
-                pass
-            class WinDivert:
-                def __enter__(self):
-                    return self
-                def __exit__(self, exc_type, exc_val, exc_tb):
-                    pass
-                def recv(self):
-                    return None
-                def send(self, pkt):
-                    pass
-        pydivert = DummyPydivert()
-
+    import pydivert
     from .base_engine import IBypassEngine, EngineConfig
 
     class WindowsBypassEngine(IBypassEngine):
@@ -117,9 +100,8 @@ if platform.system() == "Windows":
             # --- Телеметрия инжектов/исходов ---
             self._tlock = threading.Lock()
             self._telemetry = self._init_telemetry()
-            self._strategy_manager = None
-            self._accept_cdn_prefixes_when_filtered = True  # КРИТИЧНО: разрешаем CDN
-            self.strategy_override = None
+            self._strategy_manager = None  # lazy StrategyManager cache
+            self.strategy_override = None  # forced strategy override for all flows
             # Track whether an explicit override is active and should disable calibrator/fallbacks
             self._forced_strategy_active = False
             self._exec_handlers = {}
@@ -186,8 +168,9 @@ if platform.system() == "Windows":
             HybridEngine вызывает это до запуска перехвата.
             Также нормализует параметры и делает override авторитетным (отключает фоллбэки).
             """
-            task = copy.deepcopy(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
-            params = (task.get("params", {}) or {}).copy()
+            # Normalize and mark override as authoritative (no fallbacks)
+            task = dict(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
+            params = dict(task.get("params", {}))
 
             # Normalize fooling -> list
             if "fooling" in params and not isinstance(params["fooling"], (list, tuple)):
@@ -197,23 +180,20 @@ if platform.system() == "Windows":
                     elif params["fooling"]:
                         params["fooling"] = [params["fooling"]]
 
-            # Для принудительного fakeddisorder форсируем простую ветку
-            try:
-                if normalize_attack_name(str(task.get("type", ""))) == "fakeddisorder":
-                    params.setdefault("force_simple", True)
-                    params.setdefault("segment_order", "fake_first")
-                    # НЕ добавляем overlap_size если его нет
-                    if params.get("overlap_size") == "":
-                        params.pop("overlap_size", None)
-            except Exception:
-                pass
+            # Ensure fake_ttl is present (respect explicit ttl; default to 1 for fakeddisorder if missing)
+            if "fake_ttl" not in params:
+                if "ttl" in params and params["ttl"] is not None:
+                    try:
+                        params["fake_ttl"] = int(params["ttl"])
+                    except Exception:
+                        pass
+                if "fake_ttl" not in params and str(task.get("type", "")).lower() == "fakeddisorder":
+                    params["fake_ttl"] = 1
 
             task["params"] = params
-            # Принудительное отключение калибратора/фоллбеков
             task["no_fallbacks"] = True
 
             self.strategy_override = task
-            # Флаг для всех путей внутри apply_bypass
             self._forced_strategy_active = True
 
             try:
@@ -281,11 +261,7 @@ if platform.system() == "Windows":
                     task_type = "seqovl"
                     base_params["overlap_size"] = config.get("overlap_size", 20)
                 else:
-                    # fake + fakeddisorder: принудительно простая ветка и zapret-семантика
                     task_type = "fakedisorder"
-                    base_params["force_simple"] = True
-                    base_params["segment_order"] = "fake_first"
-                    base_params["badseq_delta"] = -1
                 return {"type": task_type, "params": base_params}
             return {
                 "type": "fakedisorder",
@@ -295,9 +271,6 @@ if platform.system() == "Windows":
                     "window_div": 8,
                     "tcp_flags": {"psh": True, "ack": True},
                     "ipid_step": 2048,
-                    "force_simple": True,
-                    "segment_order": "fake_first",
-                    "badseq_delta": -1,
                 },
             }
 
@@ -470,30 +443,77 @@ if platform.system() == "Windows":
             except Exception:
                 return None
         
-    def _is_target_ip(self, ip_str: str, target_ips: Set[str]) -> bool:
-        """
-        КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Расширенная проверка с CDN префиксами.
-        Без этого движок не перехватывает пакеты на CDN IP.
-        """
-        if not target_ips:
-            return True
-        if ip_str in target_ips:
-            return True
-
-        # КРИТИЧНО: всегда проверяем CDN префиксы
-        cdn_prefixes = [
-            "104.", "172.64.", "172.67.", "162.158.", "162.159.",  # Cloudflare
-            "31.13.", "157.240.",                                   # Meta/Facebook
-            "199.232.", "151.101.",                                 # Fastly
-            "142.250.", "216.58.", "216.239.", "64.233.",          # Google
-            "173.194.", "172.217.", "172.253.",                     # Google
-            "149.154.",                                             # Telegram
-        ]
-        for prefix in cdn_prefixes:
-            if ip_str.startswith(prefix):
-                self.logger.debug(f"IP {ip_str} matches CDN prefix {prefix}")
+        def _is_target_ip(self, ip_str: str, target_ips: Set[str]) -> bool:
+            """
+            ИСПРАВЛЕНИЕ: Улучшенная логика определения целевых IP.
+            Теперь учитывает больше CDN и правильно обрабатывает режим службы.
+            """
+            if not target_ips:
                 return True
-        return False
+            if ip_str in target_ips:
+                return True
+            cdn_prefixes = {
+                "104.",
+                "172.64.",
+                "172.67.",
+                "162.158.",
+                "162.159.",
+                "104.16.",
+                "104.17.",
+                "104.18.",
+                "104.19.",
+                "104.20.",
+                "104.21.",
+                "104.22.",
+                "104.23.",
+                "104.24.",
+                "104.25.",
+                "104.26.",
+                "104.27.",
+                "104.28.",
+                "104.29.",
+                "104.30.",
+                "151.101.",
+                "199.232.",
+                "23.",
+                "104.",
+                "184.",
+                "2.16.",
+                "95.100.",
+                "185.199.",
+                "87.240.",
+                "93.186.",
+                "54.192.",
+                "54.230.",
+                "54.239.",
+                "54.182.",
+                "216.58.",
+                "172.217.",
+                "142.250.",
+                "172.253.",
+                "13.107.",
+                "40.96.",
+                "40.97.",
+                "40.98.",
+                "40.99.",
+                "77.88.",
+                "5.255.",
+                "128.140.",
+                "217.20.",
+                "51.89.",
+                "51.91.",
+                "104.131.",
+                "104.236.",
+                "91.108.",
+                "149.154.",
+            }
+            for prefix in cdn_prefixes:
+                if ip_str.startswith(prefix):
+                    self.logger.debug(
+                        f"IP {ip_str} соответствует CDN префиксу {prefix}"
+                    )
+                    return True
+            return False
 
         def _resolve_midsld_pos(self, payload: bytes) -> Optional[int]:
             """Находит позицию середины домена второго уровня в SNI."""
@@ -967,39 +987,32 @@ if platform.system() == "Windows":
                     strategy_task["params"] = params
                 except Exception:
                     pass
-                # При принудительной стратегии жёстко отключаем калибратор/фоллбэки
-                # и форсируем простую ветку fakeddisorder
-                if getattr(self, "_forced_strategy_active", False) or strategy_task.get("no_fallbacks"):
+
+                # --- Улучшенная логика TTL ---
+                fake_ttl_source = params.get("autottl") or params.get("ttl")
+                if fake_ttl_source is not None:
                     try:
-                        params["force_simple"] = True
-                        strategy_task["no_fallbacks"] = True
-                    except Exception:
-                        pass
-                    self.current_params["window_div"] = 1  # максимально близко к zapret
-
-                # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: правильный приоритет TTL
-                task_type = normalize_attack_name(strategy_task.get("type"))
-
-                # Приоритет: fake_ttl > ttl > autottl > default
-                if params.get("fake_ttl") is not None:
-                    fake_ttl = int(params["fake_ttl"])
-                elif params.get("ttl") is not None:
-                    fake_ttl = int(params["ttl"])
-                elif params.get("autottl") is not None:
-                    fake_ttl = int(params["autottl"])
+                        fake_ttl = int(fake_ttl_source)
+                        if not (1 <= fake_ttl <= 255):
+                            self.logger.warning(f"Invalid fake TTL {fake_ttl}, using default 1 for fakes.")
+                            fake_ttl = 1
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid fake TTL format '{fake_ttl_source}', using default 1.")
+                        fake_ttl = 1
                 else:
                     fake_ttl = 1 if task_type == "fakeddisorder" else 3
-
-                # Ограничиваем разумными значениями
-                fake_ttl = max(1, min(fake_ttl, 8))
+                # Clamp fake TTL for fake/race families
+                if task_type in ("fakeddisorder", "multidisorder", "multisplit", "badsum_race", "md5sig_race", "fake"):
+                    if fake_ttl > 8:
+                        self.logger.debug(f"Clamping fake TTL from {fake_ttl} to 8 for {task_type}")
+                        fake_ttl = 8
                 self.current_params["fake_ttl"] = fake_ttl
+                self.logger.info(f"Base TTL for FAKE packets set to: {fake_ttl}")
 
-                # Real TTL всегда из оригинального пакета
                 orig_ttl = bytearray(packet.raw)[8]
                 real_ttl = orig_ttl if 1 <= orig_ttl <= 255 else 64
                 self.current_params["real_ttl"] = real_ttl
-
-                self.logger.info(f"TTL: fake={fake_ttl}, real={real_ttl}")
+                self.logger.info(f"TTL for REAL segments set to: {real_ttl} (from original packet)")
                 # --- Конец логики TTL ---
 
                 self.logger.info(f"\uD83C\uDFAF Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
@@ -1077,69 +1090,52 @@ if platform.system() == "Windows":
                     params["split_pos"] = self._resolve_midsld_pos(payload) or 3
 
                 if task_type == "fakeddisorder":
-                    # при принудительной стратегии — только simple-путь, без калибратора
-                    forced_nofallback = bool(getattr(self, "_forced_strategy_active", False) or strategy_task.get("no_fallbacks", False))
+                    forced_nofallback = bool(self.strategy_override) and bool(strategy_task.get("no_fallbacks", False) or getattr(self, "_forced_strategy_active", False))
                     # Простая (или принудительная) ветка без калибратора
                     is_simple = forced_nofallback or bool(params.get("simple", False) or params.get("force_simple", False))
                     if is_simple:
                         try:
                             if forced_nofallback:
                                 self.logger.info("Forced strategy active: skipping calibrator/fallback paths")
-
-                            # В принудительном режиме не режем окно
-                            self.current_params["window_div"] = 1
                             payload = bytes(packet.payload)
-
-                            # КРИТИЧНО: используем правильный TTL для fake
-                            ttl_for_fake = self.current_params.get("fake_ttl", 1)
-
-                            # Прединъекция fake для zapret семантики
-                            if params.get("pre_fake"):
-                                pre_ttl = int(params.get("pre_fake_ttl", self.current_params.get("fake_ttl", 1)))
-                                pre_fooling = params.get("pre_fake_fooling") or params.get("fooling") or []
-                                if isinstance(pre_fooling, str):
-                                    pre_fooling = [x.strip() for x in pre_fooling.split(",") if x.strip()]
-                                pre_data = payload[:min(32, len(payload))]
-                                self._send_aligned_fake_segment(packet, w, seq_offset=0, data=pre_data, ttl=pre_ttl, fooling=pre_fooling)
-                                time.sleep(0.002)
-
                             split_pos = int(params.get("split_pos", 76))
                             overlap = int(params.get("overlap_size", 336))
+                            ttl_simple_src = params.get("fake_ttl", params.get("ttl", self.current_params.get("fake_ttl", 1)))
+                            try:
+                                ttl_simple = int(ttl_simple_src)
+                            except Exception:
+                                ttl_simple = int(self.current_params.get("fake_ttl", 1))
                             fooling_list = params.get("fooling", []) or []
                             if isinstance(fooling_list, str):
                                 fooling_list = [f.strip() for f in fooling_list.split(",") if f.strip()]
-
                             segs = BypassTechniques.apply_fakeddisorder(
                                 payload,
                                 split_pos=split_pos,
                                 overlap_size=overlap,
-                                fake_ttl=ttl_for_fake,  # КРИТИЧНО: правильный TTL!
-                                fooling_methods=fooling_list,
-                                segment_order=(params.get("segment_order") or params.get("send_order") or "fake_first"),
-                                badseq_delta=params.get("badseq_delta"),
-                                psh_on_fake=bool(params.get("psh_on_fake", False)),
-                                psh_on_real=bool(params.get("psh_on_real", True)),
-                                fake_delay_ms=int(params.get("fake_delay_ms", 1)),
-                                real_delay_ms=int(params.get("real_delay_ms", params.get("delay_ms", 1))),
+                                fake_ttl=ttl_simple,
+                                fooling_methods=fooling_list
                             )
-
-                            success = self._send_attack_segments(packet, w, segs)
-                            self.logger.debug("Simple fakeddisorder applied; skipping calibrator/fallbacks")
-
-                            if not success:
-                                self.logger.error("Failed to send segments, forwarding original")
-                                w.send(packet)
-                            return
-                        except Exception as e:
-                            self.logger.debug(f"Simple fakeddisorder failed: {e}; forwarding original")
-                            w.send(packet)
-                            return
+                            if self._send_attack_segments(packet, w, segs):
+                                self.logger.debug("Simple/forced fakeddisorder path succeeded")
+                                return
+                            if forced_nofallback:
+                                # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Блокируем fallback для честной статистики
+                                self.logger.warning("forced_nofallback BLOCKED for honest statistics")
+                                # w.send(packet)  # Закомментировано
+                                return  # Блокируем вместо отправки оригинала
+                        except Exception:
+                            if forced_nofallback:
+                                # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Блокируем fallback для честной статистики
+                                self.logger.warning("forced_nofallback exception BLOCKED for honest statistics")
+                                # w.send(packet)  # Закомментировано
+                                return  # Блокируем вместо отправки оригинала
                     # --- Логика с калибратором и ранней остановкой ---
                     flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
                     if flow_id in self._active_flows:
-                        self.logger.debug("Flow already processed, forwarding original")
-                        w.send(packet)
-                        return
+                        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Блокируем повторные flow для честной статистики
+                        self.logger.warning("Flow already processed, BLOCKING for honest statistics")
+                        # w.send(packet)  # Закомментировано
+                        return  # Блокируем вместо отправки оригинала
                     self._active_flows.add(flow_id)
                     threading.Timer(self._flow_ttl_sec, lambda: self._active_flows.discard(flow_id)).start()
 
@@ -1148,18 +1144,6 @@ if platform.system() == "Windows":
                     if inbound_ev.is_set(): inbound_ev.clear()
                     self._inbound_results.pop(rev_key, None)
 
-                    # Однократная прединъекция fake перед калибратором (если задана)
-                    if params.get("pre_fake"):
-                        try:
-                            pre_ttl = int(params.get("pre_fake_ttl", self.current_params.get("fake_ttl", 1)))
-                            pre_fooling = params.get("pre_fake_fooling") or params.get("fooling") or []
-                            if isinstance(pre_fooling, str):
-                                pre_fooling = [x.strip() for x in pre_fooling.split(",") if x.strip()]
-                            pre_data = payload[:min(32, len(payload))]
-                            self._send_aligned_fake_segment(packet, w, seq_offset=0, data=pre_data, ttl=pre_ttl, fooling=pre_fooling)
-                            time.sleep(0.002)
-                        except Exception:
-                            pass
                     is_tls_ch = self._is_tls_clienthello(payload)
                     # Оценка split_pos по структуре CH
                     sp_guess = self._estimate_split_pos_from_ch(payload) if is_tls_ch else None
@@ -1186,15 +1170,6 @@ if platform.system() == "Windows":
 
                     # Подготовка кандидатов
                     cand_list = Calibrator.prepare_candidates(payload, initial_split_pos=init_sp)
-                    # Добавим «малые» seed-кандидаты (zapret‑like), если CLI явно не задал split_pos
-                    try:
-                        if "split_pos" not in params:
-                            seed_heads = [CalibCandidate(split_pos=s, overlap_size=min(3, s)) for s in (3, 4, 5, 6)]
-                            head_keys = {(x.split_pos, x.overlap_size) for x in seed_heads}
-                            cand_list = seed_heads + [c for c in cand_list if (c.split_pos, c.overlap_size) not in head_keys]
-                            self.logger.debug(f"Calibrator seeds prepended: {[(x.split_pos, x.overlap_size) for x in seed_heads]}")
-                    except Exception:
-                        pass
                     if seed:
                         cand_list = [seed] + [c for c in cand_list if (c.split_pos, c.overlap_size) != (seed.split_pos, seed.overlap_size)]
                     elif "split_pos" in params and "overlap_size" in params:
@@ -1254,15 +1229,14 @@ if platform.system() == "Windows":
                             cand.split_pos,
                             cand.overlap_size,
                             fake_ttl=int(ttl or self.current_params.get("fake_ttl", 1)),
-                            fooling_methods=fooling_list,
-                            segment_order=(params.get("segment_order") or params.get("send_order") or "fake_first"),
-                            badseq_delta=params.get("badseq_delta"),
-                            psh_on_fake=bool(params.get("psh_on_fake", False)),
-                            psh_on_real=bool(params.get("psh_on_real", True)),
-                            fake_delay_ms=int(params.get("fake_delay_ms", 1)),
-                            real_delay_ms=int(params.get("real_delay_ms", self.current_params.get("delay_ms", 1))),
+                            fooling_methods=fooling_list
                         )
-                        # если триплеты — отправляем через _send_attack_segments
+                        # Телеметрия: отметим overlap/seq_offsets как и раньше
+                        with self._tlock:
+                            self._telemetry["overlaps"][int(cand.overlap_size)] += 1
+                            for _, rel_off, *rest in segments:
+                                self._telemetry["seq_offsets"][int(rel_off)] += 1
+                        # Если это «расширенные» сегменты (payload, rel_off, opts) — используем _send_attack_segments
                         if segments and len(segments[0]) == 3:
                             self._send_attack_segments(packet, w, segments)
                         else:
@@ -1339,10 +1313,12 @@ if platform.system() == "Windows":
                                         success = True
                             # Быстрый race‑fallback: fake+badsum → оригинал
                             if not success:
-                                self.logger.warning("Fallback race (fake+badsum)...")
+                                self.logger.warning("Fallback race (fake+badsum)... BLOCKED for honest statistics")
                                 self._send_fake_packet_with_badsum(packet, w, ttl=1)
                                 time.sleep(0.003)
-                                w.send(packet)
+                                # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Блокируем fallback для честной статистики
+                                # w.send(packet)  # Закомментировано
+                                return  # Блокируем вместо отправки оригинала
                                 # дождёмся SH
                                 _ev = self._get_inbound_event_for_flow(packet)
                                 if _ev.wait(timeout=0.6) and self._inbound_results.get(rev_key) == "ok":
@@ -1453,13 +1429,19 @@ if platform.system() == "Windows":
                 elif task_type == "badsum_race":
                     self._send_fake_packet_with_badsum(packet, w, ttl=self.current_params.get("fake_ttl"))
                     time.sleep(0.005)
-                    w.send(packet)
-                    success = True
+                    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Блокируем race для честной статистики
+                    # w.send(packet)  # Закомментировано
+                    self.logger.warning("badsum_race BLOCKED for honest statistics")
+                    return  # Блокируем вместо race
+                    # success = True
                 elif task_type == "md5sig_race":
                     self._send_fake_packet_with_md5sig(packet, w, ttl=self.current_params.get("fake_ttl"))
                     time.sleep(0.007)
-                    w.send(packet)
-                    success = True
+                    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Блокируем race для честной статистики
+                    # w.send(packet)  # Закомментировано
+                    self.logger.warning("md5sig_race BLOCKED for honest statistics")
+                    return  # Блокируем вместо race
+                    # success = True
                 elif task_type == "fake":
                     # Простой режим fake: отправляем фейковый пакет и затем оригинал (с учетом split_pos)
                     fooling = params.get("fooling", []) or []
@@ -1490,12 +1472,17 @@ if platform.system() == "Windows":
                     success = True
 
                 if not success:
-                    self.logger.error("Strategy failed, sending original packet.")
-                    w.send(packet)
+                    self.logger.error("Strategy failed, BLOCKING original packet for honest statistics.")
+                    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Блокируем оригинальные пакеты для честной статистики
+                    # w.send(packet)  # Закомментировано для получения честных результатов
+                    return  # Блокируем пакет вместо отправки оригинала
 
             except Exception as e:
                 self.logger.error(f"❌ Ошибка применения bypass: {e}", exc_info=self.debug)
-                w.send(packet)
+                # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Блокируем fallback при ошибках для честной статистики
+                self.logger.warning("Exception fallback BLOCKED for honest statistics")
+                # w.send(packet)  # Закомментировано
+                return  # Блокируем вместо отправки оригинала
             finally:
                 try:
                     self._inject_sema.release()
@@ -1618,7 +1605,75 @@ if platform.system() == "Windows":
                 except Exception:
                     pass
 
-        # (удалена дубликатная версия _fix_tcp_checksum и _extract_sni; оставлена верхняя реализация)
+        def _fix_tcp_checksum(self, pkt_bytes: bytes) -> bytes:
+            """
+            Пересчитывает IPv4 и TCP checksum для готового кадра (IP+TCP+payload).
+            """
+            try:
+                raw = bytearray(pkt_bytes)
+                ip_hl = (raw[0] & 0x0F) * 4
+                if ip_hl < 20 or len(raw) < ip_hl + 20:
+                    return bytes(raw)
+                # total length
+                raw[2:4] = struct.pack("!H", len(raw))
+                # IP checksum
+                raw[10:12] = b"\x00\x00"
+                ip_csum = self._ip_header_checksum(raw[:ip_hl])
+                raw[10:12] = struct.pack("!H", ip_csum)
+                # TCP checksum
+                tcp_hl = ((raw[ip_hl + 12] >> 4) & 0x0F) * 4
+                if tcp_hl < 20 or len(raw) < ip_hl + tcp_hl:
+                    return bytes(raw)
+                tcp_start = ip_hl
+                tcp_end = ip_hl + tcp_hl
+                raw[tcp_start + 16: tcp_start + 18] = b"\x00\x00"
+                tcp_csum = self._tcp_checksum(raw[:ip_hl], raw[tcp_start:tcp_end], raw[tcp_end:])
+                raw[tcp_start + 16: tcp_start + 18] = struct.pack("!H", tcp_csum)
+                return bytes(raw)
+            except Exception:
+                return pkt_bytes
+
+        def _extract_sni(self, payload: Optional[bytes]) -> Optional[str]:
+            """
+            Безопасный парсер SNI из TLS ClientHello. Возвращает None при любой ошибке.
+            """
+            try:
+                if not payload or len(payload) < 43:
+                    return None
+                if payload[0] != 0x16:
+                    return None
+                if payload[5] != 0x01:
+                    return None
+                pos = 9
+                pos += 2 + 32
+                if pos + 1 > len(payload): return None
+                sid_len = payload[pos]; pos += 1 + sid_len
+                if pos + 2 > len(payload): return None
+                cs_len = int.from_bytes(payload[pos:pos+2], "big"); pos += 2 + cs_len
+                if pos + 1 > len(payload): return None
+                comp_len = payload[pos]; pos += 1 + comp_len
+                if pos + 2 > len(payload): return None
+                ext_len = int.from_bytes(payload[pos:pos+2], "big")
+                ext_start = pos + 2; ext_end = min(len(payload), ext_start + ext_len)
+                s = ext_start
+                while s + 4 <= ext_end:
+                    etype = int.from_bytes(payload[s:s+2], "big")
+                    elen = int.from_bytes(payload[s+2:s+4], "big")
+                    epos = s + 4
+                    if epos + elen > ext_end: break
+                    if etype == 0 and elen >= 5:
+                        list_len = int.from_bytes(payload[epos:epos+2], "big")
+                        npos = epos + 2
+                        if npos + list_len <= epos + elen and npos + 3 <= len(payload):
+                            ntype = payload[npos]
+                            nlen = int.from_bytes(payload[npos+1:npos+3], "big")
+                            nstart = npos + 3
+                            if ntype == 0 and nstart + nlen <= len(payload):
+                                return payload[nstart:nstart+nlen].decode("idna", errors="strict")
+                    s = epos + elen
+                return None
+            except Exception:
+                return None
 
         def _send_udp_segments(self, original_packet, w, segments: List[Tuple[bytes, int]]) -> bool:
             """
@@ -2175,9 +2230,23 @@ if platform.system() == "Windows":
                     tcp_start = ip_hl
                     tcp_end = ip_hl + tcp_hl_eff
                     good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
-                    if opts.get("corrupt_tcp_checksum") or opts.get("add_md5sig_option"):
-                        bad_csum = good_csum ^ 0xFFFF
+                    # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем все условия порчи checksum
+                    should_corrupt_checksum = (
+                        opts.get("corrupt_tcp_checksum") or 
+                        opts.get("add_md5sig_option")
+                        # Убираем opts.get("is_fake") - оригинальная логика уже правильная
+                    )
+                    
+                    if should_corrupt_checksum:
+                        # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Используем 0xDEAD как в zapret, а не XOR
+                        if opts.get("corrupt_tcp_checksum"):
+                            bad_csum = 0xDEAD
+                        elif opts.get("add_md5sig_option"):
+                            bad_csum = 0xBEEF
+                        else:
+                            bad_csum = good_csum ^ 0xFFFF  # fallback
                         seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
+                        self.logger.debug(f"🔧 Corrupted checksum for fake packet: {good_csum:04x} -> {bad_csum:04x}")
                     else:
                         seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum)
 
@@ -2381,25 +2450,7 @@ if platform.system() == "Windows":
                 seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", tcp_csum)
 
                 # Отправляем через safe-отправку (с меткой и ретраем при 258)
-                ok = self._safe_send_packet(w, bytes(seg_raw), original_packet)
-                if ok:
-                    try:
-                        # Increment global stats for fake packets as well
-                        self.stats["fake_packets_sent"] += 1
-                    except Exception:
-                        pass
-                    try:
-                        ttl_val = int(seg_raw[8])
-                        with self._tlock:
-                            self._telemetry["aggregate"]["fake_packets_sent"] += 1
-                            self._telemetry["ttls"]["fake"][ttl_val] += 1
-                            tgt = original_packet.dst_addr
-                            per = self._telemetry["per_target"][tgt]
-                            per["fake_packets_sent"] += 1
-                            per["ttls_fake"][ttl_val] += 1
-                    except Exception:
-                        pass
-                return ok
+                return self._safe_send_packet(w, bytes(seg_raw), original_packet)
             except Exception as e:
                 self.logger.debug(f"_send_aligned_fake_segment error: {e}")
                 return False
@@ -2527,7 +2578,6 @@ try:
             try:
                 self._packet_builder = _CompatPacketBuilder()
                 self._packet_sender = _PacketSender(self._packet_builder, self.logger, getattr(self, "_INJECT_MARK", 0xC0DE))
-                self._pipeline_shim_enabled = True  # Флаг для управления shim
             except Exception as e:
                 try:
                     self.logger.debug(f"PacketPipeline init failed: {e}")
@@ -2598,26 +2648,7 @@ try:
         WindowsBypassEngine._send_attack_segments_orig = WindowsBypassEngine._send_attack_segments
         def _send_attack_segments_patched(self, original_packet, w, segments):
             try:
-                # КРИТИЧНО: отключаем shim для принудительного режима и рецептов с is_fake/ttl
-                force_legacy = False
-                try:
-                    if getattr(self, "_forced_strategy_active", False):
-                        force_legacy = True
-                        self.logger.debug("Force legacy sender: forced_strategy_active")
-                    else:
-                        # Проверяем есть ли is_fake или ttl в opts
-                        for s in (segments or []):
-                            if len(s) >= 3:
-                                opts = s[2] if len(s) >= 3 else {}
-                                if opts.get("is_fake") or ("ttl" in opts):
-                                    force_legacy = True
-                                    self.logger.debug(f"Force legacy sender: found is_fake/ttl in opts")
-                                    break
-                except Exception:
-                    pass
-
-                if not force_legacy and hasattr(self, "_packet_sender") and self._packet_sender and getattr(self, "_pipeline_shim_enabled", True):
-                    # Используем новый pipeline (но он игнорирует TTL!)
+                if hasattr(self, "_packet_sender") and self._packet_sender:
                     base_delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
                     specs = []
                     total = len(segments or [])
@@ -2675,34 +2706,9 @@ try:
                                     real_ttl = int(bytearray(original_packet.raw)[8])
                                     self._telemetry["ttls"]["real"][real_ttl] += 1
                                     per["ttls_real"][real_ttl] += 1
-
-                            # Подсчёт и учёт фейковых сегментов и их TTL
-                            try:
-                                for s in (segments or []):
-                                    opts = (s[2] if len(s) == 3 else {}) or {}
-                                    if opts.get("is_fake"):
-                                        ttl_opt = opts.get("ttl", None)
-                                        if ttl_opt is None:
-                                            try:
-                                                ttl_opt = int(self.current_params.get("fake_ttl", 2))
-                                            except Exception:
-                                                ttl_opt = 2
-                                        ttl_fake_val = int(ttl_opt)
-                                        with self._tlock:
-                                            self._telemetry["aggregate"]["fake_packets_sent"] += 1
-                                            self._telemetry["ttls"]["fake"][ttl_fake_val] += 1
-                                            tgt = original_packet.dst_addr
-                                            per = self._telemetry["per_target"][tgt]
-                                            per["fake_packets_sent"] += 1
-                                            per["ttls_fake"][ttl_fake_val] += 1
-                            except Exception:
-                                pass
                         except Exception:
                             pass
                     return ok
-                else:
-                    # Используем оригинальный sender который правильно обрабатывает TTL
-                    return WindowsBypassEngine._send_attack_segments_orig(self, original_packet, w, segments)
             except Exception as e:
                 try:
                     self.logger.error(f"_send_attack_segments shim error: {e}", exc_info=getattr(self, "debug", False))
