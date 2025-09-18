@@ -1784,15 +1784,15 @@ if platform.system() == "Windows":
             Send fake packet with bad checksum and specified TTL.
 
             CRITICAL TTL FIX: Added comprehensive TTL logging and validation.
-            Default TTL now taken from current_params['fake_ttl'] if not provided.
             """
             try:
                 raw_data = bytearray(original_packet.raw)
                 ip_header_len = (raw_data[0] & 15) * 4
                 tcp_header_len = (raw_data[ip_header_len + 12] >> 4 & 15) * 4
                 payload_start = ip_header_len + tcp_header_len
-                fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-                seg_raw = bytearray(raw_data[:payload_start] + fake_payload[:20])
+                # Выровняем фейк по реальному ClientHello: возьмём небольшой кусок реального payload
+                real_pl = bytes(raw_data[payload_start:payload_start+32]) if len(raw_data) > payload_start else b"\x16\x03\x01"
+                seg_raw = bytearray(raw_data[:payload_start] + real_pl)
                 # TTL
                 if isinstance(ttl, int) and 1 <= ttl <= 255:
                     seg_raw[8] = ttl
@@ -1812,11 +1812,15 @@ if platform.system() == "Windows":
                 tcp_hl = ((seg_raw[ip_hl + 12] >> 4) & 0x0F) * 4
                 tcp_start = ip_hl
                 tcp_end = ip_hl + tcp_hl
-                good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
-                bad_csum = good_csum ^ 0xFFFF
-                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
-                # Safe send
-                self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                _ = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", 0xDEAD)
+                # Флаги: ACK (без PSH)
+                seg_raw[ip_hl + 13] = 0x10
+                # Отправляем без «починки» checksum на ретрае
+                if hasattr(self, "_safe_send_packet_no_fix"):
+                    self._safe_send_packet_no_fix(w, bytes(seg_raw), original_packet)
+                else:
+                    self._safe_send_packet(w, bytes(seg_raw), original_packet)
                 self.stats["fake_packets_sent"] += 1
                 with self._tlock:
                     self._telemetry["aggregate"]["fake_packets_sent"] += 1
@@ -1835,15 +1839,14 @@ if platform.system() == "Windows":
             Send fake packet with MD5 signature and specified TTL.
 
             CRITICAL TTL FIX: Added comprehensive TTL logging and validation.
-            Default TTL now taken from current_params['fake_ttl'] if not provided.
             """
             try:
                 raw_data = bytearray(original_packet.raw)
                 ip_header_len = (raw_data[0] & 15) * 4
                 tcp_header_len = (raw_data[ip_header_len + 12] >> 4 & 15) * 4
                 payload_start = ip_header_len + tcp_header_len
-                fake_payload = b"EHLO example.com\r\n"
-                seg_raw = bytearray(raw_data[:payload_start] + fake_payload)
+                real_pl = bytes(raw_data[payload_start:payload_start+32]) if len(raw_data) > payload_start else b"\x16\x03\x01"
+                seg_raw = bytearray(raw_data[:payload_start] + real_pl)
                 # TTL
                 if isinstance(ttl, int) and 1 <= ttl <= 255:
                     seg_raw[8] = ttl
@@ -1863,11 +1866,13 @@ if platform.system() == "Windows":
                 tcp_hl = ((seg_raw[ip_hl + 12] >> 4) & 0x0F) * 4
                 tcp_start = ip_hl
                 tcp_end = ip_hl + tcp_hl
-                good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
-                bad_csum = good_csum ^ 0xFFFF
-                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
-                # Safe send
-                self._safe_send_packet(w, bytes(seg_raw), original_packet)
+                _ = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+                seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", 0xBEEF)
+                seg_raw[ip_hl + 13] = 0x10
+                if hasattr(self, "_safe_send_packet_no_fix"):
+                    self._safe_send_packet_no_fix(w, bytes(seg_raw), original_packet)
+                else:
+                    self._safe_send_packet(w, bytes(seg_raw), original_packet)
                 self.stats["fake_packets_sent"] += 1
                 with self._tlock:
                     self._telemetry["aggregate"]["fake_packets_sent"] += 1
@@ -1878,6 +1883,33 @@ if platform.system() == "Windows":
                 self.logger.debug(f"✅ Sent fake packet (md5sig) with TTL={seg_raw[8]} to {original_packet.dst_addr}")
             except Exception as e:
                 self.logger.debug(f"Ошибка fake packet with md5sig: {e}")
+
+        # Если еще нет: отправка без пересчета checksum на ретрае 258
+        def _safe_send_packet_no_fix(self, w: "pydivert.WinDivert", pkt_bytes: bytes, original_packet: "pydivert.Packet") -> bool:
+            try:
+                pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                try: pkt.mark = self._INJECT_MARK
+                except Exception: pass
+                w.send(pkt)
+                return True
+            except OSError as e:
+                if getattr(e, "winerror", None) == 258:
+                    self.logger.debug("WinDivert send timeout (258). Retrying without checksum fix...")
+                    time.sleep(0.001)
+                    try:
+                        pkt2 = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                        try: pkt2.mark = self._INJECT_MARK
+                        except Exception: pass
+                        w.send(pkt2)
+                        return True
+                    except Exception as e2:
+                        self.logger.error(f"WinDivert retry (no-fix) failed after 258: {e2}")
+                        return False
+                self.logger.error(f"WinDivert send error: {e}", exc_info=self.debug)
+                return False
+            except Exception as e:
+                self.logger.error(f"Unexpected send error: {e}", exc_info=self.debug)
+                return False
 
         def _send_fake_packet_with_badseq(
             self, original_packet, w, ttl: Optional[int] = None
