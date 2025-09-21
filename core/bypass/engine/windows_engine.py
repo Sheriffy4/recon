@@ -2939,31 +2939,75 @@ if os.getenv("BYPASS_PIPELINE_SHIM", "1") == "1":
                 return WindowsBypassEngine._safe_send_packet_orig(self, w, pkt_bytes, original_packet)
             WindowsBypassEngine._safe_send_packet = _safe_send_packet_patched
 
-        # Патчим _send_segments
+        # УНИФИЦИРОВАННЫЙ ПАТЧ ДЛЯ ОБОИХ МЕТОДОВ ОТПРАВКИ
+
+        # Патчим _send_segments, чтобы он всегда вызывал _send_attack_segments
         if hasattr(WindowsBypassEngine, "_send_segments") and not hasattr(WindowsBypassEngine, "_send_segments_orig"):
             WindowsBypassEngine._send_segments_orig = WindowsBypassEngine._send_segments
             def _send_segments_patched(self, original_packet, w, segments):
+                self.logger.debug("Redirecting _send_segments call to _send_attack_segments for unified processing")
+                # Всегда вызываем _send_attack_segments, так как все примитивы теперь возвращают opts
+                return self._send_attack_segments(original_packet, w, segments)
+            WindowsBypassEngine._send_segments = _send_segments_patched
+
+        # Патчим _send_attack_segments с правильной логикой
+        if hasattr(WindowsBypassEngine, "_send_attack_segments") and not hasattr(WindowsBypassEngine, "_send_attack_segments_orig"):
+            WindowsBypassEngine._send_attack_segments_orig = WindowsBypassEngine._send_attack_segments
+            def _send_attack_segments_patched(self, original_packet, w, segments):
                 try:
                     if hasattr(self, "_packet_sender") and self._packet_sender:
-                        delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
+                        base_delay_ms = int(self.current_params.get("delay_ms", 0)) if hasattr(self, "current_params") else 0
                         specs = []
                         total = len(segments or [])
-                        for i, (payload, rel_off) in enumerate(segments or []):
+
+                        for i, seg in enumerate(segments or []):
+                            # Универсальная распаковка: если opts нет, создаем пустой
+                            if len(seg) == 3:
+                                payload, rel_off, opts = seg
+                            elif len(seg) == 2:
+                                payload, rel_off = seg
+                                opts = {}
+                            else:
+                                continue
+
                             # Флаги: ACK для промежуточных, PSH|ACK для последнего
-                            flags = 0x10 | (0x08 if i == total - 1 else 0)
+                            flags = opts.get("tcp_flags", 0x10 | (0x08 if i == total - 1 else 0))
+
+                            # TTL: для fake -> fake_ttl; для real -> TTL из оригинального пакета
+                            ttl_opt = opts.get("ttl")
+                            if ttl_opt is None:
+                                if opts.get("is_fake"):
+                                    ttl_opt = int(self.current_params.get("fake_ttl", 1))
+                                else:
+                                    ttl_opt = int(self.current_params.get("real_ttl", original_packet.ttl))
+
+                            # Sequence corruption
+                            seq_extra = int(opts.get("seq_offset", 0))
+                            if opts.get("corrupt_sequence"):
+                                seq_extra = -1
+
+                            # *** КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ***
+                            is_corrupt = bool(opts.get("corrupt_tcp_checksum"))
+                            self.logger.info(f"==> SHIM TRACE: seg {i}, opts={opts}, setting corrupt_tcp_checksum={is_corrupt}")
+
                             specs.append(_TCPSegmentSpec(
                                 payload=payload or b"",
                                 rel_seq=int(rel_off),
-                                flags=flags,
-                                # Для базовой отправки задержку оставляем как есть
-                                delay_ms_after=(delay_ms if i < total - 1 else 0)
+                                flags=int(flags) & 0xFF,
+                                ttl=int(ttl_opt),
+                                corrupt_tcp_checksum=is_corrupt,
+                                add_md5sig_option=bool(opts.get("add_md5sig_option")),
+                                seq_extra=seq_extra,
+                                delay_ms_after=int(opts.get("delay_ms", base_delay_ms)) if i < total - 1 else 0,
+                                is_fake=opts.get("is_fake", False)
                             ))
+
                         ok = self._packet_sender.send_tcp_segments(
                             w, original_packet, specs,
-                            window_div=1,
+                            window_div=1, # Для техник с "фейком" окно не режем
                             ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
                         )
-                        # обновляем телеметрию (как в старом finally)
+
                         if ok:
                             try:
                                 with self._tlock:
@@ -2972,151 +3016,21 @@ if os.getenv("BYPASS_PIPELINE_SHIM", "1") == "1":
                                         tgt = original_packet.dst_addr
                                         per = self._telemetry["per_target"][tgt]
                                         per["segments_sent"] += len(segments)
-                                        for seg_payload, rel_off in segments:
-                                            self._telemetry["seq_offsets"][int(rel_off)] += 1
-                                            per["seq_offsets"][int(rel_off)] += 1
+                                        for seg in segments:
+                                            if len(seg) >= 2:
+                                                rel_off = seg[1]
+                                                self._telemetry["seq_offsets"][int(rel_off)] += 1
+                                                per["seq_offsets"][int(rel_off)] += 1
                                         real_ttl = int(bytearray(original_packet.raw)[8])
                                         self._telemetry["ttls"]["real"][real_ttl] += 1
                                         per["ttls_real"][real_ttl] += 1
-                            except Exception:
-                                pass
-                        return ok
-                except Exception as e:
-                    try:
-                        self.logger.error(f"_send_segments shim error: {e}", exc_info=getattr(self, "debug", False))
-                    except Exception:
-                        pass
-                return WindowsBypassEngine._send_segments_orig(self, original_packet, w, segments)
-            WindowsBypassEngine._send_segments = _send_segments_patched
-
-        # Патчим _send_attack_segments
-        if hasattr(WindowsBypassEngine, "_send_attack_segments") and not hasattr(WindowsBypassEngine, "_send_attack_segments_orig"):
-            WindowsBypassEngine._send_attack_segments_orig = WindowsBypassEngine._send_attack_segments
-            def _send_attack_segments_patched(self, original_packet, w, segments):
-                try:
-                    if hasattr(self, "_packet_sender") and self._packet_sender:
-                        # Для fakeddisorder дефолтная задержка между fake->real = 0ms
-                        base_delay_ms = int(self.current_params.get("delay_ms", 0)) if hasattr(self, "current_params") else 0
-                        specs = []
-                        total = len(segments or [])
-                        for i, seg in enumerate(segments or []):
-                            if len(seg) == 3:
-                                payload, rel_off, opts = seg
-                            elif len(seg) == 2:
-                                payload, rel_off = seg
-                                opts = {}
-                            else:
-                                continue
-                            # Совместимость по ключам flags
-                            flags = opts.get("tcp_flags", opts.get("flags"))
-                            if flags is None:
-                                # ACK для промежуточных, PSH|ACK для последнего
-                                flags = 0x10 | (0x08 if i == total - 1 else 0)
-                            # TTL: для fake -> fake_ttl; для real -> явно ставим real_ttl, чтобы не терять
-                            ttl_opt = opts.get("ttl", None)
-                            if ttl_opt is None and opts.get("is_fake"):
-                                try:
-                                    ttl_opt = int(self.current_params.get("fake_ttl", 2))
-                                except Exception:
-                                    ttl_opt = 2
-                            elif ttl_opt is None:
-                                # Для реальных пакетов, если TTL не указан, берем из оригинального пакета
-                                ttl_opt = original_packet.ttl
-
-                            # Sequence corruption
-                            seq_extra = 0
-                            if "seq_offset" in opts:
-                                seq_extra = int(opts.get("seq_offset", 0))
-                            elif opts.get("corrupt_sequence"):
-                                # -1 означает, что PacketBuilder должен сам решить, как портить
-                                seq_extra = -1
-
-                            # Добавляем отладочный лог
-                            is_corrupt = bool(opts.get("corrupt_tcp_checksum"))
-                            self.logger.info(f"==> SHIM TRACE (attack_segments): seg {i}, opts={opts}, setting corrupt_tcp_checksum={is_corrupt}")
-
-                            specs.append(_TCPSegmentSpec(
-                                payload=payload or b"",
-                                rel_seq=int(rel_off),
-                                flags=flags,
-                                ttl=ttl_opt,
-                                delay_ms_after=(opts.get("delay_ms", base_delay_ms) if i < total - 1 else 0),
-                                is_fake=opts.get("is_fake", False),
-                                corrupt_tcp_checksum=is_corrupt,
-                                add_md5sig_option=bool(opts.get("add_md5sig_option") or ("md5sig" in (opts.get("fooling", []) or []))),
-                                seq_corruption_offset=seq_extra,
-                                # Дополнительные опции для PacketBuilder
-                                tcp_option_md5sig=opts.get("tcp_option_md5sig"),
-                                tcp_option_kind=opts.get("tcp_option_kind"),
-                                remove_ack_flag=opts.get("remove_ack_flag"),
-                                tcp_flags_mask=opts.get("tcp_flags_mask"),
-                                badsum_method=opts.get("badsum_method"),
-                            ))
-                        ok = self._packet_sender.send_tcp_segments(
-                            w, original_packet, specs,
-                            window_div=1,
-                            ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
-                        )
-                        # обновляем телеметрию (как в старом finally)
-                        if ok:
-                            try:
-                                with self._tlock:
-                                    if segments:
-                                        self._telemetry["aggregate"]["segments_sent"] += len(segments)
-                                        tgt = original_packet.dst_addr
-                                        if tgt not in self._telemetry["per_host"]:
-                                            self._telemetry["per_host"][tgt] = {"segments_sent": 0}
-                                        self._telemetry["per_host"][tgt]["segments_sent"] += len(segments)
                             except Exception as e:
-                                self.logger.error(f"Telemetry update failed: {e}")
+                                self.logger.error(f"Telemetry update failed in shim: {e}")
                         return ok
                 except Exception as e:
-                    self.logger.error(f"Error in _send_attack_segments_patched: {e}", exc_info=True)
-                    return False
+                    self.logger.error(f"Unified _send_attack_segments_patched shim error: {e}", exc_info=getattr(self, "debug", False))
+                return WindowsBypassEngine._send_attack_segments_orig(self, original_packet, w, segments)
             WindowsBypassEngine._send_attack_segments = _send_attack_segments_patched
-
-        # Патчим _send_segments
-        if hasattr(WindowsBypassEngine, "_send_segments") and not hasattr(WindowsBypassEngine, "_send_segments_orig"):
-            WindowsBypassEngine._send_segments_orig = WindowsBypassEngine._send_segments
-            def _send_segments_patched(self, original_packet, w, segments):
-                try:
-                    if hasattr(self, "_packet_sender") and self._packet_sender:
-                        delay_ms = int(self.current_params.get("delay_ms", 2)) if hasattr(self, "current_params") else 2
-                        specs = []
-                        total = len(segments or [])
-                        for i, (payload, rel_off) in enumerate(segments or []):
-                            # Флаги: ACK для промежуточных, PSH|ACK для последнего
-                            flags = 0x10 | (0x08 if i == total - 1 else 0)
-                            self.logger.info(f"==> SHIM TRACE (segments): seg {i}, creating spec with corrupt_tcp_checksum=False")
-                            specs.append(_TCPSegmentSpec(
-                                payload=payload or b"",
-                                rel_seq=int(rel_off),
-                                flags=flags,
-                                corrupt_tcp_checksum=False, # <-- Вот здесь проблема!
-                                delay_ms_after=(delay_ms if i < total - 1 else 0)
-                            ))
-                        ok = self._packet_sender.send_tcp_segments(
-                            w, original_packet, specs,
-                            window_div=1,
-                            ipid_step=int(self.current_params.get("ipid_step", 2048)) if hasattr(self, "current_params") else 2048
-                        )
-                        # обновляем телеметрию (как в старом finally)
-                        if ok:
-                            try:
-                                with self._tlock:
-                                    if segments:
-                                        self._telemetry["aggregate"]["segments_sent"] += len(segments)
-                                        tgt = original_packet.dst_addr
-                                        if tgt not in self._telemetry["per_host"]:
-                                            self._telemetry["per_host"][tgt] = {"segments_sent": 0}
-                                        self._telemetry["per_host"][tgt]["segments_sent"] += len(segments)
-                            except Exception as e:
-                                self.logger.error(f"Telemetry update failed: {e}")
-                        return ok
-                except Exception as e:
-                    self.logger.error(f"Error in _send_segments_patched: {e}", exc_info=True)
-                    return False
-            WindowsBypassEngine._send_segments = _send_segments_patched
 
         # Патчим _send_udp_segments
         if hasattr(WindowsBypassEngine, "_send_udp_segments") and not hasattr(WindowsBypassEngine, "_send_udp_segments_orig"):
