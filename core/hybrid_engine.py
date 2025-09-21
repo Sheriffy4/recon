@@ -453,8 +453,9 @@ class HybridEngine:
                             await response.content.readexactly(1)
                             latency = (time.time() - start_time) * 1000
                             return (site, ('WORKING', ip_used, latency, response.status))
-                    except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError) as e:
+                    except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionResetError, OSError) as e:
                         latency = (time.time() - start_time) * 1000
+                        
                         # Классифицируем RST отдельно
                         if self._is_rst_error(e):
                             LOG.debug(f'Connectivity test for {site} -> RST ({type(e).__name__})')
@@ -648,10 +649,34 @@ class HybridEngine:
                     LOG.info('DNS issues detected - consistent with fingerprint analysis')
             return ('REAL_WORLD_ERROR', 0, len(test_sites), 0.0)
         finally:
-            bypass_engine.stop()
-            if bypass_thread:
-                bypass_thread.join(timeout=2.0)
-            await asyncio.sleep(0.5)
+            # Создаем асинхронную функцию для очистки, чтобы использовать await
+            async def _cleanup_engine():
+                # Получаем текущий event loop
+                loop = asyncio.get_running_loop()
+                
+                # Выполняем блокирующие операции в отдельном потоке
+                # чтобы не замораживать основной цикл asyncio
+                await loop.run_in_executor(
+                    None,  # Используем executor по умолчанию (ThreadPoolExecutor)
+                    lambda: (
+                        bypass_engine.stop(),
+                        bypass_thread.join(timeout=2.0) if bypass_thread else None
+                    )
+                )
+                # Небольшая асинхронная пауза для завершения всех фоновых процессов
+                await asyncio.sleep(0.2)
+
+            # Вызываем асинхронную функцию очистки
+            if bypass_engine and bypass_thread:
+                try:
+                    await _cleanup_engine()
+                except RuntimeError as e:
+                    # Если event loop уже закрыт (что могло вызвать первоначальную ошибку),
+                    # просто логируем это, но не падаем.
+                    if "no running event loop" in str(e):
+                        LOG.warning("Cleanup skipped: event loop is not running.")
+                    else:
+                        raise e # Перебрасываем другие RuntimeErrors
 
     async def test_strategies_hybrid(
         self,

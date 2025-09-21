@@ -1,104 +1,134 @@
+# File: core/bypass/packet/sender.py
+
 import time
 import logging
-from typing import List, Any, Tuple
-from typing import Optional
+import pydivert
+import struct  # <--- ДОБАВЛЕН ИМПОРТ
+from typing import List, Optional, Tuple
+
+from .builder import PacketBuilder
+from .types import TCPSegmentSpec
 
 class PacketSender:
-    def __init__(self, builder, logger: logging.Logger, inject_mark: int):
+    """
+    Отвечает за оркестрацию отправки пакетов, используя PacketBuilder.
+    Управляет задержками и логикой ретраев.
+    """
+    def __init__(self, builder: PacketBuilder, logger: logging.Logger, inject_mark: int):
         self.builder = builder
         self.logger = logger
-        self.inject_mark = inject_mark
+        self._INJECT_MARK = inject_mark
 
-    def safe_send(self, w: Any, pkt_bytes: bytes, original_packet: Any, allow_fix_checksums: bool = True) -> bool:
-        pkt = None
+    def send_tcp_segments(
+        self,
+        w: "pydivert.WinDivert",
+        original_packet: "pydivert.Packet",
+        specs: List[TCPSegmentSpec],
+        window_div: int = 1,
+        ipid_step: int = 2048
+    ) -> bool:
         try:
-            import pydivert
+            # ================== НАЧАЛО ИСПРАВЛЕНИЯ ==================
+            # Ручное извлечение IP ID, т.к. pydivert.util.get_ip_id отсутствует
+            base_ip_id = struct.unpack("!H", original_packet.raw[4:6])[0]
+            # =================== КОНЕЦ ИСПРАВЛЕНИЯ ===================
+            
+            for i, spec in enumerate(specs):
+                ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
+                
+                pkt_bytes = self.builder.build_tcp_segment(
+                    original_packet, spec, window_div=window_div, ip_id=ip_id
+                )
+
+                if not pkt_bytes:
+                    self.logger.error(f"Segment {i} build failed, aborting send sequence.")
+                    return False
+
+                # ИСПРАВЛЕНИЕ: Выбираем метод отправки в зависимости от флага
+                allow_fix = not spec.corrupt_tcp_checksum
+                if not self.safe_send(w, pkt_bytes, original_packet, allow_fix_checksums=allow_fix):
+                    self.logger.error(f"Segment {i} send failed, aborting send sequence.")
+                    return False
+
+                if spec.delay_ms_after > 0:
+                    time.sleep(spec.delay_ms_after / 1000.0)
+            return True
+        except Exception as e:
+            self.logger.error(f"send_tcp_segments error: {e}", exc_info=True)
+            return False
+
+    def send_udp_datagrams(
+        self,
+        w: "pydivert.WinDivert",
+        original_packet: "pydivert.Packet",
+        datagrams: List[Tuple[bytes, int]],
+        ipid_step: int = 2048
+    ) -> bool:
+        try:
+            # ================== НАЧАЛО ИСПРАВЛЕНИЯ ==================
+            # Ручное извлечение IP ID
+            base_ip_id = struct.unpack("!H", original_packet.raw[4:6])[0]
+            # =================== КОНЕЦ ИСПРАВЛЕНИЯ ===================
+            
+            for i, (data, delay_ms) in enumerate(datagrams):
+                ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
+                
+                pkt_bytes = self.builder.build_udp_datagram(original_packet, data, ip_id=ip_id)
+
+                if not pkt_bytes:
+                    self.logger.error(f"Datagram {i} build failed, aborting send sequence.")
+                    return False
+
+                if not self.safe_send(w, pkt_bytes, original_packet):
+                    self.logger.error(f"Datagram {i} send failed, aborting send sequence.")
+                    return False
+
+                if delay_ms > 0:
+                    time.sleep(delay_ms / 1000.0)
+            return True
+        except Exception as e:
+            self.logger.error(f"send_udp_datagrams error: {e}", exc_info=True)
+            return False
+
+    def safe_send(self, w: "pydivert.WinDivert", pkt_bytes: bytes, original_packet: "pydivert.Packet", allow_fix_checksums: bool = True) -> bool:
+        try:
             pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
             try:
-                pkt.mark = self.inject_mark
+                pkt.mark = self._INJECT_MARK
             except Exception:
                 pass
             w.send(pkt)
             return True
         except OSError as e:
-            winerr = getattr(e, "winerror", None)
-            if winerr == 258:
-                # Таймаут очереди — небольшой ретрай + попытка пересчитать checksum helper'ом
-                self.logger.debug(f"WinDivert send timeout (258). Retrying (allow_fix_checksums={allow_fix_checksums})...")
+            if getattr(e, "winerror", None) == 258 and allow_fix_checksums:
+                self.logger.debug("WinDivert send timeout (258). Retrying with checksum helper...")
                 time.sleep(0.001)
-                if allow_fix_checksums:
-                    try:
-                        # Попробуем пересчитать checksum через WinDivertHelper
-                        from pydivert.windivert import WinDivertHelper, WinDivertLayer
-                        buf = bytearray(pkt_bytes)
-                        WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
-                        pkt2 = pydivert.Packet(bytes(buf), original_packet.interface, original_packet.direction)
-                        try:
-                            pkt2.mark = self.inject_mark
-                        except Exception:
-                            pass
-                        w.send(pkt2)
-                        return True
-                    except Exception as e2:
-                        self.logger.debug(f"Checksum helper not available or failed: {e2}")
-
                 try:
-                    # Последняя попытка — отправить как есть ещё раз
-                    pkt3 = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
-                    try:
-                        pkt3.mark = self.inject_mark
-                    except Exception:
-                        pass
-                    w.send(pkt3)
+                    buf = bytearray(pkt_bytes)
+                    from pydivert.windivert import WinDivertHelper, WinDivertLayer
+                    WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
+                    pkt2 = pydivert.Packet(bytes(buf), original_packet.interface, original_packet.direction)
+                    try: pkt2.mark = self._INJECT_MARK
+                    except Exception: pass
+                    w.send(pkt2)
+                    return True
+                except Exception as e2:
+                    self.logger.error(f"WinDivert retry failed after 258: {e2}")
+                    return False
+            elif getattr(e, "winerror", None) == 258 and not allow_fix_checksums:
+                self.logger.debug("WinDivert send timeout (258) on no-fix packet. Retrying without fix...")
+                time.sleep(0.001)
+                try:
+                    pkt2 = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                    try: pkt2.mark = self._INJECT_MARK
+                    except Exception: pass
+                    w.send(pkt2)
                     return True
                 except Exception as e3:
-                    self.logger.error(f"WinDivert retry failed after 258: {e3}")
+                    self.logger.error(f"WinDivert no-fix retry failed after 258: {e3}")
                     return False
-            self.logger.error(f"WinDivert send error: {e}")
+            self.logger.error(f"WinDivert send error: {e}", exc_info=self.logger.level == logging.DEBUG)
             return False
         except Exception as e:
-            self.logger.error(f"Unexpected send error: {e}")
-            return False
-
-    def send_tcp_segments(self, w: Any, original_packet: Any, specs: List[Any], window_div: int, ipid_step: int) -> bool:
-         try:
-             raw = bytes(original_packet.raw)
-             base_ip_id = int.from_bytes(raw[4:6], "big")
-             try:
-                 self.logger.debug("PacketSender specs summary: " + ", ".join([f"#{i}(ttl={getattr(s,'ttl',None)},flags={hex(getattr(s,'flags',0))},seq_extra={getattr(s,'seq_extra',0)},bad={getattr(s,'corrupt_tcp_checksum',False)})" for i,s in enumerate(specs)]))
-             except Exception: pass
-             for i, spec in enumerate(specs):
-                 ip_id = (base_ip_id + i * int(ipid_step)) & 0xFFFF
-                 pkt = self.builder.build_tcp_segment(raw, spec, window_div=window_div, ip_id=ip_id)
-                 allow_fix_checksums = not getattr(spec, 'corrupt_tcp_checksum', False)
-                 if not self.safe_send(w, pkt, original_packet, allow_fix_checksums=allow_fix_checksums):
-                     return False
-                 delay_ms = int(getattr(spec, "delay_ms", 0))
-                 if i < len(specs) - 1 and delay_ms > 0:
-                     time.sleep(delay_ms / 1000.0)
-             return True
-         except Exception as e:
-             self.logger.error(f"send_tcp_segments error: {e}", exc_info=True)
-             return False
-
-    def send_udp_datagrams(self, w: Any, original_packet: Any, items: List[Tuple[bytes, int]], ipid_step: int) -> bool:
-        try:
-            raw = bytes(original_packet.raw)
-            base_ip_id = int.from_bytes(raw[4:6], "big")
-            for i, item in enumerate(items):
-                if isinstance(item, tuple):
-                    data = item[0]; delay_ms = int(item[1]) if len(item) >= 2 else 0
-                else:
-                    data = item; delay_ms = 0
-                if not data:
-                    continue
-                ip_id = (base_ip_id + i * int(ipid_step)) & 0xFFFF
-                pkt = self.builder.build_udp_datagram(raw, data, ip_id=ip_id)
-                if not self.safe_send(w, pkt, original_packet):
-                    return False
-                if i < len(items) - 1 and delay_ms > 0:
-                    time.sleep(delay_ms / 1000.0)
-            return True
-        except Exception as e:
-            self.logger.error(f"send_udp_datagrams error: {e}", exc_info=True)
+            self.logger.error(f"Unexpected send error: {e}", exc_info=True)
             return False

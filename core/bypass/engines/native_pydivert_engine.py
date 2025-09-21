@@ -580,9 +580,10 @@ class NativePydivertEngine(BaseBypassEngine):
             timing_controller = get_timing_controller()
             for i, segment_info in enumerate(segments):
                 payload_data, seq_offset, options = segment_info
-                delay_ms = options.get("delay_ms", 0)
-                if delay_ms > 0:
-                    timing_controller.delay(delay_ms)
+
+                is_corrupt = bool(options.get("corrupt_tcp_checksum"))
+                self.logger.info(f"==> NATIVE ENGINE TRACE: seg {i}, opts={options}, setting corrupt_tcp_checksum={is_corrupt}")
+
                 packet_info = self.segment_builder.build_segment(
                     payload=payload_data,
                     seq_offset=seq_offset,
