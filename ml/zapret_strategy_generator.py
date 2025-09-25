@@ -122,9 +122,17 @@ class ZapretStrategyGenerator:
             raw_metrics = getattr(fingerprint, 'raw_metrics', {})
             hints = raw_metrics.get('strategy_hints', [])
             
+            # FIXED: Check fragmentation vulnerability from fingerprint first
+            # Try multiple ways to access fragmentation info
+            fragmentation_handling = getattr(fingerprint, 'fragmentation_handling', 'unknown')
+            if fragmentation_handling == 'unknown':
+                # Try to get it from raw_metrics.tcp_analysis
+                tcp_analysis = raw_metrics.get('tcp_analysis', {})
+                fragmentation_handling = tcp_analysis.get('fragmentation_handling', 'unknown')
+            
             self.logger.info(f"Generating strategies using fingerprint hints: {hints}")
             
-            # Generate strategies based on detected DPI characteristics
+            # FIXED: Generate strategies based on detected DPI characteristics
             if 'disable_quic' in hints:
                 strategies.extend([
                     "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4",
@@ -132,11 +140,43 @@ class ZapretStrategyGenerator:
                     "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq"
                 ])
             
-            if 'tcp_segment_reordering' in hints:
+            if 'tcp_segment_reordering' in hints and fragmentation_handling != "filtered":
                 strategies.extend([
                     "--dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10",
                     "--dpi-desync=multidisorder --dpi-desync-split-pos=2,7,15",
                     "--dpi-desync=multisplit --dpi-desync-split-pos=3,8,12"
+                ])
+            
+            self.logger.info(f"Fragmentation handling detected: {fragmentation_handling}")
+            
+            if fragmentation_handling == "vulnerable":
+                # DPI is vulnerable to fragmentation - prioritize fragmentation attacks
+                self.logger.info("DPI vulnerable to fragmentation - adding multisplit/multidisorder strategies")
+                strategies.extend([
+                    "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum",
+                    "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+                    "--dpi-desync=multidisorder --dpi-desync-split-pos=1,3,5,7 --dpi-desync-fooling=badseq",
+                    "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq",
+                    "--dpi-desync=multidisorder --dpi-desync-split-pos=2,6,10,15 --dpi-desync-fooling=badsum",
+                    "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=64",
+                    "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=midsld --dpi-desync-fooling=badseq --dpi-desync-ttl=64"
+                ])
+            elif fragmentation_handling == "filtered":
+                # DPI filters fragmentation - avoid fragmentation attacks
+                self.logger.info("DPI filters fragmentation - avoiding multisplit/multidisorder strategies")
+                strategies.extend([
+                    "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
+                    "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq",
+                    "--dpi-desync=fake --dpi-desync-split-pos=midsld --dpi-desync-fooling=badsum"
+                ])
+            else:
+                # Unknown fragmentation handling - add both types but prioritize fragmentation
+                self.logger.info("Fragmentation handling unknown - adding mixed strategies with fragmentation priority")
+                strategies.extend([
+                    "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=64",
+                    "--dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badseq",
+                    "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum",
+                    "--dpi-desync=fake --dpi-desync-ttl=64 --dpi-desync-fooling=badsum"
                 ])
             
             if 'prefer_http11' in hints:
@@ -608,7 +648,41 @@ class ZapretStrategyGenerator:
         """Генерирует стратегии на основе конкретных характеристик DPI."""
         strategies = []
 
-        # Стратегии для TCP-характеристик
+        # FIXED: Стратегии для TCP-характеристик с учетом фрагментации
+        
+        # FIXED: Fragmentation vulnerability check - this is the key fix!
+        fragmentation_handling = getattr(fingerprint, 'fragmentation_handling', 'unknown')
+        
+        # Also check raw_metrics for fragmentation info
+        if hasattr(fingerprint, 'raw_metrics') and fragmentation_handling == 'unknown':
+            tcp_analysis = fingerprint.raw_metrics.get('tcp_analysis', {})
+            fragmentation_handling = tcp_analysis.get('fragmentation_handling', 'unknown')
+        
+        if fragmentation_handling == "vulnerable":
+            # DPI vulnerable to fragmentation - prioritize fragmentation attacks
+            strategies.extend([
+                "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum",
+                "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badsum",
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=1,3,5,7 --dpi-desync-fooling=badseq",
+                "--dpi-desync=fake,multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badsum,badseq",
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=2,6,10,15 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=64"
+            ])
+        elif fragmentation_handling == "filtered":
+            # DPI filters fragmentation - avoid fragmentation attacks
+            strategies.extend([
+                "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badseq",
+                "--dpi-desync=fake --dpi-desync-split-pos=midsld --dpi-desync-fooling=badsum"
+            ])
+        else:
+            # Unknown or default - assume vulnerable and prioritize fragmentation
+            strategies.extend([
+                "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=64",
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badseq",
+                "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum"
+            ])
+        
         if fingerprint.rst_injection_detected:
             # RST инъекция - используем стратегии с низким TTL и повторами
             strategies.extend(

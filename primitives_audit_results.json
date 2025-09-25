@@ -1,0 +1,115 @@
+{
+  "timestamp": "1758647412.9213545",
+  "fakeddisorder": {
+    "test_cases": [
+      {
+        "name": "fakeddisorder_no_overlap",
+        "segments": 2,
+        "issues": [],
+        "passed": true
+      },
+      {
+        "name": "fakeddisorder_with_overlap",
+        "segments": 2,
+        "issues": [],
+        "passed": true
+      },
+      {
+        "name": "fakeddisorder_with_fooling",
+        "segments": 2,
+        "issues": [],
+        "passed": true
+      },
+      {
+        "name": "fakeddisorder_edge_cases",
+        "issues": [],
+        "passed": true
+      }
+    ],
+    "issues": [],
+    "pcap_comparison": {
+      "ip_header_diffs": [
+        "Packet 0: IP ID differs (zapret: 52858, recon: 19944)",
+        "Packet 0: TTL differs (zapret: 62, recon: 128)",
+        "Packet 1: IP ID differs (zapret: 52859, recon: 19945)",
+        "Packet 1: TTL differs (zapret: 62, recon: 128)",
+        "Packet 2: IP ID differs (zapret: 52860, recon: 19946)",
+        "Packet 2: TTL differs (zapret: 62, recon: 128)"
+      ],
+      "tcp_header_diffs": [
+        "Packet 0: Window size differs (zapret: 75, recon: 65535)",
+        "Packet 0: TCP flags differ (zapret: PA, recon: A)",
+        "Packet 1: Window size differs (zapret: 75, recon: 65171)",
+        "Packet 2: Window size differs (zapret: 78, recon: 65171)",
+        "Packet 2: TCP flags differ (zapret: A, recon: PA)"
+      ],
+      "tcp_options_diffs": [
+        "Packet 0: TCP options count differs (zapret: 3, recon: 0)",
+        "Packet 1: TCP options count differs (zapret: 3, recon: 0)",
+        "Packet 2: TCP options count differs (zapret: 3, recon: 0)"
+      ],
+      "timing_diffs": [],
+      "checksum_diffs": []
+    }
+  },
+  "multisplit_seqovl": {
+    "multisplit_tests": [
+      {
+        "name": "multisplit",
+        "issues": [],
+        "passed": true
+      }
+    ],
+    "seqovl_tests": [
+      {
+        "name": "seqovl",
+        "issues": [],
+        "passed": true
+      }
+    ],
+    "issues": []
+  },
+  "fooling_methods": {
+    "badsum_test": {
+      "name": "badsum_fooling",
+      "original_checksum": "0x0000",
+      "new_checksum": "0xDEAD",
+      "issues": [],
+      "passed": true
+    },
+    "md5sig_test": {
+      "name": "md5sig_fooling",
+      "original_checksum": "0x0000",
+      "new_checksum": "0xBEEF",
+      "issues": [],
+      "passed": true
+    },
+    "issues": []
+  },
+  "other_attacks": {
+    "tlsrec_split_test": {
+      "name": "tlsrec_split",
+      "issues": [],
+      "passed": true
+    },
+    "wssize_limit_test": {
+      "name": "wssize_limit",
+      "issues": [],
+      "passed": true
+    },
+    "issues": []
+  },
+  "test_pcaps": {
+    "fakeddisorder_pcap": "test_fakeddisorder.pcap",
+    "multisplit_pcap": "test_multisplit.pcap",
+    "seqovl_pcap": "test_seqovl.pcap"
+  },
+  "summary": {
+    "total_tests": 10,
+    "passed_tests": 10,
+    "failed_tests": 0,
+    "success_rate": "100.0%",
+    "total_issues": 0,
+    "critical_issues": []
+  }
+}

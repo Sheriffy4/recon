@@ -1,0 +1,1637 @@
+{
+  "domains_tested": [
+    "x.com",
+    "nnmclub.to",
+    "youtube.com",
+    "rutracker.org",
+    "instagram.com"
+  ],
+  "timestamp": 1758652081.8300064,
+  "manual_results": {
+    "x.com": {
+      "domain": "x.com",
+      "port": 443,
+      "timestamp": 1758652081.8300064,
+      "responds_to_badsum": false,
+      "rst_on_low_ttl": false,
+      "ignores_packets_ttl_threshold": null,
+      "min_split_pos_required": 0,
+      "supports_http2": false,
+      "supports_quic": false,
+      "supports_ech": false,
+      "blocks_sni": false,
+      "connection_timeout_ms": 10000,
+      "rst_injection_detected": false,
+      "tls_version_support": [],
+      "cipher_suite_restrictions": [],
+      "timing_attack_vulnerable": true,
+      "response_time_variance_ms": 241.57140898296348,
+      "recommended_techniques": [
+        "sni_substitution",
+        "timing_based_evasion"
+      ],
+      "confidence_score": 0.8
+    },
+    "nnmclub.to": {
+      "domain": "nnmclub.to",
+      "port": 443,
+      "timestamp": 1758652264.680001,
+      "responds_to_badsum": false,
+      "rst_on_low_ttl": false,
+      "ignores_packets_ttl_threshold": null,
+      "min_split_pos_required": 0,
+      "supports_http2": false,
+      "supports_quic": true,
+      "supports_ech": false,
+      "blocks_sni": false,
+      "connection_timeout_ms": 10000,
+      "rst_injection_detected": false,
+      "tls_version_support": [],
+      "cipher_suite_restrictions": [],
+      "timing_attack_vulnerable": true,
+      "response_time_variance_ms": 3028.5483611578456,
+      "recommended_techniques": [
+        "sni_substitution",
+        "timing_based_evasion"
+      ],
+      "confidence_score": 0.8
+    },
+    "youtube.com": {
+      "domain": "youtube.com",
+      "port": 443,
+      "timestamp": 1758652446.8100214,
+      "responds_to_badsum": false,
+      "rst_on_low_ttl": false,
+      "ignores_packets_ttl_threshold": null,
+      "min_split_pos_required": 0,
+      "supports_http2": false,
+      "supports_quic": true,
+      "supports_ech": false,
+      "blocks_sni": null,
+      "connection_timeout_ms": 10000,
+      "rst_injection_detected": false,
+      "tls_version_support": [],
+      "cipher_suite_restrictions": [],
+      "timing_attack_vulnerable": true,
+      "response_time_variance_ms": 32044.92069213302,
+      "recommended_techniques": [
+        "sni_substitution",
+        "timing_based_evasion"
+      ],
+      "confidence_score": 0.6
+    },
+    "rutracker.org": {
+      "domain": "rutracker.org",
+      "port": 443,
+      "timestamp": 1758652612.848995,
+      "responds_to_badsum": false,
+      "rst_on_low_ttl": false,
+      "ignores_packets_ttl_threshold": null,
+      "min_split_pos_required": 0,
+      "supports_http2": false,
+      "supports_quic": true,
+      "supports_ech": false,
+      "blocks_sni": false,
+      "connection_timeout_ms": 10000,
+      "rst_injection_detected": false,
+      "tls_version_support": [],
+      "cipher_suite_restrictions": [],
+      "timing_attack_vulnerable": true,
+      "response_time_variance_ms": 1085.6183239638995,
+      "recommended_techniques": [
+        "sni_substitution",
+        "timing_based_evasion"
+      ],
+      "confidence_score": 0.8
+    },
+    "instagram.com": {
+      "domain": "instagram.com",
+      "port": 443,
+      "timestamp": 1758652794.7865677,
+      "responds_to_badsum": false,
+      "rst_on_low_ttl": false,
+      "ignores_packets_ttl_threshold": null,
+      "min_split_pos_required": 0,
+      "supports_http2": false,
+      "supports_quic": true,
+      "supports_ech": false,
+      "blocks_sni": null,
+      "connection_timeout_ms": 10000,
+      "rst_injection_detected": false,
+      "tls_version_support": [],
+      "cipher_suite_restrictions": [],
+      "timing_attack_vulnerable": true,
+      "response_time_variance_ms": 24932.901287925233,
+      "recommended_techniques": [
+        "sni_substitution",
+        "timing_based_evasion"
+      ],
+      "confidence_score": 0.6
+    }
+  },
+  "automated_results": {
+    "x.com": {
+      "target": "x.com:443",
+      "dpi_type": "unknown",
+      "block_type": "none",
+      "reliability_score": 0.25,
+      "raw_metrics": {
+        "ja3": {
+          "ja3_hash": "b80f0eae9e25441b055ce757fe8fee78"
+        },
+        "metrics_collection": "ComprehensiveMetrics(target='x.com', timestamp=1758652111.2446773, timing=TimingMetrics(latency_ms=73.92736999318004, jitter_ms=28.776836130176335, packet_timing=[153.34379998967052, 75.02530002966523, 65.4962999979034, 68.74549994245172, 61.39449996408075, 62.260700040496886, 65.96819998230785, 65.3230999596417, 49.13910001050681, 72.5772000150755], connection_time_ms=43.957550008781254, first_byte_time_ms=29.966560006141663, total_time_ms=73.92736999318004, timeout_occurred=False, retransmission_count=0), network=NetworkMetrics(packet_loss_rate=0.0, out_of_order_packets=0, duplicate_packets=0, fragmented_packets=0, mtu_discovery_blocked=False, icmp_responses=[], tcp_window_scaling=False, tcp_options=['mss', 'sackOK', 'timestamp']), protocols={'https': ProtocolMetrics(protocol='https', success_rate=0.0, error_codes=[], response_sizes=[], header_modifications={}, content_modifications=False, redirect_responses=0, blocked_responses=1)}, raw_data={'collection_timestamp': 1758652159.580389, 'target': 'x.com', 'port': 443, 'protocols_tested': ['https'], 'timing_samples': 10, 'errors_encountered': 0}, collection_errors=[], reliability_score=0.78)",
+        "tcp_analysis": {
+          "target": "x.com",
+          "timestamp": 1758652111.2446773,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1400,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 40.59320001397282
+        },
+        "dns_analysis": {
+          "dns_hijacking_detected": false,
+          "dns_response_modification": false,
+          "dns_query_filtering": false,
+          "doh_blocking": false,
+          "dot_blocking": false,
+          "dns_cache_poisoning": false,
+          "dns_timeout_manipulation": false,
+          "recursive_resolver_blocking": false,
+          "dns_over_tcp_blocking": false,
+          "edns_support": false,
+          "analysis_duration": 12.445454359054565,
+          "detailed_results": {},
+          "hijacking_details": {},
+          "modification_details": {},
+          "doh_details": {
+            "blocked_servers": [
+              "cloudflare",
+              "quad9",
+              "adguard"
+            ],
+            "working_servers": [
+              "google"
+            ]
+          },
+          "dot_details": {
+            "blocked_servers": [],
+            "working_servers": [
+              "cloudflare",
+              "google",
+              "quad9"
+            ]
+          },
+          "poisoning_details": {},
+          "edns_details": {
+            "edns_version": 0,
+            "buffer_size": 4096
+          },
+          "tcp_details": {
+            "tcp_successful": true,
+            "udp_successful": true
+          },
+          "resolver_details": {
+            "blocked_resolvers": [],
+            "working_resolvers": [
+              "8.8.8.8",
+              "1.1.1.1",
+              "9.9.9.9",
+              "208.67.222.222"
+            ]
+          },
+          "timeout_details": {
+            "8.8.8.8": 0.0,
+            "1.1.1.1": 0.0,
+            "9.9.9.9": 0.0
+          }
+        },
+        "quic_probe": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "packet_reordering_tolerant": true,
+        "max_reorder_distance": 8,
+        "jumbo_frames_supported": true,
+        "behavioral_probes": {
+          "reordering_tolerance": {
+            "tolerates_reordering": true,
+            "max_reorder_distance": 8
+          },
+          "fragmentation_handling": {
+            "supports_ip_fragmentation": false,
+            "min_fragment_size": null,
+            "reassembly_timeout": null
+          },
+          "timing_patterns": {
+            "connect_time_ms": 31.949281692504883,
+            "tls_error": ""
+          },
+          "packet_size_limits": {
+            "max_tcp_payload": 9000,
+            "mtu_discovered": 1500,
+            "jumbo_frames_supported": true
+          },
+          "protocol_detection": {
+            "http_detected": false,
+            "https_detected": true,
+            "http2_detected": true,
+            "quic_detected": false,
+            "custom_protocol_blocked": false
+          }
+        },
+        "sni_probe": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "nosni": {
+            "ok": false,
+            "error": "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1010)"
+          },
+          "sni_sensitive": false
+        },
+        "rst_ttl_stats": {
+          "rst_ttl_level": "unknown",
+          "distance": null
+        },
+        "sni_sensitivity": {
+          "likely": false,
+          "consistency_blocked": true
+        },
+        "strategy_hints": [
+          "disable_quic",
+          "prefer_http11",
+          "tcp_segment_reordering"
+        ],
+        "extended_metrics": {
+          "domain": "x.com",
+          "port": 443,
+          "collection_timestamp": 1758652165.7155416,
+          "rst_ttl_distance": null,
+          "sni_consistency_blocked": true,
+          "http2_support": null,
+          "http2_frame_analysis": {},
+          "quic_support": null,
+          "quic_analysis": {},
+          "ech_support": false,
+          "ech_analysis": {
+            "ech_config_found": false,
+            "grease_handling": "unknown",
+            "fragmentation_sensitivity": "unknown"
+          },
+          "response_timing_patterns": {
+            "connection_times": [],
+            "first_byte_times": [],
+            "total_times": [],
+            "jitter_measurements": []
+          },
+          "baseline_block_type": "timeout",
+          "baseline_success": false,
+          "baseline_latency_ms": 10008.695840835571,
+          "response_timing_pattern": null,
+          "primary_block_method": "timeout",
+          "connection_timeout_ms": 10008,
+          "timing_attack_vulnerable": null,
+          "content_filtering_indicators": {},
+          "http": {
+            "block_type": "BlockType.TIMEOUT",
+            "success": false
+          },
+          "ech_present": false,
+          "http3_support": false,
+          "ech_blocked": false,
+          "ech_details": {
+            "tls_ok": false
+          }
+        },
+        "http2_support": null,
+        "quic_support": null,
+        "ech_support": false,
+        "http3_support": false,
+        "ech_present": false,
+        "ech_blocked": false,
+        "sni_probe_detailed": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "nosni": {
+            "ok": false,
+            "error": "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1010)"
+          },
+          "sni_sensitive": false,
+          "subdomain_works": false,
+          "random_sni_works": false,
+          "sni_validation_type": "unknown"
+        },
+        "quic_probe_repeat": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps_repeat": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "timing_probe": {
+          "delay_0ms": true,
+          "delay_100ms": true,
+          "delay_500ms": true,
+          "delay_1000ms": true,
+          "timing_sensitive": false
+        },
+        "fragmentation_probe": {
+          "supports_fragmentation": false,
+          "error": "scapy_probes_disabled"
+        },
+        "behavior_profile": {
+          "dpi_system_id": "unknown",
+          "signature_based_detection": false,
+          "behavioral_analysis": false,
+          "ml_detection": false,
+          "statistical_analysis": false,
+          "evasion_effectiveness": {},
+          "technique_rankings": [],
+          "timing_sensitivity_profile": {
+            "overall_sensitivity": 0.3
+          },
+          "connection_timeout_patterns": {
+            "default": 5000
+          },
+          "burst_tolerance": 0.6,
+          "tcp_state_tracking_depth": 1,
+          "tls_inspection_level": "legacy",
+          "http_parsing_strictness": "lenient",
+          "packet_reordering_tolerance": true,
+          "fragmentation_reassembly_timeout": 30000,
+          "deep_packet_inspection_depth": 0,
+          "identified_weaknesses": [
+            "No ML detection - evasion easier",
+            "Tolerates packet reordering - TCP sequence attacks viable"
+          ],
+          "exploit_recommendations": [
+            "force_tcp"
+          ]
+        },
+        "recommendations": [
+          {
+            "technique": "force_tcp",
+            "score": 0.6,
+            "confidence": 0.6,
+            "parameters": {
+              "disable_quic": true
+            },
+            "reasoning": "QUIC blocked by DPI",
+            "execution_order": 1,
+            "execution_notes": "Primary recommendation - highest success probability"
+          }
+        ]
+      },
+      "predicted_weaknesses": [
+        "No ML-based anomaly detection",
+        "Tolerates packet reordering - sequence attacks viable"
+      ],
+      "recommended_attacks": [
+        {
+          "technique": "tcp_multisplit",
+          "score": 0.5
+        },
+        {
+          "technique": "tcp_fakeddisorder",
+          "score": 0.45
+        }
+      ]
+    },
+    "nnmclub.to": {
+      "target": "nnmclub.to:443",
+      "dpi_type": "unknown",
+      "block_type": "none",
+      "reliability_score": 0.25,
+      "raw_metrics": {
+        "ja3": {
+          "ja3_hash": "84ac8b8391a114674945df4deda2573b"
+        },
+        "metrics_collection": "ComprehensiveMetrics(target='nnmclub.to', timestamp=1758652292.1503513, timing=TimingMetrics(latency_ms=111.61129997344688, jitter_ms=28.81312099800159, packet_timing=[192.263999953866, 104.90439995191991, 98.63509994465858, 106.30660003516823, 95.9032999817282, 98.27359998598695, 107.77279990725219, 105.46180000528693, 95.88229993823916, 110.7091000303626], connection_time_ms=58.789049996994436, first_byte_time_ms=52.819039998576045, total_time_ms=111.61129997344688, timeout_occurred=False, retransmission_count=0), network=NetworkMetrics(packet_loss_rate=0.0, out_of_order_packets=0, duplicate_packets=0, fragmented_packets=0, mtu_discovery_blocked=False, icmp_responses=[], tcp_window_scaling=False, tcp_options=['mss', 'sackOK', 'timestamp']), protocols={'https': ProtocolMetrics(protocol='https', success_rate=0.0, error_codes=[], response_sizes=[], header_modifications={}, content_modifications=False, redirect_responses=0, blocked_responses=1)}, raw_data={'collection_timestamp': 1758652339.7174108, 'target': 'nnmclub.to', 'port': 443, 'protocols_tested': ['https'], 'timing_samples': 10, 'errors_encountered': 0}, collection_errors=[], reliability_score=0.78)",
+        "tcp_analysis": {
+          "target": "nnmclub.to",
+          "timestamp": 1758652292.1503513,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1400,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 60.577600030228496
+        },
+        "dns_analysis": {
+          "dns_hijacking_detected": false,
+          "dns_response_modification": false,
+          "dns_query_filtering": false,
+          "doh_blocking": false,
+          "dot_blocking": false,
+          "dns_cache_poisoning": false,
+          "dns_timeout_manipulation": false,
+          "recursive_resolver_blocking": false,
+          "dns_over_tcp_blocking": false,
+          "edns_support": false,
+          "analysis_duration": 13.371533870697021,
+          "detailed_results": {},
+          "hijacking_details": {},
+          "modification_details": {},
+          "doh_details": {
+            "blocked_servers": [
+              "cloudflare",
+              "quad9",
+              "adguard"
+            ],
+            "working_servers": [
+              "google"
+            ]
+          },
+          "dot_details": {
+            "blocked_servers": [],
+            "working_servers": [
+              "cloudflare",
+              "google",
+              "quad9"
+            ]
+          },
+          "poisoning_details": {},
+          "edns_details": {
+            "edns_version": 0,
+            "buffer_size": 4096
+          },
+          "tcp_details": {
+            "tcp_successful": true,
+            "udp_successful": true
+          },
+          "resolver_details": {
+            "blocked_resolvers": [],
+            "working_resolvers": [
+              "8.8.8.8",
+              "1.1.1.1",
+              "9.9.9.9",
+              "208.67.222.222"
+            ]
+          },
+          "timeout_details": {
+            "8.8.8.8": 0.0,
+            "1.1.1.1": 0.0,
+            "9.9.9.9": 0.001003265380859375
+          }
+        },
+        "quic_probe": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "packet_reordering_tolerant": true,
+        "max_reorder_distance": 8,
+        "jumbo_frames_supported": true,
+        "behavioral_probes": {
+          "reordering_tolerance": {
+            "tolerates_reordering": true,
+            "max_reorder_distance": 8
+          },
+          "fragmentation_handling": {
+            "supports_ip_fragmentation": false,
+            "min_fragment_size": null,
+            "reassembly_timeout": null
+          },
+          "timing_patterns": {
+            "connect_time_ms": 47.75261878967285,
+            "tls_error": ""
+          },
+          "packet_size_limits": {
+            "max_tcp_payload": 9000,
+            "mtu_discovered": 1500,
+            "jumbo_frames_supported": true
+          },
+          "protocol_detection": {
+            "http_detected": false,
+            "https_detected": true,
+            "http2_detected": true,
+            "quic_detected": false,
+            "custom_protocol_blocked": false
+          }
+        },
+        "sni_probe": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "nosni": {
+            "ok": false,
+            "error": "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1010)"
+          },
+          "sni_sensitive": false
+        },
+        "rst_ttl_stats": {
+          "rst_ttl_level": "unknown",
+          "distance": null
+        },
+        "sni_sensitivity": {
+          "likely": false,
+          "consistency_blocked": true
+        },
+        "strategy_hints": [
+          "disable_quic",
+          "prefer_http11",
+          "tcp_segment_reordering"
+        ],
+        "extended_metrics": {
+          "domain": "nnmclub.to",
+          "port": 443,
+          "collection_timestamp": 1758652345.9697924,
+          "rst_ttl_distance": null,
+          "sni_consistency_blocked": true,
+          "http2_support": null,
+          "http2_frame_analysis": {},
+          "quic_support": null,
+          "quic_analysis": {},
+          "ech_support": false,
+          "ech_analysis": {
+            "ech_config_found": false,
+            "grease_handling": "unknown",
+            "fragmentation_sensitivity": "unknown"
+          },
+          "response_timing_patterns": {
+            "connection_times": [],
+            "first_byte_times": [],
+            "total_times": [],
+            "jitter_measurements": []
+          },
+          "baseline_block_type": "timeout",
+          "baseline_success": false,
+          "baseline_latency_ms": 10988.168478012085,
+          "response_timing_pattern": null,
+          "primary_block_method": "timeout",
+          "connection_timeout_ms": 10988,
+          "timing_attack_vulnerable": null,
+          "content_filtering_indicators": {},
+          "http": {
+            "block_type": "BlockType.TIMEOUT",
+            "success": false
+          },
+          "ech_present": false,
+          "http3_support": false,
+          "ech_blocked": false,
+          "ech_details": {
+            "tls_ok": false
+          }
+        },
+        "http2_support": null,
+        "quic_support": null,
+        "ech_support": false,
+        "http3_support": false,
+        "ech_present": false,
+        "ech_blocked": false,
+        "sni_probe_detailed": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "nosni": {
+            "ok": false,
+            "error": "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1010)"
+          },
+          "sni_sensitive": false,
+          "subdomain_works": false,
+          "random_sni_works": false,
+          "sni_validation_type": "unknown"
+        },
+        "quic_probe_repeat": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps_repeat": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "timing_probe": {
+          "delay_0ms": true,
+          "delay_100ms": true,
+          "delay_500ms": true,
+          "delay_1000ms": true,
+          "timing_sensitive": false
+        },
+        "fragmentation_probe": {
+          "supports_fragmentation": false,
+          "error": "scapy_probes_disabled"
+        },
+        "behavior_profile": {
+          "dpi_system_id": "unknown",
+          "signature_based_detection": false,
+          "behavioral_analysis": false,
+          "ml_detection": false,
+          "statistical_analysis": false,
+          "evasion_effectiveness": {},
+          "technique_rankings": [],
+          "timing_sensitivity_profile": {
+            "overall_sensitivity": 0.3
+          },
+          "connection_timeout_patterns": {
+            "default": 5000
+          },
+          "burst_tolerance": 0.6,
+          "tcp_state_tracking_depth": 1,
+          "tls_inspection_level": "legacy",
+          "http_parsing_strictness": "lenient",
+          "packet_reordering_tolerance": true,
+          "fragmentation_reassembly_timeout": 30000,
+          "deep_packet_inspection_depth": 0,
+          "identified_weaknesses": [
+            "No ML detection - evasion easier",
+            "Tolerates packet reordering - TCP sequence attacks viable"
+          ],
+          "exploit_recommendations": [
+            "force_tcp"
+          ]
+        },
+        "recommendations": [
+          {
+            "technique": "force_tcp",
+            "score": 0.6,
+            "confidence": 0.6,
+            "parameters": {
+              "disable_quic": true
+            },
+            "reasoning": "QUIC blocked by DPI",
+            "execution_order": 1,
+            "execution_notes": "Primary recommendation - highest success probability"
+          }
+        ]
+      },
+      "predicted_weaknesses": [
+        "No ML-based anomaly detection",
+        "Tolerates packet reordering - sequence attacks viable"
+      ],
+      "recommended_attacks": [
+        {
+          "technique": "tcp_multisplit",
+          "score": 0.5
+        },
+        {
+          "technique": "tcp_fakeddisorder",
+          "score": 0.45
+        }
+      ]
+    },
+    "youtube.com": {
+      "target": "youtube.com:443",
+      "dpi_type": "unknown",
+      "block_type": "none",
+      "reliability_score": 0.25,
+      "raw_metrics": {
+        "ja3": {
+          "ja3_hash": "c842685b4dfa69f2444b7f876b0d5205"
+        },
+        "metrics_collection": "ComprehensiveMetrics(target='youtube.com', timestamp=1758652479.5556152, timing=TimingMetrics(latency_ms=118.05337000405416, jitter_ms=60.60968501320939, packet_timing=[288.4324999758974, 118.71629999950528, 105.82960001192987, 101.29309992771596, 102.0839000120759, 103.39599999133497, 92.1254000859335, 88.62209995277226, 86.7282000835985, 93.30659999977797], connection_time_ms=69.65776999713853, first_byte_time_ms=48.39247000636533, total_time_ms=118.05337000405416, timeout_occurred=False, retransmission_count=0), network=NetworkMetrics(packet_loss_rate=0.0, out_of_order_packets=0, duplicate_packets=0, fragmented_packets=0, mtu_discovery_blocked=False, icmp_responses=[], tcp_window_scaling=False, tcp_options=['mss', 'sackOK', 'timestamp']), protocols={'https': ProtocolMetrics(protocol='https', success_rate=0.0, error_codes=[], response_sizes=[], header_modifications={}, content_modifications=False, redirect_responses=0, blocked_responses=1)}, raw_data={'collection_timestamp': 1758652513.1499894, 'target': 'youtube.com', 'port': 443, 'protocols_tested': ['https'], 'timing_samples': 10, 'errors_encountered': 0}, collection_errors=[], reliability_score=0.78)",
+        "tcp_analysis": {
+          "target": "youtube.com",
+          "timestamp": 1758652479.5556152,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1412,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 64.6095999982208
+        },
+        "dns_analysis": {
+          "dns_hijacking_detected": false,
+          "dns_response_modification": false,
+          "dns_query_filtering": false,
+          "doh_blocking": false,
+          "dot_blocking": false,
+          "dns_cache_poisoning": false,
+          "dns_timeout_manipulation": false,
+          "recursive_resolver_blocking": false,
+          "dns_over_tcp_blocking": false,
+          "edns_support": false,
+          "analysis_duration": 13.046709060668945,
+          "detailed_results": {},
+          "hijacking_details": {},
+          "modification_details": {},
+          "doh_details": {
+            "blocked_servers": [
+              "cloudflare",
+              "quad9",
+              "adguard"
+            ],
+            "working_servers": [
+              "google"
+            ]
+          },
+          "dot_details": {
+            "blocked_servers": [],
+            "working_servers": [
+              "cloudflare",
+              "google",
+              "quad9"
+            ]
+          },
+          "poisoning_details": {},
+          "edns_details": {
+            "edns_version": 0,
+            "buffer_size": 4096
+          },
+          "tcp_details": {
+            "tcp_successful": true,
+            "udp_successful": true
+          },
+          "resolver_details": {
+            "blocked_resolvers": [],
+            "working_resolvers": [
+              "8.8.8.8",
+              "1.1.1.1",
+              "9.9.9.9",
+              "208.67.222.222"
+            ]
+          },
+          "timeout_details": {
+            "8.8.8.8": 0.0010039806365966797,
+            "1.1.1.1": 0.0,
+            "9.9.9.9": 0.0020084381103515625
+          }
+        },
+        "quic_probe": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "packet_reordering_tolerant": true,
+        "max_reorder_distance": 8,
+        "jumbo_frames_supported": true,
+        "behavioral_probes": {
+          "reordering_tolerance": {
+            "tolerates_reordering": true,
+            "max_reorder_distance": 8
+          },
+          "fragmentation_handling": {
+            "supports_ip_fragmentation": false,
+            "min_fragment_size": null,
+            "reassembly_timeout": null
+          },
+          "timing_patterns": {
+            "connect_time_ms": 47.4390983581543,
+            "tls_error": ""
+          },
+          "packet_size_limits": {
+            "max_tcp_payload": 9000,
+            "mtu_discovered": 1500,
+            "jumbo_frames_supported": true
+          },
+          "protocol_detection": {
+            "http_detected": false,
+            "https_detected": true,
+            "http2_detected": true,
+            "quic_detected": false,
+            "custom_protocol_blocked": false
+          }
+        },
+        "sni_probe": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": true,
+            "version": "TLSv1.3",
+            "latency_ms": 122.12944030761719
+          },
+          "nosni": {
+            "ok": true,
+            "version": "TLSv1.3",
+            "latency_ms": 120.85127830505371
+          },
+          "sni_sensitive": false
+        },
+        "rst_ttl_stats": {
+          "rst_ttl_level": "unknown",
+          "distance": null
+        },
+        "sni_sensitivity": {
+          "likely": false,
+          "consistency_blocked": false
+        },
+        "strategy_hints": [
+          "disable_quic",
+          "prefer_http11",
+          "tcp_segment_reordering"
+        ],
+        "extended_metrics": {
+          "domain": "youtube.com",
+          "port": 443,
+          "collection_timestamp": 1758652518.7872274,
+          "rst_ttl_distance": null,
+          "sni_consistency_blocked": false,
+          "http2_support": null,
+          "http2_frame_analysis": {},
+          "quic_support": null,
+          "quic_analysis": {},
+          "ech_support": false,
+          "ech_analysis": {
+            "ech_config_found": false,
+            "grease_handling": "unknown",
+            "fragmentation_sensitivity": "unknown"
+          },
+          "response_timing_patterns": {
+            "connection_times": [],
+            "first_byte_times": [],
+            "total_times": [],
+            "jitter_measurements": []
+          },
+          "baseline_block_type": "timeout",
+          "baseline_success": false,
+          "baseline_latency_ms": 10103.265285491943,
+          "response_timing_pattern": null,
+          "primary_block_method": "timeout",
+          "connection_timeout_ms": 10103,
+          "timing_attack_vulnerable": null,
+          "content_filtering_indicators": {},
+          "http": {
+            "block_type": "BlockType.TIMEOUT",
+            "success": false
+          },
+          "ech_present": false,
+          "http3_support": false,
+          "ech_blocked": false,
+          "ech_details": {
+            "tls_ok": false
+          }
+        },
+        "http2_support": null,
+        "quic_support": null,
+        "ech_support": false,
+        "http3_support": false,
+        "ech_present": false,
+        "ech_blocked": false,
+        "sni_probe_detailed": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": true,
+            "version": "TLSv1.3",
+            "latency_ms": 111.4652156829834
+          },
+          "nosni": {
+            "ok": true,
+            "version": "TLSv1.3",
+            "latency_ms": 101.03178024291992
+          },
+          "sni_sensitive": false,
+          "subdomain_works": false,
+          "random_sni_works": true,
+          "sni_validation_type": "none"
+        },
+        "quic_probe_repeat": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps_repeat": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "timing_probe": {
+          "delay_0ms": true,
+          "delay_100ms": true,
+          "delay_500ms": true,
+          "delay_1000ms": true,
+          "timing_sensitive": false
+        },
+        "fragmentation_probe": {
+          "supports_fragmentation": false,
+          "error": "scapy_probes_disabled"
+        },
+        "behavior_profile": {
+          "dpi_system_id": "unknown",
+          "signature_based_detection": false,
+          "behavioral_analysis": false,
+          "ml_detection": false,
+          "statistical_analysis": false,
+          "evasion_effectiveness": {},
+          "technique_rankings": [],
+          "timing_sensitivity_profile": {
+            "overall_sensitivity": 0.3
+          },
+          "connection_timeout_patterns": {
+            "default": 5000
+          },
+          "burst_tolerance": 0.6,
+          "tcp_state_tracking_depth": 1,
+          "tls_inspection_level": "legacy",
+          "http_parsing_strictness": "lenient",
+          "packet_reordering_tolerance": true,
+          "fragmentation_reassembly_timeout": 30000,
+          "deep_packet_inspection_depth": 0,
+          "identified_weaknesses": [
+            "No ML detection - evasion easier",
+            "Tolerates packet reordering - TCP sequence attacks viable"
+          ],
+          "exploit_recommendations": [
+            "force_tcp"
+          ]
+        },
+        "recommendations": [
+          {
+            "technique": "force_tcp",
+            "score": 0.6,
+            "confidence": 0.6,
+            "parameters": {
+              "disable_quic": true
+            },
+            "reasoning": "QUIC blocked by DPI",
+            "execution_order": 1,
+            "execution_notes": "Primary recommendation - highest success probability"
+          }
+        ]
+      },
+      "predicted_weaknesses": [
+        "No ML-based anomaly detection",
+        "Tolerates packet reordering - sequence attacks viable"
+      ],
+      "recommended_attacks": [
+        {
+          "technique": "tcp_multisplit",
+          "score": 0.5
+        },
+        {
+          "technique": "tcp_fakeddisorder",
+          "score": 0.45
+        }
+      ]
+    },
+    "rutracker.org": {
+      "target": "rutracker.org:443",
+      "dpi_type": "unknown",
+      "block_type": "none",
+      "reliability_score": 0.25,
+      "raw_metrics": {
+        "ja3": {
+          "ja3_hash": "1e60d24345d1d18305da6019052b39db"
+        },
+        "metrics_collection": "ComprehensiveMetrics(target='rutracker.org', timestamp=1758652641.2748225, timing=TimingMetrics(latency_ms=114.8477400187403, jitter_ms=35.63582795030184, packet_timing=[213.36510009132326, 107.08889993838966, 94.91159999743104, 114.44689997006208, 102.68510004971176, 89.78959999512881, 103.126100031659, 97.3632000386715, 117.25530005060136, 108.4456000244245], connection_time_ms=62.616349989548326, first_byte_time_ms=52.22888001007959, total_time_ms=114.8477400187403, timeout_occurred=False, retransmission_count=0), network=NetworkMetrics(packet_loss_rate=0.0, out_of_order_packets=0, duplicate_packets=0, fragmented_packets=0, mtu_discovery_blocked=False, icmp_responses=[], tcp_window_scaling=False, tcp_options=['mss', 'sackOK', 'timestamp']), protocols={'https': ProtocolMetrics(protocol='https', success_rate=0.0, error_codes=[], response_sizes=[], header_modifications={}, content_modifications=False, redirect_responses=0, blocked_responses=1)}, raw_data={'collection_timestamp': 1758652688.947466, 'target': 'rutracker.org', 'port': 443, 'protocols_tested': ['https'], 'timing_samples': 10, 'errors_encountered': 0}, collection_errors=[], reliability_score=0.78)",
+        "tcp_analysis": {
+          "target": "rutracker.org",
+          "timestamp": 1758652641.275886,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1400,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 59.16209996212274
+        },
+        "dns_analysis": {
+          "dns_hijacking_detected": false,
+          "dns_response_modification": false,
+          "dns_query_filtering": false,
+          "doh_blocking": false,
+          "dot_blocking": false,
+          "dns_cache_poisoning": false,
+          "dns_timeout_manipulation": false,
+          "recursive_resolver_blocking": false,
+          "dns_over_tcp_blocking": false,
+          "edns_support": false,
+          "analysis_duration": 12.293790340423584,
+          "detailed_results": {},
+          "hijacking_details": {},
+          "modification_details": {},
+          "doh_details": {
+            "blocked_servers": [
+              "cloudflare",
+              "quad9",
+              "adguard"
+            ],
+            "working_servers": [
+              "google"
+            ]
+          },
+          "dot_details": {
+            "blocked_servers": [],
+            "working_servers": [
+              "cloudflare",
+              "google",
+              "quad9"
+            ]
+          },
+          "poisoning_details": {},
+          "edns_details": {
+            "edns_version": 0,
+            "buffer_size": 4096
+          },
+          "tcp_details": {
+            "tcp_successful": true,
+            "udp_successful": true
+          },
+          "resolver_details": {
+            "blocked_resolvers": [],
+            "working_resolvers": [
+              "8.8.8.8",
+              "1.1.1.1",
+              "9.9.9.9",
+              "208.67.222.222"
+            ]
+          },
+          "timeout_details": {
+            "8.8.8.8": 0.0,
+            "1.1.1.1": 0.0,
+            "9.9.9.9": 0.0
+          }
+        },
+        "quic_probe": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "packet_reordering_tolerant": true,
+        "max_reorder_distance": 8,
+        "jumbo_frames_supported": true,
+        "behavioral_probes": {
+          "reordering_tolerance": {
+            "tolerates_reordering": true,
+            "max_reorder_distance": 8
+          },
+          "fragmentation_handling": {
+            "supports_ip_fragmentation": false,
+            "min_fragment_size": null,
+            "reassembly_timeout": null
+          },
+          "timing_patterns": {
+            "connect_time_ms": 54.52871322631836,
+            "tls_error": ""
+          },
+          "packet_size_limits": {
+            "max_tcp_payload": 9000,
+            "mtu_discovered": 1500,
+            "jumbo_frames_supported": true
+          },
+          "protocol_detection": {
+            "http_detected": false,
+            "https_detected": true,
+            "http2_detected": true,
+            "quic_detected": false,
+            "custom_protocol_blocked": false
+          }
+        },
+        "sni_probe": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "nosni": {
+            "ok": false,
+            "error": "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1010)"
+          },
+          "sni_sensitive": false
+        },
+        "rst_ttl_stats": {
+          "rst_ttl_level": "unknown",
+          "distance": null
+        },
+        "sni_sensitivity": {
+          "likely": false,
+          "consistency_blocked": true
+        },
+        "strategy_hints": [
+          "disable_quic",
+          "prefer_http11",
+          "tcp_segment_reordering"
+        ],
+        "extended_metrics": {
+          "domain": "rutracker.org",
+          "port": 443,
+          "collection_timestamp": 1758652695.172236,
+          "rst_ttl_distance": null,
+          "sni_consistency_blocked": true,
+          "http2_support": null,
+          "http2_frame_analysis": {},
+          "quic_support": null,
+          "quic_analysis": {},
+          "ech_support": false,
+          "ech_analysis": {
+            "ech_config_found": false,
+            "grease_handling": "unknown",
+            "fragmentation_sensitivity": "unknown"
+          },
+          "response_timing_patterns": {
+            "connection_times": [],
+            "first_byte_times": [],
+            "total_times": [],
+            "jitter_measurements": []
+          },
+          "baseline_block_type": "timeout",
+          "baseline_success": false,
+          "baseline_latency_ms": 10987.733364105225,
+          "response_timing_pattern": null,
+          "primary_block_method": "timeout",
+          "connection_timeout_ms": 10987,
+          "timing_attack_vulnerable": null,
+          "content_filtering_indicators": {},
+          "http": {
+            "block_type": "BlockType.TIMEOUT",
+            "success": false
+          },
+          "ech_present": false,
+          "http3_support": false,
+          "ech_blocked": false,
+          "ech_details": {
+            "tls_ok": false
+          }
+        },
+        "http2_support": null,
+        "quic_support": null,
+        "ech_support": false,
+        "http3_support": false,
+        "ech_present": false,
+        "ech_blocked": false,
+        "sni_probe_detailed": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "nosni": {
+            "ok": false,
+            "error": "[SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:1010)"
+          },
+          "sni_sensitive": false,
+          "subdomain_works": false,
+          "random_sni_works": false,
+          "sni_validation_type": "unknown"
+        },
+        "quic_probe_repeat": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps_repeat": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "timing_probe": {
+          "delay_0ms": true,
+          "delay_100ms": true,
+          "delay_500ms": true,
+          "delay_1000ms": true,
+          "timing_sensitive": false
+        },
+        "fragmentation_probe": {
+          "supports_fragmentation": false,
+          "error": "scapy_probes_disabled"
+        },
+        "behavior_profile": {
+          "dpi_system_id": "unknown",
+          "signature_based_detection": false,
+          "behavioral_analysis": false,
+          "ml_detection": false,
+          "statistical_analysis": false,
+          "evasion_effectiveness": {},
+          "technique_rankings": [],
+          "timing_sensitivity_profile": {
+            "overall_sensitivity": 0.3
+          },
+          "connection_timeout_patterns": {
+            "default": 5000
+          },
+          "burst_tolerance": 0.6,
+          "tcp_state_tracking_depth": 1,
+          "tls_inspection_level": "legacy",
+          "http_parsing_strictness": "lenient",
+          "packet_reordering_tolerance": true,
+          "fragmentation_reassembly_timeout": 30000,
+          "deep_packet_inspection_depth": 0,
+          "identified_weaknesses": [
+            "No ML detection - evasion easier",
+            "Tolerates packet reordering - TCP sequence attacks viable"
+          ],
+          "exploit_recommendations": [
+            "force_tcp"
+          ]
+        },
+        "recommendations": [
+          {
+            "technique": "force_tcp",
+            "score": 0.6,
+            "confidence": 0.6,
+            "parameters": {
+              "disable_quic": true
+            },
+            "reasoning": "QUIC blocked by DPI",
+            "execution_order": 1,
+            "execution_notes": "Primary recommendation - highest success probability"
+          }
+        ]
+      },
+      "predicted_weaknesses": [
+        "No ML-based anomaly detection",
+        "Tolerates packet reordering - sequence attacks viable"
+      ],
+      "recommended_attacks": [
+        {
+          "technique": "tcp_multisplit",
+          "score": 0.5
+        },
+        {
+          "technique": "tcp_fakeddisorder",
+          "score": 0.45
+        }
+      ]
+    },
+    "instagram.com": {
+      "target": "instagram.com:443",
+      "dpi_type": "unknown",
+      "block_type": "none",
+      "reliability_score": 0.25,
+      "raw_metrics": {
+        "ja3": {
+          "ja3_hash": "ae15c967645976fc70edadea71c55229"
+        },
+        "metrics_collection": "ComprehensiveMetrics(target='instagram.com', timestamp=1758652829.8583157, timing=TimingMetrics(latency_ms=306.8564999848604, jitter_ms=34.64779303068454, packet_timing=[403.50100002251565, 293.28829993028194, 282.5787999900058, 298.8979999208823, 291.54090001247823, 308.01059992518276, 302.64430004172027, 299.5456999633461, 295.6451000645757, 292.9122999776155], connection_time_ms=159.70136998221278, first_byte_time_ms=147.15240000514314, total_time_ms=306.8564999848604, timeout_occurred=False, retransmission_count=0), network=NetworkMetrics(packet_loss_rate=0.0, out_of_order_packets=0, duplicate_packets=0, fragmented_packets=0, mtu_discovery_blocked=False, icmp_responses=[], tcp_window_scaling=False, tcp_options=['mss', 'sackOK', 'timestamp']), protocols={'https': ProtocolMetrics(protocol='https', success_rate=0.0, error_codes=[], response_sizes=[], header_modifications={}, content_modifications=False, redirect_responses=0, blocked_responses=1)}, raw_data={'collection_timestamp': 1758652878.169942, 'target': 'instagram.com', 'port': 443, 'protocols_tested': ['https'], 'timing_samples': 10, 'errors_encountered': 0}, collection_errors=[], reliability_score=0.78)",
+        "tcp_analysis": {
+          "target": "instagram.com",
+          "timestamp": 1758652829.8583157,
+          "rst_injection_detected": false,
+          "tcp_window_manipulation": false,
+          "sequence_number_anomalies": false,
+          "fragmentation_handling": "blocked",
+          "mss_clamping_detected": false,
+          "tcp_options_filtering": [],
+          "window_size": 65535,
+          "mss": 1392,
+          "sack_permitted": true,
+          "timestamps_enabled": true,
+          "syn_ack_to_client_hello_delta": 166.96499998215586
+        },
+        "dns_analysis": {
+          "dns_hijacking_detected": false,
+          "dns_response_modification": false,
+          "dns_query_filtering": false,
+          "doh_blocking": false,
+          "dot_blocking": false,
+          "dns_cache_poisoning": false,
+          "dns_timeout_manipulation": false,
+          "recursive_resolver_blocking": false,
+          "dns_over_tcp_blocking": false,
+          "edns_support": false,
+          "analysis_duration": 12.725998163223267,
+          "detailed_results": {},
+          "hijacking_details": {},
+          "modification_details": {},
+          "doh_details": {
+            "blocked_servers": [
+              "cloudflare",
+              "quad9",
+              "adguard"
+            ],
+            "working_servers": [
+              "google"
+            ]
+          },
+          "dot_details": {
+            "blocked_servers": [],
+            "working_servers": [
+              "cloudflare",
+              "google",
+              "quad9"
+            ]
+          },
+          "poisoning_details": {},
+          "edns_details": {
+            "edns_version": 0,
+            "buffer_size": 4096
+          },
+          "tcp_details": {
+            "tcp_successful": true,
+            "udp_successful": true
+          },
+          "resolver_details": {
+            "blocked_resolvers": [],
+            "working_resolvers": [
+              "8.8.8.8",
+              "1.1.1.1",
+              "9.9.9.9",
+              "208.67.222.222"
+            ]
+          },
+          "timeout_details": {
+            "8.8.8.8": 0.0,
+            "1.1.1.1": 0.0,
+            "9.9.9.9": 0.0
+          }
+        },
+        "quic_probe": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "packet_reordering_tolerant": true,
+        "max_reorder_distance": 8,
+        "jumbo_frames_supported": true,
+        "behavioral_probes": {
+          "reordering_tolerance": {
+            "tolerates_reordering": true,
+            "max_reorder_distance": 8
+          },
+          "fragmentation_handling": {
+            "supports_ip_fragmentation": false,
+            "min_fragment_size": null,
+            "reassembly_timeout": null
+          },
+          "timing_patterns": {
+            "connect_time_ms": 148.09894561767578,
+            "tls_error": ""
+          },
+          "packet_size_limits": {
+            "max_tcp_payload": 9000,
+            "mtu_discovered": 1500,
+            "jumbo_frames_supported": true
+          },
+          "protocol_detection": {
+            "http_detected": false,
+            "https_detected": true,
+            "http2_detected": true,
+            "quic_detected": false,
+            "custom_protocol_blocked": false
+          }
+        },
+        "sni_probe": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "nosni": {
+            "ok": true,
+            "version": "TLSv1.3",
+            "latency_ms": 287.42146492004395
+          },
+          "sni_sensitive": false
+        },
+        "rst_ttl_stats": {
+          "rst_ttl_level": "unknown",
+          "distance": null
+        },
+        "sni_sensitivity": {
+          "likely": false,
+          "consistency_blocked": false
+        },
+        "strategy_hints": [
+          "disable_quic",
+          "prefer_http11",
+          "tcp_segment_reordering"
+        ],
+        "extended_metrics": {
+          "domain": "instagram.com",
+          "port": 443,
+          "collection_timestamp": 1758652884.865998,
+          "rst_ttl_distance": null,
+          "sni_consistency_blocked": false,
+          "http2_support": null,
+          "http2_frame_analysis": {},
+          "quic_support": null,
+          "quic_analysis": {},
+          "ech_support": false,
+          "ech_analysis": {
+            "ech_config_found": false,
+            "grease_handling": "unknown",
+            "fragmentation_sensitivity": "unknown"
+          },
+          "response_timing_patterns": {
+            "connection_times": [],
+            "first_byte_times": [],
+            "total_times": [],
+            "jitter_measurements": []
+          },
+          "baseline_block_type": "timeout",
+          "baseline_success": false,
+          "baseline_latency_ms": 9990.08846282959,
+          "response_timing_pattern": null,
+          "primary_block_method": "timeout",
+          "connection_timeout_ms": 9990,
+          "timing_attack_vulnerable": null,
+          "content_filtering_indicators": {},
+          "http": {
+            "block_type": "BlockType.TIMEOUT",
+            "success": false
+          },
+          "ech_present": false,
+          "http3_support": false,
+          "ech_blocked": false,
+          "ech_details": {
+            "tls_ok": false
+          }
+        },
+        "http2_support": null,
+        "quic_support": null,
+        "ech_support": false,
+        "http3_support": false,
+        "ech_present": false,
+        "ech_blocked": false,
+        "sni_probe_detailed": {
+          "normal": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "uppercase": {
+            "ok": false,
+            "error": "_ssl.c:993: The handshake operation timed out"
+          },
+          "nosni": {
+            "ok": true,
+            "version": "TLSv1.3",
+            "latency_ms": 317.40379333496094
+          },
+          "sni_sensitive": false,
+          "subdomain_works": false,
+          "random_sni_works": true,
+          "sni_validation_type": "none"
+        },
+        "quic_probe_repeat": {
+          "attempted": true,
+          "blocked": false,
+          "error": null
+        },
+        "tls_caps_repeat": {
+          "tls13_supported": false,
+          "alpn_h2_supported": false,
+          "alpn_http11_supported": false,
+          "error": null
+        },
+        "timing_probe": {
+          "delay_0ms": true,
+          "delay_100ms": true,
+          "delay_500ms": true,
+          "delay_1000ms": true,
+          "timing_sensitive": false
+        },
+        "fragmentation_probe": {
+          "supports_fragmentation": false,
+          "error": "scapy_probes_disabled"
+        },
+        "behavior_profile": {
+          "dpi_system_id": "unknown",
+          "signature_based_detection": false,
+          "behavioral_analysis": false,
+          "ml_detection": false,
+          "statistical_analysis": false,
+          "evasion_effectiveness": {},
+          "technique_rankings": [],
+          "timing_sensitivity_profile": {
+            "overall_sensitivity": 0.3
+          },
+          "connection_timeout_patterns": {
+            "default": 5000
+          },
+          "burst_tolerance": 0.6,
+          "tcp_state_tracking_depth": 1,
+          "tls_inspection_level": "legacy",
+          "http_parsing_strictness": "lenient",
+          "packet_reordering_tolerance": true,
+          "fragmentation_reassembly_timeout": 30000,
+          "deep_packet_inspection_depth": 0,
+          "identified_weaknesses": [
+            "No ML detection - evasion easier",
+            "Tolerates packet reordering - TCP sequence attacks viable"
+          ],
+          "exploit_recommendations": [
+            "force_tcp"
+          ]
+        },
+        "recommendations": [
+          {
+            "technique": "force_tcp",
+            "score": 0.6,
+            "confidence": 0.6,
+            "parameters": {
+              "disable_quic": true
+            },
+            "reasoning": "QUIC blocked by DPI",
+            "execution_order": 1,
+            "execution_notes": "Primary recommendation - highest success probability"
+          }
+        ]
+      },
+      "predicted_weaknesses": [
+        "No ML-based anomaly detection",
+        "Tolerates packet reordering - sequence attacks viable"
+      ],
+      "recommended_attacks": [
+        {
+          "technique": "tcp_multisplit",
+          "score": 0.5
+        },
+        {
+          "technique": "tcp_fakeddisorder",
+          "score": 0.45
+        }
+      ]
+    }
+  },
+  "comparison_analysis": {
+    "x.com": {
+      "error": "unhashable type: 'dict'"
+    },
+    "nnmclub.to": {
+      "error": "unhashable type: 'dict'"
+    },
+    "youtube.com": {
+      "error": "unhashable type: 'dict'"
+    },
+    "rutracker.org": {
+      "error": "unhashable type: 'dict'"
+    },
+    "instagram.com": {
+      "error": "unhashable type: 'dict'"
+    }
+  }
+}

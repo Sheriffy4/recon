@@ -4,7 +4,11 @@ from urllib.parse import urlparse
 
 async def brute_force_domains(domains: List[str], port: int = 443, max_per_attack: int = 5):
     from core.bypass.attacks.registry import AttackRegistry
-    from core.hybrid_engine import HybridEngine
+    from core.dependencies import DependencyInjector
+from core.dns.robust_dns_handler import RobustDNSHandler
+from core.hybrid_engine import HybridEngine
+from core.utils.logging_helpers import setup_logging
+from core.config import load_config
     from core.pcap.enhanced_packet_capturer import create_enhanced_packet_capturer
     attacks = AttackRegistry.list()  # ожидается список имён
     engine = HybridEngine(debug=False, enable_advanced_fingerprinting=False, enable_modern_bypass=False, enable_enhanced_tracking=True)

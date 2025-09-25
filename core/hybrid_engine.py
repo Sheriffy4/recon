@@ -56,6 +56,17 @@ except Exception as e:
     logging.getLogger('hybrid_engine').debug(f'ECHDetector not available: {e}')
     ECH_AVAILABLE = False
 
+# Initialize strategy generation components
+STRATEGY_GENERATION_AVAILABLE = False
+try:
+    from core.strategy_rule_engine import StrategyRuleEngine
+    from core.strategy_combinator import StrategyCombinator
+    STRATEGY_GENERATION_AVAILABLE = True
+except ImportError as e:
+    logging.getLogger('hybrid_engine').warning(f'Strategy generation components not available: {e}')
+    StrategyRuleEngine = None
+    StrategyCombinator = None
+
 LOG = logging.getLogger('hybrid_engine')
 HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6753.0 Safari/537.36'}
 
@@ -113,6 +124,23 @@ class HybridEngine:
                 LOG.info('Advanced fingerprinting disabled - module not available')
             else:
                 LOG.info('Advanced fingerprinting disabled by configuration')
+
+        # Initialize strategy generation components
+        self.strategy_generation_enabled = STRATEGY_GENERATION_AVAILABLE
+        if self.strategy_generation_enabled:
+            try:
+                self.strategy_rule_engine = StrategyRuleEngine()
+                self.strategy_combinator = StrategyCombinator()
+                LOG.info('Strategy generation components initialized successfully')
+            except Exception as e:
+                LOG.error(f'Failed to initialize strategy generation components: {e}')
+                self.strategy_generation_enabled = False
+                self.strategy_rule_engine = None
+                self.strategy_combinator = None
+        else:
+            self.strategy_rule_engine = None
+            self.strategy_combinator = None
+            LOG.info('Strategy generation components disabled - modules not available')
 
         # Initialize statistics
         self.fingerprint_stats = {
@@ -562,7 +590,7 @@ class HybridEngine:
         bypass_thread = None
         try:
             if hasattr(bypass_engine, "start_with_strategy") and callable(getattr(bypass_engine, "start_with_strategy")):
-                bypass_thread = bypass_engine.start_with_strategy(target_ips, engine_task)
+                bypass_thread = bypass_engine.start_with_strategy(target_ips, dns_cache, engine_task)
             elif hasattr(bypass_engine, "start"):
                 bypass_thread = bypass_engine.start(target_ips, strategy_map)
             else:

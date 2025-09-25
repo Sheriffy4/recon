@@ -180,6 +180,40 @@ class RealEffectivenessTester:
         except Exception as e:
             self.logger.debug(f"Failed to check SNI consistency for {domain}: {e}")
             return None
+
+    async def _test_sni_variant(self, domain: str, sni_hostname: str, port: int) -> bool:
+        """
+        Test connection with specific SNI hostname.
+        
+        Args:
+            domain: Target domain (for IP resolution)
+            sni_hostname: SNI hostname to use in TLS handshake
+            port: Target port
+            
+        Returns:
+            True if connection succeeds, False otherwise
+        """
+        try:
+            import ssl
+            import socket
+            
+            # Resolve domain to IP
+            server_ip = socket.gethostbyname(domain)
+            
+            # Create SSL context
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            
+            # Connect with specific SNI
+            with socket.create_connection((server_ip, port), timeout=self.timeout) as sock:
+                with ctx.wrap_socket(sock, server_hostname=sni_hostname) as ssl_sock:
+                    # Connection successful
+                    return True
+                    
+        except Exception as e:
+            self.logger.debug(f"SNI test failed for {domain} with SNI {sni_hostname}: {e}")
+            return False
     
     async def _detect_http2_support(
         self, domain: str, port: int = 443

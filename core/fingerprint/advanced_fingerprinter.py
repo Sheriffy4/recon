@@ -301,6 +301,7 @@ class AdvancedFingerprinter:
             self.logger.warning(f"Failed to init CdnAsnKnowledgeBase: {e}")
             self.kb = None
         try:
+            # Fix: ECHDetector constructor only accepts dns_timeout, not timeout
             self.ech_detector = ECHDetector(dns_timeout=self.config.dns_timeout)
         except Exception as e:
             self.logger.warning(f"Failed to init ECHDetector: {e}")
@@ -987,7 +988,7 @@ class AdvancedFingerprinter:
         
         # Дополнительно: ECH/HTTP3 через ECHDetector
         try:
-            ed = ECHDetector(timeout=getattr(self.config, "tls_timeout", 2.0))
+            ed = ECHDetector(dns_timeout=getattr(self.config, "tls_timeout", 2.0))
             dns_info = await ed.detect_ech_dns(target)
             if dns_info:
                 metrics["ech_present"] = bool(dns_info.get("ech_present", False))

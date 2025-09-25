@@ -684,7 +684,9 @@ class SimpleEvolutionarySearcher:
                 strategy_parts.append(f"--dpi-desync-split-pos={fragment_size}")
             
             # Add TTL if not a race attack
-            if "race" not in strategy_type or ttl != 3:
+            if "race" not in strategy_type:
+                strategy_parts.append(f"--dpi-desync-ttl={ttl}")
+            elif ttl != 3: # For race attacks, add TTL only if it's not the default
                 strategy_parts.append(f"--dpi-desync-ttl={ttl}")
             
             # Add fooling method if not already specified

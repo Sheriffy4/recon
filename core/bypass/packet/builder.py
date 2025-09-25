@@ -16,58 +16,104 @@ class PacketBuilder:
     def _replace_sni_in_payload(self, payload: bytes, new_sni: str) -> Optional[bytes]:
         """
         Находит и заменяет SNI в TLS ClientHello.
-        Пересчитывает все необходимые поля длин, чтобы пакет остался валидным.
-        Возвращает новый payload или None в случае ошибки.
+        ИСПРАВЛЕННАЯ ВЕРСИЯ: Улучшена обработка ошибок и валидация данных.
         """
         try:
+            # Базовые проверки: должен быть TLS Handshake и ClientHello
             if not (payload and len(payload) > 43 and payload[0] == 0x16 and payload[5] == 0x01):
+                self.logger.debug("Payload is not a valid TLS ClientHello")
                 return None
 
-            new_sni_bytes = new_sni.encode('idna')
+            # Валидация нового SNI
+            if not new_sni or len(new_sni) > 253:  # RFC limit
+                self.logger.warning(f"Invalid SNI for replacement: '{new_sni}'")
+                return None
+
+            try:
+                new_sni_bytes = new_sni.encode('idna')
+            except UnicodeError as e:
+                self.logger.warning(f"Failed to encode SNI '{new_sni}' as IDNA: {e}")
+                return None
             
-            # Находим начало расширений
-            pos = 9 + 2 + 32 # hs_hdr + ver + random
-            sid_len = payload[pos]; pos += 1 + sid_len
-            cs_len = int.from_bytes(payload[pos:pos+2], "big"); pos += 2 + cs_len
-            comp_len = payload[pos]; pos += 1 + comp_len
+            # Позиция после заголовка Handshake (1+3), версии (2) и Random (32)
+            pos = 9 + 2 + 32
+            if pos + 1 > len(payload): 
+                self.logger.debug("Payload too short for Session ID")
+                return None
+            
+            # Session ID
+            sid_len = payload[pos]
+            pos += 1 + sid_len
+            if pos + 2 > len(payload): 
+                self.logger.debug("Payload too short for Cipher Suites")
+                return None
+
+            # Cipher Suites
+            cs_len = int.from_bytes(payload[pos:pos+2], "big")
+            pos += 2 + cs_len
+            if pos + 1 > len(payload): 
+                self.logger.debug("Payload too short for Compression Methods")
+                return None
+
+            # Compression Methods
+            comp_len = payload[pos]
+            pos += 1 + comp_len
+            if pos + 2 > len(payload): 
+                self.logger.debug("Payload too short for Extensions")
+                return None
             
             ext_block_start = pos
             total_ext_len = int.from_bytes(payload[ext_block_start:ext_block_start+2], "big")
             ext_start = ext_block_start + 2
             
+            if ext_start + total_ext_len > len(payload): 
+                self.logger.debug("Extensions length exceeds payload")
+                return None
+
             # Ищем SNI расширение
             s = ext_start
             sni_ext_start = -1
-            original_sni_len = -1
             
             while s + 4 <= ext_start + total_ext_len:
+                if s + 4 > len(payload):
+                    break
+                    
                 etype = int.from_bytes(payload[s:s+2], "big")
                 elen = int.from_bytes(payload[s+2:s+4], "big")
+                
+                if s + 4 + elen > ext_start + total_ext_len: 
+                    break
+                
                 if etype == 0: # server_name
                     sni_ext_start = s
-                    name_list_len = int.from_bytes(payload[s+4:s+6], "big")
-                    host_name_type = payload[s+6]
-                    if host_name_type == 0:
-                        original_sni_len = int.from_bytes(payload[s+7:s+9], "big")
+                    self.logger.debug(f"Found SNI extension at position {s}")
                     break
                 s += 4 + elen
 
-            if sni_ext_start == -1 or original_sni_len == -1:
-                self.logger.warning("SNI extension not found for replacement.")
+            if sni_ext_start == -1:
+                self.logger.debug("SNI extension not found in ClientHello")
                 return None
 
+            # Построение нового SNI расширения
+            original_sni_ext_len = int.from_bytes(payload[sni_ext_start+2:sni_ext_start+4], 'big')
+
+            # Формат SNI: [name_type(1)] [name_length(2)] [name_data]
             new_sni_name_bytes = b'\x00' + len(new_sni_bytes).to_bytes(2, 'big') + new_sni_bytes
+            # Формат server_name_list: [list_length(2)] [name_entries...]
             new_sni_list_bytes = len(new_sni_name_bytes).to_bytes(2, 'big') + new_sni_name_bytes
             new_sni_ext_len = len(new_sni_list_bytes)
+            # Формат расширения: [type(2)] [length(2)] [data]
             new_sni_ext_bytes = b'\x00\x00' + new_sni_ext_len.to_bytes(2, 'big') + new_sni_list_bytes
 
+            # Собираем новый блок расширений
             before_sni_ext = payload[ext_start:sni_ext_start]
-            after_sni_ext_start = sni_ext_start + 4 + int.from_bytes(payload[sni_ext_start+2:sni_ext_start+4], 'big')
+            after_sni_ext_start = sni_ext_start + 4 + original_sni_ext_len
             after_sni_ext = payload[after_sni_ext_start : ext_start + total_ext_len]
 
             new_ext_block_content = before_sni_ext + new_sni_ext_bytes + after_sni_ext
             new_total_ext_len = len(new_ext_block_content)
 
+            # Пересобираем весь ClientHello
             handshake_content_before_ext = payload[5:ext_block_start]
             new_handshake_content = handshake_content_before_ext + new_total_ext_len.to_bytes(2, 'big') + new_ext_block_content
             
@@ -77,9 +123,11 @@ class PacketBuilder:
             new_record_content = new_handshake_header + new_handshake_content
             new_record_len = len(new_record_content)
             
+            # Сохраняем оригинальный заголовок TLS Record, обновляем только длину
             original_record_header = payload[:5]
             new_payload = original_record_header[:3] + new_record_len.to_bytes(2, 'big') + new_record_content
             
+            self.logger.debug(f"SNI successfully replaced: '{new_sni}' (payload: {len(payload)} -> {len(new_payload)} bytes)")
             return new_payload
 
         except Exception as e:
@@ -99,7 +147,13 @@ class PacketBuilder:
             base_ttl = raw[8]
 
             ip_hdr = bytearray(raw[:ip_hl])
-            tcp_hdr = bytearray(raw[ip_hl:ip_hl+tcp_hl])
+            
+            # Extract TCP options from original packet
+            tcp_options = self._extract_tcp_options(raw, ip_hl, tcp_hl)
+            self.logger.debug(f"Extracted TCP options: {len(tcp_options)} bytes")
+            
+            # Build new TCP header with preserved options
+            tcp_hdr = self._build_tcp_header_with_options(raw[ip_hl:ip_hl+20], tcp_options)
 
             seg_payload = spec.payload
             if spec.fooling_sni:
@@ -111,13 +165,28 @@ class PacketBuilder:
                 else:
                     self.logger.warning("SNI replacement failed, using original payload for fake packet.")
 
+            # CRITICAL FIX: Improved sequence number calculation with detailed logging
             seq = (base_seq + spec.rel_seq + spec.seq_extra) & 0xFFFFFFFF
+            self.logger.debug(f"🔢 Sequence calculation: base_seq=0x{base_seq:08X}, rel_seq={spec.rel_seq}, seq_extra={spec.seq_extra}, final_seq=0x{seq:08X}")
+            
             tcp_hdr[4:8] = struct.pack("!I", seq)
             tcp_hdr[8:12] = struct.pack("!I", base_ack)
             tcp_hdr[13] = spec.flags & 0xFF
             
-            reduced_win = max(base_win // window_div, 1024) if window_div > 1 else base_win
-            tcp_hdr[14:16] = struct.pack("!H", reduced_win)
+            # Log segment details for debugging
+            self.logger.debug(f"📦 Segment details: payload_len={len(seg_payload)}, flags=0x{spec.flags:02X}, is_fake={getattr(spec, 'is_fake', False)}")
+            
+            # Copy window size from original packet instead of using fixed values
+            # This ensures compatibility with zapret's dynamic window behavior
+            if hasattr(spec, 'preserve_window_size') and spec.preserve_window_size:
+                # Use original window size for maximum compatibility
+                tcp_hdr[14:16] = struct.pack("!H", base_win)
+                self.logger.debug(f"Preserving original window size: {base_win}")
+            else:
+                # Apply window division if specified (for backward compatibility)
+                reduced_win = max(base_win // window_div, 1024) if window_div > 1 else base_win
+                tcp_hdr[14:16] = struct.pack("!H", reduced_win)
+                self.logger.debug(f"Using calculated window size: {reduced_win} (base: {base_win}, div: {window_div})")
 
             if ip_id is not None:
                 ip_hdr[4:6] = struct.pack("!H", ip_id)
@@ -144,18 +213,22 @@ class PacketBuilder:
             ip_csum = self._ip_header_checksum(seg_raw[:ip_hl])
             seg_raw[10:12] = struct.pack("!H", ip_csum)
 
-            tcp_hl_eff = ((seg_raw[ip_hl + 12] >> 4) & 0x0F) * 4
+            # Calculate effective TCP header length from the new header
+            tcp_hl_eff = len(tcp_hdr)
             tcp_start = ip_hl
             tcp_end = ip_hl + tcp_hl_eff
             
+            # CRITICAL FIX: Always calculate good checksum first for comparison
+            good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+            
             if spec.corrupt_tcp_checksum:
-                # ИСПРАВЛЕНИЕ: Используем фиксированные значения для испорченной суммы
+                # Для badsum — 0xDEAD, для md5sig — 0xBEEF (как в zapret)
                 bad_csum = 0xBEEF if spec.add_md5sig_option else 0xDEAD
                 seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
-                self.logger.debug(f"🔧 Applied corrupted checksum: 0x{bad_csum:04x}")
+                self.logger.info(f"🔥 CORRUPTED checksum: 0x{good_csum:04X} -> 0x{bad_csum:04X} (corrupt_tcp_checksum=True)")
             else:
-                good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
                 seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum)
+                self.logger.debug(f"✅ Applied GOOD checksum: 0x{good_csum:04X} (corrupt_tcp_checksum=False)")
 
             return bytes(seg_raw)
         except Exception as e:
@@ -239,6 +312,65 @@ class PacketBuilder:
         s = self._ones_complement_sum(pseudo + bytes(hdr) + payload)
         csum = (~s) & 0xFFFF
         return csum if csum != 0 else 0xFFFF
+
+    def _extract_tcp_options(self, raw: bytearray, ip_hl: int, tcp_hl: int) -> bytes:
+        """
+        Extract TCP options from the original packet.
+        Returns the raw TCP options bytes (everything after the 20-byte TCP header).
+        """
+        if tcp_hl <= 20:
+            return b""  # No options
+        
+        tcp_options_start = ip_hl + 20  # Skip 20-byte basic TCP header
+        tcp_options_end = ip_hl + tcp_hl
+        tcp_options = raw[tcp_options_start:tcp_options_end]
+        
+        self.logger.debug(f"Extracted {len(tcp_options)} bytes of TCP options from original packet")
+        return bytes(tcp_options)
+    
+    def _build_tcp_header_with_options(self, base_tcp_header: bytes, tcp_options: bytes) -> bytearray:
+        """
+        Build a new TCP header that includes the preserved TCP options.
+        
+        Args:
+            base_tcp_header: The first 20 bytes of the original TCP header
+            tcp_options: The TCP options bytes to include
+            
+        Returns:
+            Complete TCP header with options as bytearray
+        """
+        MAX_TCP_HDR = 60
+        
+        # Start with the base 20-byte TCP header
+        tcp_hdr = bytearray(base_tcp_header[:20])
+        
+        # Calculate new header length with options
+        options_len = len(tcp_options)
+        new_tcp_hl = 20 + options_len
+        
+        # Ensure we don't exceed maximum TCP header size
+        if new_tcp_hl > MAX_TCP_HDR:
+            # Truncate options if necessary
+            options_len = MAX_TCP_HDR - 20
+            tcp_options = tcp_options[:options_len]
+            new_tcp_hl = MAX_TCP_HDR
+            self.logger.warning(f"TCP options truncated to fit in {MAX_TCP_HDR} byte header")
+        
+        # Pad to 4-byte boundary if necessary
+        pad_len = (4 - (new_tcp_hl % 4)) % 4
+        if pad_len > 0:
+            tcp_options += b"\x01" * pad_len  # NOP padding
+            new_tcp_hl += pad_len
+        
+        # Update Data Offset field (bits 4-7 of byte 12)
+        data_offset_words = new_tcp_hl // 4
+        tcp_hdr[12] = (data_offset_words << 4) | (tcp_hdr[12] & 0x0F)
+        
+        # Append the options
+        tcp_hdr.extend(tcp_options)
+        
+        self.logger.debug(f"Built TCP header with {len(tcp_options)} bytes of options, total length: {len(tcp_hdr)}")
+        return tcp_hdr
 
     def _inject_md5sig_option(self, tcp_hdr: bytes) -> bytes:
         MAX_TCP_HDR = 60

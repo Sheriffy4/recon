@@ -1,6 +1,7 @@
 # pcap_analyzer.py
 import struct
 import dpkt
+import os
 import socket
 from typing import List, Dict, Tuple, Optional
 import json

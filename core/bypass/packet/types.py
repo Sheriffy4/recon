@@ -18,9 +18,12 @@ class TCPSegmentSpec:
     seq_extra: int = 0
     delay_ms_after: int = 0
     
+    # ================== НАЧАЛО ИЗМЕНЕНИЯ ==================
     # Добавляем поля, необходимые для zapret-style
     is_fake: bool = False
     fooling_sni: Optional[str] = None
+    preserve_window_size: bool = True  # Default to preserving original window size for zapret compatibility
+    # =================== КОНЕЦ ИЗМЕНЕНИЯ ===================
 
     # Дополнительные метаданные, которые могут быть полезны для логирования
     metadata: Dict[str, Any] = field(default_factory=dict)

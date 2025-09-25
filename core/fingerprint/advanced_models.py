@@ -274,9 +274,18 @@ class DPIFingerprint:
         if self.rst_injection_detected:
             strategies.extend(["tcp_sequence_manipulation", "connection_multiplexing"])
 
-        if self.fragmentation_handling == "blocked":
+        # FIXED LOGIC: Properly interpret fragmentation vulnerability
+        if self.fragmentation_handling == "vulnerable":
+            # DPI is vulnerable to fragmentation attacks - recommend fragmentation-based evasion
+            strategies.extend(["multisplit_attack", "multidisorder_attack", "tcp_fragmentation", "aggressive_fragmentation"])
+        elif self.fragmentation_handling == "filtered":
+            # DPI filters fragmented packets - avoid fragmentation, use other techniques
+            strategies.extend(["large_packet_avoidance", "single_packet_evasion"])
+        elif self.fragmentation_handling == "blocked":
+            # Legacy support - treat as filtered
             strategies.append("large_packet_avoidance")
         elif self.fragmentation_handling == "allowed":
+            # Legacy support - treat as vulnerable
             strategies.append("aggressive_fragmentation")
 
         return list(set(strategies))  # Remove duplicates

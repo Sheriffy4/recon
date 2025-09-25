@@ -1,36 +1,32 @@
+# bruteforce_runner.py
 import asyncio, json, itertools, time
-from typing import List, Dict, Any, Set, Optional
-from core.hybrid_engine import HybridEngine
+from typing import List, Dict, Any, Set, Tuple, Optional
+from core.hybrid_engine import HybridEngine  # поправьте путь под ваш проект
 
+# Набор комбинаций: порядок, fooling, ttl, overlap, badseq_delta
 ORDERS = ["fake_first", "real_first"]
-FOOLINGS = [["badsum","badseq"], ["badsum"], ["md5sig"], []]
+FOOLINGS = [["badsum"], ["badsum","badseq"], ["md5sig"], []]
 TTLS = [1, 2, 3]
-SPLIT_POS = [3, 4, 5, 6, 12, 18, 24, 40, 76]
+OV_FACTORS = [0.25, 0.5, 1.0]  # ov = min(split_pos, int(split_pos * factor))
+BADSEQ = [0, -1]  # при наличии badseq
 
-def ov_options(sp: int) -> List[int]:
-    # ov ≤ sp, приоритет малых перекрытий как у zapret
-    return sorted(set([0, min(3, sp), min(12, sp), sp]))
-
-def make_strategy(sp: int, ov: int, ttl: int, fool: List[str], order: str,
-                  badseq_delta: int, pre_fake: bool, pre_fake_ttl: int, delay_ms: int=2) -> Dict[str, Any]:
-    p = {
-        "split_pos": sp,
+def make_strategy(split_pos: int, ov: int, ttl: int, fool: List[str], order: str, badseq_delta: int) -> Dict[str, Any]:
+    params = {
+        "split_pos": split_pos,
         "overlap_size": ov,
         "ttl": ttl,
-        "fooling": list(fool),
-        "segment_order": order,
-        "badseq_delta": (badseq_delta if "badseq" in (fool or []) else 0),
+        "fooling": fool,
+        "send_order": order,
+        "badseq_delta": badseq_delta,
         "psh_on_fake": False,
         "psh_on_real": True,
-        "fake_delay_ms": max(1, delay_ms),
-        "delay_ms": max(1, delay_ms),
-        "pre_fake": bool(pre_fake),
-        "pre_fake_ttl": pre_fake_ttl,
-        "pre_fake_fooling": list(fool) if fool else [],
+        "fake_delay_ms": 1,
+        "delay_ms": 1,
     }
-    return {"type": "fakeddisorder", "params": p}
+    return {"type": "fakeddisorder", "params": params}
 
 async def main():
+    # Настройте цели
     TEST_SITES = [
         "https://x.com",
         "https://instagram.com",
@@ -63,35 +59,20 @@ async def main():
         "https://cdnjs.cloudflare.com",
         "https://www.fastly.com",
         "https://api.fastly.com",
-    ]
+        ]
+    # DNS-кэш и IP-цели возьмите из своей системы разрешения
+    # здесь оставим пусто: движок в режиме сервиса должен ловить по CDN-префиксам
     ips: Set[str] = set()
     dns_cache: Dict[str, str] = {}
 
     he = HybridEngine(debug=True, enable_advanced_fingerprinting=False, enable_modern_bypass=False)
 
+    split_pos = 76
     strategies = []
-    # приоритезируем «запретовский» вариант
-    strategies.append(make_strategy(3, 3, 3, ["badsum","badseq"], "fake_first", -1, True, 3, delay_ms=2))
-    # умеренный перебор
-    for sp in SPLIT_POS:
-        for ov in ov_options(sp):
-            for ttl in TTLS:
-                for order in ORDERS:
-                    for fool in FOOLINGS:
-                        for badseq_delta in (-1, 0):
-                            for pre_fake in (True, False):
-                                for pft in (1, 2, 3):
-                                    strategies.append(make_strategy(sp, ov, ttl, fool, order, badseq_delta, pre_fake, pft, delay_ms=2))
-    # дедуп и ограничение
-    uniq = []
-    seen = set()
-    for s in strategies:
-        p = s["params"]
-        key = (p["split_pos"], p["overlap_size"], p["ttl"], tuple(sorted(p["fooling"])),
-               p["segment_order"], p["badseq_delta"], p["pre_fake"], p["pre_fake_ttl"])
-        if key in seen: continue
-        seen.add(key); uniq.append(s)
-    strategies = uniq[:150]
+    for order, fool, ttl, ovf in itertools.product(ORDERS, FOOLINGS, TTLS, OV_FACTORS):
+        ov = min(split_pos, int(max(8, split_pos * ovf)))
+        badseq_delta = -1 if "badseq" in fool else 0
+        strategies.append(make_strategy(split_pos, ov, ttl, fool, order, badseq_delta))
 
     print(f"Total variants: {len(strategies)}")
 
@@ -101,27 +82,30 @@ async def main():
         i += 1
         status, ok, total, avg = await he.execute_strategy_real_world(
             strategy=strat,
-            test_sites=TEST_SITES,
+            test_sites=test_sites,
             target_ips=ips,
             dns_cache=dns_cache,
             return_details=False,
             prefer_retry_on_timeout=True,
-            warmup_ms=1800
+            warmup_ms=1500
         )
-        rate = ok / total if total > 0 else 0
-        print(f"[{i}/{len(strategies)}] {ok}/{total} ({rate:.0%}) | {status} | avg {avg:.1f}ms | {strat['params']}")
         results.append({
-            "ok": ok,
-            "total": total,
-            "rate": rate,
-            "avg_ms": avg,
-            "strategy": strat
+            "strategy": strat,
+            "status": status,
+            "ok": ok, "total": total, "rate": (ok/total if total else 0.0),
+            "avg_ms": avg
         })
+        print(f"[{i}/{len(strategies)}] {status}: {ok}/{total} avg {avg:.1f}ms params={strat['params']}")
+        # короткая пауза между прогоном — чтобы распараллеленный DPI не «залип»
         await asyncio.sleep(0.3)
 
     results.sort(key=lambda r: (r["rate"], -r["avg_ms"]), reverse=True)
     with open("bruteforce_results.json", "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
     print("Saved bruteforce_results.json")
+    # Выведем топ-10
     for r in results[:10]:
         print(f"TOP: {r['ok']}/{r['total']} ({r['rate']:.0%}) avg={r['avg_ms']:.1f}ms params={r['strategy']['params']}")
+
+if __name__ == "__main__":
+    asyncio.run(main())

@@ -1,0 +1,48 @@
+{
+  "monitoring": {
+    "enabled": true,
+    "interval_seconds": 60.0,
+    "alert_thresholds": {
+      "bypass_success_rate_critical": 0.05,
+      "bypass_success_rate_warning": 0.2,
+      "fingerprint_time_warning": 45.0
+    }
+  },
+  "caching": {
+    "enabled": true,
+    "max_memory_mb": 200,
+    "default_ttl_seconds": 1800,
+    "fingerprint_cache": {
+      "max_memory_mb": 100,
+      "default_ttl_seconds": 3600
+    }
+  },
+  "fingerprinting": {
+    "enabled": true,
+    "timeout_seconds": 25.0,
+    "max_concurrent_fingerprints": 3,
+    "analysis_levels": {
+      "basic": true,
+      "advanced": true,
+      "deep": false,
+      "behavioral": false,
+      "timing": false
+    }
+  },
+  "bypass_engine": {
+    "enabled": true,
+    "max_concurrent_bypasses": 8,
+    "strategy_timeout_seconds": 40.0,
+    "packet_injection_timeout_seconds": 2.5,
+    "tcp_retransmission_mitigation": true,
+    "packet_validation": true,
+    "performance_mode": "balanced"
+  },
+  "async_ops": {
+    "enabled": true,
+    "max_concurrent_operations": 8,
+    "operation_timeout_seconds": 25.0,
+    "use_thread_pool": true,
+    "thread_pool_size": 4
+  }
+}
