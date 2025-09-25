@@ -453,26 +453,33 @@ class UnifiedFingerprinter:
         """Run comprehensive analysis (all components)"""
         tasks = []
         
+        self.logger.info(f"Preparing comprehensive analysis for {fingerprint.target}. Available analyzers: {list(self.analyzers.keys())}")
+
         for analyzer_name in self.analyzers:
             if analyzer_name == 'tcp':
-                tasks.append(self._run_tcp_analysis_safe(fingerprint, analyzer_name))
+                tasks.append((analyzer_name, self._run_tcp_analysis_safe(fingerprint, analyzer_name)))
             elif analyzer_name == 'http':
-                tasks.append(self._run_http_analysis_safe(fingerprint, analyzer_name))
+                tasks.append((analyzer_name, self._run_http_analysis_safe(fingerprint, analyzer_name)))
             elif analyzer_name == 'dns':
-                tasks.append(self._run_dns_analysis_safe(fingerprint, analyzer_name))
+                tasks.append((analyzer_name, self._run_dns_analysis_safe(fingerprint, analyzer_name)))
             elif analyzer_name == 'ml':
-                tasks.append(self._run_ml_analysis_safe(fingerprint, analyzer_name))
+                tasks.append((analyzer_name, self._run_ml_analysis_safe(fingerprint, analyzer_name)))
             # Advanced probes - Task 23
             elif analyzer_name == 'advanced_tcp':
-                tasks.append(self._run_advanced_tcp_analysis_safe(fingerprint, analyzer_name))
+                tasks.append((analyzer_name, self._run_advanced_tcp_analysis_safe(fingerprint, analyzer_name)))
             elif analyzer_name == 'advanced_tls':
-                tasks.append(self._run_advanced_tls_analysis_safe(fingerprint, analyzer_name))
+                tasks.append((analyzer_name, self._run_advanced_tls_analysis_safe(fingerprint, analyzer_name)))
             elif analyzer_name == 'behavioral':
-                tasks.append(self._run_behavioral_analysis_safe(fingerprint, analyzer_name))
+                tasks.append((analyzer_name, self._run_behavioral_analysis_safe(fingerprint, analyzer_name)))
+
+        if not tasks:
+            self.logger.warning(f"No analysis tasks were created for {fingerprint.target}. Check analyzer availability and configuration.")
+        else:
+            self.logger.info(f"Running {len(tasks)} analysis tasks: {[name for name, _ in tasks]}")
         
         # Run all analyses concurrently
         if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*[task for _, task in tasks], return_exceptions=True)
     
     async def _run_tcp_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str):
         """Safely run TCP analysis with error handling"""
