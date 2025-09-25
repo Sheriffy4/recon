@@ -163,17 +163,6 @@ logging.basicConfig(
 )
 console = Console(highlight=False) if RICH_AVAILABLE else Console()
 
-# <<< ИЗМЕНЕНО: Импорт новых унифицированных модулей >>>
-try:
-    from core.fingerprint.unified_fingerprinter import UnifiedFingerprinter, FingerprintingConfig
-    from core.fingerprint.unified_models import UnifiedFingerprint
-    from core.reporting.advanced_reporting_integration import AdvancedReportingIntegration
-    UNIFIED_COMPONENTS_AVAILABLE = True
-except ImportError as e:
-    print(f"[WARNING] Unified fingerprinting components not available: {e}")
-    UNIFIED_COMPONENTS_AVAILABLE = False
-# <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
-
 STRATEGY_FILE = "best_strategy.json"
 
 # --- Потоковый захват PCAP ---
@@ -1537,15 +1526,11 @@ async def run_hybrid_mode(args):
                                  enable_enhanced_tracking=bool(args.enable_enhanced_tracking),
                                  enable_online_optimization=bool(args.enable_optimization))
 
-    # <<< ИЗМЕНЕНО: Инициализация старого репортера и нового интегратора >>>
     reporter = SimpleReporter(debug=args.debug)
-    advanced_reporter = AdvancedReportingIntegration()
-    await advanced_reporter.initialize() # Инициализируем его
-    # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
-
-    learning_cache = AdaptiveLearningCache()
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
     advanced_fingerprinter = None
+
+    learning_cache = AdaptiveLearningCache()
     
     # Background PCAP insights worker (enhanced tracking)
     pcap_worker_task = None
@@ -1670,39 +1655,182 @@ async def run_hybrid_mode(args):
         )
         console.print("[dim]   For better results, install: pip install pydivert[/dim]")
 
-    # Шаг 2.5: DPI Fingerprinting
+    # Шаг 2.5: DPI Fingerprinting (AdvancedFingerprinter с PCAP-интеграцией)
     fingerprints = {}
+    pcap_profile_now = None
     if args.fingerprint:
         console.print("\n[yellow]Step 2.5: DPI Fingerprinting...[/yellow]")
 
-        # <<< ИЗМЕНЕНО: Используем новый UnifiedFingerprinter >>>
-        if UNIFIED_COMPONENTS_AVAILABLE:
+        prefer_quic = False
+        if args.pcap and PROFILER_AVAILABLE and os.path.exists(args.pcap):
+            try:
+                profiler = AdvancedTrafficProfiler()
+                pcap_profile_now = profiler.analyze_pcap_file(args.pcap)
+                if pcap_profile_now and pcap_profile_now.success:
+                    ctx_now = pcap_profile_now.metadata.get("context", {})
+                    prefer_quic = ctx_now.get("quic_initial_count", 0) > 0
+            except Exception:
+                pass
+
+        if ADV_FPR_AVAILABLE:
+            # Create optimized configuration from CLI arguments
             cfg = FingerprintingConfig(
-                timeout=args.connect_timeout + args.tls_timeout,
-                enable_cache=False, # Управляем кэшем через recon's learning_cache
                 analysis_level=args.analysis_level,
+                max_parallel_targets=1 if args.sequential else args.parallel,
+                enable_fail_fast=not args.no_fail_fast,
+                enable_scapy_probes=args.enable_scapy,
+                sni_probe_mode=args.sni_mode,
                 connect_timeout=args.connect_timeout,
-                tls_timeout=args.tls_timeout
+                tls_timeout=args.tls_timeout,
+                udp_timeout=0.3  # Keep default UDP timeout
             )
-            unified_fingerprinter = UnifiedFingerprinter(config=cfg)
-            
-            targets_to_probe = [(urlparse(site).hostname or site, args.port) for site in blocked_sites]
-            
-            console.print(f"[dim]🚀 Using UnifiedFingerprinter with concurrency: {args.parallel}[/dim]")
+            setattr(cfg, "pcap_path", args.pcap or "")
+            setattr(cfg, "http_force_sni", True)
+            setattr(cfg, "http_send_host_header", True)
+            setattr(cfg, "alpn_protocols", ["h2", "http/1.1"])
+            setattr(cfg, "prefer_quic", prefer_quic)
+            if pcap_profile_now and pcap_profile_now.success:
+                setattr(cfg, "pcap_profile", pcap_profile_now.metadata)
 
-            # Запускаем фингерпринтинг в пакетном режиме
-            fingerprint_results = await unified_fingerprinter.fingerprint_batch(
-                targets=targets_to_probe,
-                force_refresh=True, # Всегда делаем свежий замер
-                max_concurrent=args.parallel
-            )
+            advanced_fingerprinter = AdvancedFingerprinter(config=cfg)
 
-            for fp in fingerprint_results:
-                if fp:
-                    fingerprints[fp.target] = fp
-                    console.print(f"  - {fp.target}: [cyan]{fp.dpi_type.value}[/cyan] (reliability: {fp.reliability_score:.2f})")
+            # Show optimization info
+            if not args.sequential:
+                console.print(f"[dim]🚀 Using parallel processing: {args.parallel} domains simultaneously[/dim]")
+                estimated_times = {
+                    'fast': '1-2 min', 'balanced': '2-3 min', 'full': '6-8 min'
+                }
+                console.print(f"[dim]⚡ Analysis level: {args.analysis_level} (estimated time: {estimated_times[args.analysis_level]} for ~30 domains)[/dim]")
+            else:
+                console.print("[dim]🐌 Using sequential processing (for comparison)[/dim]")
+
+            hostnames = [urlparse(site).hostname or site for site in blocked_sites]
+
+            if args.sequential:
+                # Sequential processing (original method)
+                with Progress(console=console, transient=True) as progress:
+                    task = progress.add_task(
+                        "[cyan]Fingerprinting (sequential)...", total=len(blocked_sites)
+                    )
+                    for site in blocked_sites:
+                        hostname = urlparse(site).hostname or site
+                        protocols = ["http", "https"]
+                        if prefer_quic:
+                            protocols.append("quic")
+                        try:
+                            fp = await advanced_fingerprinter.fingerprint_target(
+                                hostname, port=args.port, protocols=protocols
+                            )
+                            fingerprints[hostname] = fp
+                            try:
+                                dpi_value = getattr(
+                                    fp.dpi_type,
+                                    "value",
+                                    str(getattr(fp.dpi_type, "name", "unknown")),
+                                )
+                                console.print(
+                                    f"  - {hostname}: [cyan]{dpi_value}[/cyan] "
+                                    f"(reliability: {getattr(fp, 'reliability_score', 0):.2f})"
+                                )
+                            except Exception:
+                                console.print(f"  - {hostname}: fingerprint collected")
+                        except Exception as e:
+                            console.print(
+                                f"[yellow]  - {hostname}: Advanced fingerprint failed ({e}), fallback...[/yellow]"
+                            )
+                            target_ip = dns_cache.get(hostname)
+                            if target_ip:
+                                fp_simple = await simple_fingerprinter.create_fingerprint(
+                                    hostname, target_ip, args.port
+                                )
+                                fingerprints[hostname] = fp_simple
+                        progress.update(task, advance=1)
+            else:
+                # Parallel processing (new optimized method)
+                targets = [(hostname, args.port) for hostname in hostnames]
+                protocols = ["http", "https"]
+                if prefer_quic:
+                    protocols.append("quic")
+
+                import time
+                start_time = time.time()
+
+                with Progress(console=console, transient=True) as progress:
+                    task = progress.add_task(
+                        f"[cyan]Fingerprinting (parallel x{args.parallel})...", total=len(targets)
+                    )
+
+                    try:
+                        # Use the new parallel fingerprinting method
+                        fps = await advanced_fingerprinter.fingerprint_many(
+                            targets,
+                            protocols=protocols,
+                            concurrency=args.parallel
+                        )
+
+                        total_time = time.time() - start_time
+                        successful_count = sum(1 for fp in fps if fp is not None)
+
+                        # Process results
+                        for i, hostname in enumerate(hostnames):
+                            fp = fps[i] if i < len(fps) else None
+                            if fp:
+                                fingerprints[hostname] = fp
+                                try:
+                                    dpi_value = getattr(
+                                        fp.dpi_type,
+                                        "value",
+                                        str(getattr(fp.dpi_type, "name", "unknown")),
+                                    )
+                                    console.print(
+                                        f"  - {hostname}: [cyan]{dpi_value}[/cyan] "
+                                        f"(reliability: {getattr(fp, 'reliability_score', 0):.2f})"
+                                    )
+                                except Exception:
+                                    console.print(f"  - {hostname}: fingerprint collected")
+                            else:
+                                console.print(f"[yellow]  - {hostname}: Fingerprinting failed, using fallback[/yellow]")
+                                target_ip = dns_cache.get(hostname)
+                                if target_ip:
+                                    fp_simple = await simple_fingerprinter.create_fingerprint(
+                                        hostname, target_ip, args.port
+                                    )
+                                    fingerprints[hostname] = fp_simple
+                            progress.update(task, advance=1)
+
+                        # Show performance summary
+                        estimated_sequential_time = total_time * args.parallel
+                        speedup = estimated_sequential_time / total_time if total_time > 0 else 1.0
+                        console.print(
+                            f"[dim]✅ Parallel fingerprinting completed: {successful_count}/{len(targets)} successful "
+                            f"in {total_time:.1f}s (estimated {speedup:.1f}x speedup vs sequential)[/dim]"
+                        )
+
+                    except Exception as e:
+                        console.print(f"[red]Parallel fingerprinting failed: {e}[/red]")
+                        console.print("[yellow]Falling back to sequential processing...[/yellow]")
+                        # Fallback to sequential if parallel fails
+                        for site in blocked_sites:
+                            hostname = urlparse(site).hostname or site
+                            try:
+                                fp = await advanced_fingerprinter.fingerprint_target(
+                                    hostname, port=args.port, protocols=protocols
+                                )
+                                fingerprints[hostname] = fp
+                            except Exception:
+                                target_ip = dns_cache.get(hostname)
+                                if target_ip:
+                                    fp_simple = await simple_fingerprinter.create_fingerprint(
+                                        hostname, target_ip, args.port
+                                    )
+                                    fingerprints[hostname] = fp_simple
+
+            # Cleanup
+            await advanced_fingerprinter.close()
         else:
-            console.print("[yellow]UnifiedFingerprinter not available, using fallback simple fingerprinting[/yellow]")
+            console.print(
+                "[yellow]AdvancedFingerprinter not available, using simple fingerprinting[/yellow]"
+            )
             with Progress(console=console, transient=True) as progress:
                 task = progress.add_task(
                     "[cyan]Fingerprinting (simple)...", total=len(blocked_sites)
@@ -1719,8 +1847,6 @@ async def run_hybrid_mode(args):
                             f"  - {hostname}: [cyan]{fp.dpi_type}[/cyan] ({fp.blocking_method})"
                         )
                     progress.update(task, advance=1)
-        # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
-
     else:
         console.print(
             "[dim]Skipping fingerprinting (use --fingerprint to enable)[/dim]"
@@ -2048,51 +2174,31 @@ async def run_hybrid_mode(args):
         )
         console.print("=" * 50 + "\n")
 
-    # <<< ИЗМЕНЕНО: Финальный этап - создание и сохранение отчета нового формата >>>
-    console.print("\n[yellow]Step 6: Generating Comprehensive Report...[/yellow]")
-
+    # Репорт
     domain_status = {site: "BLOCKED" for site in blocked_sites}
+    cache_stats = learning_cache.get_cache_stats()
+    report = reporter.generate_report(test_results, domain_status, args, fingerprints)
+    report["learning_cache_stats"] = cache_stats
+    # Включаем полный срез телеметрии (если был запрошен) — агрегируем по стратегиям
+    if args.telemetry_full:
+        try:
+            report["engine_telemetry_full"] = [
+                {"strategy": r.get("strategy"), "telemetry": r.get("engine_telemetry_full")}
+                for r in test_results if "engine_telemetry_full" in r
+            ]
+        except Exception:
+            pass
+    if pcap_profile_result and pcap_profile_result.success:
+        report["pcap_profile"] = {
+            "detected_applications": pcap_profile_result.detected_applications,
+            "confidence_scores": pcap_profile_result.confidence_scores,
+            "metadata": pcap_profile_result.metadata,
+        }
+    reporter.print_summary(report)
 
-    # Собираем все данные для нового репортера
-    successful_attacks_list = [r for r in test_results if r.get("success_rate", 0) > 0.5]
-
-    # Создаем отчет через AdvancedReportingIntegration
-    # Он сам сгенерирует key_metrics и report_summary
-    system_report = await advanced_reporter.generate_system_performance_report(period_hours=24)
-
-    # Создаем финальную структуру отчета
-    final_report_data = {
-        "report_summary": {
-            "generated_at": datetime.now().isoformat(),
-            "period": system_report.report_period if system_report else "N/A"
-        },
-        "key_metrics": {
-            "overall_success_rate": (len(successful_attacks_list) / len(test_results) * 100) if test_results else 0,
-            "total_domains_tested": len(dm.domains),
-            "blocked_domains_count": len(blocked_sites),
-            "total_attacks_24h": system_report.total_attacks if system_report else len(test_results),
-            "average_effectiveness_24h": system_report.average_effectiveness if system_report else 0
-        },
-        "metadata": {
-            "working_strategies_found": len(successful_attacks_list),
-            "total_strategies_tested": len(test_results)
-        },
-        "fingerprints": {
-            k: v.to_dict() for k, v in fingerprints.items()
-        },
-        "strategy_effectiveness": {
-            "top_working": sorted(successful_attacks_list, key=lambda x: x.get('success_rate', 0), reverse=True)[:5],
-            "top_failing": sorted([r for r in test_results if r.get('success_rate', 0) <= 0.5], key=lambda x: x.get('success_rate', 0))[:5]
-        },
-        "all_results": test_results
-    }
-
-    reporter.print_summary(final_report_data) # Печатаем в консоль
-
-    report_filename = reporter.save_report(final_report_data, filename="recon_summary.json")
+    report_filename = reporter.save_report(report)
     if report_filename:
         console.print(f"[green]📄 Detailed report saved to: {report_filename}[/green]")
-    # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
     # KB summary: причины блокировок по CDN и доменам
     try:
