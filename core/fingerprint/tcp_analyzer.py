@@ -70,14 +70,19 @@ class TCPAnalyzer:
             return {}
         self.logger.info(f"Starting TCP behavior analysis for {target}:{port}")
         result = TCPAnalysisResult(target=target)
-        target_ip = await self._resolve_target(target)
-        probes = [
-            self._probe_rst_injection(result, target_ip, port),
-            self._probe_tcp_options_and_timing(result, target_ip, port),
-            self._probe_fragmentation(result, target_ip, port),
-        ]
-        await asyncio.gather(*probes)
-        return result.to_dict()
+        try:
+            target_ip = await self._resolve_target(target)
+            probes = [
+                self._probe_rst_injection(result, target_ip, port),
+                self._probe_tcp_options_and_timing(result, target_ip, port),
+                self._probe_fragmentation(result, target_ip, port),
+            ]
+            await asyncio.gather(*probes)
+            self.logger.info(f"TCP analysis for {target}:{port} completed. RST detected: {result.rst_injection_detected}")
+            return result.to_dict()
+        except Exception as e:
+            self.logger.error(f"FATAL error in analyze_tcp_behavior for {target}:{port}: {e}", exc_info=True)
+            return {}
 
     async def _resolve_target(self, target: str) -> str:
         """Resolve hostname to IP address"""

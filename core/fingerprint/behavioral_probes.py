@@ -119,10 +119,10 @@ class BehavioralProber:
                 self._probe_connection_patterns(result, target_ip, port),
                 return_exceptions=True
             )
-            
+            self.logger.info(f"Behavioral probes for {target}:{port} completed. Session tracking detected: {result.session_tracking_detected}")
         except Exception as e:
-            self.logger.error(f"Behavioral probes failed for {target}: {e}")
-            
+            self.logger.error(f"Behavioral probes failed for {target}: {e}", exc_info=True)
+
         return result.to_dict()
     
     async def _resolve_target(self, target: str) -> str:

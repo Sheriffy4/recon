@@ -109,10 +109,10 @@ class AdvancedTCPProber:
                 self._probe_ttl_distance(result, target_ip, port),
                 return_exceptions=True
             )
-            
+            self.logger.info(f"Advanced TCP probes for {target}:{port} completed. Reordering tolerance: {result.packet_reordering_tolerance}")
         except Exception as e:
-            self.logger.error(f"Advanced TCP probes failed for {target}: {e}")
-            
+            self.logger.error(f"Advanced TCP probes failed for {target}: {e}", exc_info=True)
+
         return result.to_dict()
     
     async def _resolve_target(self, target: str) -> str:

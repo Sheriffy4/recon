@@ -121,10 +121,10 @@ class AdvancedTLSProber:
                 self._probe_dirty_http_traffic(result, target, target_ip, port),
                 return_exceptions=True
             )
-            
+            self.logger.info(f"Advanced TLS probes for {target}:{port} completed. ECH support detected: {result.ech_support_detected}")
         except Exception as e:
-            self.logger.error(f"Advanced TLS probes failed for {target}: {e}")
-            
+            self.logger.error(f"Advanced TLS probes failed for {target}: {e}", exc_info=True)
+
         return result.to_dict()
     
     async def _resolve_target(self, target: str) -> str:
