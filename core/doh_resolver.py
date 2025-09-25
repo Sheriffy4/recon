@@ -7,6 +7,7 @@ import time
 from typing import Optional, Set, Dict, Any, List
 import logging
 import json
+import ipaddress
 
 LOG = logging.getLogger("doh_resolver")
 
@@ -175,16 +176,27 @@ class DoHResolver:
                     LOG.error(f"System DNS fallback failed for {hostname}: {e}")
                 break
 
-        # Cache results if any
-        if ips:
-            self.cache[hostname] = {
-                "ips": ips.copy(),
-                "expires": time.time() + self.cache_ttl,
-            }
-            LOG.info(f"Resolved {hostname} -> {ips} via DoH")
-            return ips
+        # Filter out non-IP addresses and prepare for caching
+        valid_ips = set()
+        for ip_str in ips:
+            try:
+                ipaddress.ip_address(ip_str)
+                valid_ips.add(ip_str)
+            except ValueError:
+                pass  # Not a valid IP, ignore
 
-        return set()
+        # Always cache the result, even if it's an empty set
+        self.cache[hostname] = {
+            "ips": valid_ips.copy(),
+            "expires": time.time() + self.cache_ttl,
+        }
+
+        if valid_ips:
+            LOG.info(f"Resolved {hostname} -> {valid_ips} via DoH")
+        else:
+            LOG.warning(f"Failed to resolve {hostname} to any valid IP addresses.")
+
+        return valid_ips
 
     async def resolve_one(self, hostname: str) -> Optional[str]:
         """Resolves one IP for a hostname using DoH."""
