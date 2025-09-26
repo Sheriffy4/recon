@@ -18,11 +18,22 @@ try:
     from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
 except Exception:
     CdnAsnKnowledgeBase = None
+# <<< FIX: Robust fallback for strategy synthesis to prevent TypeError >>>
+def synthesize_strategy_fallback(ctx):
+    """Fallback synthesizer that does nothing."""
+    return None
+
+synthesize_strategy = synthesize_strategy_fallback
+AttackContext = None
+
 try:
     from core.strategy_synthesizer import AttackContext, synthesize as synthesize_strategy
-except Exception:
-    AttackContext = None
-    def synthesize_strategy(ctx): return None
+except (ImportError, ModuleNotFoundError):
+    logging.getLogger('hybrid_engine').debug("strategy_synthesizer not found, using fallback.")
+except Exception as e:
+    logging.getLogger('hybrid_engine').warning(f"Could not import strategy_synthesizer due to an unexpected error: {e}")
+# <<< END FIX >>>
+
 
 # Initialize modern bypass engine availability
 MODERN_BYPASS_ENGINE_AVAILABLE = False
@@ -187,17 +198,18 @@ class HybridEngine:
                     fs = 120
                 return {'type': 'quic_fragmentation', 'params': {'fragment_size': fs}}
             return None
+        
         task_type = 'none'
         task_params = {}
-        # Нормализация составных алиасов: fake + fakeddisorder трактуем как fakeddisorder
-        # Алиас 'desync' → fakeddisorder
+        
+        # Нормализация составных алиасов
         if 'fakeddisorder' in desync or 'desync' in desync:
             task_type = 'fakeddisorder'
         elif 'multidisorder' in desync:
             task_type = 'multidisorder'
         elif 'multisplit' in desync:
             task_type = 'multisplit'
-        elif 'disorder' in desync or 'disorder2' in desync:  # Legacy aliases
+        elif 'disorder' in desync or 'disorder2' in desync:
             task_type = 'fakeddisorder'
 
         # Флаг: присутствует ли семейство fakeddisorder
@@ -206,27 +218,55 @@ class HybridEngine:
             or ('disorder' in desync) or ('disorder2' in desync)
         )
 
-        # Настройка позиций сплита
+        # Настройка позиций сплита - FIXED VERSION
         if task_type in ['fakeddisorder', 'multidisorder', 'multisplit']:
             split_pos_raw = params.get('dpi_desync_split_pos', [])
-            if any((p.get('type') == 'midsld' for p in split_pos_raw)):
+            
+            # Handle different formats of split_pos_raw
+            positions = []
+            has_midsld = False
+            
+            if isinstance(split_pos_raw, (int, str)):
+                # Single value
+                try:
+                    positions = [int(split_pos_raw)]
+                except (ValueError, TypeError):
+                    if str(split_pos_raw).lower() == 'midsld':
+                        has_midsld = True
+            elif isinstance(split_pos_raw, list):
+                for item in split_pos_raw:
+                    if isinstance(item, dict):
+                        # Dictionary format with 'type' and 'value'
+                        if item.get('type') == 'midsld':
+                            has_midsld = True
+                        elif item.get('type') == 'absolute' and 'value' in item:
+                            try:
+                                positions.append(int(item['value']))
+                            except (ValueError, TypeError):
+                                pass
+                    elif isinstance(item, (int, str)):
+                        # Direct values
+                        try:
+                            positions.append(int(item))
+                        except (ValueError, TypeError):
+                            if str(item).lower() == 'midsld':
+                                has_midsld = True
+            
+            if has_midsld:
                 task_params['split_pos'] = 'midsld'
+            elif task_type == 'fakeddisorder':
+                task_params['split_pos'] = positions[0] if positions else 76
             else:
-                positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
-                if task_type == 'fakeddisorder':
-                    task_params['split_pos'] = positions[0] if positions else 76
-                else:
-                    # Если задан split-count без positions — сгенерируем равномерную сетку
-                    count = params.get('dpi_desync_split_count')
-                    if not positions and isinstance(count, int) and count > 1:
-                        base, gap = 6, max(4, 120 // min(count, 10))
-                        positions = [base + i * gap for i in range(count)]
-                    task_params['positions'] = positions if positions else [1, 5, 10]
+                # multidisorder/multisplit
+                count = params.get('dpi_desync_split_count')
+                if not positions and isinstance(count, int) and count > 1:
+                    base, gap = 6, max(4, 120 // min(count, 10))
+                    positions = [base + i * gap for i in range(count)]
+                task_params['positions'] = positions if positions else [1, 5, 10]
 
         # Обработка fake‑ветки
         if 'fake' in desync:
             if not has_faked and task_type == 'none':
-                # Чистый fake → допускаем race-типы
                 if 'badsum' in fooling:
                     task_type = 'badsum_race'
                 elif 'md5sig' in fooling:
@@ -236,27 +276,52 @@ class HybridEngine:
                 else:
                     task_type = 'fake'
             else:
-                # В сочетании с fakeddisorder НЕ переопределяем тип, а только оставляем fooling в параметрах
                 if fooling:
                     task_params['fooling'] = fooling
 
-        # seqovl: если указан и нет fakeddisorder-семейства, можно выделить отдельный тип;
-        # иначе — это параметр fakeddisorder
+        # seqovl handling - FIXED VERSION
         if params.get('dpi_desync_split_seqovl'):
             if not has_faked and task_type == 'none':
                 task_type = 'seqovl'
                 split_pos_raw = params.get('dpi_desync_split_pos', [])
-                if any((p.get('type') == 'midsld' for p in split_pos_raw)):
+                
+                # Same fix for split_pos_raw handling
+                positions = []
+                has_midsld = False
+                
+                if isinstance(split_pos_raw, (int, str)):
+                    try:
+                        positions = [int(split_pos_raw)]
+                    except (ValueError, TypeError):
+                        if str(split_pos_raw).lower() == 'midsld':
+                            has_midsld = True
+                elif isinstance(split_pos_raw, list):
+                    for item in split_pos_raw:
+                        if isinstance(item, dict):
+                            if item.get('type') == 'midsld':
+                                has_midsld = True
+                            elif item.get('type') == 'absolute' and 'value' in item:
+                                try:
+                                    positions.append(int(item['value']))
+                                except (ValueError, TypeError):
+                                    pass
+                        elif isinstance(item, (int, str)):
+                            try:
+                                positions.append(int(item))
+                            except (ValueError, TypeError):
+                                if str(item).lower() == 'midsld':
+                                    has_midsld = True
+                
+                if has_midsld:
                     task_params['split_pos'] = 'midsld'
                 else:
-                    positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
                     task_params['split_pos'] = positions[0] if positions else 3
+                
                 task_params['overlap_size'] = params.get('dpi_desync_split_seqovl')
             else:
-                # Остаёмся в fakeddisorder и просто добавляем overlap_size
                 task_params.setdefault('overlap_size', params.get('dpi_desync_split_seqovl'))
 
-        # TTL
+        # TTL parameters
         if params.get('dpi_desync_ttl') is not None:
             task_params['ttl'] = int(params.get('dpi_desync_ttl'))
         if params.get('dpi_desync_autottl') is not None:
@@ -264,36 +329,86 @@ class HybridEngine:
         if params.get('dpi_desync_repeats') is not None:
             task_params['repeats'] = int(params.get('dpi_desync_repeats'))
 
-        # Значения по умолчанию для fakeddisorder (zapret-совместимые)
+        # Default values for fakeddisorder - FIXED VERSION
         if task_type == 'fakeddisorder':
             if 'ttl' not in task_params:
                 task_params['ttl'] = 1
             if 'split_pos' not in task_params:
                 split_pos_raw = params.get('dpi_desync_split_pos', [])
-                if any((p.get('type') == 'midsld' for p in split_pos_raw)):
+                
+                # Apply the same fix here
+                positions = []
+                has_midsld = False
+                
+                if isinstance(split_pos_raw, (int, str)):
+                    try:
+                        positions = [int(split_pos_raw)]
+                    except (ValueError, TypeError):
+                        if str(split_pos_raw).lower() == 'midsld':
+                            has_midsld = True
+                elif isinstance(split_pos_raw, list):
+                    for item in split_pos_raw:
+                        if isinstance(item, dict):
+                            if item.get('type') == 'midsld':
+                                has_midsld = True
+                            elif item.get('type') == 'absolute' and 'value' in item:
+                                try:
+                                    positions.append(int(item['value']))
+                                except (ValueError, TypeError):
+                                    pass
+                        elif isinstance(item, (int, str)):
+                            try:
+                                positions.append(int(item))
+                            except (ValueError, TypeError):
+                                if str(item).lower() == 'midsld':
+                                    has_midsld = True
+                
+                if has_midsld:
                     task_params['split_pos'] = 'midsld'
                 else:
-                    positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
                     task_params['split_pos'] = positions[0] if positions else 76
+            
             if 'overlap_size' not in task_params and not params.get('dpi_desync_split_seqovl'):
                 task_params['overlap_size'] = 336
             if fooling:
                 task_params['fooling'] = fooling
 
-        # split без seqovl → простая фрагментация
+        # split без seqovl - FIXED VERSION
         if task_type == 'none' and 'split' in desync:
             task_type = 'simple_fragment'
             split_pos_raw = params.get('dpi_desync_split_pos', [])
-            positions = [p['value'] for p in split_pos_raw if p.get('type') == 'absolute']
+            
+            # Apply fix for simple_fragment too
+            positions = []
+            if isinstance(split_pos_raw, (int, str)):
+                try:
+                    positions = [int(split_pos_raw)]
+                except (ValueError, TypeError):
+                    pass
+            elif isinstance(split_pos_raw, list):
+                for item in split_pos_raw:
+                    if isinstance(item, dict) and item.get('type') == 'absolute' and 'value' in item:
+                        try:
+                            positions.append(int(item['value']))
+                        except (ValueError, TypeError):
+                            pass
+                    elif isinstance(item, (int, str)):
+                        try:
+                            positions.append(int(item))
+                        except (ValueError, TypeError):
+                            pass
+            
             task_params['split_pos'] = positions[0] if positions else 3
 
         # QUIC fragmentation
         for qk in ('quic_frag', 'quic_fragment'):
             if qk in params and isinstance(params[qk], int):
                 return {'type': 'quic_fragmentation', 'params': {'fragment_size': int(params[qk])}}
+        
         if task_type == 'none':
             LOG.warning(f'Не удалось транслировать zapret-стратегию в задачу для движка: {params}')
             return None
+        
         return {'type': task_type, 'params': task_params}
 
     def _task_to_str(self, task: Dict[str, Any]) -> str:
@@ -612,8 +727,8 @@ class HybridEngine:
                     wait_time_s = 1.0
                 elif fingerprint.dpi_type == DPIType.COMMERCIAL_DPI:
                     wait_time_s = 2.0
-                elif fingerprint.connection_reset_timing > 0:
-                    wait_time_s = max(1.0, fingerprint.connection_reset_timing / 1000.0 + 0.5)
+                elif self._get_tcp_analysis_attr(fingerprint, 'rst_injection_detected'):
+                    wait_time_s = max(1.0, 0.5)
 
             await asyncio.sleep(wait_time_s)
             try:
@@ -628,7 +743,7 @@ class HybridEngine:
                 )
             except Exception as connectivity_error:
                 LOG.error(f'Connectivity test failed: {connectivity_error}')
-                if fingerprint and fingerprint.tcp_window_manipulation:
+                if fingerprint and self._get_tcp_analysis_attr(fingerprint, 'tcp_window_manipulation'):
                     LOG.info('Retrying with adjusted parameters due to TCP window manipulation')
                     await asyncio.sleep(0.5)
                     results = await self._test_sites_connectivity(test_sites, dns_cache, timeout_profile="slow", retries=1, max_concurrent=6)
@@ -641,7 +756,8 @@ class HybridEngine:
                 min_lat = min(latencies) if latencies else 0.0
                 rst_cnt = sum(1 for st in statuses if st == 'RST')
                 to_cnt = sum(1 for st in statuses if st == 'TIMEOUT')
-                if (rst_cnt >= 2 or (to_cnt == len(test_sites) and min_lat < 150.0)) and not (fingerprint and getattr(fingerprint, "tcp_window_manipulation", False)):
+                fp_tcp_manipulation = fingerprint and self._get_tcp_analysis_attr(fingerprint, 'tcp_window_manipulation')
+                if (rst_cnt >= 2 or (to_cnt == len(test_sites) and min_lat < 150.0)) and not fp_tcp_manipulation:
                     LOG.info('Heuristic trigger: possible TCP window manipulation. Retesting with slow timeouts and limited concurrency...')
                     await asyncio.sleep(0.4)
                     results = await self._test_sites_connectivity(test_sites, dns_cache, max_concurrent=5, retries=1, backoff_base=0.5, timeout_profile="slow")
@@ -657,7 +773,7 @@ class HybridEngine:
             else:
                 result_status = 'PARTIAL_SUCCESS'
             if fingerprint and self.debug:
-                LOG.debug(f'Strategy test with DPI context: {fingerprint.dpi_type.value}, RST injection: {fingerprint.rst_injection_detected}, TCP manipulation: {fingerprint.tcp_window_manipulation}')
+                LOG.debug(f'Strategy test with DPI context: {self._get_dpi_type_value(fingerprint)}, RST injection: {getattr(getattr(fingerprint, "tcp_analysis", None), "rst_injection_detected", False)}, TCP manipulation: {getattr(getattr(fingerprint, "tcp_analysis", None), "tcp_window_manipulation", False)}')
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
 
             telemetry = {}
@@ -671,9 +787,9 @@ class HybridEngine:
         except Exception as e:
             LOG.error(f'Ошибка во время реального тестирования: {e}', exc_info=self.debug)
             if fingerprint:
-                if fingerprint.rst_injection_detected and 'reset' in str(e).lower():
+                if self._get_tcp_analysis_attr(fingerprint, 'rst_injection_detected') and 'reset' in str(e).lower():
                     LOG.info('Connection reset detected - consistent with fingerprint analysis')
-                elif fingerprint.dns_hijacking_detected and 'dns' in str(e).lower():
+                elif self._get_dns_analysis_attr(fingerprint, 'dns_spoofing_detected') and 'dns' in str(e).lower():
                     LOG.info('DNS issues detected - consistent with fingerprint analysis')
             return ('REAL_WORLD_ERROR', 0, len(test_sites), 0.0)
         finally:
@@ -723,7 +839,8 @@ class HybridEngine:
         # --- Online optimization hooks ---
         optimization_callback: Optional[callable] = None,
         strategy_evaluation_mode: bool = False,
-        engine_override: Optional[str] = None
+        engine_override: Optional[str] = None,
+        fingerprint: Optional[DPIFingerprint] = None
     ) -> List[Dict]:
         """
         Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
@@ -735,7 +852,6 @@ class HybridEngine:
         4. Проводит реальное тестирование с помощью BypassEngine
         """
         results = []
-        fingerprint = None
         use_modern = use_modern_engine and self.modern_bypass_enabled
         if use_modern:
             self.bypass_stats['modern_engine_tests'] += 1
@@ -750,13 +866,14 @@ class HybridEngine:
                 pool_strategy_str = existing_strategy.to_zapret_format()
                 if pool_strategy_str not in strategies:
                     strategies.insert(0, pool_strategy_str)
-        if enable_fingerprinting and self.advanced_fingerprinting_enabled:
+        
+        if enable_fingerprinting and self.advanced_fingerprinting_enabled and not fingerprint:
             try:
                 LOG.info(f'Performing DPI fingerprinting for {domain}:{port}')
                 fingerprint = await self.fingerprint_target(domain, port)
                 if fingerprint:
                     self.fingerprint_stats['fingerprint_aware_tests'] += 1
-                    LOG.info(f'DPI fingerprint obtained: {fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f}, reliability: {fingerprint.reliability_score:.2f})')
+                    LOG.info(f'DPI fingerprint obtained: {self._get_dpi_type_value(fingerprint)} (confidence: {self._get_fingerprint_confidence(fingerprint):.2f}, reliability: {self._get_fingerprint_reliability(fingerprint):.2f})')
                 else:
                     LOG.warning('DPI fingerprinting failed, proceeding with standard testing')
                     self.fingerprint_stats['fallback_tests'] += 1
@@ -769,6 +886,9 @@ class HybridEngine:
                     capturer.trigger_pcap_analysis(force=True)
                 else:
                     self.fingerprint_stats['fallback_tests'] += 1
+        elif fingerprint:
+             LOG.info(f'Using pre-computed DPI fingerprint: {self._get_dpi_type_value(fingerprint)} (confidence: {self._get_fingerprint_confidence(fingerprint):.2f})')
+        
         # Knowledge init: derive CDN/ASN profile for primary domain
         cdn = None
         asn = None
@@ -803,15 +923,28 @@ class HybridEngine:
             except Exception as e:
                 LOG.debug(f"QUIC/ECH detection failed: {e}")
 
-        # Prepend synthesized strategy based on context (fingerprint + KB)
-        try:
-            ctx = AttackContext(domain=domain, ip=primary_ip, port=port,
-                                fingerprint=fingerprint, cdn=cdn, asn=asn,
-                                kb_profile=kb_profile or kb_recs)
-            synthesized = synthesize_strategy(ctx)
-        except Exception as e:
-            synthesized = None
-            LOG.debug(f"Strategy synthesis failed: {e}")
+        # <<< FIX: Correctly instantiate AttackContext with dst_ip >>>
+        synthesized = None
+        if synthesize_strategy and AttackContext:
+            try:
+                ctx = AttackContext(
+                    domain=domain,
+                    dst_ip=primary_ip,  # Pass the resolved IP here
+                    port=port,
+                    fingerprint=fingerprint,
+                    cdn=cdn,
+                    asn=asn,
+                    kb_profile=kb_profile or kb_recs
+                )
+                synthesized = synthesize_strategy(ctx)
+            except Exception as e:
+                LOG.debug(f"Strategy synthesis failed: {e}")
+        else:
+            if not synthesize_strategy:
+                LOG.debug("Strategy synthesis not available (synthesize_strategy is None/fallback)")
+            if not AttackContext:
+                LOG.debug("Strategy synthesis not available (AttackContext is None)")
+        # <<< END FIX >>>
 
         base: List[Union[str, Dict[str, Any]]] = strategies[:]  # сохранить тип
         # Рабочие списки
@@ -950,7 +1083,7 @@ class HybridEngine:
                     "SH": engine_telemetry.get("serverhellos", 0),
                     "RST": engine_telemetry.get("rst_count", 0),
                 }
-            result_data = {'strategy_id': sid, 'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None, 'engine_telemetry': tel_sum}
+            result_data = {'strategy_id': sid, 'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if (fingerprint and hasattr(fingerprint.dpi_type, 'value')) else (str(fingerprint.dpi_type) if fingerprint else None), 'dpi_confidence': fingerprint.confidence if fingerprint else None, 'engine_telemetry': tel_sum}
             if telemetry_full and engine_telemetry:
                 result_data['engine_telemetry_full'] = engine_telemetry
 
@@ -983,7 +1116,7 @@ class HybridEngine:
             else:
                 results.sort(key=lambda x: (x.get('success_rate', 0.0), -x.get('avg_latency_ms', 0.0)), reverse=True)
         if results and fingerprint:
-            LOG.info(f'Strategy testing completed with DPI fingerprint: {fingerprint.dpi_type.value} (confidence: {fingerprint.confidence:.2f})')
+            LOG.info(f'Strategy testing completed with DPI fingerprint: {self._get_dpi_type_value(fingerprint)} (confidence: {self._get_fingerprint_confidence(fingerprint):.2f})')
 
         # ==== NEW: Enhanced tracking auto-analysis and second pass ====
         try:
@@ -1053,7 +1186,7 @@ class HybridEngine:
                             try: capturer.mark_strategy_end(str(strategy))
                             except Exception: pass
                         success_rate = successful_count / total_count if total_count > 0 else 0.0
-                        result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if fingerprint else None, 'dpi_confidence': fingerprint.confidence if fingerprint else None}
+                        result_data = {'strategy': pretty, 'result_status': result_status, 'successful_sites': successful_count, 'total_sites': total_count, 'success_rate': success_rate, 'avg_latency_ms': avg_latency, 'fingerprint_used': fingerprint is not None, 'dpi_type': fingerprint.dpi_type.value if (fingerprint and hasattr(fingerprint.dpi_type, 'value')) else (str(fingerprint.dpi_type) if fingerprint else None), 'dpi_confidence': fingerprint.confidence if fingerprint else None}
                         results.append(result_data)
                     # Пересортировка после добавления
                     if results:
@@ -1075,6 +1208,44 @@ class HybridEngine:
         return results
 
     # ==== NEW: Enhanced tracking helpers ====
+    def _get_dpi_type_value(self, fingerprint):
+        """Safely get DPI type value from fingerprint."""
+        if not fingerprint:
+            return None
+        
+        dpi_type = getattr(fingerprint, 'dpi_type', None)
+        if not dpi_type:
+            return None
+        
+        # If it has a .value attribute (enum), use it
+        if hasattr(dpi_type, 'value'):
+            return dpi_type.value
+        
+        # Otherwise, it's probably already a string
+        return str(dpi_type)
+    
+    def _get_fingerprint_confidence(self, fingerprint):
+        """Safely get confidence value from fingerprint."""
+        if not fingerprint:
+            return 0.0
+        
+        confidence = getattr(fingerprint, 'confidence', 0.0)
+        try:
+            return float(confidence)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _get_fingerprint_reliability(self, fingerprint):
+        """Safely get reliability score from fingerprint."""
+        if not fingerprint:
+            return 0.0
+        
+        reliability = getattr(fingerprint, 'reliability_score', 0.0)
+        try:
+            return float(reliability)
+        except (TypeError, ValueError):
+            return 0.0
+    
     def _merge_capture_metrics_into_results(self, results: List[Dict[str, Any]], cap_metrics: Dict[str, Dict[str, Any]]) -> None:
         """
         Вливает PCAP‑метрики по стратегиям в результирующие записи.
@@ -1224,55 +1395,145 @@ class HybridEngine:
             self.fingerprint_stats['fingerprint_failures'] += 1
             return None
 
+    def _get_tcp_analysis_attr(self, fingerprint, attr_name: str, default=False):
+        """Safely get TCP analysis attribute from fingerprint."""
+        if not fingerprint:
+            return default
+        
+        tcp_analysis = getattr(fingerprint, 'tcp_analysis', None)
+        if not tcp_analysis:
+            return default
+        
+        return getattr(tcp_analysis, attr_name, default)
+
+    def _get_dns_analysis_attr(self, fingerprint, attr_name: str, default=False):
+        """Safely get DNS analysis attribute from fingerprint."""
+        if not fingerprint:
+            return default
+        
+        dns_analysis = getattr(fingerprint, 'dns_analysis', None)
+        if not dns_analysis:
+            return default
+        
+        return getattr(dns_analysis, attr_name, default)
+
+    def _get_http_analysis_attr(self, fingerprint, attr_name: str, default=False):
+        """Safely get HTTP analysis attribute from fingerprint."""
+        if not fingerprint:
+            return default
+        
+        http_analysis = getattr(fingerprint, 'http_analysis', None)
+        if not http_analysis:
+            return default
+        
+        return getattr(http_analysis, attr_name, default)
+
+    def _fingerprint_has_attr(self, fingerprint, *attr_path):
+        """Check if fingerprint has nested attribute."""
+        if not fingerprint:
+            return False
+        
+        obj = fingerprint
+        for attr in attr_path:
+            obj = getattr(obj, attr, None)
+            if obj is None:
+                return False
+        return True
+    
+    def _is_dpi_type(self, fingerprint, type_name: str) -> bool:
+        """Check if fingerprint has the specified DPI type."""
+        if not fingerprint:
+            return False
+        
+        dpi_type = getattr(fingerprint, 'dpi_type', None)
+        if not dpi_type:
+            return False
+        
+        # Handle enum types
+        if hasattr(dpi_type, 'name'):
+            return dpi_type.name.upper() == type_name.upper()
+        
+        # Handle string types  
+        if isinstance(dpi_type, str):
+            return dpi_type.upper() == type_name.upper()
+        
+        # Try to convert to string and compare
+        try:
+            return str(dpi_type).upper() == type_name.upper()
+        except:
+            return False
+    
     def _adapt_strategies_for_fingerprint(self, strategies: List[str], fingerprint: DPIFingerprint) -> List[str]:
         """
         Adapt and prioritize strategies based on DPI fingerprint.
-
-        Args:
-            strategies: Original list of strategies
-            fingerprint: DPI fingerprint with detected characteristics
-
-        Returns:
-            Reordered and potentially modified strategy list
         """
         if not fingerprint:
             return strategies
+        
         adapted_strategies = []
-        dpi_type = fingerprint.dpi_type
-        confidence = fingerprint.confidence
-        LOG.info(f'Adapting strategies for DPI type: {dpi_type.value} (confidence: {confidence:.2f})')
-        if dpi_type == DPIType.ROSKOMNADZOR_TSPU:
+        
+        # Safely get DPI type
+        dpi_type = getattr(fingerprint, 'dpi_type', None)
+        confidence = self._get_fingerprint_confidence(fingerprint)
+        
+        # Get display value for logging
+        if dpi_type and hasattr(dpi_type, 'value'):
+            dpi_type_str = dpi_type.value
+        else:
+            dpi_type_str = str(dpi_type) if dpi_type else "unknown"
+        
+        LOG.info(f'Adapting strategies for DPI type: {dpi_type_str} (confidence: {confidence:.2f})')
+        
+        # Check DPI types - handle both enum and string formats
+        if self._is_dpi_type(fingerprint, 'ROSKOMNADZOR_TSPU'):
             priority_patterns = ['--dpi-desync-ttl=[1-5]', '--dpi-desync=fake.*disorder', '--dpi-desync-fooling=badsum']
             adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
-        elif dpi_type == DPIType.ROSKOMNADZOR_DPI:
+        elif self._is_dpi_type(fingerprint, 'ROSKOMNADZOR_DPI'):
             priority_patterns = ['--dpi-desync=.*split', '--dpi-desync-split-pos=midsld', '--dpi-desync=fake']
             adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
-        elif dpi_type == DPIType.COMMERCIAL_DPI:
+        elif self._is_dpi_type(fingerprint, 'COMMERCIAL_DPI'):
             priority_patterns = ['--dpi-desync=multisplit', '--dpi-desync-split-seqovl', '--dpi-desync-repeats=[2-5]']
             adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
-            adapted_strategies.extend(['--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10', '--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-fooling=badsum'])
-        elif dpi_type == DPIType.FIREWALL_BASED:
+            adapted_strategies.extend([
+                '--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10',
+                '--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-fooling=badsum'
+            ])
+        elif self._is_dpi_type(fingerprint, 'FIREWALL_BASED'):
             priority_patterns = ['--dpi-desync=disorder', '--dpi-desync-ttl=[64,127,128]']
             adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
-        elif dpi_type == DPIType.ISP_TRANSPARENT_PROXY:
+        elif self._is_dpi_type(fingerprint, 'ISP_TRANSPARENT_PROXY'):
             priority_patterns = ['--dpi-desync=fake.*disorder', '--dpi-desync-fooling=.*seq']
             adapted_strategies.extend(self._prioritize_strategies(strategies, priority_patterns))
-        if fingerprint.rst_injection_detected and fingerprint.connection_reset_timing < 100:
+        
+        # Check additional attributes safely
+        rst_injection = self._get_tcp_analysis_attr(fingerprint, 'rst_injection_detected')
+        rst_timing = self._get_tcp_analysis_attr(fingerprint, 'connection_reset_timing', 1000)
+        
+        if rst_injection and rst_timing < 100:
             adapted_strategies.extend([
                 '--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum',
                 '--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq',
-                '--dpi-desync-stealth-mode --dpi-desync-rst-evasion'  # Новая стратегия
+                '--dpi-desync-stealth-mode --dpi-desync-rst-evasion'
             ])
-        if fingerprint.tcp_window_manipulation:
-            adapted_strategies.extend(['--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10'])
-        if fingerprint.http_header_filtering:
-            adapted_strategies.extend(['--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum'])
+        
+        if self._get_tcp_analysis_attr(fingerprint, 'tcp_window_manipulation'):
+            adapted_strategies.extend([
+                '--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10'
+            ])
+        
+        if self._get_http_analysis_attr(fingerprint, 'http_header_filtering'):
+            adapted_strategies.extend([
+                '--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum'
+            ])
+        
+        # Remove duplicates while preserving order
         seen = set()
         unique_strategies = []
         for strategy in adapted_strategies + strategies:
             if strategy not in seen:
                 seen.add(strategy)
                 unique_strategies.append(strategy)
+        
         LOG.info(f'Adapted {len(strategies)} strategies to {len(unique_strategies)} fingerprint-aware strategies')
         return unique_strategies
 

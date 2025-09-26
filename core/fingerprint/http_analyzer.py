@@ -330,9 +330,21 @@ class HTTPAnalyzer:
             },
         )
         try:
+            # <<< ИЗМЕНЕНО: Создаем кастомный SSL-контекст и коннектор >>>
+            # Это может помочь обойти некоторые проблемы с TLS на Windows
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            # Попробуем ограничить версии TLS, чтобы избежать проблем с TLS 1.3
+            ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+            
+            connector = aiohttp.TCPConnector(ssl=ssl_context)
+            
             async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=self.timeout)
+                timeout=aiohttp.ClientTimeout(total=self.timeout),
+                connector=connector # <<< Используем новый коннектор
             ) as session:
+            # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
                 start_time = time.perf_counter()
                 response_ctx = await self._call_session(
                     session, "GET", base_url, headers=request.headers

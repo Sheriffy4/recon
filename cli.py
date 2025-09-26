@@ -135,6 +135,7 @@ except Exception:
 try:
     from core.bypass.attacks.combo.advanced_traffic_profiler import (
         AdvancedTrafficProfiler,
+        DPIFingerprint,
     )
 
     PROFILER_AVAILABLE = True
@@ -162,6 +163,18 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 console = Console(highlight=False) if RICH_AVAILABLE else Console()
+
+# <<< FIX 1: Correct the import path for AdvancedReportingIntegration >>>
+try:
+    from core.fingerprint.unified_fingerprinter import UnifiedFingerprinter, FingerprintingConfig as UnifiedFPConfig
+    from core.fingerprint.unified_models import UnifiedFingerprint
+    # The original path was core.integration, the correct path is core.reporting
+    from core.reporting.advanced_reporting_integration import AdvancedReportingIntegration
+    UNIFIED_COMPONENTS_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARNING] Unified fingerprinting components not available: {e}")
+    UNIFIED_COMPONENTS_AVAILABLE = False
+# <<< END FIX 1 >>>
 
 STRATEGY_FILE = "best_strategy.json"
 
@@ -258,32 +271,43 @@ class PacketCapturer:
                 time.sleep(0.5)
 
 
+# <<< FIX: Correctly handle default_proto when IP list is empty >>>
 def build_bpf_from_ips(
     ips: Set[str], port: int, default_proto: str = "tcp or udp"
 ) -> str:
     ip_list = list(ips)[:20]
     if not ip_list:
-        return f"tcp port {port} or udp port {port}"
+        return f"{default_proto} port {port}"
     clauses = [f"(host {ip} and port {port})" for ip in ip_list if ip]
     return " or ".join(clauses) if clauses else f"{default_proto} port {port}"
+# <<< END FIX >>>
 
 
 # --- Advanced DNS functionality ---
+# <<< FIX: Filter for valid IPs from DoH and use get_running_loop >>>
 async def resolve_all_ips(domain: str) -> Set[str]:
     """Агрегирует IP-адреса для домена из системного резолвера и DoH."""
+    from ipaddress import ip_address
+    def _is_ip(s):
+        try:
+            ip_address(s)
+            return True
+        except ValueError:
+            return False
+
     ips = set()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     # 1. Системный резолвер (getaddrinfo)
     try:
         res = await loop.getaddrinfo(domain, None, family=socket.AF_INET)
-        ips.update(info[4][0] for info in res)
+        ips.update(info[4][0] for info in res if _is_ip(info[4][0]))
     except socket.gaierror:
         pass
     # 1.1. IPv6 (если доступно)
     try:
         res6 = await loop.getaddrinfo(domain, None, family=socket.AF_INET6)
-        ips.update(info[4][0] for info in res6)
+        ips.update(info[4][0] for info in res6 if _is_ip(info[4][0]))
     except socket.gaierror:
         pass
 
@@ -313,11 +337,9 @@ async def resolve_all_ips(domain: str) -> Set[str]:
                                 try:
                                     j = json.loads(text)
                                     for ans in j.get("Answer", []):
-                                        if ans.get("data"):
-                                            ips.add(ans.get("data"))
-                                    # Если получили результат, выходим из внутренних запросов этого DoH
-                                    if j.get("Answer"):
-                                        break
+                                        data = ans.get("data")
+                                        if data and _is_ip(data):
+                                            ips.add(data)
                                 except json.JSONDecodeError:
                                     continue
                 except Exception:
@@ -325,12 +347,15 @@ async def resolve_all_ips(domain: str) -> Set[str]:
     except ImportError:
         pass
 
-    return {ip for ip in ips if ip}
+    return {ip for ip in ips if _is_ip(ip)}
+# <<< END FIX >>>
 
 
 async def probe_real_peer_ip(domain: str, port: int) -> Optional[str]:
     """Активно подключается, чтобы узнать реальный IP, выбранный ОС."""
     try:
+        # <<< FIX: Use get_running_loop >>>
+        loop = asyncio.get_running_loop()
         _, writer = await asyncio.open_connection(domain, port)
         ip = writer.get_extra_info("peername")[0]
         if hasattr(writer, "close"):
@@ -1220,6 +1245,13 @@ class SimpleFingerprinter:
                             response = await resp
                         else:
                             response = resp
+                        
+                        # <<< FIX: Consume response body to avoid resource warnings >>>
+                        try:
+                            await response.read()
+                        except Exception:
+                            pass
+                        # <<< END FIX >>>
 
                         # Аккуратно читаем статус
                         status_obj = getattr(response, "status", None)
@@ -1372,40 +1404,32 @@ class SimpleReporter:
 
     def print_summary(self, report: dict):
         console.print("\n[bold underline]📊 Test Summary Report[/bold underline]")
-        console.print(f"Target: [cyan]{report['target']}[/cyan]")
-        console.print(f"Strategies tested: {report['total_strategies_tested']}")
+        console.print(f"Target: [cyan]{report.get('target', 'N/A')}[/cyan]")
+        
+        metadata = report.get('metadata', {})
+        key_metrics = report.get('key_metrics', {})
+        strategy_effectiveness = report.get('strategy_effectiveness', {})
+        
+        console.print(f"Strategies tested: {metadata.get('total_strategies_tested', report.get('total_strategies_tested', 0))}")
         console.print(
-            f"Working strategies: [green]{report['working_strategies_found']}[/green]"
+            f"Working strategies: [green]{metadata.get('working_strategies_found', report.get('working_strategies_found', 0))}[/green]"
         )
-        console.print(f"Success rate: [yellow]{report['success_rate']:.1%}[/yellow]")
-        console.print(f"Execution time: {report['execution_time_seconds']:.1f}s")
-        if report["best_strategy"]:
-            best = report["best_strategy"]
+        
+        success_rate_percent = key_metrics.get('overall_success_rate', report.get('success_rate', 0) * 100)
+        console.print(f"Success rate: [yellow]{success_rate_percent / 100.0:.1%}[/yellow]")
+        
+        console.print(f"Execution time: {report.get('execution_time_seconds', 0):.1f}s")
+        
+        top_working = strategy_effectiveness.get('top_working', [])
+        best_strategy_from_report = report.get('best_strategy')
+        
+        if top_working:
+            best = top_working[0]
             console.print(f"Best strategy: [cyan]{best.get('strategy', 'N/A')}[/cyan]")
             console.print(f"Best latency: {best.get('avg_latency_ms', 0):.1f}ms")
-        
-        # Print domain-specific results
-        domains = report.get("domains", {})
-        if domains:
-            console.print("\n[bold underline]🌐 Domain-Specific Results[/bold underline]")
-            working_domains = [domain for domain, data in domains.items() 
-                             if data.get("success_rate", 0) > 0]
-            blocked_domains = [domain for domain, data in domains.items() 
-                             if data.get("success_rate", 0) == 0]
-            
-            console.print(f"Working domains: [green]{len(working_domains)}[/green]")
-            for domain in working_domains:
-                data = domains[domain]
-                strategy = data.get("best_strategy", "N/A")
-                success_rate = data.get("success_rate", 0)
-                latency = data.get("avg_latency_ms", 0)
-                console.print(f"  ✓ {domain}: [cyan]{strategy}[/cyan] ({success_rate:.1%}, {latency:.1f}ms)")
-            
-            console.print(f"Blocked domains: [red]{len(blocked_domains)}[/red]")
-            for domain in blocked_domains[:10]:  # Show first 10 blocked domains
-                console.print(f"  ✗ {domain}")
-            if len(blocked_domains) > 10:
-                console.print(f"  ... and {len(blocked_domains) - 10} more")
+        elif best_strategy_from_report:
+            console.print(f"Best strategy: [cyan]{best_strategy_from_report.get('strategy', 'N/A')}[/cyan]")
+            console.print(f"Best latency: {best_strategy_from_report.get('avg_latency_ms', 0):.1f}ms")
 
 # --- Advanced DNS resolution helper ---
 async def run_advanced_dns_resolution(
@@ -1527,10 +1551,27 @@ async def run_hybrid_mode(args):
                                  enable_online_optimization=bool(args.enable_optimization))
 
     reporter = SimpleReporter(debug=args.debug)
-    simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
-    advanced_fingerprinter = None
+    
+    # <<< FIX 2: Add conditional check and a fallback for the reporter >>>
+    advanced_reporter = None
+    if UNIFIED_COMPONENTS_AVAILABLE:
+        advanced_reporter = AdvancedReportingIntegration()
+        await advanced_reporter.initialize()
+    else:
+        # Create a dummy reporter if the real one is not available
+        class DummyAdvancedReporter:
+            async def initialize(self): pass
+            async def generate_system_performance_report(self, *args, **kwargs): return None
+        advanced_reporter = DummyAdvancedReporter()
+    # <<< END FIX 2 >>>
 
     learning_cache = AdaptiveLearningCache()
+    simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
+    
+    # <<< FIX: Keep a reference to the unified fingerprinter for refinement >>>
+    unified_fingerprinter = None
+    refiner = None
+    # <<< END FIX >>>
     
     # Background PCAP insights worker (enhanced tracking)
     pcap_worker_task = None
@@ -1655,182 +1696,40 @@ async def run_hybrid_mode(args):
         )
         console.print("[dim]   For better results, install: pip install pydivert[/dim]")
 
-    # Шаг 2.5: DPI Fingerprinting (AdvancedFingerprinter с PCAP-интеграцией)
+    # Шаг 2.5: DPI Fingerprinting
     fingerprints = {}
-    pcap_profile_now = None
     if args.fingerprint:
         console.print("\n[yellow]Step 2.5: DPI Fingerprinting...[/yellow]")
 
-        prefer_quic = False
-        if args.pcap and PROFILER_AVAILABLE and os.path.exists(args.pcap):
-            try:
-                profiler = AdvancedTrafficProfiler()
-                pcap_profile_now = profiler.analyze_pcap_file(args.pcap)
-                if pcap_profile_now and pcap_profile_now.success:
-                    ctx_now = pcap_profile_now.metadata.get("context", {})
-                    prefer_quic = ctx_now.get("quic_initial_count", 0) > 0
-            except Exception:
-                pass
-
-        if ADV_FPR_AVAILABLE:
-            # Create optimized configuration from CLI arguments
-            cfg = FingerprintingConfig(
+        if UNIFIED_COMPONENTS_AVAILABLE:
+            # <<< FIX: Use aliased config name >>>
+            cfg = UnifiedFPConfig(
+                timeout=args.connect_timeout + args.tls_timeout,
+                enable_cache=False,
                 analysis_level=args.analysis_level,
-                max_parallel_targets=1 if args.sequential else args.parallel,
-                enable_fail_fast=not args.no_fail_fast,
-                enable_scapy_probes=args.enable_scapy,
-                sni_probe_mode=args.sni_mode,
-                connect_timeout=args.connect_timeout,
-                tls_timeout=args.tls_timeout,
-                udp_timeout=0.3  # Keep default UDP timeout
+                connect_timeout=5.0,
+                tls_timeout=10.0 
             )
-            setattr(cfg, "pcap_path", args.pcap or "")
-            setattr(cfg, "http_force_sni", True)
-            setattr(cfg, "http_send_host_header", True)
-            setattr(cfg, "alpn_protocols", ["h2", "http/1.1"])
-            setattr(cfg, "prefer_quic", prefer_quic)
-            if pcap_profile_now and pcap_profile_now.success:
-                setattr(cfg, "pcap_profile", pcap_profile_now.metadata)
+            # <<< FIX: Store reference to the fingerprinter for later refinement >>>
+            unified_fingerprinter = UnifiedFingerprinter(config=cfg)
+            refiner = unified_fingerprinter
+            
+            targets_to_probe = [(urlparse(site).hostname or site, args.port) for site in blocked_sites]
+            
+            console.print(f"[dim]🚀 Using UnifiedFingerprinter with concurrency: {args.parallel}[/dim]")
 
-            advanced_fingerprinter = AdvancedFingerprinter(config=cfg)
+            fingerprint_results = await unified_fingerprinter.fingerprint_batch(
+                targets=targets_to_probe,
+                force_refresh=True,
+                max_concurrent=args.parallel
+            )
 
-            # Show optimization info
-            if not args.sequential:
-                console.print(f"[dim]🚀 Using parallel processing: {args.parallel} domains simultaneously[/dim]")
-                estimated_times = {
-                    'fast': '1-2 min', 'balanced': '2-3 min', 'full': '6-8 min'
-                }
-                console.print(f"[dim]⚡ Analysis level: {args.analysis_level} (estimated time: {estimated_times[args.analysis_level]} for ~30 domains)[/dim]")
-            else:
-                console.print("[dim]🐌 Using sequential processing (for comparison)[/dim]")
-
-            hostnames = [urlparse(site).hostname or site for site in blocked_sites]
-
-            if args.sequential:
-                # Sequential processing (original method)
-                with Progress(console=console, transient=True) as progress:
-                    task = progress.add_task(
-                        "[cyan]Fingerprinting (sequential)...", total=len(blocked_sites)
-                    )
-                    for site in blocked_sites:
-                        hostname = urlparse(site).hostname or site
-                        protocols = ["http", "https"]
-                        if prefer_quic:
-                            protocols.append("quic")
-                        try:
-                            fp = await advanced_fingerprinter.fingerprint_target(
-                                hostname, port=args.port, protocols=protocols
-                            )
-                            fingerprints[hostname] = fp
-                            try:
-                                dpi_value = getattr(
-                                    fp.dpi_type,
-                                    "value",
-                                    str(getattr(fp.dpi_type, "name", "unknown")),
-                                )
-                                console.print(
-                                    f"  - {hostname}: [cyan]{dpi_value}[/cyan] "
-                                    f"(reliability: {getattr(fp, 'reliability_score', 0):.2f})"
-                                )
-                            except Exception:
-                                console.print(f"  - {hostname}: fingerprint collected")
-                        except Exception as e:
-                            console.print(
-                                f"[yellow]  - {hostname}: Advanced fingerprint failed ({e}), fallback...[/yellow]"
-                            )
-                            target_ip = dns_cache.get(hostname)
-                            if target_ip:
-                                fp_simple = await simple_fingerprinter.create_fingerprint(
-                                    hostname, target_ip, args.port
-                                )
-                                fingerprints[hostname] = fp_simple
-                        progress.update(task, advance=1)
-            else:
-                # Parallel processing (new optimized method)
-                targets = [(hostname, args.port) for hostname in hostnames]
-                protocols = ["http", "https"]
-                if prefer_quic:
-                    protocols.append("quic")
-
-                import time
-                start_time = time.time()
-
-                with Progress(console=console, transient=True) as progress:
-                    task = progress.add_task(
-                        f"[cyan]Fingerprinting (parallel x{args.parallel})...", total=len(targets)
-                    )
-
-                    try:
-                        # Use the new parallel fingerprinting method
-                        fps = await advanced_fingerprinter.fingerprint_many(
-                            targets,
-                            protocols=protocols,
-                            concurrency=args.parallel
-                        )
-
-                        total_time = time.time() - start_time
-                        successful_count = sum(1 for fp in fps if fp is not None)
-
-                        # Process results
-                        for i, hostname in enumerate(hostnames):
-                            fp = fps[i] if i < len(fps) else None
-                            if fp:
-                                fingerprints[hostname] = fp
-                                try:
-                                    dpi_value = getattr(
-                                        fp.dpi_type,
-                                        "value",
-                                        str(getattr(fp.dpi_type, "name", "unknown")),
-                                    )
-                                    console.print(
-                                        f"  - {hostname}: [cyan]{dpi_value}[/cyan] "
-                                        f"(reliability: {getattr(fp, 'reliability_score', 0):.2f})"
-                                    )
-                                except Exception:
-                                    console.print(f"  - {hostname}: fingerprint collected")
-                            else:
-                                console.print(f"[yellow]  - {hostname}: Fingerprinting failed, using fallback[/yellow]")
-                                target_ip = dns_cache.get(hostname)
-                                if target_ip:
-                                    fp_simple = await simple_fingerprinter.create_fingerprint(
-                                        hostname, target_ip, args.port
-                                    )
-                                    fingerprints[hostname] = fp_simple
-                            progress.update(task, advance=1)
-
-                        # Show performance summary
-                        estimated_sequential_time = total_time * args.parallel
-                        speedup = estimated_sequential_time / total_time if total_time > 0 else 1.0
-                        console.print(
-                            f"[dim]✅ Parallel fingerprinting completed: {successful_count}/{len(targets)} successful "
-                            f"in {total_time:.1f}s (estimated {speedup:.1f}x speedup vs sequential)[/dim]"
-                        )
-
-                    except Exception as e:
-                        console.print(f"[red]Parallel fingerprinting failed: {e}[/red]")
-                        console.print("[yellow]Falling back to sequential processing...[/yellow]")
-                        # Fallback to sequential if parallel fails
-                        for site in blocked_sites:
-                            hostname = urlparse(site).hostname or site
-                            try:
-                                fp = await advanced_fingerprinter.fingerprint_target(
-                                    hostname, port=args.port, protocols=protocols
-                                )
-                                fingerprints[hostname] = fp
-                            except Exception:
-                                target_ip = dns_cache.get(hostname)
-                                if target_ip:
-                                    fp_simple = await simple_fingerprinter.create_fingerprint(
-                                        hostname, target_ip, args.port
-                                    )
-                                    fingerprints[hostname] = fp_simple
-
-            # Cleanup
-            await advanced_fingerprinter.close()
+            for fp in fingerprint_results:
+                if fp:
+                    fingerprints[fp.target] = fp
+                    console.print(f"  - {fp.target}: [cyan]{fp.dpi_type.value}[/cyan] (reliability: {fp.reliability_score:.2f})")
         else:
-            console.print(
-                "[yellow]AdvancedFingerprinter not available, using simple fingerprinting[/yellow]"
-            )
+            console.print("[yellow]UnifiedFingerprinter not available, using fallback simple fingerprinting[/yellow]")
             with Progress(console=console, transient=True) as progress:
                 task = progress.add_task(
                     "[cyan]Fingerprinting (simple)...", total=len(blocked_sites)
@@ -1847,6 +1746,7 @@ async def run_hybrid_mode(args):
                             f"  - {hostname}: [cyan]{fp.dpi_type}[/cyan] ({fp.blocking_method})"
                         )
                     progress.update(task, advance=1)
+
     else:
         console.print(
             "[dim]Skipping fingerprinting (use --fingerprint to enable)[/dim]"
@@ -1861,12 +1761,10 @@ async def run_hybrid_mode(args):
         generator = ZapretStrategyGenerator()
         fingerprint_for_strategy = None
         if fingerprints:
-            # Use the actual fingerprint object for enhanced strategy generation
             first_fp = next(iter(fingerprints.values()))
             fingerprint_for_strategy = first_fp
             console.print("Using fingerprint for strategy generation")
         else:
-            # No fingerprint available - use generic strategy generation
             fingerprint_for_strategy = None
         strategies = generator.generate_strategies(fingerprint_for_strategy, count=args.count)
         console.print(f"Generated {len(strategies)} strategies to test.")
@@ -1893,27 +1791,22 @@ async def run_hybrid_mode(args):
                 strategies = optimized_strategies
     console.print("[dim]Parsing strategies into structured format...[/dim]")
     structured_strategies = []
-    # Попробуем достать микропараметры из StrategyManager
     domain_for_priors = None
     try:
         from core.strategy_manager import StrategyManager
         sm = StrategyManager()
-        # Возьмём первый домен из dns_cache как «ближайший» к текущему запуску
         domain_for_priors = list(dns_cache.keys())[0] if dns_cache else None
         ds = sm.get_strategy(domain_for_priors) if domain_for_priors else None
     except Exception:
         ds = None
     for s_str in strategies:
         try:
-            # Используем исправленный интерпретатор стратегий
             parsed_strategy = interpret_strategy(s_str)
             if parsed_strategy:
-                # Преобразуем в формат для движка
                 engine_task = {
                     "type": parsed_strategy.get("type", "unknown"),
                     "params": parsed_strategy.get("params", {})
                 }
-                # Инъекция приоритетов из StrategyManager, если есть
                 if ds and isinstance(engine_task.get("params"), dict):
                     p = engine_task["params"]
                     if ds.split_pos and "split_pos" not in p:
@@ -1939,22 +1832,27 @@ async def run_hybrid_mode(args):
 
     # Шаг 4: Гибридное тестирование
     console.print("\n[yellow]Step 4: Hybrid testing with forced DNS...[/yellow]")
+    
+    primary_domain = list(dns_cache.keys())[0] if dns_cache else None
+    fingerprint_to_use = fingerprints.get(primary_domain)
+    
     test_results = await hybrid_engine.test_strategies_hybrid(
         strategies=structured_strategies,
         test_sites=blocked_sites,
         ips=set(dns_cache.values()),
         dns_cache=dns_cache,
         port=args.port,
-        domain=list(dns_cache.keys())[0],
+        domain=primary_domain,
         fast_filter=not args.no_fast_filter,
         initial_ttl=None,
         enable_fingerprinting=bool(args.fingerprint and fingerprints),
         telemetry_full=args.telemetry_full,
         engine_override=args.engine,
-        capturer=corr_capturer
+        capturer=corr_capturer,
+        fingerprint=fingerprint_to_use
     )
 
-    # Шаг 5: Уточнение фингерпринта результатами
+    # <<< FIX: Robust fingerprint refinement logic >>>
     if args.fingerprint and fingerprints:
         console.print(
             "\n[yellow]Step 5: Refining DPI fingerprint with test results...[/yellow]"
@@ -1969,29 +1867,20 @@ async def run_hybrid_mode(args):
         }
         for domain, fp in fingerprints.items():
             try:
-                if advanced_fingerprinter and hasattr(
-                    advanced_fingerprinter, "refine_fingerprint"
-                ):
-                    refined_fp = await advanced_fingerprinter.refine_fingerprint(
-                        fp, feedback_data
-                    )
+                if refiner and hasattr(refiner, "refine_fingerprint") and isinstance(fp, (UnifiedFingerprint, DPIFingerprint)):
+                    refined_fp = await refiner.refine_fingerprint(fp, feedback_data)
+                elif isinstance(fp, SimpleFingerprint):
+                    refined_fp = await simple_fingerprinter.refine_fingerprint(fp, feedback_data)
                 else:
-                    refined_fp = await simple_fingerprinter.refine_fingerprint(
-                        fp, feedback_data
-                    )
+                    refined_fp = fp  # Skip refinement if no suitable refiner is found
+                
                 fingerprints[domain] = refined_fp
                 new_type = getattr(refined_fp, "dpi_type", None)
-                if hasattr(new_type, "value"):
-                    new_type_str = new_type.value
-                else:
-                    new_type_str = str(new_type)
-                console.print(
-                    f"  - Fingerprint for {domain} refined. New type: {new_type_str}"
-                )
+                new_type_str = getattr(new_type, "value", str(new_type))
+                console.print(f"  - Fingerprint for {domain} refined. New type: {new_type_str}")
             except Exception as e:
-                console.print(
-                    f"[yellow]  - Fingerprint refine failed for {domain}: {e}[/yellow]"
-                )
+                console.print(f"[yellow]  - Fingerprint refine failed for {domain}: {e}[/yellow]")
+    # <<< END FIX >>>
 
     # Шаг 4.5: Сохранение результатов в кэш обучения
     console.print("[dim]💾 Updating adaptive learning cache...[/dim]")
@@ -2045,6 +1934,8 @@ async def run_hybrid_mode(args):
             console.print(f"[yellow]⚠️ Correlation analysis failed: {e}[/yellow]")
 
     # Сравнение паттернов zapret vs recon при наличии PCAPов в корне (zapret.pcap/recon.pcap)
+    # <<< FIX: Initialize validator to None to prevent NameError >>>
+    validator = None
     if PKTVAL_AVAILABLE and Path("zapret.pcap").exists() and Path("recon.pcap").exists():
         console.print("\n[yellow]Step 5.1: Packet pattern validation (zapret vs recon)...[/yellow]")
         try:
@@ -2058,10 +1949,10 @@ async def run_hybrid_mode(args):
         except Exception as e:
             console.print(f"[yellow]⚠️ Packet pattern validation failed: {e}[/yellow]")
         finally:
-            try:
-                validator.close_logging()
-            except Exception:
-                pass
+            if validator:
+                try: validator.close_logging()
+                except Exception: pass
+    # <<< END FIX >>>
 
     # Если есть PCAP и доступен профилировщик — проанализируем и добавим в отчет
     pcap_profile_result = None
@@ -2174,31 +2065,53 @@ async def run_hybrid_mode(args):
         )
         console.print("=" * 50 + "\n")
 
-    # Репорт
-    domain_status = {site: "BLOCKED" for site in blocked_sites}
-    cache_stats = learning_cache.get_cache_stats()
-    report = reporter.generate_report(test_results, domain_status, args, fingerprints)
-    report["learning_cache_stats"] = cache_stats
-    # Включаем полный срез телеметрии (если был запрошен) — агрегируем по стратегиям
-    if args.telemetry_full:
-        try:
-            report["engine_telemetry_full"] = [
-                {"strategy": r.get("strategy"), "telemetry": r.get("engine_telemetry_full")}
-                for r in test_results if "engine_telemetry_full" in r
-            ]
-        except Exception:
-            pass
-    if pcap_profile_result and pcap_profile_result.success:
-        report["pcap_profile"] = {
-            "detected_applications": pcap_profile_result.detected_applications,
-            "confidence_scores": pcap_profile_result.confidence_scores,
-            "metadata": pcap_profile_result.metadata,
-        }
-    reporter.print_summary(report)
+    # <<< FIX: Robust report generation and printing >>>
+    console.print("\n[yellow]Step 6: Generating Comprehensive Report...[/yellow]")
 
-    report_filename = reporter.save_report(report)
+    def _fp_to_dict(v):
+        try: return v.to_dict()
+        except Exception:
+            try: return v.__dict__
+            except Exception: return str(v)
+
+    system_report = await advanced_reporter.generate_system_performance_report(period_hours=24)
+
+    final_report_data = {
+        "target": args.target,
+        "execution_time_seconds": time.time() - reporter.start_time,
+        "total_strategies_tested": len(test_results),
+        "working_strategies_found": len(working_strategies),
+        "success_rate": (len(working_strategies) / len(test_results) if test_results else 0),
+        "best_strategy": working_strategies[0] if working_strategies else None,
+        "report_summary": {
+            "generated_at": datetime.now().isoformat(),
+            "period": system_report.report_period if system_report else "N/A"
+        },
+        "key_metrics": {
+            "overall_success_rate": (len(working_strategies) / len(test_results) * 100) if test_results else 0,
+            "total_domains_tested": len(dm.domains),
+            "blocked_domains_count": len(blocked_sites),
+            "total_attacks_24h": system_report.total_attacks if system_report else len(test_results),
+            "average_effectiveness_24h": system_report.average_effectiveness if system_report else 0
+        },
+        "metadata": {
+            "working_strategies_found": len(working_strategies),
+            "total_strategies_tested": len(test_results)
+        },
+        "fingerprints": {k: _fp_to_dict(v) for k, v in fingerprints.items()},
+        "strategy_effectiveness": {
+            "top_working": sorted(working_strategies, key=lambda x: x.get('success_rate', 0), reverse=True)[:5],
+            "top_failing": sorted([r for r in test_results if r.get('success_rate', 0) <= 0.5], key=lambda x: x.get('success_rate', 0))[:5]
+        },
+        "all_results": test_results
+    }
+
+    reporter.print_summary(final_report_data)
+
+    report_filename = reporter.save_report(final_report_data, filename="recon_summary.json")
     if report_filename:
         console.print(f"[green]📄 Detailed report saved to: {report_filename}[/green]")
+    # <<< END FIX >>>
 
     # KB summary: причины блокировок по CDN и доменам
     try:
@@ -2229,12 +2142,22 @@ async def run_hybrid_mode(args):
         await start_monitoring_mode(args, blocked_sites, learning_cache)
 
     hybrid_engine.cleanup()
-    # Stop worker if running
-    if 'pcap_worker_task' in locals() and pcap_worker_task:
+    # <<< FIX: Await cancelled PCAP worker task >>>
+    if pcap_worker_task:
+        pcap_worker_task.cancel()
         try:
-            pcap_worker_task.cancel()
+            await pcap_worker_task
+        except asyncio.CancelledError:
+            pass # Expected
+    # <<< END FIX >>>
+    
+    # <<< FIX: Cleanup refiner if it was created >>>
+    if refiner and hasattr(refiner, 'close'):
+        try:
+            await refiner.close()
         except Exception:
             pass
+    # <<< END FIX >>>
 
 
 async def run_single_strategy_mode(args):

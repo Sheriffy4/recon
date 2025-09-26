@@ -1,3 +1,5 @@
+# recon/core/fingerprint/unified_models.py
+
 """
 Unified Fingerprinting Data Models - Task 22 Implementation
 Standardizes all fingerprinting data models into a single, coherent structure.
@@ -316,7 +318,7 @@ class UnifiedFingerprint:
     def calculate_dpi_hash(self) -> str:
         """Calculate hash based on DPI characteristics"""
         characteristics = {
-            "dpi_type": self.dpi_type.value,
+            "dpi_type": self.dpi_type.value if isinstance(self.dpi_type, Enum) else self.dpi_type,
             "tcp_rst_injection": self.tcp_analysis.rst_injection_detected,
             "tcp_window_manipulation": self.tcp_analysis.tcp_window_manipulation,
             "sni_blocking": self.tls_analysis.sni_blocking_detected,
@@ -404,7 +406,7 @@ class UnifiedFingerprint:
         """Get summary of analysis results"""
         return {
             "target": f"{self.target}:{self.port}",
-            "dpi_type": self.dpi_type.value,
+            "dpi_type": self.dpi_type.value if isinstance(self.dpi_type, Enum) else self.dpi_type,
             "confidence": self.confidence,
             "reliability_score": self.reliability_score,
             "analysis_duration": self.analysis_duration,
@@ -425,18 +427,21 @@ class UnifiedFingerprint:
         }
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization"""
+        """Convert to dictionary for serialization, handling potential string-enums."""
+        def get_enum_value(val):
+            return val.value if isinstance(val, Enum) else val
+
         return {
             "target": self.target,
             "port": self.port,
             "timestamp": self.timestamp,
             "analysis_duration": self.analysis_duration,
             "fingerprint_version": self.fingerprint_version,
-            "dpi_type": self.dpi_type.value,
+            "dpi_type": get_enum_value(self.dpi_type),
             "confidence": self.confidence,
             "reliability_score": self.reliability_score,
             "tcp_analysis": {
-                "status": self.tcp_analysis.status.value,
+                "status": get_enum_value(self.tcp_analysis.status),
                 "rst_injection_detected": self.tcp_analysis.rst_injection_detected,
                 "tcp_window_manipulation": self.tcp_analysis.tcp_window_manipulation,
                 "sequence_tracking": self.tcp_analysis.sequence_tracking,
@@ -444,28 +449,28 @@ class UnifiedFingerprint:
                 "probe_results": [r.to_dict() for r in self.tcp_analysis.probe_results]
             },
             "http_analysis": {
-                "status": self.http_analysis.status.value,
+                "status": get_enum_value(self.http_analysis.status),
                 "http_blocking_detected": self.http_analysis.http_blocking_detected,
                 "http2_support": self.http_analysis.http2_support,
                 "probe_results": [r.to_dict() for r in self.http_analysis.probe_results]
             },
             "tls_analysis": {
-                "status": self.tls_analysis.status.value,
+                "status": get_enum_value(self.tls_analysis.status),
                 "sni_blocking_detected": self.tls_analysis.sni_blocking_detected,
                 "cipher_suite_filtering": self.tls_analysis.cipher_suite_filtering,
                 "probe_results": [r.to_dict() for r in self.tls_analysis.probe_results]
             },
             "dns_analysis": {
-                "status": self.dns_analysis.status.value,
+                "status": get_enum_value(self.dns_analysis.status),
                 "dns_blocking_detected": self.dns_analysis.dns_blocking_detected,
                 "doh_support": self.dns_analysis.doh_support,
                 "probe_results": [r.to_dict() for r in self.dns_analysis.probe_results]
             },
             "ml_classification": {
-                "status": self.ml_classification.status.value,
-                "predicted_dpi_type": self.ml_classification.predicted_dpi_type.value,
+                "status": get_enum_value(self.ml_classification.status),
+                "predicted_dpi_type": get_enum_value(self.ml_classification.predicted_dpi_type),
                 "confidence": self.ml_classification.confidence,
-                "alternative_predictions": [(t.value, c) for t, c in self.ml_classification.alternative_predictions]
+                "alternative_predictions": [(get_enum_value(t), c) for t, c in self.ml_classification.alternative_predictions]
             },
             "recommended_strategies": [
                 {

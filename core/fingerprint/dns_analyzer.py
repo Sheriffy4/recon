@@ -548,7 +548,6 @@ class DNSAnalyzer:
             return None
 
     async def _query_doh(self, domain: str, server_url: str) -> Optional[DNSResponse]:
-        """Query DNS using DoH (DNS over HTTPS)"""
         try:
             timeout = aiohttp.ClientTimeout(total=self.timeout)
 
@@ -560,7 +559,9 @@ class DNSAnalyzer:
                     server_url, params=params, headers=headers
                 ) as response:
                     if response.status == 200:
-                        data = await response.json()
+                        # Read JSON, disabling content-type check for compatibility
+                        # with servers like Google that use application/json
+                        data = await response.json(content_type=None)
 
                         answers = []
                         if "Answer" in data:
