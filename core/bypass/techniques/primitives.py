@@ -1,9 +1,12 @@
+# recon/core/bypass/techniques/primitives.py
+
 import struct
 from typing import List, Tuple, Dict, Optional
 
 class BypassTechniques:
     """Библиотека продвинутых техник обхода DPI."""
 
+    
     @staticmethod
     def apply_fakeddisorder(
         payload: bytes,
@@ -14,70 +17,49 @@ class BypassTechniques:
         delay_ms: int = 0
     ) -> List[Tuple[bytes, int, dict]]:
         """
-        CRITICAL FIX: Corrected sequence number calculation for fakeddisorder attack.
-        
-        The sequence number for the second segment MUST be seq_первого + len(payload_первого)
-        to ensure proper TCP sequence number progression as expected by zapret compatibility.
+        CRITICAL FIX: Fakeddisorder в стиле zapret.
+        ВАЖНО: Фейковый пакет ВСЕГДА должен иметь испорченную checksum!
         """
         if fooling_methods is None:
-            fooling_methods = []
-
+            fooling_methods = ["badsum"]  # По умолчанию используем badsum
+        
         if split_pos >= len(payload):
             opts_real = {"is_fake": False, "tcp_flags": 0x18}
             return [(payload, 0, opts_real)]
 
         part1, part2 = (payload[:split_pos], payload[split_pos:])
-        ov = int(overlap_size) if isinstance(overlap_size, int) else 336
-        if ov < 0:
-            ov = 0
-        # CRITICAL FIX: Don't clamp overlap size for zapret compatibility
-        # The test expects the original overlap_size to be used in calculations
-        # even if it's larger than split_pos (resulting in negative offsets)
-        original_ov = ov
-        if ov > split_pos:
-            ov = split_pos  # Only clamp for payload splitting, not for offset calculation
-
-        # ИСПРАВЛЕНИЕ: Фейковый пакет должен содержать ПОЛНЫЙ payload
-        fake_payload = payload  # Не part1, а весь payload!
         
+        # Фейковый пакет = полный payload
+        fake_payload = payload
+
         opts_fake = {
             "is_fake": True,
             "ttl": fake_ttl,
             "tcp_flags": 0x18,
-            "seq_offset": 0
+            "seq_offset": 0,
+            "corrupt_tcp_checksum": True  # ВСЕГДА для фейка!
         }
         
-        if "badsum" in fooling_methods:
-            opts_fake["corrupt_tcp_checksum"] = True
+        # Дополнительные модификации в зависимости от fooling
         if "md5sig" in fooling_methods:
             opts_fake["add_md5sig_option"] = True
-        if "badseq" in fooling_methods:
-            opts_fake["corrupt_sequence"] = True
+        elif "badseq" in fooling_methods:
             opts_fake["seq_offset"] = -1
+            opts_fake["corrupt_sequence"] = True
+        # badsum уже обработан через corrupt_tcp_checksum
         
-        # CRITICAL FIX: Corrected sequence number calculation and segment order for real packets
-        if ov == 0:
-            # Без overlap: fake -> part2 -> part1 (zapret-style disorder)
-            # FIXED: Correct sequence number progression and segment order
-            opts_real1 = {"is_fake": False, "tcp_flags": 0x18}
-            opts_real2 = {"is_fake": False, "tcp_flags": 0x18}
-            return [
-                (fake_payload, 0, opts_fake),           # Фейковый с полным payload, offset=0
-                (part2, len(part1), opts_real2),        # FIXED: part2 (real2) с offset=len(part1)
-                (part1, 0, opts_real1)                  # FIXED: part1 (real1) с offset=0
-            ]
-        else:
-            # С overlap - zapret-style disorder sequence
-            # FIXED: Use original overlap size for offset calculation (zapret compatibility)
-            overlap_start = split_pos - original_ov
-            opts_real1 = {"is_fake": False, "tcp_flags": 0x18}
-            opts_real2 = {"is_fake": False, "tcp_flags": 0x18}
-            
-            return [
-                (fake_payload, 0, opts_fake),           # Фейковый с полным payload, offset=0
-                (part2, overlap_start, opts_real2),     # FIXED: part2 с правильным overlap offset (может быть отрицательным)
-                (part1, 0, opts_real1)                  # part1 с offset=0
-            ]
+        # Реальные сегменты
+        opts_real1 = {"is_fake": False, "tcp_flags": 0x18}
+        opts_real2 = {"is_fake": False, "tcp_flags": 0x18}
+        
+        # Смещение для второго пакета с учетом overlap
+        real_part2_offset = len(part1) - overlap_size
+
+        return [
+            (fake_payload, 0, opts_fake),           # 1. Фейковый пакет с BAD checksum
+            (part2, real_part2_offset, opts_real2), # 2. Вторая часть (disorder)
+            (part1, 0, opts_real1)                   # 3. Первая часть
+        ]
 
     @staticmethod
     def apply_multisplit(

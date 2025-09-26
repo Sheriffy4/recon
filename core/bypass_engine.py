@@ -1,3 +1,5 @@
+# recon/bypass_engine.py
+
 import platform
 import logging
 from typing import Set, Dict, Any, Optional, Union, List, Tuple
@@ -5,7 +7,9 @@ from typing import Set, Dict, Any, Optional, Union, List, Tuple
 from core.bypass.engine.factory import BypassEngineFactory
 from core.bypass.engine.base_engine import EngineConfig
 from core.bypass.techniques.primitives import BypassTechniques
-from core.fingerprint.advanced_models import DPIFingerprint # Corrected import for DPIFingerprint
+# <<< FIX: Import the new UnifiedFingerprint from the correct location >>>
+from core.fingerprint.unified_models import UnifiedFingerprint
+
 
 class BypassEngine:
     """

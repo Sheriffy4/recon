@@ -135,7 +135,8 @@ except Exception:
 try:
     from core.bypass.attacks.combo.advanced_traffic_profiler import (
         AdvancedTrafficProfiler,
-        DPIFingerprint,
+        # <<< FIX: Import UnifiedFingerprint here, not DPIFingerprint >>>
+        UnifiedFingerprint as DPIFingerprint, # Use an alias for compatibility if needed elsewhere
     )
 
     PROFILER_AVAILABLE = True
