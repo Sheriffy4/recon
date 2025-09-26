@@ -2917,6 +2917,34 @@ if platform.system() == "Windows":
             except Exception:
                 return {}
 
+        def report_high_level_outcome(self, target_ip: str, success: bool):
+            """
+            Receives the high-level outcome (e.g., from an HTTP client) for a connection
+            to a specific target IP and updates telemetry accordingly.
+            """
+            with self._tlock:
+                # Ensure the per_target entry is a standard dict, not a defaultdict factory result
+                if target_ip not in self._telemetry['per_target']:
+                     # Manually initialize the dictionary for the target
+                    self._telemetry['per_target'][target_ip] = {
+                        "segments_sent": 0, "fake_packets_sent": 0,
+                        "seq_offsets": defaultdict(int), "ttls_fake": defaultdict(int),
+                        "ttls_real": defaultdict(int), "overlaps": defaultdict(int),
+                        "last_outcome": None, "last_outcome_ts": None,
+                        "high_level_success": None,
+                        "high_level_outcome_ts": None,
+                    }
+
+                entry = self._telemetry['per_target'][target_ip]
+                entry['high_level_success'] = success
+                entry['high_level_outcome_ts'] = time.time()
+
+                # Increment new counters
+                if success:
+                    self._telemetry['aggregate']['high_level_successes'] = self._telemetry['aggregate'].get('high_level_successes', 0) + 1
+                else:
+                    self._telemetry['aggregate']['high_level_failures'] = self._telemetry['aggregate'].get('high_level_failures', 0) + 1
+
 else:
 
     class BypassEngine:

@@ -94,6 +94,11 @@ class BypassEngine:
         if self._engine:
             self._engine.stop()
 
+    def report_high_level_outcome(self, target_ip: str, success: bool):
+        """Delegates the high-level outcome report to the underlying engine."""
+        if self._engine and hasattr(self._engine, 'report_high_level_outcome'):
+            self._engine.report_high_level_outcome(target_ip, success)
+
     def set_strategy_override(self, strategy_task: Dict[str, Any]) -> None:
         """Delegates the strategy override call to the underlying engine."""
         if self._engine:
