@@ -776,6 +776,16 @@ class HybridEngine:
                 LOG.debug(f'Strategy test with DPI context: {self._get_dpi_type_value(fingerprint)}, RST injection: {getattr(getattr(fingerprint, "tcp_analysis", None), "rst_injection_detected", False)}, TCP manipulation: {getattr(getattr(fingerprint, "tcp_analysis", None), "tcp_window_manipulation", False)}')
             LOG.info(f'Результат реального теста: {successful_count}/{len(test_sites)} сайтов работают, ср. задержка: {avg_latency:.1f}ms')
 
+            # <<< FIX: Report high-level outcome back to the bypass engine >>>
+            if hasattr(bypass_engine, 'report_high_level_outcome'):
+                for site, result_tuple in results.items():
+                    # result_tuple is (status, ip_used, latency, response_status)
+                    status, target_ip, _, _ = result_tuple
+                    success = (status == 'WORKING')
+                    if target_ip and target_ip != 'N/A':
+                        bypass_engine.report_high_level_outcome(target_ip, success)
+            # <<< END FIX >>>
+
             telemetry = {}
             try:
                 telemetry = bypass_engine.get_telemetry_snapshot()

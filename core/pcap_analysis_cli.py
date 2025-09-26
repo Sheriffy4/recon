@@ -18,12 +18,6 @@ try:
 except ImportError:
     SCAPY_AVAILABLE = False
 
-try:
-    from core.pcap.rst_analyzer import RSTTriggerAnalyzer
-    RST_ANALYZER_AVAILABLE = True
-except ImportError:
-    RST_ANALYZER_AVAILABLE = False
-
 logger = logging.getLogger(__name__)
 
 
@@ -496,79 +490,39 @@ def analyze_pcap_for_strategies(pcap_file: str, config_file: Optional[str] = Non
     return asdict(result)
 
 
-def main():
-    import argparse
+if __name__ == '__main__':
     import sys
-
-    parser = argparse.ArgumentParser(description="PCAP Analysis CLI Tool.")
     
-    # Using a mutually exclusive group makes it so only one analysis command can be run at a time.
-    group = parser.add_mutually_exclusive_group(required=True)
+    if len(sys.argv) < 2:
+        print("Usage: python pcap_analysis_cli.py <pcap_file> [config_file]")
+        sys.exit(1)
 
-    group.add_argument(
-        "--analyze-strategies",
-        metavar="PCAP_FILE",
-        help="Analyzes PCAP for strategy effectiveness."
-    )
+    pcap_file = sys.argv[1]
+    config_file = sys.argv[2] if len(sys.argv) > 2 else None
     
-    group.add_argument(
-        "--find-rst-triggers",
-        metavar="PCAP_FILE",
-        help="Анализирует PCAP и находит пакеты, спровоцировавшие RST."
-    )
-
-    parser.add_argument(
-        "--config",
-        metavar="CONFIG_FILE",
-        help="Optional configuration file for strategy analysis (used with --analyze-strategies)."
-    )
-
-    args = parser.parse_args()
-
     # Set up logging
     logging.basicConfig(level=logging.INFO)
 
-    if args.analyze_strategies:
-        pcap_file = args.analyze_strategies
-        config_file = args.config
-
-        try:
-            result = analyze_pcap_for_strategies(pcap_file, config_file)
-
-            print(f"PCAP Analysis Results for {pcap_file}")
-            print(f"Total packets: {result['total_packets']:,}")
-            print(f"Total connections: {result['total_connections']:,}")
-            print(f"Success rate: {result['overall_success_rate']:.1%}")
-
-            if result['quic_traffic_detected']:
-                print("⚠ QUIC traffic detected")
-
-            print(f"\nDomain Analysis:")
-            for domain, stats in result['domain_analyses'].items():
-                print(f"  {domain}: {stats['success_rate']:.1%} success rate")
-
-            if result['recommendations']:
-                print(f"\nRecommendations:")
-                for rec in result['recommendations']:
-                    print(f"  • {rec}")
+    try:
+        result = analyze_pcap_for_strategies(pcap_file, config_file)
         
-        except Exception as e:
-            print(f"Analysis failed: {e}", file=sys.stderr)
-            sys.exit(1)
+        print(f"PCAP Analysis Results for {pcap_file}")
+        print(f"Total packets: {result['total_packets']:,}")
+        print(f"Total connections: {result['total_connections']:,}")
+        print(f"Success rate: {result['overall_success_rate']:.1%}")
 
-    elif args.find_rst_triggers:
-        if not RST_ANALYZER_AVAILABLE:
-            print("Ошибка: RSTTriggerAnalyzer не доступен.", file=sys.stderr)
-            sys.exit(1)
+        if result['quic_traffic_detected']:
+            print("⚠ QUIC traffic detected")
 
-        pcap_file = args.find_rst_triggers
-        if not Path(pcap_file).exists():
-            print(f"Ошибка: файл не найден {pcap_file}", file=sys.stderr)
-            sys.exit(1)
+        print(f"\nDomain Analysis:")
+        for domain, stats in result['domain_analyses'].items():
+            print(f"  {domain}: {stats['success_rate']:.1%} success rate")
 
-        analyzer = RSTTriggerAnalyzer(pcap_file)
-        triggers = analyzer.analyze()
-        analyzer.print_report(triggers)
+        if result['recommendations']:
+            print(f"\nRecommendations:")
+            for rec in result['recommendations']:
+                print(f"  • {rec}")
 
-if __name__ == '__main__':
-    main()
+    except Exception as e:
+        print(f"Analysis failed: {e}")
+        sys.exit(1)
