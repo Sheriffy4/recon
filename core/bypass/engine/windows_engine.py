@@ -10,6 +10,7 @@ import re
 import copy
 from collections import defaultdict
 from typing import List, Dict, Optional, Tuple, Set, Any
+from core.bypass.packet.types import TCPSegmentSpec
 from core.bypass.attacks.base import AttackResult, AttackStatus
 # Use unified primitives implementation
 import warnings
@@ -1246,8 +1247,8 @@ if platform.system() == "Windows":
                     ttl_list = [self.current_params["fake_ttl"]]
 
                     def _send_try(cand: CalibCandidate, ttl: int, d_ms: int):
-                        # Генерируем "рецепт" пакетов с помощью исправленного примитива
-                        segments = self.techniques.apply_fakeddisorder(
+                        # 1. Генерируем "рецепт" пакетов с помощью примитива
+                        segments_recipe = self.techniques.apply_fakeddisorder(
                             payload,
                             cand.split_pos,
                             cand.overlap_size,
@@ -1255,8 +1256,22 @@ if platform.system() == "Windows":
                             fooling_methods=fooling_list,
                             delay_ms=d_ms
                         )
-                        # Отправляем через исправленный sender, который умеет портить checksum
-                        self._send_attack_segments(packet, w, segments)
+
+                        # 2. Конвертируем рецепт в TCPSegmentSpec
+                        specs = []
+                        for seg_payload, rel_off, opts in segments_recipe:
+                            specs.append(TCPSegmentSpec(
+                                payload=seg_payload,
+                                rel_seq=rel_off,
+                                flags=opts.get("tcp_flags", 0x18), # PSH+ACK по умолчанию
+                                ttl=opts.get("ttl"),
+                                corrupt_tcp_checksum=opts.get("corrupt_tcp_checksum", False),
+                                is_fake=opts.get("is_fake", False),
+                                delay_ms_after=opts.get("delay_ms", 0)
+                            ))
+
+                        # 3. Отправляем через новый PacketSender
+                        self._packet_sender.send_tcp_segments(w, packet, specs)
 
                     def _wait_outcome(timeout: float=0.6) -> Optional[str]:
                         got = inbound_ev.wait(timeout=timeout)
