@@ -2,7 +2,17 @@
 # CORRECTED VERSION
 
 import struct
+import os
+import random
+import string
 from typing import List, Tuple, Dict, Optional
+
+def _gen_fake_sni(original: Optional[str] = None) -> str:
+    # zapret-подобный стиль: случайный label + .edu
+    # можешь заменить на .com/.net по вкусу или подстраиваться под TLD оригинала
+    label = "".join(random.choices(string.ascii_lowercase + string.digits, k=random.randint(8, 14)))
+    tld = "edu"
+    return f"{label}.{tld}"
 
 class BypassTechniques:
     """
@@ -30,6 +40,9 @@ class BypassTechniques:
             "add_md5sig_option": "md5sig" in fooling,
             "delay_ms_after": 5  # Небольшая задержка перед отправкой оригинала
         }
+
+        if "fakesni" in (fooling or []):
+            opts_fake["fooling_sni"] = _gen_fake_sni()
         
         opts_real = {
             "is_fake": False,
@@ -84,6 +97,9 @@ class BypassTechniques:
         if "badseq" in fooling_methods:
             opts_fake["corrupt_sequence"] = True # Указываем билдеру, что нужен неверный seq
             opts_fake["seq_offset"] = -1 # Явное смещение для builder'a
+
+        if "fakesni" in fooling_methods:
+            opts_fake["fooling_sni"] = _gen_fake_sni()
 
         # Параметры для реальных сегментов
         opts_real1 = {"is_fake": False, "tcp_flags": 0x10} # ACK
