@@ -663,7 +663,7 @@ class WindowsBypassEngine(IBypassEngine):
         for i, seg in enumerate(recipe):
             payload, rel_off, opts = seg if len(seg) == 3 else (seg[0], seg[1], {})
             default_flags = 0x10 | (0x08 if i == total - 1 else 0)
-            seq_extra = int(opts.get("seq_offset", 0))
+            seq_extra = int(opts.get("seq_offset", 0) or 0)
             if opts.get("corrupt_sequence"): seq_extra = -1
             
             # <<< РЕШЕНИЕ 4: Исправлено чтение задержки >>>
@@ -753,6 +753,14 @@ class WindowsBypassEngine(IBypassEngine):
 
             if recipe:
                 specs = self._recipe_to_specs(recipe)
+                # ensure zapret-like behavior: TTL/badsum only for fake segments
+                for sp in specs:
+                    if not getattr(sp, "is_fake", False):
+                        # Реальные пакеты — не трогаем TTL (пусть остаётся как у ОС)
+                        sp.ttl = None
+                        # И никаких badsum на реальных
+                        sp.corrupt_tcp_checksum = False
+
                 success = self._packet_sender.send_tcp_segments(w, packet, specs)
                 if not success:
                     self.logger.warning("Packet sender failed, forwarding original packet")

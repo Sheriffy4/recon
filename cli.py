@@ -1722,7 +1722,8 @@ async def run_hybrid_mode(args):
             fingerprint_results = await unified_fingerprinter.fingerprint_batch(
                 targets=targets_to_probe,
                 force_refresh=True,
-                max_concurrent=args.parallel
+                max_concurrent=args.parallel,
+                pcap_path=args.pcap
             )
 
             for fp in fingerprint_results:
