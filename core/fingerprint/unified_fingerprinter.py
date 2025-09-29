@@ -1,3 +1,5 @@
+# path: core/fingerprint/unified_fingerprinter.py
+
 """
 Unified Fingerprinter Interface - Task 22 Implementation
 Single entry point for all fingerprinting operations with clean architecture.
@@ -36,8 +38,7 @@ from .analyzer_adapters import (
     create_analyzer_adapter,
     get_available_analyzers,
     check_analyzer_availability,
-    BaseAnalyzerAdapter,
-    AnalyzerError
+    BaseAnalyzerAdapter
 )
 
 # Import cache with error handling
@@ -47,6 +48,16 @@ try:
 except ImportError as e:
     CACHE_AVAILABLE = False
     CACHE_IMPORT_ERROR = str(e)
+
+# Импорты для PCAP-фоллбэка
+try:
+    from core.pcap.rst_analyzer import RSTTriggerAnalyzer, parse_client_hello, generate_strategy_recs
+    from core.hybrid_engine import HybridEngine
+    from core.doh_resolver import DoHResolver
+    FALLBACK_COMPONENTS_AVAILABLE = True
+except ImportError as e:
+    FALLBACK_COMPONENTS_AVAILABLE = False
+    logging.getLogger(__name__).warning(f"Fallback components not available, second pass is disabled: {e}")
 
 
 @dataclass
@@ -132,7 +143,6 @@ class UnifiedFingerprinter:
         """Initialize available analyzer components using adapters"""
         self.analyzers = {}
         
-        # Check what analyzers are available
         available_analyzers = get_available_analyzers()
         availability_status = check_analyzer_availability()
         
@@ -143,9 +153,6 @@ class UnifiedFingerprinter:
                 self.logger.info("TCP analyzer adapter initialized")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize TCP analyzer adapter: {e}")
-        elif self.config.enable_tcp_analysis:
-            error = availability_status.get('tcp', {}).get('error', 'Unknown error')
-            self.logger.warning(f"TCP analyzer requested but not available: {error}")
         
         # HTTP Analyzer
         if self.config.enable_http_analysis and 'http' in available_analyzers:
@@ -154,77 +161,24 @@ class UnifiedFingerprinter:
                 self.logger.info("HTTP analyzer adapter initialized")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize HTTP analyzer adapter: {e}")
-        elif self.config.enable_http_analysis:
-            error = availability_status.get('http', {}).get('error', 'Unknown error')
-            self.logger.warning(f"HTTP analyzer requested but not available: {error}")
         
         # DNS Analyzer
         if self.config.enable_dns_analysis and 'dns' in available_analyzers:
             try:
-                self.analyzers['dns'] = create_analyzer_adapter('dns', timeout=self.config.timeout)
+                self.analyzers['dns'] = create_analyzer_adapter('dns', timeout=self.config.dns_timeout)
                 self.logger.info("DNS analyzer adapter initialized")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize DNS analyzer adapter: {e}")
-        elif self.config.enable_dns_analysis:
-            error = availability_status.get('dns', {}).get('error', 'Unknown error')
-            self.logger.warning(f"DNS analyzer requested but not available: {error}")
-        
+
         # ML Classifier
         if self.config.enable_ml_classification and 'ml' in available_analyzers:
             try:
-                self.analyzers['ml'] = create_analyzer_adapter('ml', timeout=self.config.timeout)
+                self.analyzers['ml'] = create_analyzer_adapter('ml')
                 self.logger.info("ML classifier adapter initialized")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize ML classifier adapter: {e}")
-        elif self.config.enable_ml_classification:
-            error = availability_status.get('ml', {}).get('error', 'Unknown error')
-            self.logger.warning(f"ML classifier requested but not available: {error}")
-        
-        # ECH Detector (optional)
-        if 'ech' in available_analyzers:
-            try:
-                self.analyzers['ech'] = create_analyzer_adapter('ech', 
-                    timeout=self.config.timeout, 
-                    dns_timeout=self.config.dns_timeout
-                )
-                self.logger.info("ECH detector adapter initialized")
-            except Exception as e:
-                self.logger.warning(f"Failed to initialize ECH detector adapter: {e}")
-        
-        # Advanced Probes - Task 23 Implementation
-        if 'advanced_tcp' in available_analyzers:
-            try:
-                self.analyzers['advanced_tcp'] = create_analyzer_adapter('advanced_tcp', 
-                    timeout=self.config.timeout
-                )
-                self.logger.info("Advanced TCP prober adapter initialized")
-            except Exception as e:
-                self.logger.warning(f"Failed to initialize Advanced TCP prober adapter: {e}")
-        
-        if 'advanced_tls' in available_analyzers:
-            try:
-                self.analyzers['advanced_tls'] = create_analyzer_adapter('advanced_tls', 
-                    timeout=self.config.timeout
-                )
-                self.logger.info("Advanced TLS prober adapter initialized")
-            except Exception as e:
-                self.logger.warning(f"Failed to initialize Advanced TLS prober adapter: {e}")
-        
-        if 'behavioral' in available_analyzers:
-            try:
-                self.analyzers['behavioral'] = create_analyzer_adapter('behavioral', 
-                    timeout=self.config.timeout
-                )
-                self.logger.info("Behavioral prober adapter initialized")
-            except Exception as e:
-                self.logger.warning(f"Failed to initialize Behavioral prober adapter: {e}")
-        
+
         self.logger.info(f"Initialized {len(self.analyzers)} analyzer adapters: {list(self.analyzers.keys())}")
-        
-        # Log availability status for debugging
-        for analyzer_name, status in availability_status.items():
-            if not status['available']:
-                self.logger.debug(f"Analyzer {analyzer_name} not available: {status['error']}")
     
     def _initialize_cache(self):
         """Initialize caching system"""
@@ -249,19 +203,11 @@ class UnifiedFingerprinter:
         target: str,
         port: int = 443,
         force_refresh: bool = False,
-        analysis_level: Optional[str] = None
+        analysis_level: Optional[str] = None,
+        pcap_path: Optional[str] = None
     ) -> UnifiedFingerprint:
         """
         Main fingerprinting method for a single target.
-        
-        Args:
-            target: Domain name or IP address
-            port: Target port (default 443)
-            force_refresh: Skip cache and force new analysis
-            analysis_level: Override default analysis level
-            
-        Returns:
-            UnifiedFingerprint object with analysis results
         """
         start_time = time.time()
         analysis_level = analysis_level or self.config.analysis_level
@@ -269,7 +215,6 @@ class UnifiedFingerprinter:
         self.logger.info(f"Starting fingerprinting for {target}:{port} (level: {analysis_level})")
         
         try:
-            # Check cache first
             if not force_refresh and self.cache:
                 cached_result = await self._check_cache(target, port)
                 if cached_result:
@@ -279,36 +224,40 @@ class UnifiedFingerprinter:
             
             self.stats["cache_misses"] += 1
             
-            # Create new fingerprint
             fingerprint = UnifiedFingerprint(target=target, port=port)
             
-            # Resolve IP addresses
             try:
-                ip_addresses = await self._resolve_target(target)
-                fingerprint.ip_addresses = ip_addresses
+                fingerprint.ip_addresses = await self._resolve_target(target)
             except Exception as e:
                 self.logger.warning(f"Failed to resolve {target}: {e}")
             
-            # Run analysis components based on level
             if analysis_level == "fast":
                 await self._run_fast_analysis(fingerprint)
             elif analysis_level == "comprehensive":
                 await self._run_comprehensive_analysis(fingerprint)
-            else:  # balanced
+            else:
                 await self._run_balanced_analysis(fingerprint)
             
-            # Calculate final scores
             fingerprint.reliability_score = fingerprint.calculate_reliability_score()
             fingerprint.analysis_duration = time.time() - start_time
-            
-            # Generate strategy recommendations
             fingerprint.recommended_strategies = await self._generate_strategy_recommendations(fingerprint)
             
-            # Cache the result
+            # <<< РЕШЕНИЕ: Запускаем PCAP-фоллбэк при низкой надежности >>>
+            if pcap_path and fingerprint.reliability_score < 0.3:
+                fallback_results = await self._run_pcap_fallback_pass(target, port, pcap_path)
+                if fallback_results:
+                    # Добавляем информацию о фоллбэке в фингерпринт
+                    fingerprint.errors.append(
+                        AnalyzerError(
+                            analyzer_name="pcap_fallback",
+                            message="Low reliability triggered PCAP second pass.",
+                            details=fallback_results
+                        )
+                    )
+
             if self.cache and fingerprint.reliability_score > 0.5:
                 await self._cache_result(fingerprint)
             
-            # Update statistics
             self.stats["fingerprints_created"] += 1
             self.stats["total_analysis_time"] += fingerprint.analysis_duration
             
@@ -324,488 +273,221 @@ class UnifiedFingerprinter:
             self.logger.error(f"Fingerprinting failed for {target}:{port}: {e}")
             
             if self.config.fallback_on_error:
-                # Return minimal fingerprint on error
                 fingerprint = UnifiedFingerprint(target=target, port=port)
                 fingerprint.analysis_duration = time.time() - start_time
                 return fingerprint
             else:
                 raise FingerprintingError(f"Fingerprinting failed for {target}:{port}: {e}")
-    
+
     async def fingerprint_batch(
         self,
         targets: List[Tuple[str, int]],
         force_refresh: bool = False,
-        max_concurrent: Optional[int] = None
+        max_concurrent: Optional[int] = None,
+        pcap_path: Optional[str] = None
     ) -> List[UnifiedFingerprint]:
         """
         Fingerprint multiple targets concurrently.
-        
-        Args:
-            targets: List of (target, port) tuples
-            force_refresh: Skip cache for all targets
-            max_concurrent: Override default concurrency limit
-            
-        Returns:
-            List of UnifiedFingerprint objects
         """
         max_concurrent = max_concurrent or self.config.max_concurrent
         semaphore = asyncio.Semaphore(max_concurrent)
         
         async def fingerprint_with_semaphore(target: str, port: int) -> UnifiedFingerprint:
             async with semaphore:
-                return await self.fingerprint_target(target, port, force_refresh)
+                return await self.fingerprint_target(target, port, force_refresh, pcap_path=pcap_path)
         
         self.logger.info(f"Starting batch fingerprinting of {len(targets)} targets (concurrency: {max_concurrent})")
         
-        tasks = [
-            fingerprint_with_semaphore(target, port)
-            for target, port in targets
-        ]
-        
+        tasks = [fingerprint_with_semaphore(target, port) for target, port in targets]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        # Handle exceptions in results
         fingerprints = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 target, port = targets[i]
                 self.logger.error(f"Failed to fingerprint {target}:{port}: {result}")
-                # Create minimal fingerprint for failed targets
-                fingerprint = UnifiedFingerprint(target=target, port=port)
-                fingerprints.append(fingerprint)
+                fingerprints.append(UnifiedFingerprint(target=target, port=port))
             else:
                 fingerprints.append(result)
         
         self.logger.info(f"Batch fingerprinting completed: {len(fingerprints)} results")
         return fingerprints
-    
-    async def _check_cache(self, target: str, port: int) -> Optional[UnifiedFingerprint]:
-        """Check cache for existing fingerprint"""
-        if not self.cache:
+
+    async def _run_pcap_fallback_pass(
+        self, 
+        target: str, 
+        port: int, 
+        pcap_path: str,
+        limit: int = 5
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Запускает анализ PCAP и второй прогон стратегий через HybridEngine.
+        Возвращает результаты второго прогона или None.
+        """
+        if not FALLBACK_COMPONENTS_AVAILABLE:
+            self.logger.debug("PCAP fallback components not available, skipping second pass.")
             return None
-        
-        # Try different cache strategies
-        cache_keys = [
-            f"domain:{target}:{port}",
-            f"unified:{target}:{port}"
-        ]
-        
-        for key in cache_keys:
-            try:
-                cached = self.cache.get(key)
-                if cached and isinstance(cached, UnifiedFingerprint):
-                    # Check if cache is still valid
-                    age = time.time() - cached.timestamp
-                    if age < self.config.cache_ttl:
-                        return cached
-            except Exception as e:
-                self.logger.debug(f"Cache lookup failed for key {key}: {e}")
-        
+
+        try:
+            self.logger.info(f"[fallback] Low reliability for {target}:{port} — using PCAP second pass from '{pcap_path}'")
+
+            # 1) Анализ PCAP: ищем ClientHello и генерируем рекомендации
+            analyzer = RSTTriggerAnalyzer(pcap_path)
+            triggers = analyzer.analyze()
+            if not triggers:
+                self.logger.info("[fallback] No relevant triggers (like RST) found in PCAP.")
+                return None
+
+            client_hello_data = parse_client_hello(pcap_path, target)
+            if not client_hello_data:
+                self.logger.info(f"[fallback] Could not parse ClientHello for {target} from PCAP.")
+                return None
+            
+            recommendations = generate_strategy_recs(client_hello_data)
+            strategies = [rec['strategy'] for rec in recommendations][:limit]
+            
+            if not strategies:
+                self.logger.info("[fallback] No strategies generated from PCAP analysis.")
+                return None
+            
+            self.logger.info(f"[fallback] Generated {len(strategies)} strategies from PCAP: {strategies}")
+
+            # 2) Запуск HybridEngine с рекомендованными стратегиями
+            resolver = DoHResolver()
+            ip = await resolver.resolve(target)
+            if not ip:
+                self.logger.warning(f"[fallback] Could not resolve {target} via DoH for second pass.")
+                return None
+
+            engine = HybridEngine(debug=False)
+            results = await engine.test_strategies_hybrid(
+                strategies=strategies,
+                test_sites=[f"https://{target}"],
+                ips={ip},
+                dns_cache={target: ip},
+                port=port,
+                domain=target,
+                enable_fingerprinting=False
+            )
+
+            best = next((r for r in (results or []) if r.get("success_rate", 0) > 0), None)
+            if best:
+                self.logger.info(f"[fallback] SUCCESS for {target}: {best['strategy']} (rate={best['success_rate']:.0%}, {best['avg_latency_ms']:.1f}ms)")
+            else:
+                self.logger.info(f"[fallback] No working strategy found for {target} in second pass.")
+
+            return {"target": target, "port": port, "fallback_results": results}
+
+        except Exception as e:
+            self.logger.warning(f"[fallback] PCAP second pass failed for {target}:{port}: {e}", exc_info=self.config.debug)
+            return None
+
+    async def _check_cache(self, target: str, port: int) -> Optional[UnifiedFingerprint]:
+        if not self.cache: return None
+        key = f"unified:{target}:{port}"
+        try:
+            cached = self.cache.get(key)
+            if cached and isinstance(cached, UnifiedFingerprint):
+                if (time.time() - cached.timestamp) < self.config.cache_ttl:
+                    return cached
+        except Exception as e:
+            self.logger.debug(f"Cache lookup failed for key {key}: {e}")
         return None
     
     async def _cache_result(self, fingerprint: UnifiedFingerprint):
-        """Cache fingerprint result"""
-        if not self.cache:
-            return
-        
+        if not self.cache: return
         try:
-            cache_key = f"unified:{fingerprint.target}:{fingerprint.port}"
-            self.cache.set(cache_key, fingerprint)
-            fingerprint.cache_keys.append(cache_key)
+            self.cache.set(f"unified:{fingerprint.target}:{fingerprint.port}", fingerprint)
         except Exception as e:
             self.logger.warning(f"Failed to cache result: {e}")
     
     async def _resolve_target(self, target: str) -> List[str]:
-        """Resolve target to IP addresses"""
         def resolve():
             try:
                 return [socket.gethostbyname(target)]
             except socket.gaierror:
                 return []
-        
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(self.executor, resolve)
     
     async def _run_fast_analysis(self, fingerprint: UnifiedFingerprint):
-        """Run fast analysis (minimal probes)"""
-        # Only run TCP analysis for fast mode
         if 'tcp' in self.analyzers:
-            fingerprint.tcp_analysis = await self._run_tcp_analysis(fingerprint.target, fingerprint.port)
+            await self._run_analysis_safe(fingerprint, 'tcp', 'tcp_analysis')
     
     async def _run_balanced_analysis(self, fingerprint: UnifiedFingerprint):
-        """Run balanced analysis (TCP + TLS + basic ML)"""
         tasks = []
-        
         if 'tcp' in self.analyzers:
-            tasks.append(self._run_tcp_analysis_safe(fingerprint, 'tcp'))
-        
+            tasks.append(self._run_analysis_safe(fingerprint, 'tcp', 'tcp_analysis'))
         if 'http' in self.analyzers:
-            tasks.append(self._run_http_analysis_safe(fingerprint, 'http'))
-        
-        if 'ml' in self.analyzers:
-            tasks.append(self._run_ml_analysis_safe(fingerprint, 'ml'))
-        
-        # Run analyses concurrently
+            tasks.append(self._run_analysis_safe(fingerprint, 'http', 'http_analysis'))
         if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*tasks)
+        if 'ml' in self.analyzers:
+            await self._run_analysis_safe(fingerprint, 'ml', 'ml_classification', is_ml=True)
     
     async def _run_comprehensive_analysis(self, fingerprint: UnifiedFingerprint):
-        """Run comprehensive analysis (all components)"""
         tasks = []
-        task_names = []
-        
-        self.logger.info(f"Preparing comprehensive analysis for {fingerprint.target}. Available analyzers: {list(self.analyzers.keys())}")
-
-        for analyzer_name in self.analyzers:
-            task_names.append(analyzer_name)
-            if analyzer_name == 'tcp':
-                tasks.append(self._run_tcp_analysis_safe(fingerprint, analyzer_name))
-            elif analyzer_name == 'http':
-                tasks.append(self._run_http_analysis_safe(fingerprint, analyzer_name))
-            elif analyzer_name == 'dns':
-                tasks.append(self._run_dns_analysis_safe(fingerprint, analyzer_name))
-            elif analyzer_name == 'ml':
-                tasks.append(self._run_ml_analysis_safe(fingerprint, analyzer_name))
-            elif analyzer_name == 'advanced_tcp':
-                tasks.append(self._run_advanced_tcp_analysis_safe(fingerprint, analyzer_name))
-            elif analyzer_name == 'advanced_tls':
-                tasks.append(self._run_advanced_tls_analysis_safe(fingerprint, analyzer_name))
-            elif analyzer_name == 'behavioral':
-                tasks.append(self._run_behavioral_analysis_safe(fingerprint, analyzer_name))
-
-        if not tasks:
-            self.logger.warning(f"No analysis tasks were created for {fingerprint.target}. Check analyzer availability and configuration.")
-        else:
-            self.logger.info(f"Running {len(tasks)} analysis tasks: {task_names}")
-
-        # Run all analyses concurrently
+        for name in ['tcp', 'http', 'dns']:
+            if name in self.analyzers:
+                tasks.append(self._run_analysis_safe(fingerprint, name, f"{name}_analysis"))
         if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-    
-    async def _run_tcp_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str):
-        """Safely run TCP analysis with error handling"""
+            await asyncio.gather(*tasks)
+        if 'ml' in self.analyzers:
+            await self._run_analysis_safe(fingerprint, 'ml', 'ml_classification', is_ml=True)
+
+    async def _run_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str, result_attr: str, is_ml: bool = False):
+        result_obj = getattr(fingerprint, result_attr)
         try:
-            fingerprint.tcp_analysis.status = AnalysisStatus.IN_PROGRESS
-            result = await self._run_tcp_analysis(fingerprint.target, fingerprint.port)
-            fingerprint.tcp_analysis = result
-            fingerprint.tcp_analysis.status = AnalysisStatus.COMPLETED
+            result_obj.status = AnalysisStatus.IN_PROGRESS
+            analyzer = self.analyzers[analyzer_name]
+            
+            if is_ml:
+                result = await analyzer.analyze(fingerprint.to_dict())
+            else:
+                result = await analyzer.analyze(fingerprint.target, fingerprint.port)
+            
+            setattr(fingerprint, result_attr, result)
+            result.status = AnalysisStatus.COMPLETED
         except Exception as e:
-            fingerprint.tcp_analysis.status = AnalysisStatus.FAILED
-            fingerprint.tcp_analysis.error_message = str(e)
-            self.logger.warning(f"TCP analysis failed for {fingerprint.target}: {e}")
-    
-    async def _run_http_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str):
-        """Safely run HTTP analysis with error handling"""
-        try:
-            fingerprint.http_analysis.status = AnalysisStatus.IN_PROGRESS
-            # Placeholder for HTTP analysis
-            fingerprint.http_analysis.status = AnalysisStatus.COMPLETED
-        except Exception as e:
-            fingerprint.http_analysis.status = AnalysisStatus.FAILED
-            fingerprint.http_analysis.error_message = str(e)
-            self.logger.warning(f"HTTP analysis failed for {fingerprint.target}: {e}")
-    
-    async def _run_dns_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str):
-        """Safely run DNS analysis with error handling"""
-        try:
-            fingerprint.dns_analysis.status = AnalysisStatus.IN_PROGRESS
-            # Placeholder for DNS analysis
-            fingerprint.dns_analysis.status = AnalysisStatus.COMPLETED
-        except Exception as e:
-            fingerprint.dns_analysis.status = AnalysisStatus.FAILED
-            fingerprint.dns_analysis.error_message = str(e)
-            self.logger.warning(f"DNS analysis failed for {fingerprint.target}: {e}")
-    
-    async def _run_ml_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str):
-        """Safely run ML analysis with error handling"""
-        try:
-            fingerprint.ml_classification.status = AnalysisStatus.IN_PROGRESS
-            # Placeholder for ML classification
-            fingerprint.ml_classification.status = AnalysisStatus.COMPLETED
-        except Exception as e:
-            fingerprint.ml_classification.status = AnalysisStatus.FAILED
-            fingerprint.ml_classification.error_message = str(e)
-            self.logger.warning(f"ML analysis failed for {fingerprint.target}: {e}")
-    
-    # Advanced Probe Analysis Methods - Task 23 Implementation
-    
-    async def _run_advanced_tcp_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str):
-        """Safely run advanced TCP analysis with error handling"""
-        try:
-            fingerprint.advanced_tcp_probes.status = AnalysisStatus.IN_PROGRESS
-            result = await self._run_advanced_tcp_analysis(fingerprint.target, fingerprint.port)
-            
-            # Convert result to unified format
-            fingerprint.advanced_tcp_probes.target = result.get('target', fingerprint.target)
-            fingerprint.advanced_tcp_probes.port = result.get('port', fingerprint.port)
-            fingerprint.advanced_tcp_probes.timestamp = result.get('timestamp', time.time())
-            
-            # Map advanced TCP probe results
-            fingerprint.advanced_tcp_probes.packet_reordering_tolerance = result.get('packet_reordering_tolerance', False)
-            fingerprint.advanced_tcp_probes.reordering_window_size = result.get('reordering_window_size')
-            fingerprint.advanced_tcp_probes.ip_fragmentation_overlap_handling = result.get('ip_fragmentation_overlap_handling', 'unknown')
-            fingerprint.advanced_tcp_probes.fragment_reassembly_timeout = result.get('fragment_reassembly_timeout')
-            fingerprint.advanced_tcp_probes.exotic_tcp_flags_response = result.get('exotic_tcp_flags_response', {})
-            fingerprint.advanced_tcp_probes.tcp_options_filtering = result.get('tcp_options_filtering', [])
-            fingerprint.advanced_tcp_probes.dpi_distance_hops = result.get('dpi_distance_hops')
-            fingerprint.advanced_tcp_probes.ttl_manipulation_detected = result.get('ttl_manipulation_detected', False)
-            
-            fingerprint.advanced_tcp_probes.status = AnalysisStatus.COMPLETED
-            
-        except Exception as e:
-            fingerprint.advanced_tcp_probes.status = AnalysisStatus.FAILED
-            fingerprint.advanced_tcp_probes.error_message = str(e)
-            self.logger.warning(f"Advanced TCP analysis failed for {fingerprint.target}: {e}")
-    
-    async def _run_advanced_tls_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str):
-        """Safely run advanced TLS analysis with error handling"""
-        try:
-            fingerprint.advanced_tls_probes.status = AnalysisStatus.IN_PROGRESS
-            result = await self._run_advanced_tls_analysis(fingerprint.target, fingerprint.port)
-            
-            # Convert result to unified format
-            fingerprint.advanced_tls_probes.target = result.get('target', fingerprint.target)
-            fingerprint.advanced_tls_probes.port = result.get('port', fingerprint.port)
-            fingerprint.advanced_tls_probes.timestamp = result.get('timestamp', time.time())
-            
-            # Map advanced TLS probe results
-            fingerprint.advanced_tls_probes.clienthello_size_sensitivity = result.get('clienthello_size_sensitivity', {})
-            fingerprint.advanced_tls_probes.max_clienthello_size = result.get('max_clienthello_size')
-            fingerprint.advanced_tls_probes.min_clienthello_size = result.get('min_clienthello_size')
-            fingerprint.advanced_tls_probes.ech_support_detected = result.get('ech_support_detected', False)
-            fingerprint.advanced_tls_probes.ech_blocking_detected = result.get('ech_blocking_detected', False)
-            fingerprint.advanced_tls_probes.ech_config_available = result.get('ech_config_available', False)
-            fingerprint.advanced_tls_probes.http2_support = result.get('http2_support', False)
-            fingerprint.advanced_tls_probes.http2_blocking_detected = result.get('http2_blocking_detected', False)
-            fingerprint.advanced_tls_probes.http3_support = result.get('http3_support', False)
-            fingerprint.advanced_tls_probes.quic_blocking_detected = result.get('quic_blocking_detected', False)
-            fingerprint.advanced_tls_probes.dirty_http_tolerance = result.get('dirty_http_tolerance', {})
-            fingerprint.advanced_tls_probes.http_header_filtering = result.get('http_header_filtering', [])
-            
-            fingerprint.advanced_tls_probes.status = AnalysisStatus.COMPLETED
-            
-        except Exception as e:
-            fingerprint.advanced_tls_probes.status = AnalysisStatus.FAILED
-            fingerprint.advanced_tls_probes.error_message = str(e)
-            self.logger.warning(f"Advanced TLS analysis failed for {fingerprint.target}: {e}")
-    
-    async def _run_behavioral_analysis_safe(self, fingerprint: UnifiedFingerprint, analyzer_name: str):
-        """Safely run behavioral analysis with error handling"""
-        try:
-            fingerprint.behavioral_probes.status = AnalysisStatus.IN_PROGRESS
-            result = await self._run_behavioral_analysis(fingerprint.target, fingerprint.port)
-            
-            # Convert result to unified format
-            fingerprint.behavioral_probes.target = result.get('target', fingerprint.target)
-            fingerprint.behavioral_probes.port = result.get('port', fingerprint.port)
-            fingerprint.behavioral_probes.timestamp = result.get('timestamp', time.time())
-            
-            # Map behavioral probe results
-            fingerprint.behavioral_probes.connection_timing_patterns = result.get('connection_timing_patterns', {})
-            fingerprint.behavioral_probes.dpi_processing_delay = result.get('dpi_processing_delay')
-            fingerprint.behavioral_probes.timing_variance_detected = result.get('timing_variance_detected', False)
-            fingerprint.behavioral_probes.session_tracking_detected = result.get('session_tracking_detected', False)
-            fingerprint.behavioral_probes.connection_correlation_detected = result.get('connection_correlation_detected', False)
-            fingerprint.behavioral_probes.ip_based_tracking = result.get('ip_based_tracking', False)
-            fingerprint.behavioral_probes.port_based_tracking = result.get('port_based_tracking', False)
-            fingerprint.behavioral_probes.dpi_learning_detected = result.get('dpi_learning_detected', False)
-            fingerprint.behavioral_probes.adaptation_time_window = result.get('adaptation_time_window')
-            fingerprint.behavioral_probes.bypass_degradation_detected = result.get('bypass_degradation_detected', False)
-            fingerprint.behavioral_probes.concurrent_connection_limit = result.get('concurrent_connection_limit')
-            fingerprint.behavioral_probes.rate_limiting_detected = result.get('rate_limiting_detected', False)
-            fingerprint.behavioral_probes.connection_fingerprinting = result.get('connection_fingerprinting', {})
-            
-            fingerprint.behavioral_probes.status = AnalysisStatus.COMPLETED
-            
-        except Exception as e:
-            fingerprint.behavioral_probes.status = AnalysisStatus.FAILED
-            fingerprint.behavioral_probes.error_message = str(e)
-            self.logger.warning(f"Behavioral analysis failed for {fingerprint.target}: {e}")
-    
-    async def _run_tcp_analysis(self, target: str, port: int) -> TCPAnalysisResult:
-        """Run TCP analysis using adapter"""
-        analyzer = self.analyzers.get('tcp')
-        if not analyzer:
-            raise AnalyzerError("TCP analyzer not available")
-        
-        return await analyzer.analyze(target, port)
-    
-    async def _run_advanced_tcp_analysis(self, target: str, port: int) -> Dict[str, Any]:
-        """Run advanced TCP analysis using adapter"""
-        analyzer = self.analyzers.get('advanced_tcp')
-        if not analyzer:
-            raise AnalyzerError("Advanced TCP analyzer not available")
-        
-        return await analyzer.analyze(target, port)
-    
-    async def _run_advanced_tls_analysis(self, target: str, port: int) -> Dict[str, Any]:
-        """Run advanced TLS analysis using adapter"""
-        analyzer = self.analyzers.get('advanced_tls')
-        if not analyzer:
-            raise AnalyzerError("Advanced TLS analyzer not available")
-        
-        return await analyzer.analyze(target, port)
-    
-    async def _run_behavioral_analysis(self, target: str, port: int) -> Dict[str, Any]:
-        """Run behavioral analysis using adapter"""
-        analyzer = self.analyzers.get('behavioral')
-        if not analyzer:
-            raise AnalyzerError("Behavioral analyzer not available")
-        
-        return await analyzer.analyze(target, port)
-    
+            result_obj.status = AnalysisStatus.FAILED
+            result_obj.error_message = str(e)
+            self.logger.warning(f"{analyzer_name.upper()} analysis failed for {fingerprint.target}: {e}")
+
     async def _generate_strategy_recommendations(self, fingerprint: UnifiedFingerprint) -> List[StrategyRecommendation]:
-        """Generate strategy recommendations based on fingerprint"""
         recommendations = []
-        
-        # Basic rule-based recommendations
         if fingerprint.tcp_analysis.fragmentation_vulnerable:
             recommendations.append(StrategyRecommendation(
-                strategy_name="multisplit",
-                predicted_effectiveness=0.8,
-                confidence=0.7,
+                strategy_name="multisplit", predicted_effectiveness=0.8, confidence=0.7,
                 reasoning=["TCP fragmentation vulnerability detected"]
             ))
-        
         if fingerprint.tcp_analysis.rst_injection_detected:
             recommendations.append(StrategyRecommendation(
-                strategy_name="fakeddisorder",
-                predicted_effectiveness=0.7,
-                confidence=0.6,
+                strategy_name="fakeddisorder", predicted_effectiveness=0.7, confidence=0.6,
                 reasoning=["RST injection detected, fake packet attacks may work"]
             ))
-        
         if fingerprint.tls_analysis.sni_blocking_detected:
             recommendations.append(StrategyRecommendation(
-                strategy_name="sni_replacement",
-                predicted_effectiveness=0.9,
-                confidence=0.8,
+                strategy_name="sni_replacement", predicted_effectiveness=0.9, confidence=0.8,
                 reasoning=["SNI blocking detected"]
             ))
-        
-        # Advanced probe-based recommendations - Task 23
-        
-        # Advanced TCP probe recommendations
-        if fingerprint.advanced_tcp_probes.status == AnalysisStatus.COMPLETED:
-            if fingerprint.advanced_tcp_probes.packet_reordering_tolerance:
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="packet_reordering",
-                    predicted_effectiveness=0.8,
-                    confidence=0.7,
-                    reasoning=["DPI tolerates packet reordering - reordering attacks may work"]
-                ))
-            
-            if fingerprint.advanced_tcp_probes.ip_fragmentation_overlap_handling == "vulnerable":
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="ip_fragmentation",
-                    predicted_effectiveness=0.9,
-                    confidence=0.8,
-                    reasoning=["DPI vulnerable to IP fragmentation overlap attacks"]
-                ))
-            
-            if fingerprint.advanced_tcp_probes.dpi_distance_hops and fingerprint.advanced_tcp_probes.dpi_distance_hops < 10:
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="ttl_bypass",
-                    predicted_effectiveness=0.7,
-                    confidence=0.6,
-                    reasoning=[f"DPI detected at {fingerprint.advanced_tcp_probes.dpi_distance_hops} hops - TTL bypass may work"]
-                ))
-        
-        # Advanced TLS probe recommendations
-        if fingerprint.advanced_tls_probes.status == AnalysisStatus.COMPLETED:
-            if fingerprint.advanced_tls_probes.clienthello_size_sensitivity:
-                # Analyze size sensitivity patterns
-                size_results = fingerprint.advanced_tls_probes.clienthello_size_sensitivity
-                failed_sizes = [size for size, result in size_results.items() 
-                              if isinstance(result, dict) and result.get('status') in ['timeout', 'connection_reset']]
-                
-                if failed_sizes:
-                    recommendations.append(StrategyRecommendation(
-                        strategy_name="clienthello_fragmentation",
-                        predicted_effectiveness=0.8,
-                        confidence=0.7,
-                        reasoning=[f"DPI blocks large ClientHello messages (failed at sizes: {failed_sizes})"]
-                    ))
-            
-            if fingerprint.advanced_tls_probes.ech_blocking_detected:
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="ech_bypass",
-                    predicted_effectiveness=0.6,
-                    confidence=0.5,
-                    reasoning=["ECH extension blocked by DPI"]
-                ))
-            
-            if fingerprint.advanced_tls_probes.http2_blocking_detected:
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="http1_fallback",
-                    predicted_effectiveness=0.7,
-                    confidence=0.6,
-                    reasoning=["HTTP/2 blocked - fallback to HTTP/1.1 may work"]
-                ))
-            
-            if fingerprint.advanced_tls_probes.dirty_http_tolerance:
-                # Analyze tolerance patterns
-                tolerant_tests = [test for test, result in fingerprint.advanced_tls_probes.dirty_http_tolerance.items()
-                                if result == "accepted"]
-                
-                if tolerant_tests:
-                    recommendations.append(StrategyRecommendation(
-                        strategy_name="http_evasion",
-                        predicted_effectiveness=0.6,
-                        confidence=0.5,
-                        reasoning=[f"DPI tolerates malformed HTTP ({len(tolerant_tests)} patterns accepted)"]
-                    ))
-        
-        # Behavioral probe recommendations
-        if fingerprint.behavioral_probes.status == AnalysisStatus.COMPLETED:
-            if fingerprint.behavioral_probes.dpi_processing_delay and fingerprint.behavioral_probes.dpi_processing_delay > 50:
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="timing_attack",
-                    predicted_effectiveness=0.5,
-                    confidence=0.4,
-                    reasoning=[f"DPI has significant processing delay ({fingerprint.behavioral_probes.dpi_processing_delay:.1f}ms)"]
-                ))
-            
-            if fingerprint.behavioral_probes.dpi_learning_detected:
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="adaptive_evasion",
-                    predicted_effectiveness=0.8,
-                    confidence=0.7,
-                    reasoning=["DPI shows learning behavior - adaptive strategies recommended"]
-                ))
-            
-            if fingerprint.behavioral_probes.rate_limiting_detected:
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="rate_limited_bypass",
-                    predicted_effectiveness=0.6,
-                    confidence=0.6,
-                    reasoning=["Rate limiting detected - slow/distributed attacks may work"]
-                ))
-            
-            if (fingerprint.behavioral_probes.concurrent_connection_limit and 
-                fingerprint.behavioral_probes.concurrent_connection_limit < 10):
-                recommendations.append(StrategyRecommendation(
-                    strategy_name="connection_pooling",
-                    predicted_effectiveness=0.7,
-                    confidence=0.6,
-                    reasoning=[f"Low concurrent connection limit ({fingerprint.behavioral_probes.concurrent_connection_limit})"]
-                ))
-        
         return recommendations
     
     def get_statistics(self) -> Dict[str, Any]:
-        """Get fingerprinting statistics"""
         stats = self.stats.copy()
         stats["available_analyzers"] = list(self.analyzers.keys())
         stats["cache_enabled"] = self.cache is not None
-        
-        if stats["fingerprints_created"] > 0:
+        if stats.get("fingerprints_created", 0) > 0:
             stats["average_analysis_time"] = stats["total_analysis_time"] / stats["fingerprints_created"]
+        if (stats.get("cache_hits", 0) + stats.get("cache_misses", 0)) > 0:
             stats["cache_hit_rate"] = stats["cache_hits"] / (stats["cache_hits"] + stats["cache_misses"])
-        
         return stats
     
     def __del__(self):
-        """Cleanup resources"""
         if hasattr(self, 'executor'):
             self.executor.shutdown(wait=False)
+
+    async def close(self):
+        """Gracefully close resources like thread pools."""
+        if hasattr(self, 'executor'):
+            self.executor.shutdown(wait=True)
+        self.logger.info("UnifiedFingerprinter resources have been closed.")

@@ -22,22 +22,19 @@ class PacketSender:
         self.logger = logger
         self._INJECT_MARK = inject_mark
 
-    def send_tcp_segments(
-        self,
-        w: "pydivert.WinDivert",
-        original_packet: "pydivert.Packet",
-        specs: List[TCPSegmentSpec],
-        window_div: int = 1,
-        ipid_step: int = 2048
-    ) -> bool:
+    def send_tcp_segments(self, w, original_packet, specs, window_div=1, ipid_step=2048):
         try:
-            # Ручное извлечение IP ID
             base_ip_id = struct.unpack("!H", original_packet.raw[4:6])[0]
-
+            
             # Блокируем ретрансмит ОС на время инъекции
-            with self._create_tcp_retransmission_blocker(original_packet):
+            with self._create_tcp_retransmission_blocker(original_packet) as blocker:
+                # ⚡ CRITICAL: Даем блокировщику время на инициализацию
+                if blocker:
+                    time.sleep(0.005)  # 5ms для гарантированного запуска
+                    self.logger.debug("✅ Retransmission blocker initialized")
+                
                 packets_to_send = []
-
+                
                 # Сборка всех сегментов заранее (batch)
                 for i, spec in enumerate(specs):
                     ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
@@ -45,38 +42,40 @@ class PacketSender:
                         original_packet, spec, window_div=window_div, ip_id=ip_id
                     )
                     if not pkt_bytes:
-                        self.logger.error(f"Segment {i} build failed, aborting send sequence.")
+                        self.logger.error(f"Segment {i} build failed")
                         return False
-
+                        
                     pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
+                    
+                    # ⚡ CRITICAL: Убедиться, что метка установлена
                     try:
                         pkt.mark = self._INJECT_MARK
-                    except Exception:
-                        pass
+                        self.logger.debug(f"Packet {i} marked with {self._INJECT_MARK}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to mark packet {i}: {e}")
+                        
                     packets_to_send.append((pkt, spec))
-
-                self.logger.info(f"🚀 Batch sending {len(packets_to_send)} TCP segments")
-                start_time = time.perf_counter()
-
-                # Отправляем максимально быстро
+                
+                # Отправка с правильными задержками
                 for i, (pkt, spec) in enumerate(packets_to_send):
                     packet_start = time.perf_counter()
                     allow_fix = not spec.corrupt_tcp_checksum
+                    
+                    # Логируем тип пакета для отладки
+                    packet_type = "FAKE" if getattr(spec, 'is_fake', False) else "REAL"
+                    self.logger.info(f"📤 Sending {packet_type} packet {i+1}/{len(packets_to_send)}")
+                    
                     if not self._batch_safe_send(w, pkt, allow_fix_checksums=allow_fix):
-                        self.logger.error(f"Segment {i} send failed, aborting send sequence.")
+                        self.logger.error(f"Segment {i} send failed")
                         return False
-                    packet_time = (time.perf_counter() - packet_start) * 1000
-                    self.logger.debug(f"Packet {i+1} sent in {packet_time:.2f}ms")
-
-                    # Если понадобится — вернём минимальные задержки; пока шлём без пауз
-
-                total_time = (time.perf_counter() - start_time) * 1000
-                self.logger.info(
-                    f"✅ Batch injection completed in {total_time:.2f}ms "
-                    f"(avg: {total_time/len(packets_to_send):.2f}ms per packet)"
-                )
+                    
+                    # ⚡ CRITICAL: Добавляем задержку после фейкового пакета
+                    if spec.delay_ms_after > 0:
+                        delay_s = spec.delay_ms_after / 1000.0
+                        self.logger.debug(f"⏱️ Delaying {spec.delay_ms_after}ms after packet {i+1}")
+                        time.sleep(delay_s)
+                
                 return True
-
         except Exception as e:
             self.logger.error(f"send_tcp_segments error: {e}", exc_info=True)
             return False
@@ -160,16 +159,25 @@ class PacketSender:
         """
         Создаёт WinDivert-контекст, который на время инъекции блокирует TCP-ретрансмиты ОС
         по этому соединению. Наши инъекции (mark) пропускаются.
+        
+        ИСПРАВЛЕННАЯ ВЕРСИЯ 2.0:
+        1.  Устранена микро-гонка при старте с помощью threading.Event.
+        2.  Фильтр возвращен к рабочему состоянию (без `mark`).
+        3.  Проверка на `mark` возвращена в воркер.
         """
         blocker = None
         stop_event = threading.Event()
+        # Этот Event по-прежнему нужен для устранения гонки состояний.
+        start_event = threading.Event()
+        
         try:
             src_ip = original_packet.src_addr
             dst_ip = original_packet.dst_addr
             src_port = original_packet.src_port
             dst_port = original_packet.dst_port
 
-            # Узкий фильтр на конкретный поток. Остальное решаем в воркере.
+            # <<< ВОЗВРАЩАЕМ РАБОЧИЙ ФИЛЬТР >>>
+            # Убираем невалидную часть `and mark != ...`
             filter_str = (
                 f"outbound and tcp and "
                 f"ip.SrcAddr == {src_ip} and ip.DstAddr == {dst_ip} and "
@@ -179,17 +187,19 @@ class PacketSender:
 
             self.logger.debug(f"🛡️ Creating TCP retransmission blocker with filter: {filter_str}")
 
-            # Высокий приоритет (меньше число = выше приоритет), выше, чем основной 1000
             blocker = pydivert.WinDivert(filter_str, layer=pydivert.Layer.NETWORK, priority=-100)
             blocker.open()
 
-            # Фоновой поток, который отфильтрует только OS data
             blocker_thread = threading.Thread(
                 target=self._retransmission_blocker_worker,
-                args=(blocker, stop_event),
+                args=(blocker, stop_event, start_event),
                 daemon=True
             )
             blocker_thread.start()
+
+            # Ждем сигнала от воркера, что он готов (максимум 20мс)
+            if not start_event.wait(timeout=0.02):
+                self.logger.warning("Blocker thread did not start in time!")
 
             self.logger.debug("🛡️ TCP retransmission blocker active")
             yield blocker
@@ -209,58 +219,67 @@ class PacketSender:
                 except Exception as e:
                     self.logger.debug(f"Error closing retransmission blocker: {e}")
 
-    def _retransmission_blocker_worker(self, blocker: "pydivert.WinDivert", stop_event: threading.Event):
+    def _retransmission_blocker_worker(self, blocker, stop_event, start_event):
         """
-        Дропает потенциальные TCP-повторные передачи ОС; наши инъекции (mark) пропускает.
+        Воркер-блокировщик.
+        
+        ИСПРАВЛЕННАЯ ВЕРСИЯ 2.0:
+        1.  Сигнализирует о готовности через start_event.
+        2.  Возвращена проверка на `mark`, так как фильтр снова перехватывает всё.
         """
+        blocked_count = 0
+        passed_count = 0
+        
         try:
+            # Сигнализируем основному потоку, что мы готовы к работе
+            start_event.set()
+            
             while not stop_event.is_set():
                 try:
-                    # Небольшой таймаут, чтобы проверять stop_event
-                    packet = blocker.recv(timeout=100)  # 100 ms
+                    packet = blocker.recv(timeout=100)
                     if not packet:
                         continue
-
-                    # 1) Наши инъекции? Пропустить.
+                        
+                    # <<< ВОЗВРАЩАЕМ ПРОВЕРКУ НА МЕТКУ >>>
+                    # Так как фильтр снова широкий, мы должны пропускать наши пакеты здесь.
                     if getattr(packet, "mark", 0) == self._INJECT_MARK:
-                        try:
-                            blocker.send(packet)
-                        except Exception:
-                            pass
+                        blocker.send(packet)
+                        passed_count += 1
+                        self.logger.debug(f"✅ Passed marked packet #{passed_count}")
                         continue
-
-                    # 2) Служебные TCP без payload (чистые ACK) — пропускаем
+                        
+                    # Служебные TCP без payload - пропускаем
                     if not packet.payload or len(packet.payload) == 0:
-                        try:
-                            blocker.send(packet)
-                        except Exception:
-                            pass
+                        blocker.send(packet)
                         continue
-
-                    # 3) SYN/FIN/RST — пропускаем
+                        
+                    # SYN/FIN/RST - пропускаем
                     if packet.tcp and (packet.tcp.syn or packet.tcp.fin or packet.tcp.rst):
-                        try:
-                            blocker.send(packet)
-                        except Exception:
-                            pass
+                        blocker.send(packet)
                         continue
-
-                    # 4) Иначе — это исходящие TCP-данные от ОС по этому потоку: дропаем
+                        
+                    # Иначе - это данные от ОС: блокируем
+                    blocked_count += 1
                     self.logger.debug(
-                        f"🛡️ Dropped OS TCP data: {packet.src_addr}:{packet.src_port} -> "
-                        f"{packet.dst_addr}:{packet.dst_port} (len={len(packet.payload) if packet.payload else 0})"
+                        f"🛡️ BLOCKED OS retransmit #{blocked_count}: "
+                        f"{packet.src_addr}:{packet.src_port} -> "
+                        f"{packet.dst_addr}:{packet.dst_port} "
+                        f"(payload={len(packet.payload)} bytes)"
                     )
-
+                    
                 except Exception as e:
-                    # WinDivert timeout (258) — ок, продолжаем
                     if hasattr(e, 'args') and e.args and e.args[0] == 258:
-                        continue
-                    if "timeout" in str(e).lower() or "258" in str(e):
-                        continue
-                    self.logger.debug(f"Blocker recv error: {e}")
-                    break
-        except Exception as e:
-            self.logger.debug(f"Blocker worker thread error: {e}")
+                        continue  # Timeout - нормально
+                    if "timeout" not in str(e).lower():
+                        self.logger.debug(f"Blocker error: {e}")
+                        break
+                        
+        finally:
+            if blocked_count > 0 or passed_count > 0:
+                self.logger.info(
+                    f"📊 Blocker stats: {blocked_count} blocked, {passed_count} passed"
+                )
+
             
     def _batch_safe_send(self, w: "pydivert.WinDivert", pkt: "pydivert.Packet", allow_fix_checksums: bool = True) -> bool:
         """

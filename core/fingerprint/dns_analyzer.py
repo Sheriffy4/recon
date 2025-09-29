@@ -1,12 +1,4 @@
-# recon/core/fingerprint/dns_analyzer.py
-"""
-DNS Behavior Analyzer - Task 6 Implementation
-Implements DNS-specific DPI behavior analysis including DNS hijacking detection,
-response modification analysis, DoH/DoT blocking detection, cache poisoning analysis,
-EDNS support detection, and recursive resolver blocking analysis.
-
-Requirements: 2.4, 4.1, 4.2
-"""
+# path: recon/core/fingerprint/dns_analyzer.py
 
 import asyncio
 import aiohttp
@@ -16,9 +8,11 @@ import random
 import logging
 import ssl
 from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
 from enum import Enum
 
+# ### FIX 2: Import standardized models ###
+from .unified_models import DNSAnalysisResult, AnalysisStatus
+from dataclasses import dataclass, field
 
 LOG = logging.getLogger(__name__)
 

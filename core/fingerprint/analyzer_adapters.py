@@ -1,3 +1,5 @@
+# path: core/fingerprint/analyzer_adapters.py
+
 """
 Analyzer Adapters - Task 22 Implementation
 Adapters to integrate existing analyzers with the unified fingerprinting interface.
@@ -6,6 +8,7 @@ Fixes integration bugs and standardizes interfaces.
 
 import asyncio
 import logging
+import inspect  # <<< FIX: Added missing import
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 
@@ -138,19 +141,22 @@ class TCPAnalyzerAdapter(BaseAnalyzerAdapter):
             tcp_result = TCPAnalysisResult()
             tcp_result.status = AnalysisStatus.COMPLETED
             
-            # Map fields from original result
-            if hasattr(result, 'rst_injection_detected'):
-                tcp_result.rst_injection_detected = result.rst_injection_detected
-            
-            if hasattr(result, 'tcp_window_manipulation'):
-                tcp_result.tcp_window_manipulation = result.tcp_window_manipulation
-            
-            if hasattr(result, 'sequence_number_anomalies'):
-                tcp_result.sequence_tracking = result.sequence_number_anomalies
-            
-            # Handle fragmentation - use corrected logic
-            if hasattr(result, 'fragmentation_handling'):
-                tcp_result.fragmentation_vulnerable = (result.fragmentation_handling == 'vulnerable')
+            # <<< РЕШЕНИЕ 3: Исправлен маппинг для работы с dict >>>
+            if isinstance(result, dict):
+                tcp_result.rst_injection_detected = bool(result.get('rst_injection_detected'))
+                fh = result.get('fragmentation_handling')
+                tcp_result.fragmentation_vulnerable = (fh == 'vulnerable')
+                tcp_result.window_size = result.get('window_size')
+                tcp_result.mss = result.get('mss')
+                tcp_result.sack_permitted = bool(result.get('sack_permitted'))
+                tcp_result.timestamps_enabled = bool(result.get('timestamps_enabled'))
+                tcp_result.syn_ack_to_client_hello_delta = result.get('syn_ack_to_client_hello_delta')
+            else:
+                # Старый путь через hasattr для обратной совместимости, если вдруг вернется объект
+                if hasattr(result, 'rst_injection_detected'):
+                    tcp_result.rst_injection_detected = result.rst_injection_detected
+                if hasattr(result, 'fragmentation_handling'):
+                    tcp_result.fragmentation_vulnerable = (result.fragmentation_handling == 'vulnerable')
             
             if hasattr(result, 'tcp_options_filtering'):
                 tcp_result.tcp_options_filtering = result.tcp_options_filtering or []
@@ -172,18 +178,12 @@ class TCPAnalyzerAdapter(BaseAnalyzerAdapter):
             
             if tcp_result.rst_injection_detected:
                 probe_results.append(ProbeResult(
-                    name="rst_injection_probe",
-                    success=True,
-                    value=True,
-                    confidence=0.8
+                    name="rst_injection_probe", success=True, value=True, confidence=0.8
                 ))
             
             if tcp_result.fragmentation_vulnerable:
                 probe_results.append(ProbeResult(
-                    name="fragmentation_probe",
-                    success=True,
-                    value=True,
-                    confidence=0.7
+                    name="fragmentation_probe", success=True, value=True, confidence=0.7
                 ))
             
             tcp_result.probe_results = probe_results
@@ -223,27 +223,11 @@ class HTTPAnalyzerAdapter(BaseAnalyzerAdapter):
             self.logger.debug(f"Starting HTTP analysis for {target}:{port}")
             
             # Call the original analyzer
-            result = await self.analyzer.analyze_http_behavior(target, port)
+            result_dict = await self.analyzer.analyze_http_behavior(target, port)
             
-            # Convert to unified format
-            http_result = HTTPAnalysisResult()
+            # Convert dict back to dataclass for unified format
+            http_result = HTTPAnalysisResult(**result_dict)
             http_result.status = AnalysisStatus.COMPLETED
-            
-            # Map fields from original result
-            if hasattr(result, 'http_blocking_detected'):
-                http_result.http_blocking_detected = result.http_blocking_detected
-            
-            if hasattr(result, 'http2_support'):
-                http_result.http2_support = result.http2_support
-            
-            if hasattr(result, 'header_filtering'):
-                http_result.header_filtering = result.header_filtering or []
-            
-            if hasattr(result, 'user_agent_blocking'):
-                http_result.user_agent_blocking = result.user_agent_blocking
-            
-            if hasattr(result, 'host_header_inspection'):
-                http_result.host_header_inspection = result.host_header_inspection
             
             # Create probe results
             probe_results = []
@@ -308,17 +292,10 @@ class DNSAnalyzerAdapter(BaseAnalyzerAdapter):
             dns_result.status = AnalysisStatus.COMPLETED
             
             # Map fields from original result
-            if hasattr(result, 'dns_blocking_detected'):
-                dns_result.dns_blocking_detected = result.dns_blocking_detected
-            
-            if hasattr(result, 'doh_support'):
-                dns_result.doh_support = result.doh_support
-            
-            if hasattr(result, 'dns_spoofing_detected'):
-                dns_result.dns_spoofing_detected = result.dns_spoofing_detected
-            
-            if hasattr(result, 'response_manipulation'):
-                dns_result.response_manipulation = result.response_manipulation
+            dns_result.dns_blocking_detected = result.get('dns_hijacking_detected', False) or result.get('doh_blocking', False) or result.get('dot_blocking', False)
+            dns_result.doh_support = not result.get('doh_blocking', True)
+            dns_result.dns_spoofing_detected = result.get('dns_cache_poisoning', False)
+            dns_result.response_manipulation = result.get('dns_response_modification', False)
             
             # Create probe results
             probe_results = []
@@ -371,48 +348,82 @@ class MLClassifierAdapter(BaseAnalyzerAdapter):
             raise AnalyzerError(f"Failed to initialize MLClassifier: {e}")
     
     async def analyze(self, fingerprint_data: Dict[str, Any], **kwargs) -> MLClassificationResult:
-        """Run ML classification and convert to unified format"""
         try:
             self.logger.debug("Starting ML classification")
-            
-            # Call the original classifier
-            result = await self.classifier.classify_dpi(fingerprint_data)
-            
-            # Convert to unified format
-            ml_result = MLClassificationResult()
-            ml_result.status = AnalysisStatus.COMPLETED
-            
-            # Map fields from original result
-            if hasattr(result, 'dpi_type'):
+
+            # Call model (can be sync or async)
+            res = self.classifier.classify_dpi(fingerprint_data)
+            if inspect.isawaitable(res):
+                res = await res
+
+            ml_result = MLClassificationResult(status=AnalysisStatus.COMPLETED)
+
+            # If the model already returns our unified result, just map it
+            if isinstance(res, MLClassificationResult):
+                return res
+
+            # Helpers
+            def to_dpi_type(val) -> DPIType:
+                if isinstance(val, DPIType):
+                    return val
                 try:
-                    ml_result.predicted_dpi_type = DPIType(result.dpi_type)
-                except ValueError:
-                    ml_result.predicted_dpi_type = DPIType.UNKNOWN
-            
-            if hasattr(result, 'confidence'):
-                ml_result.confidence = result.confidence
-            
-            if hasattr(result, 'alternative_predictions'):
-                ml_result.alternative_predictions = [
-                    (DPIType(dpi_type) if dpi_type in [t.value for t in DPIType] else DPIType.UNKNOWN, conf)
-                    for dpi_type, conf in result.alternative_predictions
-                ]
-            
-            if hasattr(result, 'feature_importance'):
-                ml_result.feature_importance = result.feature_importance or {}
-            
-            if hasattr(result, 'model_version'):
-                ml_result.model_version = result.model_version
-            
+                    return DPIType(val)
+                except Exception:
+                    return DPIType.UNKNOWN
+
+            # Accept multiple shapes: tuple, dict, object-with-attrs
+            if isinstance(res, tuple):
+                # e.g. ('roskomnadzor_dpi', 0.82)
+                label = res[0] if len(res) >= 1 else None
+                conf = res[1] if len(res) >= 2 else None
+                ml_result.predicted_dpi_type = to_dpi_type(label)
+                if conf is not None:
+                    ml_result.confidence = float(conf)
+
+            elif isinstance(res, dict):
+                label = res.get("dpi_type") or res.get("label") or res.get("class") or res.get("prediction")
+                conf = res.get("confidence") or res.get("probability") or res.get("score")
+                ml_result.predicted_dpi_type = to_dpi_type(label)
+                if conf is not None:
+                    ml_result.confidence = float(conf)
+                alts = res.get("alternative_predictions") or res.get("alternatives") or []
+                norm_alts = []
+                for item in alts:
+                    if isinstance(item, (list, tuple)) and len(item) >= 2:
+                        norm_alts.append((to_dpi_type(item[0]), float(item[1])))
+                    elif isinstance(item, dict):
+                        lbl = item.get("dpi_type") or item.get("label")
+                        cf = item.get("confidence") or item.get("probability") or item.get("score")
+                        if lbl is not None and cf is not None:
+                            norm_alts.append((to_dpi_type(lbl), float(cf)))
+                ml_result.alternative_predictions = norm_alts
+                if isinstance(res.get("feature_importance"), dict):
+                    ml_result.feature_importance = dict(res["feature_importance"])
+                if isinstance(res.get("model_version"), str):
+                    ml_result.model_version = res["model_version"]
+
+            else:
+                # Generic object with attributes
+                if hasattr(res, "dpi_type"):
+                    ml_result.predicted_dpi_type = to_dpi_type(getattr(res, "dpi_type"))
+                if hasattr(res, "confidence"):
+                    ml_result.confidence = float(getattr(res, "confidence"))
+                if hasattr(res, "alternative_predictions"):
+                    norm_alts = []
+                    for lbl, cf in getattr(res, "alternative_predictions") or []:
+                        norm_alts.append((to_dpi_type(lbl), float(cf)))
+                    ml_result.alternative_predictions = norm_alts
+                if hasattr(res, "feature_importance") and isinstance(res.feature_importance, dict):
+                    ml_result.feature_importance = dict(res.feature_importance)
+                if hasattr(res, "model_version"):
+                    ml_result.model_version = getattr(res, "model_version")
+
             self.logger.debug("ML classification completed")
             return ml_result
-            
+
         except Exception as e:
             self.logger.error(f"ML classification failed: {e}")
-            ml_result = MLClassificationResult()
-            ml_result.status = AnalysisStatus.FAILED
-            ml_result.error_message = str(e)
-            return ml_result
+            return MLClassificationResult(status=AnalysisStatus.FAILED, error_message=str(e))
     
     def is_available(self) -> bool:
         return ML_CLASSIFIER_AVAILABLE

@@ -9,6 +9,8 @@ from .types import TCPSegmentSpec
 class PacketBuilder:
     """
     Отвечает за сборку сырых байтов пакетов на основе спецификаций.
+    Эта версия содержит критические исправления для расчета SEQ, сохранения
+    TCP-опций и надежной порчи checksum.
     """
     def __init__(self):
         self.logger = logging.getLogger("BypassEngine.PacketBuilder")
@@ -235,7 +237,6 @@ class PacketBuilder:
             self.logger.error(f"Failed to build TCP segment: {e}", exc_info=True)
             return None
 
-    # ================== НАЧАЛО ИЗМЕНЕНИЯ ==================
     def build_udp_datagram(self, original_packet, data: bytes, ip_id: Optional[int] = None) -> Optional[bytes]:
         """Собирает UDP-датаграмму на основе оригинального пакета и новых данных."""
         try:
@@ -271,7 +272,6 @@ class PacketBuilder:
         except Exception as e:
             self.logger.error(f"Failed to build UDP datagram: {e}", exc_info=True)
             return None
-    # =================== КОНЕЦ ИЗМЕНЕНИЯ ===================
 
     def _ones_complement_sum(self, data: bytes) -> int:
         if len(data) % 2:

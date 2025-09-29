@@ -1,4 +1,4 @@
-# recon/core/fingerprint/ml_classifier.py
+# path: recon/core/fingerprint/ml_classifier.py
 """
 ML-based DPI classifier using sklearn RandomForest.
 Implements the design specification for advanced DPI fingerprinting.

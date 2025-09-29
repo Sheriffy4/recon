@@ -1,4 +1,4 @@
-# recon/cli.py - Рабочая версия на основе v111 (с PCAP, AdvancedFingerprinter и фиксом тестов)
+# recon/cli.py
 
 # Windows asyncio: подавим Proactor‑спам и улучшим совместимость
 import sys, asyncio as _asyncio
@@ -1296,7 +1296,7 @@ class SimpleFingerprinter:
     ) -> SimpleFingerprint:
         try:
             succ = " ".join(feedback_data.get("successful_strategies", []))
-            if "seqovl" in succ or "multisplit" in succ:
+            if "seqovl" in succ or "multisplit" in succ or "multidisorder" in succ:
                 fp.dpi_type = "LIKELY_STATEFUL_DPI"
             elif "badsum" in succ:
                 fp.dpi_type = "LIKELY_NO_CHECKSUM_VALIDATION"

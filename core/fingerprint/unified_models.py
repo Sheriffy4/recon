@@ -1,101 +1,98 @@
-# recon/core/fingerprint/unified_models.py
+# path: core/fingerprint/unified_models.py
 
-"""
-Unified Fingerprinting Data Models - Task 22 Implementation
-Standardizes all fingerprinting data models into a single, coherent structure.
-"""
-
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple, Union
-from enum import Enum
 import time
-import hashlib
 import json
-from datetime import datetime
+import hashlib
+from dataclasses import dataclass, field, asdict
+from enum import Enum
+from typing import Dict, List, Optional, Any, Tuple
 
+# ==============================================================================
+# Enums and Basic Types
+# ==============================================================================
+
+class AnalysisStatus(Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 class DPIType(Enum):
-    """Standardized DPI system types"""
     UNKNOWN = "unknown"
     ROSKOMNADZOR_TSPU = "roskomnadzor_tspu"
     ROSKOMNADZOR_DPI = "roskomnadzor_dpi"
     COMMERCIAL_DPI = "commercial_dpi"
     FIREWALL_BASED = "firewall_based"
-    ISP_TRANSPARENT_PROXY = "isp_proxy"
-    CLOUDFLARE_PROTECTION = "cloudflare"
-    GOVERNMENT_CENSORSHIP = "government"
-    CDN_EDGE_PROTECTION = "cdn_edge"
-    ENTERPRISE_FIREWALL = "enterprise_fw"
+    ISP_TRANSPARENT_PROXY = "isp_transparent_proxy"
 
-
-class ConfidenceLevel(Enum):
-    """Standardized confidence levels"""
-    VERY_LOW = 0.2
-    LOW = 0.4
-    MEDIUM = 0.6
-    HIGH = 0.8
-    VERY_HIGH = 0.9
-
-
-class AnalysisStatus(Enum):
-    """Status of analysis components"""
-    NOT_STARTED = "not_started"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-
+class HTTPBlockingMethod(Enum):
+    NONE = "none"
+    CONNECTION_RESET = "connection_reset"
+    TIMEOUT = "timeout"
+    REDIRECT = "redirect"
+    CONTENT_MODIFICATION = "content_modification"
+    HEADER_FILTERING = "header_filtering"
+    STATUS_CODE_INJECTION = "status_code_injection"
 
 @dataclass
 class ProbeResult:
-    """Standardized result from a single probe"""
     name: str
     success: bool
-    value: Any = None
-    timestamp: float = field(default_factory=time.time)
-    latency_ms: float = 0.0
-    confidence: float = 1.0
-    error_message: Optional[str] = None
-    raw_data: Optional[bytes] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    value: Any
+    confidence: float
+    details: Dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization"""
-        result = {
-            "name": self.name,
-            "success": self.success,
-            "value": self.value,
-            "timestamp": self.timestamp,
-            "latency_ms": self.latency_ms,
-            "confidence": self.confidence,
-            "error_message": self.error_message,
-            "metadata": self.metadata
-        }
-        if self.raw_data:
-            result["raw_data"] = self.raw_data.hex()
-        return result
+@dataclass
+class StrategyRecommendation:
+    strategy_name: str
+    predicted_effectiveness: float
+    confidence: float
+    reasoning: List[str]
 
 
 @dataclass
 class TCPAnalysisResult:
-    """Standardized TCP analysis results"""
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
     rst_injection_detected: bool = False
     tcp_window_manipulation: bool = False
     sequence_tracking: bool = False
     fragmentation_vulnerable: bool = False
+    fragmentation_handling: str = "unknown"
     tcp_options_filtering: List[str] = field(default_factory=list)
     window_size: Optional[int] = None
     mss: Optional[int] = None
     sack_permitted: bool = False
     timestamps_enabled: bool = False
+    syn_ack_to_client_hello_delta: Optional[float] = None
     probe_results: List[ProbeResult] = field(default_factory=list)
     error_message: Optional[str] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+@dataclass
+class HTTPRequest:
+    """Data structure for tracking HTTP requests"""
+    timestamp: float
+    url: str
+    method: str
+    headers: Dict[str, str] = field(default_factory=dict)
+    user_agent: str = ""
+    host_header: str = ""
+    content_type: str = ""
+    body: Optional[str] = None
+    success: bool = False
+    status_code: Optional[int] = None
+    response_headers: Dict[str, str] = field(default_factory=dict)
+    response_body: Optional[str] = None
+    response_time_ms: float = 0.0
+    blocking_method: HTTPBlockingMethod = HTTPBlockingMethod.NONE
+    error_message: Optional[str] = None
+    redirect_url: Optional[str] = None
+    content_modified: bool = False
 
 @dataclass
 class HTTPAnalysisResult:
-    """Standardized HTTP analysis results"""
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
     http_blocking_detected: bool = False
     http2_support: bool = False
@@ -104,25 +101,58 @@ class HTTPAnalysisResult:
     host_header_inspection: bool = False
     probe_results: List[ProbeResult] = field(default_factory=list)
     error_message: Optional[str] = None
+    http_requests: List[HTTPRequest] = field(default_factory=list)
+    analysis_errors: List[str] = field(default_factory=list)
+    
+    # Добавляем недостающие атрибуты
+    http_header_filtering: bool = False
+    filtered_headers: List[str] = field(default_factory=list)
+    user_agent_filtering: bool = False
+    blocked_user_agents: List[str] = field(default_factory=list)
+    user_agent_whitelist_detected: bool = False
+    host_header_manipulation: bool = False
+    host_header_validation: bool = False
+    sni_host_mismatch_blocking: bool = False
+    http_method_restrictions: List[str] = field(default_factory=list)
+    allowed_methods: List[str] = field(default_factory=list)
+    method_based_blocking: bool = False
+    content_type_filtering: bool = False
+    blocked_content_types: List[str] = field(default_factory=list)
+    content_type_validation: bool = False
+    content_based_blocking: bool = False
+    content_inspection_depth: int = 0
+    keyword_filtering: List[str] = field(default_factory=list)
+    redirect_injection: bool = False
+    redirect_status_codes: List[int] = field(default_factory=list)
+    redirect_patterns: List[str] = field(default_factory=list)
+    http_response_modification: bool = False
+    injected_content: List[str] = field(default_factory=list)
+    response_modification_patterns: List[str] = field(default_factory=list)
+    keep_alive_manipulation: bool = False
+    connection_header_filtering: bool = False
+    persistent_connection_blocking: bool = False
+    chunked_encoding_handling: str = "unknown"
+    transfer_encoding_filtering: bool = False
+    compression_handling: str = "unknown"
+    header_case_sensitivity: bool = False
+    custom_header_blocking: bool = False
+    reliability_score: float = 0.0
 
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
 
 @dataclass
 class TLSAnalysisResult:
-    """Standardized TLS analysis results"""
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
     sni_blocking_detected: bool = False
-    cipher_suite_filtering: bool = False
-    extension_filtering: List[str] = field(default_factory=list)
     ech_support: bool = False
-    ja3_fingerprint: Optional[str] = None
-    supported_versions: List[str] = field(default_factory=list)
+    certificate_swapping: bool = False
+    cipher_suite_filtering: bool = False
     probe_results: List[ProbeResult] = field(default_factory=list)
     error_message: Optional[str] = None
 
-
 @dataclass
 class DNSAnalysisResult:
-    """Standardized DNS analysis results"""
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
     dns_blocking_detected: bool = False
     doh_support: bool = False
@@ -131,10 +161,8 @@ class DNSAnalysisResult:
     probe_results: List[ProbeResult] = field(default_factory=list)
     error_message: Optional[str] = None
 
-
 @dataclass
 class MLClassificationResult:
-    """Standardized ML classification results"""
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
     predicted_dpi_type: DPIType = DPIType.UNKNOWN
     confidence: float = 0.0
@@ -144,172 +172,105 @@ class MLClassificationResult:
     error_message: Optional[str] = None
 
 
-@dataclass
-class StrategyRecommendation:
-    """Standardized strategy recommendation"""
-    strategy_name: str
-    predicted_effectiveness: float
-    confidence: float
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    reasoning: List[str] = field(default_factory=list)
-
-
 # Advanced Probe Results - Task 23 Implementation (moved before UnifiedFingerprint)
 
 @dataclass
 class AdvancedTCPProbeResult:
-    """Results from advanced TCP/IP probing - Task 23"""
-    
-    target: str = ""
-    port: int = 443
-    timestamp: float = field(default_factory=time.time)
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
-    error_message: Optional[str] = None
-    
-    # Packet Reordering Tests
+    target: str = ""
+    port: int = 0
+    timestamp: float = field(default_factory=time.time)
     packet_reordering_tolerance: bool = False
     reordering_window_size: Optional[int] = None
-    
-    # IP Fragmentation Tests
-    ip_fragmentation_overlap_handling: str = "unknown"  # "vulnerable", "blocked", "unknown"
+    ip_fragmentation_overlap_handling: str = "unknown"
     fragment_reassembly_timeout: Optional[float] = None
-    
-    # Exotic TCP Flags and Options
     exotic_tcp_flags_response: Dict[str, str] = field(default_factory=dict)
     tcp_options_filtering: List[str] = field(default_factory=list)
-    
-    # TTL Distance Analysis
     dpi_distance_hops: Optional[int] = None
     ttl_manipulation_detected: bool = False
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary"""
-        return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
-
+    error_message: Optional[str] = None
 
 @dataclass
 class AdvancedTLSProbeResult:
-    """Results from advanced TLS/HTTP probing - Task 23"""
-    
-    target: str = ""
-    port: int = 443
-    timestamp: float = field(default_factory=time.time)
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
-    error_message: Optional[str] = None
-    
-    # TLS ClientHello Size Tests
-    clienthello_size_sensitivity: Dict[str, Any] = field(default_factory=dict)
+    target: str = ""
+    port: int = 0
+    timestamp: float = field(default_factory=time.time)
+    clienthello_size_sensitivity: Dict[int, Any] = field(default_factory=dict)
     max_clienthello_size: Optional[int] = None
     min_clienthello_size: Optional[int] = None
-    
-    # ECH (Encrypted Client Hello) Tests
     ech_support_detected: bool = False
     ech_blocking_detected: bool = False
     ech_config_available: bool = False
-    
-    # HTTP/2 and HTTP/3 Tests
     http2_support: bool = False
     http2_blocking_detected: bool = False
     http3_support: bool = False
     quic_blocking_detected: bool = False
-    
-    # "Dirty" HTTP Traffic Tests
     dirty_http_tolerance: Dict[str, str] = field(default_factory=dict)
     http_header_filtering: List[str] = field(default_factory=list)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary"""
-        return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
-
+    error_message: Optional[str] = None
 
 @dataclass
 class BehavioralProbeResult:
-    """Results from behavioral and timing probing - Task 23"""
-    
-    target: str = ""
-    port: int = 443
-    timestamp: float = field(default_factory=time.time)
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
-    error_message: Optional[str] = None
-    
-    # Timing Analysis
+    target: str = ""
+    port: int = 0
+    timestamp: float = field(default_factory=time.time)
     connection_timing_patterns: Dict[str, Any] = field(default_factory=dict)
     dpi_processing_delay: Optional[float] = None
     timing_variance_detected: bool = False
-    
-    # Session Fingerprinting
     session_tracking_detected: bool = False
     connection_correlation_detected: bool = False
     ip_based_tracking: bool = False
     port_based_tracking: bool = False
-    
-    # DPI Adaptation Testing
     dpi_learning_detected: bool = False
     adaptation_time_window: Optional[float] = None
     bypass_degradation_detected: bool = False
-    
-    # Connection Pattern Analysis
     concurrent_connection_limit: Optional[int] = None
     rate_limiting_detected: bool = False
     connection_fingerprinting: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary"""
-        return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+    error_message: Optional[str] = None
 
 
 @dataclass
 class UnifiedFingerprint:
-    """
-    Unified fingerprint structure combining all analysis results.
-    This replaces the fragmented DPIFingerprint, EnhancedFingerprint, etc.
-    """
-    # Basic identification
     target: str
-    port: int = 443
+    port: int
+    fingerprint_version: str = "1.0"
     timestamp: float = field(default_factory=time.time)
-    analysis_duration: float = 0.0
-    fingerprint_version: str = "4.0"
-    
-    # Overall classification
+    ip_addresses: List[str] = field(default_factory=list)
     dpi_type: DPIType = DPIType.UNKNOWN
-    confidence: float = 0.0
     reliability_score: float = 0.0
-    
-    # Component analysis results
+    analysis_duration: float = 0.0
+    cache_keys: List[str] = field(default_factory=list)
     tcp_analysis: TCPAnalysisResult = field(default_factory=TCPAnalysisResult)
     http_analysis: HTTPAnalysisResult = field(default_factory=HTTPAnalysisResult)
     tls_analysis: TLSAnalysisResult = field(default_factory=TLSAnalysisResult)
     dns_analysis: DNSAnalysisResult = field(default_factory=DNSAnalysisResult)
     ml_classification: MLClassificationResult = field(default_factory=MLClassificationResult)
-    
-    # Advanced probe results - Task 23
     advanced_tcp_probes: AdvancedTCPProbeResult = field(default_factory=AdvancedTCPProbeResult)
     advanced_tls_probes: AdvancedTLSProbeResult = field(default_factory=AdvancedTLSProbeResult)
     behavioral_probes: BehavioralProbeResult = field(default_factory=BehavioralProbeResult)
-    
-    # Strategy recommendations
     recommended_strategies: List[StrategyRecommendation] = field(default_factory=list)
-    
-    # Network information
-    ip_addresses: List[str] = field(default_factory=list)
-    cdn_provider: Optional[str] = None
-    asn: Optional[int] = None
-    
-    # Performance metrics
-    connection_latency_ms: float = 0.0
-    analysis_success_rate: float = 0.0
-    
-    # Raw data for debugging
-    raw_metrics: Dict[str, Any] = field(default_factory=dict)
-    cache_keys: List[str] = field(default_factory=list)
+    errors: List['AnalyzerError'] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        # backward-compat alias
+        d["confidence"] = self.confidence
+        return d
+
+    @property
+    def confidence(self) -> float:
+        try:
+            return float(self.ml_classification.confidence)
+        except Exception:
+            return 0.0
     
     def get_cache_key(self, strategy: str = "domain") -> str:
         """Generate cache key based on strategy"""
         if strategy == "domain":
             return f"domain:{self.target}:{self.port}"
-        elif strategy == "cdn" and self.cdn_provider:
-            return f"cdn:{self.cdn_provider}:{self.port}"
         elif strategy == "dpi_hash":
             return self.calculate_dpi_hash()
         else:
@@ -407,7 +368,7 @@ class UnifiedFingerprint:
         return {
             "target": f"{self.target}:{self.port}",
             "dpi_type": self.dpi_type.value if isinstance(self.dpi_type, Enum) else self.dpi_type,
-            "confidence": self.confidence,
+            "confidence": self.ml_classification.confidence,
             "reliability_score": self.reliability_score,
             "analysis_duration": self.analysis_duration,
             "components_completed": [
@@ -424,69 +385,6 @@ class UnifiedFingerprint:
             ],
             "recommended_strategies": [r.strategy_name for r in self.recommended_strategies],
             "cache_key": self.get_cache_key()
-        }
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization, handling potential string-enums."""
-        def get_enum_value(val):
-            return val.value if isinstance(val, Enum) else val
-
-        return {
-            "target": self.target,
-            "port": self.port,
-            "timestamp": self.timestamp,
-            "analysis_duration": self.analysis_duration,
-            "fingerprint_version": self.fingerprint_version,
-            "dpi_type": get_enum_value(self.dpi_type),
-            "confidence": self.confidence,
-            "reliability_score": self.reliability_score,
-            "tcp_analysis": {
-                "status": get_enum_value(self.tcp_analysis.status),
-                "rst_injection_detected": self.tcp_analysis.rst_injection_detected,
-                "tcp_window_manipulation": self.tcp_analysis.tcp_window_manipulation,
-                "sequence_tracking": self.tcp_analysis.sequence_tracking,
-                "fragmentation_vulnerable": self.tcp_analysis.fragmentation_vulnerable,
-                "probe_results": [r.to_dict() for r in self.tcp_analysis.probe_results]
-            },
-            "http_analysis": {
-                "status": get_enum_value(self.http_analysis.status),
-                "http_blocking_detected": self.http_analysis.http_blocking_detected,
-                "http2_support": self.http_analysis.http2_support,
-                "probe_results": [r.to_dict() for r in self.http_analysis.probe_results]
-            },
-            "tls_analysis": {
-                "status": get_enum_value(self.tls_analysis.status),
-                "sni_blocking_detected": self.tls_analysis.sni_blocking_detected,
-                "cipher_suite_filtering": self.tls_analysis.cipher_suite_filtering,
-                "probe_results": [r.to_dict() for r in self.tls_analysis.probe_results]
-            },
-            "dns_analysis": {
-                "status": get_enum_value(self.dns_analysis.status),
-                "dns_blocking_detected": self.dns_analysis.dns_blocking_detected,
-                "doh_support": self.dns_analysis.doh_support,
-                "probe_results": [r.to_dict() for r in self.dns_analysis.probe_results]
-            },
-            "ml_classification": {
-                "status": get_enum_value(self.ml_classification.status),
-                "predicted_dpi_type": get_enum_value(self.ml_classification.predicted_dpi_type),
-                "confidence": self.ml_classification.confidence,
-                "alternative_predictions": [(get_enum_value(t), c) for t, c in self.ml_classification.alternative_predictions]
-            },
-            "recommended_strategies": [
-                {
-                    "strategy_name": r.strategy_name,
-                    "predicted_effectiveness": r.predicted_effectiveness,
-                    "confidence": r.confidence,
-                    "parameters": r.parameters,
-                    "reasoning": r.reasoning
-                } for r in self.recommended_strategies
-            ],
-            "ip_addresses": self.ip_addresses,
-            "cdn_provider": self.cdn_provider,
-            "asn": self.asn,
-            "connection_latency_ms": self.connection_latency_ms,
-            "analysis_success_rate": self.analysis_success_rate,
-            "raw_metrics": self.raw_metrics
         }
 
 

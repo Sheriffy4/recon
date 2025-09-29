@@ -1,3 +1,5 @@
+# --- START OF FILE core/strategy_interpreter_fixed.py ---
+
 """
 Fixed Strategy Interpreter for Correct Zapret Parsing
 
@@ -222,22 +224,60 @@ class FixedStrategyInterpreter:
             'datanoack': FoolingMethod.DATANOACK,
         }
     
+    def _convert_dsl_to_cli(self, dsl_string: str) -> str:
+        s = dsl_string.strip()
+        m = re.match(r'(\w+)\((.*)\)\s*$', s)
+        if not m:
+            return dsl_string  # не наш формат
+
+        func_name, args_str = m.groups()
+        cli_parts = [f"--dpi-desync={func_name}"]
+
+        # key=value, где value либо [...] (без запятых внутри), либо любой кусок до следующей запятой
+        pairs = []
+        for mm in re.finditer(r'(\w+)\s*=\s*(\[[^\]]*\]|[^,]+)(?:,|$)', args_str):
+            key, value = mm.groups()
+            pairs.append((key.strip(), value.strip()))
+
+        param_map = {
+            'fooling': 'fooling',
+            'ttl': 'ttl',
+            'split_pos': 'split-pos',
+            'overlap_size': 'split-seqovl',
+            'repeats': 'repeats',
+            'autottl': 'autottl',
+        }
+
+        for key, value in pairs:
+            if key not in param_map:
+                continue
+            cli_param = param_map[key]
+            # нормализация списков вида ['badsum','md5sig'] -> badsum,md5sig
+            if value.startswith('[') and value.endswith(']'):
+                inner = value[1:-1].strip()
+                if inner:
+                    items = [it.strip(" '\"") for it in inner.split(',') if it.strip()]
+                    value_str = ",".join(items)
+                else:
+                    value_str = ""
+            else:
+                value_str = value.strip(" '\"")
+            cli_parts.append(f"--dpi-desync-{cli_param}={value_str}")
+
+        converted = " ".join(cli_parts)
+        self.logger.info(f"Converted DSL '{dsl_string}' to CLI '{converted}'")
+        return converted
+    
     def parse_strategy(self, strategy_str: str) -> ZapretStrategy:
-        """
-        Parse a zapret strategy string into a structured ZapretStrategy object.
-        
-        Args:
-            strategy_str: Zapret command line string (e.g., "--dpi-desync=fake,fakeddisorder ...")
-            
-        Returns:
-            ZapretStrategy object with parsed parameters
-            
-        Raises:
-            ValueError: If strategy string is invalid or contains unsupported parameters
-        """
         if not strategy_str or not isinstance(strategy_str, str):
             raise ValueError("Strategy string cannot be empty or None")
-        
+
+        # --- ИЗМЕНЕНИЕ: Добавляем шаг конвертации ---
+        # Если строка в формате func(...), конвертируем ее
+        if '(' in strategy_str and not strategy_str.strip().startswith('--'):
+            strategy_str = self._convert_dsl_to_cli(strategy_str)
+        # --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
         self.logger.info(f"Parsing zapret strategy: {strategy_str}")
         
         try:
@@ -383,14 +423,29 @@ class FixedStrategyInterpreter:
         fooling_methods = []
         
         # Match --dpi-desync-fooling=method1,method2,... pattern
+        # ИСПРАВЛЕНИЕ: Обработка разных форматов (со скобками и без)
         match = re.search(r'--dpi-desync-fooling=([^\s]+)', strategy_str)
         if not match:
             return fooling_methods
         
         fooling_str = match.group(1)
-        fooling_names = [name.strip() for name in fooling_str.split(',')]
+        
+        # ИСПРАВЛЕНИЕ: Очистка от квадратных скобок и кавычек
+        # Обрабатываем случаи: ['badsum'], badsum, "badsum", ['badsum','md5sig']
+        fooling_str = fooling_str.strip()
+        if fooling_str.startswith('[') and fooling_str.endswith(']'):
+            # Python list format
+            fooling_str = fooling_str[1:-1]
+        elif fooling_str.startswith("['") or fooling_str.startswith('["'):
+            # Partial list (может быть обрезан)
+            fooling_str = fooling_str.replace("['", "").replace('["', "").replace("']", "").replace('"]', "")
+        
+        # Убираем кавычки и разбиваем по запятым
+        fooling_str = fooling_str.replace("'", "").replace('"', '')
+        fooling_names = [name.strip() for name in fooling_str.split(',') if name.strip()]
         
         for fooling_name in fooling_names:
+            fooling_name = fooling_name.strip()
             if fooling_name in self._fooling_map:
                 fooling_methods.append(self._fooling_map[fooling_name])
                 self.logger.debug(f"Parsed fooling method: {fooling_name} -> {self._fooling_map[fooling_name]}")
@@ -1045,63 +1100,44 @@ def convert_to_legacy(strategy: ZapretStrategy) -> Dict[str, Any]:
 def interpret_strategy(strategy_string: str) -> Optional[Dict[str, Any]]:
     """
     Main function to interpret zapret strategy string.
-    This is the function called from cli.py
-    
-    Args:
-        strategy_string: Zapret command line string
-        
-    Returns:
-        Dictionary with 'type' and 'params' keys for engine task
     """
     try:
-        # Use the fixed interpreter
         interpreter = get_fixed_interpreter()
         
-        # Parse the strategy
+        # ИСПРАВЛЕНИЕ: Нормализация входной строки
+        # Убираем проблемные символы, которые могут остаться от Python repr()
+        
+        
         parsed_strategy = interpreter.parse_strategy(strategy_string)
         
-        # Validate the strategy
         if not interpreter.validate_strategy(parsed_strategy):
             logger.warning(f"Strategy validation failed for: {strategy_string}")
             return None
         
-        # Convert to legacy format for engine compatibility
         legacy_format = interpreter.convert_to_legacy_format(parsed_strategy)
         
-        # Transform to engine task format
         engine_task = {
             'type': legacy_format.get('attack_type', 'unknown'),
             'params': {}
         }
         
-        # Copy all parameters except attack_type
         for key, value in legacy_format.items():
             if key != 'attack_type':
                 engine_task['params'][key] = value
         
-        # CRITICAL: Log the interpretation for debugging
+        # ИСПРАВЛЕНИЕ: Убедимся, что fooling всегда список
+        if 'fooling' in engine_task['params']:
+            fooling = engine_task['params']['fooling']
+            if isinstance(fooling, str):
+                engine_task['params']['fooling'] = [fooling]
+            elif not isinstance(fooling, list):
+                engine_task['params']['fooling'] = []
+        
         logger.info(f"Interpreted strategy: {strategy_string}")
         logger.info(f"  -> Attack type: {engine_task['type']}")
         logger.info(f"  -> Parameters: {engine_task['params']}")
         
-        # Special handling for fakeddisorder attack
-        if engine_task['type'] == 'fakeddisorder':
-            # Ensure critical parameters are present
-            if 'split_pos' not in engine_task['params']:
-                engine_task['params']['split_pos'] = 76  # zapret default
-            if 'overlap_size' not in engine_task['params'] and 'split_seqovl' in engine_task['params']:
-                engine_task['params']['overlap_size'] = engine_task['params']['split_seqovl']
-            if 'ttl' not in engine_task['params']:
-                engine_task['params']['ttl'] = 1  # zapret default for fakeddisorder
-            
-            logger.info(f"  -> CRITICAL: fakeddisorder with split_pos={engine_task['params']['split_pos']}, "
-                       f"overlap_size={engine_task['params'].get('overlap_size', 336)}, "
-                       f"ttl={engine_task['params']['ttl']}")
-        
-        try:
-            return _normalize_engine_task(engine_task)
-        except Exception:
-            return engine_task
+        return engine_task
         
     except Exception as e:
         logger.error(f"Failed to interpret strategy '{strategy_string}': {e}")
