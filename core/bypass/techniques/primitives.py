@@ -52,9 +52,9 @@ class BypassTechniques:
     ) -> List[Tuple[bytes, int, dict]]:
         """
         CRITICAL FIX: Реализация fakeddisorder в стиле zapret.
-        1. Fake-пакет - это ПОЛНЫЙ payload с испорченной checksum.
-        2. Реальные пакеты делятся и отправляются в неправильном порядке (disorder).
-        3. Второй реальный пакет отправляется со смещением для перекрытия (overlap).
+        
+        Returns:
+            List[Tuple[bytes, int, dict]]: List of (payload, offset, options)
         """
         if fooling_methods is None:
             fooling_methods = ["badsum"]
@@ -73,21 +73,19 @@ class BypassTechniques:
             "is_fake": True,
             "ttl": fake_ttl,
             "tcp_flags": 0x18,  # PSH+ACK
-            "seq_offset": 0,
-            "corrupt_tcp_checksum": True,  # Обязательно для badsum и как базовый fooling
+            "corrupt_tcp_checksum": True,  # Обязательно для badsum
             "delay_ms_after": delay_ms
         }
 
-        # Применяем дополнительные методы fooling к фейковому пакету
+        # Применяем дополнительные методы fooling
         if "md5sig" in fooling_methods:
             opts_fake["add_md5sig_option"] = True
         if "badseq" in fooling_methods:
-            opts_fake["corrupt_sequence"] = True # Указываем билдеру, что нужен неверный seq
-            opts_fake["seq_offset"] = -1 # Явное смещение для builder'a
+            opts_fake["seq_extra"] = -1  # Смещение sequence number
 
         # Параметры для реальных сегментов
-        opts_real1 = {"is_fake": False, "tcp_flags": 0x10} # ACK
-        opts_real2 = {"is_fake": False, "tcp_flags": 0x18} # PSH+ACK
+        opts_real1 = {"is_fake": False, "tcp_flags": 0x10}  # ACK
+        opts_real2 = {"is_fake": False, "tcp_flags": 0x18}  # PSH+ACK
         
         # Правильный расчет смещения для второго реального пакета с учетом overlap
         real_part2_offset = len(part1) - overlap_size

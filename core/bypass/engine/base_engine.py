@@ -656,30 +656,67 @@ class WindowsBypassEngine(IBypassEngine):
     def _is_tcp(self, packet) -> bool:
         return self._proto(packet) == 6
     
-    def _recipe_to_specs(self, recipe):
+    def _recipe_to_specs(self, recipe: List[Tuple[bytes, int, dict]], payload: bytes) -> List[TCPSegmentSpec]:
+        """
+        Convert recipe (from BypassTechniques) to TCPSegmentSpec list.
+        
+        Recipe format: List[Tuple[segment_payload, offset, options_dict]]
+        
+        Args:
+            recipe: List of tuples (segment_payload, offset, options)
+            payload: Original full payload (for reference/validation)
+        
+        Returns:
+            List of TCPSegmentSpec objects ready for PacketSender
+        """
+        if not recipe:
+            self.logger.warning("Empty recipe provided to _recipe_to_specs")
+            return []
+        
         specs = []
-        if not recipe: return specs
-        total = len(recipe)
-        for i, seg in enumerate(recipe):
-            payload, rel_off, opts = seg if len(seg) == 3 else (seg[0], seg[1], {})
-            default_flags = 0x10 | (0x08 if i == total - 1 else 0)
-            seq_extra = int(opts.get("seq_offset", 0))
-            if opts.get("corrupt_sequence"): seq_extra = -1
-            
-            # <<< РЕШЕНИЕ 4: Исправлено чтение задержки >>>
-            # Проверяем оба ключа: 'delay_ms' (из primitives) и 'delay_ms_after' (для совместимости)
-            delay = int(opts.get("delay_ms", opts.get("delay_ms_after", 0))) if i < total - 1 else 0
-
-            specs.append(TCPSegmentSpec(
-                payload=payload or b"", rel_seq=int(rel_off),
-                flags=int(opts.get("tcp_flags", default_flags)) & 0xFF,
-                ttl=opts.get("ttl"), corrupt_tcp_checksum=bool(opts.get("corrupt_tcp_checksum")),
-                add_md5sig_option=bool(opts.get("add_md5sig_option")),
-                seq_extra=seq_extra, 
-                delay_ms_after=delay, # <-- Используем исправленное значение
-                is_fake=bool(opts.get("is_fake")), fooling_sni=opts.get("fooling_sni"),
-                preserve_window_size=True
-            ))
+        
+        for i, (seg_payload, offset, opts) in enumerate(recipe):
+            try:
+                # Extract options with defaults
+                is_fake = opts.get("is_fake", False)
+                ttl = opts.get("ttl")
+                tcp_flags = opts.get("tcp_flags", 0x18)  # PSH+ACK by default
+                corrupt_checksum = opts.get("corrupt_tcp_checksum", False)
+                add_md5sig = opts.get("add_md5sig_option", False)
+                seq_extra = opts.get("seq_offset", 0)
+                fooling_sni = opts.get("fooling_sni")
+                delay_ms = opts.get("delay_ms_after", 0)
+                preserve_window = opts.get("preserve_window_size", not is_fake)
+                
+                # Create spec
+                spec = TCPSegmentSpec(
+                    rel_seq=offset,
+                    payload=seg_payload,
+                    flags=tcp_flags,
+                    ttl=ttl,
+                    corrupt_tcp_checksum=corrupt_checksum,
+                    add_md5sig_option=add_md5sig,
+                    seq_extra=seq_extra,
+                    fooling_sni=fooling_sni,
+                    is_fake=is_fake,
+                    delay_ms_after=delay_ms,
+                    preserve_window_size=preserve_window
+                )
+                
+                specs.append(spec)
+                
+                self.logger.debug(
+                    f"Spec {i}: offset={offset}, len={len(seg_payload)}, "
+                    f"fake={is_fake}, ttl={ttl}, flags=0x{tcp_flags:02X}"
+                )
+                
+            except Exception as e:
+                self.logger.error(f"Failed to create spec {i} from recipe: {e}", exc_info=self.debug)
+                continue
+        
+        if not specs:
+            self.logger.error("No valid specs generated from recipe")
+        
         return specs
     
     def apply_bypass(self, packet: "pydivert.Packet", w: "pydivert.WinDivert", strategy_task: Dict):
@@ -714,7 +751,7 @@ class WindowsBypassEngine(IBypassEngine):
                     self.logger.warning("Could not resolve 'midsld', falling back to default split_pos=76")
                     params["split_pos"] = 76
 
-            self.logger.info(f"\uD83C\uDFAF Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
+            self.logger.info(f"🎯 Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
             payload = bytes(packet.payload)
             
             recipe = []
@@ -723,7 +760,44 @@ class WindowsBypassEngine(IBypassEngine):
             if task_type == "fakeddisorder" and is_adaptive_task:
                 # --- ПУТЬ КАЛИБРАТОРА (ТОЛЬКО ДЛЯ АДАПТИВНЫХ ЗАДАЧ) ---
                 self.logger.debug("Adaptive task detected, starting Calibrator...")
-                # ... (Calibrator logic remains the same)
+                flow_id = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
+                if flow_id in self._active_flows:
+                    self.logger.debug("Flow already processed, forwarding original")
+                    w.send(packet)
+                    return
+                self._active_flows.add(flow_id)
+                threading.Timer(self._flow_ttl_sec, lambda: self._active_flows.discard(flow_id)).start()
+
+                inbound_ev = self._get_inbound_event_for_flow(packet)
+                rev_key = (packet.dst_addr, packet.dst_port, packet.src_addr, packet.src_port)
+                if inbound_ev.is_set(): inbound_ev.clear()
+                self._inbound_results.pop(rev_key, None)
+
+                sp_guess = self._estimate_split_pos_from_ch(payload)
+                init_sp = params.get("split_pos") or sp_guess or 76
+                cand_list = Calibrator.prepare_candidates(payload, initial_split_pos=init_sp)
+                fooling_list = params.get("fooling", []) or []
+                ttl_list = list(range(1, params.get('autottl', 1) + 1))
+
+                def _send_try(cand: CalibCandidate, ttl: int, d_ms: int):
+                    recipe_calib = self.techniques.apply_fakeddisorder(
+                        payload, cand.split_pos, cand.overlap_size,
+                        fake_ttl=int(ttl), fooling_methods=fooling_list, delay_ms=d_ms
+                    )
+                    specs = self._recipe_to_specs(recipe_calib)
+                    self._packet_sender.send_tcp_segments(w, packet, specs)
+
+                def _wait_outcome(timeout: float=0.6) -> Optional[str]:
+                    got = inbound_ev.wait(timeout=timeout)
+                    return self._inbound_results.get(rev_key) if got else None
+
+                best_cand = Calibrator.sweep(
+                    payload=payload, candidates=cand_list, ttl_list=ttl_list,
+                    delays=[0, 1, 2], send_func=_send_try, wait_func=_wait_outcome, time_budget_ms=900
+                )
+                if not best_cand:
+                     self.logger.warning("Calibrator failed. Forwarding original packet.")
+                     w.send(packet)
                 return # Калибратор сам управляет отправкой, выходим
             
             # --- ПУТЬ ПРЯМОГО ВЫПОЛНЕНИЯ (ДЛЯ ФИКСИРОВАННЫХ СТРАТЕГИЙ) ---
@@ -752,7 +826,8 @@ class WindowsBypassEngine(IBypassEngine):
                 return
 
             if recipe:
-                specs = self._recipe_to_specs(recipe)
+                # ⚡ CRITICAL FIX: Передаем payload в _recipe_to_specs
+                specs = self._recipe_to_specs(recipe, payload)
                 success = self._packet_sender.send_tcp_segments(w, packet, specs)
                 if not success:
                     self.logger.warning("Packet sender failed, forwarding original packet")

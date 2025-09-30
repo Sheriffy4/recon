@@ -12,6 +12,7 @@ import inspect  # <<< FIX: Added missing import
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 
+
 from .unified_models import (
     ProbeResult,
     TCPAnalysisResult,
@@ -97,336 +98,303 @@ except ImportError as e:
 class BaseAnalyzerAdapter:
     """Base class for analyzer adapters"""
     
-    def __init__(self, timeout: float = 30.0):
-        self.timeout = timeout
+    def __init__(self):
+        self.name = "base"
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
     
-    async def analyze(self, target: str, port: int, **kwargs) -> Any:
-        """Perform analysis - to be implemented by subclasses"""
+    async def analyze(self, target: str, port: int, **kwargs):
         raise NotImplementedError
     
     def get_name(self) -> str:
-        """Get analyzer name"""
-        return self.__class__.__name__
+        return self.name
     
     def is_available(self) -> bool:
-        """Check if analyzer is available"""
         return True
 
 
 class TCPAnalyzerAdapter(BaseAnalyzerAdapter):
-    """Adapter for TCPAnalyzer with fixed integration"""
+    """Enhanced TCP analyzer adapter with proper dict-to-dataclass mapping"""
     
-    def __init__(self, timeout: float = 30.0):
-        super().__init__(timeout)
-        
-        if not TCP_ANALYZER_AVAILABLE:
-            raise AnalyzerError(f"TCPAnalyzer not available: {TCP_IMPORT_ERROR}")
-        
-        try:
-            self.analyzer = OriginalTCPAnalyzer(timeout=timeout)
-            self.logger.info("TCPAnalyzer initialized successfully")
-        except Exception as e:
-            raise AnalyzerError(f"Failed to initialize TCPAnalyzer: {e}")
+    def __init__(self, timeout: float = 5.0):
+        super().__init__()  # CRITICAL: Call parent __init__
+        from core.fingerprint.tcp_analyzer import TCPAnalyzer
+        self.analyzer = TCPAnalyzer(timeout=timeout)
+        self.name = "tcp"
     
     async def analyze(self, target: str, port: int, **kwargs) -> TCPAnalysisResult:
-        """Run TCP analysis and convert to unified format"""
+        """Analyze with proper result coercion"""
         try:
-            self.logger.debug(f"Starting TCP analysis for {target}:{port}")
+            result_dict = await self.analyzer.analyze_tcp_behavior(target, port)
             
-            # Call the original analyzer
-            result = await self.analyzer.analyze_tcp_behavior(target, port)
-            
-            # Convert to unified format
             tcp_result = TCPAnalysisResult()
             tcp_result.status = AnalysisStatus.COMPLETED
             
-            # <<< РЕШЕНИЕ 3: Исправлен маппинг для работы с dict >>>
-            if isinstance(result, dict):
-                tcp_result.rst_injection_detected = bool(result.get('rst_injection_detected'))
-                fh = result.get('fragmentation_handling')
+            if isinstance(result_dict, dict):
+                # Boolean flags
+                tcp_result.rst_injection_detected = bool(
+                    result_dict.get('rst_injection_detected', False)
+                )
+                tcp_result.tcp_window_manipulation = bool(
+                    result_dict.get('tcp_window_manipulation', False)
+                )
+                tcp_result.sequence_tracking = bool(
+                    result_dict.get('sequence_tracking', False)
+                )
+                
+                # Fragmentation
+                fh = result_dict.get('fragmentation_handling', 'unknown')
                 tcp_result.fragmentation_vulnerable = (fh == 'vulnerable')
-                tcp_result.window_size = result.get('window_size')
-                tcp_result.mss = result.get('mss')
-                tcp_result.sack_permitted = bool(result.get('sack_permitted'))
-                tcp_result.timestamps_enabled = bool(result.get('timestamps_enabled'))
-                tcp_result.syn_ack_to_client_hello_delta = result.get('syn_ack_to_client_hello_delta')
+                tcp_result.fragmentation_handling = fh
+                
+                # TCP options
+                tcp_result.tcp_options_filtering = result_dict.get(
+                    'tcp_options_filtering', []
+                )
+                tcp_result.window_size = result_dict.get('window_size')
+                tcp_result.mss = result_dict.get('mss')
+                tcp_result.sack_permitted = bool(
+                    result_dict.get('sack_permitted', False)
+                )
+                tcp_result.timestamps_enabled = bool(
+                    result_dict.get('timestamps_enabled', False)
+                )
+                
+                # Timing
+                tcp_result.syn_ack_to_client_hello_delta = result_dict.get(
+                    'syn_ack_to_client_hello_delta'
+                )
+                
+                # Probe results
+                if 'probe_results' in result_dict:
+                    tcp_result.probe_results = result_dict['probe_results']
+                
+                # Error message
+                tcp_result.error_message = result_dict.get('error_message')
+            
             else:
-                # Старый путь через hasattr для обратной совместимости, если вдруг вернется объект
-                if hasattr(result, 'rst_injection_detected'):
-                    tcp_result.rst_injection_detected = result.rst_injection_detected
-                if hasattr(result, 'fragmentation_handling'):
-                    tcp_result.fragmentation_vulnerable = (result.fragmentation_handling == 'vulnerable')
+                # Fallback: hasattr for backward compatibility
+                tcp_result.rst_injection_detected = getattr(
+                    result_dict, 'rst_injection_detected', False
+                )
+                tcp_result.fragmentation_vulnerable = getattr(
+                    result_dict, 'fragmentation_vulnerable', False
+                )
             
-            if hasattr(result, 'tcp_options_filtering'):
-                tcp_result.tcp_options_filtering = result.tcp_options_filtering or []
-            
-            if hasattr(result, 'window_size'):
-                tcp_result.window_size = result.window_size
-            
-            if hasattr(result, 'mss'):
-                tcp_result.mss = result.mss
-            
-            if hasattr(result, 'sack_permitted'):
-                tcp_result.sack_permitted = result.sack_permitted
-            
-            if hasattr(result, 'timestamps_enabled'):
-                tcp_result.timestamps_enabled = result.timestamps_enabled
-            
-            # Create probe results from the analysis
-            probe_results = []
-            
-            if tcp_result.rst_injection_detected:
-                probe_results.append(ProbeResult(
-                    name="rst_injection_probe", success=True, value=True, confidence=0.8
-                ))
-            
-            if tcp_result.fragmentation_vulnerable:
-                probe_results.append(ProbeResult(
-                    name="fragmentation_probe", success=True, value=True, confidence=0.7
-                ))
-            
-            tcp_result.probe_results = probe_results
-            
-            self.logger.debug(f"TCP analysis completed for {target}:{port}")
             return tcp_result
-            
+        
         except Exception as e:
-            self.logger.error(f"TCP analysis failed for {target}:{port}: {e}")
+            self.logger.error(f"TCP analysis failed: {e}", exc_info=True)
             tcp_result = TCPAnalysisResult()
             tcp_result.status = AnalysisStatus.FAILED
             tcp_result.error_message = str(e)
             return tcp_result
-    
-    def is_available(self) -> bool:
-        return TCP_ANALYZER_AVAILABLE
 
 
 class HTTPAnalyzerAdapter(BaseAnalyzerAdapter):
-    """Adapter for HTTPAnalyzer with fixed integration"""
+    """Enhanced HTTP analyzer adapter"""
     
-    def __init__(self, timeout: float = 30.0):
-        super().__init__(timeout)
-        
-        if not HTTP_ANALYZER_AVAILABLE:
-            raise AnalyzerError(f"HTTPAnalyzer not available: {HTTP_IMPORT_ERROR}")
-        
-        try:
-            self.analyzer = OriginalHTTPAnalyzer(timeout=timeout)
-            self.logger.info("HTTPAnalyzer initialized successfully")
-        except Exception as e:
-            raise AnalyzerError(f"Failed to initialize HTTPAnalyzer: {e}")
+    def __init__(
+        self,
+        timeout: float = 10.0,
+        force_ipv4: bool = True,
+        use_system_proxy: bool = True,
+        enable_doh_fallback: bool = True
+    ):
+        super().__init__()  # CRITICAL: Call parent __init__
+        from core.fingerprint.http_analyzer import HTTPAnalyzer
+        self.analyzer = HTTPAnalyzer(
+            timeout=timeout,
+            force_ipv4=force_ipv4,
+            use_system_proxy=use_system_proxy,
+            enable_doh_fallback=enable_doh_fallback
+        )
+        self.name = "http"
     
     async def analyze(self, target: str, port: int, **kwargs) -> HTTPAnalysisResult:
-        """Run HTTP analysis and convert to unified format"""
-        try:
-            self.logger.debug(f"Starting HTTP analysis for {target}:{port}")
-            
-            # Call the original analyzer
-            result_dict = await self.analyzer.analyze_http_behavior(target, port)
-            
-            # Convert dict back to dataclass for unified format
-            http_result = HTTPAnalysisResult(**result_dict)
-            http_result.status = AnalysisStatus.COMPLETED
-            
-            # Create probe results
-            probe_results = []
-            
-            if http_result.http_blocking_detected:
-                probe_results.append(ProbeResult(
-                    name="http_blocking_probe",
-                    success=True,
-                    value=True,
-                    confidence=0.8
-                ))
-            
-            if http_result.http2_support:
-                probe_results.append(ProbeResult(
-                    name="http2_support_probe",
-                    success=True,
-                    value=True,
-                    confidence=0.7
-                ))
-            
-            http_result.probe_results = probe_results
-            
-            self.logger.debug(f"HTTP analysis completed for {target}:{port}")
-            return http_result
-            
-        except Exception as e:
-            self.logger.error(f"HTTP analysis failed for {target}:{port}: {e}")
-            http_result = HTTPAnalysisResult()
-            http_result.status = AnalysisStatus.FAILED
-            http_result.error_message = str(e)
-            return http_result
-    
-    def is_available(self) -> bool:
-        return HTTP_ANALYZER_AVAILABLE
+        """Analyze HTTP behavior"""
+        result_dict = await self.analyzer.analyze_http_behavior(target, port)
+        
+        # HTTPAnalyzer already returns dict via to_dict()
+        # We need to convert back to dataclass
+        http_result = HTTPAnalysisResult()
+        
+        if isinstance(result_dict, dict):
+            for key, value in result_dict.items():
+                if hasattr(http_result, key):
+                    try:
+                        setattr(http_result, key, value)
+                    except Exception:
+                        pass
+        
+        return http_result
 
 
 class DNSAnalyzerAdapter(BaseAnalyzerAdapter):
-    """Adapter for DNSAnalyzer with fixed integration"""
+    """DNS analyzer adapter"""
     
-    def __init__(self, timeout: float = 30.0):
-        super().__init__(timeout)
-        
-        if not DNS_ANALYZER_AVAILABLE:
-            raise AnalyzerError(f"DNSAnalyzer not available: {DNS_IMPORT_ERROR}")
+    def __init__(self, timeout: float = 3.0):
+        super().__init__()  # CRITICAL: Call parent __init__
+        try:
+            from core.fingerprint.dns_analyzer import DNSAnalyzer
+            self.analyzer = DNSAnalyzer(timeout=timeout)
+            self.name = "dns"
+        except ImportError as e:
+            self.logger.warning(f"DNSAnalyzer not available: {e}")
+            self.analyzer = None
+    
+    async def analyze(self, target: str, port: int = 53, **kwargs) -> DNSAnalysisResult:
+        """Analyze DNS behavior"""
+        if not self.analyzer:
+            result = DNSAnalysisResult()
+            result.status = AnalysisStatus.FAILED
+            result.error_message = "DNSAnalyzer not available"
+            return result
         
         try:
-            self.analyzer = OriginalDNSAnalyzer(timeout=timeout)
-            self.logger.info("DNSAnalyzer initialized successfully")
-        except Exception as e:
-            raise AnalyzerError(f"Failed to initialize DNSAnalyzer: {e}")
-    
-    async def analyze(self, target: str, port: int, **kwargs) -> DNSAnalysisResult:
-        """Run DNS analysis and convert to unified format"""
-        try:
-            self.logger.debug(f"Starting DNS analysis for {target}:{port}")
+            result_dict = await self.analyzer.analyze_dns_behavior(target)
             
-            # Call the original analyzer
-            result = await self.analyzer.analyze_dns_behavior(target)
-            
-            # Convert to unified format
             dns_result = DNSAnalysisResult()
             dns_result.status = AnalysisStatus.COMPLETED
             
-            # Map fields from original result
-            dns_result.dns_blocking_detected = result.get('dns_hijacking_detected', False) or result.get('doh_blocking', False) or result.get('dot_blocking', False)
-            dns_result.doh_support = not result.get('doh_blocking', True)
-            dns_result.dns_spoofing_detected = result.get('dns_cache_poisoning', False)
-            dns_result.response_manipulation = result.get('dns_response_modification', False)
+            if isinstance(result_dict, dict):
+                for key, value in result_dict.items():
+                    if hasattr(dns_result, key):
+                        try:
+                            setattr(dns_result, key, value)
+                        except Exception:
+                            pass
             
-            # Create probe results
-            probe_results = []
-            
-            if dns_result.dns_blocking_detected:
-                probe_results.append(ProbeResult(
-                    name="dns_blocking_probe",
-                    success=True,
-                    value=True,
-                    confidence=0.8
-                ))
-            
-            if dns_result.doh_support:
-                probe_results.append(ProbeResult(
-                    name="doh_support_probe",
-                    success=True,
-                    value=True,
-                    confidence=0.7
-                ))
-            
-            dns_result.probe_results = probe_results
-            
-            self.logger.debug(f"DNS analysis completed for {target}:{port}")
             return dns_result
-            
+        
         except Exception as e:
-            self.logger.error(f"DNS analysis failed for {target}:{port}: {e}")
+            self.logger.error(f"DNS analysis failed: {e}", exc_info=True)
             dns_result = DNSAnalysisResult()
             dns_result.status = AnalysisStatus.FAILED
             dns_result.error_message = str(e)
             return dns_result
-    
-    def is_available(self) -> bool:
-        return DNS_ANALYZER_AVAILABLE
 
 
-class MLClassifierAdapter(BaseAnalyzerAdapter):
-    """Adapter for MLClassifier with fixed integration"""
+class MLAnalyzerAdapter(BaseAnalyzerAdapter):
+    """ML classifier adapter"""
     
-    def __init__(self, timeout: float = 30.0):
-        super().__init__(timeout)
-        
-        if not ML_CLASSIFIER_AVAILABLE:
-            raise AnalyzerError(f"MLClassifier not available: {ML_IMPORT_ERROR}")
+    def __init__(self):
+        super().__init__()  # CRITICAL: Call parent __init__
+        try:
+            from core.fingerprint.ml_classifier import MLClassifier
+            self.analyzer = MLClassifier()
+            self.name = "ml"
+        except ImportError as e:
+            self.logger.warning(f"MLClassifier not available: {e}")
+            self.analyzer = None
+    
+    async def analyze(self, fingerprint_dict: dict, **kwargs) -> MLClassificationResult:
+        """Classify DPI type using ML"""
+        if not self.analyzer:
+            result = MLClassificationResult()
+            result.status = AnalysisStatus.FAILED
+            result.error_message = "MLClassifier not available"
+            return result
         
         try:
-            self.classifier = OriginalMLClassifier()
-            self.logger.info("MLClassifier initialized successfully")
+            result_dict = await self.analyzer.classify(fingerprint_dict)
+            
+            ml_result = MLClassificationResult()
+            ml_result.status = AnalysisStatus.COMPLETED
+            
+            if isinstance(result_dict, dict):
+                for key, value in result_dict.items():
+                    if hasattr(ml_result, key):
+                        try:
+                            setattr(ml_result, key, value)
+                        except Exception:
+                            pass
+            
+            return ml_result
+        
         except Exception as e:
-            raise AnalyzerError(f"Failed to initialize MLClassifier: {e}")
-    
-    async def analyze(self, fingerprint_data: Dict[str, Any], **kwargs) -> MLClassificationResult:
-        try:
-            self.logger.debug("Starting ML classification")
-
-            # Call model (can be sync or async)
-            res = self.classifier.classify_dpi(fingerprint_data)
-            if inspect.isawaitable(res):
-                res = await res
-
-            ml_result = MLClassificationResult(status=AnalysisStatus.COMPLETED)
-
-            # If the model already returns our unified result, just map it
-            if isinstance(res, MLClassificationResult):
-                return res
-
-            # Helpers
-            def to_dpi_type(val) -> DPIType:
-                if isinstance(val, DPIType):
-                    return val
-                try:
-                    return DPIType(val)
-                except Exception:
-                    return DPIType.UNKNOWN
-
-            # Accept multiple shapes: tuple, dict, object-with-attrs
-            if isinstance(res, tuple):
-                # e.g. ('roskomnadzor_dpi', 0.82)
-                label = res[0] if len(res) >= 1 else None
-                conf = res[1] if len(res) >= 2 else None
-                ml_result.predicted_dpi_type = to_dpi_type(label)
-                if conf is not None:
-                    ml_result.confidence = float(conf)
-
-            elif isinstance(res, dict):
-                label = res.get("dpi_type") or res.get("label") or res.get("class") or res.get("prediction")
-                conf = res.get("confidence") or res.get("probability") or res.get("score")
-                ml_result.predicted_dpi_type = to_dpi_type(label)
-                if conf is not None:
-                    ml_result.confidence = float(conf)
-                alts = res.get("alternative_predictions") or res.get("alternatives") or []
-                norm_alts = []
-                for item in alts:
-                    if isinstance(item, (list, tuple)) and len(item) >= 2:
-                        norm_alts.append((to_dpi_type(item[0]), float(item[1])))
-                    elif isinstance(item, dict):
-                        lbl = item.get("dpi_type") or item.get("label")
-                        cf = item.get("confidence") or item.get("probability") or item.get("score")
-                        if lbl is not None and cf is not None:
-                            norm_alts.append((to_dpi_type(lbl), float(cf)))
-                ml_result.alternative_predictions = norm_alts
-                if isinstance(res.get("feature_importance"), dict):
-                    ml_result.feature_importance = dict(res["feature_importance"])
-                if isinstance(res.get("model_version"), str):
-                    ml_result.model_version = res["model_version"]
-
-            else:
-                # Generic object with attributes
-                if hasattr(res, "dpi_type"):
-                    ml_result.predicted_dpi_type = to_dpi_type(getattr(res, "dpi_type"))
-                if hasattr(res, "confidence"):
-                    ml_result.confidence = float(getattr(res, "confidence"))
-                if hasattr(res, "alternative_predictions"):
-                    norm_alts = []
-                    for lbl, cf in getattr(res, "alternative_predictions") or []:
-                        norm_alts.append((to_dpi_type(lbl), float(cf)))
-                    ml_result.alternative_predictions = norm_alts
-                if hasattr(res, "feature_importance") and isinstance(res.feature_importance, dict):
-                    ml_result.feature_importance = dict(res.feature_importance)
-                if hasattr(res, "model_version"):
-                    ml_result.model_version = getattr(res, "model_version")
-
-            self.logger.debug("ML classification completed")
+            self.logger.error(f"ML classification failed: {e}", exc_info=True)
+            ml_result = MLClassificationResult()
+            ml_result.status = AnalysisStatus.FAILED
+            ml_result.error_message = str(e)
             return ml_result
 
-        except Exception as e:
-            self.logger.error(f"ML classification failed: {e}")
-            return MLClassificationResult(status=AnalysisStatus.FAILED, error_message=str(e))
+
+def create_analyzer_adapter(
+    analyzer_type: str,
+    **kwargs
+) -> BaseAnalyzerAdapter:
+    """Factory function to create analyzer adapters"""
     
-    def is_available(self) -> bool:
-        return ML_CLASSIFIER_AVAILABLE
+    if analyzer_type == 'tcp':
+        return TCPAnalyzerAdapter(timeout=kwargs.get('timeout', 5.0))
+    
+    elif analyzer_type == 'http':
+        return HTTPAnalyzerAdapter(
+            timeout=kwargs.get('timeout', 10.0),
+            force_ipv4=kwargs.get('force_ipv4', True),
+            use_system_proxy=kwargs.get('use_system_proxy', True),
+            enable_doh_fallback=kwargs.get('enable_doh_fallback', True)
+        )
+    
+    elif analyzer_type == 'dns':
+        return DNSAnalyzerAdapter(timeout=kwargs.get('timeout', 3.0))
+    
+    elif analyzer_type == 'ml':
+        return MLAnalyzerAdapter()
+    
+    else:
+        raise ValueError(f"Unknown analyzer type: {analyzer_type}")
+
+
+def get_available_analyzers() -> list:
+    """Get list of available analyzer types"""
+    available = []
+    
+    try:
+        from core.fingerprint.tcp_analyzer import TCPAnalyzer
+        available.append('tcp')
+    except ImportError:
+        pass
+    
+    try:
+        from core.fingerprint.http_analyzer import HTTPAnalyzer
+        available.append('http')
+    except ImportError:
+        pass
+    
+    try:
+        from core.fingerprint.dns_analyzer import DNSAnalyzer
+        available.append('dns')
+    except ImportError:
+        pass
+    
+    try:
+        from core.fingerprint.ml_classifier import MLClassifier
+        available.append('ml')
+    except ImportError:
+        pass
+    
+    return available
+
+
+def check_analyzer_availability() -> dict:
+    """Check availability status of all analyzers"""
+    status = {}
+    
+    for analyzer_type in ['tcp', 'http', 'dns', 'ml']:
+        try:
+            adapter = create_analyzer_adapter(analyzer_type)
+            status[analyzer_type] = {
+                'available': True,
+                'name': adapter.get_name()
+            }
+        except Exception as e:
+            status[analyzer_type] = {
+                'available': False,
+                'error': str(e)
+            }
+    
+    return status
 
 
 class ECHDetectorAdapter(BaseAnalyzerAdapter):

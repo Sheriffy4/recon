@@ -7,6 +7,7 @@ import inspect
 import logging
 import ssl
 import socket
+import sys
 from typing import Dict, List, Optional, Any
 from urllib.parse import urljoin, urlsplit
 
@@ -53,41 +54,102 @@ class _StaticResolver(aiohttp_abc.AbstractResolver):
 
 class HTTPAnalyzer:
     """
-    HTTP-specific DPI behavior analyzer.
-    Analyzes HTTP-level DPI behavior including header filtering, content inspection,
-    user agent filtering, host header manipulation, redirect injection, and response modification.
+    Enhanced HTTP analyzer with IPv4 forcing, DoH fallback, and comprehensive error handling
     """
-
-    def __init__(self, timeout: float = 10.0, max_attempts: int = 10):
+    
+    def __init__(
+        self,
+        timeout: float = 10.0,
+        max_attempts: int = 10,
+        force_ipv4: bool = True,
+        use_system_proxy: bool = True,
+        enable_doh_fallback: bool = True
+    ):
         self.timeout = timeout
         self.max_attempts = max_attempts
+        self.force_ipv4 = force_ipv4
+        self.use_system_proxy = use_system_proxy
+        self.enable_doh_fallback = enable_doh_fallback
         self.logger = logging.getLogger(__name__)
-        self.use_bytewise_processing = True
-        self.test_user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "curl/7.68.0", "python-requests/2.25.1", "Wget/1.20.3",
-            "HTTPie/2.4.0", "PostmanRuntime/7.28.0", "Custom-Bot/1.0",
-            "Suspicious-Agent/1.0",
-        ]
-        self.test_headers = [
-            ("X-Forwarded-For", "127.0.0.1"), ("X-Real-IP", "192.168.1.1"),
-            ("X-Custom-Header", "test-value"), ("Authorization", "Bearer test-token"),
-            ("Cookie", "session=test123"), ("Referer", "https://blocked-site.com"),
-            ("Origin", "https://suspicious-domain.com"), ("X-Requested-With", "XMLHttpRequest"),
-        ]
-        self.test_content_keywords = [
-            "vpn", "proxy", "tor", "censorship", "freedom", "blocked",
-            "restricted", "forbidden", "政治", "民主",
-        ]
-        self.test_methods = [
-            "GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH", "TRACE",
-        ]
-        self.test_content_types = [
-            "text/html", "application/json", "application/xml", "text/plain",
-            "application/octet-stream", "multipart/form-data",
-            "application/x-www-form-urlencoded",
-        ]
+        
+        # DoH resolver for fallback
+        self.doh_resolver = DoHResolver() if (DOH_AVAILABLE and enable_doh_fallback) else None
+        
+        # Windows event loop fix
+        if sys.platform.startswith("win") and sys.version_info >= (3, 12):
+            try:
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                self.logger.info("Applied WindowsSelectorEventLoopPolicy")
+            except Exception as e:
+                self.logger.warning(f"Failed to set event loop policy: {e}")
 
+    
+    def _create_ssl_context(self) -> ssl.SSLContext:
+        """Create SSL context with relaxed verification"""
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
+        # Set minimum TLS version (with fallback for older OpenSSL)
+        try:
+            if hasattr(ssl, 'TLSVersion'):
+                ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+        except Exception:
+            pass
+        
+        # Disable session tickets for consistent fingerprinting
+        try:
+            ssl_context.options |= ssl.OP_NO_TICKET
+        except Exception:
+            pass
+        
+        return ssl_context
+    
+    def _create_connector(
+        self,
+        ssl_context: Optional[ssl.SSLContext] = None,
+        pinned_ip: Optional[str] = None
+    ) -> aiohttp.TCPConnector:
+        """Create TCP connector with optimal settings"""
+        connector_kwargs = {
+            'ssl': ssl_context or self._create_ssl_context(),
+            'ttl_dns_cache': 300,
+            'enable_cleanup_closed': True,
+            'force_close': False,
+            'limit': 100,
+            'limit_per_host': 10
+        }
+        
+        if self.force_ipv4:
+            connector_kwargs['family'] = socket.AF_INET
+            self.logger.debug("Forcing IPv4 (AF_INET)")
+        
+        # TODO: Add custom resolver for IP pinning if needed
+        # if pinned_ip:
+        #     connector_kwargs['resolver'] = CustomResolver({hostname: pinned_ip})
+        
+        return aiohttp.TCPConnector(**connector_kwargs)
+    
+    async def _create_session(
+        self,
+        pinned_ip: Optional[str] = None
+    ) -> aiohttp.ClientSession:
+        """Create aiohttp session"""
+        connector = self._create_connector(pinned_ip=pinned_ip)
+        
+        timeout = aiohttp.ClientTimeout(
+            total=self.timeout,
+            connect=min(5.0, self.timeout / 2),
+            sock_read=self.timeout,
+            sock_connect=min(3.0, self.timeout / 3)
+        )
+        
+        return aiohttp.ClientSession(
+            timeout=timeout,
+            connector=connector,
+            trust_env=self.use_system_proxy,
+            auto_decompress=True
+        )
     
     def _format_exc(self, e: BaseException) -> str:
         """Форматирует исключение в подробную строку."""
@@ -158,26 +220,50 @@ class HTTPAnalyzer:
         res = await session.request(method, url, **kwargs)
         return await self._await_if_needed(res)
 
+    def _format_exception_details(self, e: Exception) -> str:
+        """Format exception with full context"""
+        parts = [f"{type(e).__name__}: {str(e)}"]
+        
+        if hasattr(e, '__cause__') and e.__cause__:
+            parts.append(f"Cause: {type(e.__cause__).__name__}: {str(e.__cause__)}")
+        
+        if hasattr(e, '__context__') and e.__context__:
+            parts.append(f"Context: {type(e.__context__).__name__}: {str(e.__context__)}")
+        
+        if isinstance(e, aiohttp.ClientConnectorError):
+            parts.append(f"OS Error: {e.os_error}")
+            if hasattr(e, 'host'):
+                parts.append(f"Host: {e.host}")
+        elif isinstance(e, aiohttp.ClientResponseError):
+            parts.append(f"Status: {e.status}, Message: {e.message}")
+        elif isinstance(e, asyncio.TimeoutError):
+            parts.append("Timeout - possible network filtering")
+        elif isinstance(e, socket.gaierror):
+            parts.append(f"DNS resolution failed: errno={e.errno}")
+        
+        return " | ".join(parts)
+    
     async def analyze_http_behavior(
-        self, target: str, port: int = 443
+        self,
+        target: str,
+        port: int = 443
     ) -> Dict[str, Any]:
-        """
-        Main method to analyze HTTP-specific DPI behavior.
-        """
-        self.logger.info(f"Starting HTTP behavior analysis for {target}:{port}")
+        """Main HTTP analysis method"""
+        self.logger.info(f"Starting HTTP analysis for {target}:{port}")
+        
         result = HTTPAnalysisResult()
         protocol = "https" if port == 443 else "http"
-        base_url = f"{protocol}://{target}"
-
-        # Базовая проверка соединения
-        success = await self._test_basic_connectivity(result, base_url)
-        if not success:
-            self.logger.warning(f"Basic connectivity failed for {target}, analysis will be limited.")
-            # Не прерываем анализ, а продолжаем с тем, что есть
+        base_url = f"{protocol}://{target}:{port}" if port not in [80, 443] else f"{protocol}://{target}"
         
+        # Test basic connectivity with fallback strategies
+        success = await self._test_basic_connectivity(result, base_url, target)
+        
+        if not success:
+            self.logger.warning(f"Basic connectivity failed for {target}")
+            # Don't abort - continue with limited analysis
+        
+        # Run remaining tests
         try:
-            # Запускаем остальные тесты, даже если базовый не прошел
-            # (некоторые тесты могут работать с другими параметрами)
             await self._analyze_header_filtering(result, base_url)
             await self._analyze_user_agent_filtering(result, base_url)
             await self._analyze_host_header_manipulation(result, base_url, target)
@@ -190,38 +276,214 @@ class HTTPAnalyzer:
             await self._analyze_encoding_handling(result, base_url)
             
             result.reliability_score = self._calculate_reliability_score(result)
+            
             self.logger.info(
-                f"HTTP analysis complete for {target}:{port} (reliability: {result.reliability_score:.2f})"
+                f"HTTP analysis complete for {target}:{port} "
+                f"(reliability: {result.reliability_score:.2f})"
             )
         except Exception as e:
-            error_msg = f"HTTP analysis failed unexpectedly for {target}:{port}: {self._format_exc(e)}"
+            error_msg = f"HTTP analysis failed: {self._format_exception_details(e)}"
             self.logger.error(error_msg)
             result.analysis_errors.append(error_msg)
         
         return result.to_dict()
 
     async def _test_basic_connectivity(
-        self, result: HTTPAnalysisResult, base_url: str
+        self,
+        result: HTTPAnalysisResult,
+        base_url: str,
+        target: str
     ) -> bool:
-        """Test basic HTTP connectivity using the robust _make_request method."""
-        self.logger.debug("Testing basic HTTP connectivity")
+        """Test basic connectivity with multiple fallback strategies"""
+        self.logger.debug(f"Testing basic connectivity to {base_url}")
         
-        request = await self._make_request(
+        # Strategy 1: Full HTTPS with standard headers
+        success = await self._try_connection(
             base_url,
-            "GET",
-            {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            method="GET",
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "keep-alive"
+            },
+            result=result,
+            strategy_name="full_https"
         )
         
-        result.http_requests.append(request)
-
-        if not request.success:
-            error_msg = f"Basic connectivity test failed: {request.error_message}"
-            result.analysis_errors.append(error_msg)
-            self.logger.error(error_msg)
-            return False
+        if success:
+            return True
+        
+        # Strategy 2: Minimal headers (some DPI blocks rich headers)
+        self.logger.info("Full HTTPS failed, trying minimal headers")
+        success = await self._try_connection(
+            base_url,
+            method="GET",
+            headers={"User-Agent": "curl/7.68.0"},
+            result=result,
+            strategy_name="minimal_https"
+        )
+        
+        if success:
+            result.analysis_errors.append(
+                "Full HTTPS blocked, minimal headers work - header filtering detected"
+            )
+            return True
+        
+        # Strategy 3: HTTP fallback (HTTPS-only blocking detection)
+        if base_url.startswith("https://"):
+            http_url = base_url.replace("https://", "http://").replace(":443", ":80")
+            self.logger.info(f"HTTPS failed, trying HTTP: {http_url}")
             
-        return True
+            success = await self._try_connection(
+                http_url,
+                method="HEAD",
+                headers={"User-Agent": "Mozilla/5.0"},
+                result=result,
+                strategy_name="http_fallback"
+            )
+            
+            if success:
+                result.analysis_errors.append(
+                    "HTTPS blocked but HTTP works - HTTPS-specific blocking"
+                )
+                result.http_blocking_detected = True
+                return True
+        
+        # Strategy 4: Alternative User-Agent
+        self.logger.info("Trying alternative User-Agent")
+        success = await self._try_connection(
+            base_url,
+            method="GET",
+            headers={"User-Agent": "python-requests/2.31.0"},
+            result=result,
+            strategy_name="alt_useragent"
+        )
+        
+        if success:
+            result.user_agent_filtering = True
+            result.analysis_errors.append(
+                "Browser UA blocked, python-requests works - UA filtering"
+            )
+            return True
+        
+        # Strategy 5: DoH fallback (DNS issues)
+        if self.doh_resolver:
+            self.logger.info("Trying DoH fallback for DNS resolution")
+            try:
+                ip = await self.doh_resolver.resolve(target)
+                if ip:
+                    self.logger.info(f"DoH resolved {target} -> {ip}")
+                    # TODO: Retry with pinned IP
+                    # success = await self._try_connection_with_ip(base_url, ip, result)
+                    # if success:
+                    #     result.analysis_errors.append("DNS resolution via DoH successful")
+                    #     return True
+            except Exception as e:
+                self.logger.debug(f"DoH fallback failed: {e}")
+        
+        # All strategies failed
+        error_msg = f"All connectivity strategies failed for {base_url}"
+        result.analysis_errors.append(error_msg)
+        result.analysis_errors.append("NETWORK_CONNECTIVITY_ISSUE=True")
+        self.logger.error(error_msg)
+        
+        return False
 
+    async def _try_connection(
+        self,
+        url: str,
+        method: str,
+        headers: Dict[str, str],
+        result: HTTPAnalysisResult,
+        strategy_name: str,
+        allow_redirects: bool = True
+    ) -> bool:
+        """Try single connection with detailed error reporting"""
+        request = HTTPRequest(
+            timestamp=time.time(),
+            url=url,
+            method=method,
+            headers=headers.copy(),
+            user_agent=headers.get("User-Agent", "")
+        )
+        
+        session = None
+        try:
+            session = await self._create_session()
+            start_time = time.perf_counter()
+            
+            async with session.request(
+                method,
+                url,
+                headers=headers,
+                allow_redirects=allow_redirects
+            ) as response:
+                request.response_time_ms = (time.perf_counter() - start_time) * 1000
+                request.status_code = response.status
+                request.response_headers = dict(response.headers)
+                
+                try:
+                    body = await response.text(encoding='utf-8', errors='ignore')
+                    request.response_body = body[:10000]  # Limit to 10KB
+                except Exception as body_error:
+                    self.logger.debug(f"Failed to read body: {body_error}")
+                    request.response_body = ""
+                
+                request.success = True
+                self.logger.info(
+                    f"✅ Strategy '{strategy_name}' succeeded: "
+                    f"{method} {url} -> {response.status}"
+                )
+                result.http_requests.append(request)
+                return True
+        
+        except aiohttp.ClientConnectorError as e:
+            request.error_message = self._format_exception_details(e)
+            
+            # Classify error
+            msg_lower = request.error_message.lower()
+            if "dns" in msg_lower or "getaddrinfo" in msg_lower:
+                request.blocking_method = HTTPBlockingMethod.TIMEOUT
+                result.analysis_errors.append(f"DNS_RESOLUTION_FAILED: {e.os_error}")
+                self.logger.warning(f"❌ DNS failed for {url}: {e.os_error}")
+            elif "refused" in msg_lower:
+                request.blocking_method = HTTPBlockingMethod.CONNECTION_RESET
+                result.analysis_errors.append("CONNECTION_REFUSED: Port blocking")
+                self.logger.warning(f"❌ Connection refused for {url}")
+            elif "reset" in msg_lower:
+                request.blocking_method = HTTPBlockingMethod.CONNECTION_RESET
+                result.http_blocking_detected = True
+                self.logger.warning(f"❌ Connection reset for {url} - DPI likely")
+            else:
+                request.blocking_method = HTTPBlockingMethod.TIMEOUT
+                self.logger.warning(f"❌ Connection error for {url}: {request.error_message}")
+        
+        except asyncio.TimeoutError as e:
+            request.error_message = self._format_exception_details(e)
+            request.blocking_method = HTTPBlockingMethod.TIMEOUT
+            result.analysis_errors.append("TIMEOUT: Traffic filtering")
+            self.logger.warning(f"⏱️ Timeout for {url} after {self.timeout}s")
+        
+        except aiohttp.ClientError as e:
+            request.error_message = self._format_exception_details(e)
+            self.logger.warning(f"❌ Client error for {url}: {request.error_message}")
+        
+        except Exception as e:
+            request.error_message = self._format_exception_details(e)
+            self.logger.error(
+                f"❌ Unexpected error for {url}: {request.error_message}",
+                exc_info=True
+            )
+        
+        finally:
+            if session and not session.closed:
+                await session.close()
+        
+        result.http_requests.append(request)
+        return False
+    
     async def _analyze_header_filtering(
         self, result: HTTPAnalysisResult, base_url: str
     ):
@@ -971,50 +1233,58 @@ class HTTPAnalyzer:
                     break
 
     def _calculate_reliability_score(self, result: HTTPAnalysisResult) -> float:
-        """Calculate reliability score based on analysis completeness"""
-        total_tests = 0
-        successful_tests = 0
-        useful_responses = 0
-        for req in result.http_requests:
-            total_tests += 1
-            if req.success:
-                successful_tests += 1
-                if (
-                    req.status_code is not None
-                    or req.blocking_method != HTTPBlockingMethod.NONE
-                    or req.response_headers
-                    or req.redirect_url
-                    or req.content_modified
-                ):
-                    useful_responses += 1
+        """Calculate reliability score"""
+        total_tests = len(result.http_requests)
         if total_tests == 0:
             return 0.0
+        
+        successful_tests = sum(1 for r in result.http_requests if r.success)
+        useful_responses = sum(
+            1 for r in result.http_requests
+            if r.success and (
+                r.status_code is not None or
+                r.blocking_method != HTTPBlockingMethod.NONE or
+                r.response_headers or
+                r.redirect_url or
+                r.content_modified
+            )
+        )
+        
         base_score = (
-            successful_tests / total_tests * 0.5 + useful_responses / total_tests * 0.5
+            successful_tests / total_tests * 0.5 +
+            useful_responses / total_tests * 0.5
         )
+        
+        # Analysis completeness factors
         analysis_factors = []
-        has_basic = any(
-            (r.success or r.status_code is not None for r in result.http_requests)
-        )
-        if has_basic:
+        
+        if any(r.success or r.status_code for r in result.http_requests):
             analysis_factors.append(1.0)
+        
         if result.http_header_filtering or result.filtered_headers:
             analysis_factors.append(1.0)
+        
         if result.user_agent_filtering or result.blocked_user_agents:
             analysis_factors.append(1.0)
+        
         if result.content_based_blocking or result.keyword_filtering:
             analysis_factors.append(1.0)
+        
         if result.redirect_injection or result.http_response_modification:
             analysis_factors.append(0.5)
+        
         if result.method_based_blocking or result.http_method_restrictions:
             analysis_factors.append(0.5)
-        if result.host_header_manipulation or result.content_type_filtering:
-            analysis_factors.append(0.5)
+        
         completeness_score = (
-            sum(analysis_factors) / len(analysis_factors) if analysis_factors else 0.0
+            sum(analysis_factors) / len(analysis_factors)
+            if analysis_factors else 0.0
         )
+        
         error_penalty = min(0.2, len(result.analysis_errors) * 0.05)
+        
         final_score = base_score * 0.7 + completeness_score * 0.3 - error_penalty
+        
         return max(0.0, min(1.0, final_score))
 
     async def analyze_packet_stream(

@@ -5,25 +5,19 @@ from typing import Optional, Dict, Any
 
 @dataclass
 class TCPSegmentSpec:
-    """
-    Спецификация для одного TCP-сегмента, который нужно сгенерировать и отправить.
-    Это "рецепт" для PacketBuilder.
-    """
-    payload: bytes
-    rel_seq: int
-    flags: int
-    ttl: Optional[int] = None
-    corrupt_tcp_checksum: bool = False
-    add_md5sig_option: bool = False
-    seq_extra: int = 0
-    delay_ms_after: int = 0
+    """Specification for a TCP segment to be built and sent"""
     
-    # ================== НАЧАЛО ИЗМЕНЕНИЯ ==================
-    # Добавляем поля, необходимые для zapret-style
-    is_fake: bool = False
-    fooling_sni: Optional[str] = None
-    preserve_window_size: bool = True  # Default to preserving original window size for zapret compatibility
-    # =================== КОНЕЦ ИЗМЕНЕНИЯ ===================
+    rel_seq: int  # Relative sequence offset from base
+    payload: bytes  # Segment payload
+    flags: int  # TCP flags (e.g., 0x18 for PSH+ACK)
+    ttl: Optional[int] = None  # IP TTL (None = use original)
+    corrupt_tcp_checksum: bool = False  # Corrupt checksum for fooling
+    add_md5sig_option: bool = False  # Add MD5 signature option
+    seq_extra: int = 0  # Additional sequence offset
+    fooling_sni: Optional[str] = None  # SNI to inject in fake packets
+    is_fake: bool = False  # Mark as fake packet
+    delay_ms_after: int = 0  # Delay in ms after sending this segment
+    preserve_window_size: bool = True  # Preserve original window size
 
     # Дополнительные метаданные, которые могут быть полезны для логирования
     metadata: Dict[str, Any] = field(default_factory=dict)
