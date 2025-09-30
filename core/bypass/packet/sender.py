@@ -29,7 +29,7 @@ class PacketSender:
             # Блокируем ретрансмит ОС на время инъекции
             with self._create_tcp_retransmission_blocker(original_packet) as blocker:
                 # ⚡ CRITICAL: Даем блокировщику время на инициализацию
-                if blocker:
+                if blocker and not isinstance(blocker, bool):
                     time.sleep(0.005)  # 5ms для гарантированного запуска
                     self.logger.debug("✅ Retransmission blocker initialized")
                 
