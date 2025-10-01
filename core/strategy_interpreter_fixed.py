@@ -78,7 +78,7 @@ class FoolingMethod(Enum):
     - BADSUM: Corrupt TCP checksums on fake packets
     - MD5SIG: Add MD5 signature TCP option (kind=19) if supported
     - DATANOACK: Remove ACK flag from fake packets
-    - FAKESNI: Replace SNI in fake TLS packets
+    - FAKESNI: Use a fake SNI value in the ClientHello
     """
     BADSEQ = "badseq"
     BADSUM = "badsum"
