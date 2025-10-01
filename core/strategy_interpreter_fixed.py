@@ -78,11 +78,13 @@ class FoolingMethod(Enum):
     - BADSUM: Corrupt TCP checksums on fake packets
     - MD5SIG: Add MD5 signature TCP option (kind=19) if supported
     - DATANOACK: Remove ACK flag from fake packets
+    - FAKESNI: Replace SNI in fake TLS packets
     """
     BADSEQ = "badseq"
     BADSUM = "badsum"
     MD5SIG = "md5sig"
     DATANOACK = "datanoack"
+    FAKESNI = "fakesni"
 
 
 @dataclass
@@ -222,6 +224,7 @@ class FixedStrategyInterpreter:
             'badsum': FoolingMethod.BADSUM,
             'md5sig': FoolingMethod.MD5SIG,
             'datanoack': FoolingMethod.DATANOACK,
+            'fakesni': FoolingMethod.FAKESNI,
         }
     
     def _convert_dsl_to_cli(self, dsl_string: str) -> str:
