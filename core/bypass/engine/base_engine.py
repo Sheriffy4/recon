@@ -674,6 +674,7 @@ class WindowsBypassEngine(IBypassEngine):
             return []
         
         specs = []
+        total = len(recipe)
         
         for i, (seg_payload, offset, opts) in enumerate(recipe):
             try:
@@ -683,9 +684,10 @@ class WindowsBypassEngine(IBypassEngine):
                 tcp_flags = opts.get("tcp_flags", 0x18)  # PSH+ACK by default
                 corrupt_checksum = opts.get("corrupt_tcp_checksum", False)
                 add_md5sig = opts.get("add_md5sig_option", False)
-                seq_extra = opts.get("seq_offset", 0)
+                seq_extra = int(opts.get("seq_offset", 0) or 0)
+                if opts.get("corrupt_sequence"): seq_extra = -1
                 fooling_sni = opts.get("fooling_sni")
-                delay_ms = opts.get("delay_ms_after", 0)
+                delay_ms = int(opts.get("delay_ms", opts.get("delay_ms_after", 0))) if i < total - 1 else 0
                 preserve_window = opts.get("preserve_window_size", not is_fake)
                 
                 # Create spec
@@ -828,6 +830,14 @@ class WindowsBypassEngine(IBypassEngine):
             if recipe:
                 # ⚡ CRITICAL FIX: Передаем payload в _recipe_to_specs
                 specs = self._recipe_to_specs(recipe, payload)
+                # ensure zapret-like behavior: TTL/badsum only for fake segments
+                for sp in specs:
+                    if not getattr(sp, "is_fake", False):
+                        # Реальные пакеты — не трогаем TTL (пусть остаётся как у ОС)
+                        sp.ttl = None
+                        # И никаких badsum на реальных
+                        sp.corrupt_tcp_checksum = False
+
                 success = self._packet_sender.send_tcp_segments(w, packet, specs)
                 if not success:
                     self.logger.warning("Packet sender failed, forwarding original packet")

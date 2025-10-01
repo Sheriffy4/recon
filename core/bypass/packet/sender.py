@@ -61,9 +61,28 @@ class PacketSender:
                     packet_start = time.perf_counter()
                     allow_fix = not spec.corrupt_tcp_checksum
                     
-                    # Логируем тип пакета для отладки
+                    # Логируем тип пакета и параметры — удобно сопоставлять с PCAP
                     packet_type = "FAKE" if getattr(spec, 'is_fake', False) else "REAL"
-                    self.logger.info(f"📤 Sending {packet_type} packet {i+1}/{len(packets_to_send)}")
+                    try:
+                        plen = len(pkt.payload) if getattr(pkt, "payload", None) else 0
+                    except Exception:
+                        plen = 0
+                    ttl_show = spec.ttl if spec.ttl is not None else "orig"
+                    # Извлекаем seq/ack из сырых байт
+                    try:
+                        raw = pkt.raw
+                        ip_hl = (raw[0] & 0x0F) * 4
+                        seq_v = struct.unpack('!I', raw[ip_hl+4:ip_hl+8])[0]
+                        ack_v = struct.unpack('!I', raw[ip_hl+8:ip_hl+12])[0]
+                        seq_str = f"seq=0x{seq_v:08X} ack=0x{ack_v:08X}"
+                    except Exception:
+                        seq_str = "seq=?, ack=?"
+                    self.logger.info(
+                        f"📤 {packet_type} [{i+1}/{len(packets_to_send)}] "
+                        f"dst={getattr(pkt,'dst_addr','?')}:{getattr(pkt,'dst_port','?')} "
+                        f"len={plen} ttl={ttl_show} badsum={bool(spec.corrupt_tcp_checksum)} "
+                        f"{seq_str}"
+                    )
                     
                     if not self._batch_safe_send(w, pkt, allow_fix_checksums=allow_fix):
                         self.logger.error(f"Segment {i} send failed")

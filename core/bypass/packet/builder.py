@@ -160,16 +160,23 @@ class PacketBuilder:
             seg_payload = spec.payload
             if spec.fooling_sni:
                 self.logger.debug(f"Attempting to replace SNI with '{spec.fooling_sni}'")
+                before_len = len(seg_payload) if seg_payload else 0
                 modified_payload = self._replace_sni_in_payload(seg_payload, spec.fooling_sni)
                 if modified_payload:
                     seg_payload = modified_payload
-                    self.logger.debug(f"SNI replaced successfully. New payload len: {len(seg_payload)}")
+                    try:
+                        self.logger.info(
+                            f"🎭 Fake SNI applied: '{spec.fooling_sni}' -> dst={getattr(original_packet,'dst_addr','?')}:{getattr(original_packet,'dst_port','?')} "
+                            f"(fake={getattr(spec,'is_fake',False)}, bytes={before_len}->{len(seg_payload)})"
+                        )
+                    except Exception:
+                        self.logger.info(f"🎭 Fake SNI applied: '{spec.fooling_sni}' (bytes={before_len}->{len(seg_payload)})")
                 else:
                     self.logger.warning("SNI replacement failed, using original payload for fake packet.")
 
             # CRITICAL FIX: Improved sequence number calculation with detailed logging
             seq = (base_seq + spec.rel_seq + spec.seq_extra) & 0xFFFFFFFF
-            self.logger.debug(f"🔢 Sequence calculation: base_seq=0x{base_seq:08X}, rel_seq={spec.rel_seq}, seq_extra={spec.seq_extra}, final_seq=0x{seq:08X}")
+            self.logger.debug(f"🔢 Sequence calculation: base_seq=0x{base_seq:08X}, base_ack=0x{base_ack:08X}, rel_seq={spec.rel_seq}, seq_extra={spec.seq_extra}, final_seq=0x{seq:08X}")
             
             tcp_hdr[4:8] = struct.pack("!I", seq)
             tcp_hdr[8:12] = struct.pack("!I", base_ack)

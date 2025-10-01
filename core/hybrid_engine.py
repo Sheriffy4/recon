@@ -405,6 +405,21 @@ class HybridEngine:
             if qk in params and isinstance(params[qk], int):
                 return {'type': 'quic_fragmentation', 'params': {'fragment_size': int(params[qk])}}
         
+        # --- AUTO: inject fakesni like zapret when fake/fakeddisorder is used ---
+        try:
+            need_fakesni = bool('fake' in desync or ('fakeddisorder' in desync) or ('disorder' in desync) or ('disorder2' in desync))
+            if need_fakesni:
+                flist = task_params.get('fooling')
+                if isinstance(flist, str):
+                    flist = [x.strip() for x in flist.split(',') if x.strip()]
+                if flist is None:
+                    flist = []
+                if 'fakesni' not in flist:
+                    flist.append('fakesni')
+                task_params['fooling'] = flist
+        except Exception:
+            pass
+
         if task_type == 'none':
             LOG.warning(f'Не удалось транслировать zapret-стратегию в задачу для движка: {params}')
             return None

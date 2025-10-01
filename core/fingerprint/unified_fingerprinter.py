@@ -542,11 +542,14 @@ class UnifiedFingerprinter:
                         strategies.append(cmd)
                 strategies = strategies[:limit]
             
+            # Если ничего не предложили — применим универсальный набор
             if not strategies:
-                self.logger.info("[PCAP-fallback] No strategies generated")
-                return {"triggers_found": True, "strategies_generated": False}
-            
-            self.logger.info(f"[PCAP-fallback] Generated {len(strategies)} strategies: {strategies}")
+                strategies = [
+                    "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=midsld --dpi-desync-ttl=2 --dpi-desync-fooling=badsum",
+                    "--dpi-desync=multidisorder --dpi-desync-split-count=5 --dpi-desync-ttl=8",
+                    "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-ttl=4"
+                ][:limit]
+            self.logger.info(f"[fallback] Using {len(strategies)} strategies for second pass: {strategies}")
             
             # 4. Resolve target
             resolver = DoHResolver()
@@ -614,7 +617,7 @@ class UnifiedFingerprinter:
         except Exception as e:
             self.logger.error(
                 f"[PCAP-fallback] Failed: {e}",
-                exc_info=self.config.debug
+                exc_info=getattr(self.config, "debug", False)
             )
             return {"error": str(e)}
     
