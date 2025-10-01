@@ -195,8 +195,6 @@ class PacketSender:
             src_port = original_packet.src_port
             dst_port = original_packet.dst_port
 
-            # <<< ВОЗВРАЩАЕМ РАБОЧИЙ ФИЛЬТР >>>
-            # Убираем невалидную часть `and mark != ...`
             filter_str = (
                 f"outbound and tcp and "
                 f"ip.SrcAddr == {src_ip} and ip.DstAddr == {dst_ip} and "
@@ -259,8 +257,6 @@ class PacketSender:
                     if not packet:
                         continue
                         
-                    # <<< ВОЗВРАЩАЕМ ПРОВЕРКУ НА МЕТКУ >>>
-                    # Так как фильтр снова широкий, мы должны пропускать наши пакеты здесь.
                     if getattr(packet, "mark", 0) == self._INJECT_MARK:
                         blocker.send(packet)
                         passed_count += 1

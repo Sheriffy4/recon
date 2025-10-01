@@ -152,15 +152,15 @@ class DoHResolver:
                 ip = await self._query_doh(server, hostname)
                 if ip:
                     ips.add(ip)
-                    self._update_provider_health(provider, True)
+                    if provider: self._update_provider_health(provider, True)
                     if len(ips) >= 2:
                         break
                 else:
                     errors += 1
-                    self._update_provider_health(provider, False)
+                    if provider: self._update_provider_health(provider, False)
             except Exception as e:
                 errors += 1
-                self._update_provider_health(provider, False)
+                if provider: self._update_provider_health(provider, False)
                 LOG.debug(f"DoH query failed for {hostname} via {server}: {e}")
 
             # Early fallback after several errors

@@ -9,13 +9,14 @@ import os
 import logging
 import time
 from typing import Dict, Any, Set
+import pytest # Import pytest to skip tests on non-Windows platforms
 
 # Add the recon directory to the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from core.bypass.engine.windows_engine import WindowsBypassEngine
-    from core.bypass.engine.base_engine import EngineConfig
+    # Use the platform-agnostic BypassEngine wrapper
+    from core.bypass_engine import BypassEngine
     from core.strategy_interpreter import interpret_strategy
 except ImportError as e:
     print(f"Import error: {e}")
@@ -44,271 +45,168 @@ def test_strategy_interpretation():
         # Interpret the strategy
         strategy_task = interpret_strategy(strategy_string)
         
-        if not strategy_task:
-            logger.error("❌ Strategy interpretation returned None")
-            return False
+        assert strategy_task is not None, "Strategy interpretation returned None"
         
         logger.info(f"✅ Strategy interpreted: {strategy_task}")
         
-        # Check that TTL=64 is correctly parsed
         params = strategy_task.get("params", {})
         
-        # Check for TTL parameter
-        ttl_found = False
-        ttl_value = None
+        ttl_value = params.get("ttl")
+        assert ttl_value == 64, f"TTL should be 64, but got {ttl_value}"
+        logger.info("✅ TTL=64 correctly parsed from strategy string")
         
-        if "ttl" in params:
-            ttl_value = params["ttl"]
-            ttl_found = True
-            logger.info(f"✅ TTL parameter found: {ttl_value}")
-        elif "fake_ttl" in params:
-            ttl_value = params["fake_ttl"]
-            ttl_found = True
-            logger.info(f"✅ fake_ttl parameter found: {ttl_value}")
-        
-        if ttl_found and ttl_value == 64:
-            logger.info("✅ TTL=64 correctly parsed from strategy string")
-        elif ttl_found:
-            logger.warning(f"⚠️ TTL parsed but with unexpected value: {ttl_value}")
-        else:
-            logger.error("❌ TTL parameter not found in parsed strategy")
-            return False
-        
-        # Check strategy type
         strategy_type = strategy_task.get("type", "")
-        if "fakeddisorder" in strategy_type.lower() or "fake" in strategy_type.lower():
-            logger.info(f"✅ Strategy type correctly identified: {strategy_type}")
-        else:
-            logger.warning(f"⚠️ Unexpected strategy type: {strategy_type}")
+        assert "fakeddisorder" in strategy_type.lower(), f"Unexpected strategy type: {strategy_type}"
+        logger.info(f"✅ Strategy type correctly identified: {strategy_type}")
         
-        # Check fooling methods
         fooling = params.get("fooling", [])
-        if isinstance(fooling, list) and "badseq" in fooling and "md5sig" in fooling:
-            logger.info("✅ Fooling methods correctly parsed")
-        else:
-            logger.warning(f"⚠️ Fooling methods not correctly parsed: {fooling}")
+        assert "badseq" in fooling and "md5sig" in fooling, f"Fooling methods not correctly parsed: {fooling}"
+        logger.info("✅ Fooling methods correctly parsed")
         
         logger.info("✅ Strategy interpretation test completed successfully")
         return True
         
     except Exception as e:
         logger.error(f"❌ Strategy interpretation test failed: {e}", exc_info=True)
-        return False
+        pytest.fail(f"Strategy interpretation test failed: {e}")
 
 def test_bypass_engine_with_ttl_fix():
     """Test the bypass engine with the TTL fix and TCP retransmission mitigation."""
     logger = setup_logging()
     logger.info("🧪 Testing bypass engine with TTL fix")
     
+    engine = BypassEngine(debug=True)
+    if not engine._engine:
+        pytest.skip("Bypass engine not available on this platform (likely non-Windows).")
+
     try:
-        # Create bypass engine
-        config = EngineConfig(debug=True)
-        engine = WindowsBypassEngine(config)
-        
-        # Create the strategy task with TTL=64
         strategy_task = {
             "type": "fakeddisorder",
             "params": {
-                "ttl": 64,  # This should be used for real packets
-                "fake_ttl": 1,  # This should be used for fake packets
-                "real_ttl": 64,  # Explicit real TTL
-                "split_pos": 76,
-                "overlap_size": 1,
-                "fooling": ["badseq", "md5sig"],
-                "fake_http": "PAYLOADTLS",
-                "fake_tls": "PAYLOADTLS",
-                "autottl": 2,
-                "window_div": 8,
-                "tcp_flags": {"psh": True, "ack": True},
-                "ipid_step": 2048,
-                "delay_ms": 5
+                "ttl": 64, "fake_ttl": 1, "real_ttl": 64, "split_pos": 76,
+                "overlap_size": 1, "fooling": ["badseq", "md5sig"],
+                "fake_http": "PAYLOADTLS", "fake_tls": "PAYLOADTLS", "autottl": 2,
+                "window_div": 8, "tcp_flags": {"psh": True, "ack": True},
+                "ipid_step": 2048, "delay_ms": 5
             }
         }
         
-        # Set strategy override
         engine.set_strategy_override(strategy_task)
         logger.info("✅ Strategy override set with TTL=64")
         
-        # Verify the strategy is correctly set
-        if engine.strategy_override:
-            params = engine.strategy_override.get("params", {})
-            
-            # Check TTL parameters
-            fake_ttl = params.get("fake_ttl")
-            real_ttl = params.get("real_ttl", params.get("ttl"))
-            
-            logger.info(f"📊 Configured TTL values - Fake: {fake_ttl}, Real: {real_ttl}")
-            
-            if fake_ttl == 1 and real_ttl == 64:
-                logger.info("✅ TTL parameters correctly configured for fakeddisorder attack")
-            else:
-                logger.warning(f"⚠️ Unexpected TTL configuration - Fake: {fake_ttl}, Real: {real_ttl}")
-            
-            # Verify TCP retransmission mitigation is available
-            if hasattr(engine, '_packet_sender') and engine._packet_sender:
-                if hasattr(engine._packet_sender, '_create_tcp_retransmission_blocker'):
-                    logger.info("✅ TCP retransmission mitigation is available")
-                else:
-                    logger.warning("⚠️ TCP retransmission mitigation not available")
-                
-                if hasattr(engine._packet_sender, 'send_tcp_segments_async'):
-                    logger.info("✅ Async packet sending is available")
-                else:
-                    logger.warning("⚠️ Async packet sending not available")
-            
-        else:
-            logger.error("❌ Strategy override not set")
-            return False
+        assert engine._engine.strategy_override is not None, "Strategy override was not set"
+
+        params = engine._engine.strategy_override.get("params", {})
+        fake_ttl = params.get("fake_ttl")
+        real_ttl = params.get("real_ttl", params.get("ttl"))
+
+        logger.info(f"📊 Configured TTL values - Fake: {fake_ttl}, Real: {real_ttl}")
+        assert fake_ttl == 1 and real_ttl == 64, "TTL parameters not configured correctly"
+        logger.info("✅ TTL parameters correctly configured for fakeddisorder attack")
+
+        assert hasattr(engine._engine, '_packet_sender'), "Engine is missing _packet_sender"
+        assert hasattr(engine._engine._packet_sender, '_create_tcp_retransmission_blocker'), "Packet sender is missing retransmission blocker"
+        logger.info("✅ TCP retransmission mitigation is available")
         
-        # Test telemetry
         telemetry = engine.get_telemetry_snapshot()
-        if telemetry:
-            logger.info("✅ Telemetry system working")
+        assert telemetry is not None, "Telemetry system not working"
+        logger.info("✅ Telemetry system working")
         
         logger.info("✅ Bypass engine TTL fix test completed successfully")
         return True
         
     except Exception as e:
         logger.error(f"❌ Bypass engine TTL fix test failed: {e}", exc_info=True)
-        return False
+        pytest.fail(f"Bypass engine TTL fix test failed: {e}")
 
 def test_performance_comparison():
     """Test performance improvements from TCP retransmission mitigation."""
     logger = setup_logging()
     logger.info("🧪 Testing performance improvements")
     
+    engine = BypassEngine(debug=True)
+    if not engine._engine:
+        pytest.skip("Bypass engine not available on this platform.")
+
     try:
-        config = EngineConfig(debug=True)
-        engine = WindowsBypassEngine(config)
-        
-        # Test with TCP retransmission mitigation
         start_time = time.time()
+        strategy_task = {"type": "fakeddisorder", "params": {"ttl": 64, "fake_ttl": 1, "delay_ms": 0}}
         
-        strategy_task = {
-            "type": "fakeddisorder",
-            "params": {
-                "ttl": 64,
-                "fake_ttl": 1,
-                "real_ttl": 64,
-                "delay_ms": 0  # No artificial delays
-            }
-        }
-        
-        engine.set_strategy_override(strategy_task)
-        
-        # Simulate multiple strategy setups (as would happen in real usage)
-        for i in range(10):
+        for _ in range(10):
             engine.set_strategy_override(strategy_task)
         
         total_time = time.time() - start_time
         avg_time = total_time / 10
         
         logger.info(f"📊 Average strategy setup time: {avg_time:.4f} seconds")
-        logger.info(f"📊 Total time for 10 setups: {total_time:.4f} seconds")
-        
-        if avg_time < 0.01:  # Should be very fast
-            logger.info("✅ Performance is excellent")
-        elif avg_time < 0.05:
-            logger.info("✅ Performance is good")
-        else:
-            logger.warning(f"⚠️ Performance could be improved: {avg_time:.4f}s per setup")
-        
-        logger.info("✅ Performance test completed successfully")
+        assert avg_time < 0.05, f"Performance has degraded: {avg_time:.4f}s per setup"
+        logger.info("✅ Performance is good")
         return True
         
     except Exception as e:
         logger.error(f"❌ Performance test failed: {e}", exc_info=True)
-        return False
+        pytest.fail(f"Performance test failed: {e}")
 
 def test_requirements_compliance():
     """Test compliance with the original requirements."""
     logger = setup_logging()
     logger.info("🧪 Testing requirements compliance")
     
+    engine = BypassEngine(debug=True)
+    if not engine._engine:
+        pytest.skip("Bypass engine not available on this platform.")
+
     try:
-        # Requirement 1.1: TTL parameter should be correctly parsed and used
         strategy_string = "--dpi-desync-ttl=64"
         strategy_task = interpret_strategy(strategy_string)
+        assert strategy_task and strategy_task.get("params", {}).get("ttl") == 64, "Req 1.1: TTL not parsed correctly"
+        logger.info("✅ Requirement 1.1: TTL parameter correctly parsed")
         
-        if strategy_task and strategy_task.get("params", {}).get("ttl") == 64:
-            logger.info("✅ Requirement 1.1: TTL parameter correctly parsed")
-        else:
-            logger.error("❌ Requirement 1.1: TTL parameter not correctly parsed")
-            return False
-        
-        # Requirement 2.1: Clear logging of TTL values
-        config = EngineConfig(debug=True)
-        engine = WindowsBypassEngine(config)
-        
-        strategy_task = {
-            "type": "fakeddisorder",
-            "params": {"ttl": 64, "fake_ttl": 1}
-        }
-        
+        strategy_task = {"type": "fakeddisorder", "params": {"ttl": 64, "fake_ttl": 1}}
         engine.set_strategy_override(strategy_task)
-        logger.info("✅ Requirement 2.1: TTL logging implemented")
+        logger.info("✅ Requirement 2.1: TTL logging implemented (verified by inspection)")
         
-        # Requirement 3.1: Identical behavior to zapret
-        # This would require actual packet capture comparison, but we can verify structure
-        if engine.strategy_override and engine.strategy_override.get("params", {}).get("ttl") == 64:
-            logger.info("✅ Requirement 3.1: Strategy structure matches zapret expectations")
-        else:
-            logger.error("❌ Requirement 3.1: Strategy structure doesn't match expectations")
-            return False
-        
-        logger.info("✅ Requirements compliance test completed successfully")
+        assert engine._engine.strategy_override.get("params", {}).get("ttl") == 64, "Req 3.1: Strategy structure mismatch"
+        logger.info("✅ Requirement 3.1: Strategy structure matches zapret expectations")
         return True
         
     except Exception as e:
         logger.error(f"❌ Requirements compliance test failed: {e}", exc_info=True)
-        return False
+        pytest.fail(f"Requirements compliance test failed: {e}")
 
 if __name__ == "__main__":
-    print("🧪 FakeDisorder TTL Fix Final Test Suite")
-    print("=" * 50)
-    print("Testing the complete implementation of TCP retransmission mitigation")
-    print("for the fakeddisorder TTL fix as specified in the requirements.")
-    print("=" * 50)
-    
-    # Test 1: Strategy interpretation
-    print("\n1. Testing strategy interpretation with TTL=64...")
-    test1_result = test_strategy_interpretation()
-    
-    # Test 2: Bypass engine with TTL fix
-    print("\n2. Testing bypass engine with TTL fix...")
-    test2_result = test_bypass_engine_with_ttl_fix()
-    
-    # Test 3: Performance improvements
-    print("\n3. Testing performance improvements...")
-    test3_result = test_performance_comparison()
-    
-    # Test 4: Requirements compliance
-    print("\n4. Testing requirements compliance...")
-    test4_result = test_requirements_compliance()
-    
-    # Summary
+    # This part is for manual execution, not for pytest
+    print("🧪 FakeDisorder TTL Fix Final Test Suite (Manual Execution)")
+    results = {}
+    tests_to_run = {
+        "Strategy Interpretation": test_strategy_interpretation,
+        "Bypass Engine TTL Fix": test_bypass_engine_with_ttl_fix,
+        "Performance Improvements": test_performance_comparison,
+        "Requirements Compliance": test_requirements_compliance,
+    }
+
+    for name, func in tests_to_run.items():
+        print(f"\n--- Running: {name} ---")
+        try:
+            results[name] = func()
+        except pytest.skip.Exception as e:
+            results[name] = "SKIPPED"
+            print(f"⚠️ SKIPPED: {e}")
+        except Exception as e:
+            results[name] = False
+            print(f"💥 ERROR: {e}")
+
     print("\n" + "=" * 50)
     print("📊 Final Test Results Summary:")
-    print(f"   Strategy Interpretation: {'✅ PASS' if test1_result else '❌ FAIL'}")
-    print(f"   Bypass Engine TTL Fix: {'✅ PASS' if test2_result else '❌ FAIL'}")
-    print(f"   Performance Improvements: {'✅ PASS' if test3_result else '❌ FAIL'}")
-    print(f"   Requirements Compliance: {'✅ PASS' if test4_result else '❌ FAIL'}")
-    
-    all_passed = test1_result and test2_result and test3_result and test4_result
+    all_passed = True
+    for name, result in results.items():
+        status = "✅ PASS" if result is True else ("❌ FAIL" if result is False else "⚠️ SKIPPED")
+        if result is False: all_passed = False
+        print(f"   {name}: {status}")
     
     if all_passed:
         print("\n🎉 ALL TESTS PASSED! 🎉")
-        print("\n📋 Implementation Complete:")
-        print("   ✅ TCP retransmission mitigation implemented")
-        print("   ✅ WinDivert blocking context for OS interference prevention")
-        print("   ✅ Batch packet sending for reduced timing gaps")
-        print("   ✅ Async/threaded packet sending for improved performance")
-        print("   ✅ Integration with Windows bypass engine")
-        print("   ✅ Proper TTL parameter handling (TTL=64 for real, TTL=1 for fake)")
-        print("   ✅ All requirements from the specification met")
-        print("\n🚀 The fakeddisorder TTL fix with TCP retransmission mitigation is ready!")
-        print("   The system should now successfully open 27/31 domains like the original zapret.")
         sys.exit(0)
     else:
-        print("\n💥 Some tests failed. Please review the implementation.")
+        print("\n💥 Some tests failed or were skipped. Please review the implementation.")
         sys.exit(1)
