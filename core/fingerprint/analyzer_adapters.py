@@ -319,89 +319,11 @@ class MLAnalyzerAdapter(BaseAnalyzerAdapter):
             return ml_result
 
 
-def create_analyzer_adapter(
-    analyzer_type: str,
-    **kwargs
-) -> BaseAnalyzerAdapter:
-    """Factory function to create analyzer adapters"""
-    
-    if analyzer_type == 'tcp':
-        return TCPAnalyzerAdapter(timeout=kwargs.get('timeout', 5.0))
-    
-    elif analyzer_type == 'http':
-        return HTTPAnalyzerAdapter(
-            timeout=kwargs.get('timeout', 10.0),
-            force_ipv4=kwargs.get('force_ipv4', True),
-            use_system_proxy=kwargs.get('use_system_proxy', True),
-            enable_doh_fallback=kwargs.get('enable_doh_fallback', True)
-        )
-    
-    elif analyzer_type == 'dns':
-        return DNSAnalyzerAdapter(timeout=kwargs.get('timeout', 3.0))
-    
-    elif analyzer_type == 'ml':
-        return MLAnalyzerAdapter()
-    
-    else:
-        raise ValueError(f"Unknown analyzer type: {analyzer_type}")
-
-
-def get_available_analyzers() -> list:
-    """Get list of available analyzer types"""
-    available = []
-    
-    try:
-        from core.fingerprint.tcp_analyzer import TCPAnalyzer
-        available.append('tcp')
-    except ImportError:
-        pass
-    
-    try:
-        from core.fingerprint.http_analyzer import HTTPAnalyzer
-        available.append('http')
-    except ImportError:
-        pass
-    
-    try:
-        from core.fingerprint.dns_analyzer import DNSAnalyzer
-        available.append('dns')
-    except ImportError:
-        pass
-    
-    try:
-        from core.fingerprint.ml_classifier import MLClassifier
-        available.append('ml')
-    except ImportError:
-        pass
-    
-    return available
-
-
-def check_analyzer_availability() -> dict:
-    """Check availability status of all analyzers"""
-    status = {}
-    
-    for analyzer_type in ['tcp', 'http', 'dns', 'ml']:
-        try:
-            adapter = create_analyzer_adapter(analyzer_type)
-            status[analyzer_type] = {
-                'available': True,
-                'name': adapter.get_name()
-            }
-        except Exception as e:
-            status[analyzer_type] = {
-                'available': False,
-                'error': str(e)
-            }
-    
-    return status
-
-
 class ECHDetectorAdapter(BaseAnalyzerAdapter):
     """Adapter for ECHDetector with fixed constructor issues"""
     
     def __init__(self, timeout: float = 30.0, dns_timeout: float = 3.0):
-        super().__init__(timeout)
+        super().__init__()
         self.dns_timeout = dns_timeout
         
         if not ECH_DETECTOR_AVAILABLE:
@@ -483,7 +405,7 @@ class RealEffectivenessTesterAdapter(BaseAnalyzerAdapter):
     """Adapter for RealEffectivenessTester with fixed missing method issues"""
     
     def __init__(self, timeout: float = 30.0):
-        super().__init__(timeout)
+        super().__init__()
         
         if not EFFECTIVENESS_TESTER_AVAILABLE:
             raise AnalyzerError(f"RealEffectivenessTester not available: {EFFECTIVENESS_TESTER_IMPORT_ERROR}")
@@ -581,7 +503,7 @@ class AdvancedTCPProberAdapter(BaseAnalyzerAdapter):
     """Adapter for AdvancedTCPProber - Task 23 Implementation"""
     
     def __init__(self, timeout: float = 10.0):
-        super().__init__(timeout)
+        super().__init__()
         
         if not ADVANCED_TCP_PROBES_AVAILABLE:
             raise AnalyzerError(f"AdvancedTCPProber not available: {ADVANCED_TCP_IMPORT_ERROR}")
@@ -615,7 +537,7 @@ class AdvancedTLSProberAdapter(BaseAnalyzerAdapter):
     """Adapter for AdvancedTLSProber - Task 23 Implementation"""
     
     def __init__(self, timeout: float = 10.0):
-        super().__init__(timeout)
+        super().__init__()
         
         if not ADVANCED_TLS_PROBES_AVAILABLE:
             raise AnalyzerError(f"AdvancedTLSProber not available: {ADVANCED_TLS_IMPORT_ERROR}")
@@ -649,7 +571,7 @@ class BehavioralProberAdapter(BaseAnalyzerAdapter):
     """Adapter for BehavioralProber - Task 23 Implementation"""
     
     def __init__(self, timeout: float = 10.0):
-        super().__init__(timeout)
+        super().__init__()
         
         if not BEHAVIORAL_PROBES_AVAILABLE:
             raise AnalyzerError(f"BehavioralProber not available: {BEHAVIORAL_IMPORT_ERROR}")
@@ -687,7 +609,7 @@ def create_analyzer_adapter(analyzer_type: str, **kwargs) -> BaseAnalyzerAdapter
         'tcp': TCPAnalyzerAdapter,
         'http': HTTPAnalyzerAdapter,
         'dns': DNSAnalyzerAdapter,
-        'ml': MLClassifierAdapter,
+        'ml': MLAnalyzerAdapter,
         'ech': ECHDetectorAdapter,
         'effectiveness': RealEffectivenessTesterAdapter,
         # Advanced probes - Task 23
