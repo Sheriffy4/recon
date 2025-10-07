@@ -1,0 +1,170 @@
+{
+  "summary": {
+    "total_differences": 4,
+    "critical_count": 2,
+    "high_count": 0,
+    "medium_count": 1,
+    "low_count": 1,
+    "blocking_count": 2
+  },
+  "differences": [
+    {
+      "category": "sequence",
+      "description": "Fake packet count mismatch in connection 192.168.1.100:54321->104.244.42.1:443",
+      "recon_value": "0 fake packets",
+      "zapret_value": "1 fake packets",
+      "impact_level": "CRITICAL",
+      "confidence": 0.9,
+      "fix_priority": 1,
+      "fix_complexity": "MODERATE",
+      "severity_score": 9.0,
+      "is_blocking": true,
+      "fix_urgency": "IMMEDIATE",
+      "evidence": [],
+      "packet_indices": [],
+      "connection_key": "192.168.1.100:54321->104.244.42.1:443",
+      "timestamp_range": null,
+      "suggested_fix": null,
+      "code_location": null,
+      "test_cases": [],
+      "detection_method": "automatic",
+      "tags": [
+        "sequence",
+        "critical",
+        "priority_1"
+      ],
+      "related_differences": []
+    },
+    {
+      "category": "strategy",
+      "description": "Strategy parameter mismatch: ttl",
+      "recon_value": "None",
+      "zapret_value": "3",
+      "impact_level": "CRITICAL",
+      "confidence": 0.8,
+      "fix_priority": 1,
+      "fix_complexity": "MODERATE",
+      "severity_score": 8.0,
+      "is_blocking": true,
+      "fix_urgency": "IMMEDIATE",
+      "evidence": [
+        {
+          "type": "strategy_inference",
+          "description": "Strategy parameter inferred from packet analysis",
+          "data": {
+            "parameter": "ttl",
+            "recon_inferred": null,
+            "zapret_inferred": 3
+          },
+          "confidence": 1.0
+        }
+      ],
+      "packet_indices": [],
+      "connection_key": null,
+      "timestamp_range": null,
+      "suggested_fix": "Update ttl parameter to match zapret behavior",
+      "code_location": "core/strategy/",
+      "test_cases": [],
+      "detection_method": "automatic",
+      "tags": [
+        "strategy",
+        "critical",
+        "priority_1"
+      ],
+      "related_differences": []
+    },
+    {
+      "category": "checksum",
+      "description": "Checksum corruption pattern mismatch: 20.0% difference in bad checksum ratio",
+      "recon_value": "0.0% bad checksums",
+      "zapret_value": "20.0% bad checksums",
+      "impact_level": "MEDIUM",
+      "confidence": 0.4,
+      "fix_priority": 4,
+      "fix_complexity": "MODERATE",
+      "severity_score": 1.4,
+      "is_blocking": false,
+      "fix_urgency": "LOW",
+      "evidence": [
+        {
+          "type": "checksum_analysis",
+          "description": "Checksum pattern analysis across 5 recon and 5 zapret packets",
+          "data": {
+            "recon_bad_count": 0,
+            "zapret_bad_count": 1,
+            "recon_total": 5,
+            "zapret_total": 5
+          },
+          "confidence": 1.0
+        }
+      ],
+      "packet_indices": [],
+      "connection_key": null,
+      "timestamp_range": null,
+      "suggested_fix": "Fix checksum corruption in fake packet generation",
+      "code_location": "core/bypass/packet/builder.py",
+      "test_cases": [],
+      "detection_method": "automatic",
+      "tags": [
+        "checksum",
+        "medium",
+        "priority_4"
+      ],
+      "related_differences": []
+    },
+    {
+      "category": "timing",
+      "description": "Significant timing difference in packet delays: 11.25ms average difference",
+      "recon_value": "37.50ms",
+      "zapret_value": "26.25ms",
+      "impact_level": "LOW",
+      "confidence": 0.22499999999999964,
+      "fix_priority": 6,
+      "fix_complexity": "MODERATE",
+      "severity_score": 0.28124999999999956,
+      "is_blocking": false,
+      "fix_urgency": "LOW",
+      "evidence": [
+        {
+          "type": "timing_analysis",
+          "description": "Inter-packet delay analysis across 4 packet pairs",
+          "data": {
+            "recon_delays_ms": [
+              20.000000000000018,
+              10.000000000000009,
+              70.00000000000006,
+              49.99999999999982
+            ],
+            "zapret_delays_ms": [
+              20.000000000000018,
+              10.000000000000009,
+              70.00000000000006,
+              4.999999999999893
+            ],
+            "difference_ms": 11.249999999999982
+          },
+          "confidence": 1.0
+        }
+      ],
+      "packet_indices": [],
+      "connection_key": null,
+      "timestamp_range": null,
+      "suggested_fix": "Adjust packet sending delays in bypass engine",
+      "code_location": "core/bypass/packet/sender.py",
+      "test_cases": [],
+      "detection_method": "automatic",
+      "tags": [
+        "timing",
+        "low",
+        "priority_6"
+      ],
+      "related_differences": []
+    }
+  ],
+  "categories": {
+    "sequence": 1,
+    "strategy": 1,
+    "checksum": 1,
+    "timing": 1
+  }
+}

@@ -214,7 +214,7 @@ class MonitoringSystem:
                 self.attack_registry = ModernAttackRegistry()
                 self.pool_manager = StrategyPoolManager()
                 self.reliability_validator = ReliabilityValidator()
-                self.logger.info("Modern bypass monitoring components initialized")
+                self.logger.info("Modern FORCED OVERRIDE bypass monitoring components initialized")
             except Exception as e:
                 self.logger.error(f"Failed to initialize modern bypass monitoring: {e}")
                 self.modern_bypass_enabled = False

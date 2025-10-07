@@ -296,19 +296,31 @@ class MLAnalyzerAdapter(BaseAnalyzerAdapter):
             return result
         
         try:
-            result_dict = await self.analyzer.classify(fingerprint_dict)
+            # ИСПРАВЛЕНО: Вызываем правильный метод `classify_dpi` и убираем `await`
+            result_tuple = self.analyzer.classify_dpi(fingerprint_dict)
             
             ml_result = MLClassificationResult()
             ml_result.status = AnalysisStatus.COMPLETED
             
-            if isinstance(result_dict, dict):
-                for key, value in result_dict.items():
-                    if hasattr(ml_result, key):
-                        try:
+            if isinstance(result_tuple, tuple) and len(result_tuple) == 2:
+                dpi_type_str, confidence = result_tuple
+                
+                try:
+                    # ИСПРАВЛЕНО: Получаем enum по имени, а не по значению
+                    ml_result.predicted_dpi_type = DPIType[dpi_type_str]
+                except KeyError:
+                    # Безопасный фоллбэк, если имя не найдено
+                    self.logger.warning(f"Could not map predicted DPI type '{dpi_type_str}' to enum. Falling back to UNKNOWN.")
+                    ml_result.predicted_dpi_type = DPIType.UNKNOWN
+
+                ml_result.confidence = confidence
+            else:
+                # Обработка старого формата, если он вернется
+                if isinstance(result_tuple, dict):
+                    for key, value in result_tuple.items():
+                        if hasattr(ml_result, key):
                             setattr(ml_result, key, value)
-                        except Exception:
-                            pass
-            
+
             return ml_result
         
         except Exception as e:

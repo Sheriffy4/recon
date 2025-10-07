@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pcap-analysis
+  labels:
+    name: pcap-analysis
+    app: pcap-analysis-system

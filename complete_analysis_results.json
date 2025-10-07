@@ -1,0 +1,384 @@
+{
+  "analysis_summary": {
+    "domain": "x.com",
+    "strategy": "fake,fakeddisorder",
+    "similarity_score": 0.4,
+    "total_differences": 3,
+    "critical_differences": 4,
+    "root_causes": 7,
+    "total_fixes": 7
+  },
+  "strategy_differences": [
+    {
+      "parameter": "split_pos",
+      "recon_value": 5,
+      "zapret_value": 3,
+      "impact_level": "HIGH",
+      "description": "Different split positions will affect packet segmentation"
+    },
+    {
+      "parameter": "ttl",
+      "recon_value": 64,
+      "zapret_value": 3,
+      "impact_level": "CRITICAL",
+      "description": "Different TTL values will affect fake packet behavior"
+    },
+    {
+      "parameter": "fooling_missing",
+      "recon_value": [
+        "badsum"
+      ],
+      "zapret_value": [
+        "badsum",
+        "badseq"
+      ],
+      "impact_level": "HIGH",
+      "description": "Missing fooling methods: badseq"
+    }
+  ],
+  "root_causes": [
+    {
+      "type": "packet_order_error",
+      "description": "Packet Order Error: Packet count mismatch",
+      "confidence": 1.0,
+      "impact": 0.7,
+      "affected_components": [
+        "packet_scheduler",
+        "sequence_manager"
+      ]
+    },
+    {
+      "type": "timing_issues",
+      "description": "Timing Issues: Significant timing difference in packet delays: 99.00ms average difference",
+      "confidence": 0.9900000000004638,
+      "impact": 0.6930000000003247,
+      "affected_components": [
+        "packet_scheduler",
+        "timing_controller"
+      ]
+    },
+    {
+      "type": "strategy_parameter_mismatch",
+      "description": "Strategy Parameter Mismatch: Strategy parameter mismatch: ttl",
+      "confidence": 0.8,
+      "impact": 0.7200000000000001,
+      "affected_components": [
+        "strategy_parser",
+        "parameter_validator"
+      ]
+    },
+    {
+      "type": "incorrect_ttl",
+      "description": "Missing ttl manipulation implementation",
+      "confidence": 0.8,
+      "impact": 0.7,
+      "affected_components": [
+        "packet_builder",
+        "fake_packet_generator"
+      ]
+    },
+    {
+      "type": "missing_fake_packets",
+      "description": "Missing fake packet injection implementation",
+      "confidence": 0.8,
+      "impact": 0.7,
+      "affected_components": [
+        "fake_packet_generator",
+        "attack_engine",
+        "packet_sender"
+      ]
+    },
+    {
+      "type": "wrong_split_position",
+      "description": "Missing payload splitting implementation",
+      "confidence": 0.75,
+      "impact": 0.7,
+      "affected_components": [
+        "payload_splitter",
+        "segment_generator"
+      ]
+    },
+    {
+      "type": "checksum_validation_error",
+      "description": "Checksum Validation Error: Checksum corruption pattern mismatch: 33.3% difference in bad checksum ratio",
+      "confidence": 0.7333333333333334,
+      "impact": 0.4666666666666666,
+      "affected_components": [
+        "checksum_calculator",
+        "packet_validator"
+      ]
+    }
+  ],
+  "generated_fixes": [
+    {
+      "fix_id": "order_fix_1",
+      "fix_type": "packet_order_fix",
+      "description": "Fix packet sending order to match zapret sequence",
+      "file_path": "core/bypass/attacks/tcp/fake_disorder_attack.py",
+      "function_name": "send_packet_sequence",
+      "class_name": null,
+      "old_code": "# Send in default order",
+      "new_code": "# Send fake packet first, then real segments",
+      "line_number": null,
+      "risk_level": "medium",
+      "confidence": 0.8,
+      "impact_assessment": "",
+      "test_cases": [],
+      "validation_requirements": [],
+      "dependencies": [],
+      "conflicts": [],
+      "backup_required": true,
+      "rollback_instructions": ""
+    },
+    {
+      "fix_id": "timing_fix_1",
+      "fix_type": "timing_fix",
+      "description": "Optimize packet sending delay to 0.001s",
+      "file_path": "core/bypass/packet/sender.py",
+      "function_name": "send_packet_sequence",
+      "class_name": null,
+      "old_code": "time.sleep(0.1)  # Default delay",
+      "new_code": "time.sleep(0.001)  # Optimized delay",
+      "line_number": null,
+      "risk_level": "low",
+      "confidence": 0.8,
+      "impact_assessment": "Improves timing to match zapret behavior",
+      "test_cases": [
+        "test_packet_timing_matches_zapret",
+        "test_timing_optimization_effectiveness"
+      ],
+      "validation_requirements": [],
+      "dependencies": [],
+      "conflicts": [],
+      "backup_required": true,
+      "rollback_instructions": ""
+    },
+    {
+      "fix_id": "order_fix_2",
+      "fix_type": "packet_order_fix",
+      "description": "Fix packet sending order to match zapret",
+      "file_path": "core/bypass/attacks/tcp/fake_disorder_attack.py",
+      "function_name": "execute_attack",
+      "class_name": null,
+      "old_code": "# Send packets in current order",
+      "new_code": "# Send packets in correct order: ['fake', 'real1', 'real2']",
+      "line_number": null,
+      "risk_level": "medium",
+      "confidence": 0.85,
+      "impact_assessment": "",
+      "test_cases": [],
+      "validation_requirements": [],
+      "dependencies": [],
+      "conflicts": [],
+      "backup_required": true,
+      "rollback_instructions": ""
+    },
+    {
+      "fix_id": "ttl_fix_1",
+      "fix_type": "ttl_fix",
+      "description": "Fix TTL value to 3 for fake packets",
+      "file_path": "core/bypass/packet/builder.py",
+      "function_name": "build_fake_packet",
+      "class_name": null,
+      "old_code": "packet.ttl = 64  # Default TTL",
+      "new_code": "packet.ttl = 3  # Zapret-compatible TTL",
+      "line_number": null,
+      "risk_level": "low",
+      "confidence": 0.95,
+      "impact_assessment": "Critical fix for DPI evasion effectiveness",
+      "test_cases": [
+        "test_fake_packet_ttl_equals_3",
+        "test_ttl_fix_improves_bypass_success"
+      ],
+      "validation_requirements": [],
+      "dependencies": [],
+      "conflicts": [],
+      "backup_required": true,
+      "rollback_instructions": ""
+    },
+    {
+      "fix_id": "split_pos_fix_1",
+      "fix_type": "split_position_fix",
+      "description": "Fix split position to 3",
+      "file_path": "core/bypass/attacks/tcp/fake_disorder_attack.py",
+      "function_name": "calculate_split_position",
+      "class_name": null,
+      "old_code": "split_pos = len(payload) // 2  # Middle split",
+      "new_code": "split_pos = 3  # Zapret-compatible split position",
+      "line_number": null,
+      "risk_level": "medium",
+      "confidence": 0.9,
+      "impact_assessment": "",
+      "test_cases": [],
+      "validation_requirements": [],
+      "dependencies": [],
+      "conflicts": [],
+      "backup_required": true,
+      "rollback_instructions": ""
+    },
+    {
+      "fix_id": "checksum_fix_1",
+      "fix_type": "checksum_fix",
+      "description": "Ensure fake packets have corrupted checksums",
+      "file_path": "core/bypass/packet/builder.py",
+      "function_name": "build_fake_packet",
+      "class_name": null,
+      "old_code": "# Calculate correct checksum\npacket.chksum = calculate_checksum(packet)",
+      "new_code": "# Corrupt checksum for fake packet\npacket.chksum = 0xFFFF  # Invalid checksum",
+      "line_number": null,
+      "risk_level": "low",
+      "confidence": 0.9,
+      "impact_assessment": "Improves DPI evasion by corrupting fake packet checksums",
+      "test_cases": [
+        "test_fake_packet_has_bad_checksum",
+        "test_real_packet_has_good_checksum"
+      ],
+      "validation_requirements": [
+        "Verify fake packets have invalid checksums",
+        "Verify real packets have valid checksums",
+        "Test against x.com domain"
+      ],
+      "dependencies": [],
+      "conflicts": [],
+      "backup_required": true,
+      "rollback_instructions": ""
+    },
+    {
+      "fix_id": "order_fix_1",
+      "fix_type": "packet_order_fix",
+      "description": "Fix packet sending order to match zapret",
+      "file_path": "core/bypass/attacks/tcp/fake_disorder_attack.py",
+      "function_name": "execute_attack",
+      "class_name": null,
+      "old_code": "# Send packets in current order",
+      "new_code": "# Send packets in correct order: ['fake', 'real1', 'real2']",
+      "line_number": null,
+      "risk_level": "medium",
+      "confidence": 0.85,
+      "impact_assessment": "",
+      "test_cases": [],
+      "validation_requirements": [],
+      "dependencies": [],
+      "conflicts": [],
+      "backup_required": true,
+      "rollback_instructions": ""
+    }
+  ],
+  "strategy_patches": [
+    {
+      "patch_id": "strategy_patch_1",
+      "strategy_name": "strategy_fix",
+      "parameter_changes": {
+        "dpi_desync_split_pos": 3
+      },
+      "description": "Fix strategy differences: Different split positions will affect packet segmentation",
+      "confidence": 0.85,
+      "test_domains": [
+        "x.com",
+        "twitter.com"
+      ],
+      "expected_improvement": 0.85
+    },
+    {
+      "patch_id": "strategy_patch_2",
+      "strategy_name": "strategy_fix",
+      "parameter_changes": {
+        "dpi_desync_ttl": 3
+      },
+      "description": "Fix strategy differences: Different TTL values will affect fake packet behavior",
+      "confidence": 0.9,
+      "test_domains": [
+        "x.com",
+        "twitter.com"
+      ],
+      "expected_improvement": 0.9
+    },
+    {
+      "patch_id": "strategy_patch_3",
+      "strategy_name": "strategy_fix",
+      "parameter_changes": {},
+      "description": "Fix strategy differences: Missing fooling methods: badseq",
+      "confidence": 0.0,
+      "test_domains": [
+        "x.com",
+        "twitter.com"
+      ],
+      "expected_improvement": 0.0
+    }
+  ],
+  "sequence_fixes": [
+    {
+      "fix_id": "seq_fix_missing_fake_1",
+      "sequence_type": "fake",
+      "target_function": "send_fake_packet",
+      "split_position": null,
+      "overlap_size": null,
+      "ttl_value": 3,
+      "fake_packet_count": 1,
+      "delay_between_packets": null,
+      "send_order": [],
+      "corrupt_checksum": true,
+      "checksum_method": "badsum",
+      "description": "Add missing fake packet with TTL=3 and corrupted checksum",
+      "confidence": 0.9
+    }
+  ],
+  "regression_tests": [
+    {
+      "test_id": "timing_regression_timing_fix_1",
+      "test_name": "Test Timing Fix Regression",
+      "test_type": "integration",
+      "target_domain": "",
+      "strategy_config": null,
+      "expected_result": "",
+      "test_code": "\ndef test_timing_fix_regression():\n    start_time = time.time()\n    send_packet_sequence()\n    duration = time.time() - start_time\n    assert duration < 0.01, \"Packet sequence should be sent quickly\"\n            ",
+      "setup_code": "",
+      "teardown_code": "",
+      "pcap_validation": false,
+      "performance_check": true
+    },
+    {
+      "test_id": "ttl_regression_ttl_fix_1",
+      "test_name": "Test TTL Fix Regression",
+      "test_type": "unit",
+      "target_domain": "x.com",
+      "strategy_config": null,
+      "expected_result": "",
+      "test_code": "\ndef test_ttl_fix_regression():\n    packet = build_fake_packet()\n    assert packet.ttl == 3, \"Fake packet should have TTL=3\"\n            ",
+      "setup_code": "",
+      "teardown_code": "",
+      "pcap_validation": true,
+      "performance_check": false
+    },
+    {
+      "test_id": "checksum_regression_checksum_fix_1",
+      "test_name": "Test Checksum Fix Regression",
+      "test_type": "unit",
+      "target_domain": "",
+      "strategy_config": null,
+      "expected_result": "",
+      "test_code": "\ndef test_checksum_fix_regression():\n    fake_packet = build_fake_packet()\n    assert fake_packet.chksum == 0xFFFF, \"Fake packet should have corrupted checksum\"\n            ",
+      "setup_code": "",
+      "teardown_code": "",
+      "pcap_validation": true,
+      "performance_check": false
+    }
+  ],
+  "recommendations": {
+    "immediate_actions": [
+      "Apply TTL fix (highest priority)",
+      "Fix checksum corruption for fake packets",
+      "Optimize packet timing"
+    ],
+    "testing_requirements": [
+      "Test against x.com domain",
+      "Validate PCAP output matches zapret",
+      "Run regression tests"
+    ],
+    "success_metrics": [
+      "Domain accessibility improvement",
+      "PCAP similarity score > 0.8",
+      "All regression tests pass"
+    ]
+  }
+}

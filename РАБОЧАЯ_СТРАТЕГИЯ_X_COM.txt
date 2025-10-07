@@ -1,0 +1,56 @@
+═══════════════════════════════════════════════════════════════
+  РАБОЧАЯ СТРАТЕГИЯ ДЛЯ X.COM (С РОУТЕРА)
+═══════════════════════════════════════════════════════════════
+
+ОРИГИНАЛЬНАЯ КОМАНДА ZAPRET (РОУТЕР):
+--------------------------------------
+--dpi-desync=multidisorder 
+--dpi-desync-autottl=2 
+--dpi-desync-fake-http=/opt/zapret/files/fake/tls_clienthello_www_google_com.bin 
+--dpi-desync-fake-tls=/opt/zapret/files/fake/tls_clienthello_www_google_com.bin 
+--dpi-desync-fooling=badseq 
+--dpi-desync-repeats=2 
+--dpi-desync-split-pos=46 
+--dpi-desync-split-seqovl=1
+
+КЛЮЧЕВЫЕ ПАРАМЕТРЫ:
+-------------------
+✓ desync=multidisorder (множественная перестановка сегментов)
+✓ autottl=2 (автоматический TTL)
+✓ fooling=badseq (неправильные sequence numbers)
+✓ repeats=2 (повторить атаку 2 раза)
+✓ split-pos=46 (разделить на позиции 46)
+✓ split-seqovl=1 (перекрытие sequence на 1 байт)
+✓ fake-http и fake-tls (фейковые пакеты с TLS ClientHello)
+
+АДАПТАЦИЯ ДЛЯ PYTHON СКРИПТА:
+------------------------------
+--dpi-desync=multidisorder --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2
+
+ПРИМЕЧАНИЕ:
+-----------
+fake-http и fake-tls используют бинарные файлы с роутера.
+В Python версии мы можем:
+1. Использовать встроенные fake пакеты
+2. Или создать свои бинарные файлы
+3. Или обойтись без них (часто работает и так)
+
+ТЕСТИРОВАНИЕ:
+-------------
+python cli.py x.com --strategy "multidisorder --split-pos=46 --split-seqovl=1 --autottl=2 --fooling=badseq --repeats=2"
+
+ВАРИАНТЫ ДЛЯ ТЕСТИРОВАНИЯ:
+--------------------------
+1. Базовый (без fake пакетов):
+   multidisorder --split-pos=46 --split-seqovl=1 --autottl=2 --fooling=badseq --repeats=2
+
+2. С fake пакетами:
+   fake,multidisorder --split-pos=46 --split-seqovl=1 --autottl=2 --fooling=badseq --repeats=2
+
+3. Упрощенный (если базовый не работает):
+   multidisorder --split-pos=1 --autottl=2 --fooling=badseq --repeats=2
+
+4. С дополнительным badsum:
+   multidisorder --split-pos=46 --split-seqovl=1 --autottl=2 --fooling=badseq,badsum --repeats=2
+
+═══════════════════════════════════════════════════════════════

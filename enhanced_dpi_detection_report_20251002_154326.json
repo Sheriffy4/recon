@@ -1,0 +1,46 @@
+{
+  "detection_statistics": {
+    "total_detections": 3,
+    "successful_identifications": 1,
+    "new_patterns_discovered": 0,
+    "confidence_improvements": 0,
+    "accuracy_rate": 0.3333333333333333,
+    "accuracy_metrics": {
+      "total_detections": 3,
+      "correct_detections": 1,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "average_confidence": 0.28700000000000003,
+      "detection_time_ms": 0.33362706502278644
+    },
+    "cached_signatures": 1,
+    "pattern_history_size": 1,
+    "detection_rules_count": 8
+  },
+  "accuracy_analysis": {
+    "overall_accuracy": 0.3333333333333333,
+    "average_confidence": 0.28700000000000003,
+    "average_detection_time_ms": 0.33362706502278644,
+    "total_detections": 3
+  },
+  "pattern_analysis": {
+    "unique_patterns": 1,
+    "dpi_type_distribution": {
+      "roskomnadzor_tspu": 1
+    },
+    "confidence_distribution": {
+      "very_high": 0,
+      "high": 1,
+      "medium": 0,
+      "low": 0
+    }
+  },
+  "performance_metrics": {
+    "cache_hit_rate": 1.0,
+    "new_pattern_rate": 0.0
+  },
+  "recommendations": [
+    "Consider tuning detection rule thresholds to improve accuracy",
+    "Add more distinctive markers to improve confidence scores"
+  ]
+}

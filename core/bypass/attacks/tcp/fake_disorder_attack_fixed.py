@@ -378,14 +378,17 @@ class FixedFakeDisorderAttack(BaseAttack):
     def _calculate_zapret_ttl(self) -> int:
         """
         ИСПРАВЛЕНИЕ 3: Zapret-совместимый расчет TTL.
+        # X.COM TTL FIX - принудительно используем TTL=3 для fakeddisorder
         """
+        # Для fakeddisorder всегда используем низкий TTL
         if self.config.autottl is not None and self.config.autottl > 1:
             # Zapret AutoTTL: используем эффективное значение из диапазона
-            effective_ttl = min(2, self.config.autottl)  # TTL 1-2 наиболее эффективны
+            effective_ttl = min(3, self.config.autottl)  # TTL 1-3 наиболее эффективны для fakeddisorder
             self.logger.debug(f"🔢 Zapret AutoTTL: TTL={effective_ttl} из диапазона 1-{self.config.autottl}")
             return effective_ttl
         else:
-            return self.config.ttl
+            # Принудительно ограничиваем TTL для fakeddisorder
+            return min(3, self.config.ttl) if self.config.ttl else 3
 
     def _create_zapret_fake_options(self, ttl: int) -> Dict[str, Any]:
         """

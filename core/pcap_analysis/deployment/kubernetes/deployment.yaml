@@ -1,0 +1,200 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pcap-analysis
+  namespace: pcap-analysis
+  labels:
+    app: pcap-analysis
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pcap-analysis
+  template:
+    metadata:
+      labels:
+        app: pcap-analysis
+    spec:
+      containers:
+      - name: pcap-analysis
+        image: pcap-analysis:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8081
+          name: health
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: PCAP_LOG_LEVEL
+          value: "INFO"
+        - name: PCAP_CONFIG_FILE
+          value: "/app/config/config.conf"
+        - name: PCAP_CACHE_DIR
+          value: "/app/cache"
+        - name: PCAP_DATA_DIR
+          value: "/app/data"
+        - name: REDIS_HOST
+          value: "pcap-redis-service"
+        - name: REDIS_PORT
+          value: "6379"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        - name: data
+          mountPath: /app/data
+        - name: cache
+          mountPath: /app/cache
+        - name: logs
+          mountPath: /app/logs
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        configMap:
+          name: pcap-analysis-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: pcap-analysis-data
+      - name: cache
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: logs
+        emptyDir:
+          sizeLimit: 5Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pcap-redis
+  namespace: pcap-analysis
+  labels:
+    app: pcap-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pcap-redis
+  template:
+    metadata:
+      labels:
+        app: pcap-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        volumeMounts:
+        - name: redis-config
+          mountPath: /usr/local/etc/redis/redis.conf
+          subPath: redis.conf
+        - name: redis-data
+          mountPath: /data
+        command:
+        - redis-server
+        - /usr/local/etc/redis/redis.conf
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: pcap-redis-data
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pcap-nginx
+  namespace: pcap-analysis
+  labels:
+    app: pcap-nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pcap-nginx
+  template:
+    metadata:
+      labels:
+        app: pcap-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config

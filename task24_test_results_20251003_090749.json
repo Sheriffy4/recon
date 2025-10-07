@@ -1,0 +1,48 @@
+{
+  "rule_engine_test": {
+    "score": 1.0,
+    "tests_passed": 3,
+    "total_tests": 3,
+    "details": [
+      "✓ Basic rule evaluation works",
+      "✓ Fragmentation vulnerability detection works",
+      "✓ Rule statistics: 14 rules loaded"
+    ]
+  },
+  "combinator_test": {
+    "score": 1.0,
+    "tests_passed": 3,
+    "total_tests": 3,
+    "details": [
+      "✓ Basic combination creation works",
+      "✓ Rule-based combinations: 1 generated",
+      "✓ Component compatibility checking works"
+    ]
+  },
+  "integration_test": {
+    "score": 0.6666666666666666,
+    "tests_passed": 2,
+    "total_tests": 3,
+    "details": [
+      "✓ Recon summary loading works",
+      "✗ Strategy generation test failed: 'NoneType' object has no attribute 'get'",
+      "✓ Statistics collection works"
+    ]
+  },
+  "validator_test": {
+    "score": 1.0,
+    "tests_passed": 2,
+    "total_tests": 2,
+    "details": [
+      "✓ Strategy validation works (accuracy: 0.00%)",
+      "✓ Rule engine performance tracking works"
+    ]
+  },
+  "overall_score": 0.9166666666666666,
+  "metadata": {
+    "start_time": "2025-10-03T09:07:49.420522",
+    "end_time": "2025-10-03T09:07:49.428514",
+    "duration_seconds": 0.007992,
+    "components_tested": 4
+  }
+}

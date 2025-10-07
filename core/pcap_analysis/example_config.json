@@ -1,0 +1,56 @@
+{
+  "_comment": "PCAP Analysis CLI Configuration Example",
+  "_description": {
+    "log_level": "Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL",
+    "quiet_mode": "Suppress progress output by default",
+    "verbose_mode": "Enable verbose output by default",
+    "default_output_dir": "Default directory for analysis results",
+    "temp_dir": "Directory for temporary files during analysis",
+    "cache_dir": "Directory for caching analysis results",
+    "analysis": "Analysis-specific configuration options",
+    "max_parallel_jobs": "Maximum number of parallel jobs for batch processing"
+  },
+  
+  "log_level": "INFO",
+  "quiet_mode": false,
+  "verbose_mode": false,
+  
+  "default_output_dir": "./pcap_analysis_results",
+  "temp_dir": "./temp",
+  "cache_dir": "./cache",
+  
+  "analysis": {
+    "enable_detailed_logging": true,
+    "max_packet_analysis": 10000,
+    "timeout_seconds": 300,
+    
+    "confidence_threshold": 0.7,
+    "impact_level_filter": ["CRITICAL", "HIGH", "MEDIUM"],
+    
+    "enable_pattern_recognition": true,
+    "pattern_confidence_threshold": 0.6,
+    
+    "enable_fix_generation": true,
+    "max_fixes_per_category": 5,
+    "risk_level_filter": ["LOW", "MEDIUM"],
+    
+    "auto_approve_low_risk": false,
+    "show_code_diffs": true,
+    "enable_batch_operations": true,
+    
+    "output_format": "json",
+    "include_raw_data": false,
+    "generate_visualizations": true,
+    
+    "test_domains": ["x.com", "example.com", "youtube.com"],
+    "validation_timeout": 30,
+    "retry_count": 3
+  },
+  
+  "max_parallel_jobs": 3,
+  "batch_timeout": 3600,
+  
+  "enable_caching": true,
+  "cache_ttl": 3600,
+  "memory_limit_mb": 2048
+}

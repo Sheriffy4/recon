@@ -32,13 +32,16 @@ class FixedFakeDisorderConfig:
     """
     ИСПРАВЛЕННАЯ конфигурация для FakeDisorderAttack с zapret совместимостью.
     
-    Все параметры теперь соответствуют рабочим значениям zapret.
+    КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Значения по умолчанию теперь соответствуют Zapret!
+    - split_pos=3 (было 76) - правильная позиция разделения
+    - split_seqovl=0 (было 336) - без overlap как в Zapret
+    - ttl=3 (было 1) - правильный TTL для fake пакетов
     """
 
-    # Основные параметры (исправлены для zapret совместимости)
-    split_pos: int = 76          # Позиция разделения payload (zapret default)
-    split_seqovl: int = 336      # Размер sequence overlap (КРИТИЧНО!)
-    ttl: int = 1                 # TTL для fake пакетов (zapret default для fakeddisorder)
+    # Основные параметры (ИСПРАВЛЕНЫ для точного соответствия Zapret!)
+    split_pos: int = 3           # Позиция разделения payload (Zapret default) - ИСПРАВЛЕНО!
+    split_seqovl: int = 0        # Размер sequence overlap (Zapret: без overlap) - ИСПРАВЛЕНО!
+    ttl: int = 3                 # TTL для fake пакетов (Zapret default) - ИСПРАВЛЕНО!
     autottl: Optional[int] = None # Auto TTL расчет (1 to autottl)
     repeats: int = 1             # Количество повторов атаки
     
@@ -80,7 +83,8 @@ class FixedFakeDisorderConfig:
     def __post_init__(self):
         """Инициализация fooling методов по умолчанию."""
         if self.fooling_methods is None:
-            self.fooling_methods = ["md5sig", "badsum", "badseq"]
+            # ИСПРАВЛЕНО: Только badsum и badseq как в Zapret (убран md5sig!)
+            self.fooling_methods = ["badsum", "badseq"]
 
 
 @register_attack("fake_fakeddisorder")
@@ -111,8 +115,9 @@ class FixedFakeDisorderAttack(BaseAttack):
 
     def _validate_config(self):
         """Валидация конфигурации с исправленными проверками."""
-        if self.config.split_seqovl < 1:
-            raise ValueError(f"split_seqovl must be >= 1, got {self.config.split_seqovl}")
+        # ИСПРАВЛЕНО: split_seqovl может быть 0 (без overlap как в Zapret!)
+        if self.config.split_seqovl < 0:
+            raise ValueError(f"split_seqovl must be >= 0, got {self.config.split_seqovl}")
         
         if self.config.ttl < 1 or self.config.ttl > 255:
             raise ValueError(f"ttl must be between 1 and 255, got {self.config.ttl}")
@@ -378,13 +383,17 @@ class FixedFakeDisorderAttack(BaseAttack):
     def _calculate_zapret_ttl(self) -> int:
         """
         ИСПРАВЛЕНИЕ 3: Zapret-совместимый расчет TTL.
+        КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Убрано принудительное ограничение min(3, ttl)!
+        Теперь используется значение TTL из конфигурации напрямую.
         """
+        # Для fakeddisorder используем TTL из конфигурации
         if self.config.autottl is not None and self.config.autottl > 1:
             # Zapret AutoTTL: используем эффективное значение из диапазона
-            effective_ttl = min(2, self.config.autottl)  # TTL 1-2 наиболее эффективны
+            effective_ttl = min(3, self.config.autottl)  # TTL 1-3 наиболее эффективны для fakeddisorder
             self.logger.debug(f"🔢 Zapret AutoTTL: TTL={effective_ttl} из диапазона 1-{self.config.autottl}")
             return effective_ttl
         else:
+            # ИСПРАВЛЕНО: Используем TTL из конфигурации напрямую (без ограничения!)
             return self.config.ttl
 
     def _create_zapret_fake_options(self, ttl: int) -> Dict[str, Any]:

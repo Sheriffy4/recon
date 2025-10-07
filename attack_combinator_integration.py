@@ -94,7 +94,7 @@ class AttackCombinatorBypassEngine:
         Returns:
             Dictionary with performance results
         """
-        self.logger.info(f"Starting intelligent bypass for {len(target_domains)} domains")
+        self.logger.info(f"Starting intelligent FORCED OVERRIDE bypass for {len(target_domains)} domains")
         self.logger.info(f"Duration: {duration_minutes} minutes")
         
         if not self.engine_available:
@@ -130,7 +130,7 @@ class AttackCombinatorBypassEngine:
             # Calculate final results
             results = self._calculate_final_results(start_time, time.time())
             
-            self.logger.info("Intelligent bypass completed successfully")
+            self.logger.info("Intelligent FORCED OVERRIDE bypass completed successfully")
             return results
             
         except Exception as e:
@@ -240,7 +240,7 @@ class AttackCombinatorBypassEngine:
                     "ttl": 4,
                     "split_pos": 3,
                     "window_div": 6,
-                    "tcp_flags": {"psh": True, "ack": True},
+                    "tcp_flags": {"psh": True, "ack": True, "no_fallbacks": True, "forced": True},
                     "delay_ms": 10
                 }
             }

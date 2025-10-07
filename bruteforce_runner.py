@@ -1,7 +1,7 @@
 # bruteforce_runner.py
 import asyncio, json, itertools, time
 from typing import List, Dict, Any, Set, Tuple, Optional
-from core.hybrid_engine import HybridEngine  # поправьте путь под ваш проект
+from core.unified_bypass_engine import UnifiedBypassEngine  # поправьте путь под ваш проект
 
 # Набор комбинаций: порядок, fooling, ttl, overlap, badseq_delta
 ORDERS = ["fake_first", "real_first"]
@@ -65,7 +65,7 @@ async def main():
     ips: Set[str] = set()
     dns_cache: Dict[str, str] = {}
 
-    he = HybridEngine(debug=True, enable_advanced_fingerprinting=False, enable_modern_bypass=False)
+    he = UnifiedBypassEngine(debug=True, enable_advanced_fingerprinting=False, enable_modern_bypass=False)
 
     split_pos = 76
     strategies = []

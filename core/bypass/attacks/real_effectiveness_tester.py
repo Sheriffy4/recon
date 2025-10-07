@@ -785,7 +785,7 @@ class RealEffectivenessTester:
         start_time = time.time()
         attack_name = attack_result.technique_used or "unknown"
         self.logger.info(
-            f"Testing bypass for {domain}:{port} with attack '{attack_name}'"
+            f"Testing FORCED OVERRIDE bypass for {domain}:{port} with attack '{attack_name}'"
         )
         if attack_result.status != AttackStatus.SUCCESS:
             self.logger.warning(
@@ -1038,17 +1038,17 @@ class RealEffectivenessTester:
             if task:
                 task.setdefault("target_port", port)
                 return task
-            return {"type": "custom_string", "command": strategy, "target_port": port}
+            return {"type": "custom_string", "command": strategy, "target_port": port, "no_fallbacks": True, "forced": True}
         elif isinstance(strategy, AttackResult):
             return {
                 "type": strategy.technique_used or "from_result",
                 "params": strategy.metadata,
                 "target_port": port,
                 "from_attack_result": True,
-            }
+                "no_fallbacks": True, "forced": True}
         else:
             self.logger.warning(f"Unknown strategy type: {type(strategy)}")
-            return {"type": "unknown", "target_port": port, "raw": strategy}
+            return {"type": "unknown", "target_port": port, "raw": strategy, "no_fallbacks": True, "forced": True}
 
     def _analyze_response(
         self,

@@ -1,0 +1,994 @@
+{
+  "metadata": {
+    "domain": "x.com",
+    "target_ip": "172.66.0.227",
+    "start_time": "2025-10-06T16:36:57.743375",
+    "end_time": "2025-10-06T16:44:08.654895",
+    "duration_seconds": 430.91152,
+    "test_count_per_strategy": 3,
+    "timeout_seconds": 10.0
+  },
+  "summary": {
+    "tested_strategies": 43,
+    "successful_strategies": 0,
+    "failed_strategies": 43,
+    "success_rate": 0.0,
+    "average_latency_ms": 0.0
+  },
+  "successful_strategies": [],
+  "failed_strategies": [
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=46 seqovl=1 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:36:57.743375",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 46,
+        "ttl": null,
+        "autottl": 2,
+        "fooling": "badseq",
+        "overlap_size": 1,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1",
+      "description": "multidisorder autottl=2 badseq split_pos=46 seqovl=1 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:37:07.947600",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 46,
+        "ttl": null,
+        "autottl": 2,
+        "fooling": "badseq",
+        "overlap_size": 1,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=46 seqovl=0 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:37:18.143039",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 46,
+        "ttl": null,
+        "autottl": 2,
+        "fooling": "badseq",
+        "overlap_size": 0,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=0 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:37:28.369460",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 0,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=0 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:37:38.779744",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 0,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=0 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:37:49.327554",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 0,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=1 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:37:59.552162",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 1,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=1 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:38:09.742397",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 1,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=1 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:38:19.929182",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 1,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=2 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:38:30.171445",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 2,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=2 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:38:40.363086",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 2,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=2 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:38:50.554171",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 2,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=5 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:39:00.748846",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 5,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=5 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:39:10.937494",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 5,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 badseq split_pos=1 seqovl=5 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:39:21.144764",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 5,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=0 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:39:31.362629",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 0,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=0 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:39:41.553606",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 0,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=0 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:39:51.808649",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 0,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=1 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:40:02.091075",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 1,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=1 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:40:12.421367",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 1,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=1 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:40:22.616049",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 1,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=2 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:40:32.820325",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 2,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=2 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:40:43.144233",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 2,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=2 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:40:53.390021",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 2,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=5 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:41:03.591462",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 5,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=5 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:41:13.786910",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 5,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 badsum split_pos=1 seqovl=5 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:41:23.985293",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "badsum",
+        "overlap_size": 5,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=0 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:41:34.175333",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 0,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=0 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:41:44.365494",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 0,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=0 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:41:54.590607",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 0,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=1 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:42:04.903184",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 1,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=1 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:42:15.136940",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 1,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=1 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:42:25.619186",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 1,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=2 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:42:35.861234",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 2,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=2 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:42:46.086371",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 2,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=2 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=2 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:42:56.342425",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 2,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=5 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:43:06.677734",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 5,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=5 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:43:16.981250",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 5,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=5 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=1 md5sig split_pos=1 seqovl=5 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:43:27.245538",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 1,
+        "autottl": null,
+        "fooling": "md5sig",
+        "overlap_size": 5,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1",
+      "description": "multidisorder ttl=2 badseq split_pos=1 seqovl=0 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:43:37.873193",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 2,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 0,
+        "repeats": 1
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-repeats=2",
+      "description": "multidisorder ttl=2 badseq split_pos=1 seqovl=0 repeats=2",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:43:48.191397",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 2,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 0,
+        "repeats": 2
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-repeats=3",
+      "description": "multidisorder ttl=2 badseq split_pos=1 seqovl=0 repeats=3",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:43:58.442717",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 2,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 0,
+        "repeats": 3
+      }
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-ttl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1",
+      "description": "multidisorder ttl=2 badseq split_pos=1 seqovl=1 repeats=1",
+      "success": false,
+      "rst_count": 0,
+      "latency_ms": 10000.0,
+      "connection_established": true,
+      "tls_handshake_success": false,
+      "http_response_code": null,
+      "error": "Connection timeout",
+      "timestamp": "2025-10-06T16:44:08.654895",
+      "config": {
+        "desync_method": "multidisorder",
+        "split_pos": 1,
+        "ttl": 2,
+        "autottl": null,
+        "fooling": "badseq",
+        "overlap_size": 1,
+        "repeats": 1
+      }
+    }
+  ],
+  "top_5_strategies": [],
+  "router_tested_strategy": {
+    "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+    "description": "multidisorder autottl=2 badseq split_pos=46 seqovl=1 repeats=2",
+    "success": false,
+    "rst_count": 0,
+    "latency_ms": 10000.0,
+    "connection_established": true,
+    "tls_handshake_success": false,
+    "http_response_code": null,
+    "error": "Connection timeout",
+    "timestamp": "2025-10-06T16:36:57.743375",
+    "config": {
+      "desync_method": "multidisorder",
+      "split_pos": 46,
+      "ttl": null,
+      "autottl": 2,
+      "fooling": "badseq",
+      "overlap_size": 1,
+      "repeats": 2
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "title": "Router-Tested Strategy",
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=46 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "latency_ms": 10000.0,
+      "reason": "Proven to work on router, should be prioritized"
+    }
+  ],
+  "parameter_analysis": {
+    "split_positions_tested": [
+      1,
+      2,
+      3,
+      46,
+      50,
+      100
+    ],
+    "ttl_values_tested": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "autottl_offsets_tested": [
+      1,
+      2,
+      3
+    ],
+    "fooling_methods_tested": [
+      "badseq",
+      "badsum",
+      "md5sig"
+    ],
+    "overlap_sizes_tested": [
+      0,
+      1,
+      2,
+      5
+    ],
+    "repeat_counts_tested": [
+      1,
+      2,
+      3
+    ]
+  }
+}

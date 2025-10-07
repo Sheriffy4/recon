@@ -1,0 +1,349 @@
+"""
+Unit tests for multidisorder detailed logging.
+
+Tests that the multidisorder attack logs all important parameters
+and execution details for debugging and monitoring.
+"""
+
+import pytest
+import logging
+from unittest.mock import Mock, MagicMock, patch
+from core.bypass.engine.base_engine import WindowsBypassEngine, EngineConfig
+
+
+class TestMultidisorderLogging:
+    """Test suite for multidisorder logging functionality."""
+    
+    @pytest.fixture
+    def mock_engine_with_logging(self):
+        """Create a mock bypass engine with logging capture."""
+        config = EngineConfig(debug=True)
+        with patch('core.bypass.engine.base_engine.pydivert'):
+            engine = WindowsBypassEngine(config)
+            
+            # Set up logging capture
+            engine.logger.setLevel(logging.DEBUG)
+            
+            return engine
+    
+    def test_logs_attack_parameters(self, mock_engine_with_logging, caplog):
+        """Test that attack parameters are logged."""
+        caplog.set_level(logging.INFO)
+        
+        # Create a mock packet
+        mock_packet = Mock()
+        mock_packet.dst_addr = "1.2.3.4"
+        mock_packet.dst_port = 443
+        mock_packet.tcp = Mock()
+        mock_packet.tcp.syn = False
+        mock_packet.tcp.ack = True
+        mock_packet.payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
+        
+        # Mock the packet sender
+        mock_engine_with_logging._packet_sender = Mock()
+        mock_engine_with_logging._packet_sender.send_tcp_segments = Mock(return_value=True)
+        
+        # Create strategy
+        strategy_task = {
+            "type": "multidisorder",
+            "params": {
+                "split_pos": 46,
+                "overlap_size": 1,
+                "fooling": ["badseq"],
+                "ttl": 2,
+                "repeats": 2
+            }
+        }
+        
+        # Mock WinDivert
+        mock_w = Mock()
+        
+        # Apply bypass
+        with patch.object(mock_engine_with_logging, '_is_tls_clienthello', return_value=False):
+            mock_engine_with_logging.apply_bypass(mock_packet, mock_w, strategy_task)
+        
+        # Check that parameters are logged
+        log_text = caplog.text
+        assert "Multidisorder Attack Parameters" in log_text
+        assert "Target: 1.2.3.4:443" in log_text
+        assert "Split position: 46" in log_text
+        assert "Overlap size: 1" in log_text
+        assert "Fooling methods: ['badseq']" in log_text
+        assert "TTL: 2" in log_text
+        assert "Repeats: 2" in log_text
+    
+    def test_logs_payload_size(self, mock_engine_with_logging, caplog):
+        """Test that payload size is logged."""
+        caplog.set_level(logging.INFO)
+        
+        # Create a mock packet with specific payload size
+        payload = b"A" * 100
+        mock_packet = Mock()
+        mock_packet.dst_addr = "1.2.3.4"
+        mock_packet.dst_port = 443
+        mock_packet.tcp = Mock()
+        mock_packet.tcp.syn = False
+        mock_packet.tcp.ack = True
+        mock_packet.payload = payload
+        
+        # Mock the packet sender
+        mock_engine_with_logging._packet_sender = Mock()
+        mock_engine_with_logging._packet_sender.send_tcp_segments = Mock(return_value=True)
+        
+        # Create strategy
+        strategy_task = {
+            "type": "multidisorder",
+            "params": {
+                "split_pos": 10,
+                "overlap_size": 0,
+                "fooling": [],
+                "ttl": 1
+            }
+        }
+        
+        # Mock WinDivert
+        mock_w = Mock()
+        
+        # Apply bypass
+        with patch.object(mock_engine_with_logging, '_is_tls_clienthello', return_value=False):
+            mock_engine_with_logging.apply_bypass(mock_packet, mock_w, strategy_task)
+        
+        # Check that payload size is logged
+        assert "Payload size: 100 bytes" in caplog.text
+    
+    def test_logs_ttl_source(self, mock_engine_with_logging, caplog):
+        """Test that TTL source (fixed vs autottl) is logged."""
+        caplog.set_level(logging.INFO)
+        
+        # Create a mock packet
+        mock_packet = Mock()
+        mock_packet.dst_addr = "1.2.3.4"
+        mock_packet.dst_port = 443
+        mock_packet.tcp = Mock()
+        mock_packet.tcp.syn = False
+        mock_packet.tcp.ack = True
+        mock_packet.payload = b"Test"
+        
+        # Mock the packet sender
+        mock_engine_with_logging._packet_sender = Mock()
+        mock_engine_with_logging._packet_sender.send_tcp_segments = Mock(return_value=True)
+        
+        # Test with fixed TTL
+        strategy_task = {
+            "type": "multidisorder",
+            "params": {
+                "split_pos": 2,
+                "overlap_size": 0,
+                "fooling": [],
+                "ttl": 3
+            }
+        }
+        
+        # Mock WinDivert
+        mock_w = Mock()
+        
+        # Apply bypass
+        with patch.object(mock_engine_with_logging, '_is_tls_clienthello', return_value=False):
+            mock_engine_with_logging.apply_bypass(mock_packet, mock_w, strategy_task)
+        
+        # Check that fixed TTL is logged
+        assert "TTL: 3 (fixed)" in caplog.text
+    
+    def test_logs_autottl_source(self, mock_engine_with_logging, caplog):
+        """Test that autottl is logged with offset."""
+        caplog.set_level(logging.INFO)
+        
+        # Create a mock packet
+        mock_packet = Mock()
+        mock_packet.dst_addr = "1.2.3.4"
+        mock_packet.dst_port = 443
+        mock_packet.tcp = Mock()
+        mock_packet.tcp.syn = False
+        mock_packet.tcp.ack = True
+        mock_packet.payload = b"Test"
+        
+        # Mock the packet sender
+        mock_engine_with_logging._packet_sender = Mock()
+        mock_engine_with_logging._packet_sender.send_tcp_segments = Mock(return_value=True)
+        
+        # Mock calculate_autottl
+        with patch.object(mock_engine_with_logging, 'calculate_autottl', return_value=10):
+            # Test with autottl
+            strategy_task = {
+                "type": "multidisorder",
+                "params": {
+                    "split_pos": 2,
+                    "overlap_size": 0,
+                    "fooling": [],
+                    "autottl": 2
+                }
+            }
+            
+            # Mock WinDivert
+            mock_w = Mock()
+            
+            # Apply bypass
+            with patch.object(mock_engine_with_logging, '_is_tls_clienthello', return_value=False):
+                mock_engine_with_logging.apply_bypass(mock_packet, mock_w, strategy_task)
+            
+            # Check that autottl is logged
+            assert "TTL: 10 (autottl(offset=2))" in caplog.text
+    
+    def test_logs_packet_sequence(self, mock_engine_with_logging, caplog):
+        """Test that packet sequence is logged."""
+        caplog.set_level(logging.INFO)
+        
+        # Create a mock packet
+        mock_packet = Mock()
+        mock_packet.dst_addr = "1.2.3.4"
+        mock_packet.dst_port = 443
+        mock_packet.tcp = Mock()
+        mock_packet.tcp.syn = False
+        mock_packet.tcp.ack = True
+        mock_packet.payload = b"Test payload"
+        
+        # Mock the packet sender
+        mock_engine_with_logging._packet_sender = Mock()
+        mock_engine_with_logging._packet_sender.send_tcp_segments = Mock(return_value=True)
+        
+        # Create strategy
+        strategy_task = {
+            "type": "multidisorder",
+            "params": {
+                "split_pos": 5,
+                "overlap_size": 0,
+                "fooling": [],
+                "ttl": 1
+            }
+        }
+        
+        # Mock WinDivert
+        mock_w = Mock()
+        
+        # Apply bypass
+        with patch.object(mock_engine_with_logging, '_is_tls_clienthello', return_value=False):
+            mock_engine_with_logging.apply_bypass(mock_packet, mock_w, strategy_task)
+        
+        # Check that packet sequence is logged
+        assert "Packet sequence: 3 segments" in caplog.text
+    
+    def test_logs_repeat_iterations(self, mock_engine_with_logging, caplog):
+        """Test that repeat iterations are logged."""
+        caplog.set_level(logging.INFO)
+        
+        # Create a mock packet
+        mock_packet = Mock()
+        mock_packet.dst_addr = "1.2.3.4"
+        mock_packet.dst_port = 443
+        mock_packet.tcp = Mock()
+        mock_packet.tcp.syn = False
+        mock_packet.tcp.ack = True
+        mock_packet.payload = b"Test"
+        
+        # Mock the packet sender
+        mock_engine_with_logging._packet_sender = Mock()
+        mock_engine_with_logging._packet_sender.send_tcp_segments = Mock(return_value=True)
+        
+        # Create strategy with repeats
+        strategy_task = {
+            "type": "multidisorder",
+            "params": {
+                "split_pos": 2,
+                "overlap_size": 0,
+                "fooling": [],
+                "ttl": 1,
+                "repeats": 3
+            }
+        }
+        
+        # Mock WinDivert
+        mock_w = Mock()
+        
+        # Apply bypass
+        with patch.object(mock_engine_with_logging, '_is_tls_clienthello', return_value=False):
+            mock_engine_with_logging.apply_bypass(mock_packet, mock_w, strategy_task)
+        
+        # Check that repeat iterations are logged
+        assert "Repeat iteration 1/3" in caplog.text
+        assert "Repeat iteration 2/3" in caplog.text
+        assert "Repeat iteration 3/3" in caplog.text
+    
+    def test_logs_success(self, mock_engine_with_logging, caplog):
+        """Test that success is logged."""
+        caplog.set_level(logging.INFO)
+        
+        # Create a mock packet
+        mock_packet = Mock()
+        mock_packet.dst_addr = "1.2.3.4"
+        mock_packet.dst_port = 443
+        mock_packet.tcp = Mock()
+        mock_packet.tcp.syn = False
+        mock_packet.tcp.ack = True
+        mock_packet.payload = b"Test"
+        
+        # Mock the packet sender to return success
+        mock_engine_with_logging._packet_sender = Mock()
+        mock_engine_with_logging._packet_sender.send_tcp_segments = Mock(return_value=True)
+        
+        # Create strategy
+        strategy_task = {
+            "type": "multidisorder",
+            "params": {
+                "split_pos": 2,
+                "overlap_size": 0,
+                "fooling": [],
+                "ttl": 1
+            }
+        }
+        
+        # Mock WinDivert
+        mock_w = Mock()
+        
+        # Apply bypass
+        with patch.object(mock_engine_with_logging, '_is_tls_clienthello', return_value=False):
+            mock_engine_with_logging.apply_bypass(mock_packet, mock_w, strategy_task)
+        
+        # Check that success is logged
+        assert "Multidisorder attack completed successfully" in caplog.text
+    
+    def test_logs_failure(self, mock_engine_with_logging, caplog):
+        """Test that failure is logged."""
+        caplog.set_level(logging.INFO)
+        
+        # Create a mock packet
+        mock_packet = Mock()
+        mock_packet.dst_addr = "1.2.3.4"
+        mock_packet.dst_port = 443
+        mock_packet.tcp = Mock()
+        mock_packet.tcp.syn = False
+        mock_packet.tcp.ack = True
+        mock_packet.payload = b"Test"
+        
+        # Mock the packet sender to return failure
+        mock_engine_with_logging._packet_sender = Mock()
+        mock_engine_with_logging._packet_sender.send_tcp_segments = Mock(return_value=False)
+        
+        # Create strategy
+        strategy_task = {
+            "type": "multidisorder",
+            "params": {
+                "split_pos": 2,
+                "overlap_size": 0,
+                "fooling": [],
+                "ttl": 1
+            }
+        }
+        
+        # Mock WinDivert
+        mock_w = Mock()
+        
+        # Apply bypass
+        with patch.object(mock_engine_with_logging, '_is_tls_clienthello', return_value=False):
+            mock_engine_with_logging.apply_bypass(mock_packet, mock_w, strategy_task)
+        
+        # Check that failure is logged
+        assert "Multidisorder attack failed" in caplog.text
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

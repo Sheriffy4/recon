@@ -35,7 +35,7 @@ class BypassStrategy:
         return {
             "type": self.attacks[0] if self.attacks else "fakedisorder",
             "params": self.parameters.copy(),
-        }
+        , "no_fallbacks": True, "forced": True}
 
 
 @dataclass

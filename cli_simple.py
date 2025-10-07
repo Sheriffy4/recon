@@ -7,6 +7,23 @@ import asyncio
 from typing import Dict, Set
 from urllib.parse import urlparse
 import platform
+def apply_forced_override(original_func, *args, **kwargs):
+    """
+    Обертка для принудительного применения стратегий.
+    КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ для идентичного поведения с режимом тестирования.
+    """
+    # Добавляем forced параметры
+    if len(args) > 1 and isinstance(args[1], dict):
+        # Второй аргумент - стратегия
+        strategy = args[1].copy()
+        strategy['no_fallbacks'] = True
+        strategy['forced'] = True
+        args = (args[0], strategy) + args[2:]
+        print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
+    
+    return original_func(*args, **kwargs)
+
+
 
 if platform.system() == "Windows":
     try:
@@ -79,7 +96,7 @@ from core.domain_manager import DomainManager
 
 try:
     from core.doh_resolver import DoHResolver
-    from core.hybrid_engine import HybridEngine
+    from core.unified_bypass_engine import UnifiedBypassEngine
     from ml.zapret_strategy_generator import ZapretStrategyGenerator
     from apply_bypass import apply_system_bypass
 
@@ -131,7 +148,9 @@ async def run_simple_mode(args):
     dm.domains = normalized_domains
     console.print(f"Loaded {len(dm.domains)} domain(s) for testing.")
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug)
+    from core.unified_bypass_engine import UnifiedEngineConfig
+    config = UnifiedEngineConfig(debug=args.debug)
+    hybrid_engine = UnifiedBypassEngine(config)
     console.print("\n[yellow]Step 1: Resolving all target domains via DoH...[/yellow]")
     dns_cache: Dict[str, str] = {}
     all_target_ips: Set[str] = set()

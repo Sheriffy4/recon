@@ -186,14 +186,14 @@ class DPIResponseAdaptiveAttack(BaseAttack):
             ]
         elif detection_score > 0.5:
             strategies = [
-                {"name": "obfuscation", "params": {"type": "xor"}},
+                {"name": "obfuscation", "params": {"type": "xor", "no_fallbacks": True, "forced": True}},
                 {"name": "segmentation", "params": {"size": 32}},
                 {"name": "timing_variation", "params": {"max_delay": 100}},
             ]
         else:
             strategies = [
                 {"name": "segmentation", "params": {"size": 64}},
-                {"name": "case_manipulation", "params": {"type": "random"}},
+                {"name": "case_manipulation", "params": {"type": "random", "no_fallbacks": True, "forced": True}},
             ]
         available_strategies = [
             s for s in strategies if s["name"] not in state["techniques_tried"]

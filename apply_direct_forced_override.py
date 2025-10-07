@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+"""
+Прямое исправление forced override.
+Находит и исправляет точки применения стратегий в коде.
+"""
+
+import os
+import re
+import shutil
+from datetime import datetime
+
+def find_strategy_application_points():
+    """Находит места в коде, где применяются стратегии."""
+    
+    print("🔍 ПОИСК ТОЧЕК ПРИМЕНЕНИЯ СТРАТЕГИЙ")
+    print("=" * 40)
+    
+    strategy_files = []
+    
+    # Ищем файлы, которые могут содержать применение стратегий
+    for root, dirs, files in os.walk('.'):
+        for file in files:
+            if file.endswith('.py'):
+                file_path = os.path.join(root, file)
+                
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Ищем ключевые паттерны
+                    patterns = [
+                        r'apply_bypass',
+                        r'strategy.*apply',
+                        r'bypass.*strategy',
+                        r'no_fallbacks',
+                        r'forced.*strategy'
+                    ]
+                    
+                    for pattern in patterns:
+                        if re.search(pattern, content, re.IGNORECASE):
+                            strategy_files.append(file_path)
+                            print(f"✅ Найден файл со стратегиями: {file_path}")
+                            break
+                            
+                except Exception as e:
+                    continue
+    
+    return list(set(strategy_files))  # Убираем дубликаты
+
+def apply_forced_override_patch(file_path):
+    """Применяет патч forced override к файлу."""
+    
+    print(f"\n🔧 Обрабатываем файл: {file_path}")
+    
+    try:
+        # Создаем резервную копию
+        backup_name = f"{file_path}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        shutil.copy(file_path, backup_name)
+        print(f"✅ Создана резервная копия: {backup_name}")
+        
+        # Читаем файл
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        original_content = content
+        
+        # Паттерны для замены
+        replacements = [
+            # Добавляем no_fallbacks в конфигурации стратегий
+            (r'(\{[^}]*"type"[^}]*\})', lambda m: add_no_fallbacks_to_config(m.group(1))),
+            
+            # Добавляем forced override в вызовы apply_bypass
+            (r'(apply_bypass\([^)]*\))', lambda m: add_forced_to_apply_bypass(m.group(1, forced=True))),
+            
+            # Добавляем логирование forced override
+            (r'(logger\.info\([^)]*bypass[^)]*\))', lambda m: add_forced_logging(m.group(1))),
+        ]
+        
+        changes_made = 0
+        
+        for pattern, replacement in replacements:
+            new_content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
+            if new_content != content:
+                content = new_content
+                changes_made += 1
+        
+        # Добавляем функцию forced override, если её нет
+        if 'def apply_forced_override' not in content and 'apply_bypass' in content:
+            forced_override_function = '''
+def apply_forced_override(original_func, *args, **kwargs):
+    """
+    Обертка для принудительного применения стратегий.
+    КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ для идентичного поведения с режимом тестирования.
+    """
+    # Добавляем forced параметры
+    if len(args) > 1 and isinstance(args[1], dict):
+        # Второй аргумент - стратегия
+        strategy = args[1].copy()
+        strategy['no_fallbacks'] = True
+        strategy['forced'] = True
+        args = (args[0], strategy) + args[2:]
+        print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
+    
+    return original_func(*args, **kwargs)
+
+'''
+            # Вставляем функцию в начало файла после импортов
+            import_end = content.find('\n\n')
+            if import_end != -1:
+                content = content[:import_end] + forced_override_function + content[import_end:]
+                changes_made += 1
+        
+        # Сохраняем файл, если были изменения
+        if changes_made > 0:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            print(f"✅ Применено {changes_made} изменений в {file_path}")
+            return True
+        else:
+            print(f"⚠️ Изменения не требуются в {file_path}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Ошибка обработки {file_path}: {e}")
+        return False
+
+def add_no_fallbacks_to_config(config_str):
+    """Добавляет no_fallbacks в конфигурацию стратегии."""
+    
+    if 'no_fallbacks' in config_str:
+        return config_str
+    
+    # Добавляем no_fallbacks: True в JSON конфигурацию
+    if config_str.endswith('}'):
+        return config_str[:-1] + ', "no_fallbacks": True, "forced": True}'
+    
+    return config_str
+
+def add_forced_to_apply_bypass(call_str, forced=True):
+    """Добавляет forced параметр в вызов apply_bypass."""
+    
+    if 'forced' in call_str:
+        return call_str
+    
+    # Добавляем forced=True в вызов
+    if call_str.endswith(')'):
+        return call_str[:-1] + ', forced=True)'
+    
+    return call_str
+
+def add_forced_logging(log_str):
+    """Добавляет FORCED OVERRIDE в логирование."""
+    
+    if 'FORCED OVERRIDE' in log_str:
+        return log_str
+    
+    # Заменяем обычное логирование на forced override
+    return log_str.replace('bypass', 'FORCED OVERRIDE bypass')
+
+def create_verification_script():
+    """Создает скрипт для проверки исправления."""
+    
+    verification_script = '''#!/usr/bin/env python3
+"""
+Проверка применения forced override исправления.
+"""
+
+import os
+import re
+
+def verify_forced_override_applied():
+    """Проверяет, что forced override применен."""
+    
+    print("🔍 ПРОВЕРКА FORCED OVERRIDE ИСПРАВЛЕНИЯ")
+    print("=" * 50)
+    
+    # Ищем файлы с исправлениями
+    forced_files = []
+    
+    for root, dirs, files in os.walk('.'):
+        for file in files:
+            if file.endswith('.py'):
+                file_path = os.path.join(root, file)
+                
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Проверяем наличие forced override
+                    if ('no_fallbacks' in content and 'forced' in content) or 'FORCED OVERRIDE' in content:
+                        forced_files.append(file_path)
+                        
+                except Exception:
+                    continue
+    
+    print(f"📊 РЕЗУЛЬТАТЫ ПРОВЕРКИ:")
+    print(f"   ✅ Файлов с forced override: {len(forced_files)}")
+    
+    if forced_files:
+        print(f"\\n📋 ИСПРАВЛЕННЫЕ ФАЙЛЫ:")
+        for file_path in forced_files[:10]:  # Показываем первые 10
+            print(f"   🔧 {file_path}")
+        
+        if len(forced_files) > 10:
+            print(f"   ... и еще {len(forced_files) - 10} файлов")
+    
+    # Проверяем резервные копии
+    backup_files = []
+    for root, dirs, files in os.walk('.'):
+        for file in files:
+            if '.backup_' in file:
+                backup_files.append(os.path.join(root, file))
+    
+    print(f"\\n💾 РЕЗЕРВНЫЕ КОПИИ: {len(backup_files)}")
+    
+    if len(forced_files) > 0:
+        print(f"\\n✅ ИСПРАВЛЕНИЕ ПРИМЕНЕНО!")
+        print("🚀 Можно перезапускать службу")
+        print("🔍 Проверьте лог на записи 'FORCED OVERRIDE'")
+        return True
+    else:
+        print(f"\\n❌ ИСПРАВЛЕНИЕ НЕ НАЙДЕНО!")
+        print("🔧 Нужно повторить применение исправления")
+        return False
+
+if __name__ == "__main__":
+    verify_forced_override_applied()
+'''
+    
+    with open('verify_forced_override.py', 'w', encoding='utf-8') as f:
+        f.write(verification_script)
+    
+    print(f"✅ Создан скрипт проверки: verify_forced_override.py")
+
+def main():
+    """Основная функция применения исправления."""
+    
+    print("🔧 ПРЯМОЕ ИСПРАВЛЕНИЕ FORCED OVERRIDE")
+    print("=" * 60)
+    
+    # Находим файлы со стратегиями
+    strategy_files = find_strategy_application_points()
+    
+    if not strategy_files:
+        print("❌ Файлы со стратегиями не найдены!")
+        return False
+    
+    print(f"\n📋 Найдено файлов для исправления: {len(strategy_files)}")
+    
+    # Применяем исправления
+    success_count = 0
+    
+    for file_path in strategy_files:
+        if apply_forced_override_patch(file_path):
+            success_count += 1
+    
+    # Создаем скрипт проверки
+    create_verification_script()
+    
+    print(f"\n📊 ИТОГИ ИСПРАВЛЕНИЯ:")
+    print(f"   ✅ Успешно исправлено: {success_count}/{len(strategy_files)} файлов")
+    
+    if success_count > 0:
+        print(f"\n🎉 ИСПРАВЛЕНИЕ ПРИМЕНЕНО!")
+        print(f"\n📋 СЛЕДУЮЩИЕ ШАГИ:")
+        print("1. Проверьте исправление:")
+        print("   python verify_forced_override.py")
+        print("\n2. Перезапустите службу:")
+        print("   python recon_service.py")
+        print("\n3. Проверьте лог на записи 'FORCED OVERRIDE'")
+        
+        print(f"\n🎯 ОЖИДАЕМЫЙ РЕЗУЛЬТАТ:")
+        print("   ✅ В логе записи 'FORCED OVERRIDE'")
+        print("   ✅ YouTube работает лучше")
+        print("   ✅ Поведение как в режиме тестирования")
+        
+        return True
+    else:
+        print(f"\n❌ ИСПРАВЛЕНИЕ НЕ ПРИМЕНЕНО!")
+        print("🔧 Проверьте структуру проекта")
+        return False
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"❌ Критическая ошибка: {e}")

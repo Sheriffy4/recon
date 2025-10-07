@@ -1,4 +1,4 @@
-# path: core/fingerprint/http_analyzer.py
+# core/fingerprint/http_analyzer.py
 
 import asyncio
 import aiohttp
@@ -20,27 +20,24 @@ from .unified_models import (
 from enum import Enum
 from dataclasses import dataclass, field
 
-# Импорт DoHResolver для фоллбэка
 try:
     from core.doh_resolver import DoHResolver
     DOH_AVAILABLE = True
 except ImportError:
     DOH_AVAILABLE = False
 
-from aiohttp import abc as aiohttp_abc  # для AbstractResolver
+from aiohttp import abc as aiohttp_abc
 
 LOG = logging.getLogger(__name__)
 
 
 class _StaticResolver(aiohttp_abc.AbstractResolver):
-    """Фиксирует домен на конкретный IP, чтобы SNI оставался корректным при прямом подключении."""
     def __init__(self, mapping: Dict[str, str]):
         self._map = dict(mapping or {})
 
     async def resolve(self, host: str, port: int = 0, family: int = socket.AF_INET):
         ip = self._map.get(host)
         if not ip:
-            # Если IP не найден, возвращаемся к стандартному поведению
             return [{"hostname": host, "host": host, "port": port,
                      "family": family, "proto": 0, "flags": 0}]
         return [{"hostname": host, "host": ip, "port": port,
@@ -50,13 +47,7 @@ class _StaticResolver(aiohttp_abc.AbstractResolver):
         pass
 
 
-
-
 class HTTPAnalyzer:
-    """
-    Enhanced HTTP analyzer with IPv4 forcing, DoH fallback, and comprehensive error handling
-    """
-    
     def __init__(
         self,
         timeout: float = 10.0,
@@ -72,10 +63,26 @@ class HTTPAnalyzer:
         self.enable_doh_fallback = enable_doh_fallback
         self.logger = logging.getLogger(__name__)
         
-        # DoH resolver for fallback
+        self.test_headers = [
+            ("Via", "1.1 google"), ("X-Forwarded-For", "127.0.0.1"),
+            ("X-Real-IP", "127.0.0.1"), ("Pragma", "no-cache"),
+            ("Cache-Control", "no-cache"), ("X-Custom-Test-Header", "Bypass-Test")
+        ]
+        self.test_user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:107.0) Gecko/20100101 Firefox/107.0",
+            "Googlebot/2.1 (+http://www.google.com/bot.html)", "curl/7.64.1",
+            "sqlmap/1.5.1#stable (http://sqlmap.org)"
+        ]
+        self.test_methods = ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE", "PATCH"]
+        self.test_content_types = [
+            "application/json", "application/xml", "application/x-www-form-urlencoded",
+            "multipart/form-data", "application/octet-stream"
+        ]
+        self.test_content_keywords = ["vpn", "proxy", "blocked", "forbidden", "censored"]
+
         self.doh_resolver = DoHResolver() if (DOH_AVAILABLE and enable_doh_fallback) else None
         
-        # Windows event loop fix
         if sys.platform.startswith("win") and sys.version_info >= (3, 12):
             try:
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -85,24 +92,16 @@ class HTTPAnalyzer:
 
     
     def _create_ssl_context(self) -> ssl.SSLContext:
-        """Create SSL context with relaxed verification"""
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
-        
-        # Set minimum TLS version (with fallback for older OpenSSL)
         try:
             if hasattr(ssl, 'TLSVersion'):
                 ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-        except Exception:
-            pass
-        
-        # Disable session tickets for consistent fingerprinting
+        except Exception: pass
         try:
             ssl_context.options |= ssl.OP_NO_TICKET
-        except Exception:
-            pass
-        
+        except Exception: pass
         return ssl_context
     
     def _create_connector(
@@ -110,49 +109,32 @@ class HTTPAnalyzer:
         ssl_context: Optional[ssl.SSLContext] = None,
         pinned_ip: Optional[str] = None
     ) -> aiohttp.TCPConnector:
-        """Create TCP connector with optimal settings"""
         connector_kwargs = {
             'ssl': ssl_context or self._create_ssl_context(),
-            'ttl_dns_cache': 300,
-            'enable_cleanup_closed': True,
-            'force_close': False,
-            'limit': 100,
-            'limit_per_host': 10
+            'ttl_dns_cache': 300, 'enable_cleanup_closed': True,
+            'force_close': False, 'limit': 100, 'limit_per_host': 10
         }
-        
         if self.force_ipv4:
             connector_kwargs['family'] = socket.AF_INET
             self.logger.debug("Forcing IPv4 (AF_INET)")
-        
-        # TODO: Add custom resolver for IP pinning if needed
-        # if pinned_ip:
-        #     connector_kwargs['resolver'] = CustomResolver({hostname: pinned_ip})
-        
         return aiohttp.TCPConnector(**connector_kwargs)
     
     async def _create_session(
         self,
         pinned_ip: Optional[str] = None
     ) -> aiohttp.ClientSession:
-        """Create aiohttp session"""
         connector = self._create_connector(pinned_ip=pinned_ip)
-        
         timeout = aiohttp.ClientTimeout(
-            total=self.timeout,
-            connect=min(5.0, self.timeout / 2),
-            sock_read=self.timeout,
-            sock_connect=min(3.0, self.timeout / 3)
+            total=self.timeout, connect=min(5.0, self.timeout / 2),
+            sock_read=self.timeout, sock_connect=min(3.0, self.timeout / 3)
         )
-        
+        # <<< ИСПРАВЛЕНИЕ: Увеличиваем размер буфера для заголовков >>>
         return aiohttp.ClientSession(
-            timeout=timeout,
-            connector=connector,
-            trust_env=self.use_system_proxy,
-            auto_decompress=True
+            timeout=timeout, connector=connector, trust_env=self.use_system_proxy,
+            auto_decompress=True, read_bufsize=64 * 1024  # 64KB buffer for headers
         )
     
     def _format_exc(self, e: BaseException) -> str:
-        """Форматирует исключение в подробную строку."""
         try:
             info = f"{type(e).__name__}: {repr(e)}"
             cause = f"cause={repr(e.__cause__)}" if getattr(e, "__cause__", None) else None
@@ -162,35 +144,30 @@ class HTTPAnalyzer:
             return str(e)
     
     def _host_for_url(self, url: str, headers: Dict[str, str]) -> str:
-        """Извлекает хост из URL или заголовка Host."""
         return (headers or {}).get("Host") or (urlsplit(url).hostname or "")
     
     async def _open_session(self, host: str, pinned_ip: Optional[str] = None) -> aiohttp.ClientSession:
-        """Создает сессию aiohttp с нужными настройками (IPv4, SSL, Resolver)."""
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
-        
+
         connector_kwargs = dict(
             ssl=ssl_context,
-            family=socket.AF_INET,           # Форсируем IPv4
+            family=socket.AF_INET if self.force_ipv4 else socket.AF_UNSPEC,
             enable_cleanup_closed=True
         )
-        
-        resolver = _StaticResolver({host: pinned_ip}) if pinned_ip else None
-        if resolver:
-            connector_kwargs['resolver'] = resolver
-            
+        if pinned_ip:
+            connector_kwargs['resolver'] = _StaticResolver({host: pinned_ip})
+
         connector = aiohttp.TCPConnector(**connector_kwargs)
-        
-        # trust_env=True чтобы учитывать системные прокси
+
         return aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=self.timeout), 
-            connector=connector, 
-            trust_env=True
+            timeout=aiohttp.ClientTimeout(total=self.timeout),
+            connector=connector,
+            trust_env=self.use_system_proxy,  # <-- respect your flag
+            read_bufsize=64 * 1024
         )
     
-    # <<< FIX: Added helper functions to safely handle mock/awaitable values >>>
     async def _coerce_text(self, v) -> str:
         try:
             if inspect.isawaitable(v): v = await v
@@ -221,15 +198,11 @@ class HTTPAnalyzer:
         return await self._await_if_needed(res)
 
     def _format_exception_details(self, e: Exception) -> str:
-        """Format exception with full context"""
         parts = [f"{type(e).__name__}: {str(e)}"]
-        
         if hasattr(e, '__cause__') and e.__cause__:
             parts.append(f"Cause: {type(e.__cause__).__name__}: {str(e.__cause__)}")
-        
         if hasattr(e, '__context__') and e.__context__:
             parts.append(f"Context: {type(e.__context__).__name__}: {str(e.__context__)}")
-        
         if isinstance(e, aiohttp.ClientConnectorError):
             parts.append(f"OS Error: {e.os_error}")
             if hasattr(e, 'host'):
@@ -240,9 +213,9 @@ class HTTPAnalyzer:
             parts.append("Timeout - possible network filtering")
         elif isinstance(e, socket.gaierror):
             parts.append(f"DNS resolution failed: errno={e.errno}")
-        
         return " | ".join(parts)
     
+    # ... (остальные методы остаются без изменений)
     async def analyze_http_behavior(
         self,
         target: str,
@@ -1142,69 +1115,78 @@ class HTTPAnalyzer:
             await asyncio.sleep(0.1)
 
     async def _make_request(
-        self,
-        url: str,
-        method: str,
-        headers: Dict[str, str],
-        data: Optional[str] = None,
-        allow_redirects: bool = True,
+        self, url: str, method: str, headers: Dict[str, str],
+        data: Optional[str] = None, allow_redirects: bool = True
     ) -> HTTPRequest:
-        """Make HTTP request with DoH fallback and detailed error reporting."""
         request = HTTPRequest(
             timestamp=time.time(), url=url, method=method, headers=headers.copy(),
             user_agent=headers.get("User-Agent", ""), host_header=headers.get("Host", ""),
             content_type=headers.get("Content-Type", ""), body=data,
         )
-        
+
         host = self._host_for_url(url, headers)
-        session = None
-        err_details = ""
+        is_https = url.lower().startswith("https://")
 
         try:
-            # Попытка 1: Стандартный резолв (но с форсированным IPv4)
-            try:
-                session = await self._open_session(host)
+            # 1) normal session
+            async with self._open_session(host) as session:
                 start_time = time.perf_counter()
-                response_ctx = await self._call_session(session, method, url, headers=headers, data=data, allow_redirects=allow_redirects)
-                async with response_ctx as resp:
+                async with session.request(
+                    method, url, headers=headers, data=data, allow_redirects=allow_redirects
+                ) as resp:
                     await self._process_response(request, resp, start_time)
-                await session.close()
-                return request
-            except (aiohttp.ClientConnectorError, socket.gaierror) as e:
-                err_details = self._format_exc(e)
-                is_dns_issue = "dns" in err_details.lower() or "getaddrinfo" in err_details.lower() or "no data" in err_details.lower()
-                if not (DOH_AVAILABLE and is_dns_issue):
-                    raise # Если не DNS-ошибка или DoH недоступен, пробрасываем дальше
-
-                self.logger.debug(f"DNS resolution failed for {host}, trying DoH fallback. Error: {err_details}")
-                if session: await session.close()
-
-            # Попытка 2: DoH-фоллбэк
-            doh = DoHResolver()
-            ip = await doh.resolve(host)
-            if not ip:
-                raise NetworkAnalysisError(f"DoH fallback failed for {host}")
-
-            self.logger.info(f"Using DoH fallback for {host} -> {ip}")
-            session = await self._open_session(host, pinned_ip=ip)
-            start_time = time.perf_counter()
-            response_ctx = await self._call_session(session, method, url, headers=headers, data=data, allow_redirects=allow_redirects)
-            async with response_ctx as resp:
-                await self._process_response(request, resp, start_time)
-            
             return request
+
+        except (aiohttp.ClientConnectorError, socket.gaierror) as e:
+            err_details = self._format_exc(e)
+            is_dns_issue = any(w in err_details.lower() for w in ("dns", "getaddrinfo", "no data"))
+
+            if not (DOH_AVAILABLE and is_dns_issue):
+                request.error_message = err_details
+                low = err_details.lower()
+                if "reset" in low:
+                    request.blocking_method = HTTPBlockingMethod.CONNECTION_RESET
+                elif "timeout" in low:
+                    request.blocking_method = HTTPBlockingMethod.TIMEOUT
+                return request
+
+            # 2) DoH fallback with pinned IP
+            try:
+                doh = DoHResolver()
+                ip = await doh.resolve(host)
+                if not ip:
+                    request.error_message = f"DoH fallback failed for {host}"
+                    return request
+
+                async with self._open_session(host, pinned_ip=ip) as session:
+                    start_time = time.perf_counter()
+                    async with session.request(
+                        method, url, headers=headers, data=data, allow_redirects=allow_redirects
+                    ) as resp:
+                        await self._process_response(request, resp, start_time)
+                return request
+
+            except Exception as doh_err:
+                request.error_message = self._format_exc(doh_err)
+                return request
+
+        except asyncio.TimeoutError as e:
+            request.error_message = self._format_exc(e)
+            request.blocking_method = HTTPBlockingMethod.TIMEOUT
+            return request
+
+        except asyncio.CancelledError:
+            # IMPORTANT: don’t swallow cancellations — avoids "coroutine ignored GeneratorExit"
+            raise
 
         except Exception as e:
-            request.error_message = err_details or self._format_exc(e)
-            low_err = request.error_message.lower()
-            if "reset" in low_err:
+            request.error_message = self._format_exc(e)
+            low = request.error_message.lower()
+            if "reset" in low:
                 request.blocking_method = HTTPBlockingMethod.CONNECTION_RESET
-            elif "timeout" in low_err:
+            elif "timeout" in low:
                 request.blocking_method = HTTPBlockingMethod.TIMEOUT
             return request
-        finally:
-            if session and not session.closed:
-                await session.close()
 
     async def _process_response(
         self, request: HTTPRequest, response, start_time: float
@@ -1255,7 +1237,6 @@ class HTTPAnalyzer:
             useful_responses / total_tests * 0.5
         )
         
-        # Analysis completeness factors
         analysis_factors = []
         
         if any(r.success or r.status_code for r in result.http_requests):

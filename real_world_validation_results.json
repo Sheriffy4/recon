@@ -1,0 +1,342 @@
+{
+  "strategy_loading_consistency": {
+    "youtube.com": {
+      "strategy_string": "fakeddisorder(ttl=8,fooling=badsum)",
+      "loaded_consistently": true,
+      "sample_strategy": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 8,
+          "fooling": "badsum"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "raw_string": "fakeddisorder(ttl=8,fooling=badsum)",
+        "source_format": "function"
+      },
+      "forced_override": true,
+      "no_fallbacks": true
+    },
+    "rutracker.org": {
+      "strategy_string": "multidisorder(autottl=2,fooling=badseq)",
+      "loaded_consistently": true,
+      "sample_strategy": {
+        "type": "multidisorder",
+        "params": {
+          "autottl": 2,
+          "fooling": "badseq"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "raw_string": "multidisorder(autottl=2,fooling=badseq)",
+        "source_format": "function"
+      },
+      "forced_override": true,
+      "no_fallbacks": true
+    },
+    "x.com": {
+      "strategy_string": "multisplit(split_pos=2,repeats=3)",
+      "loaded_consistently": true,
+      "sample_strategy": {
+        "type": "multisplit",
+        "params": {
+          "split_pos": 2,
+          "repeats": 3
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "raw_string": "multisplit(split_pos=2,repeats=3)",
+        "source_format": "function"
+      },
+      "forced_override": true,
+      "no_fallbacks": true
+    },
+    "instagram.com": {
+      "strategy_string": "fakeddisorder(ttl=6,fooling=badseq,repeats=2)",
+      "loaded_consistently": true,
+      "sample_strategy": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 6,
+          "fooling": "badseq",
+          "repeats": 2
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "raw_string": "fakeddisorder(ttl=6,fooling=badseq,repeats=2)",
+        "source_format": "function"
+      },
+      "forced_override": true,
+      "no_fallbacks": true
+    }
+  },
+  "forced_override_behavior": {
+    "youtube.com": {
+      "original_strategy": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 8,
+          "fooling": "badsum"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "raw_string": "fakeddisorder(ttl=8,fooling=badsum)",
+        "source_format": "function"
+      },
+      "forced_override": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 8,
+          "fooling": "badsum"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      },
+      "has_forced_flag": true,
+      "has_no_fallbacks": true,
+      "forced_override_correct": true
+    },
+    "rutracker.org": {
+      "original_strategy": {
+        "type": "multidisorder",
+        "params": {
+          "autottl": 2,
+          "fooling": "badseq"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "raw_string": "multidisorder(autottl=2,fooling=badseq)",
+        "source_format": "function"
+      },
+      "forced_override": {
+        "type": "multidisorder",
+        "params": {
+          "autottl": 2,
+          "fooling": "badseq"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      },
+      "has_forced_flag": true,
+      "has_no_fallbacks": true,
+      "forced_override_correct": true
+    },
+    "x.com": {
+      "original_strategy": {
+        "type": "multisplit",
+        "params": {
+          "split_pos": 2,
+          "repeats": 3
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "raw_string": "multisplit(split_pos=2,repeats=3)",
+        "source_format": "function"
+      },
+      "forced_override": {
+        "type": "multisplit",
+        "params": {
+          "split_pos": 2,
+          "repeats": 3
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      },
+      "has_forced_flag": true,
+      "has_no_fallbacks": true,
+      "forced_override_correct": true
+    },
+    "instagram.com": {
+      "original_strategy": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 6,
+          "fooling": "badseq",
+          "repeats": 2
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "raw_string": "fakeddisorder(ttl=6,fooling=badseq,repeats=2)",
+        "source_format": "function"
+      },
+      "forced_override": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 6,
+          "fooling": "badseq",
+          "repeats": 2
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      },
+      "has_forced_flag": true,
+      "has_no_fallbacks": true,
+      "forced_override_correct": true
+    }
+  },
+  "engine_initialization_modes": {
+    "service_mode": {
+      "initialized": true,
+      "forced_override_enabled": true,
+      "debug_enabled": true,
+      "diagnostics_enabled": true
+    },
+    "testing_mode": {
+      "initialized": true,
+      "forced_override_enabled": true,
+      "debug_enabled": true,
+      "diagnostics_enabled": true
+    }
+  },
+  "strategy_application_simulation": {
+    "youtube.com": {
+      "strategy_applied": true,
+      "application_time": 3.9994483813643456e-07,
+      "strategy_valid": true,
+      "has_type": true,
+      "has_params": true,
+      "has_forced": true,
+      "has_no_fallbacks": true,
+      "strategy_dict": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 8,
+          "fooling": "badsum"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      }
+    },
+    "rutracker.org": {
+      "strategy_applied": true,
+      "application_time": 5.00003807246685e-07,
+      "strategy_valid": true,
+      "has_type": true,
+      "has_params": true,
+      "has_forced": true,
+      "has_no_fallbacks": true,
+      "strategy_dict": {
+        "type": "multidisorder",
+        "params": {
+          "autottl": 2,
+          "fooling": "badseq"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      }
+    },
+    "x.com": {
+      "strategy_applied": true,
+      "application_time": 4.999455995857716e-07,
+      "strategy_valid": true,
+      "has_type": true,
+      "has_params": true,
+      "has_forced": true,
+      "has_no_fallbacks": true,
+      "strategy_dict": {
+        "type": "multisplit",
+        "params": {
+          "split_pos": 2,
+          "repeats": 3
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      }
+    },
+    "instagram.com": {
+      "strategy_applied": true,
+      "application_time": 4.00003045797348e-07,
+      "strategy_valid": true,
+      "has_type": true,
+      "has_params": true,
+      "has_forced": true,
+      "has_no_fallbacks": true,
+      "strategy_dict": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 6,
+          "fooling": "badseq",
+          "repeats": 2
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      }
+    }
+  },
+  "identical_behavior_verification": {
+    "youtube.com": {
+      "behavior_identical": true,
+      "sample_override": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 8,
+          "fooling": "badsum"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      },
+      "num_tests": 3
+    },
+    "rutracker.org": {
+      "behavior_identical": true,
+      "sample_override": {
+        "type": "multidisorder",
+        "params": {
+          "autottl": 2,
+          "fooling": "badseq"
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      },
+      "num_tests": 3
+    },
+    "x.com": {
+      "behavior_identical": true,
+      "sample_override": {
+        "type": "multisplit",
+        "params": {
+          "split_pos": 2,
+          "repeats": 3
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      },
+      "num_tests": 3
+    },
+    "instagram.com": {
+      "behavior_identical": true,
+      "sample_override": {
+        "type": "fakeddisorder",
+        "params": {
+          "ttl": 6,
+          "fooling": "badseq",
+          "repeats": 2
+        },
+        "no_fallbacks": true,
+        "forced": true,
+        "override_mode": true
+      },
+      "num_tests": 3
+    }
+  },
+  "assessment": {
+    "all_domains_consistent": true,
+    "all_forced_overrides_correct": true,
+    "service_mode_ok": true,
+    "testing_mode_ok": true,
+    "all_strategies_valid": true,
+    "all_behavior_identical": true,
+    "overall_success": true
+  }
+}

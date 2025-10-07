@@ -1598,7 +1598,7 @@ class DiagnosticSystem:
                 if options_data[i] == 0:
                     break
                 elif options_data[i] == 1:
-                    options.append({"type": "NOP", "value": None})
+                    options.append({"type": "NOP", "value": None, "no_fallbacks": True, "forced": True})
                     i += 1
                 else:
                     if i + 1 >= len(options_data):
@@ -1612,7 +1612,7 @@ class DiagnosticSystem:
                         "type": option_type,
                         "length": option_length,
                         "data": option_data.hex() if option_data else None,
-                    }
+                    , "no_fallbacks": True, "forced": True}
                     if option_type == 2 and option_length == 4:
                         option_info["name"] = "MSS"
                         option_info["value"] = struct.unpack("!H", option_data)[0]

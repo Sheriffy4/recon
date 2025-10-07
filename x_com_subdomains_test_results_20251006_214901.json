@@ -1,0 +1,121 @@
+{
+  "test_name": "X.com Subdomains Validation",
+  "timestamp": "2025-10-06T21:48:17.338963",
+  "subdomains_tested": 4,
+  "results": {
+    "x.com": {
+      "domain": "x.com",
+      "timestamp": "2025-10-06T21:48:17.338963",
+      "dns_resolution": {
+        "success": true,
+        "ips": [
+          "172.66.0.227"
+        ],
+        "error": null
+      },
+      "tcp_connection": {
+        "success": true,
+        "message": "Connection successful"
+      },
+      "tls_handshake": {
+        "success": false,
+        "message": "TLS handshake failed: _ssl.c:993: The handshake operation timed out"
+      },
+      "http_response": {},
+      "overall_success": false
+    },
+    "www.x.com": {
+      "domain": "www.x.com",
+      "timestamp": "2025-10-06T21:48:27.660080",
+      "dns_resolution": {
+        "success": true,
+        "ips": [
+          "172.66.0.227",
+          "162.159.140.229"
+        ],
+        "error": null
+      },
+      "tcp_connection": {
+        "success": true,
+        "message": "Connection successful"
+      },
+      "tls_handshake": {
+        "success": false,
+        "message": "TLS handshake failed: _ssl.c:993: The handshake operation timed out"
+      },
+      "http_response": {},
+      "overall_success": false
+    },
+    "api.x.com": {
+      "domain": "api.x.com",
+      "timestamp": "2025-10-06T21:48:38.102702",
+      "dns_resolution": {
+        "success": true,
+        "ips": [
+          "172.66.0.227",
+          "162.159.140.229"
+        ],
+        "error": null
+      },
+      "tcp_connection": {
+        "success": true,
+        "message": "Connection successful"
+      },
+      "tls_handshake": {
+        "success": true,
+        "message": "TLS handshake successful, cert subject: Unknown"
+      },
+      "http_response": {
+        "success": false,
+        "message": "HTTP 404",
+        "status_code": 404
+      },
+      "overall_success": false
+    },
+    "mobile.x.com": {
+      "domain": "mobile.x.com",
+      "timestamp": "2025-10-06T21:48:49.759525",
+      "dns_resolution": {
+        "success": true,
+        "ips": [
+          "172.66.0.227"
+        ],
+        "error": null
+      },
+      "tcp_connection": {
+        "success": true,
+        "message": "Connection successful"
+      },
+      "tls_handshake": {
+        "success": false,
+        "message": "TLS handshake failed: _ssl.c:993: The handshake operation timed out"
+      },
+      "http_response": {},
+      "overall_success": false
+    }
+  },
+  "summary": {
+    "total_tested": 4,
+    "successful": 0,
+    "failed": 4,
+    "success_rate": 0.0,
+    "successful_domains": [],
+    "failed_domains": [
+      "x.com",
+      "www.x.com",
+      "api.x.com",
+      "mobile.x.com"
+    ]
+  },
+  "service_logs": {
+    "strategy_mappings": [
+      "Mapped IP 172.66.0.227 (x.com) -> multidisorder",
+      "Mapped IP 162.159.140.229 (x.com) -> multidisorder"
+    ],
+    "bypass_applications": [
+      "Applying bypass for 172.66.0.227 -> Type: multidisorder",
+      "AutoTTL: 5 hops + 2 offset = TTL 7"
+    ],
+    "errors": []
+  }
+}

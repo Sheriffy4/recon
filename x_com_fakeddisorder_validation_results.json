@@ -1,0 +1,150 @@
+{
+  "strategy_parsing": {
+    "success": true,
+    "strategy": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=336 --dpi-desync-ttl=3 --dpi-desync-autottl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-repeats=1",
+    "parsed_result": {
+      "type": "fakeddisorder",
+      "params": {
+        "split_pos": 3,
+        "overlap_size": 336,
+        "ttl": 3,
+        "fooling": [
+          "badsum",
+          "badseq"
+        ]
+      }
+    },
+    "validation": {
+      "type": true,
+      "ttl": true,
+      "split_pos": true,
+      "overlap_size": true,
+      "fooling": true
+    }
+  },
+  "attack_creation": {
+    "success": true,
+    "attack_created": true,
+    "ttl_calculation": {
+      "calculated": 2,
+      "correct": true
+    },
+    "config": {
+      "ttl": 3,
+      "split_pos": 3,
+      "split_seqovl": 336,
+      "fooling": [
+        "badsum",
+        "badseq"
+      ]
+    }
+  },
+  "domain_mapping": {
+    "success": true,
+    "domains_checked": 7,
+    "domains_correct": 7,
+    "domain_results": {
+      "x.com": {
+        "present": true,
+        "correct": true,
+        "strategy": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=336 --dpi-desync-ttl=3 --dpi-desync-autottl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-repeats=1",
+        "checks": {
+          "fakeddisorder": true,
+          "ttl_3": true,
+          "split_pos_3": true,
+          "split_seqovl_336": true
+        }
+      },
+      "www.x.com": {
+        "present": true,
+        "correct": true,
+        "strategy": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=336 --dpi-desync-ttl=3 --dpi-desync-autottl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-repeats=1",
+        "checks": {
+          "fakeddisorder": true,
+          "ttl_3": true,
+          "split_pos_3": true,
+          "split_seqovl_336": true
+        }
+      },
+      "api.x.com": {
+        "present": true,
+        "correct": true,
+        "strategy": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=336 --dpi-desync-ttl=3 --dpi-desync-autottl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-repeats=1",
+        "checks": {
+          "fakeddisorder": true,
+          "ttl_3": true,
+          "split_pos_3": true,
+          "split_seqovl_336": true
+        }
+      },
+      "mobile.x.com": {
+        "present": true,
+        "correct": true,
+        "strategy": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=336 --dpi-desync-ttl=3 --dpi-desync-autottl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-repeats=1",
+        "checks": {
+          "fakeddisorder": true,
+          "ttl_3": true,
+          "split_pos_3": true,
+          "split_seqovl_336": true
+        }
+      },
+      "twitter.com": {
+        "present": true,
+        "correct": true,
+        "strategy": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=336 --dpi-desync-ttl=3 --dpi-desync-autottl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-repeats=1",
+        "checks": {
+          "fakeddisorder": true,
+          "ttl_3": true,
+          "split_pos_3": true,
+          "split_seqovl_336": true
+        }
+      },
+      "www.twitter.com": {
+        "present": true,
+        "correct": true,
+        "strategy": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=336 --dpi-desync-ttl=3 --dpi-desync-autottl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-repeats=1",
+        "checks": {
+          "fakeddisorder": true,
+          "ttl_3": true,
+          "split_pos_3": true,
+          "split_seqovl_336": true
+        }
+      },
+      "mobile.twitter.com": {
+        "present": true,
+        "correct": true,
+        "strategy": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=336 --dpi-desync-ttl=3 --dpi-desync-autottl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-repeats=1",
+        "checks": {
+          "fakeddisorder": true,
+          "ttl_3": true,
+          "split_pos_3": true,
+          "split_seqovl_336": true
+        }
+      }
+    }
+  },
+  "pcap_integration": {
+    "success": true,
+    "pcap_files": {
+      "recon_x.pcap": {
+        "exists": true,
+        "size": 2914048
+      },
+      "zapret_x.pcap": {
+        "exists": true,
+        "size": 2357064
+      }
+    },
+    "analyzer_available": true
+  },
+  "functional_test": {
+    "success": true,
+    "status": "UNKNOWN",
+    "execution_time": 1.3954095840454102,
+    "return_code": 0,
+    "output": "=== Проверка домена: x.com ===\nСистемный DNS: ['172.66.0.227']\nDoH (Cloudflare): ['162.159.140.229', '172.66.0.227']\nОшибка: 'charmap' codec can't encode character '\\u2705' in position 0: character maps to <undefined>\n",
+    "error": ""
+  },
+  "overall_success": true,
+  "timestamp": 1759489724.57001
+}

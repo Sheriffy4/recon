@@ -1,6 +1,23 @@
 # recon/cli.py
+def apply_forced_override(original_func, *args, **kwargs):
+    """
+    Обертка для принудительного применения стратегий.
+    КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ для идентичного поведения с режимом тестирования.
+    """
+    # Добавляем forced параметры
+    if len(args) > 1 and isinstance(args[1], dict):
+        # Второй аргумент - стратегия
+        strategy = args[1].copy()
+        strategy['no_fallbacks'] = True
+        strategy['forced'] = True
+        args = (args[0], strategy) + args[2:]
+        print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
+    
+    return original_func(*args, **kwargs)
 
-# Windows asyncio: подавим Proactor‑спам и улучшим совместимость
+
+
+# Windows asyncio: подавим Proactor-спам и улучшим совместимость
 import sys, asyncio as _asyncio
 if sys.platform == "win32":
     try:
@@ -23,7 +40,8 @@ import statistics
 import platform
 from datetime import datetime
 from dataclasses import dataclass
-from core.strategy_interpreter import interpret_strategy
+# <<< FIX: Removed incorrect import, it will be imported locally where needed >>>
+# from core.strategy_interpreter import StrategyInterpreter
 
 # --- Конфигурация Scapy для Windows ---
 if platform.system() == "Windows":
@@ -153,7 +171,7 @@ except Exception:
 import config
 from core.domain_manager import DomainManager
 from core.doh_resolver import DoHResolver
-from core.hybrid_engine import HybridEngine
+from core.unified_bypass_engine import UnifiedBypassEngine
 from ml.zapret_strategy_generator import ZapretStrategyGenerator
 from apply_bypass import apply_system_bypass
 
@@ -163,7 +181,12 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)-7s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
 )
-console = Console(highlight=False) if RICH_AVAILABLE else Console()
+# Fix for Windows console encoding issues
+import sys
+if sys.platform == 'win32':
+    console = Console(highlight=False, legacy_windows=False, force_terminal=True, no_color=False, emoji=False)
+else:
+    console = Console(highlight=False) if RICH_AVAILABLE else Console()
 
 # <<< FIX 1: Correct the import path for AdvancedReportingIntegration >>>
 try:
@@ -224,7 +247,7 @@ class PacketCapturer:
         self._writer = PcapWriter(self.filename, append=True, sync=True)
         self._thread.start()
         self.logger.info(
-            f"PCAP capture started → {self.filename} (bpf='{self.bpf or 'none'}')"
+            f"PCAP capture started -> {self.filename} (bpf='{self.bpf or 'none'}')"
         )
 
     def stop(self):
@@ -328,7 +351,7 @@ async def resolve_all_ips(domain: str) -> Set[str]:
                 try:
                     # Сначала A, затем AAAA
                     for rrtype in ("A", "AAAA"):
-                        params = {"name": domain, "type": rrtype}
+                        params = {"name": domain, "type": rrtype, "no_fallbacks": True, "forced": True}
                         headers = {"accept": "application/dns-json"}
                         async with s.get(
                             doh, params=params, headers=headers, timeout=3
@@ -498,7 +521,7 @@ class SimpleEvolutionarySearcher:
                 base_strategies.append({
                     "type": attack_name,
                     **attack_info.default_params
-                })
+                , "no_fallbacks": True, "forced": True})
         
         # Add other TCP and IP attacks
         tcp_ip_categories = ["tcp", "ip", "fragmentation", "race"]
@@ -509,16 +532,16 @@ class SimpleEvolutionarySearcher:
                     base_strategies.append({
                         "type": attack_name,
                         **attack_info.default_params
-                    })
+                    , "no_fallbacks": True, "forced": True})
         
         # Fallback to original if no attacks found
         if not base_strategies:
             base_strategies = [
-                {"type": "fake_disorder", "ttl": 3, "split_pos": 3},
-                {"type": "multisplit", "ttl": 5, "split_pos": 5, "split_seqovl": 10},
-                {"type": "sequence_overlap", "ttl": 2, "split_pos": 3, "split_seqovl": 20},
-                {"type": "badsum_race", "ttl": 4},
-                {"type": "md5sig_race", "ttl": 6},
+                {"type": "fake_disorder", "ttl": 3, "split_pos": 3, "no_fallbacks": True, "forced": True},
+                {"type": "multisplit", "ttl": 5, "split_pos": 5, "split_seqovl": 10, "no_fallbacks": True, "forced": True},
+                {"type": "sequence_overlap", "ttl": 2, "split_pos": 3, "split_seqovl": 20, "no_fallbacks": True, "forced": True},
+                {"type": "badsum_race", "ttl": 4, "no_fallbacks": True, "forced": True},
+                {"type": "md5sig_race", "ttl": 6, "no_fallbacks": True, "forced": True},
             ]
         learned_strategies = []
         if learning_cache and domain:
@@ -538,7 +561,7 @@ class SimpleEvolutionarySearcher:
                     attack_info = attack_mapping.get_attack_info(strategy_type)
                     if attack_info:
                         # Create learned strategy with randomized parameters
-                        learned_strategy = {"type": strategy_type}
+                        learned_strategy = {"type": strategy_type, "no_fallbacks": True, "forced": True}
                         
                         # Add randomized parameters based on attack info
                         for param_name, default_value in attack_info.default_params.items():
@@ -567,21 +590,21 @@ class SimpleEvolutionarySearcher:
                                 "type": "fake_disorder",
                                 "ttl": random.choice([2, 3, 4]),
                                 "split_pos": random.choice([2, 3, 4]),
-                            })
+                                "no_fallbacks": True, "forced": True})
                         elif strategy_type in ["multisplit", "tcp_multisplit"]:
                             learned_strategies.append({
                                 "type": "multisplit",
                                 "ttl": random.choice([4, 5, 6]),
                                 "split_count": random.choice([4, 5, 6]),
                                 "split_seqovl": random.choice([8, 10, 12]),
-                            })
+                                "no_fallbacks": True, "forced": True})
                         elif strategy_type in ["sequence_overlap", "seqovl", "tcp_seqovl"]:
                             learned_strategies.append({
                                 "type": "sequence_overlap",
                                 "ttl": random.choice([2, 3, 4]),
                                 "split_pos": random.choice([2, 3, 4]),
                                 "split_seqovl": random.choice([15, 20, 25]),
-                            })
+                                "no_fallbacks": True, "forced": True})
         all_base_strategies = base_strategies + learned_strategies
         for i in range(self.population_size):
             if i < len(all_base_strategies):
@@ -626,7 +649,7 @@ class SimpleEvolutionarySearcher:
                 genes = {
                     "type": attack_type,
                     **attack_info.default_params
-                }
+                , "no_fallbacks": True, "forced": True}
                 # Инъекция микропараметров, если применимо
                 if sm_split is not None:
                     genes["split_pos"] = sm_split
@@ -780,7 +803,7 @@ class SimpleEvolutionarySearcher:
         dpi_hash: str = None,
         engine_override: Optional[str] = None
     ) -> "EvolutionaryChromosome":
-        console.print("[bold magenta]🧬 Starting evolutionary search...[/bold magenta]")
+        console.print("[bold magenta][DNA] Starting evolutionary search...[/bold magenta]")
         console.print(
             f"Population: {self.population_size}, Generations: {self.generations}"
         )
@@ -844,7 +867,7 @@ class SimpleEvolutionarySearcher:
                 self.population = new_population
         best_chromosome = max(self.population, key=lambda x: x.fitness)
         console.print(
-            f"\n[bold green]🏆 Evolution complete! Best fitness: {best_chromosome.fitness:.3f}[/bold green]"
+            f"\n[bold green][TROPHY] Evolution complete! Best fitness: {best_chromosome.fitness:.3f}[/bold green]"
         )
         return best_chromosome
 
@@ -1275,12 +1298,12 @@ class SimpleFingerprinter:
                             pass
 
             except ImportError:
-                # aiohttp не установлен — оставляем tcp_ok
+                # aiohttp не установлен -- оставляем tcp_ok
                 pass
             except asyncio.TimeoutError:
                 fp.blocking_method = "https_timeout"
             except Exception:
-                # Любая другая ошибка — не портим tcp_ok (для стабильности тестов)
+                # Любая другая ошибка -- не портим tcp_ok (для стабильности тестов)
                 pass
 
         # Классификация DPI
@@ -1404,7 +1427,7 @@ class SimpleReporter:
             return None
 
     def print_summary(self, report: dict):
-        console.print("\n[bold underline]📊 Test Summary Report[/bold underline]")
+        console.print("\n[bold underline][STATS] Test Summary Report[/bold underline]")
         console.print(f"Target: [cyan]{report.get('target', 'N/A')}[/cyan]")
         
         metadata = report.get('metadata', {})
@@ -1482,7 +1505,7 @@ async def run_profiling_mode(args):
         )
     )
     if not PROFILER_AVAILABLE:
-        console.print("[red]❌ AdvancedTrafficProfiler not available.[/red]")
+        console.print("[red][X] AdvancedTrafficProfiler not available.[/red]")
         return
     pcap = args.profile_pcap
     if not pcap or not os.path.exists(pcap):
@@ -1491,9 +1514,9 @@ async def run_profiling_mode(args):
     profiler = AdvancedTrafficProfiler()
     res = profiler.analyze_pcap_file(pcap)
     if not res or not res.success:
-        console.print("[red]❌ Profiling failed[/red]")
+        console.print("[red][X] Profiling failed[/red]")
         return
-    console.print("\n[bold green]✅ Traffic Profiling Complete[/bold green]")
+    console.print("\n[bold green][OK] Traffic Profiling Complete[/bold green]")
     if res.detected_applications:
         console.print(
             "[bold]Detected applications:[/bold] "
@@ -1547,9 +1570,9 @@ async def run_hybrid_mode(args):
     console.print(f"Loaded {len(dm.domains)} domain(s) for testing.")
 
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug,
-                                 enable_enhanced_tracking=bool(args.enable_enhanced_tracking),
-                                 enable_online_optimization=bool(args.enable_optimization))
+    from core.unified_bypass_engine import UnifiedEngineConfig
+    config = UnifiedEngineConfig(debug=args.debug)
+    hybrid_engine = UnifiedBypassEngine(config)
 
     reporter = SimpleReporter(debug=args.debug)
     
@@ -1581,9 +1604,9 @@ async def run_hybrid_mode(args):
             from core.pcap.pcap_insights_worker import PcapInsightsWorker
             pcap_worker = PcapInsightsWorker()
             pcap_worker_task = asyncio.create_task(pcap_worker.run(interval=15.0))
-            console.print("[dim]🧠 Enhanced tracking enabled: PCAP insights worker started[/dim]")
+            console.print("[dim][AI] Enhanced tracking enabled: PCAP insights worker started[/dim]")
         except Exception as e:
-            console.print(f"[yellow]⚠️ Could not start PCAP insights worker: {e}[/yellow]")
+            console.print(f"[yellow][!] Could not start PCAP insights worker: {e}[/yellow]")
 
     # Шаг 1: DNS резолвинг
     if args.advanced_dns:
@@ -1638,10 +1661,10 @@ async def run_hybrid_mode(args):
             )
             capturer.start()
             console.print(
-                f"[dim]📡 Packet capture started → {args.pcap} (bpf='{bpf}')[/dim]"
+                f"[dim][CAPTURE] Packet capture started -> {args.pcap} (bpf='{bpf}')[/dim]"
             )
         except Exception as e:
-            console.print(f"[yellow]⚠️ Could not start capture: {e}[/yellow]")
+            console.print(f"[yellow][!] Could not start capture: {e}[/yellow]")
     # Корреляционный захват по меткам (offline-анализ по итоговому PCAP)
     if args.enable_enhanced_tracking and args.pcap:
         try:
@@ -1652,9 +1675,9 @@ async def run_hybrid_mode(args):
                 port=args.port,
                 interface=args.capture_iface
             )
-            console.print("🔗 Enhanced tracking enabled: correlation capturer ready")
+            console.print("[LINK] Enhanced tracking enabled: correlation capturer ready")
         except Exception as e:
-            console.print(f"[yellow]⚠️ Could not init correlation capturer: {e}[/yellow]")
+            console.print(f"[yellow][!] Could not init correlation capturer: {e}[/yellow]")
 
     # Шаг 2: Базовая доступность
     console.print("\n[yellow]Step 2: Testing baseline connectivity...[/yellow]")
@@ -1668,7 +1691,7 @@ async def run_hybrid_mode(args):
     ]
     if not blocked_sites:
         console.print(
-            "[bold green]✓ All sites are accessible without bypass tools![/bold green]"
+            "[bold green][OK] All sites are accessible without bypass tools![/bold green]"
         )
         console.print("No DPI blocking detected. Bypass tools are not needed.")
         if capturer:
@@ -1690,10 +1713,10 @@ async def run_hybrid_mode(args):
     try:
         import pydivert
 
-        console.print("[dim]✓ PyDivert available - system-level bypass enabled[/dim]")
+        console.print("[dim][OK] PyDivert available - system-level bypass enabled[/dim]")
     except ImportError:
         console.print(
-            "[yellow]⚠️  PyDivert not available - using fallback mode[/yellow]"
+            "[yellow][!]  PyDivert not available - using fallback mode[/yellow]"
         )
         console.print("[dim]   For better results, install: pip install pydivert[/dim]")
 
@@ -1717,13 +1740,12 @@ async def run_hybrid_mode(args):
             
             targets_to_probe = [(urlparse(site).hostname or site, args.port) for site in blocked_sites]
             
-            console.print(f"[dim]🚀 Using UnifiedFingerprinter with concurrency: {args.parallel}[/dim]")
+            console.print(f"[dim][*] Using UnifiedFingerprinter with concurrency: {args.parallel}[/dim]")
 
             fingerprint_results = await unified_fingerprinter.fingerprint_batch(
                 targets=targets_to_probe,
                 force_refresh=True,
-                max_concurrent=args.parallel,
-                pcap_path=args.pcap
+                max_concurrent=args.parallel
             )
 
             for fp in fingerprint_results:
@@ -1763,13 +1785,96 @@ async def run_hybrid_mode(args):
         generator = ZapretStrategyGenerator()
         fingerprint_for_strategy = None
         if fingerprints:
-            first_fp = next(iter(fingerprints.values()))
-            fingerprint_for_strategy = first_fp
-            console.print("Using fingerprint for strategy generation")
+            first_fp = next(iter(fingerprints.values()), None)
+            # Check if fingerprint is valid (not None)
+            if first_fp is not None:
+                fingerprint_for_strategy = first_fp
+                console.print("Using fingerprint for strategy generation")
+            else:
+                console.print("[yellow]⚠ Warning: Fingerprinting returned no valid results[/yellow]")
+                console.print("[dim]  → No suitable fingerprinting method found for this target[/dim]")
+                console.print("[dim]  → Falling back to generic bypass strategies[/dim]")
+                fingerprint_for_strategy = None
         else:
             fingerprint_for_strategy = None
-        strategies = generator.generate_strategies(fingerprint_for_strategy, count=args.count)
-        console.print(f"Generated {len(strategies)} strategies to test.")
+        
+        try:
+            strategies = generator.generate_strategies(fingerprint_for_strategy, count=args.count)
+            console.print(f"Generated {len(strategies)} strategies to test.")
+        except Exception as e:
+            console.print(f"[red]✗ Error generating strategies: {e}[/red]")
+            console.print("[yellow]Falling back to default strategies...[/yellow]")
+            console.print("[dim]💡 Tip: You can specify a manual strategy with --strategy flag[/dim]")
+            console.print("[dim]   Example: --strategy 'fake,disorder --split-pos=3 --fooling=badsum'[/dim]")
+            # Fallback to a few proven strategies
+            strategies = [
+                "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum",
+                "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq",
+                "--dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10"
+            ]
+        
+        # Validate strategies if --validate flag is enabled
+        if args.validate and strategies:
+            try:
+                from core.cli_validation_orchestrator import CLIValidationOrchestrator
+                
+                console.print("\n[bold][VALIDATION] Validating generated strategies...[/bold]")
+                orchestrator = CLIValidationOrchestrator()
+                
+                valid_strategies = []
+                validation_errors = []
+                validation_warnings = []
+                
+                for strategy_str in strategies:
+                    # Parse strategy to dict format for validation
+                    try:
+                        from core.strategy_interpreter import StrategyInterpreter
+                        interpreter = StrategyInterpreter()
+                        parsed = interpreter.interpret_strategy(strategy_str)
+                        
+                        if parsed:
+                            # Validate the parsed strategy
+                            validation_result = orchestrator.validate_strategy(
+                                parsed,
+                                check_attack_availability=True
+                            )
+                            
+                            if validation_result.passed:
+                                valid_strategies.append(strategy_str)
+                            else:
+                                validation_errors.extend(validation_result.errors)
+                                console.print(f"[yellow]⚠ Strategy validation failed: {parsed.get('type', 'unknown')}[/yellow]")
+                                for err in validation_result.errors:
+                                    console.print(f"  [red]- {err}[/red]")
+                            
+                            validation_warnings.extend(validation_result.warnings)
+                    except Exception as e:
+                        console.print(f"[yellow]Warning: Could not validate strategy '{strategy_str}': {e}[/yellow]")
+                        # Keep the strategy if validation fails
+                        valid_strategies.append(strategy_str)
+                
+                # Display validation summary
+                console.print(f"\n[bold]Strategy Validation Summary:[/bold]")
+                console.print(f"  Total strategies: {len(strategies)}")
+                console.print(f"  Valid strategies: [green]{len(valid_strategies)}[/green]")
+                console.print(f"  Validation errors: [red]{len(validation_errors)}[/red]")
+                console.print(f"  Validation warnings: [yellow]{len(validation_warnings)}[/yellow]")
+                
+                # Use only valid strategies
+                if valid_strategies:
+                    strategies = valid_strategies
+                    console.print(f"[green]✓ Proceeding with {len(strategies)} validated strategies[/green]")
+                else:
+                    console.print("[yellow]⚠ No valid strategies found, proceeding with all strategies anyway[/yellow]")
+                
+            except ImportError as e:
+                console.print(f"[yellow][!] Strategy validation skipped: Required modules not available ({e})[/yellow]")
+            except Exception as e:
+                console.print(f"[yellow][!] Strategy validation failed: {e}[/yellow]")
+                if args.debug:
+                    import traceback
+                    traceback.print_exc()
+        
         if strategies and dns_cache:
             first_domain = list(dns_cache.keys())[0]
             first_ip = dns_cache[first_domain]
@@ -1788,10 +1893,14 @@ async def run_hybrid_mode(args):
             )
             if optimized_strategies != strategies:
                 console.print(
-                    "[dim]🧠 Applied adaptive learning to optimize strategy order[/dim]"
+                    "[dim][AI] Applied adaptive learning to optimize strategy order[/dim]"
                 )
                 strategies = optimized_strategies
     console.print("[dim]Parsing strategies into structured format...[/dim]")
+    # <<< FIX: Import and instantiate StrategyInterpreter >>>
+    from core.strategy_interpreter import StrategyInterpreter
+    strategy_interpreter = StrategyInterpreter()
+    # <<< END FIX >>>
     structured_strategies = []
     domain_for_priors = None
     try:
@@ -1803,11 +1912,13 @@ async def run_hybrid_mode(args):
         ds = None
     for s_str in strategies:
         try:
-            parsed_strategy = interpret_strategy(s_str)
+            # <<< FIX: Use the interpreter instance to parse the strategy >>>
+            parsed_strategy = strategy_interpreter.interpret_strategy(s_str)
+            # <<< END FIX >>>
             if parsed_strategy:
                 engine_task = {
                     "type": parsed_strategy.get("type", "unknown"),
-                    "params": parsed_strategy.get("params", {})
+                    "params": parsed_strategy.get("params", {"no_fallbacks": True, "forced": True})
                 }
                 if ds and isinstance(engine_task.get("params"), dict):
                     p = engine_task["params"]
@@ -1818,7 +1929,7 @@ async def run_hybrid_mode(args):
                     if ds.fooling_modes and "fooling" not in p:
                         p["fooling"] = ds.fooling_modes
                 structured_strategies.append(engine_task)
-                console.print(f"[green]✓[/green] Parsed strategy: {engine_task['type']} with params: {engine_task['params']}")
+                console.print(f"[green][OK][/green] Parsed strategy: {engine_task['type']} with params: {engine_task['params']}")
             else:
                 console.print(
                     f"[yellow]Warning: Could not parse strategy: {s_str}[/yellow]"
@@ -1885,7 +1996,7 @@ async def run_hybrid_mode(args):
     # <<< END FIX >>>
 
     # Шаг 4.5: Сохранение результатов в кэш обучения
-    console.print("[dim]💾 Updating adaptive learning cache...[/dim]")
+    console.print("[dim][SAVE] Updating adaptive learning cache...[/dim]")
     for result in test_results:
         strategy = result["strategy"]
         success_rate = result["success_rate"]
@@ -1917,6 +2028,60 @@ async def run_hybrid_mode(args):
             capturer.stop()
         except Exception:
             pass
+    
+    # PCAP validation if --validate flag is enabled
+    pcap_validation_result = None
+    if args.validate and args.pcap and os.path.exists(args.pcap):
+        try:
+            from core.cli_validation_orchestrator import CLIValidationOrchestrator
+            from pathlib import Path
+            
+            console.print("\n[bold][VALIDATION] Validating captured PCAP file...[/bold]")
+            
+            orchestrator = CLIValidationOrchestrator()
+            pcap_path = Path(args.pcap)
+            
+            # Validate PCAP with basic attack spec
+            attack_spec = {
+                'validate_sequence': True,
+                'validate_flag_combinations': True
+            }
+            
+            pcap_validation_result = orchestrator.validate_pcap(pcap_path, attack_spec)
+            
+            # Display validation summary
+            if pcap_validation_result.passed:
+                console.print(f"[green]✓ PCAP validation PASSED[/green]")
+                console.print(f"  Packets: {pcap_validation_result.packet_count}")
+                console.print(f"  Issues: {len(pcap_validation_result.issues)}")
+                console.print(f"  Warnings: {len(pcap_validation_result.warnings)}")
+            else:
+                console.print(f"[yellow]⚠ PCAP validation FAILED[/yellow]")
+                console.print(f"  Packets: {pcap_validation_result.packet_count}")
+                console.print(f"  Errors: {len([i for i in pcap_validation_result.issues if i.severity == 'error'])}")
+                console.print(f"  Warnings: {len([i for i in pcap_validation_result.issues if i.severity == 'warning'])}")
+                
+                # Show first few errors
+                errors = [i for i in pcap_validation_result.issues if i.severity == 'error']
+                if errors:
+                    console.print("\n  Top errors:")
+                    for err in errors[:3]:
+                        console.print(f"    - {err.description}")
+            
+            # Save detailed validation report
+            report_file = orchestrator.output_dir / f"pcap_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            report = orchestrator.create_validation_report(pcap_validation=pcap_validation_result)
+            report.save_to_file(report_file)
+            console.print(f"  [dim]Detailed report: {report_file}[/dim]")
+            
+        except ImportError as e:
+            console.print(f"[yellow][!] PCAP validation skipped: Required modules not available ({e})[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow][!] PCAP validation failed: {e}[/yellow]")
+            if args.debug:
+                import traceback
+                traceback.print_exc()
+    
     # Offline анализ корреляции стратегий по PCAP
     if args.enable_enhanced_tracking and corr_capturer and args.pcap and os.path.exists(args.pcap):
         try:
@@ -1924,16 +2089,16 @@ async def run_hybrid_mode(args):
                 pcap_file=args.pcap, window_slack=0.6
             )
             if analysis:
-                console.print("\n[bold]🔎 Enhanced tracking summary (PCAP → strategies)[/bold]")
+                console.print("\n[bold][ANALYZE] Enhanced tracking summary (PCAP -> strategies)[/bold]")
                 # Выведем топ-5
                 shown = 0
                 for sid, info in analysis.items():
-                    console.print(f"  • {sid}: score={info.get('success_score',0):.2f}, SH/CH={info.get('tls_serverhellos',0)}/{info.get('tls_clienthellos',0)}, RST={info.get('rst_packets',0)}")
+                    console.print(f"  * {sid}: score={info.get('success_score',0):.2f}, SH/CH={info.get('tls_serverhellos',0)}/{info.get('tls_clienthellos',0)}, RST={info.get('rst_packets',0)}")
                     shown += 1
                     if shown >= 5:
                         break
         except Exception as e:
-            console.print(f"[yellow]⚠️ Correlation analysis failed: {e}[/yellow]")
+            console.print(f"[yellow][!] Correlation analysis failed: {e}[/yellow]")
 
     # Сравнение паттернов zapret vs recon при наличии PCAPов в корне (zapret.pcap/recon.pcap)
     # <<< FIX: Initialize validator to None to prevent NameError >>>
@@ -1949,21 +2114,21 @@ async def run_hybrid_mode(args):
                 for d in comp.critical_differences[:5]:
                     console.print(f"    - {d}")
         except Exception as e:
-            console.print(f"[yellow]⚠️ Packet pattern validation failed: {e}[/yellow]")
+            console.print(f"[yellow][!] Packet pattern validation failed: {e}[/yellow]")
         finally:
             if validator:
                 try: validator.close_logging()
                 except Exception: pass
     # <<< END FIX >>>
 
-    # Если есть PCAP и доступен профилировщик — проанализируем и добавим в отчет
+    # Если есть PCAP и доступен профилировщик -- проанализируем и добавим в отчет
     pcap_profile_result = None
     if args.pcap and PROFILER_AVAILABLE and os.path.exists(args.pcap):
         try:
             profiler = AdvancedTrafficProfiler()
             pcap_profile_result = profiler.analyze_pcap_file(args.pcap)
             if pcap_profile_result and pcap_profile_result.success:
-                console.print("\n[bold]🧪 PCAP profiling summary[/bold]")
+                console.print("\n[bold][TEST] PCAP profiling summary[/bold]")
                 apps = ", ".join(pcap_profile_result.detected_applications) or "none"
                 ctx = pcap_profile_result.metadata.get("context", {})
                 console.print(f"  Apps: [cyan]{apps}[/cyan]")
@@ -1971,13 +2136,13 @@ async def run_hybrid_mode(args):
                     f"  TLS ClientHello: {ctx.get('tls_client_hello',0)}, Alerts: {ctx.get('tls_alert_count',0)}, QUIC: {ctx.get('quic_initial_count',0)}"
                 )
         except Exception as e:
-            console.print(f"[yellow]⚠️ PCAP profiling failed: {e}[/yellow]")
+            console.print(f"[yellow][!] PCAP profiling failed: {e}[/yellow]")
 
     # Итоги стратегий
     console.print("\n[bold underline]Strategy Testing Results[/bold underline]")
     working_strategies = [r for r in test_results if r["success_rate"] > 0]
     if not working_strategies:
-        console.print("\n[bold red]❌ No working strategies found![/bold red]")
+        console.print("\n[bold red][X] No working strategies found![/bold red]")
         console.print("   All tested strategies failed to bypass the DPI.")
         console.print(
             "   Try increasing the number of strategies with `--count` or check if zapret tools are properly installed."
@@ -1985,7 +2150,7 @@ async def run_hybrid_mode(args):
         # Авто-PCAP захват на фейле (если не включен вручную)
         try:
             if SCAPY_AVAILABLE and not args.pcap:
-                console.print("[dim]📡 Auto-capture: starting short PCAP (8s) for failure profiling...[/dim]")
+                console.print("[dim][CAPTURE] Auto-capture: starting short PCAP (8s) for failure profiling...[/dim]")
                 auto_pcap = f"recon_autofail_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap"
                 bpf = build_bpf_from_ips(set(dns_cache.values()), args.port)
                 cap = PacketCapturer(auto_pcap, bpf=bpf, iface=args.capture_iface, max_seconds=8)
@@ -1996,13 +2161,13 @@ async def run_hybrid_mode(args):
                 except Exception:
                     pass
                 cap.stop()
-                console.print(f"[green]✓ Auto-capture saved to {auto_pcap}[/green]")
+                console.print(f"[green][OK] Auto-capture saved to {auto_pcap}[/green]")
                 if PROFILER_AVAILABLE:
                     try:
                         profiler = AdvancedTrafficProfiler()
                         res = profiler.analyze_pcap_file(auto_pcap)
                         if res and res.success:
-                            console.print("[bold]🧪 Auto PCAP profiling summary[/bold]")
+                            console.print("[bold][TEST] Auto PCAP profiling summary[/bold]")
                             apps = ", ".join(res.detected_applications) or "none"
                             ctx = res.metadata.get("context", {})
                             console.print(f"  Apps: [cyan]{apps}[/cyan]")
@@ -2010,12 +2175,12 @@ async def run_hybrid_mode(args):
                                 f"  TLS ClientHello: {ctx.get('tls_client_hello',0)}, Alerts: {ctx.get('tls_alert_count',0)}, QUIC: {ctx.get('quic_initial_count',0)}"
                             )
                     except Exception as e:
-                        console.print(f"[yellow]⚠️ Auto profiling failed: {e}[/yellow]")
+                        console.print(f"[yellow][!] Auto profiling failed: {e}[/yellow]")
         except Exception:
             pass
     else:
         console.print(
-            f"\n[bold green]✓ Found {len(working_strategies)} working strategies![/bold green]"
+            f"\n[bold green][OK] Found {len(working_strategies)} working strategies![/bold green]"
         )
         for i, result in enumerate(working_strategies[:5], 1):
             rate = result["success_rate"]
@@ -2029,7 +2194,7 @@ async def run_hybrid_mode(args):
         best_strategy_result = working_strategies[0]
         best_strategy = best_strategy_result["strategy"]
         console.print(
-            f"\n[bold green]🏆 Best strategy:[/bold green] [cyan]{best_strategy}[/cyan]"
+            f"\n[bold green][TROPHY] Best strategy:[/bold green] [cyan]{best_strategy}[/cyan]"
         )
         try:
             from core.strategy_manager import StrategyManager
@@ -2045,11 +2210,11 @@ async def run_hybrid_mode(args):
                     )
             strategy_manager.save_strategies()
             console.print(
-                f"[green]💾 Strategies saved for {len(dns_cache)} domains[/green]"
+                f"[green][SAVE] Strategies saved for {len(dns_cache)} domains[/green]"
             )
             with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
                 json.dump(best_strategy_result, f, indent=2, ensure_ascii=False)
-            console.print(f"[green]💾 Legacy format saved to '{STRATEGY_FILE}'[/green]")
+            console.print(f"[green][SAVE] Legacy format saved to '{STRATEGY_FILE}'[/green]")
         except Exception as e:
             console.print(f"[red]Error saving strategies: {e}[/red]")
 
@@ -2107,13 +2272,145 @@ async def run_hybrid_mode(args):
         },
         "all_results": test_results
     }
+    
+    # Add PCAP validation results to report if validation was performed
+    if pcap_validation_result:
+        final_report_data["pcap_validation"] = {
+            "enabled": True,
+            "passed": pcap_validation_result.passed,
+            "pcap_file": str(pcap_validation_result.pcap_file),
+            "packet_count": pcap_validation_result.packet_count,
+            "issues_count": len(pcap_validation_result.issues),
+            "warnings_count": len(pcap_validation_result.warnings),
+            "errors_count": len([i for i in pcap_validation_result.issues if i.severity == 'error']),
+            "details": pcap_validation_result.details
+        }
+    else:
+        final_report_data["pcap_validation"] = {
+            "enabled": False
+        }
 
     reporter.print_summary(final_report_data)
 
     report_filename = reporter.save_report(final_report_data, filename="recon_summary.json")
     if report_filename:
-        console.print(f"[green]📄 Detailed report saved to: {report_filename}[/green]")
+        console.print(f"[green][FILE] Detailed report saved to: {report_filename}[/green]")
     # <<< END FIX >>>
+
+    # Baseline comparison and saving (if validation enabled)
+    if args.validate:
+        try:
+            from core.cli_validation_orchestrator import CLIValidationOrchestrator
+            from pathlib import Path
+            
+            orchestrator = CLIValidationOrchestrator()
+            
+            # Convert test results to baseline format
+            baseline_results = []
+            for result in test_results:
+                # Handle strategy field - it can be string or dict
+                strategy = result.get('strategy', {})
+                if isinstance(strategy, str):
+                    attack_name = strategy
+                elif isinstance(strategy, dict):
+                    attack_name = strategy.get('type', 'unknown')
+                else:
+                    attack_name = 'unknown'
+                
+                baseline_results.append({
+                    'attack_name': attack_name,
+                    'passed': result.get('success', False),
+                    'packet_count': result.get('packet_count', 0),
+                    'validation_passed': result.get('validation_passed', True),
+                    'validation_issues': result.get('validation_issues', []),
+                    'execution_time': result.get('execution_time', 0.0),
+                    'metadata': {
+                        'domain': result.get('domain', 'unknown'),
+                        'success_rate': result.get('success_rate', 0.0),
+                        'strategy': result.get('strategy', {})
+                    }
+                })
+            
+            # Compare with baseline if requested
+            if args.validate_baseline:
+                console.print(f"\n[bold][VALIDATION] Comparing with baseline: {args.validate_baseline}[/bold]")
+                
+                try:
+                    comparison = orchestrator.compare_with_baseline(
+                        baseline_results,
+                        baseline_name=args.validate_baseline
+                    )
+                    
+                    # Display comparison results
+                    console.print("\n" + "=" * 70)
+                    console.print("[bold]BASELINE COMPARISON RESULTS[/bold]")
+                    console.print("=" * 70)
+                    console.print(f"Baseline: {comparison.baseline_name}")
+                    console.print(f"Baseline Date: {comparison.baseline_timestamp}")
+                    console.print(f"Current Date: {comparison.current_timestamp}")
+                    console.print(f"Total Tests: {comparison.total_tests}")
+                    console.print(f"Regressions: {len(comparison.regressions)}")
+                    console.print(f"Improvements: {len(comparison.improvements)}")
+                    console.print(f"Unchanged: {comparison.unchanged}")
+                    
+                    # Display regressions prominently
+                    if comparison.regressions:
+                        console.print("\n[bold red]⚠ REGRESSIONS DETECTED:[/bold red]")
+                        for reg in comparison.regressions:
+                            severity_color = "red" if reg.severity.value in ["critical", "high"] else "yellow"
+                            console.print(
+                                f"  [{severity_color}][{reg.severity.value.upper()}][/{severity_color}] "
+                                f"{reg.attack_name}: {reg.description}"
+                            )
+                            if reg.details:
+                                console.print(f"    Details: {reg.details}")
+                    else:
+                        console.print("\n[green]✓ No regressions detected[/green]")
+                    
+                    # Display improvements
+                    if comparison.improvements:
+                        console.print("\n[bold green]✓ IMPROVEMENTS:[/bold green]")
+                        for imp in comparison.improvements:
+                            console.print(f"  [green][IMPROVEMENT][/green] {imp.attack_name}: {imp.description}")
+                    
+                    console.print("=" * 70)
+                    
+                    # Add comparison to final report
+                    final_report_data["baseline_comparison"] = comparison.to_dict()
+                    
+                except Exception as e:
+                    console.print(f"[bold red]Error comparing with baseline: {e}[/bold red]")
+                    if args.debug:
+                        import traceback
+                        traceback.print_exc()
+            
+            # Save new baseline if requested
+            if args.save_baseline:
+                console.print(f"\n[bold][VALIDATION] Saving baseline: {args.save_baseline}[/bold]")
+                
+                try:
+                    baseline_file = orchestrator.save_baseline(
+                        baseline_results,
+                        name=args.save_baseline
+                    )
+                    console.print(f"[green]✓ Baseline saved to: {baseline_file}[/green]")
+                    
+                    # Add to final report
+                    final_report_data["baseline_saved"] = str(baseline_file)
+                    
+                except Exception as e:
+                    console.print(f"[bold red]Error saving baseline: {e}[/bold red]")
+                    if args.debug:
+                        import traceback
+                        traceback.print_exc()
+        
+        except ImportError as e:
+            console.print(f"[yellow]Warning: Baseline functionality not available: {e}[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Baseline operation failed: {e}[/yellow]")
+            if args.debug:
+                import traceback
+                traceback.print_exc()
 
     # KB summary: причины блокировок по CDN и доменам
     try:
@@ -2121,26 +2418,26 @@ async def run_hybrid_mode(args):
         kb = CdnAsnKnowledgeBase()
         # По CDN
         if kb.cdn_profiles:
-            console.print("\n[bold underline]🧠 KB Blocking Reasons Summary (by CDN)[/bold underline]")
+            console.print("\n[bold underline][AI] KB Blocking Reasons Summary (by CDN)[/bold underline]")
             for cdn, prof in kb.cdn_profiles.items():
                 br = getattr(prof, "block_reasons", {}) or {}
                 if br:
                     top = sorted(br.items(), key=lambda x: x[1], reverse=True)[:5]
                     s = ", ".join([f"{k}:{v}" for k, v in top])
-                    console.print(f"  • {cdn}: {s}")
-        # По доменам (только топ‑10)
+                    console.print(f"  * {cdn}: {s}")
+        # По доменам (только топ-10)
         if kb.domain_block_reasons:
-            console.print("\n[bold underline]🧠 KB Blocking Reasons Summary (by domain)[/bold underline]")
+            console.print("\n[bold underline][AI] KB Blocking Reasons Summary (by domain)[/bold underline]")
             items = sorted(kb.domain_block_reasons.items(), key=lambda kv: sum(kv[1].values()), reverse=True)[:10]
             for domain, brmap in items:
                 s = ", ".join([f"{k}:{v}" for k, v in sorted(brmap.items(), key=lambda x: x[1], reverse=True)[:3]])
-                console.print(f"  • {domain}: {s}")
+                console.print(f"  * {domain}: {s}")
     except Exception as e:
         console.print(f"[yellow]KB summary unavailable: {e}[/yellow]")
 
     # Мониторинг
     if args.monitor and working_strategies:
-        console.print("\n[yellow]🔄 Starting monitoring mode...[/yellow]")
+        console.print("\n[yellow][REFRESH] Starting monitoring mode...[/yellow]")
         await start_monitoring_mode(args, blocked_sites, learning_cache)
 
     hybrid_engine.cleanup()
@@ -2214,7 +2511,9 @@ async def run_evolutionary_mode(args):
     dm.domains = normalized_domains
     console.print(f"Loaded {len(dm.domains)} domain(s) for evolutionary search.")
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
+    from core.unified_bypass_engine import UnifiedEngineConfig
+    config = UnifiedEngineConfig(debug=args.debug)
+    hybrid_engine = UnifiedBypassEngine(config)
     learning_cache = AdaptiveLearningCache()
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
     console.print("\n[yellow]Step 1: DNS Resolution...[/yellow]")
@@ -2242,7 +2541,7 @@ async def run_evolutionary_mode(args):
     ]
     if not blocked_sites:
         console.print(
-            "[bold green]✓ All sites are accessible! No evolution needed.[/bold green]"
+            "[bold green][OK] All sites are accessible! No evolution needed.[/bold green]"
         )
         return
     console.print(f"Found {len(blocked_sites)} blocked sites for evolution.")
@@ -2326,7 +2625,7 @@ async def run_evolutionary_mode(args):
         mutation_rate=args.mutation_rate,
     )
     console.print(
-        f"\n[bold magenta]🧬 Starting Evolution with {args.population} individuals, {args.generations} generations[/bold magenta]"
+        f"\n[bold magenta][DNA] Starting Evolution with {args.population} individuals, {args.generations} generations[/bold magenta]"
     )
     
     # Prepare fingerprint-informed evolution
@@ -2340,7 +2639,7 @@ async def run_evolutionary_mode(args):
             else:
                 # Fallback hash generation for simple fingerprints
                 dpi_hash = f"{fp.dpi_type}_{fp.blocking_method}"
-            console.print(f"[dim]🧠 Using fingerprint data for evolution (DPI hash: {dpi_hash[:8]}...)[/dim]")
+            console.print(f"[dim][AI] Using fingerprint data for evolution (DPI hash: {dpi_hash[:8]}...)[/dim]")
         except Exception as e:
             console.print(f"[yellow]Warning: Could not extract DPI hash: {e}[/yellow]")
             dpi_hash = ""
@@ -2354,7 +2653,7 @@ async def run_evolutionary_mode(args):
     evolution_time = time.time() - start_time
     best_strategy = searcher.genes_to_zapret_strategy(best_chromosome.genes)
     console.print("\n" + "=" * 60)
-    console.print("[bold green]🎉 Evolutionary Search Complete! 🎉[/bold green]")
+    console.print("[bold green][PARTY] Evolutionary Search Complete! [PARTY][/bold green]")
     console.print(f"Evolution time: {evolution_time:.1f}s")
     console.print(f"Best fitness: [green]{best_chromosome.fitness:.3f}[/green]")
     console.print(f"Best strategy: [cyan]{best_strategy}[/cyan]")
@@ -2378,17 +2677,17 @@ async def run_evolutionary_mode(args):
     try:
         with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
             json.dump(evolution_result, f, indent=2, ensure_ascii=False)
-        console.print(f"[green]💾 Evolution result saved to '{STRATEGY_FILE}'[/green]")
+        console.print(f"[green][SAVE] Evolution result saved to '{STRATEGY_FILE}'[/green]")
     except Exception as e:
         console.print(f"[red]Error saving evolution result: {e}[/red]")
     if searcher.best_fitness_history:
-        console.print("\n[bold underline]📈 Evolution History[/bold underline]")
+        console.print("\n[bold underline][CHART] Evolution History[/bold underline]")
         for entry in searcher.best_fitness_history:
             gen = entry["generation"]
             best_fit = entry["best_fitness"]
             avg_fit = entry["avg_fitness"]
             console.print(f"Gen {gen+1}: Best={best_fit:.3f}, Avg={avg_fit:.3f}")
-    console.print("[dim]💾 Saving evolution results to learning cache...[/dim]")
+    console.print("[dim][SAVE] Saving evolution results to learning cache...[/dim]")
     for domain, ip in dns_cache.items():
         # Use the proper DPI hash if available
         fingerprint_hash = ""
@@ -2420,10 +2719,127 @@ async def run_evolutionary_mode(args):
             console.print("[yellow]Applying evolved strategy system-wide...[/yellow]")
             try:
                 apply_system_bypass(best_strategy)
-                console.print("[green]✓ Strategy applied successfully![/green]")
+                console.print("[green][OK] Strategy applied successfully![/green]")
             except Exception as e:
                 console.print(f"[red]Error applying strategy: {e}[/red]")
     hybrid_engine.cleanup()
+
+
+async def handle_baseline_operations(args, test_results: List[Dict[str, Any]], final_report_data: Dict[str, Any]):
+    """
+    Handle baseline comparison and saving operations.
+    
+    Args:
+        args: Command line arguments
+        test_results: List of test results
+        final_report_data: Final report data dictionary to update
+    """
+    if not args.validate:
+        return
+    
+    try:
+        from core.cli_validation_orchestrator import CLIValidationOrchestrator
+        from pathlib import Path
+        
+        orchestrator = CLIValidationOrchestrator()
+        
+        # Convert test results to baseline format
+        baseline_results = []
+        for result in test_results:
+            baseline_results.append({
+                'attack_name': result.get('strategy', {}).get('type', 'unknown'),
+                'passed': result.get('success', False),
+                'packet_count': result.get('packet_count', 0),
+                'validation_passed': result.get('validation_passed', True),
+                'validation_issues': result.get('validation_issues', []),
+                'execution_time': result.get('execution_time', 0.0),
+                'metadata': {
+                    'domain': result.get('domain', 'unknown'),
+                    'success_rate': result.get('success_rate', 0.0),
+                    'strategy': result.get('strategy', {})
+                }
+            })
+        
+        # Compare with baseline if requested
+        if args.validate_baseline:
+            console.print(f"\n[bold][VALIDATION] Comparing with baseline: {args.validate_baseline}[/bold]")
+            
+            try:
+                comparison = orchestrator.compare_with_baseline(
+                    baseline_results,
+                    baseline_name=args.validate_baseline
+                )
+                
+                # Display comparison results
+                console.print("\n" + "=" * 70)
+                console.print("[bold]BASELINE COMPARISON RESULTS[/bold]")
+                console.print("=" * 70)
+                console.print(f"Baseline: {comparison.baseline_name}")
+                console.print(f"Baseline Date: {comparison.baseline_timestamp}")
+                console.print(f"Current Date: {comparison.current_timestamp}")
+                console.print(f"Total Tests: {comparison.total_tests}")
+                console.print(f"Regressions: {len(comparison.regressions)}")
+                console.print(f"Improvements: {len(comparison.improvements)}")
+                console.print(f"Unchanged: {comparison.unchanged}")
+                
+                # Display regressions prominently
+                if comparison.regressions:
+                    console.print("\n[bold red]⚠ REGRESSIONS DETECTED:[/bold red]")
+                    for reg in comparison.regressions:
+                        severity_color = "red" if reg.severity.value in ["critical", "high"] else "yellow"
+                        console.print(
+                            f"  [{severity_color}][{reg.severity.value.upper()}][/{severity_color}] "
+                            f"{reg.attack_name}: {reg.description}"
+                        )
+                        if reg.details:
+                            console.print(f"    Details: {reg.details}")
+                else:
+                    console.print("\n[green]✓ No regressions detected[/green]")
+                
+                # Display improvements
+                if comparison.improvements:
+                    console.print("\n[bold green]✓ IMPROVEMENTS:[/bold green]")
+                    for imp in comparison.improvements:
+                        console.print(f"  [green][IMPROVEMENT][/green] {imp.attack_name}: {imp.description}")
+                
+                console.print("=" * 70)
+                
+                # Add comparison to final report
+                final_report_data["baseline_comparison"] = comparison.to_dict()
+                
+            except Exception as e:
+                console.print(f"[bold red]Error comparing with baseline: {e}[/bold red]")
+                if args.debug:
+                    import traceback
+                    traceback.print_exc()
+        
+        # Save new baseline if requested
+        if args.save_baseline:
+            console.print(f"\n[bold][VALIDATION] Saving baseline: {args.save_baseline}[/bold]")
+            
+            try:
+                baseline_file = orchestrator.save_baseline(
+                    baseline_results,
+                    name=args.save_baseline
+                )
+                console.print(f"[green]✓ Baseline saved to: {baseline_file}[/green]")
+                
+                # Add to final report
+                final_report_data["baseline_saved"] = str(baseline_file)
+                
+            except Exception as e:
+                console.print(f"[bold red]Error saving baseline: {e}[/bold red]")
+                if args.debug:
+                    import traceback
+                    traceback.print_exc()
+    
+    except ImportError as e:
+        console.print(f"[yellow]Warning: Baseline functionality not available: {e}[/yellow]")
+    except Exception as e:
+        console.print(f"[yellow]Warning: Baseline operation failed: {e}[/yellow]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
 
 
 async def start_monitoring_mode(args, monitored_sites: List[str], learning_cache):
@@ -2451,20 +2867,20 @@ async def start_monitoring_mode(args, monitored_sites: List[str], learning_cache
                 web_server = MonitoringWebServer(monitoring_system, args.monitor_port)
                 await web_server.start()
                 console.print(
-                    f"[green]🌐 Web interface available at http://localhost:{args.monitor_port}[/green]"
+                    f"[green][WEB] Web interface available at http://localhost:{args.monitor_port}[/green]"
                 )
             except ImportError:
                 console.print(
-                    "[yellow]⚠️ Web interface requires aiohttp. Install with: pip install aiohttp[/yellow]"
+                    "[yellow][!] Web interface requires aiohttp. Install with: pip install aiohttp[/yellow]"
                 )
         await monitoring_system.start()
         console.print(
             Panel(
-                f"[bold green]🛡️ Monitoring Started[/bold green]\n\n"
+                f"[bold green][SHIELD] Monitoring Started[/bold green]\n\n"
                 f"Sites monitored: {len(monitoring_system.monitored_sites)}\n"
                 f"Check interval: {cfg_mon.check_interval_seconds}s\n"
-                f"Auto-recovery: ✅ Enabled\n"
-                f"Web interface: {'✅ http://localhost:' + str(args.monitor_port) if args.monitor_web else '❌ Disabled'}\n\n"
+                f"Auto-recovery: [OK] Enabled\n"
+                f"Web interface: {'[OK] http://localhost:' + str(args.monitor_port) if args.monitor_web else '[X] Disabled'}\n\n"
                 f"[dim]Press Ctrl+C to stop monitoring[/dim]",
                 title="Monitoring System",
             )
@@ -2480,9 +2896,9 @@ async def start_monitoring_mode(args, monitored_sites: List[str], learning_cache
             await monitoring_system.stop()
             if web_server:
                 await web_server.stop()
-            console.print("[green]✅ Monitoring stopped[/green]")
+            console.print("[green][OK] Monitoring stopped[/green]")
     except ImportError as e:
-        console.print(f"[red]❌ Monitoring system not available: {e}[/red]")
+        console.print(f"[red][X] Monitoring system not available: {e}[/red]")
         console.print("[dim]Install required dependencies: pip install aiohttp[/dim]")
 
 
@@ -2514,21 +2930,23 @@ async def run_per_domain_mode(args):
         f"Testing {len(dm.domains)} domains individually for optimal strategies..."
     )
     doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
+    from core.unified_bypass_engine import UnifiedEngineConfig
+    config = UnifiedEngineConfig(debug=args.debug)
+    hybrid_engine = UnifiedBypassEngine(config)
     try:
         from core.strategy_manager import StrategyManager
 
         strategy_manager = StrategyManager()
     except ImportError:
-        console.print("[red]❌ StrategyManager not available[/red]")
+        console.print("[red][X] StrategyManager not available[/red]")
         return
     learning_cache = None
     if not args.disable_learning:
         try:
             learning_cache = AdaptiveLearningCache()
-            console.print("[dim]🧠 Adaptive learning cache loaded[/dim]")
+            console.print("[dim][AI] Adaptive learning cache loaded[/dim]")
         except Exception:
-            console.print("[yellow]⚠️ Adaptive learning not available[/yellow]")
+            console.print("[yellow][!] Adaptive learning not available[/yellow]")
     all_results = {}
     for i, site in enumerate(dm.domains, 1):
         hostname = urlparse(site).hostname or site.replace("https://", "").replace(
@@ -2539,7 +2957,7 @@ async def run_per_domain_mode(args):
         )
         ip = await doh_resolver.resolve(hostname)
         if not ip:
-            console.print(f"[red]❌ Could not resolve {hostname}[/red]")
+            console.print(f"[red][X] Could not resolve {hostname}[/red]")
             continue
         dns_cache = {hostname: ip}
         all_target_ips = {ip}
@@ -2547,21 +2965,26 @@ async def run_per_domain_mode(args):
             [site], dns_cache
         )
         if baseline_results[site][0] == "WORKING":
-            console.print(f"[green]✅ {hostname} is accessible without bypass[/green]")
+            console.print(f"[green][OK] {hostname} is accessible without bypass[/green]")
             continue
         console.print(
-            f"[yellow]🔍 {hostname} needs bypass, finding optimal strategy...[/yellow]"
+            f"[yellow][SEARCH] {hostname} needs bypass, finding optimal strategy...[/yellow]"
         )
         generator = ZapretStrategyGenerator()
         strategies = generator.generate_strategies(None, count=args.count)
         # Parse to structured tasks for engine compatibility
-        from core.strategy_interpreter import interpret_strategy
+        # <<< FIX: Import and instantiate StrategyInterpreter >>>
+        from core.strategy_interpreter import StrategyInterpreter
+        strategy_interpreter = StrategyInterpreter()
+        # <<< END FIX >>>
         structured = []
         for s in strategies:
             try:
-                ps = interpret_strategy(s)
+                # <<< FIX: Use the interpreter instance to parse the strategy >>>
+                ps = strategy_interpreter.interpret_strategy(s)
+                # <<< END FIX >>>
                 structured.append({"type": ps.get("type","unknown"),
-                                   "params": ps.get("params", {})})
+                                   "params": ps.get("params", {"no_fallbacks": True, "forced": True})})
             except Exception:
                 structured.append(s)  # fallback
         if learning_cache:
@@ -2570,7 +2993,7 @@ async def run_per_domain_mode(args):
             )
             if optimized_strategies != strategies:
                 console.print(
-                    f"[dim]🧠 Applied learning optimization for {hostname}[/dim]"
+                    f"[dim][AI] Applied learning optimization for {hostname}[/dim]"
                 )
                 strategies = optimized_strategies
         domain_results = await hybrid_engine.test_strategies_hybrid(
@@ -2588,7 +3011,7 @@ async def run_per_domain_mode(args):
         working_strategies = [r for r in domain_results if r["success_rate"] > 0]
         if working_strategies:
             best_strategy = working_strategies[0]
-            console.print(f"[green]✅ Found optimal strategy for {hostname}:[/green]")
+            console.print(f"[green][OK] Found optimal strategy for {hostname}:[/green]")
             console.print(f"   Strategy: [cyan]{best_strategy['strategy']}[/cyan]")
             console.print(
                 f"   Success: {best_strategy['success_rate']:.0%}, Latency: {best_strategy['avg_latency_ms']:.1f}ms"
@@ -2601,7 +3024,7 @@ async def run_per_domain_mode(args):
             )
             all_results[hostname] = best_strategy
         else:
-            console.print(f"[red]❌ No working strategy found for {hostname}[/red]")
+            console.print(f"[red][X] No working strategy found for {hostname}[/red]")
             all_results[hostname] = None
         if learning_cache:
             for result in domain_results:
@@ -2616,7 +3039,7 @@ async def run_per_domain_mode(args):
     if learning_cache:
         learning_cache.save_cache()
     console.print(
-        "\n[bold underline]📊 Per-Domain Optimization Results[/bold underline]"
+        "\n[bold underline][STATS] Per-Domain Optimization Results[/bold underline]"
     )
     successful_domains = [d for d, r in all_results.items() if r is not None]
     failed_domains = [d for d, r in all_results.items() if r is None]
@@ -2624,145 +3047,33 @@ async def run_per_domain_mode(args):
         f"Successfully optimized: [green]{len(successful_domains)}/{len(all_results)}[/green] domains"
     )
     if successful_domains:
-        console.print("\n[bold green]✅ Domains with optimal strategies:[/bold green]")
+        console.print("\n[bold green][OK] Domains with optimal strategies:[/bold green]")
         for domain in successful_domains:
             result = all_results[domain]
             console.print(
-                f"  • {domain}: {result['success_rate']:.0%} success, {result['avg_latency_ms']:.1f}ms"
+                f"  * {domain}: {result['success_rate']:.0%} success, {result['avg_latency_ms']:.1f}ms"
             )
     if failed_domains:
-        console.print("\n[bold red]❌ Domains without working strategies:[/bold red]")
+        console.print("\n[bold red][X] Domains without working strategies:[/bold red]")
         for domain in failed_domains:
-            console.print(f"  • {domain}")
+            console.print(f"  * {domain}")
     stats = strategy_manager.get_statistics()
     if stats["total_domains"] > 0:
-        console.print("\n[bold underline]📈 Strategy Statistics[/bold underline]")
+        console.print("\n[bold underline][CHART] Strategy Statistics[/bold underline]")
         console.print(f"Total domains: {stats['total_domains']}")
         console.print(f"Average success rate: {stats['avg_success_rate']:.1%}")
         console.print(f"Average latency: {stats['avg_latency']:.1f}ms")
         console.print(
             f"Best performing domain: [green]{stats['best_domain']}[/green] ({stats['best_success_rate']:.1%})"
         )
-    console.print("\n[green]💾 All strategies saved to domain_strategies.json[/green]")
+    console.print("\n[green][SAVE] All strategies saved to domain_strategies.json[/green]")
     console.print(
         "[dim]Use 'python recon_service.py' to start the bypass service[/dim]"
     )
     hybrid_engine.cleanup()
 
 
-async def run_closed_loop_mode(args):
-    console.print(
-        Panel(
-            "[bold magenta]Recon: Closed Loop Optimization[/bold magenta]", expand=False
-        )
-    )
-    # Most of the setup is similar to evolutionary mode
-    if args.domains_file:
-        domains_file = args.target
-        default_domains = [config.DEFAULT_DOMAIN]
-    else:
-        domains_file = None
-        default_domains = [args.target]
-    dm = DomainManager(domains_file, default_domains=default_domains)
-    if not dm.domains:
-        console.print("[bold red]Error:[/bold red] No domains to test.")
-        return
-    normalized_domains = []
-    for site in dm.domains:
-        if not site.startswith(("http://", "https://")):
-            site = f"https://{site}"
-        normalized_domains.append(site)
-    dm.domains = normalized_domains
-    console.print(f"Loaded {len(dm.domains)} domain(s) for closed-loop optimization.")
 
-    doh_resolver = DoHResolver()
-    hybrid_engine = HybridEngine(debug=args.debug, enable_enhanced_tracking=args.enable_enhanced_tracking)
-
-    console.print("\n[yellow]Step 1: DNS Resolution...[/yellow]")
-    dns_cache: Dict[str, str] = {}
-    all_target_ips: Set[str] = set()
-    for site in dm.domains:
-        hostname = urlparse(site).hostname if site.startswith("http") else site
-        ip = await doh_resolver.resolve(hostname)
-        if ip:
-            dns_cache[hostname] = ip
-            all_target_ips.add(ip)
-    if not dns_cache:
-        console.print("[bold red]Fatal Error:[/bold red] Could not resolve any domains.")
-        return
-
-    console.print("\n[yellow]Step 2: Baseline Testing...[/yellow]")
-    baseline_results = await hybrid_engine.test_baseline_connectivity(dm.domains, dns_cache)
-    blocked_sites = [
-        site
-        for site, (status, _, _, _) in baseline_results.items()
-        if status not in ["WORKING"]
-    ]
-    if not blocked_sites:
-        console.print("[bold green]✓ All sites are accessible! No optimization needed.[/bold green]")
-        return
-    console.print(f"Found {len(blocked_sites)} blocked sites for optimization.")
-
-    console.print("\n[yellow]Step 3: Preparing base strategies...[/yellow]")
-    generator = ZapretStrategyGenerator()
-    strategies = generator.generate_strategies(None, count=args.count)
-    structured_strategies = []
-    for s_str in strategies:
-        try:
-            parsed_strategy = interpret_strategy(s_str)
-            if parsed_strategy:
-                engine_task = {
-                    "type": parsed_strategy.get("type", "unknown"),
-                    "params": parsed_strategy.get("params", {})
-                }
-                structured_strategies.append(engine_task)
-        except Exception:
-            pass
-
-    if not structured_strategies:
-        console.print("[bold red]Error: Could not generate any valid base strategies.[/bold red]")
-        return
-
-    console.print(f"Generated {len(structured_strategies)} base strategies.")
-
-    # This is where the ParametricOptimizer comes in
-    from core.parametric_optimizer import ParametricOptimizer
-    optimizer = ParametricOptimizer(
-        engine=hybrid_engine,
-        sites=blocked_sites,
-        ips=all_target_ips,
-        dns_cache=dns_cache,
-        port=args.port,
-        base_strategies=structured_strategies,
-        optimization_strategy=args.optimization_strategy,
-        max_iterations=args.optimization_iterations
-    )
-
-    console.print(f"\n[bold magenta]🚀 Starting Parametric Optimization ({args.optimization_strategy}, {args.optimization_iterations} iterations)...[/bold magenta]")
-
-    start_time = time.time()
-    best_strategy_task = await optimizer.run_optimization()
-    optimization_time = time.time() - start_time
-
-    if not best_strategy_task:
-        console.print("[bold red]❌ Optimization failed to find a working strategy.[/bold red]")
-        return
-
-    console.print("\n" + "=" * 60)
-    console.print("[bold green]🎉 Closed-Loop Optimization Complete! 🎉[/bold green]")
-    console.print(f"Optimization time: {optimization_time:.1f}s")
-    console.print(f"Best score: [green]{optimizer.best_score:.3f}[/green]")
-    console.print(f"Best strategy: [cyan]{best_strategy_task}[/cyan]")
-
-    # Save the best strategy
-    try:
-        with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
-            json.dump(best_strategy_task, f, indent=2, ensure_ascii=False)
-        console.print(f"[green]💾 Best strategy saved to '{STRATEGY_FILE}'[/green]")
-    except Exception as e:
-        console.print(f"[red]Error saving best strategy: {e}[/red]")
-
-    hybrid_engine.cleanup()
 
 
 def load_all_attacks():
@@ -3081,6 +3392,31 @@ def main():
         action="store_true",
         help="Include full per-strategy engine telemetry snapshots in the report."
     )
+    
+    # Validation arguments
+    parser.add_argument(
+        "--validate-pcap",
+        type=str,
+        metavar="FILE",
+        help="Validate a specific PCAP file and exit (generates detailed validation report).",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Enable validation mode: validate PCAP files and strategies during execution.",
+    )
+    parser.add_argument(
+        "--validate-baseline",
+        type=str,
+        metavar="NAME",
+        help="Compare current execution results with specified baseline (requires --validate).",
+    )
+    parser.add_argument(
+        "--save-baseline",
+        type=str,
+        metavar="NAME",
+        help="Save current execution results as baseline with specified name (requires --validate).",
+    )
 
     args = parser.parse_args()
 
@@ -3100,12 +3436,59 @@ def main():
     if args.profile_pcap:
         asyncio.run(run_profiling_mode(args))
         return
+    
+    # PCAP validation mode - validate and exit
+    if args.validate_pcap:
+        from core.cli_validation_orchestrator import CLIValidationOrchestrator
+        from pathlib import Path
+        
+        console.print("\n[bold][VALIDATION] PCAP Validation Mode[/bold]")
+        console.print(f"[dim]Validating PCAP file: {args.validate_pcap}[/dim]\n")
+        
+        try:
+            orchestrator = CLIValidationOrchestrator()
+            pcap_path = Path(args.validate_pcap)
+            
+            if not pcap_path.exists():
+                console.print(f"[bold red]Error: PCAP file not found: {args.validate_pcap}[/bold red]")
+                return
+            
+            # Validate PCAP
+            validation_result = orchestrator.validate_pcap(pcap_path)
+            
+            # Create validation report
+            report = orchestrator.create_validation_report(
+                pcap_validation=validation_result
+            )
+            
+            # Display formatted output
+            output = orchestrator.format_validation_output(report, use_colors=RICH_AVAILABLE)
+            console.print(output)
+            
+            # Save detailed report
+            report_file = orchestrator.output_dir / f"pcap_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            report.save_to_file(report_file)
+            console.print(f"\n[green]✓ Detailed validation report saved to: {report_file}[/green]")
+            
+            # Exit with appropriate code
+            sys.exit(0 if validation_result.passed else 1)
+            
+        except ImportError as e:
+            console.print(f"[bold red]Error: Required validation modules not available: {e}[/bold red]")
+            console.print("[yellow]Please ensure Scapy is installed: pip install scapy[/yellow]")
+            sys.exit(1)
+        except Exception as e:
+            console.print(f"[bold red]Error during PCAP validation: {e}[/bold red]")
+            import traceback
+            if args.debug:
+                traceback.print_exc()
+            sys.exit(1)
 
     # Обработка команд кэша
     if args.cache_stats:
         learning_cache = AdaptiveLearningCache()
         stats = learning_cache.get_cache_stats()
-        console.print("\n[bold underline]🧠 Learning Cache Statistics[/bold underline]")
+        console.print("\n[bold underline][AI] Learning Cache Statistics[/bold underline]")
         console.print(f"Strategy records: {stats['total_strategy_records']}")
         console.print(f"Total tests: {stats['total_tests_performed']}")
         console.print(f"Domains learned: {stats['domains_learned']}")
@@ -3117,7 +3500,7 @@ def main():
         cache_file = Path("recon_learning_cache.pkl")
         if cache_file.exists():
             cache_file.unlink()
-            console.print("[green]✓ Learning cache cleared.[/green]")
+            console.print("[green][OK] Learning cache cleared.[/green]")
         else:
             console.print("[yellow]Learning cache was already empty.[/yellow]")
 

@@ -1,0 +1,29 @@
+{
+  "startup_time": {
+    "mean": 0.007493619999149814,
+    "median": 0.003954550018534064,
+    "min": 0.002168899984098971,
+    "max": 0.025134900002740324,
+    "stdev": 0.007947716542153906
+  },
+  "strategy_loading_time": {
+    "mean": 7.86010007141158e-05,
+    "median": 2.9749993700534105e-05,
+    "min": 3.100023604929447e-06,
+    "max": 0.002736700000241399,
+    "stdev": 0.0002932504565542334
+  },
+  "forced_override_creation_time": {
+    "mean": 3.458001301623881e-06,
+    "median": 1.100008375942707e-06,
+    "min": 8.999486453831196e-07,
+    "max": 9.819999104365706e-05,
+    "stdev": 1.12999174096385e-05
+  },
+  "assessment": {
+    "startup_acceptable": true,
+    "loading_acceptable": true,
+    "override_acceptable": true,
+    "overall_acceptable": true
+  }
+}

@@ -1,0 +1,9 @@
+https://x.com
+https://www.x.com
+https://api.x.com
+https://mobile.x.com
+https://pbs.twimg.com
+https://abs.twimg.com
+https://abs-0.twimg.com
+https://video.twimg.com
+https://ton.twimg.com

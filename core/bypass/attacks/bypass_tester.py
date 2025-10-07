@@ -139,7 +139,7 @@ class BypassTester:
             },
         }
         self.logger.info(
-            f"Real bypass test for {domain}: effective={effectiveness_result.bypass_effective}, score={effectiveness_result.effectiveness_score:.2f}"
+            f"Real FORCED OVERRIDE bypass test for {domain}: effective={effectiveness_result.bypass_effective}, score={effectiveness_result.effectiveness_score:.2f}"
         )
         return result
 
@@ -157,11 +157,11 @@ class BypassTester:
             Dictionary with legacy format results
         """
         domain = context.domain
-        self.logger.info(f"Testing {domain} without bypass (baseline)...")
+        self.logger.info(f"Testing {domain} without FORCED OVERRIDE bypass (baseline)...")
         baseline_success, baseline_latency, baseline_error, baseline_info = (
             await self.domain_tester.test_domain_accessibility(domain)
         )
-        self.logger.info(f"Testing {domain} with bypass strategy (simulated)...")
+        self.logger.info(f"Testing {domain} with FORCED OVERRIDE bypass strategy (simulated)...")
         bypass_success, bypass_latency, bypass_error, bypass_info = (
             await self._test_with_bypass(context, attack_result)
         )
@@ -199,7 +199,7 @@ class BypassTester:
             },
         }
         self.logger.info(
-            f"Legacy bypass test for {domain}: effective={bypass_effective}"
+            f"Legacy FORCED OVERRIDE bypass test for {domain}: effective={bypass_effective}"
         )
         return result
 

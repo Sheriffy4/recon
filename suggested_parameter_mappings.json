@@ -1,0 +1,8 @@
+{
+  "multisplit": {
+    "split_count": "num_splits"
+  },
+  "tcp_multisplit": {
+    "split_count": "num_splits"
+  }
+}

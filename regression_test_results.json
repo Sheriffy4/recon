@@ -1,0 +1,129 @@
+{
+  "total_tests": 15,
+  "passed": 15,
+  "failed": 0,
+  "results": [
+    {
+      "test_name": "attack_loading",
+      "passed": true,
+      "error": null,
+      "details": {
+        "attacks_loaded": 66
+      }
+    },
+    {
+      "test_name": "parameter_mapping_tcp_fakeddisorder",
+      "passed": true,
+      "error": null,
+      "details": {
+        "mapped_params": {}
+      }
+    },
+    {
+      "test_name": "parameter_mapping_fake_disorder",
+      "passed": true,
+      "error": null,
+      "details": {
+        "mapped_params": {
+          "split_pos": 2,
+          "ttl": 1
+        }
+      }
+    },
+    {
+      "test_name": "parameter_mapping_multisplit",
+      "passed": true,
+      "error": null,
+      "details": {
+        "mapped_params": {}
+      }
+    },
+    {
+      "test_name": "attack_execution_tcp_fakeddisorder",
+      "passed": true,
+      "error": null,
+      "details": {}
+    },
+    {
+      "test_name": "attack_execution_fake_disorder",
+      "passed": true,
+      "error": null,
+      "details": {}
+    },
+    {
+      "test_name": "pcap_validation",
+      "passed": true,
+      "error": null,
+      "details": {
+        "pcap_file": "disorder.pcap",
+        "validation_passed": true
+      }
+    },
+    {
+      "test_name": "strategy_parsing_function_fake",
+      "passed": true,
+      "error": null,
+      "details": {
+        "attack_type": "fake"
+      }
+    },
+    {
+      "test_name": "strategy_parsing_function_split",
+      "passed": true,
+      "error": null,
+      "details": {
+        "attack_type": "split"
+      }
+    },
+    {
+      "test_name": "strategy_parsing_function_fakeddisorder",
+      "passed": true,
+      "error": null,
+      "details": {
+        "attack_type": "fakeddisorder"
+      }
+    },
+    {
+      "test_name": "strategy_parsing_zapret_fake",
+      "passed": true,
+      "error": null,
+      "details": {
+        "attack_type": "fake"
+      }
+    },
+    {
+      "test_name": "strategy_parsing_zapret_split",
+      "passed": true,
+      "error": null,
+      "details": {
+        "attack_type": "split"
+      }
+    },
+    {
+      "test_name": "strategy_parsing_zapret_combo",
+      "passed": true,
+      "error": null,
+      "details": {
+        "attack_type": "fakeddisorder"
+      }
+    },
+    {
+      "test_name": "orchestration",
+      "passed": true,
+      "error": null,
+      "details": {
+        "orchestrator_initialized": true
+      }
+    },
+    {
+      "test_name": "end_to_end_workflow",
+      "passed": true,
+      "error": null,
+      "details": {
+        "strategy": "tcp_fakeddisorder(split_pos=2, ttl=1)",
+        "attack_type": "tcp_fakeddisorder",
+        "execution_success": true
+      }
+    }
+  ]
+}

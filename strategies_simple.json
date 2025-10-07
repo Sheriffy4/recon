@@ -1,0 +1,15 @@
+{
+  "x.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "www.x.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "api.x.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "mobile.x.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "twitter.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "www.twitter.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "rutracker.org": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "nnmclub.to": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "instagram.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "facebook.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "youtube.com": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "telegram.org": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4",
+  "default": "--dpi-desync=fake --dpi-desync-split-pos=2 --dpi-desync-ttl=4"
+}

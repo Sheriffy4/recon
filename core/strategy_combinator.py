@@ -379,6 +379,96 @@ class StrategyCombinator:
         
         return valid_suggestions
     
+    def suggest_combinations_from_rule_recommendations(self, rule_recommendations: List[str], 
+                                                     technique_priorities: Dict[str, int],
+                                                     technique_confidences: Dict[str, float]) -> List[Tuple[str, Dict[str, Any]]]:
+        """
+        Create strategy combinations based on rule engine recommendations.
+        
+        Args:
+            rule_recommendations: List of recommended techniques from rule engine
+            technique_priorities: Priority scores for each technique
+            technique_confidences: Confidence scores for each technique
+            
+        Returns:
+            List of (combination_name, strategy) tuples
+        """
+        
+        suggestions = []
+        
+        # Group techniques by type
+        main_attacks = []
+        fooling_methods = []
+        ttl_methods = []
+        advanced_methods = []
+        
+        for technique in rule_recommendations:
+            if technique in ["tcp_fakeddisorder", "tcp_multisplit", "tcp_seqovl", "tcp_multidisorder"]:
+                main_attacks.append(technique)
+            elif "fooling" in technique or technique in ["badsum_fooling", "md5sig_fooling", "badseq_fooling"]:
+                fooling_methods.append(technique)
+            elif "ttl" in technique:
+                ttl_methods.append(technique)
+            else:
+                advanced_methods.append(technique)
+        
+        # Create combinations based on highest priority techniques
+        if main_attacks:
+            primary_attack = main_attacks[0]  # Highest priority main attack
+            
+            # Create basic combination
+            components = [f"{primary_attack.replace('tcp_', '')}_base"]
+            
+            # Add fooling if available
+            if fooling_methods:
+                fooling_method = fooling_methods[0].replace("_fooling", "")
+                components.append(f"{fooling_method}_fooling")
+            
+            # Add TTL if available
+            if ttl_methods:
+                if "low_ttl" in ttl_methods[0]:
+                    components.append("low_ttl")
+                else:
+                    components.append("high_ttl")
+            
+            # Create combination
+            strategy = self.combine_components(components)
+            if strategy:
+                confidence = max([technique_confidences.get(t, 0.5) for t in rule_recommendations[:3]])
+                combination_name = f"rule_based_{primary_attack}_{confidence:.2f}"
+                suggestions.append((combination_name, strategy))
+        
+        # Create advanced combinations for high-confidence techniques
+        high_confidence_techniques = [
+            t for t in rule_recommendations 
+            if technique_confidences.get(t, 0.0) > 0.8
+        ]
+        
+        if len(high_confidence_techniques) >= 2:
+            # Try to create a multi-technique combination
+            if "tcp_multisplit" in high_confidence_techniques and "badsum_fooling" in high_confidence_techniques:
+                strategy = self.get_predefined_combination("multisplit_aggressive")
+                if strategy:
+                    suggestions.append(("rule_multisplit_aggressive", strategy))
+            
+            if "tcp_fakeddisorder" in high_confidence_techniques:
+                strategy = self.get_predefined_combination("disorder_badsum_combo")
+                if strategy:
+                    suggestions.append(("rule_fakeddisorder_combo", strategy))
+        
+        # Remove duplicates
+        unique_suggestions = []
+        seen_strategies = set()
+        
+        for name, strategy in suggestions:
+            if strategy is not None:
+                strategy_str = str(sorted(strategy.items()))
+                if strategy_str not in seen_strategies:
+                    unique_suggestions.append((name, strategy))
+                    seen_strategies.add(strategy_str)
+        
+        return unique_suggestions
+    
     def create_custom_combination(self, base_attack: str, **kwargs) -> Optional[Dict[str, Any]]:
         """
         Create a custom combination with specified parameters.

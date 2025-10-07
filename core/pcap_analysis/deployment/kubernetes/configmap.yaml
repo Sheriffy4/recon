@@ -1,0 +1,127 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pcap-analysis-config
+  namespace: pcap-analysis
+data:
+  config.conf: |
+    [default]
+    log_level = INFO
+    log_file = /app/logs/app.log
+    cache_enabled = true
+    cache_dir = /app/cache
+    data_dir = /app/data
+    backup_dir = /app/backups
+
+    [performance]
+    parallel_processing = true
+    max_workers = 4
+    memory_limit = 4G
+    streaming_threshold = 100M
+    timeout = 300
+
+    [analysis]
+    detailed_timing = true
+    checksum_validation = true
+    pattern_recognition = true
+    root_cause_analysis = true
+    generate_fixes = true
+
+    [validation]
+    test_timeout = 30
+    retry_count = 3
+    success_threshold = 0.8
+    parallel_tests = true
+
+    [database]
+    enabled = false
+
+    [redis]
+    enabled = true
+    host = pcap-redis-service
+    port = 6379
+    db = 0
+
+    [monitoring]
+    enabled = true
+    metrics_port = 9090
+    health_check_port = 8081
+    prometheus_enabled = true
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: pcap-analysis
+data:
+  redis.conf: |
+    # Redis configuration for PCAP Analysis
+    bind 0.0.0.0
+    port 6379
+    timeout 0
+    tcp-keepalive 300
+    
+    # Memory management
+    maxmemory 1gb
+    maxmemory-policy allkeys-lru
+    
+    # Persistence
+    save 900 1
+    save 300 10
+    save 60 10000
+    
+    # Security
+    protected-mode yes
+    
+    # Logging
+    loglevel notice
+    logfile ""
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: pcap-analysis
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    
+    http {
+        upstream pcap-analysis {
+            server pcap-analysis-service:8080;
+        }
+        
+        server {
+            listen 80;
+            server_name _;
+            
+            location /health {
+                proxy_pass http://pcap-analysis-service:8081/health;
+                access_log off;
+            }
+            
+            location /metrics {
+                proxy_pass http://pcap-analysis-service:9090/metrics;
+                allow 10.0.0.0/8;
+                allow 172.16.0.0/12;
+                allow 192.168.0.0/16;
+                deny all;
+            }
+            
+            location / {
+                proxy_pass http://pcap-analysis;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
+        }
+    }

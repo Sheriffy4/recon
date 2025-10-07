@@ -26,6 +26,11 @@ _ALIAS_MAP = {
     "fake-desync": "fake",
     # generic DSL alias
     "desync": "fakeddisorder",
+    # ✅ FIX: Add split and disorder aliases
+    "split": "split",
+    "disorder": "disorder",
+    "tcp_split": "split",
+    "tcp_disorder": "disorder",
 }
 
 def normalize_attack_name(name: str) -> str:

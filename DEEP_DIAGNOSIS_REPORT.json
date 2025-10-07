@@ -1,0 +1,65 @@
+{
+  "timestamp": "2025-10-03",
+  "total_issues": 8,
+  "issues": [
+    "РАЗНИЦА: Количество CH пакетов (Recon=2, Zapret=1)",
+    "Пакет 1: Длина различается (Recon=517, Zapret=680)",
+    "Пакет 1: Checksum различается (Recon=0x9997, Zapret=0x5786)",
+    "КРИТИЧНО: Success rate = 0% - обход НЕ РАБОТАЕТ",
+    "КРИТИЧНО: Bypass не применялся ни разу!",
+    "КРИТИЧНО: Пакеты не отправлялись!",
+    "ПРОБЛЕМА: Получено 2 RST пакетов",
+    "Найдены ошибки: \\[ERROR\\] (1 раз)"
+  ],
+  "recon_stats": {
+    "total": 2623,
+    "tcp": 2469,
+    "with_payload": 1729,
+    "client_hello": 2,
+    "server_hello": 1,
+    "rst": 1,
+    "syn": 4,
+    "ack": 2467,
+    "psh_ack": 1006,
+    "ttl_values": {
+      "48": 1180,
+      "128": 1266,
+      "57": 19,
+      "3": 1,
+      "64": 2,
+      "111": 1
+    },
+    "fake_packets": 1,
+    "real_packets": 1,
+    "bad_checksum": 0,
+    "good_checksum": 2
+  },
+  "zapret_stats": {
+    "total": 4793,
+    "tcp": 4642,
+    "with_payload": 3336,
+    "client_hello": 1,
+    "server_hello": 1,
+    "rst": 1,
+    "syn": 2,
+    "ack": 4641,
+    "psh_ack": 2140,
+    "ttl_values": {
+      "48": 2401,
+      "128": 2159,
+      "52": 20,
+      "121": 1,
+      "57": 56,
+      "3": 5
+    },
+    "fake_packets": 1,
+    "real_packets": 0,
+    "bad_checksum": 0,
+    "good_checksum": 1
+  },
+  "pcap_differences": [
+    "РАЗНИЦА: Количество CH пакетов (Recon=2, Zapret=1)",
+    "Пакет 1: Длина различается (Recon=517, Zapret=680)",
+    "Пакет 1: Checksum различается (Recon=0x9997, Zapret=0x5786)"
+  ]
+}

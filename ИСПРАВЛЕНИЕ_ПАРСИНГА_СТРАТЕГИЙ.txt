@@ -1,0 +1,78 @@
+═══════════════════════════════════════════════════════════════
+  ИСПРАВЛЕНИЕ ОШИБКИ ПАРСИНГА СТРАТЕГИЙ
+═══════════════════════════════════════════════════════════════
+
+ПРОБЛЕМА:
+---------
+[ERROR] No valid DPI methods found in strategy: 'multidisorder --split-pos=46...'
+Warning: Could not parse strategy: multidisorder --split-pos=46...
+Fatal Error: No valid strategies could be parsed.
+
+ПРИЧИНА:
+--------
+Стратегии передавались БЕЗ префикса --dpi-desync=
+Парсер ожидает ПОЛНЫЙ формат zapret команд.
+
+НЕПРАВИЛЬНО:
+  multidisorder --split-pos=1 --ttl=1 --fooling=badsum
+
+ПРАВИЛЬНО:
+  --dpi-desync=multidisorder --dpi-desync-split-pos=1 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+
+РЕШЕНИЕ:
+--------
+
+1. ТЕСТИРОВАНИЕ X.COM С ПРАВИЛЬНЫМ ФОРМАТОМ:
+
+   cd recon
+   python test_x_com_direct.py
+
+   Этот скрипт протестирует 5 стратегий в правильном формате:
+   - multidisorder split_pos=1 ttl=1 (как на роутере)
+   - multidisorder split_pos=1 ttl=2
+   - fake+multidisorder split_pos=1 ttl=1
+   - multidisorder split_pos=1,5,10
+   - fakeddisorder split_pos=1 ttl=1
+
+2. ОБНОВЛЕНИЕ STRATEGIES.JSON:
+
+   После того как найдете рабочую стратегию:
+   
+   python fix_x_com_service.py
+
+   Это обновит strategies.json с рабочей стратегией.
+
+3. ПЕРЕЗАПУСК СЛУЖБЫ:
+
+   - Остановите текущую службу (Ctrl+C)
+   - Запустите заново: python setup.py
+   - Выберите [2] Запустить службу обхода
+
+ФОРМАТ СТРАТЕГИЙ В STRATEGIES.JSON:
+-----------------------------------
+
+Все стратегии ДОЛЖНЫ начинаться с --dpi-desync=
+
+Пример правильного формата:
+{
+  "x.com": "--dpi-desync=multidisorder --dpi-desync-split-pos=1 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum,badseq"
+}
+
+РУЧНОЕ ТЕСТИРОВАНИЕ:
+--------------------
+
+Если хотите протестировать вручную:
+
+python cli.py x.com --strategy "--dpi-desync=multidisorder --dpi-desync-split-pos=1 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum,badseq"
+
+ВАЖНО: Стратегия в кавычках и с полным префиксом!
+
+ПРОВЕРКА ТЕКУЩИХ СТРАТЕГИЙ:
+---------------------------
+
+Откройте strategies.json и проверьте что ВСЕ стратегии начинаются с:
+  --dpi-desync=
+
+Если нет - исправьте вручную или запустите fix_x_com_service.py
+
+═══════════════════════════════════════════════════════════════

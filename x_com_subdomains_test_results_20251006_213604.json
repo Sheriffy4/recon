@@ -1,0 +1,211 @@
+{
+  "test_suite": "X.com Subdomains Comprehensive Test",
+  "timestamp": "2025-10-06T21:36:04.638690",
+  "total_duration": 83.94165539741516,
+  "subdomains_tested": [
+    "www.x.com",
+    "api.x.com",
+    "mobile.x.com"
+  ],
+  "total_tests": 3,
+  "successful_tests": 2,
+  "failed_tests": 1,
+  "success_rate": 66.66666666666666,
+  "all_passed": false,
+  "results": {
+    "www.x.com": {
+      "domain": "www.x.com",
+      "timestamp": "2025-10-06T21:35:42.407342",
+      "test_duration": 61.660402059555054,
+      "overall_success": false,
+      "dns_resolution": {
+        "success": true,
+        "ips": [
+          "162.159.140.229",
+          "172.66.0.227"
+        ],
+        "ip_count": 2
+      },
+      "tcp_connection": {
+        "success": true
+      },
+      "tls_handshake": {
+        "success": false,
+        "error": "_ssl.c:993: The handshake operation timed out",
+        "tls_version": null,
+        "cipher": null,
+        "cert_subject": null,
+        "cert_issuer": null
+      },
+      "http_request": {
+        "success": false,
+        "error": "HTTPSConnectionPool(host='www.x.com', port=443): Read timed out. (read timeout=30)",
+        "status_code": null,
+        "headers": null,
+        "content_length": 0,
+        "response_time": null,
+        "final_url": null,
+        "redirects": 0
+      },
+      "service_logs": {
+        "strategy_mapped": true,
+        "bypass_applied": true,
+        "correct_strategy": true,
+        "autottl_used": true
+      },
+      "requirements_met": {
+        "accessible": false,
+        "correct_strategy": true,
+        "bypass_working": false
+      }
+    },
+    "api.x.com": {
+      "domain": "api.x.com",
+      "timestamp": "2025-10-06T21:35:54.027348",
+      "test_duration": 11.61777377128601,
+      "overall_success": true,
+      "dns_resolution": {
+        "success": true,
+        "ips": [
+          "162.159.140.229",
+          "172.66.0.227"
+        ],
+        "ip_count": 2
+      },
+      "tcp_connection": {
+        "success": true
+      },
+      "tls_handshake": {
+        "success": true,
+        "tls_version": "TLSv1.3",
+        "cipher": "TLS_AES_256_GCM_SHA384",
+        "cert_subject": {
+          "commonName": "x.com"
+        },
+        "cert_issuer": {
+          "countryName": "US",
+          "organizationName": "Let's Encrypt",
+          "commonName": "E5"
+        },
+        "error": null
+      },
+      "http_request": {
+        "success": true,
+        "status_code": 404,
+        "headers": {
+          "Date": "Mon, 06 Oct 2025 18:35:53 GMT",
+          "Content-Length": "0",
+          "Connection": "keep-alive",
+          "perf": "7402827104",
+          "Cache-Control": "no-cache, no-store, max-age=0",
+          "x-transaction-id": "1eca457aaa3037df",
+          "strict-transport-security": "max-age=631138519; includeSubdomains",
+          "origin-cf-ray": "98a742dd9dd7e4e1-ATL",
+          "x-served-by": "tsa_b",
+          "x-response-time": "1",
+          "x-connection-hash": "5a4454bfc7c1aab0062dfc7e5e1d1afe5e73a5fdf9e5fa08f453927e9c4e7c6e",
+          "Server": "cloudflare tsa_b",
+          "cf-cache-status": "DYNAMIC",
+          "CF-RAY": "98a742dd9dd7e4e1-RIX"
+        },
+        "content_length": 0,
+        "response_time": 10.005199,
+        "final_url": "https://api.x.com/",
+        "redirects": 0,
+        "error": null
+      },
+      "service_logs": {
+        "strategy_mapped": true,
+        "bypass_applied": true,
+        "correct_strategy": true,
+        "autottl_used": true
+      },
+      "requirements_met": {
+        "accessible": true,
+        "correct_strategy": true,
+        "bypass_working": true
+      }
+    },
+    "mobile.x.com": {
+      "domain": "mobile.x.com",
+      "timestamp": "2025-10-06T21:36:04.635699",
+      "test_duration": 10.606845378875732,
+      "overall_success": true,
+      "dns_resolution": {
+        "success": true,
+        "ips": [
+          "172.66.0.227"
+        ],
+        "ip_count": 1
+      },
+      "tcp_connection": {
+        "success": true
+      },
+      "tls_handshake": {
+        "success": true,
+        "tls_version": "TLSv1.3",
+        "cipher": "TLS_AES_256_GCM_SHA384",
+        "cert_subject": {
+          "commonName": "x.com"
+        },
+        "cert_issuer": {
+          "countryName": "US",
+          "organizationName": "Let's Encrypt",
+          "commonName": "E5"
+        },
+        "error": null
+      },
+      "http_request": {
+        "success": true,
+        "status_code": 200,
+        "headers": {
+          "Date": "Mon, 06 Oct 2025 18:36:04 GMT",
+          "Content-Type": "text/html; charset=utf-8",
+          "Transfer-Encoding": "chunked",
+          "Connection": "keep-alive",
+          "perf": "7402827104",
+          "expiry": "Tue, 31 Mar 1981 05:00:00 GMT",
+          "pragma": "no-cache",
+          "Server": "cloudflare tsa_b",
+          "x-powered-by": "Express",
+          "Cache-Control": "no-cache, no-store, must-revalidate, pre-check=0, post-check=0",
+          "last-modified": "Mon, 06 Oct 2025 18:36:04 GMT",
+          "x-frame-options": "DENY",
+          "x-transaction-id": "e0735a1c83f220a0",
+          "x-xss-protection": "0",
+          "reporting-endpoints": "coep-report=\"https://mobile.x.com/i/coep-report\", coop-report=\"https://mobile.x.com/i/coop-report\"",
+          "x-content-type-options": "nosniff",
+          "content-security-policy": "connect-src 'self' blob: https://fonts.googleapis.com/css https://mapsresources-pa.googleapis.com https://maps.googleapis.com https://translate.googleapis.com https://www.gstatic.com/maps/ https://*.pscp.tv https://*.twimg.com https://*.video.pscp.tv https://aa.twitter.com https://aa.x.com https://accounts.google.com/gsi/ https://ads-api.twitter.com https://ads-api.x.com https://api-stream.twitter.com https://api-stream.x.com https://api.twitter.com https://api.x.ai https://api.x.com https://api.x.com https://caps.twitter.com https://caps.x.com https://grok.x.com https://jf.twitter.com https://jf.x.com https://jf-t.x.com https://pay.twitter.com https://pay.x.com https://sentry.io https://ton-staging.atla.twitter.com https://ton-staging.atla.x.com https://ton-staging.pdxa.twitter.com https://ton-staging.pdxa.x.com https://ton.twitter.com https://ton.local.twitter.com https://ton.x.com https://twitter.com https://upload.twitter.com https://upload.x.com https://www.google-analytics.com https://x.com https://grok-api.gcp.mouseion.dev https://assets.mouseion.dev https://grok.com https://assets.grok.com https://*.adtrafficquality.google https://*.googlesyndication.com https://*.doubleclick.net https://adservice.google.com https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://google.com https://via.intercom.io https://api.intercom.io https://api.au.intercom.io https://api.eu.intercom.io https://api-iam.intercom.io https://api-iam.eu.intercom.io https://api-iam.au.intercom.io https://api-ping.intercom.io https://nexus-websocket-a.intercom.io wss://nexus-websocket-a.intercom.io https://nexus-websocket-b.intercom.io wss://nexus-websocket-b.intercom.io https://nexus-europe-websocket.intercom.io wss://nexus-europe-websocket.intercom.io https://nexus-australia-websocket.intercom.io wss://nexus-australia-websocket.intercom.io https://uploads.intercomcdn.com https://uploads.intercomcdn.eu https://uploads.au.intercomcdn.com https://uploads.eu.intercomcdn.com https://uploads.intercomusercontent.com https://production.plaid.com/ https://sandbox.plaid.com/ https://ingestion.dv.socure.io https://network.dv.socure.io/ https://analytics.dv.socure.io/ https://payments-dev.x.com/customer/wasm/forward-with-v1.wasm https://payments-staging.x.com/customer/wasm/forward-with-v1.wasm https://payments-prod.x.com/customer/wasm/forward-with-v1.wasm https://money-dev.x.com/customer/wasm/forward-with-v1.wasm https://money-staging.x.com/customer/wasm/forward-with-v1.wasm https://money.x.com/customer/wasm/forward-with-v1.wasm https://api.stripe.com https://m.castle.io https://checkoutshopper-live.adyen.com wss://*.pscp.tv https://vmap.snappytv.com https://vmapstage.snappytv.com https://vmaprel.snappytv.com https://vmap.grabyo.com https://dhdsnappytv-vh.akamaihd.net https://pdhdsnappytv-vh.akamaihd.net https://mdhdsnappytv-vh.akamaihd.net https://mdhdsnappytv-vh.akamaihd.net https://mpdhdsnappytv-vh.akamaihd.net https://mmdhdsnappytv-vh.akamaihd.net https://mdhdsnappytv-vh.akamaihd.net https://mpdhdsnappytv-vh.akamaihd.net https://mmdhdsnappytv-vh.akamaihd.net https://dwo3ckksxlb0v.cloudfront.net https://media.riffsy.com https://*.giphy.com https://media.tenor.com https://c.tenor.com wss://chat-ws.x.com https://d1muhwhmpsz4u8.cloudfront.net/ https://d2bchqfeno8n2m.cloudfront.net/ https://d2shtph9y6bxk.cloudfront.net/ https://xchat-hsm-staging.x.com/ https://realm-a.x.com https://realm-b.x.com https://realm-west1.x.com https://realm-east1.x.com https://hsm-staging.x.com https://ads-twitter.com https://analytics.twitter.com https://analytics.x.com         ; default-src 'self'; form-action 'self' https://twitter.com https://*.twitter.com https://x.com https://*.x.com https://localhost.twitter.com:3443 https://localhost.x.com:3443 https://intercom.help https://api-iam.intercom.io https://api-iam.eu.intercom.io https://api-iam.au.intercom.io; font-src 'self' https://*.twimg.com https://js.intercomcdn.com https://fonts.intercomcdn.com; frame-src 'self' https://accounts.google.com/ https://accounts.google.com/gsi/ https://cards-frame.twitter.com https://cdn.plaid.com/ https://client-api.arkoselabs.com/ https://content.googleapis.com/ https://iframe.arkoselabs.com/ https://mobile.twitter.com https://mobile.x.com https://pay.twitter.com https://pay.x.com https://google.com https://www.google.com https://intercom-sheets.com https://www.intercom-reporting.com https://www.youtube.com https://player.vimeo.com https://fast.wistia.net https://console.googletagservices.com https://*.doubleclick.net https://*.adtrafficquality.google https://*.safeframe.googlesyndication.com https://www.googleadservices.com https://googleadservices.com https://adservice.google.com https://*.googlesyndication.com https://td.doubleclick.net https://payments-dev.x.com/ https://payments-staging.x.com/ https://payments-prod.x.com/ https://sdn.payments-dev.x.com/ https://sdn.payments-staging.x.com/ https://sdn.payments-prod.x.com/ https://money-dev.x.com/ https://money-staging.x.com/ https://money.x.com/ https://sdn.money-dev.x.com/ https://sdn.money-staging.x.com/ https://sdn.money.x.com/ https://p2pcreditcardiframesandbox.crbcos.com https://p2pcreditcardiframe.crbcos.com https://verify-sandbox.plaid.com/ https://*.js.stripe.com https://js.stripe.com https://hooks.stripe.com https://cdn.getpinwheel.com/ https://artifacts.grokusercontent.com https://twitter.com https://x.com  https://recaptcha.net/recaptcha/; img-src 'self' blob: data: https://www.google.com/maps/place/ https://imgs.search.brave.com https://*.cdn.twitter.com https://*.cdn.x.com https://ton.twitter.com https://ton.x.com https://*.twimg.com https://analytics.twitter.com https://analytics.x.com https://cm.g.doubleclick.net https://www.google-analytics.com https://maps.googleapis.com https://www.periscope.tv https://www.pscp.tv https://ads-twitter.com https://ads-api.twitter.com https://ads-api.x.com https://api.x.com https://developer.x.com blob: data: https://js.intercomcdn.com https://static.intercomassets.com https://downloads.intercomcdn.com https://downloads.intercomcdn.eu https://downloads.au.intercomcdn.com https://uploads.intercomusercontent.com https://gifs.intercomcdn.com https://video-messages.intercomcdn.com https://messenger-apps.intercom.io https://messenger-apps.eu.intercom.io https://messenger-apps.au.intercom.io https://*.intercom-attachments-1.com https://*.intercom-attachments.eu https://*.au.intercom-attachments.com https://*.intercom-attachments-2.com https://*.intercom-attachments-3.com https://*.intercom-attachments-4.com https://*.intercom-attachments-5.com https://*.intercom-attachments-6.com https://*.intercom-attachments-7.com https://*.intercom-attachments-8.com https://*.intercom-attachments-9.com https://static.intercomassets.eu https://static.au.intercomassets.com https://media.riffsy.com https://*.giphy.com https://media.tenor.com https://c.tenor.com https://*.pscp.tv https://*.periscope.tv https://prod-periscope-profile.s3-us-west-2.amazonaws.com https://platform-lookaside.fbsbx.com https://scontent.xx.fbcdn.net https://scontent-sea1-1.xx.fbcdn.net https://*.googleusercontent.com https://t.co/1/i/adsct https://*.googleusercontent.com https://*.gstatic.com https://*.googlesyndication.com https://*.adtrafficquality.google https://www.google.com/ads/measurement/ https://*.google.com/ads/measurement/ https://googleads.g.doubleclick.net https://google.com https://www.google.com https://plaid-merchant-logos.plaid.com https://plaid-counterparty-logos.plaid.com https://assets.mouseion.dev https://assets.grok.com; manifest-src 'self'; media-src 'self' data: blob: https://twitter.com https://x.com https://*.twimg.com https://*.vine.co https://*.pscp.tv https://*.video.pscp.tv https://js.intercomcdn.com https://downloads.intercomcdn.com https://downloads.intercomcdn.eu https://downloads.au.intercomcdn.com https://dhdsnappytv-vh.akamaihd.net https://pdhdsnappytv-vh.akamaihd.net https://mdhdsnappytv-vh.akamaihd.net https://mdhdsnappytv-vh.akamaihd.net https://mpdhdsnappytv-vh.akamaihd.net https://mmdhdsnappytv-vh.akamaihd.net https://mdhdsnappytv-vh.akamaihd.net https://mpdhdsnappytv-vh.akamaihd.net https://mmdhdsnappytv-vh.akamaihd.net https://dwo3ckksxlb0v.cloudfront.net; object-src 'none'; script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://*.twimg.com https://recaptcha.net/recaptcha/ http://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js https://accounts.google.com/gsi/client https://apis.google.com/js/api.js https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js https://client-api.arkoselabs.com/ https://static.ads-twitter.com https://twitter.com https://www.google-analytics.com https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js https://x.com https://sdn.payments-dev.x.com/assets/loader.min.js https://sdn.payments-staging.x.com/assets/loader.min.js https://sdn.payments-prod.x.com/assets/loader.min.js https://sdn.money-dev.x.com/assets/loader.min.js https://sdn.money-staging.x.com/assets/loader.min.js https://sdn.money.x.com/assets/loader.min.js https://sdk.dv.socure.io/latest/device-risk-sdk.js https://cdn.plaid.com/link/v2/stable/link-initialize.js https://payments-dev.x.com/customer/wasm/xxp-forward-with-sdk.js https://payments-staging.x.com/customer/wasm/xxp-forward-with-sdk.js https://payments-prod.x.com/customer/wasm/xxp-forward-with-sdk.js https://money-dev.x.com/customer/wasm/xxp-forward-with-sdk.js https://money-staging.x.com/customer/wasm/xxp-forward-with-sdk.js https://money.x.com/customer/wasm/xxp-forward-with-sdk.js https://js.stripe.com https://*.js.stripe.com https://cdn.getpinwheel.com/pinwheel-v3.1.0.js https://securepubads.g.doubleclick.net https://www.googletagservices.com https://*.googletagservices.com https://pagead2.googlesyndication.com https://adservice.google.com https://www.googleadservices.com https://ads.google.com https://tpc.googlesyndication.com https://*.tpc.googlesyndication.com https://www.google.com https://googleads.g.doubleclick.net https://app.intercom.io https://widget.intercom.io https://js.intercomcdn.com   'wasm-unsafe-eval'  'nonce-NDQ2MjIzNDYtMTc5MS00Yjg5LTllZTctNmIwYWZjYjhlZmJi'; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style https://*.twimg.com; child-src 'self' blob:; worker-src 'self' blob:; report-uri https://x.com/i/csp_report?a=O5RXE%3D%3D%3D&ro=false",
+          "cross-origin-opener-policy": "unsafe-none",
+          "cross-origin-embedder-policy": "unsafe-none",
+          "vary": "accept-encoding",
+          "strict-transport-security": "max-age=631138519; includeSubdomains",
+          "origin-cf-ray": "98a7431f7f29a899-ATL",
+          "x-served-by": "tsa_b",
+          "x-response-time": "13",
+          "x-connection-hash": "af985517220ca40f17030181fd394724263f82ebe310563cc09b9bdc97aab8fa",
+          "cf-cache-status": "DYNAMIC",
+          "Content-Encoding": "gzip",
+          "Set-Cookie": "guest_id_marketing=v1%3A175977576446703581; SameSite=None; Secure; Path=/; Domain=x.com; Max-Age=63072000; Expires=Wed, 06 Oct 2027 18:36:04 GMT, guest_id_ads=v1%3A175977576446703581; SameSite=None; Secure; Path=/; Domain=x.com; Max-Age=63072000; Expires=Wed, 06 Oct 2027 18:36:04 GMT, personalization_id=\"v1_cR8tIrG61aEJ67Jvwon5Vw==\"; SameSite=None; Secure; Path=/; Domain=x.com; Max-Age=63072000; Expires=Wed, 06 Oct 2027 18:36:04 GMT, guest_id=v1%3A175977576446703581; SameSite=None; Secure; Path=/; Domain=x.com; Max-Age=63072000; Expires=Wed, 06 Oct 2027 18:36:04 GMT, ct0=; SameSite=Lax; Secure; Path=/; Domain=x.com; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:01 GMT",
+          "CF-RAY": "98a7431f7f29a899-RIX"
+        },
+        "content_length": 222769,
+        "response_time": 10.005967,
+        "final_url": "https://mobile.x.com/",
+        "redirects": 0,
+        "error": null
+      },
+      "service_logs": {
+        "strategy_mapped": true,
+        "bypass_applied": true,
+        "correct_strategy": true,
+        "autottl_used": true
+      },
+      "requirements_met": {
+        "accessible": true,
+        "correct_strategy": true,
+        "bypass_working": true
+      }
+    }
+  }
+}

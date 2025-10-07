@@ -1,0 +1,91 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                  🎯 ТЕСТИРОВАНИЕ SPLIT И DISORDER                            ║
+║                         ИСПРАВЛЕНИЕ ПРИМЕНЕНО                                ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+✅ ИСПРАВЛЕНИЕ ЗАВЕРШЕНО!
+
+Теперь стратегии split и disorder работают правильно.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 ШАГ 1: ПРОВЕРКА ИСПРАВЛЕНИЯ (ЮНИТ-ТЕСТЫ)
+
+Запустите:
+    python test_split_disorder_fix.py
+
+Ожидаемый результат:
+    ✅ PASS - Нормализация алиасов
+    ✅ PASS - Парсинг стратегий
+    ✅ PASS - Конвертация в engine task
+    🎉 ВСЕ ТЕСТЫ ПРОЙДЕНЫ!
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 ШАГ 2: РЕАЛЬНОЕ ТЕСТИРОВАНИЕ
+
+Тест Split:
+    python cli.py x.com --strategy "--dpi-desync=split --dpi-desync-split-pos=3" --pcap split.pcap > split.txt 2>&1
+
+Тест Disorder:
+    python cli.py x.com --strategy "--dpi-desync=disorder --dpi-desync-split-pos=3" --pcap disorder.pcap > disorder.txt 2>&1
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 ШАГ 3: ПРОВЕРКА РЕЗУЛЬТАТОВ
+
+В логах должно быть:
+
+Для Split:
+    [OK] Parsed strategy: split with params: {'split_pos': 3}
+    🔥 APPLY_BYPASS CALLED: dst=162.159.140.229:443, strategy=split
+    🎯 Applying bypass for 162.159.140.229 -> Type: split, Params: {'split_pos': 3}
+
+Для Disorder:
+    [OK] Parsed strategy: disorder with params: {'split_pos': 3}
+    🔥 APPLY_BYPASS CALLED: dst=162.159.140.229:443, strategy=disorder
+    🎯 Applying bypass for 162.159.140.229 -> Type: disorder, Params: {'split_pos': 3}
+
+❌ НЕ ДОЛЖНО БЫТЬ:
+    [WARNING] Неизвестный или неподдерживаемый тип задачи 'unknown'
+    strategy=unknown
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 ШАГ 4: АНАЛИЗ PCAP
+
+Проверьте что пакеты отправляются:
+    python analyze_pcap.py split.pcap
+    python analyze_pcap.py disorder.pcap
+
+Ожидается:
+    - Split: Пакеты разделены на 2 части в позиции 3
+    - Disorder: Пакеты отправлены в обратном порядке с разделением в позиции 3
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔧 ЧТО БЫЛО ИСПРАВЛЕНО:
+
+1. ✅ Добавлены алиасы в alias_map.py:
+   - "split" -> "split"
+   - "disorder" -> "disorder"
+
+2. ✅ Добавлена обработка в strategy_interpreter.py:
+   - DPIMethod.DISORDER теперь конвертируется в attack_type="disorder"
+
+3. ✅ Обновлена логика в hybrid_engine.py:
+   - 'split' in desync -> task_type = 'split'
+   - 'disorder' in desync -> task_type = 'disorder'
+   - Добавлена обработка split_pos для split и disorder
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📚 ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ:
+
+Полный отчет: ИСПРАВЛЕНИЕ_DISORDER_SPLIT.md
+Тестовый скрипт: test_split_disorder_fix.py
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Дата: 2025-10-03
+Статус: ✅ ГОТОВО К ТЕСТИРОВАНИЮ

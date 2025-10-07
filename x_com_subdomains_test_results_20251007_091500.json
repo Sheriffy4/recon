@@ -1,0 +1,130 @@
+{
+  "test_timestamp": "2025-10-07T09:15:00",
+  "test_type": "x_com_subdomains_comprehensive_test",
+  "requirement": "6.6 - All x.com subdomains work correctly",
+  "subdomains_tested": [
+    "x.com",
+    "www.x.com", 
+    "api.x.com",
+    "mobile.x.com"
+  ],
+  "test_results": {
+    "automated_test": {
+      "successful_subdomains": [],
+      "failed_subdomains": [
+        "x.com",
+        "www.x.com",
+        "api.x.com", 
+        "mobile.x.com"
+      ],
+      "error_type": "timeout_after_8s",
+      "success_rate": "0.0%"
+    },
+    "manual_browser_test": {
+      "successful_subdomains": [],
+      "failed_subdomains": [
+        "x.com",
+        "www.x.com",
+        "api.x.com",
+        "mobile.x.com"
+      ],
+      "error_type": "connection_timeout",
+      "success_rate": "0.0%"
+    }
+  },
+  "service_status": {
+    "bypass_service_running": true,
+    "python_processes_detected": true,
+    "windivert_drivers_present": true,
+    "admin_privileges": true,
+    "strategies_configured": true
+  },
+  "strategy_verification": {
+    "x.com": {
+      "configured": true,
+      "strategy_string": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1",
+      "parsed_correctly": true,
+      "applied_by_service": true,
+      "observed_in_logs": true
+    },
+    "www.x.com": {
+      "configured": true,
+      "strategy_string": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1",
+      "parsed_correctly": true
+    },
+    "api.x.com": {
+      "configured": true,
+      "strategy_string": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1",
+      "parsed_correctly": true
+    },
+    "mobile.x.com": {
+      "configured": true,
+      "strategy_string": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1",
+      "parsed_correctly": true
+    }
+  },
+  "bypass_engine_logs": {
+    "multidisorder_attacks_observed": true,
+    "autottl_calculation_working": true,
+    "calculated_ttl": 10,
+    "target_ips": [
+      "172.66.0.227",
+      "162.159.140.229"
+    ],
+    "attack_parameters": {
+      "split_pos": 46,
+      "overlap_size": 1,
+      "fooling": ["badseq"],
+      "repeats": 2,
+      "autottl": 2
+    },
+    "packets_sent_successfully": true,
+    "retransmissions_detected": true
+  },
+  "network_analysis": {
+    "dns_resolution_working": true,
+    "direct_connection_test": "successful_to_port_443",
+    "x_com_ips_resolved": [
+      "172.66.0.227",
+      "162.159.140.229"
+    ],
+    "network_not_blocked_at_router_level": true
+  },
+  "diagnosis": {
+    "bypass_service_status": "running_correctly",
+    "strategy_configuration": "correct",
+    "strategy_application": "working",
+    "packet_manipulation": "functioning",
+    "autottl_calculation": "working",
+    "issue_identified": "connections_still_timing_out_despite_bypass",
+    "possible_causes": [
+      "DPI system may be more sophisticated than expected",
+      "X.com may have additional blocking mechanisms",
+      "Strategy may need further optimization",
+      "Network path may have multiple DPI points",
+      "Timing or packet ordering issues"
+    ]
+  },
+  "requirement_assessment": {
+    "requirement_6_6": "FAIL",
+    "reason": "All x.com subdomains fail to load despite correct bypass configuration and operation",
+    "subdomains_working": 0,
+    "subdomains_total": 4,
+    "success_rate": "0%"
+  },
+  "recommendations": [
+    "Investigate why connections timeout despite bypass packets being sent",
+    "Check if DPI system has multiple layers or detection methods",
+    "Consider testing with different strategy parameters",
+    "Analyze packet captures to see if bypass packets reach destination",
+    "Test with other domains to verify bypass engine functionality",
+    "Consider that x.com blocking may be more complex than standard DPI"
+  ],
+  "next_steps": [
+    "Run packet capture during x.com access attempt",
+    "Test bypass with other blocked domains to verify engine works",
+    "Try alternative strategies for x.com",
+    "Investigate if x.com uses additional blocking beyond DPI",
+    "Check if bypass timing needs adjustment"
+  ]
+}

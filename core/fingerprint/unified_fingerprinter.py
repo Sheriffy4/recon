@@ -36,7 +36,8 @@ except ImportError as e:
 
 try:
     from core.pcap.rst_analyzer import RSTTriggerAnalyzer, build_json_report
-    from core.hybrid_engine import HybridEngine
+    # ✅ FIX: Lazy import to avoid circular dependency
+    # from core.hybrid_engine import HybridEngine
     from core.doh_resolver import DoHResolver
     FALLBACK_COMPONENTS_AVAILABLE = True
 except ImportError as e:
@@ -468,6 +469,68 @@ class UnifiedFingerprinter:
             else:
                 raise FingerprintingError(f"Fingerprinting failed for {target}:{port}: {e}")
     
+    def build_json_report(pcap_file: str, triggers: List[Dict[str, Any]], no_reassemble: bool) -> Dict[str, Any]:
+        report = {
+            "pcap_file": pcap_file,
+            "analysis_timestamp": datetime.now().isoformat(),
+            "incident_count": len(triggers),
+            "incidents": []
+        }
+
+        for t in triggers:
+            trig_idx = detect_trigger_index(t)
+            rst_idx = detect_rst_index(t)
+            
+            assembled_payload, stream_label, reassembly_meta = b"", None, {}
+            if not no_reassemble and isinstance(trig_idx, int):
+                assembled_payload, stream_label, reassembly_meta = reassemble_clienthello(pcap_file, trig_idx, max_back=10)
+            
+            if not stream_label:
+                stream_label = get_stream_label(t, pcap_file, trig_idx or rst_idx)
+
+            tls = parse_client_hello(assembled_payload) or {}
+            entropy_analysis = analyze_payload_entropy(assembled_payload)
+            recs = generate_ml_enhanced_strategies(tls, t)
+
+            incident = {
+                "stream": stream_label,
+                "rst_index": rst_idx,
+                "trigger_index": trig_idx,
+                "injected": bool(get_first(t, ["is_injected","dpi_injection","injection"], False)),
+                "ttl_rst": get_first(t, ["rst_ttl","ttl_rst","rst_ttl_value"]),
+                "expected_ttl": get_first(t, ["expected_ttl","server_ttl"]),
+                "ttl_difference": get_first(t, ["ttl_difference","ttl_diff"]),
+                "time_delta": get_first(t, ["time_delta","dt"]),
+                "reassembly_metadata": reassembly_meta,
+                "entropy_analysis": entropy_analysis,
+                "tls": {
+                    "is_client_hello": tls.get("is_client_hello", False),
+                    "record_version": tls.get("record_version"),
+                    "client_version": tls.get("client_version"),
+                    "sni": tls.get("sni") or [],
+                    "cipher_suites": tls.get("cipher_suites") or [],
+                    "cipher_suites_raw": tls.get("cipher_suites_raw") or [],
+                    "extensions": tls.get("extensions") or [],
+                    "alpn": tls.get("alpn") or [],
+                    "supported_versions": tls.get("supported_versions") or [],
+                    "signature_algorithms": tls.get("signature_algorithms") or [],
+                    "supported_groups": tls.get("supported_groups") or [],
+                    "ec_point_formats": tls.get("ec_point_formats") or [],
+                    "ch_length": tls.get("ch_length"),
+                },
+                "payload_preview_hex": (assembled_payload[:64].hex() if assembled_payload else ""),
+                "recommended_strategies": recs
+            }
+            report["incidents"].append(incident)
+
+        # <<< НОВЫЙ БЛОК: Запуск статистического анализа >>>
+        if report["incidents"]:
+            pattern_analyzer = BlockingPatternAnalyzer()
+            report["statistical_analysis"] = pattern_analyzer.analyze_incidents(report["incidents"])
+        # <<< КОНЕЦ НОВОГО БЛОКА >>>
+
+        return report
+    
     async def _run_pcap_fallback_pass(
         self,
         target: str,
@@ -571,6 +634,8 @@ class UnifiedFingerprinter:
                 return {"dns_resolution": False}
             
             # 5. Test strategies via HybridEngine
+            # ✅ FIX: Lazy import to avoid circular dependency
+            from core.hybrid_engine import HybridEngine
             engine = HybridEngine(
                 debug=False,
                 enable_enhanced_tracking=False,

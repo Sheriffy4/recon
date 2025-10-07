@@ -1,0 +1,56 @@
+# PCAP Analysis System Requirements
+
+# Core dependencies
+scapy>=2.4.5
+numpy>=1.20.0
+pandas>=1.3.0
+
+# Network and packet processing
+dpkt>=1.9.8
+pypcap>=1.2.3
+
+# Configuration and CLI
+click>=8.0.0
+pyyaml>=6.0
+configparser>=5.0.0
+
+# Async and performance
+asyncio-mqtt>=0.11.0
+aiofiles>=0.8.0
+uvloop>=0.17.0
+
+# Database support (optional)
+sqlalchemy>=1.4.0
+psycopg2-binary>=2.9.0
+redis>=4.0.0
+
+# Monitoring and metrics
+prometheus-client>=0.15.0
+psutil>=5.8.0
+
+# Testing and validation
+pytest>=7.0.0
+pytest-asyncio>=0.20.0
+pytest-cov>=4.0.0
+
+# Logging and debugging
+structlog>=22.0.0
+colorlog>=6.0.0
+
+# Data processing and analysis
+scipy>=1.7.0
+scikit-learn>=1.0.0
+
+# Visualization (optional)
+matplotlib>=3.5.0
+plotly>=5.0.0
+
+# Development tools
+black>=22.0.0
+isort>=5.10.0
+flake8>=5.0.0
+mypy>=0.991
+
+# Documentation
+sphinx>=5.0.0
+sphinx-rtd-theme>=1.0.0

@@ -76,13 +76,24 @@ class FingerprintAccuracyValidator:
     - Measures false positive/negative rates
     - Performance benchmarking
     - Regression testing capabilities
+    - Integration with strategy rule engine (Task 24.4)
     """
     
-    def __init__(self, fingerprint_integrator=None):
+    def __init__(self, fingerprint_integrator=None, strategy_rule_engine=None):
         self.fingerprint_integrator = fingerprint_integrator
+        self.strategy_rule_engine = strategy_rule_engine
         self.test_cases = self._load_validation_test_cases()
         self.test_results: List[AccuracyTestResult] = []
         self.validation_history: List[ValidationSummary] = []
+        
+        # Enhanced validation metrics for Task 24.4
+        self.strategy_validation_results = []
+        self.rule_engine_performance = {
+            "rules_tested": 0,
+            "accurate_recommendations": 0,
+            "false_positives": 0,
+            "false_negatives": 0
+        }
         
     def _load_validation_test_cases(self) -> List[ValidationTestCase]:
         """Load comprehensive validation test cases"""
@@ -763,6 +774,109 @@ class FingerprintAccuracyValidator:
 
 
 # Example usage
+    async def validate_strategy_recommendations(self, test_cases: Optional[List[ValidationTestCase]] = None) -> Dict[str, Any]:
+        """
+        Validate strategy recommendations from rule engine against known effective strategies.
+        Task 24.4 implementation.
+        
+        Args:
+            test_cases: Optional test cases, uses default if None
+            
+        Returns:
+            Strategy validation results
+        """
+        
+        if not self.strategy_rule_engine:
+            LOG.warning("Strategy rule engine not available for validation")
+            return {"error": "Strategy rule engine not available"}
+        
+        test_cases = test_cases or self.test_cases
+        validation_results = {
+            "total_tests": len(test_cases),
+            "accurate_recommendations": 0,
+            "strategy_accuracy_scores": [],
+            "rule_performance": {},
+            "detailed_results": []
+        }
+        
+        for test_case in test_cases:
+            try:
+                # Create fingerprint data from test case
+                fingerprint_data = {
+                    "domain": test_case.domain,
+                    "dpi_type": test_case.expected_dpi_type,
+                    "confidence": test_case.expected_confidence_min,
+                    **test_case.network_simulation_data
+                }
+                
+                # Get rule engine recommendations
+                rule_result = self.strategy_rule_engine.evaluate_fingerprint(fingerprint_data)
+                recommended_techniques = rule_result.recommended_techniques
+                
+                # Compare with expected strategies
+                expected_strategies = set(test_case.expected_strategies)
+                recommended_strategies = set(recommended_techniques)
+                
+                # Calculate accuracy metrics
+                true_positives = len(expected_strategies.intersection(recommended_strategies))
+                false_positives = len(recommended_strategies - expected_strategies)
+                false_negatives = len(expected_strategies - recommended_strategies)
+                
+                precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
+                recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
+                f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+                
+                # Record detailed result
+                detailed_result = {
+                    "test_id": test_case.test_id,
+                    "domain": test_case.domain,
+                    "expected_strategies": list(expected_strategies),
+                    "recommended_strategies": list(recommended_strategies),
+                    "true_positives": true_positives,
+                    "false_positives": false_positives,
+                    "false_negatives": false_negatives,
+                    "precision": precision,
+                    "recall": recall,
+                    "f1_score": f1_score,
+                    "matched_rules": [rule.name for rule in rule_result.matched_rules]
+                }
+                
+                validation_results["detailed_results"].append(detailed_result)
+                validation_results["strategy_accuracy_scores"].append(f1_score)
+                
+                if f1_score > 0.7:  # Consider accurate if F1 > 0.7
+                    validation_results["accurate_recommendations"] += 1
+                
+                # Update rule engine performance stats
+                self.rule_engine_performance["rules_tested"] += len(rule_result.matched_rules)
+                self.rule_engine_performance["accurate_recommendations"] += true_positives
+                self.rule_engine_performance["false_positives"] += false_positives
+                self.rule_engine_performance["false_negatives"] += false_negatives
+                
+            except Exception as e:
+                LOG.error(f"Strategy validation failed for {test_case.test_id}: {e}")
+                validation_results["detailed_results"].append({
+                    "test_id": test_case.test_id,
+                    "error": str(e)
+                })
+        
+        # Calculate overall metrics
+        if validation_results["strategy_accuracy_scores"]:
+            validation_results["average_f1_score"] = statistics.mean(validation_results["strategy_accuracy_scores"])
+            validation_results["accuracy_rate"] = validation_results["accurate_recommendations"] / validation_results["total_tests"]
+        else:
+            validation_results["average_f1_score"] = 0.0
+            validation_results["accuracy_rate"] = 0.0
+        
+        # Add rule engine performance summary
+        validation_results["rule_performance"] = self.rule_engine_performance.copy()
+        
+        LOG.info(f"Strategy validation complete: {validation_results['accuracy_rate']:.2%} accuracy, "
+                f"F1 score: {validation_results['average_f1_score']:.3f}")
+        
+        return validation_results
+
+
 async def main():
     """Main function for running fingerprint accuracy validation"""
     

@@ -1,6 +1,23 @@
 #!/usr/bin/env python3
 """
 Root Cause Analysis Script for windows_engine.py Regression
+def apply_forced_override(original_func, *args, **kwargs):
+    """
+    Обертка для принудительного применения стратегий.
+    КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ для идентичного поведения с режимом тестирования.
+    """
+    # Добавляем forced параметры
+    if len(args) > 1 and isinstance(args[1], dict):
+        # Второй аргумент - стратегия
+        strategy = args[1].copy()
+        strategy['no_fallbacks'] = True
+        strategy['forced'] = True
+        args = (args[0], strategy) + args[2:]
+        print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
+    
+    return original_func(*args, **kwargs)
+
+
 
 This script analyzes the differences between windows_engine.py and new_windows_engine.py
 to identify why the "more correct" version shows 0% success while the previous version
@@ -306,11 +323,11 @@ class TestWindowsEngineRegression(unittest.TestCase):
                     "ttl": 64,
                     "split_pos": 76,
                     "fooling": ["badseq", "md5sig"]
-                }
+                , "no_fallbacks": True, "forced": True}
             }
             
             # This should not raise an exception
-            result = engine.apply_bypass(mock_packet, mock_w, strategy_task)
+            result = engine.apply_bypass(mock_packet, mock_w, strategy_task, forced=True)
             
             # If we get here without exception, the basic flow works
             print("apply_bypass executed successfully")

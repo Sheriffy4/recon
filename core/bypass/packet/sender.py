@@ -23,7 +23,54 @@ class PacketSender:
         self._INJECT_MARK = inject_mark
 
     def send_tcp_segments(self, w, original_packet, specs, window_div=1, ipid_step=2048):
+        """
+        Send TCP segments with enhanced error handling for task 11.4.
+        
+        - Validates all input parameters
+        - Logs detailed error information on failures
+        - Returns False on any error to allow fallback
+        - Continues operation after recoverable errors
+        
+        Args:
+            w: WinDivert handle
+            original_packet: Original packet to base segments on
+            specs: List of TCPSegmentSpec objects
+            window_div: Window division factor
+            ipid_step: IP ID step for multiple packets
+            
+        Returns:
+            bool: True if all segments sent successfully, False on error
+        """
         try:
+            # Validate input parameters
+            if not w:
+                self.logger.error("send_tcp_segments: WinDivert handle is None")
+                return False
+                
+            if not original_packet:
+                self.logger.error("send_tcp_segments: original_packet is None")
+                return False
+                
+            if not specs:
+                self.logger.error("send_tcp_segments: specs list is empty")
+                return False
+                
+            if not isinstance(specs, (list, tuple)):
+                self.logger.error(f"send_tcp_segments: invalid specs type {type(specs)}, expected list")
+                return False
+                
+            if not isinstance(window_div, int) or window_div < 1:
+                self.logger.error(f"send_tcp_segments: invalid window_div {window_div}, must be positive integer")
+                return False
+                
+            if not isinstance(ipid_step, int):
+                self.logger.error(f"send_tcp_segments: invalid ipid_step type {type(ipid_step)}, expected int")
+                return False
+                
+            # Validate original packet has required data
+            if not hasattr(original_packet, 'raw') or len(original_packet.raw) < 6:
+                self.logger.error("send_tcp_segments: original_packet missing or invalid raw data")
+                return False
             base_ip_id = struct.unpack("!H", original_packet.raw[4:6])[0]
             
             # Блокируем ретрансмит ОС на время инъекции
@@ -37,12 +84,24 @@ class PacketSender:
                 
                 # Сборка всех сегментов заранее (batch)
                 for i, spec in enumerate(specs):
-                    ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
-                    pkt_bytes = self.builder.build_tcp_segment(
-                        original_packet, spec, window_div=window_div, ip_id=ip_id
-                    )
-                    if not pkt_bytes:
-                        self.logger.error(f"Segment {i} build failed")
+                    try:
+                        # Validate individual spec
+                        if not spec:
+                            self.logger.error(f"send_tcp_segments: spec {i} is None")
+                            return False
+                            
+                        ip_id = (base_ip_id + i * ipid_step) & 0xFFFF
+                        pkt_bytes = self.builder.build_tcp_segment(
+                            original_packet, spec, window_div=window_div, ip_id=ip_id
+                        )
+                        if not pkt_bytes:
+                            self.logger.error(f"send_tcp_segments: Segment {i} build failed - PacketBuilder returned None")
+                            self.logger.error(f"send_tcp_segments: Failed spec details - rel_seq={getattr(spec, 'rel_seq', 'N/A')}, "
+                                            f"payload_len={len(getattr(spec, 'payload', b'')) if hasattr(spec, 'payload') and spec.payload else 0}, "
+                                            f"ttl={getattr(spec, 'ttl', 'N/A')}, flags={getattr(spec, 'flags', 'N/A')}")
+                            return False
+                    except Exception as e:
+                        self.logger.error(f"send_tcp_segments: Error building segment {i} - {e}", exc_info=True)
                         return False
                         
                     pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
@@ -85,7 +144,9 @@ class PacketSender:
                     )
                     
                     if not self._batch_safe_send(w, pkt, allow_fix_checksums=allow_fix):
-                        self.logger.error(f"Segment {i} send failed")
+                        self.logger.error(f"send_tcp_segments: Segment {i} send failed")
+                        self.logger.error(f"send_tcp_segments: Failed packet details - dst={getattr(pkt, 'dst_addr', 'N/A')}:"
+                                        f"{getattr(pkt, 'dst_port', 'N/A')}, size={len(getattr(pkt, 'raw', b''))}")
                         return False
                     
                     # ⚡ CRITICAL: Добавляем задержку после фейкового пакета
@@ -94,9 +155,20 @@ class PacketSender:
                         self.logger.debug(f"⏱️ Delaying {spec.delay_ms_after}ms after packet {i+1}")
                         time.sleep(delay_s)
                 
+                self.logger.debug(f"send_tcp_segments: Successfully sent {len(specs)} segments")
                 return True
+                
+        except ValueError as e:
+            self.logger.error(f"send_tcp_segments: Parameter validation error - {e}", exc_info=self.logger.level <= logging.DEBUG)
+            return False
+        except OSError as e:
+            self.logger.error(f"send_tcp_segments: Network/OS error - {e}", exc_info=self.logger.level <= logging.DEBUG)
+            return False
+        except MemoryError as e:
+            self.logger.error(f"send_tcp_segments: Memory allocation error - {e}")
+            return False
         except Exception as e:
-            self.logger.error(f"send_tcp_segments error: {e}", exc_info=True)
+            self.logger.error(f"send_tcp_segments: Unexpected error - {e}", exc_info=True)
             return False
 
     def send_udp_datagrams(
@@ -299,10 +371,27 @@ class PacketSender:
     def _batch_safe_send(self, w: "pydivert.WinDivert", pkt: "pydivert.Packet", allow_fix_checksums: bool = True) -> bool:
         """
         Оптимизированная отправка для батч-операций.
+        ✅ CRITICAL FIX: Preserve corrupted checksums for fake packets
         """
         try:
-            w.send(pkt)
-            return True
+            # ✅ FIX: For fake packets with bad checksum, use WINDIVERT_FLAG_NO_CHECKSUM
+            if not allow_fix_checksums:
+                # Send with NO_CHECKSUM flag to preserve corrupted checksum
+                try:
+                    # Try to use send with flags parameter
+                    w.send(pkt, flags=0x0001)  # WINDIVERT_FLAG_NO_CHECKSUM = 0x0001
+                    self.logger.debug("✅ Sent fake packet with NO_CHECKSUM flag (checksum preserved)")
+                    return True
+                except TypeError:
+                    # Fallback: pydivert version doesn't support flags parameter
+                    # In this case, checksum will be recalculated by WinDivert
+                    self.logger.warning("⚠️ WinDivert send() doesn't support flags, checksum may be recalculated")
+                    w.send(pkt)
+                    return True
+            else:
+                # Normal send for real packets
+                w.send(pkt)
+                return True
         except OSError as e:
             if getattr(e, "winerror", None) == 258 and allow_fix_checksums:
                 self.logger.debug("WinDivert batch send timeout (258). Retrying with checksum helper...")

@@ -1,0 +1,154 @@
+{
+  "domain": "x.com",
+  "target_ip": "172.66.0.227",
+  "analysis_type": "x.com-specific",
+  "router_tested_strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+  "tested_strategies": 25,
+  "successful_strategies": [],
+  "failed_strategies": [
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=46 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": true
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=1 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=1 badseq split_pos=46 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=3 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=3 badseq split_pos=46 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=4 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=4 badseq split_pos=46 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=1 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=2 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=2 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=3 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=50 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=50 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=100 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=100 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    },
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=46 seqovl=0 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": false
+    }
+  ],
+  "router_tested_results": [
+    {
+      "strategy": "--dpi-desync=multidisorder --dpi-desync-autottl=2 --dpi-desync-fooling=badseq --dpi-desync-split-pos=46 --dpi-desync-split-seqovl=1 --dpi-desync-repeats=2",
+      "description": "multidisorder autottl=2 badseq split_pos=46 seqovl=1 repeats=2",
+      "success_rate": 0.0,
+      "connection_rate": 1.0,
+      "tls_rate": 0.0,
+      "rst_count": 0,
+      "tests_run": 2,
+      "is_router_tested": true
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "title": "Router-Tested Strategy Failed \u2717",
+      "description": "The router-tested strategy failed with 0 RST packets",
+      "action": "Investigate network configuration or try alternative strategies",
+      "validation": "FAILED",
+      "metrics": {
+        "success_rate": 0.0,
+        "connection_rate": 1.0,
+        "tls_rate": 0.0,
+        "rst_count": 0
+      }
+    },
+    {
+      "priority": "CRITICAL",
+      "title": "No Successful Strategies Found",
+      "description": "All tested strategies failed - x.com may be using advanced DPI",
+      "action": "Check network configuration, try different bypass methods, or investigate service status"
+    }
+  ],
+  "summary": {
+    "total_tests": 50,
+    "total_rst_packets": 0,
+    "success_rate": 0.0,
+    "connection_rate": 1.0,
+    "tls_rate": 0.0,
+    "avg_latency_ms": 0,
+    "router_tested_found": true,
+    "router_tested_success": false
+  },
+  "timestamp": "2025-10-07T10:05:22.632291"
+}

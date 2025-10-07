@@ -61,7 +61,7 @@ class StrategyIntegrationFix:
                 "ttl": 3,
                 "split_pos": 3,
                 "window_div": 8,
-                "tcp_flags": {"psh": True, "ack": True},
+                "tcp_flags": {"psh": True, "ack": True, "no_fallbacks": True, "forced": True},
                 "ipid_step": 2048
             }
         }
@@ -113,7 +113,7 @@ class StrategyIntegrationFix:
                 "autottl": 2,         # autottl parameter
                 "fooling_methods": ["md5sig", "badsum", "badseq"],  # fooling methods
                 "repeats": 1          # repeats parameter
-            }
+            , "no_fallbacks": True, "forced": True}
         }
         
         # Log verification results
@@ -179,9 +179,9 @@ def patch_bypass_engine_with_fixed_interpreter():
                 # Add seqovl support if specified
                 if "overlap_size" in config:
                     params["overlap_size"] = config["overlap_size"]
-                    return {"type": "fakeddisorder_seqovl", "params": params}
+                    return {"type": "fakeddisorder_seqovl", "params": params, "no_fallbacks": True, "forced": True}
                 else:
-                    return {"type": "fakedisorder", "params": params}
+                    return {"type": "fakedisorder", "params": params, "no_fallbacks": True, "forced": True}
             
             # Handle other methods with the original logic but improved
             # ... (rest of original logic)
@@ -192,7 +192,7 @@ def patch_bypass_engine_with_fixed_interpreter():
                     "ttl": ttl,
                     "split_pos": split_pos,
                     "window_div": 8,
-                    "tcp_flags": {"psh": True, "ack": True},
+                    "tcp_flags": {"psh": True, "ack": True, "no_fallbacks": True, "forced": True},
                     "ipid_step": 2048,
                 },
             }

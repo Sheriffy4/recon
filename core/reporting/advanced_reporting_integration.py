@@ -226,7 +226,7 @@ class AdvancedReportingIntegration:
             recent_reports = [
                 r
                 for r in self.report_history
-                if (datetime.now() - r.timestamp).hours < 24
+                if (datetime.now() - r.timestamp) < timedelta(hours=24)
             ]
 
             # Get performance data

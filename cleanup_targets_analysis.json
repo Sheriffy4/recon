@@ -1,0 +1,3623 @@
+{
+  "engines": {
+    "engine_files": [
+      {
+        "path": "core\\hybrid_engine.py",
+        "name": "hybrid_engine.py",
+        "size_bytes": 94834,
+        "category": "engine",
+        "relative_path": "core\\hybrid_engine.py"
+      },
+      {
+        "path": "core\\hybrid_engine.py",
+        "name": "hybrid_engine.py",
+        "size_bytes": 94834,
+        "category": "engine",
+        "relative_path": "core\\hybrid_engine.py"
+      },
+      {
+        "path": "temp\\bypass_engine.py",
+        "name": "bypass_engine.py",
+        "size_bytes": 85100,
+        "category": "engine",
+        "relative_path": "temp\\bypass_engine.py"
+      },
+      {
+        "path": "temp\\bypass_engine.py",
+        "name": "bypass_engine.py",
+        "size_bytes": 85100,
+        "category": "engine",
+        "relative_path": "temp\\bypass_engine.py"
+      },
+      {
+        "path": "core\\hybrid_engine_modified.py",
+        "name": "hybrid_engine_modified.py",
+        "size_bytes": 80695,
+        "category": "engine",
+        "relative_path": "core\\hybrid_engine_modified.py"
+      },
+      {
+        "path": "core\\hybrid_engine_modified.py",
+        "name": "hybrid_engine_modified.py",
+        "size_bytes": 80695,
+        "category": "engine",
+        "relative_path": "core\\hybrid_engine_modified.py"
+      },
+      {
+        "path": "core\\old_hybrid_engine.py",
+        "name": "old_hybrid_engine.py",
+        "size_bytes": 80168,
+        "category": "engine",
+        "relative_path": "core\\old_hybrid_engine.py"
+      },
+      {
+        "path": "core\\old_hybrid_engine.py",
+        "name": "old_hybrid_engine.py",
+        "size_bytes": 80168,
+        "category": "engine",
+        "relative_path": "core\\old_hybrid_engine.py"
+      },
+      {
+        "path": "core\\bypass\\engine\\base_engine.py",
+        "name": "base_engine.py",
+        "size_bytes": 72327,
+        "category": "engine",
+        "relative_path": "core\\bypass\\engine\\base_engine.py"
+      },
+      {
+        "path": "core\\bypass\\engines\\native_pydivert_engine.py",
+        "name": "native_pydivert_engine.py",
+        "size_bytes": 68535,
+        "category": "engine",
+        "relative_path": "core\\bypass\\engines\\native_pydivert_engine.py"
+      },
+      {
+        "path": "core\\fingerprint\\advanced_fingerprint_engine.py",
+        "name": "advanced_fingerprint_engine.py",
+        "size_bytes": 66367,
+        "category": "engine",
+        "relative_path": "core\\fingerprint\\advanced_fingerprint_engine.py"
+      },
+      {
+        "path": "final_packet_bypass.py",
+        "name": "final_packet_bypass.py",
+        "size_bytes": 60459,
+        "category": "engine",
+        "relative_path": "final_packet_bypass.py"
+      },
+      {
+        "path": "web\\bypass_dashboard.py",
+        "name": "bypass_dashboard.py",
+        "size_bytes": 59614,
+        "category": "engine",
+        "relative_path": "web\\bypass_dashboard.py"
+      },
+      {
+        "path": "web\\bypass_api.py",
+        "name": "bypass_api.py",
+        "size_bytes": 54052,
+        "category": "engine",
+        "relative_path": "web\\bypass_api.py"
+      },
+      {
+        "path": "core\\bypass\\engines\\packet_processing_engine.py",
+        "name": "packet_processing_engine.py",
+        "size_bytes": 41212,
+        "category": "engine",
+        "relative_path": "core\\bypass\\engines\\packet_processing_engine.py"
+      },
+      {
+        "path": "temp\\hybrid_engine.py",
+        "name": "hybrid_engine.py",
+        "size_bytes": 40860,
+        "category": "engine",
+        "relative_path": "temp\\hybrid_engine.py"
+      },
+      {
+        "path": "temp\\hybrid_engine.py",
+        "name": "hybrid_engine.py",
+        "size_bytes": 40860,
+        "category": "engine",
+        "relative_path": "temp\\hybrid_engine.py"
+      },
+      {
+        "path": "comprehensive_bypass_analyzer.py",
+        "name": "comprehensive_bypass_analyzer.py",
+        "size_bytes": 39147,
+        "category": "engine",
+        "relative_path": "comprehensive_bypass_analyzer.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\learning_engine.py",
+        "name": "learning_engine.py",
+        "size_bytes": 30799,
+        "category": "engine",
+        "relative_path": "core\\pcap_analysis\\learning_engine.py"
+      },
+      {
+        "path": "analyze_bypass_issues.py",
+        "name": "analyze_bypass_issues.py",
+        "size_bytes": 28978,
+        "category": "engine",
+        "relative_path": "analyze_bypass_issues.py"
+      },
+      {
+        "path": "tests\\integration\\test_x_com_bypass_integration.py",
+        "name": "test_x_com_bypass_integration.py",
+        "size_bytes": 27349,
+        "category": "engine",
+        "relative_path": "tests\\integration\\test_x_com_bypass_integration.py"
+      },
+      {
+        "path": "core\\packet\\raw_packet_engine.py",
+        "name": "raw_packet_engine.py",
+        "size_bytes": 27068,
+        "category": "engine",
+        "relative_path": "core\\packet\\raw_packet_engine.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\combo\\steganographic_engine.py",
+        "name": "steganographic_engine.py",
+        "size_bytes": 24902,
+        "category": "engine",
+        "relative_path": "core\\bypass\\attacks\\combo\\steganographic_engine.py"
+      },
+      {
+        "path": "core\\bypass\\engines\\engine_validator.py",
+        "name": "engine_validator.py",
+        "size_bytes": 23990,
+        "category": "engine",
+        "relative_path": "core\\bypass\\engines\\engine_validator.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\combo\\native_combo_engine.py",
+        "name": "native_combo_engine.py",
+        "size_bytes": 23840,
+        "category": "engine",
+        "relative_path": "core\\bypass\\attacks\\combo\\native_combo_engine.py"
+      },
+      {
+        "path": "core\\packet\\improved_bypass_engine.py",
+        "name": "improved_bypass_engine.py",
+        "size_bytes": 23405,
+        "category": "engine",
+        "relative_path": "core\\packet\\improved_bypass_engine.py"
+      },
+      {
+        "path": "core\\packet\\improved_bypass_engine.py",
+        "name": "improved_bypass_engine.py",
+        "size_bytes": 23405,
+        "category": "engine",
+        "relative_path": "core\\packet\\improved_bypass_engine.py"
+      },
+      {
+        "path": "core\\bypass\\engines\\engine_config_manager.py",
+        "name": "engine_config_manager.py",
+        "size_bytes": 22735,
+        "category": "engine",
+        "relative_path": "core\\bypass\\engines\\engine_config_manager.py"
+      },
+      {
+        "path": "core\\strategy\\strategy_rule_engine_fixed.py",
+        "name": "strategy_rule_engine_fixed.py",
+        "size_bytes": 21230,
+        "category": "engine",
+        "relative_path": "core\\strategy\\strategy_rule_engine_fixed.py"
+      },
+      {
+        "path": "core\\strategy\\strategy_rule_engine.py",
+        "name": "strategy_rule_engine.py",
+        "size_bytes": 21214,
+        "category": "engine",
+        "relative_path": "core\\strategy\\strategy_rule_engine.py"
+      },
+      {
+        "path": "core\\smart_bypass_engine.py",
+        "name": "smart_bypass_engine.py",
+        "size_bytes": 17897,
+        "category": "engine",
+        "relative_path": "core\\smart_bypass_engine.py"
+      },
+      {
+        "path": "core\\smart_bypass_engine.py",
+        "name": "smart_bypass_engine.py",
+        "size_bytes": 17897,
+        "category": "engine",
+        "relative_path": "core\\smart_bypass_engine.py"
+      },
+      {
+        "path": "debug_windows_engine_regression.py",
+        "name": "debug_windows_engine_regression.py",
+        "size_bytes": 17458,
+        "category": "engine",
+        "relative_path": "debug_windows_engine_regression.py"
+      },
+      {
+        "path": "core\\bypass\\system_bypass_manager.py",
+        "name": "system_bypass_manager.py",
+        "size_bytes": 17318,
+        "category": "engine",
+        "relative_path": "core\\bypass\\system_bypass_manager.py"
+      },
+      {
+        "path": "examples\\engine_dry_run_example.py",
+        "name": "engine_dry_run_example.py",
+        "size_bytes": 16950,
+        "category": "engine",
+        "relative_path": "examples\\engine_dry_run_example.py"
+      },
+      {
+        "path": "core\\bypass\\engines\\engine_type_detector.py",
+        "name": "engine_type_detector.py",
+        "size_bytes": 15718,
+        "category": "engine",
+        "relative_path": "core\\bypass\\engines\\engine_type_detector.py"
+      },
+      {
+        "path": "core\\attack_execution_engine.py",
+        "name": "attack_execution_engine.py",
+        "size_bytes": 14757,
+        "category": "engine",
+        "relative_path": "core\\attack_execution_engine.py"
+      },
+      {
+        "path": "core\\bypass\\analytics\\analytics_engine.py",
+        "name": "analytics_engine.py",
+        "size_bytes": 14297,
+        "category": "engine",
+        "relative_path": "core\\bypass\\analytics\\analytics_engine.py"
+      },
+      {
+        "path": "examples\\native_engine_segments_example.py",
+        "name": "native_engine_segments_example.py",
+        "size_bytes": 14261,
+        "category": "engine",
+        "relative_path": "examples\\native_engine_segments_example.py"
+      },
+      {
+        "path": "setup_hosts_bypass.py",
+        "name": "setup_hosts_bypass.py",
+        "size_bytes": 13628,
+        "category": "engine",
+        "relative_path": "setup_hosts_bypass.py"
+      },
+      {
+        "path": "smart_bypass_cli.py",
+        "name": "smart_bypass_cli.py",
+        "size_bytes": 13452,
+        "category": "engine",
+        "relative_path": "smart_bypass_cli.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\bypass_tester.py",
+        "name": "bypass_tester.py",
+        "size_bytes": 13439,
+        "category": "engine",
+        "relative_path": "core\\bypass\\attacks\\bypass_tester.py"
+      },
+      {
+        "path": "core\\strategy_rule_engine.py",
+        "name": "strategy_rule_engine.py",
+        "size_bytes": 13431,
+        "category": "engine",
+        "relative_path": "core\\strategy_rule_engine.py"
+      },
+      {
+        "path": "final_bypass_test.py",
+        "name": "final_bypass_test.py",
+        "size_bytes": 12994,
+        "category": "engine",
+        "relative_path": "final_bypass_test.py"
+      },
+      {
+        "path": "fix_forced_override_engine.py",
+        "name": "fix_forced_override_engine.py",
+        "size_bytes": 12459,
+        "category": "engine",
+        "relative_path": "fix_forced_override_engine.py"
+      },
+      {
+        "path": "core\\net\\packet_engine.py",
+        "name": "packet_engine.py",
+        "size_bytes": 10948,
+        "category": "engine",
+        "relative_path": "core\\net\\packet_engine.py"
+      },
+      {
+        "path": "fix_windows_engine_regression.py",
+        "name": "fix_windows_engine_regression.py",
+        "size_bytes": 10462,
+        "category": "engine",
+        "relative_path": "fix_windows_engine_regression.py"
+      },
+      {
+        "path": "test_apply_bypass_integration.py",
+        "name": "test_apply_bypass_integration.py",
+        "size_bytes": 9860,
+        "category": "engine",
+        "relative_path": "test_apply_bypass_integration.py"
+      },
+      {
+        "path": "hybrid_engine_fingerprinting_demo.py",
+        "name": "hybrid_engine_fingerprinting_demo.py",
+        "size_bytes": 9781,
+        "category": "engine",
+        "relative_path": "hybrid_engine_fingerprinting_demo.py"
+      },
+      {
+        "path": "core\\hybrid_engine_fingerprinting_demo.py",
+        "name": "hybrid_engine_fingerprinting_demo.py",
+        "size_bytes": 9781,
+        "category": "engine",
+        "relative_path": "core\\hybrid_engine_fingerprinting_demo.py"
+      },
+      {
+        "path": "hybrid_engine_fingerprinting_demo.py",
+        "name": "hybrid_engine_fingerprinting_demo.py",
+        "size_bytes": 9781,
+        "category": "engine",
+        "relative_path": "hybrid_engine_fingerprinting_demo.py"
+      },
+      {
+        "path": "core\\hybrid_engine_fingerprinting_demo.py",
+        "name": "hybrid_engine_fingerprinting_demo.py",
+        "size_bytes": 9781,
+        "category": "engine",
+        "relative_path": "core\\hybrid_engine_fingerprinting_demo.py"
+      },
+      {
+        "path": "diagnose_bypass_issue.py",
+        "name": "diagnose_bypass_issue.py",
+        "size_bytes": 8813,
+        "category": "engine",
+        "relative_path": "diagnose_bypass_issue.py"
+      },
+      {
+        "path": "web\\bypass_integration.py",
+        "name": "bypass_integration.py",
+        "size_bytes": 8801,
+        "category": "engine",
+        "relative_path": "web\\bypass_integration.py"
+      },
+      {
+        "path": "core\\bypass_engine.py",
+        "name": "bypass_engine.py",
+        "size_bytes": 8008,
+        "category": "engine",
+        "relative_path": "core\\bypass_engine.py"
+      },
+      {
+        "path": "core\\bypass_engine.py",
+        "name": "bypass_engine.py",
+        "size_bytes": 8008,
+        "category": "engine",
+        "relative_path": "core\\bypass_engine.py"
+      },
+      {
+        "path": "diagnose_why_bypass_not_working.py",
+        "name": "diagnose_why_bypass_not_working.py",
+        "size_bytes": 6956,
+        "category": "engine",
+        "relative_path": "diagnose_why_bypass_not_working.py"
+      },
+      {
+        "path": "core\\bypass\\engines\\external_tool_engine.py",
+        "name": "external_tool_engine.py",
+        "size_bytes": 6943,
+        "category": "engine",
+        "relative_path": "core\\bypass\\engines\\external_tool_engine.py"
+      },
+      {
+        "path": "test_bypass_engine_integration.py",
+        "name": "test_bypass_engine_integration.py",
+        "size_bytes": 6876,
+        "category": "engine",
+        "relative_path": "test_bypass_engine_integration.py"
+      },
+      {
+        "path": "test_bypass_engine_integration.py",
+        "name": "test_bypass_engine_integration.py",
+        "size_bytes": 6876,
+        "category": "engine",
+        "relative_path": "test_bypass_engine_integration.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\udp\\quic_bypass.py",
+        "name": "quic_bypass.py",
+        "size_bytes": 6774,
+        "category": "engine",
+        "relative_path": "core\\bypass\\attacks\\udp\\quic_bypass.py"
+      },
+      {
+        "path": "force_bypass_test.py",
+        "name": "force_bypass_test.py",
+        "size_bytes": 6752,
+        "category": "engine",
+        "relative_path": "force_bypass_test.py"
+      },
+      {
+        "path": "analyze_bypass_failure.py",
+        "name": "analyze_bypass_failure.py",
+        "size_bytes": 6650,
+        "category": "engine",
+        "relative_path": "analyze_bypass_failure.py"
+      },
+      {
+        "path": "simple_bypass_test.py",
+        "name": "simple_bypass_test.py",
+        "size_bytes": 6181,
+        "category": "engine",
+        "relative_path": "simple_bypass_test.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\udp\\stun_bypass.py",
+        "name": "stun_bypass.py",
+        "size_bytes": 5688,
+        "category": "engine",
+        "relative_path": "core\\bypass\\attacks\\udp\\stun_bypass.py"
+      },
+      {
+        "path": "test_engine_forced_override.py",
+        "name": "test_engine_forced_override.py",
+        "size_bytes": 5353,
+        "category": "engine",
+        "relative_path": "test_engine_forced_override.py"
+      },
+      {
+        "path": "apply_bypass.py",
+        "name": "apply_bypass.py",
+        "size_bytes": 4435,
+        "category": "engine",
+        "relative_path": "apply_bypass.py"
+      },
+      {
+        "path": "test_windows_engine_regression.py",
+        "name": "test_windows_engine_regression.py",
+        "size_bytes": 4023,
+        "category": "engine",
+        "relative_path": "test_windows_engine_regression.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\engine.py",
+        "name": "engine.py",
+        "size_bytes": 4022,
+        "category": "engine",
+        "relative_path": "core\\bypass\\attacks\\engine.py"
+      },
+      {
+        "path": "test_fixed_engine_validation.py",
+        "name": "test_fixed_engine_validation.py",
+        "size_bytes": 3219,
+        "category": "engine",
+        "relative_path": "test_fixed_engine_validation.py"
+      },
+      {
+        "path": "core\\bypass\\engines\\scapy_engine.py",
+        "name": "scapy_engine.py",
+        "size_bytes": 2718,
+        "category": "engine",
+        "relative_path": "core\\bypass\\engines\\scapy_engine.py"
+      },
+      {
+        "path": "fix_bypass_issues.py",
+        "name": "fix_bypass_issues.py",
+        "size_bytes": 2560,
+        "category": "engine",
+        "relative_path": "fix_bypass_issues.py"
+      },
+      {
+        "path": "setup_bypass.py",
+        "name": "setup_bypass.py",
+        "size_bytes": 1950,
+        "category": "engine",
+        "relative_path": "setup_bypass.py"
+      }
+    ],
+    "total_count": 73,
+    "total_size": 1941898
+  },
+  "analyzers": {
+    "analyzer_files": [
+      {
+        "path": "core\\fingerprint\\http_analyzer.py",
+        "name": "http_analyzer.py",
+        "size_bytes": 59440,
+        "category": "analyzer",
+        "relative_path": "core\\fingerprint\\http_analyzer.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\analysis_reporter.py",
+        "name": "analysis_reporter.py",
+        "size_bytes": 49816,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\analysis_reporter.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\root_cause_analyzer.py",
+        "name": "root_cause_analyzer.py",
+        "size_bytes": 45333,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\root_cause_analyzer.py"
+      },
+      {
+        "path": "comprehensive_bypass_analyzer.py",
+        "name": "comprehensive_bypass_analyzer.py",
+        "size_bytes": 39147,
+        "category": "analyzer",
+        "relative_path": "comprehensive_bypass_analyzer.py"
+      },
+      {
+        "path": "enhanced_domain_strategy_analyzer.py",
+        "name": "enhanced_domain_strategy_analyzer.py",
+        "size_bytes": 38417,
+        "category": "analyzer",
+        "relative_path": "enhanced_domain_strategy_analyzer.py"
+      },
+      {
+        "path": "core\\strategy\\enhanced_rst_analyzer.py",
+        "name": "enhanced_rst_analyzer.py",
+        "size_bytes": 29827,
+        "category": "analyzer",
+        "relative_path": "core\\strategy\\enhanced_rst_analyzer.py"
+      },
+      {
+        "path": "analyze_pcap_comparison.py",
+        "name": "analyze_pcap_comparison.py",
+        "size_bytes": 28634,
+        "category": "analyzer",
+        "relative_path": "analyze_pcap_comparison.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\predictive_analyzer.py",
+        "name": "predictive_analyzer.py",
+        "size_bytes": 28201,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\predictive_analyzer.py"
+      },
+      {
+        "path": "core\\fingerprint\\analyzer_adapters.py",
+        "name": "analyzer_adapters.py",
+        "size_bytes": 27855,
+        "category": "analyzer",
+        "relative_path": "core\\fingerprint\\analyzer_adapters.py"
+      },
+      {
+        "path": "failure_analyzer.py",
+        "name": "failure_analyzer.py",
+        "size_bytes": 27773,
+        "category": "analyzer",
+        "relative_path": "failure_analyzer.py"
+      },
+      {
+        "path": "core\\pcap_content_validator.py",
+        "name": "pcap_content_validator.py",
+        "size_bytes": 27510,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_content_validator.py"
+      },
+      {
+        "path": "analyze_notwork_pcap.py",
+        "name": "analyze_notwork_pcap.py",
+        "size_bytes": 25662,
+        "category": "analyzer",
+        "relative_path": "analyze_notwork_pcap.py"
+      },
+      {
+        "path": "manual_fingerprinting_analysis.py",
+        "name": "manual_fingerprinting_analysis.py",
+        "size_bytes": 25344,
+        "category": "analyzer",
+        "relative_path": "manual_fingerprinting_analysis.py"
+      },
+      {
+        "path": "core\\failure_analyzer.py",
+        "name": "failure_analyzer.py",
+        "size_bytes": 24695,
+        "category": "analyzer",
+        "relative_path": "core\\failure_analyzer.py"
+      },
+      {
+        "path": "hex_pcap_analyzer.py",
+        "name": "hex_pcap_analyzer.py",
+        "size_bytes": 23977,
+        "category": "analyzer",
+        "relative_path": "hex_pcap_analyzer.py"
+      },
+      {
+        "path": "hex_pcap_analyzer.py",
+        "name": "hex_pcap_analyzer.py",
+        "size_bytes": 23977,
+        "category": "analyzer",
+        "relative_path": "hex_pcap_analyzer.py"
+      },
+      {
+        "path": "core\\fingerprint\\dns_analyzer.py",
+        "name": "dns_analyzer.py",
+        "size_bytes": 23955,
+        "category": "analyzer",
+        "relative_path": "core\\fingerprint\\dns_analyzer.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\packet_sequence_analyzer.py",
+        "name": "packet_sequence_analyzer.py",
+        "size_bytes": 23312,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\packet_sequence_analyzer.py"
+      },
+      {
+        "path": "demo_root_cause_analyzer.py",
+        "name": "demo_root_cause_analyzer.py",
+        "size_bytes": 23110,
+        "category": "analyzer",
+        "relative_path": "demo_root_cause_analyzer.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\pcap_comparator.py",
+        "name": "pcap_comparator.py",
+        "size_bytes": 22735,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\pcap_comparator.py"
+      },
+      {
+        "path": "analyze_current_pcap_issues.py",
+        "name": "analyze_current_pcap_issues.py",
+        "size_bytes": 20953,
+        "category": "analyzer",
+        "relative_path": "analyze_current_pcap_issues.py"
+      },
+      {
+        "path": "comprehensive_pcap_verification.py",
+        "name": "comprehensive_pcap_verification.py",
+        "size_bytes": 20667,
+        "category": "analyzer",
+        "relative_path": "comprehensive_pcap_verification.py"
+      },
+      {
+        "path": "core\\pcap_analysis_cli.py",
+        "name": "pcap_analysis_cli.py",
+        "size_bytes": 19956,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis_cli.py"
+      },
+      {
+        "path": "core\\pcap_analysis_cli.py",
+        "name": "pcap_analysis_cli.py",
+        "size_bytes": 19956,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis_cli.py"
+      },
+      {
+        "path": "core\\fingerprint\\analyzer.py",
+        "name": "analyzer.py",
+        "size_bytes": 19908,
+        "category": "analyzer",
+        "relative_path": "core\\fingerprint\\analyzer.py"
+      },
+      {
+        "path": "analyze_work_pcap_advanced.py",
+        "name": "analyze_work_pcap_advanced.py",
+        "size_bytes": 19383,
+        "category": "analyzer",
+        "relative_path": "analyze_work_pcap_advanced.py"
+      },
+      {
+        "path": "test_automated_pcap_workflow.py",
+        "name": "test_automated_pcap_workflow.py",
+        "size_bytes": 19018,
+        "category": "analyzer",
+        "relative_path": "test_automated_pcap_workflow.py"
+      },
+      {
+        "path": "test_packet_sequence_analyzer.py",
+        "name": "test_packet_sequence_analyzer.py",
+        "size_bytes": 18146,
+        "category": "analyzer",
+        "relative_path": "test_packet_sequence_analyzer.py"
+      },
+      {
+        "path": "pcap_validation_test.py",
+        "name": "pcap_validation_test.py",
+        "size_bytes": 17873,
+        "category": "analyzer",
+        "relative_path": "pcap_validation_test.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\strategy_analyzer.py",
+        "name": "strategy_analyzer.py",
+        "size_bytes": 17698,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\strategy_analyzer.py"
+      },
+      {
+        "path": "core\\fingerprint\\dpi_behavior_analyzer.py",
+        "name": "dpi_behavior_analyzer.py",
+        "size_bytes": 17671,
+        "category": "analyzer",
+        "relative_path": "core\\fingerprint\\dpi_behavior_analyzer.py"
+      },
+      {
+        "path": "compare_recon_vs_zapret.py",
+        "name": "compare_recon_vs_zapret.py",
+        "size_bytes": 17622,
+        "category": "analyzer",
+        "relative_path": "compare_recon_vs_zapret.py"
+      },
+      {
+        "path": "analyze_work_pcap_focused.py",
+        "name": "analyze_work_pcap_focused.py",
+        "size_bytes": 17380,
+        "category": "analyzer",
+        "relative_path": "analyze_work_pcap_focused.py"
+      },
+      {
+        "path": "core\\packet\\pcap_analyzer.py",
+        "name": "pcap_analyzer.py",
+        "size_bytes": 17122,
+        "category": "analyzer",
+        "relative_path": "core\\packet\\pcap_analyzer.py"
+      },
+      {
+        "path": "core\\packet\\pcap_analyzer.py",
+        "name": "pcap_analyzer.py",
+        "size_bytes": 17122,
+        "category": "analyzer",
+        "relative_path": "core\\packet\\pcap_analyzer.py"
+      },
+      {
+        "path": "detailed_success_analyzer.py",
+        "name": "detailed_success_analyzer.py",
+        "size_bytes": 17026,
+        "category": "analyzer",
+        "relative_path": "detailed_success_analyzer.py"
+      },
+      {
+        "path": "demo_root_cause_analyzer_simple.py",
+        "name": "demo_root_cause_analyzer_simple.py",
+        "size_bytes": 16958,
+        "category": "analyzer",
+        "relative_path": "demo_root_cause_analyzer_simple.py"
+      },
+      {
+        "path": "simple_pcap_analyzer.py",
+        "name": "simple_pcap_analyzer.py",
+        "size_bytes": 16694,
+        "category": "analyzer",
+        "relative_path": "simple_pcap_analyzer.py"
+      },
+      {
+        "path": "simple_pcap_analyzer.py",
+        "name": "simple_pcap_analyzer.py",
+        "size_bytes": 16694,
+        "category": "analyzer",
+        "relative_path": "simple_pcap_analyzer.py"
+      },
+      {
+        "path": "test_root_cause_analyzer.py",
+        "name": "test_root_cause_analyzer.py",
+        "size_bytes": 15953,
+        "category": "analyzer",
+        "relative_path": "test_root_cause_analyzer.py"
+      },
+      {
+        "path": "automated_pcap_workflow.py",
+        "name": "automated_pcap_workflow.py",
+        "size_bytes": 15818,
+        "category": "analyzer",
+        "relative_path": "automated_pcap_workflow.py"
+      },
+      {
+        "path": "x_com_subdomain_analyzer.py",
+        "name": "x_com_subdomain_analyzer.py",
+        "size_bytes": 13915,
+        "category": "analyzer",
+        "relative_path": "x_com_subdomain_analyzer.py"
+      },
+      {
+        "path": "demo_x_com_root_cause_analysis.py",
+        "name": "demo_x_com_root_cause_analysis.py",
+        "size_bytes": 13731,
+        "category": "analyzer",
+        "relative_path": "demo_x_com_root_cause_analysis.py"
+      },
+      {
+        "path": "test_rst_detection_analysis.py",
+        "name": "test_rst_detection_analysis.py",
+        "size_bytes": 13646,
+        "category": "analyzer",
+        "relative_path": "test_rst_detection_analysis.py"
+      },
+      {
+        "path": "project_analyzer.py",
+        "name": "project_analyzer.py",
+        "size_bytes": 12506,
+        "category": "analyzer",
+        "relative_path": "project_analyzer.py"
+      },
+      {
+        "path": "test_tcp_options_pcap_comparison.py",
+        "name": "test_tcp_options_pcap_comparison.py",
+        "size_bytes": 12374,
+        "category": "analyzer",
+        "relative_path": "test_tcp_options_pcap_comparison.py"
+      },
+      {
+        "path": "test_tcp_options_pcap_verification.py",
+        "name": "test_tcp_options_pcap_verification.py",
+        "size_bytes": 12242,
+        "category": "analyzer",
+        "relative_path": "test_tcp_options_pcap_verification.py"
+      },
+      {
+        "path": "final_pcap_comparison.py",
+        "name": "final_pcap_comparison.py",
+        "size_bytes": 11941,
+        "category": "analyzer",
+        "relative_path": "final_pcap_comparison.py"
+      },
+      {
+        "path": "pcap_analyzer.py",
+        "name": "pcap_analyzer.py",
+        "size_bytes": 11615,
+        "category": "analyzer",
+        "relative_path": "pcap_analyzer.py"
+      },
+      {
+        "path": "pcap_analyzer.py",
+        "name": "pcap_analyzer.py",
+        "size_bytes": 11615,
+        "category": "analyzer",
+        "relative_path": "pcap_analyzer.py"
+      },
+      {
+        "path": "run_comprehensive_pcap_verification.py",
+        "name": "run_comprehensive_pcap_verification.py",
+        "size_bytes": 11135,
+        "category": "analyzer",
+        "relative_path": "run_comprehensive_pcap_verification.py"
+      },
+      {
+        "path": "verify_pcap_validator_integration.py",
+        "name": "verify_pcap_validator_integration.py",
+        "size_bytes": 11058,
+        "category": "analyzer",
+        "relative_path": "verify_pcap_validator_integration.py"
+      },
+      {
+        "path": "test_pcap_analysis_task1.py",
+        "name": "test_pcap_analysis_task1.py",
+        "size_bytes": 10932,
+        "category": "analyzer",
+        "relative_path": "test_pcap_analysis_task1.py"
+      },
+      {
+        "path": "test_pcap_analysis_task1.py",
+        "name": "test_pcap_analysis_task1.py",
+        "size_bytes": 10932,
+        "category": "analyzer",
+        "relative_path": "test_pcap_analysis_task1.py"
+      },
+      {
+        "path": "compare_zapret_recon_implementation.py",
+        "name": "compare_zapret_recon_implementation.py",
+        "size_bytes": 10892,
+        "category": "analyzer",
+        "relative_path": "compare_zapret_recon_implementation.py"
+      },
+      {
+        "path": "pcap_monitor.py",
+        "name": "pcap_monitor.py",
+        "size_bytes": 10861,
+        "category": "analyzer",
+        "relative_path": "pcap_monitor.py"
+      },
+      {
+        "path": "analyze_work_pcap_detailed.py",
+        "name": "analyze_work_pcap_detailed.py",
+        "size_bytes": 10857,
+        "category": "analyzer",
+        "relative_path": "analyze_work_pcap_detailed.py"
+      },
+      {
+        "path": "performance_regression_analyzer.py",
+        "name": "performance_regression_analyzer.py",
+        "size_bytes": 10759,
+        "category": "analyzer",
+        "relative_path": "performance_regression_analyzer.py"
+      },
+      {
+        "path": "test_strategy_analyzer.py",
+        "name": "test_strategy_analyzer.py",
+        "size_bytes": 10544,
+        "category": "analyzer",
+        "relative_path": "test_strategy_analyzer.py"
+      },
+      {
+        "path": "analyze_out2_pcap.py",
+        "name": "analyze_out2_pcap.py",
+        "size_bytes": 10433,
+        "category": "analyzer",
+        "relative_path": "analyze_out2_pcap.py"
+      },
+      {
+        "path": "comprehensive_global_analysis.py",
+        "name": "comprehensive_global_analysis.py",
+        "size_bytes": 10372,
+        "category": "analyzer",
+        "relative_path": "comprehensive_global_analysis.py"
+      },
+      {
+        "path": "simple_pcap_compare.py",
+        "name": "simple_pcap_compare.py",
+        "size_bytes": 10365,
+        "category": "analyzer",
+        "relative_path": "simple_pcap_compare.py"
+      },
+      {
+        "path": "simple_pcap_compare.py",
+        "name": "simple_pcap_compare.py",
+        "size_bytes": 10365,
+        "category": "analyzer",
+        "relative_path": "simple_pcap_compare.py"
+      },
+      {
+        "path": "comprehensive_failure_analysis.py",
+        "name": "comprehensive_failure_analysis.py",
+        "size_bytes": 10108,
+        "category": "analyzer",
+        "relative_path": "comprehensive_failure_analysis.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\sequence_analysis_demo.py",
+        "name": "sequence_analysis_demo.py",
+        "size_bytes": 10076,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\sequence_analysis_demo.py"
+      },
+      {
+        "path": "core\\pcap\\rst_analyzer.py",
+        "name": "rst_analyzer.py",
+        "size_bytes": 9960,
+        "category": "analyzer",
+        "relative_path": "core\\pcap\\rst_analyzer.py"
+      },
+      {
+        "path": "diagnose_service_log_analysis.py",
+        "name": "diagnose_service_log_analysis.py",
+        "size_bytes": 9787,
+        "category": "analyzer",
+        "relative_path": "diagnose_service_log_analysis.py"
+      },
+      {
+        "path": "core\\fingerprint\\dns_analyzer_demo.py",
+        "name": "dns_analyzer_demo.py",
+        "size_bytes": 9771,
+        "category": "analyzer",
+        "relative_path": "core\\fingerprint\\dns_analyzer_demo.py"
+      },
+      {
+        "path": "analyze_test1_pcap.py",
+        "name": "analyze_test1_pcap.py",
+        "size_bytes": 9629,
+        "category": "analyzer",
+        "relative_path": "analyze_test1_pcap.py"
+      },
+      {
+        "path": "analyze_out_pcap.py",
+        "name": "analyze_out_pcap.py",
+        "size_bytes": 9536,
+        "category": "analyzer",
+        "relative_path": "analyze_out_pcap.py"
+      },
+      {
+        "path": "analyze_pcap_sequence.py",
+        "name": "analyze_pcap_sequence.py",
+        "size_bytes": 9339,
+        "category": "analyzer",
+        "relative_path": "analyze_pcap_sequence.py"
+      },
+      {
+        "path": "simple_pcap_verification.py",
+        "name": "simple_pcap_verification.py",
+        "size_bytes": 9202,
+        "category": "analyzer",
+        "relative_path": "simple_pcap_verification.py"
+      },
+      {
+        "path": "analyze_recon_vs_zapret_pcap.py",
+        "name": "analyze_recon_vs_zapret_pcap.py",
+        "size_bytes": 8891,
+        "category": "analyzer",
+        "relative_path": "analyze_recon_vs_zapret_pcap.py"
+      },
+      {
+        "path": "test_root_cause_analysis.py",
+        "name": "test_root_cause_analysis.py",
+        "size_bytes": 8562,
+        "category": "analyzer",
+        "relative_path": "test_root_cause_analysis.py"
+      },
+      {
+        "path": "compare_packet_sequences.py",
+        "name": "compare_packet_sequences.py",
+        "size_bytes": 8388,
+        "category": "analyzer",
+        "relative_path": "compare_packet_sequences.py"
+      },
+      {
+        "path": "demo_strategy_analyzer.py",
+        "name": "demo_strategy_analyzer.py",
+        "size_bytes": 8147,
+        "category": "analyzer",
+        "relative_path": "demo_strategy_analyzer.py"
+      },
+      {
+        "path": "pcap_inspect.py",
+        "name": "pcap_inspect.py",
+        "size_bytes": 7943,
+        "category": "analyzer",
+        "relative_path": "pcap_inspect.py"
+      },
+      {
+        "path": "test_pcap_content_validator.py",
+        "name": "test_pcap_content_validator.py",
+        "size_bytes": 7941,
+        "category": "analyzer",
+        "relative_path": "test_pcap_content_validator.py"
+      },
+      {
+        "path": "simple_discrepancy_analysis.py",
+        "name": "simple_discrepancy_analysis.py",
+        "size_bytes": 7726,
+        "category": "analyzer",
+        "relative_path": "simple_discrepancy_analysis.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\analysis_cache_fixed.py",
+        "name": "analysis_cache_fixed.py",
+        "size_bytes": 7519,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\analysis_cache_fixed.py"
+      },
+      {
+        "path": "core\\fingerprint\\tcp_analyzer.py",
+        "name": "tcp_analyzer.py",
+        "size_bytes": 7480,
+        "category": "analyzer",
+        "relative_path": "core\\fingerprint\\tcp_analyzer.py"
+      },
+      {
+        "path": "analyze_work_pcap.py",
+        "name": "analyze_work_pcap.py",
+        "size_bytes": 6797,
+        "category": "analyzer",
+        "relative_path": "analyze_work_pcap.py"
+      },
+      {
+        "path": "core\\fingerprint\\tcp_analyzer_demo.py",
+        "name": "tcp_analyzer_demo.py",
+        "size_bytes": 6507,
+        "category": "analyzer",
+        "relative_path": "core\\fingerprint\\tcp_analyzer_demo.py"
+      },
+      {
+        "path": "core\\pcap\\pcap_insights_worker.py",
+        "name": "pcap_insights_worker.py",
+        "size_bytes": 5941,
+        "category": "analyzer",
+        "relative_path": "core\\pcap\\pcap_insights_worker.py"
+      },
+      {
+        "path": "run_qs4_pcap_validation.py",
+        "name": "run_qs4_pcap_validation.py",
+        "size_bytes": 5587,
+        "category": "analyzer",
+        "relative_path": "run_qs4_pcap_validation.py"
+      },
+      {
+        "path": "analyze_fresh_pcap.py",
+        "name": "analyze_fresh_pcap.py",
+        "size_bytes": 5222,
+        "category": "analyzer",
+        "relative_path": "analyze_fresh_pcap.py"
+      },
+      {
+        "path": "test_cli_pcap_validation.py",
+        "name": "test_cli_pcap_validation.py",
+        "size_bytes": 4808,
+        "category": "analyzer",
+        "relative_path": "test_cli_pcap_validation.py"
+      },
+      {
+        "path": "run_strategy_comparison_with_root_cause_analysis.py",
+        "name": "run_strategy_comparison_with_root_cause_analysis.py",
+        "size_bytes": 4517,
+        "category": "analyzer",
+        "relative_path": "run_strategy_comparison_with_root_cause_analysis.py"
+      },
+      {
+        "path": "test_cli_validate_pcap_integration.py",
+        "name": "test_cli_validate_pcap_integration.py",
+        "size_bytes": 4372,
+        "category": "analyzer",
+        "relative_path": "test_cli_validate_pcap_integration.py"
+      },
+      {
+        "path": "test_real_pcap_integration.py",
+        "name": "test_real_pcap_integration.py",
+        "size_bytes": 3892,
+        "category": "analyzer",
+        "relative_path": "test_real_pcap_integration.py"
+      },
+      {
+        "path": "core\\post_handshake_analyzer.py",
+        "name": "post_handshake_analyzer.py",
+        "size_bytes": 3314,
+        "category": "analyzer",
+        "relative_path": "core\\post_handshake_analyzer.py"
+      },
+      {
+        "path": "post_handshake_analyzer.py",
+        "name": "post_handshake_analyzer.py",
+        "size_bytes": 3309,
+        "category": "analyzer",
+        "relative_path": "post_handshake_analyzer.py"
+      },
+      {
+        "path": "core\\bypass\\pcap_collector.py",
+        "name": "pcap_collector.py",
+        "size_bytes": 3290,
+        "category": "analyzer",
+        "relative_path": "core\\bypass\\pcap_collector.py"
+      },
+      {
+        "path": "core\\calibration\\tls_analyzer.py",
+        "name": "tls_analyzer.py",
+        "size_bytes": 3033,
+        "category": "analyzer",
+        "relative_path": "core\\calibration\\tls_analyzer.py"
+      },
+      {
+        "path": "quality_analyzer.py",
+        "name": "quality_analyzer.py",
+        "size_bytes": 2193,
+        "category": "analyzer",
+        "relative_path": "quality_analyzer.py"
+      },
+      {
+        "path": "core\\quality_analyzer.py",
+        "name": "quality_analyzer.py",
+        "size_bytes": 2193,
+        "category": "analyzer",
+        "relative_path": "core\\quality_analyzer.py"
+      },
+      {
+        "path": "pcap_compare.py",
+        "name": "pcap_compare.py",
+        "size_bytes": 2102,
+        "category": "analyzer",
+        "relative_path": "pcap_compare.py"
+      },
+      {
+        "path": "pcap_compare.py",
+        "name": "pcap_compare.py",
+        "size_bytes": 2102,
+        "category": "analyzer",
+        "relative_path": "pcap_compare.py"
+      },
+      {
+        "path": "1pcap_analyzer.py",
+        "name": "1pcap_analyzer.py",
+        "size_bytes": 1343,
+        "category": "analyzer",
+        "relative_path": "1pcap_analyzer.py"
+      },
+      {
+        "path": "1pcap_analyzer.py",
+        "name": "1pcap_analyzer.py",
+        "size_bytes": 1343,
+        "category": "analyzer",
+        "relative_path": "1pcap_analyzer.py"
+      },
+      {
+        "path": "pcap_analysis_cli.py",
+        "name": "pcap_analysis_cli.py",
+        "size_bytes": 1092,
+        "category": "analyzer",
+        "relative_path": "pcap_analysis_cli.py"
+      },
+      {
+        "path": "pcap_analysis_cli.py",
+        "name": "pcap_analysis_cli.py",
+        "size_bytes": 1092,
+        "category": "analyzer",
+        "relative_path": "pcap_analysis_cli.py"
+      },
+      {
+        "path": "tests\\pcap_analysis\\test_pcap_comparator.py",
+        "name": "test_pcap_comparator.py",
+        "size_bytes": 0,
+        "category": "analyzer",
+        "relative_path": "tests\\pcap_analysis\\test_pcap_comparator.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\analysis_cache.py",
+        "name": "analysis_cache.py",
+        "size_bytes": 0,
+        "category": "analyzer",
+        "relative_path": "core\\pcap_analysis\\analysis_cache.py"
+      }
+    ],
+    "duplicate_groups": {
+      "1pcap_analyzer.py": [
+        {
+          "path": "1pcap_analyzer.py",
+          "name": "1pcap_analyzer.py",
+          "size_bytes": 1343,
+          "category": "analyzer",
+          "relative_path": "1pcap_analyzer.py"
+        },
+        {
+          "path": "1pcap_analyzer.py",
+          "name": "1pcap_analyzer.py",
+          "size_bytes": 1343,
+          "category": "analyzer",
+          "relative_path": "1pcap_analyzer.py"
+        }
+      ],
+      "demo_root_cause_analyzer.py": [
+        {
+          "path": "demo_root_cause_analyzer.py",
+          "name": "demo_root_cause_analyzer.py",
+          "size_bytes": 23110,
+          "category": "analyzer",
+          "relative_path": "demo_root_cause_analyzer.py"
+        },
+        {
+          "path": "demo_root_cause_analyzer_simple.py",
+          "name": "demo_root_cause_analyzer_simple.py",
+          "size_bytes": 16958,
+          "category": "analyzer",
+          "relative_path": "demo_root_cause_analyzer_simple.py"
+        }
+      ],
+      "failure_analyzer.py": [
+        {
+          "path": "failure_analyzer.py",
+          "name": "failure_analyzer.py",
+          "size_bytes": 27773,
+          "category": "analyzer",
+          "relative_path": "failure_analyzer.py"
+        },
+        {
+          "path": "core\\failure_analyzer.py",
+          "name": "failure_analyzer.py",
+          "size_bytes": 24695,
+          "category": "analyzer",
+          "relative_path": "core\\failure_analyzer.py"
+        }
+      ],
+      "hex_pcap_analyzer.py": [
+        {
+          "path": "hex_pcap_analyzer.py",
+          "name": "hex_pcap_analyzer.py",
+          "size_bytes": 23977,
+          "category": "analyzer",
+          "relative_path": "hex_pcap_analyzer.py"
+        },
+        {
+          "path": "hex_pcap_analyzer.py",
+          "name": "hex_pcap_analyzer.py",
+          "size_bytes": 23977,
+          "category": "analyzer",
+          "relative_path": "hex_pcap_analyzer.py"
+        }
+      ],
+      "pcap_analyzer.py": [
+        {
+          "path": "pcap_analyzer.py",
+          "name": "pcap_analyzer.py",
+          "size_bytes": 11615,
+          "category": "analyzer",
+          "relative_path": "pcap_analyzer.py"
+        },
+        {
+          "path": "core\\packet\\pcap_analyzer.py",
+          "name": "pcap_analyzer.py",
+          "size_bytes": 17122,
+          "category": "analyzer",
+          "relative_path": "core\\packet\\pcap_analyzer.py"
+        },
+        {
+          "path": "pcap_analyzer.py",
+          "name": "pcap_analyzer.py",
+          "size_bytes": 11615,
+          "category": "analyzer",
+          "relative_path": "pcap_analyzer.py"
+        },
+        {
+          "path": "core\\packet\\pcap_analyzer.py",
+          "name": "pcap_analyzer.py",
+          "size_bytes": 17122,
+          "category": "analyzer",
+          "relative_path": "core\\packet\\pcap_analyzer.py"
+        }
+      ],
+      "post_handshake_analyzer.py": [
+        {
+          "path": "post_handshake_analyzer.py",
+          "name": "post_handshake_analyzer.py",
+          "size_bytes": 3309,
+          "category": "analyzer",
+          "relative_path": "post_handshake_analyzer.py"
+        },
+        {
+          "path": "core\\post_handshake_analyzer.py",
+          "name": "post_handshake_analyzer.py",
+          "size_bytes": 3314,
+          "category": "analyzer",
+          "relative_path": "core\\post_handshake_analyzer.py"
+        }
+      ],
+      "quality_analyzer.py": [
+        {
+          "path": "quality_analyzer.py",
+          "name": "quality_analyzer.py",
+          "size_bytes": 2193,
+          "category": "analyzer",
+          "relative_path": "quality_analyzer.py"
+        },
+        {
+          "path": "core\\quality_analyzer.py",
+          "name": "quality_analyzer.py",
+          "size_bytes": 2193,
+          "category": "analyzer",
+          "relative_path": "core\\quality_analyzer.py"
+        }
+      ],
+      "simple_pcap_analyzer.py": [
+        {
+          "path": "simple_pcap_analyzer.py",
+          "name": "simple_pcap_analyzer.py",
+          "size_bytes": 16694,
+          "category": "analyzer",
+          "relative_path": "simple_pcap_analyzer.py"
+        },
+        {
+          "path": "simple_pcap_analyzer.py",
+          "name": "simple_pcap_analyzer.py",
+          "size_bytes": 16694,
+          "category": "analyzer",
+          "relative_path": "simple_pcap_analyzer.py"
+        }
+      ],
+      "dns_analyzer.py": [
+        {
+          "path": "core\\fingerprint\\dns_analyzer.py",
+          "name": "dns_analyzer.py",
+          "size_bytes": 23955,
+          "category": "analyzer",
+          "relative_path": "core\\fingerprint\\dns_analyzer.py"
+        },
+        {
+          "path": "core\\fingerprint\\dns_analyzer_demo.py",
+          "name": "dns_analyzer_demo.py",
+          "size_bytes": 9771,
+          "category": "analyzer",
+          "relative_path": "core\\fingerprint\\dns_analyzer_demo.py"
+        }
+      ],
+      "tcp_analyzer.py": [
+        {
+          "path": "core\\fingerprint\\tcp_analyzer.py",
+          "name": "tcp_analyzer.py",
+          "size_bytes": 7480,
+          "category": "analyzer",
+          "relative_path": "core\\fingerprint\\tcp_analyzer.py"
+        },
+        {
+          "path": "core\\fingerprint\\tcp_analyzer_demo.py",
+          "name": "tcp_analyzer_demo.py",
+          "size_bytes": 6507,
+          "category": "analyzer",
+          "relative_path": "core\\fingerprint\\tcp_analyzer_demo.py"
+        }
+      ],
+      "pcap_analysis_cli.py": [
+        {
+          "path": "pcap_analysis_cli.py",
+          "name": "pcap_analysis_cli.py",
+          "size_bytes": 1092,
+          "category": "analyzer",
+          "relative_path": "pcap_analysis_cli.py"
+        },
+        {
+          "path": "core\\pcap_analysis_cli.py",
+          "name": "pcap_analysis_cli.py",
+          "size_bytes": 19956,
+          "category": "analyzer",
+          "relative_path": "core\\pcap_analysis_cli.py"
+        },
+        {
+          "path": "pcap_analysis_cli.py",
+          "name": "pcap_analysis_cli.py",
+          "size_bytes": 1092,
+          "category": "analyzer",
+          "relative_path": "pcap_analysis_cli.py"
+        },
+        {
+          "path": "core\\pcap_analysis_cli.py",
+          "name": "pcap_analysis_cli.py",
+          "size_bytes": 19956,
+          "category": "analyzer",
+          "relative_path": "core\\pcap_analysis_cli.py"
+        }
+      ],
+      "pcap_compare.py": [
+        {
+          "path": "pcap_compare.py",
+          "name": "pcap_compare.py",
+          "size_bytes": 2102,
+          "category": "analyzer",
+          "relative_path": "pcap_compare.py"
+        },
+        {
+          "path": "pcap_compare.py",
+          "name": "pcap_compare.py",
+          "size_bytes": 2102,
+          "category": "analyzer",
+          "relative_path": "pcap_compare.py"
+        }
+      ],
+      "simple_pcap_compare.py": [
+        {
+          "path": "simple_pcap_compare.py",
+          "name": "simple_pcap_compare.py",
+          "size_bytes": 10365,
+          "category": "analyzer",
+          "relative_path": "simple_pcap_compare.py"
+        },
+        {
+          "path": "simple_pcap_compare.py",
+          "name": "simple_pcap_compare.py",
+          "size_bytes": 10365,
+          "category": "analyzer",
+          "relative_path": "simple_pcap_compare.py"
+        }
+      ],
+      "test_pcap_analysis_task1.py": [
+        {
+          "path": "test_pcap_analysis_task1.py",
+          "name": "test_pcap_analysis_task1.py",
+          "size_bytes": 10932,
+          "category": "analyzer",
+          "relative_path": "test_pcap_analysis_task1.py"
+        },
+        {
+          "path": "test_pcap_analysis_task1.py",
+          "name": "test_pcap_analysis_task1.py",
+          "size_bytes": 10932,
+          "category": "analyzer",
+          "relative_path": "test_pcap_analysis_task1.py"
+        }
+      ],
+      "analysis_cache.py": [
+        {
+          "path": "core\\pcap_analysis\\analysis_cache.py",
+          "name": "analysis_cache.py",
+          "size_bytes": 0,
+          "category": "analyzer",
+          "relative_path": "core\\pcap_analysis\\analysis_cache.py"
+        },
+        {
+          "path": "core\\pcap_analysis\\analysis_cache_fixed.py",
+          "name": "analysis_cache_fixed.py",
+          "size_bytes": 7519,
+          "category": "analyzer",
+          "relative_path": "core\\pcap_analysis\\analysis_cache_fixed.py"
+        }
+      ]
+    },
+    "total_count": 104,
+    "total_size": 1485482,
+    "duplicate_count": 34
+  },
+  "tests": {
+    "test_files": [
+      {
+        "path": "test_real_domain_integration.py",
+        "name": "test_real_domain_integration.py",
+        "size_bytes": 2187713,
+        "category": "test",
+        "relative_path": "test_real_domain_integration.py"
+      },
+      {
+        "path": "test_all_attacks.py",
+        "name": "test_all_attacks.py",
+        "size_bytes": 46863,
+        "category": "test",
+        "relative_path": "test_all_attacks.py"
+      },
+      {
+        "path": "core\\bypass\\testing\\comprehensive_system_test.py",
+        "name": "comprehensive_system_test.py",
+        "size_bytes": 45244,
+        "category": "test",
+        "relative_path": "core\\bypass\\testing\\comprehensive_system_test.py"
+      },
+      {
+        "path": "final_system_integration_test.py",
+        "name": "final_system_integration_test.py",
+        "size_bytes": 35712,
+        "category": "test",
+        "relative_path": "final_system_integration_test.py"
+      },
+      {
+        "path": "tests\\unit\\test_ip_based_mapping_comprehensive.py",
+        "name": "test_ip_based_mapping_comprehensive.py",
+        "size_bytes": 31475,
+        "category": "test",
+        "relative_path": "tests\\unit\\test_ip_based_mapping_comprehensive.py"
+      },
+      {
+        "path": "test_all_validation_modules.py",
+        "name": "test_all_validation_modules.py",
+        "size_bytes": 29704,
+        "category": "test",
+        "relative_path": "test_all_validation_modules.py"
+      },
+      {
+        "path": "test_comprehensive_reporting.py",
+        "name": "test_comprehensive_reporting.py",
+        "size_bytes": 28911,
+        "category": "test",
+        "relative_path": "test_comprehensive_reporting.py"
+      },
+      {
+        "path": "tests\\integration\\test_x_com_subdomains_integration.py",
+        "name": "test_x_com_subdomains_integration.py",
+        "size_bytes": 27445,
+        "category": "test",
+        "relative_path": "tests\\integration\\test_x_com_subdomains_integration.py"
+      },
+      {
+        "path": "test_recon_integration.py",
+        "name": "test_recon_integration.py",
+        "size_bytes": 27422,
+        "category": "test",
+        "relative_path": "test_recon_integration.py"
+      },
+      {
+        "path": "tests\\integration\\test_x_com_bypass_integration.py",
+        "name": "test_x_com_bypass_integration.py",
+        "size_bytes": 27349,
+        "category": "test",
+        "relative_path": "tests\\integration\\test_x_com_bypass_integration.py"
+      },
+      {
+        "path": "test_task24_intelligent_strategy_generation.py",
+        "name": "test_task24_intelligent_strategy_generation.py",
+        "size_bytes": 23944,
+        "category": "test",
+        "relative_path": "test_task24_intelligent_strategy_generation.py"
+      },
+      {
+        "path": "test_all_core_attacks.py",
+        "name": "test_all_core_attacks.py",
+        "size_bytes": 23046,
+        "category": "test",
+        "relative_path": "test_all_core_attacks.py"
+      },
+      {
+        "path": "test_service_startup_validation.py",
+        "name": "test_service_startup_validation.py",
+        "size_bytes": 20851,
+        "category": "test",
+        "relative_path": "test_service_startup_validation.py"
+      },
+      {
+        "path": "test_strategy_validator_integration.py",
+        "name": "test_strategy_validator_integration.py",
+        "size_bytes": 20797,
+        "category": "test",
+        "relative_path": "test_strategy_validator_integration.py"
+      },
+      {
+        "path": "test_packet_building_error_handling.py",
+        "name": "test_packet_building_error_handling.py",
+        "size_bytes": 20677,
+        "category": "test",
+        "relative_path": "test_packet_building_error_handling.py"
+      },
+      {
+        "path": "test_difference_detector.py",
+        "name": "test_difference_detector.py",
+        "size_bytes": 20425,
+        "category": "test",
+        "relative_path": "test_difference_detector.py"
+      },
+      {
+        "path": "test_task19_completion.py",
+        "name": "test_task19_completion.py",
+        "size_bytes": 19915,
+        "category": "test",
+        "relative_path": "test_task19_completion.py"
+      },
+      {
+        "path": "test_x_com_browser_access.py",
+        "name": "test_x_com_browser_access.py",
+        "size_bytes": 19493,
+        "category": "test",
+        "relative_path": "test_x_com_browser_access.py"
+      },
+      {
+        "path": "tests\\unit\\test_strategy_interpreter_comprehensive.py",
+        "name": "test_strategy_interpreter_comprehensive.py",
+        "size_bytes": 19099,
+        "category": "test",
+        "relative_path": "tests\\unit\\test_strategy_interpreter_comprehensive.py"
+      },
+      {
+        "path": "test_automated_pcap_workflow.py",
+        "name": "test_automated_pcap_workflow.py",
+        "size_bytes": 19018,
+        "category": "test",
+        "relative_path": "test_automated_pcap_workflow.py"
+      },
+      {
+        "path": "tests\\unit\\test_strategy_parser_comprehensive.py",
+        "name": "test_strategy_parser_comprehensive.py",
+        "size_bytes": 18260,
+        "category": "test",
+        "relative_path": "tests\\unit\\test_strategy_parser_comprehensive.py"
+      },
+      {
+        "path": "test_packet_sequence_analyzer.py",
+        "name": "test_packet_sequence_analyzer.py",
+        "size_bytes": 18146,
+        "category": "test",
+        "relative_path": "test_packet_sequence_analyzer.py"
+      },
+      {
+        "path": "tests\\unit\\test_autottl_calculation_comprehensive.py",
+        "name": "test_autottl_calculation_comprehensive.py",
+        "size_bytes": 18045,
+        "category": "test",
+        "relative_path": "tests\\unit\\test_autottl_calculation_comprehensive.py"
+      },
+      {
+        "path": "test_x_com_subdomains_comprehensive_validation.py",
+        "name": "test_x_com_subdomains_comprehensive_validation.py",
+        "size_bytes": 18028,
+        "category": "test",
+        "relative_path": "test_x_com_subdomains_comprehensive_validation.py"
+      },
+      {
+        "path": "pcap_validation_test.py",
+        "name": "pcap_validation_test.py",
+        "size_bytes": 17873,
+        "category": "test",
+        "relative_path": "pcap_validation_test.py"
+      },
+      {
+        "path": "test_historical_learning_integration.py",
+        "name": "test_historical_learning_integration.py",
+        "size_bytes": 17804,
+        "category": "test",
+        "relative_path": "test_historical_learning_integration.py"
+      },
+      {
+        "path": "test_x_com_browser_access_validation.py",
+        "name": "test_x_com_browser_access_validation.py",
+        "size_bytes": 17586,
+        "category": "test",
+        "relative_path": "test_x_com_browser_access_validation.py"
+      },
+      {
+        "path": "test_performance_integration.py",
+        "name": "test_performance_integration.py",
+        "size_bytes": 17258,
+        "category": "test",
+        "relative_path": "test_performance_integration.py"
+      },
+      {
+        "path": "test_validation_regression.py",
+        "name": "test_validation_regression.py",
+        "size_bytes": 17076,
+        "category": "test",
+        "relative_path": "test_validation_regression.py"
+      },
+      {
+        "path": "test_error_handling_recovery.py",
+        "name": "test_error_handling_recovery.py",
+        "size_bytes": 17074,
+        "category": "test",
+        "relative_path": "test_error_handling_recovery.py"
+      },
+      {
+        "path": "test_x_com_subdomains_comprehensive.py",
+        "name": "test_x_com_subdomains_comprehensive.py",
+        "size_bytes": 17044,
+        "category": "test",
+        "relative_path": "test_x_com_subdomains_comprehensive.py"
+      },
+      {
+        "path": "test_fix_generator.py",
+        "name": "test_fix_generator.py",
+        "size_bytes": 16833,
+        "category": "test",
+        "relative_path": "test_fix_generator.py"
+      },
+      {
+        "path": "test_strategy_parser_autottl.py",
+        "name": "test_strategy_parser_autottl.py",
+        "size_bytes": 16589,
+        "category": "test",
+        "relative_path": "test_strategy_parser_autottl.py"
+      },
+      {
+        "path": "test_strategy_validator.py",
+        "name": "test_strategy_validator.py",
+        "size_bytes": 15970,
+        "category": "test",
+        "relative_path": "test_strategy_validator.py"
+      },
+      {
+        "path": "test_root_cause_analyzer.py",
+        "name": "test_root_cause_analyzer.py",
+        "size_bytes": 15953,
+        "category": "test",
+        "relative_path": "test_root_cause_analyzer.py"
+      },
+      {
+        "path": "test_task24_final_integration.py",
+        "name": "test_task24_final_integration.py",
+        "size_bytes": 15682,
+        "category": "test",
+        "relative_path": "test_task24_final_integration.py"
+      },
+      {
+        "path": "demo_comprehensive_system_test.py",
+        "name": "demo_comprehensive_system_test.py",
+        "size_bytes": 15359,
+        "category": "test",
+        "relative_path": "demo_comprehensive_system_test.py"
+      },
+      {
+        "path": "test_x_com_subdomains_final.py",
+        "name": "test_x_com_subdomains_final.py",
+        "size_bytes": 15298,
+        "category": "test",
+        "relative_path": "test_x_com_subdomains_final.py"
+      },
+      {
+        "path": "test_tcp_retransmission_stress.py",
+        "name": "test_tcp_retransmission_stress.py",
+        "size_bytes": 14814,
+        "category": "test",
+        "relative_path": "test_tcp_retransmission_stress.py"
+      },
+      {
+        "path": "test_regression_tester.py",
+        "name": "test_regression_tester.py",
+        "size_bytes": 14676,
+        "category": "test",
+        "relative_path": "test_regression_tester.py"
+      },
+      {
+        "path": "test_performance_optimization.py",
+        "name": "test_performance_optimization.py",
+        "size_bytes": 14647,
+        "category": "test",
+        "relative_path": "test_performance_optimization.py"
+      },
+      {
+        "path": "test_advanced_probes_task23.py",
+        "name": "test_advanced_probes_task23.py",
+        "size_bytes": 14543,
+        "category": "test",
+        "relative_path": "test_advanced_probes_task23.py"
+      },
+      {
+        "path": "test_cli_baseline_integration.py",
+        "name": "test_cli_baseline_integration.py",
+        "size_bytes": 14543,
+        "category": "test",
+        "relative_path": "test_cli_baseline_integration.py"
+      },
+      {
+        "path": "test_cli_validation_output.py",
+        "name": "test_cli_validation_output.py",
+        "size_bytes": 14340,
+        "category": "test",
+        "relative_path": "test_cli_validation_output.py"
+      },
+      {
+        "path": "test_all_fixes_comprehensive.py",
+        "name": "test_all_fixes_comprehensive.py",
+        "size_bytes": 14334,
+        "category": "test",
+        "relative_path": "test_all_fixes_comprehensive.py"
+      },
+      {
+        "path": "core\\bypass\\strategies\\simple_subdomain_test.py",
+        "name": "simple_subdomain_test.py",
+        "size_bytes": 13846,
+        "category": "test",
+        "relative_path": "core\\bypass\\strategies\\simple_subdomain_test.py"
+      },
+      {
+        "path": "test_multidisorder_logging.py",
+        "name": "test_multidisorder_logging.py",
+        "size_bytes": 13684,
+        "category": "test",
+        "relative_path": "test_multidisorder_logging.py"
+      },
+      {
+        "path": "test_rst_detection_analysis.py",
+        "name": "test_rst_detection_analysis.py",
+        "size_bytes": 13646,
+        "category": "test",
+        "relative_path": "test_rst_detection_analysis.py"
+      },
+      {
+        "path": "test_strategy_generation_complete.py",
+        "name": "test_strategy_generation_complete.py",
+        "size_bytes": 13633,
+        "category": "test",
+        "relative_path": "test_strategy_generation_complete.py"
+      },
+      {
+        "path": "test_x_com_subdomains_validation.py",
+        "name": "test_x_com_subdomains_validation.py",
+        "size_bytes": 13234,
+        "category": "test",
+        "relative_path": "test_x_com_subdomains_validation.py"
+      },
+      {
+        "path": "test_enhanced_find_rst_triggers_x_com.py",
+        "name": "test_enhanced_find_rst_triggers_x_com.py",
+        "size_bytes": 13212,
+        "category": "test",
+        "relative_path": "test_enhanced_find_rst_triggers_x_com.py"
+      },
+      {
+        "path": "test_fakeddisorder_ttl_fix_final.py",
+        "name": "test_fakeddisorder_ttl_fix_final.py",
+        "size_bytes": 13054,
+        "category": "test",
+        "relative_path": "test_fakeddisorder_ttl_fix_final.py"
+      },
+      {
+        "path": "final_bypass_test.py",
+        "name": "final_bypass_test.py",
+        "size_bytes": 12994,
+        "category": "test",
+        "relative_path": "final_bypass_test.py"
+      },
+      {
+        "path": "test_packet_validation_regression.py",
+        "name": "test_packet_validation_regression.py",
+        "size_bytes": 12876,
+        "category": "test",
+        "relative_path": "test_packet_validation_regression.py"
+      },
+      {
+        "path": "test_json_report_generation.py",
+        "name": "test_json_report_generation.py",
+        "size_bytes": 12701,
+        "category": "test",
+        "relative_path": "test_json_report_generation.py"
+      },
+      {
+        "path": "test_parameter_validation.py",
+        "name": "test_parameter_validation.py",
+        "size_bytes": 12671,
+        "category": "test",
+        "relative_path": "test_parameter_validation.py"
+      },
+      {
+        "path": "test_pattern_recognizer.py",
+        "name": "test_pattern_recognizer.py",
+        "size_bytes": 12602,
+        "category": "test",
+        "relative_path": "test_pattern_recognizer.py"
+      },
+      {
+        "path": "test_x_com_subdomains_config_verification.py",
+        "name": "test_x_com_subdomains_config_verification.py",
+        "size_bytes": 12593,
+        "category": "test",
+        "relative_path": "test_x_com_subdomains_config_verification.py"
+      },
+      {
+        "path": "test_tcp_options_pcap_comparison.py",
+        "name": "test_tcp_options_pcap_comparison.py",
+        "size_bytes": 12374,
+        "category": "test",
+        "relative_path": "test_tcp_options_pcap_comparison.py"
+      },
+      {
+        "path": "tests\\integration\\test_validation_production.py",
+        "name": "test_validation_production.py",
+        "size_bytes": 12268,
+        "category": "test",
+        "relative_path": "tests\\integration\\test_validation_production.py"
+      },
+      {
+        "path": "core\\bypass\\sharing\\simple_sharing_test.py",
+        "name": "simple_sharing_test.py",
+        "size_bytes": 12257,
+        "category": "test",
+        "relative_path": "core\\bypass\\sharing\\simple_sharing_test.py"
+      },
+      {
+        "path": "test_tcp_options_pcap_verification.py",
+        "name": "test_tcp_options_pcap_verification.py",
+        "size_bytes": 12242,
+        "category": "test",
+        "relative_path": "test_tcp_options_pcap_verification.py"
+      },
+      {
+        "path": "core\\bypass\\protocols\\simple_multi_port_test.py",
+        "name": "simple_multi_port_test.py",
+        "size_bytes": 12211,
+        "category": "test",
+        "relative_path": "core\\bypass\\protocols\\simple_multi_port_test.py"
+      },
+      {
+        "path": "test_packet_validator.py",
+        "name": "test_packet_validator.py",
+        "size_bytes": 12196,
+        "category": "test",
+        "relative_path": "test_packet_validator.py"
+      },
+      {
+        "path": "core\\packet\\simple_migration_test.py",
+        "name": "simple_migration_test.py",
+        "size_bytes": 12068,
+        "category": "test",
+        "relative_path": "core\\packet\\simple_migration_test.py"
+      },
+      {
+        "path": "test_zapret_compatibility.py",
+        "name": "test_zapret_compatibility.py",
+        "size_bytes": 11716,
+        "category": "test",
+        "relative_path": "test_zapret_compatibility.py"
+      },
+      {
+        "path": "test_autottl_calculation.py",
+        "name": "test_autottl_calculation.py",
+        "size_bytes": 11392,
+        "category": "test",
+        "relative_path": "test_autottl_calculation.py"
+      },
+      {
+        "path": "test_packet_construction_fixes.py",
+        "name": "test_packet_construction_fixes.py",
+        "size_bytes": 11183,
+        "category": "test",
+        "relative_path": "test_packet_construction_fixes.py"
+      },
+      {
+        "path": "test_cli_validation_integration.py",
+        "name": "test_cli_validation_integration.py",
+        "size_bytes": 11021,
+        "category": "test",
+        "relative_path": "test_cli_validation_integration.py"
+      },
+      {
+        "path": "test_pcap_analysis_task1.py",
+        "name": "test_pcap_analysis_task1.py",
+        "size_bytes": 10932,
+        "category": "test",
+        "relative_path": "test_pcap_analysis_task1.py"
+      },
+      {
+        "path": "test_baseline_integration.py",
+        "name": "test_baseline_integration.py",
+        "size_bytes": 10820,
+        "category": "test",
+        "relative_path": "test_baseline_integration.py"
+      },
+      {
+        "path": "core\\bypass\\strategies\\simple_social_media_test.py",
+        "name": "simple_social_media_test.py",
+        "size_bytes": 10749,
+        "category": "test",
+        "relative_path": "core\\bypass\\strategies\\simple_social_media_test.py"
+      },
+      {
+        "path": "test_x_com_fakeddisorder_fix.py",
+        "name": "test_x_com_fakeddisorder_fix.py",
+        "size_bytes": 10744,
+        "category": "test",
+        "relative_path": "test_x_com_fakeddisorder_fix.py"
+      },
+      {
+        "path": "test_strategy_interpreter_mapping.py",
+        "name": "test_strategy_interpreter_mapping.py",
+        "size_bytes": 10636,
+        "category": "test",
+        "relative_path": "test_strategy_interpreter_mapping.py"
+      },
+      {
+        "path": "test_strategy_analyzer.py",
+        "name": "test_strategy_analyzer.py",
+        "size_bytes": 10544,
+        "category": "test",
+        "relative_path": "test_strategy_analyzer.py"
+      },
+      {
+        "path": "test_tcp_parameter_mappings.py",
+        "name": "test_tcp_parameter_mappings.py",
+        "size_bytes": 10520,
+        "category": "test",
+        "relative_path": "test_tcp_parameter_mappings.py"
+      },
+      {
+        "path": "test_all_attacks_parser.py",
+        "name": "test_all_attacks_parser.py",
+        "size_bytes": 10507,
+        "category": "test",
+        "relative_path": "test_all_attacks_parser.py"
+      },
+      {
+        "path": "test_multidisorder_repeats.py",
+        "name": "test_multidisorder_repeats.py",
+        "size_bytes": 10422,
+        "category": "test",
+        "relative_path": "test_multidisorder_repeats.py"
+      },
+      {
+        "path": "test_tcp_flags_validation.py",
+        "name": "test_tcp_flags_validation.py",
+        "size_bytes": 10359,
+        "category": "test",
+        "relative_path": "test_tcp_flags_validation.py"
+      },
+      {
+        "path": "test_orchestrator_verification.py",
+        "name": "test_orchestrator_verification.py",
+        "size_bytes": 10203,
+        "category": "test",
+        "relative_path": "test_orchestrator_verification.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\obfuscation\\simple_obfuscation_test.py",
+        "name": "simple_obfuscation_test.py",
+        "size_bytes": 10200,
+        "category": "test",
+        "relative_path": "core\\bypass\\attacks\\obfuscation\\simple_obfuscation_test.py"
+      },
+      {
+        "path": "core\\bypass\\validation\\simple_reliability_test.py",
+        "name": "simple_reliability_test.py",
+        "size_bytes": 10179,
+        "category": "test",
+        "relative_path": "core\\bypass\\validation\\simple_reliability_test.py"
+      },
+      {
+        "path": "simple_x_com_connectivity_test.py",
+        "name": "simple_x_com_connectivity_test.py",
+        "size_bytes": 10059,
+        "category": "test",
+        "relative_path": "simple_x_com_connectivity_test.py"
+      },
+      {
+        "path": "test_ip_based_strategy_mapping.py",
+        "name": "test_ip_based_strategy_mapping.py",
+        "size_bytes": 9942,
+        "category": "test",
+        "relative_path": "test_ip_based_strategy_mapping.py"
+      },
+      {
+        "path": "test_apply_bypass_integration.py",
+        "name": "test_apply_bypass_integration.py",
+        "size_bytes": 9860,
+        "category": "test",
+        "relative_path": "test_apply_bypass_integration.py"
+      },
+      {
+        "path": "test_strategy_ranking.py",
+        "name": "test_strategy_ranking.py",
+        "size_bytes": 9829,
+        "category": "test",
+        "relative_path": "test_strategy_ranking.py"
+      },
+      {
+        "path": "test_simple_packet_validator.py",
+        "name": "test_simple_packet_validator.py",
+        "size_bytes": 9815,
+        "category": "test",
+        "relative_path": "test_simple_packet_validator.py"
+      },
+      {
+        "path": "test_parameter_mapper_integration.py",
+        "name": "test_parameter_mapper_integration.py",
+        "size_bytes": 9650,
+        "category": "test",
+        "relative_path": "test_parameter_mapper_integration.py"
+      },
+      {
+        "path": "test_tcp_retransmission_integration.py",
+        "name": "test_tcp_retransmission_integration.py",
+        "size_bytes": 9622,
+        "category": "test",
+        "relative_path": "test_tcp_retransmission_integration.py"
+      },
+      {
+        "path": "core\\bypass\\strategies\\comprehensive_test.py",
+        "name": "comprehensive_test.py",
+        "size_bytes": 9497,
+        "category": "test",
+        "relative_path": "core\\bypass\\strategies\\comprehensive_test.py"
+      },
+      {
+        "path": "test_real_domain_tester_integration.py",
+        "name": "test_real_domain_tester_integration.py",
+        "size_bytes": 9469,
+        "category": "test",
+        "relative_path": "test_real_domain_tester_integration.py"
+      },
+      {
+        "path": "test_tcp_options_integration.py",
+        "name": "test_tcp_options_integration.py",
+        "size_bytes": 9235,
+        "category": "test",
+        "relative_path": "test_tcp_options_integration.py"
+      },
+      {
+        "path": "test_cli_basic.py",
+        "name": "test_cli_basic.py",
+        "size_bytes": 9196,
+        "category": "test",
+        "relative_path": "test_cli_basic.py"
+      },
+      {
+        "path": "test_real_domains.py",
+        "name": "test_real_domains.py",
+        "size_bytes": 9181,
+        "category": "test",
+        "relative_path": "test_real_domains.py"
+      },
+      {
+        "path": "core\\bypass\\strategies\\simple_strategy_test.py",
+        "name": "simple_strategy_test.py",
+        "size_bytes": 8991,
+        "category": "test",
+        "relative_path": "core\\bypass\\strategies\\simple_strategy_test.py"
+      },
+      {
+        "path": "test_fixed_defaults.py",
+        "name": "test_fixed_defaults.py",
+        "size_bytes": 8873,
+        "category": "test",
+        "relative_path": "test_fixed_defaults.py"
+      },
+      {
+        "path": "test_strategy_validation_integration.py",
+        "name": "test_strategy_validation_integration.py",
+        "size_bytes": 8796,
+        "category": "test",
+        "relative_path": "test_strategy_validation_integration.py"
+      },
+      {
+        "path": "test_root_cause_analysis.py",
+        "name": "test_root_cause_analysis.py",
+        "size_bytes": 8562,
+        "category": "test",
+        "relative_path": "test_root_cause_analysis.py"
+      },
+      {
+        "path": "test_critical_fixes.py",
+        "name": "test_critical_fixes.py",
+        "size_bytes": 8555,
+        "category": "test",
+        "relative_path": "test_critical_fixes.py"
+      },
+      {
+        "path": "test_multidisorder_enhanced.py",
+        "name": "test_multidisorder_enhanced.py",
+        "size_bytes": 8395,
+        "category": "test",
+        "relative_path": "test_multidisorder_enhanced.py"
+      },
+      {
+        "path": "test_ttl_validation_focused.py",
+        "name": "test_ttl_validation_focused.py",
+        "size_bytes": 8259,
+        "category": "test",
+        "relative_path": "test_ttl_validation_focused.py"
+      },
+      {
+        "path": "test_x_com_no_fallback.py",
+        "name": "test_x_com_no_fallback.py",
+        "size_bytes": 8246,
+        "category": "test",
+        "relative_path": "test_x_com_no_fallback.py"
+      },
+      {
+        "path": "test_tcp_options_copying.py",
+        "name": "test_tcp_options_copying.py",
+        "size_bytes": 8224,
+        "category": "test",
+        "relative_path": "test_tcp_options_copying.py"
+      },
+      {
+        "path": "test_ip_mapping_logging.py",
+        "name": "test_ip_mapping_logging.py",
+        "size_bytes": 8138,
+        "category": "test",
+        "relative_path": "test_ip_mapping_logging.py"
+      },
+      {
+        "path": "test_checksum_verification.py",
+        "name": "test_checksum_verification.py",
+        "size_bytes": 8032,
+        "category": "test",
+        "relative_path": "test_checksum_verification.py"
+      },
+      {
+        "path": "test_pcap_content_validator.py",
+        "name": "test_pcap_content_validator.py",
+        "size_bytes": 7941,
+        "category": "test",
+        "relative_path": "test_pcap_content_validator.py"
+      },
+      {
+        "path": "test_spec_validation.py",
+        "name": "test_spec_validation.py",
+        "size_bytes": 7929,
+        "category": "test",
+        "relative_path": "test_spec_validation.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\tls\\simple_tls_test.py",
+        "name": "simple_tls_test.py",
+        "size_bytes": 7809,
+        "category": "test",
+        "relative_path": "core\\bypass\\attacks\\tls\\simple_tls_test.py"
+      },
+      {
+        "path": "test_tcp_retransmission_mitigation.py",
+        "name": "test_tcp_retransmission_mitigation.py",
+        "size_bytes": 7682,
+        "category": "test",
+        "relative_path": "test_tcp_retransmission_mitigation.py"
+      },
+      {
+        "path": "test_checksum_validation_focused.py",
+        "name": "test_checksum_validation_focused.py",
+        "size_bytes": 7660,
+        "category": "test",
+        "relative_path": "test_checksum_validation_focused.py"
+      },
+      {
+        "path": "test_service_startup.py",
+        "name": "test_service_startup.py",
+        "size_bytes": 7654,
+        "category": "test",
+        "relative_path": "test_service_startup.py"
+      },
+      {
+        "path": "test_strategy_parser_v2.py",
+        "name": "test_strategy_parser_v2.py",
+        "size_bytes": 7480,
+        "category": "test",
+        "relative_path": "test_strategy_parser_v2.py"
+      },
+      {
+        "path": "test_other_parameter_mappings.py",
+        "name": "test_other_parameter_mappings.py",
+        "size_bytes": 7258,
+        "category": "test",
+        "relative_path": "test_other_parameter_mappings.py"
+      },
+      {
+        "path": "test_orchestrator_basic.py",
+        "name": "test_orchestrator_basic.py",
+        "size_bytes": 7156,
+        "category": "test",
+        "relative_path": "test_orchestrator_basic.py"
+      },
+      {
+        "path": "test_performance_simple.py",
+        "name": "test_performance_simple.py",
+        "size_bytes": 7100,
+        "category": "test",
+        "relative_path": "test_performance_simple.py"
+      },
+      {
+        "path": "test_primitives_fine_tuning.py",
+        "name": "test_primitives_fine_tuning.py",
+        "size_bytes": 7006,
+        "category": "test",
+        "relative_path": "test_primitives_fine_tuning.py"
+      },
+      {
+        "path": "test_parser_integration.py",
+        "name": "test_parser_integration.py",
+        "size_bytes": 6898,
+        "category": "test",
+        "relative_path": "test_parser_integration.py"
+      },
+      {
+        "path": "test_bypass_engine_integration.py",
+        "name": "test_bypass_engine_integration.py",
+        "size_bytes": 6876,
+        "category": "test",
+        "relative_path": "test_bypass_engine_integration.py"
+      },
+      {
+        "path": "core\\bypass\\performance\\simple_performance_test.py",
+        "name": "simple_performance_test.py",
+        "size_bytes": 6810,
+        "category": "test",
+        "relative_path": "core\\bypass\\performance\\simple_performance_test.py"
+      },
+      {
+        "path": "test_split_disorder_fix.py",
+        "name": "test_split_disorder_fix.py",
+        "size_bytes": 6775,
+        "category": "test",
+        "relative_path": "test_split_disorder_fix.py"
+      },
+      {
+        "path": "force_bypass_test.py",
+        "name": "force_bypass_test.py",
+        "size_bytes": 6752,
+        "category": "test",
+        "relative_path": "force_bypass_test.py"
+      },
+      {
+        "path": "test_unified_fingerprinter.py",
+        "name": "test_unified_fingerprinter.py",
+        "size_bytes": 6732,
+        "category": "test",
+        "relative_path": "test_unified_fingerprinter.py"
+      },
+      {
+        "path": "core\\bypass\\compatibility\\simple_compatibility_test.py",
+        "name": "simple_compatibility_test.py",
+        "size_bytes": 6519,
+        "category": "test",
+        "relative_path": "core\\bypass\\compatibility\\simple_compatibility_test.py"
+      },
+      {
+        "path": "test_service_fix.py",
+        "name": "test_service_fix.py",
+        "size_bytes": 6390,
+        "category": "test",
+        "relative_path": "test_service_fix.py"
+      },
+      {
+        "path": "test_x_com_direct.py",
+        "name": "test_x_com_direct.py",
+        "size_bytes": 6294,
+        "category": "test",
+        "relative_path": "test_x_com_direct.py"
+      },
+      {
+        "path": "test_with_cli.py",
+        "name": "test_with_cli.py",
+        "size_bytes": 6276,
+        "category": "test",
+        "relative_path": "test_with_cli.py"
+      },
+      {
+        "path": "simple_bypass_test.py",
+        "name": "simple_bypass_test.py",
+        "size_bytes": 6181,
+        "category": "test",
+        "relative_path": "simple_bypass_test.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\dns\\simple_dns_test.py",
+        "name": "simple_dns_test.py",
+        "size_bytes": 6155,
+        "category": "test",
+        "relative_path": "core\\bypass\\attacks\\dns\\simple_dns_test.py"
+      },
+      {
+        "path": "core\\bypass\\testing\\simple_framework_test.py",
+        "name": "simple_framework_test.py",
+        "size_bytes": 5998,
+        "category": "test",
+        "relative_path": "core\\bypass\\testing\\simple_framework_test.py"
+      },
+      {
+        "path": "test_x_com_subdomains_quick.py",
+        "name": "test_x_com_subdomains_quick.py",
+        "size_bytes": 5961,
+        "category": "test",
+        "relative_path": "test_x_com_subdomains_quick.py"
+      },
+      {
+        "path": "test_badsum_fix_real.py",
+        "name": "test_badsum_fix_real.py",
+        "size_bytes": 5955,
+        "category": "test",
+        "relative_path": "test_badsum_fix_real.py"
+      },
+      {
+        "path": "test_tls_parameter_mappings.py",
+        "name": "test_tls_parameter_mappings.py",
+        "size_bytes": 5888,
+        "category": "test",
+        "relative_path": "test_tls_parameter_mappings.py"
+      },
+      {
+        "path": "core\\bypass\\config\\simple_config_test.py",
+        "name": "simple_config_test.py",
+        "size_bytes": 5875,
+        "category": "test",
+        "relative_path": "core\\bypass\\config\\simple_config_test.py"
+      },
+      {
+        "path": "final_zapret_test.py",
+        "name": "final_zapret_test.py",
+        "size_bytes": 5864,
+        "category": "test",
+        "relative_path": "final_zapret_test.py"
+      },
+      {
+        "path": "test_performance_optimizations.py",
+        "name": "test_performance_optimizations.py",
+        "size_bytes": 5829,
+        "category": "test",
+        "relative_path": "test_performance_optimizations.py"
+      },
+      {
+        "path": "test_x_com_comprehensive.py",
+        "name": "test_x_com_comprehensive.py",
+        "size_bytes": 5729,
+        "category": "test",
+        "relative_path": "test_x_com_comprehensive.py"
+      },
+      {
+        "path": "test_badsum_fix_simple.py",
+        "name": "test_badsum_fix_simple.py",
+        "size_bytes": 5601,
+        "category": "test",
+        "relative_path": "test_badsum_fix_simple.py"
+      },
+      {
+        "path": "test_engine_forced_override.py",
+        "name": "test_engine_forced_override.py",
+        "size_bytes": 5353,
+        "category": "test",
+        "relative_path": "test_engine_forced_override.py"
+      },
+      {
+        "path": "tests\\test_hotfixes.py",
+        "name": "test_hotfixes.py",
+        "size_bytes": 5251,
+        "category": "test",
+        "relative_path": "tests\\test_hotfixes.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\dns\\final_dns_test.py",
+        "name": "final_dns_test.py",
+        "size_bytes": 5071,
+        "category": "test",
+        "relative_path": "core\\bypass\\attacks\\dns\\final_dns_test.py"
+      },
+      {
+        "path": "test_cli_pcap_validation.py",
+        "name": "test_cli_pcap_validation.py",
+        "size_bytes": 4808,
+        "category": "test",
+        "relative_path": "test_cli_pcap_validation.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\timing\\simple_timing_test.py",
+        "name": "simple_timing_test.py",
+        "size_bytes": 4797,
+        "category": "test",
+        "relative_path": "core\\bypass\\attacks\\timing\\simple_timing_test.py"
+      },
+      {
+        "path": "test_strategy_mapping_fix.py",
+        "name": "test_strategy_mapping_fix.py",
+        "size_bytes": 4588,
+        "category": "test",
+        "relative_path": "test_strategy_mapping_fix.py"
+      },
+      {
+        "path": "test_x_com_www_specific.py",
+        "name": "test_x_com_www_specific.py",
+        "size_bytes": 4543,
+        "category": "test",
+        "relative_path": "test_x_com_www_specific.py"
+      },
+      {
+        "path": "test_fingerprint_none_handling.py",
+        "name": "test_fingerprint_none_handling.py",
+        "size_bytes": 4538,
+        "category": "test",
+        "relative_path": "test_fingerprint_none_handling.py"
+      },
+      {
+        "path": "test_x_com_browser_manual.py",
+        "name": "test_x_com_browser_manual.py",
+        "size_bytes": 4458,
+        "category": "test",
+        "relative_path": "test_x_com_browser_manual.py"
+      },
+      {
+        "path": "test_baseline.py",
+        "name": "test_baseline.py",
+        "size_bytes": 4440,
+        "category": "test",
+        "relative_path": "test_baseline.py"
+      },
+      {
+        "path": "test_cli_validate_pcap_integration.py",
+        "name": "test_cli_validate_pcap_integration.py",
+        "size_bytes": 4372,
+        "category": "test",
+        "relative_path": "test_cli_validate_pcap_integration.py"
+      },
+      {
+        "path": "test_zapret_fix.py",
+        "name": "test_zapret_fix.py",
+        "size_bytes": 4205,
+        "category": "test",
+        "relative_path": "test_zapret_fix.py"
+      },
+      {
+        "path": "test_parser_fix.py",
+        "name": "test_parser_fix.py",
+        "size_bytes": 4033,
+        "category": "test",
+        "relative_path": "test_parser_fix.py"
+      },
+      {
+        "path": "test_windows_engine_regression.py",
+        "name": "test_windows_engine_regression.py",
+        "size_bytes": 4023,
+        "category": "test",
+        "relative_path": "test_windows_engine_regression.py"
+      },
+      {
+        "path": "core\\bypass\\analytics\\simple_analytics_test.py",
+        "name": "simple_analytics_test.py",
+        "size_bytes": 3988,
+        "category": "test",
+        "relative_path": "core\\bypass\\analytics\\simple_analytics_test.py"
+      },
+      {
+        "path": "test_real_pcap_integration.py",
+        "name": "test_real_pcap_integration.py",
+        "size_bytes": 3892,
+        "category": "test",
+        "relative_path": "test_real_pcap_integration.py"
+      },
+      {
+        "path": "web\\simple_web_integration_test.py",
+        "name": "simple_web_integration_test.py",
+        "size_bytes": 3734,
+        "category": "test",
+        "relative_path": "web\\simple_web_integration_test.py"
+      },
+      {
+        "path": "test_fingerprinter_fix.py",
+        "name": "test_fingerprinter_fix.py",
+        "size_bytes": 3713,
+        "category": "test",
+        "relative_path": "test_fingerprinter_fix.py"
+      },
+      {
+        "path": "test_rollback.py",
+        "name": "test_rollback.py",
+        "size_bytes": 3696,
+        "category": "test",
+        "relative_path": "test_rollback.py"
+      },
+      {
+        "path": "simple_zapret_test.py",
+        "name": "simple_zapret_test.py",
+        "size_bytes": 3665,
+        "category": "test",
+        "relative_path": "simple_zapret_test.py"
+      },
+      {
+        "path": "tests\\test_fakeddisorder_fix.py",
+        "name": "test_fakeddisorder_fix.py",
+        "size_bytes": 3544,
+        "category": "test",
+        "relative_path": "tests\\test_fakeddisorder_fix.py"
+      },
+      {
+        "path": "test_ttl_fix_verification.py",
+        "name": "test_ttl_fix_verification.py",
+        "size_bytes": 3289,
+        "category": "test",
+        "relative_path": "test_ttl_fix_verification.py"
+      },
+      {
+        "path": "test_ttl_fix.py",
+        "name": "test_ttl_fix.py",
+        "size_bytes": 3284,
+        "category": "test",
+        "relative_path": "test_ttl_fix.py"
+      },
+      {
+        "path": "test_qs2_simple_attacks.py",
+        "name": "test_qs2_simple_attacks.py",
+        "size_bytes": 3238,
+        "category": "test",
+        "relative_path": "test_qs2_simple_attacks.py"
+      },
+      {
+        "path": "test_fixed_engine_validation.py",
+        "name": "test_fixed_engine_validation.py",
+        "size_bytes": 3219,
+        "category": "test",
+        "relative_path": "test_fixed_engine_validation.py"
+      },
+      {
+        "path": "test_zapret_fixes.py",
+        "name": "test_zapret_fixes.py",
+        "size_bytes": 3208,
+        "category": "test",
+        "relative_path": "test_zapret_fixes.py"
+      },
+      {
+        "path": "test_cli_direct.py",
+        "name": "test_cli_direct.py",
+        "size_bytes": 3091,
+        "category": "test",
+        "relative_path": "test_cli_direct.py"
+      },
+      {
+        "path": "test_zapret_sequence.py",
+        "name": "test_zapret_sequence.py",
+        "size_bytes": 2990,
+        "category": "test",
+        "relative_path": "test_zapret_sequence.py"
+      },
+      {
+        "path": "test_force_zapret.py",
+        "name": "test_force_zapret.py",
+        "size_bytes": 2975,
+        "category": "test",
+        "relative_path": "test_force_zapret.py"
+      },
+      {
+        "path": "direct_zapret_test.py",
+        "name": "direct_zapret_test.py",
+        "size_bytes": 2862,
+        "category": "test",
+        "relative_path": "direct_zapret_test.py"
+      },
+      {
+        "path": "test_instagram_strategies.py",
+        "name": "test_instagram_strategies.py",
+        "size_bytes": 2828,
+        "category": "test",
+        "relative_path": "test_instagram_strategies.py"
+      },
+      {
+        "path": "test_retransmission_fix.py",
+        "name": "test_retransmission_fix.py",
+        "size_bytes": 2828,
+        "category": "test",
+        "relative_path": "test_retransmission_fix.py"
+      },
+      {
+        "path": "test_strategy_generation_fix.py",
+        "name": "test_strategy_generation_fix.py",
+        "size_bytes": 2712,
+        "category": "test",
+        "relative_path": "test_strategy_generation_fix.py"
+      },
+      {
+        "path": "test_fallback_blocked.py",
+        "name": "test_fallback_blocked.py",
+        "size_bytes": 2688,
+        "category": "test",
+        "relative_path": "test_fallback_blocked.py"
+      },
+      {
+        "path": "test_badsum_fix.py",
+        "name": "test_badsum_fix.py",
+        "size_bytes": 2657,
+        "category": "test",
+        "relative_path": "test_badsum_fix.py"
+      },
+      {
+        "path": "test_ip_strategy_mapping.py",
+        "name": "test_ip_strategy_mapping.py",
+        "size_bytes": 2567,
+        "category": "test",
+        "relative_path": "test_ip_strategy_mapping.py"
+      },
+      {
+        "path": "test_imports_task24.py",
+        "name": "test_imports_task24.py",
+        "size_bytes": 2462,
+        "category": "test",
+        "relative_path": "test_imports_task24.py"
+      },
+      {
+        "path": "test_tcp_flags_debug.py",
+        "name": "test_tcp_flags_debug.py",
+        "size_bytes": 2097,
+        "category": "test",
+        "relative_path": "test_tcp_flags_debug.py"
+      },
+      {
+        "path": "test_enhanced_find_rst_triggers_direct.py",
+        "name": "test_enhanced_find_rst_triggers_direct.py",
+        "size_bytes": 1984,
+        "category": "test",
+        "relative_path": "test_enhanced_find_rst_triggers_direct.py"
+      },
+      {
+        "path": "test_error_scenario.py",
+        "name": "test_error_scenario.py",
+        "size_bytes": 1884,
+        "category": "test",
+        "relative_path": "test_error_scenario.py"
+      },
+      {
+        "path": "test_x_com_advanced.py",
+        "name": "test_x_com_advanced.py",
+        "size_bytes": 1851,
+        "category": "test",
+        "relative_path": "test_x_com_advanced.py"
+      },
+      {
+        "path": "test_tcp_flags_simple.py",
+        "name": "test_tcp_flags_simple.py",
+        "size_bytes": 1816,
+        "category": "test",
+        "relative_path": "test_tcp_flags_simple.py"
+      },
+      {
+        "path": "test_fragmentation_fix.py",
+        "name": "test_fragmentation_fix.py",
+        "size_bytes": 1712,
+        "category": "test",
+        "relative_path": "test_fragmentation_fix.py"
+      },
+      {
+        "path": "test_strategy_parser.py",
+        "name": "test_strategy_parser.py",
+        "size_bytes": 1698,
+        "category": "test",
+        "relative_path": "test_strategy_parser.py"
+      },
+      {
+        "path": "core\\bypass\\strategies\\simple_test.py",
+        "name": "simple_test.py",
+        "size_bytes": 1654,
+        "category": "test",
+        "relative_path": "core\\bypass\\strategies\\simple_test.py"
+      },
+      {
+        "path": "test_parser_quick.py",
+        "name": "test_parser_quick.py",
+        "size_bytes": 1619,
+        "category": "test",
+        "relative_path": "test_parser_quick.py"
+      },
+      {
+        "path": "test_regression_fix.py",
+        "name": "test_regression_fix.py",
+        "size_bytes": 1595,
+        "category": "test",
+        "relative_path": "test_regression_fix.py"
+      },
+      {
+        "path": "test_circular_import_fix.py",
+        "name": "test_circular_import_fix.py",
+        "size_bytes": 1593,
+        "category": "test",
+        "relative_path": "test_circular_import_fix.py"
+      },
+      {
+        "path": "test_strategy_interpreter_dict_fix.py",
+        "name": "test_strategy_interpreter_dict_fix.py",
+        "size_bytes": 1387,
+        "category": "test",
+        "relative_path": "test_strategy_interpreter_dict_fix.py"
+      },
+      {
+        "path": "test_strategy.py",
+        "name": "test_strategy.py",
+        "size_bytes": 1032,
+        "category": "test",
+        "relative_path": "test_strategy.py"
+      },
+      {
+        "path": "tests\\integration\\test_simple.py",
+        "name": "test_simple.py",
+        "size_bytes": 106,
+        "category": "test",
+        "relative_path": "tests\\integration\\test_simple.py"
+      },
+      {
+        "path": "test_x_com_access_validation.py",
+        "name": "test_x_com_access_validation.py",
+        "size_bytes": 0,
+        "category": "test",
+        "relative_path": "test_x_com_access_validation.py"
+      },
+      {
+        "path": "test_x_com_subdomains_with_service_check.py",
+        "name": "test_x_com_subdomains_with_service_check.py",
+        "size_bytes": 0,
+        "category": "test",
+        "relative_path": "test_x_com_subdomains_with_service_check.py"
+      },
+      {
+        "path": "tests\\pcap_analysis\\test_comprehensive_unit_tests.py",
+        "name": "test_comprehensive_unit_tests.py",
+        "size_bytes": 0,
+        "category": "test",
+        "relative_path": "tests\\pcap_analysis\\test_comprehensive_unit_tests.py"
+      },
+      {
+        "path": "tests\\pcap_analysis\\test_pcap_comparator.py",
+        "name": "test_pcap_comparator.py",
+        "size_bytes": 0,
+        "category": "test",
+        "relative_path": "tests\\pcap_analysis\\test_pcap_comparator.py"
+      }
+    ],
+    "potentially_obsolete": [],
+    "total_count": 192,
+    "total_size": 4123464,
+    "obsolete_count": 0
+  },
+  "backups": {
+    "backup_files": [
+      {
+        "path": "comprehensive_fingerprint_testing_task19_fixed.py",
+        "name": "comprehensive_fingerprint_testing_task19_fixed.py",
+        "size_bytes": 52772,
+        "category": "backup",
+        "relative_path": "comprehensive_fingerprint_testing_task19_fixed.py"
+      },
+      {
+        "path": "core\\strategy_interpreter_fixed.py",
+        "name": "strategy_interpreter_fixed.py",
+        "size_bytes": 48921,
+        "category": "backup",
+        "relative_path": "core\\strategy_interpreter_fixed.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\tcp\\fake_disorder_attack_fixed.py",
+        "name": "fake_disorder_attack_fixed.py",
+        "size_bytes": 25847,
+        "category": "backup",
+        "relative_path": "core\\bypass\\attacks\\tcp\\fake_disorder_attack_fixed.py"
+      },
+      {
+        "path": "adaptive_strategy_finder_fixed.py",
+        "name": "adaptive_strategy_finder_fixed.py",
+        "size_bytes": 25602,
+        "category": "backup",
+        "relative_path": "adaptive_strategy_finder_fixed.py"
+      },
+      {
+        "path": "core\\strategy\\strategy_rule_engine_fixed.py",
+        "name": "strategy_rule_engine_fixed.py",
+        "size_bytes": 21230,
+        "category": "backup",
+        "relative_path": "core\\strategy\\strategy_rule_engine_fixed.py"
+      },
+      {
+        "path": "domain_strategies.json.backup",
+        "name": "domain_strategies.json.backup",
+        "size_bytes": 20595,
+        "category": "backup",
+        "relative_path": "domain_strategies.json.backup"
+      },
+      {
+        "path": "domain_manager_fixed.py",
+        "name": "domain_manager_fixed.py",
+        "size_bytes": 10185,
+        "category": "backup",
+        "relative_path": "domain_manager_fixed.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\analysis_cache_fixed.py",
+        "name": "analysis_cache_fixed.py",
+        "size_bytes": 7519,
+        "category": "backup",
+        "relative_path": "core\\pcap_analysis\\analysis_cache_fixed.py"
+      },
+      {
+        "path": "temp\\doh_resolver_fixed.py",
+        "name": "doh_resolver_fixed.py",
+        "size_bytes": 7448,
+        "category": "backup",
+        "relative_path": "temp\\doh_resolver_fixed.py"
+      },
+      {
+        "path": "sites.txt.backup",
+        "name": "sites.txt.backup",
+        "size_bytes": 1098,
+        "category": "backup",
+        "relative_path": "sites.txt.backup"
+      },
+      {
+        "path": "monitoring_config.json.backup",
+        "name": "monitoring_config.json.backup",
+        "size_bytes": 258,
+        "category": "backup",
+        "relative_path": "monitoring_config.json.backup"
+      },
+      {
+        "path": "config\\engine_config.json.backup",
+        "name": "engine_config.json.backup",
+        "size_bytes": 71,
+        "category": "backup",
+        "relative_path": "config\\engine_config.json.backup"
+      }
+    ],
+    "total_count": 12,
+    "total_size": 221546
+  },
+  "large_files": {
+    "large_files": [
+      {
+        "path": "test_real_domain_integration.py",
+        "name": "test_real_domain_integration.py",
+        "size_bytes": 2187713,
+        "category": "large",
+        "relative_path": "test_real_domain_integration.py"
+      },
+      {
+        "path": "cli.py",
+        "name": "cli.py",
+        "size_bytes": 155043,
+        "category": "large",
+        "relative_path": "cli.py"
+      },
+      {
+        "path": "core\\diagnostic_system.py",
+        "name": "diagnostic_system.py",
+        "size_bytes": 126049,
+        "category": "large",
+        "relative_path": "core\\diagnostic_system.py"
+      },
+      {
+        "path": "diagnostic_system.py",
+        "name": "diagnostic_system.py",
+        "size_bytes": 126048,
+        "category": "large",
+        "relative_path": "diagnostic_system.py"
+      },
+      {
+        "path": "core\\fingerprint\\advanced_fingerprinter.py",
+        "name": "advanced_fingerprinter.py",
+        "size_bytes": 121805,
+        "category": "large",
+        "relative_path": "core\\fingerprint\\advanced_fingerprinter.py"
+      },
+      {
+        "path": "core\\strategy_comparator.py",
+        "name": "strategy_comparator.py",
+        "size_bytes": 102382,
+        "category": "large",
+        "relative_path": "core\\strategy_comparator.py"
+      },
+      {
+        "path": "core\\hybrid_engine.py",
+        "name": "hybrid_engine.py",
+        "size_bytes": 94834,
+        "category": "large",
+        "relative_path": "core\\hybrid_engine.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\combo\\steganography.py",
+        "name": "steganography.py",
+        "size_bytes": 86077,
+        "category": "large",
+        "relative_path": "core\\bypass\\attacks\\combo\\steganography.py"
+      },
+      {
+        "path": "temp\\bypass_engine.py",
+        "name": "bypass_engine.py",
+        "size_bytes": 85100,
+        "category": "large",
+        "relative_path": "temp\\bypass_engine.py"
+      },
+      {
+        "path": "core\\hybrid_engine_modified.py",
+        "name": "hybrid_engine_modified.py",
+        "size_bytes": 80695,
+        "category": "large",
+        "relative_path": "core\\hybrid_engine_modified.py"
+      },
+      {
+        "path": "core\\old_hybrid_engine.py",
+        "name": "old_hybrid_engine.py",
+        "size_bytes": 80168,
+        "category": "large",
+        "relative_path": "core\\old_hybrid_engine.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\http\\quic_attacks.py",
+        "name": "quic_attacks.py",
+        "size_bytes": 80056,
+        "category": "large",
+        "relative_path": "core\\bypass\\attacks\\http\\quic_attacks.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\tcp\\fake_disorder_attack_original.py",
+        "name": "fake_disorder_attack_original.py",
+        "size_bytes": 74206,
+        "category": "large",
+        "relative_path": "core\\bypass\\attacks\\tcp\\fake_disorder_attack_original.py"
+      },
+      {
+        "path": "core\\bypass\\engine\\base_engine.py",
+        "name": "base_engine.py",
+        "size_bytes": 72327,
+        "category": "large",
+        "relative_path": "core\\bypass\\engine\\base_engine.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\combo\\full_session_simulation.py",
+        "name": "full_session_simulation.py",
+        "size_bytes": 72017,
+        "category": "large",
+        "relative_path": "core\\bypass\\attacks\\combo\\full_session_simulation.py"
+      },
+      {
+        "path": "strategy_monitor.py",
+        "name": "strategy_monitor.py",
+        "size_bytes": 69151,
+        "category": "large",
+        "relative_path": "strategy_monitor.py"
+      },
+      {
+        "path": "core\\strategy_monitor.py",
+        "name": "strategy_monitor.py",
+        "size_bytes": 69151,
+        "category": "large",
+        "relative_path": "core\\strategy_monitor.py"
+      },
+      {
+        "path": "core\\packet_validator.py",
+        "name": "packet_validator.py",
+        "size_bytes": 68780,
+        "category": "large",
+        "relative_path": "core\\packet_validator.py"
+      },
+      {
+        "path": "core\\bypass\\engines\\native_pydivert_engine.py",
+        "name": "native_pydivert_engine.py",
+        "size_bytes": 68535,
+        "category": "large",
+        "relative_path": "core\\bypass\\engines\\native_pydivert_engine.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\http\\http2_attacks.py",
+        "name": "http2_attacks.py",
+        "size_bytes": 66963,
+        "category": "large",
+        "relative_path": "core\\bypass\\attacks\\http\\http2_attacks.py"
+      },
+      {
+        "path": "core\\fingerprint\\advanced_fingerprint_engine.py",
+        "name": "advanced_fingerprint_engine.py",
+        "size_bytes": 66367,
+        "category": "large",
+        "relative_path": "core\\fingerprint\\advanced_fingerprint_engine.py"
+      },
+      {
+        "path": "find_rst_triggers.py",
+        "name": "find_rst_triggers.py",
+        "size_bytes": 65411,
+        "category": "large",
+        "relative_path": "find_rst_triggers.py"
+      },
+      {
+        "path": "core\\integration\\learning_memory_integration.py",
+        "name": "learning_memory_integration.py",
+        "size_bytes": 64260,
+        "category": "large",
+        "relative_path": "core\\integration\\learning_memory_integration.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\tls\\ech_attacks.py",
+        "name": "ech_attacks.py",
+        "size_bytes": 62797,
+        "category": "large",
+        "relative_path": "core\\bypass\\attacks\\tls\\ech_attacks.py"
+      },
+      {
+        "path": "core\\fingerprint\\prober.py",
+        "name": "prober.py",
+        "size_bytes": 62520,
+        "category": "large",
+        "relative_path": "core\\fingerprint\\prober.py"
+      },
+      {
+        "path": "core\\bypass\\attacks\\combo\\advanced_traffic_profiler.py",
+        "name": "advanced_traffic_profiler.py",
+        "size_bytes": 61941,
+        "category": "large",
+        "relative_path": "core\\bypass\\attacks\\combo\\advanced_traffic_profiler.py"
+      },
+      {
+        "path": "final_packet_bypass.py",
+        "name": "final_packet_bypass.py",
+        "size_bytes": 60459,
+        "category": "large",
+        "relative_path": "final_packet_bypass.py"
+      },
+      {
+        "path": "web\\bypass_dashboard.py",
+        "name": "bypass_dashboard.py",
+        "size_bytes": 59614,
+        "category": "large",
+        "relative_path": "web\\bypass_dashboard.py"
+      },
+      {
+        "path": "core\\fingerprint\\http_analyzer.py",
+        "name": "http_analyzer.py",
+        "size_bytes": 59440,
+        "category": "large",
+        "relative_path": "core\\fingerprint\\http_analyzer.py"
+      },
+      {
+        "path": "core\\pcap_analysis\\historical_data_integration.py",
+        "name": "historical_data_integration.py",
+        "size_bytes": 55961,
+        "category": "large",
+        "relative_path": "core\\pcap_analysis\\historical_data_integration.py"
+      },
+      {
+        "path": "cli_integration.py",
+        "name": "cli_integration.py",
+        "size_bytes": 55687,
+        "category": "large",
+        "relative_path": "cli_integration.py"
+      },
+      {
+        "path": "core\\bypass\\validation\\reliability_validator.py",
+        "name": "reliability_validator.py",
+        "size_bytes": 55173,
+        "category": "large",
+        "relative_path": "core\\bypass\\validation\\reliability_validator.py"
+      },
+      {
+        "path": "web\\bypass_api.py",
+        "name": "bypass_api.py",
+        "size_bytes": 54052,
+        "category": "large",
+        "relative_path": "web\\bypass_api.py"
+      },
+      {
+        "path": "comprehensive_fingerprint_testing_task19_fixed.py",
+        "name": "comprehensive_fingerprint_testing_task19_fixed.py",
+        "size_bytes": 52772,
+        "category": "large",
+        "relative_path": "comprehensive_fingerprint_testing_task19_fixed.py"
+      },
+      {
+        "path": "capture.py",
+        "name": "capture.py",
+        "size_bytes": 50265,
+        "category": "large",
+        "relative_path": "capture.py"
+      },
+      {
+        "path": "core\\capture.py",
+        "name": "capture.py",
+        "size_bytes": 50265,
+        "category": "large",
+        "relative_path": "core\\capture.py"
+      }
+    ],
+    "total_count": 36,
+    "total_size": 4824084
+  },
+  "recommendations": {
+    "high_priority": [
+      {
+        "action": "Consolidate engine files",
+        "description": "Found 73 engine files, recommend keeping only base_engine.py",
+        "files_to_review": [
+          "core\\hybrid_engine.py",
+          "core\\hybrid_engine.py",
+          "temp\\bypass_engine.py",
+          "temp\\bypass_engine.py",
+          "core\\hybrid_engine_modified.py",
+          "core\\hybrid_engine_modified.py",
+          "core\\old_hybrid_engine.py",
+          "core\\old_hybrid_engine.py",
+          "core\\bypass\\engine\\base_engine.py",
+          "core\\bypass\\engines\\native_pydivert_engine.py",
+          "core\\fingerprint\\advanced_fingerprint_engine.py",
+          "final_packet_bypass.py",
+          "web\\bypass_dashboard.py",
+          "web\\bypass_api.py",
+          "core\\bypass\\engines\\packet_processing_engine.py",
+          "temp\\hybrid_engine.py",
+          "temp\\hybrid_engine.py",
+          "comprehensive_bypass_analyzer.py",
+          "core\\pcap_analysis\\learning_engine.py",
+          "analyze_bypass_issues.py",
+          "tests\\integration\\test_x_com_bypass_integration.py",
+          "core\\packet\\raw_packet_engine.py",
+          "core\\bypass\\attacks\\combo\\steganographic_engine.py",
+          "core\\bypass\\engines\\engine_validator.py",
+          "core\\bypass\\attacks\\combo\\native_combo_engine.py",
+          "core\\packet\\improved_bypass_engine.py",
+          "core\\packet\\improved_bypass_engine.py",
+          "core\\bypass\\engines\\engine_config_manager.py",
+          "core\\strategy\\strategy_rule_engine_fixed.py",
+          "core\\strategy\\strategy_rule_engine.py",
+          "core\\smart_bypass_engine.py",
+          "core\\smart_bypass_engine.py",
+          "debug_windows_engine_regression.py",
+          "core\\bypass\\system_bypass_manager.py",
+          "examples\\engine_dry_run_example.py",
+          "core\\bypass\\engines\\engine_type_detector.py",
+          "core\\attack_execution_engine.py",
+          "core\\bypass\\analytics\\analytics_engine.py",
+          "examples\\native_engine_segments_example.py",
+          "setup_hosts_bypass.py",
+          "smart_bypass_cli.py",
+          "core\\bypass\\attacks\\bypass_tester.py",
+          "core\\strategy_rule_engine.py",
+          "final_bypass_test.py",
+          "fix_forced_override_engine.py",
+          "core\\net\\packet_engine.py",
+          "fix_windows_engine_regression.py",
+          "test_apply_bypass_integration.py",
+          "hybrid_engine_fingerprinting_demo.py",
+          "core\\hybrid_engine_fingerprinting_demo.py",
+          "hybrid_engine_fingerprinting_demo.py",
+          "core\\hybrid_engine_fingerprinting_demo.py",
+          "diagnose_bypass_issue.py",
+          "web\\bypass_integration.py",
+          "core\\bypass_engine.py",
+          "core\\bypass_engine.py",
+          "diagnose_why_bypass_not_working.py",
+          "core\\bypass\\engines\\external_tool_engine.py",
+          "test_bypass_engine_integration.py",
+          "test_bypass_engine_integration.py",
+          "core\\bypass\\attacks\\udp\\quic_bypass.py",
+          "force_bypass_test.py",
+          "analyze_bypass_failure.py",
+          "simple_bypass_test.py",
+          "core\\bypass\\attacks\\udp\\stun_bypass.py",
+          "test_engine_forced_override.py",
+          "apply_bypass.py",
+          "test_windows_engine_regression.py",
+          "core\\bypass\\attacks\\engine.py",
+          "test_fixed_engine_validation.py",
+          "core\\bypass\\engines\\scapy_engine.py",
+          "fix_bypass_issues.py",
+          "setup_bypass.py"
+        ],
+        "potential_savings": 1359328.5999999999
+      },
+      {
+        "action": "Remove backup files",
+        "description": "Found 12 backup files taking 221,546 bytes",
+        "files_to_remove": [
+          "comprehensive_fingerprint_testing_task19_fixed.py",
+          "core\\strategy_interpreter_fixed.py",
+          "core\\bypass\\attacks\\tcp\\fake_disorder_attack_fixed.py",
+          "adaptive_strategy_finder_fixed.py",
+          "core\\strategy\\strategy_rule_engine_fixed.py",
+          "domain_strategies.json.backup",
+          "domain_manager_fixed.py",
+          "core\\pcap_analysis\\analysis_cache_fixed.py",
+          "temp\\doh_resolver_fixed.py",
+          "sites.txt.backup",
+          "monitoring_config.json.backup",
+          "config\\engine_config.json.backup"
+        ],
+        "potential_savings": 221546
+      }
+    ],
+    "medium_priority": [
+      {
+        "action": "Consolidate analyzer files",
+        "description": "Found 34 potentially duplicate analyzers",
+        "duplicate_groups": {
+          "1pcap_analyzer.py": [
+            {
+              "path": "1pcap_analyzer.py",
+              "name": "1pcap_analyzer.py",
+              "size_bytes": 1343,
+              "category": "analyzer",
+              "relative_path": "1pcap_analyzer.py"
+            },
+            {
+              "path": "1pcap_analyzer.py",
+              "name": "1pcap_analyzer.py",
+              "size_bytes": 1343,
+              "category": "analyzer",
+              "relative_path": "1pcap_analyzer.py"
+            }
+          ],
+          "demo_root_cause_analyzer.py": [
+            {
+              "path": "demo_root_cause_analyzer.py",
+              "name": "demo_root_cause_analyzer.py",
+              "size_bytes": 23110,
+              "category": "analyzer",
+              "relative_path": "demo_root_cause_analyzer.py"
+            },
+            {
+              "path": "demo_root_cause_analyzer_simple.py",
+              "name": "demo_root_cause_analyzer_simple.py",
+              "size_bytes": 16958,
+              "category": "analyzer",
+              "relative_path": "demo_root_cause_analyzer_simple.py"
+            }
+          ],
+          "failure_analyzer.py": [
+            {
+              "path": "failure_analyzer.py",
+              "name": "failure_analyzer.py",
+              "size_bytes": 27773,
+              "category": "analyzer",
+              "relative_path": "failure_analyzer.py"
+            },
+            {
+              "path": "core\\failure_analyzer.py",
+              "name": "failure_analyzer.py",
+              "size_bytes": 24695,
+              "category": "analyzer",
+              "relative_path": "core\\failure_analyzer.py"
+            }
+          ],
+          "hex_pcap_analyzer.py": [
+            {
+              "path": "hex_pcap_analyzer.py",
+              "name": "hex_pcap_analyzer.py",
+              "size_bytes": 23977,
+              "category": "analyzer",
+              "relative_path": "hex_pcap_analyzer.py"
+            },
+            {
+              "path": "hex_pcap_analyzer.py",
+              "name": "hex_pcap_analyzer.py",
+              "size_bytes": 23977,
+              "category": "analyzer",
+              "relative_path": "hex_pcap_analyzer.py"
+            }
+          ],
+          "pcap_analyzer.py": [
+            {
+              "path": "pcap_analyzer.py",
+              "name": "pcap_analyzer.py",
+              "size_bytes": 11615,
+              "category": "analyzer",
+              "relative_path": "pcap_analyzer.py"
+            },
+            {
+              "path": "core\\packet\\pcap_analyzer.py",
+              "name": "pcap_analyzer.py",
+              "size_bytes": 17122,
+              "category": "analyzer",
+              "relative_path": "core\\packet\\pcap_analyzer.py"
+            },
+            {
+              "path": "pcap_analyzer.py",
+              "name": "pcap_analyzer.py",
+              "size_bytes": 11615,
+              "category": "analyzer",
+              "relative_path": "pcap_analyzer.py"
+            },
+            {
+              "path": "core\\packet\\pcap_analyzer.py",
+              "name": "pcap_analyzer.py",
+              "size_bytes": 17122,
+              "category": "analyzer",
+              "relative_path": "core\\packet\\pcap_analyzer.py"
+            }
+          ],
+          "post_handshake_analyzer.py": [
+            {
+              "path": "post_handshake_analyzer.py",
+              "name": "post_handshake_analyzer.py",
+              "size_bytes": 3309,
+              "category": "analyzer",
+              "relative_path": "post_handshake_analyzer.py"
+            },
+            {
+              "path": "core\\post_handshake_analyzer.py",
+              "name": "post_handshake_analyzer.py",
+              "size_bytes": 3314,
+              "category": "analyzer",
+              "relative_path": "core\\post_handshake_analyzer.py"
+            }
+          ],
+          "quality_analyzer.py": [
+            {
+              "path": "quality_analyzer.py",
+              "name": "quality_analyzer.py",
+              "size_bytes": 2193,
+              "category": "analyzer",
+              "relative_path": "quality_analyzer.py"
+            },
+            {
+              "path": "core\\quality_analyzer.py",
+              "name": "quality_analyzer.py",
+              "size_bytes": 2193,
+              "category": "analyzer",
+              "relative_path": "core\\quality_analyzer.py"
+            }
+          ],
+          "simple_pcap_analyzer.py": [
+            {
+              "path": "simple_pcap_analyzer.py",
+              "name": "simple_pcap_analyzer.py",
+              "size_bytes": 16694,
+              "category": "analyzer",
+              "relative_path": "simple_pcap_analyzer.py"
+            },
+            {
+              "path": "simple_pcap_analyzer.py",
+              "name": "simple_pcap_analyzer.py",
+              "size_bytes": 16694,
+              "category": "analyzer",
+              "relative_path": "simple_pcap_analyzer.py"
+            }
+          ],
+          "dns_analyzer.py": [
+            {
+              "path": "core\\fingerprint\\dns_analyzer.py",
+              "name": "dns_analyzer.py",
+              "size_bytes": 23955,
+              "category": "analyzer",
+              "relative_path": "core\\fingerprint\\dns_analyzer.py"
+            },
+            {
+              "path": "core\\fingerprint\\dns_analyzer_demo.py",
+              "name": "dns_analyzer_demo.py",
+              "size_bytes": 9771,
+              "category": "analyzer",
+              "relative_path": "core\\fingerprint\\dns_analyzer_demo.py"
+            }
+          ],
+          "tcp_analyzer.py": [
+            {
+              "path": "core\\fingerprint\\tcp_analyzer.py",
+              "name": "tcp_analyzer.py",
+              "size_bytes": 7480,
+              "category": "analyzer",
+              "relative_path": "core\\fingerprint\\tcp_analyzer.py"
+            },
+            {
+              "path": "core\\fingerprint\\tcp_analyzer_demo.py",
+              "name": "tcp_analyzer_demo.py",
+              "size_bytes": 6507,
+              "category": "analyzer",
+              "relative_path": "core\\fingerprint\\tcp_analyzer_demo.py"
+            }
+          ],
+          "pcap_analysis_cli.py": [
+            {
+              "path": "pcap_analysis_cli.py",
+              "name": "pcap_analysis_cli.py",
+              "size_bytes": 1092,
+              "category": "analyzer",
+              "relative_path": "pcap_analysis_cli.py"
+            },
+            {
+              "path": "core\\pcap_analysis_cli.py",
+              "name": "pcap_analysis_cli.py",
+              "size_bytes": 19956,
+              "category": "analyzer",
+              "relative_path": "core\\pcap_analysis_cli.py"
+            },
+            {
+              "path": "pcap_analysis_cli.py",
+              "name": "pcap_analysis_cli.py",
+              "size_bytes": 1092,
+              "category": "analyzer",
+              "relative_path": "pcap_analysis_cli.py"
+            },
+            {
+              "path": "core\\pcap_analysis_cli.py",
+              "name": "pcap_analysis_cli.py",
+              "size_bytes": 19956,
+              "category": "analyzer",
+              "relative_path": "core\\pcap_analysis_cli.py"
+            }
+          ],
+          "pcap_compare.py": [
+            {
+              "path": "pcap_compare.py",
+              "name": "pcap_compare.py",
+              "size_bytes": 2102,
+              "category": "analyzer",
+              "relative_path": "pcap_compare.py"
+            },
+            {
+              "path": "pcap_compare.py",
+              "name": "pcap_compare.py",
+              "size_bytes": 2102,
+              "category": "analyzer",
+              "relative_path": "pcap_compare.py"
+            }
+          ],
+          "simple_pcap_compare.py": [
+            {
+              "path": "simple_pcap_compare.py",
+              "name": "simple_pcap_compare.py",
+              "size_bytes": 10365,
+              "category": "analyzer",
+              "relative_path": "simple_pcap_compare.py"
+            },
+            {
+              "path": "simple_pcap_compare.py",
+              "name": "simple_pcap_compare.py",
+              "size_bytes": 10365,
+              "category": "analyzer",
+              "relative_path": "simple_pcap_compare.py"
+            }
+          ],
+          "test_pcap_analysis_task1.py": [
+            {
+              "path": "test_pcap_analysis_task1.py",
+              "name": "test_pcap_analysis_task1.py",
+              "size_bytes": 10932,
+              "category": "analyzer",
+              "relative_path": "test_pcap_analysis_task1.py"
+            },
+            {
+              "path": "test_pcap_analysis_task1.py",
+              "name": "test_pcap_analysis_task1.py",
+              "size_bytes": 10932,
+              "category": "analyzer",
+              "relative_path": "test_pcap_analysis_task1.py"
+            }
+          ],
+          "analysis_cache.py": [
+            {
+              "path": "core\\pcap_analysis\\analysis_cache.py",
+              "name": "analysis_cache.py",
+              "size_bytes": 0,
+              "category": "analyzer",
+              "relative_path": "core\\pcap_analysis\\analysis_cache.py"
+            },
+            {
+              "path": "core\\pcap_analysis\\analysis_cache_fixed.py",
+              "name": "analysis_cache_fixed.py",
+              "size_bytes": 7519,
+              "category": "analyzer",
+              "relative_path": "core\\pcap_analysis\\analysis_cache_fixed.py"
+            }
+          ]
+        },
+        "potential_savings": 594192.8
+      },
+      {
+        "action": "Review large files",
+        "description": "Found 36 files larger than 50KB",
+        "files_to_review": [
+          "test_real_domain_integration.py",
+          "cli.py",
+          "core\\diagnostic_system.py",
+          "diagnostic_system.py",
+          "core\\fingerprint\\advanced_fingerprinter.py",
+          "core\\strategy_comparator.py",
+          "core\\hybrid_engine.py",
+          "core\\bypass\\attacks\\combo\\steganography.py",
+          "temp\\bypass_engine.py",
+          "core\\hybrid_engine_modified.py"
+        ],
+        "potential_savings": 0
+      }
+    ],
+    "low_priority": []
+  },
+  "analysis_timestamp": "2025-01-07"
+}

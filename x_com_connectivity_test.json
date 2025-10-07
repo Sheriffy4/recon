@@ -1,0 +1,68 @@
+{
+  "summary": {
+    "total_domains": 4,
+    "tcp_success_count": 4,
+    "https_success_count": 0,
+    "tcp_success_rate": 1.0,
+    "https_success_rate": 0.0,
+    "avg_tcp_latency_ms": 39.12091255187988,
+    "avg_https_latency_ms": 0
+  },
+  "results": {
+    "x.com": {
+      "ip": "172.66.0.227",
+      "tcp_success": true,
+      "tcp_latency_ms": 40.44771194458008,
+      "https_success": false,
+      "https_latency_ms": 15025.118350982666,
+      "status_code": 0,
+      "content_length": 0,
+      "timestamp": "2025-10-07T10:06:55.713207"
+    },
+    "www.x.com": {
+      "ip": "162.159.140.229",
+      "tcp_success": true,
+      "tcp_latency_ms": 27.062416076660156,
+      "https_success": false,
+      "https_latency_ms": 15199.729204177856,
+      "status_code": 0,
+      "content_length": 0,
+      "timestamp": "2025-10-07T10:07:12.255092"
+    },
+    "api.x.com": {
+      "ip": "172.66.0.227",
+      "tcp_success": true,
+      "tcp_latency_ms": 35.91322898864746,
+      "https_success": false,
+      "https_latency_ms": 15154.675722122192,
+      "status_code": 0,
+      "content_length": 0,
+      "timestamp": "2025-10-07T10:07:28.755055"
+    },
+    "mobile.x.com": {
+      "ip": "162.159.140.229",
+      "tcp_success": true,
+      "tcp_latency_ms": 53.060293197631836,
+      "https_success": false,
+      "https_latency_ms": 15266.396284103394,
+      "status_code": 0,
+      "content_length": 0,
+      "timestamp": "2025-10-07T10:07:45.475078"
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "CRITICAL",
+      "title": "No X.com Access \u2717",
+      "description": "All x.com subdomains are inaccessible",
+      "action": "Check bypass service status and network configuration"
+    },
+    {
+      "priority": "HIGH",
+      "title": "TCP Success but HTTPS Failure",
+      "description": "TCP connections succeed but HTTPS requests fail",
+      "action": "This may indicate DPI is blocking TLS handshakes - verify bypass is active"
+    }
+  ],
+  "timestamp": "2025-10-07T10:07:45.475078"
+}

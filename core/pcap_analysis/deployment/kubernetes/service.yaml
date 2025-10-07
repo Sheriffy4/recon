@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pcap-analysis-service
+  namespace: pcap-analysis
+  labels:
+    app: pcap-analysis
+spec:
+  selector:
+    app: pcap-analysis
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  - name: health
+    protocol: TCP
+    port: 8081
+    targetPort: 8081
+  - name: metrics
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pcap-redis-service
+  namespace: pcap-analysis
+  labels:
+    app: pcap-redis
+spec:
+  selector:
+    app: pcap-redis
+  ports:
+  - name: redis
+    protocol: TCP
+    port: 6379
+    targetPort: 6379
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pcap-nginx-service
+  namespace: pcap-analysis
+  labels:
+    app: pcap-nginx
+spec:
+  selector:
+    app: pcap-nginx
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
+
+---
+# Headless service for StatefulSet (if needed for Redis clustering)
+apiVersion: v1
+kind: Service
+metadata:
+  name: pcap-redis-headless
+  namespace: pcap-analysis
+  labels:
+    app: pcap-redis
+spec:
+  clusterIP: None
+  selector:
+    app: pcap-redis
+  ports:
+  - name: redis
+    protocol: TCP
+    port: 6379
+    targetPort: 6379

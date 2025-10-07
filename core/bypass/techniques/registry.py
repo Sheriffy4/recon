@@ -217,7 +217,7 @@ class TechniqueInfo:
             "supported_protocols": self.supported_protocols,
             "required_params": self.required_params,
             "optional_params": self.optional_params,
-        }
+        , "no_fallbacks": True, "forced": True}
 class TechniqueResult:
     """Simple container for technique execution result (compat layer)."""
     def __init__(self, success: bool, data: Any = None, error: Optional[str] = None):

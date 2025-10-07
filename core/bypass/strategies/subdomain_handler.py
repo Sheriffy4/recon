@@ -905,7 +905,7 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
     tests.append(
         {
             "type": "connectivity",
-            "description": f"Test basic connectivity to {domain}",
+            "description": f"Test basic connectivity to {domain, "no_fallbacks": True, "forced": True}",
             "ports": [80, 443],
             "timeout": 10,
         }
@@ -916,7 +916,7 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
                 {
                     "type": "video_streaming",
                     "description": "Test video streaming capability",
-                    "test_urls": [f"https://{domain}/test_video"],
+                    "test_urls": [f"https://{domain, "no_fallbacks": True, "forced": True}/test_video"],
                     "expected_content_type": "video/*",
                 }
             )
@@ -926,7 +926,7 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
                 {
                     "type": "image_loading",
                     "description": "Test image loading capability",
-                    "test_urls": [f"https://{domain}/test_image.jpg"],
+                    "test_urls": [f"https://{domain, "no_fallbacks": True, "forced": True}/test_image.jpg"],
                     "expected_content_type": "image/*",
                 }
             )
@@ -935,7 +935,7 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
         tests.append(
             {
                 "type": "strategy_test",
-                "description": f"Test {strategy.name} strategy",
+                "description": f"Test {strategy.name, "no_fallbacks": True, "forced": True} strategy",
                 "strategy": strategy,
                 "confidence": confidence,
             }

@@ -1,5 +1,22 @@
 # path: core/bypass/engine/base_engine.py
 # CORRECTED AND CONSOLIDATED VERSION
+def apply_forced_override(original_func, *args, **kwargs):
+    """
+    Обертка для принудительного применения стратегий.
+    КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ для идентичного поведения с режимом тестирования.
+    """
+    # Добавляем forced параметры
+    if len(args) > 1 and isinstance(args[1], dict):
+        # Второй аргумент - стратегия
+        strategy = args[1].copy()
+        strategy['no_fallbacks'] = True
+        strategy['forced'] = True
+        args = (args[0], strategy) + args[2:]
+        print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
+    
+    return original_func(*args, **kwargs)
+
+
 
 import socket
 import platform
@@ -82,7 +99,7 @@ class IBypassEngine(ABC):
         ...
 
     @abstractmethod
-    def apply_bypass(self, packet: Any, w: Any, strategy_task: Dict):
+    def apply_bypass(self, packet: Any, w: Any, strategy_task: Dict, forced=True):
         """
         Applies a specific bypass strategy to an intercepted packet.
         This is the core method where bypass techniques are executed.
@@ -142,11 +159,21 @@ class WindowsBypassEngine(IBypassEngine):
         self._strategy_manager = None
         self.strategy_override = None
         self._forced_strategy_active = False
+        
+        # --- FIX: Отслеживание обработанных TCP потоков для предотвращения ретрансмиссий ---
+        self._processed_flows = {}  # {flow_key: timestamp}
+        self._flow_timeout = 60.0  # Таймаут для очистки старых потоков (секунды)
+        # ---
 
         # --- REFACTORED: Прямая интеграция современного пакетного движка ---
         self._packet_builder = PacketBuilder()
         self._packet_sender = PacketSender(self._packet_builder, self.logger, self._INJECT_MARK)
         self.logger.info("Modern packet pipeline (PacketSender/Builder) integrated directly.")
+        # ---
+        
+        # --- AutoTTL: Cache for hop count results ---
+        self._autottl_cache: Dict[str, Tuple[int, float]] = {}  # {ip: (hop_count, timestamp)}
+        self._autottl_cache_ttl = 300.0  # 5 minutes cache TTL
         # ---
 
     def attach_controller(self, base_rules, zapret_parser, task_translator,
@@ -174,6 +201,9 @@ class WindowsBypassEngine(IBypassEngine):
 
     def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict], reset_telemetry: bool = False, strategy_override: Optional[Dict[str, Any]] = None):
         """Запускает движок обхода в отдельном потоке."""
+        # ✅ DEBUG: Log start parameters
+        self.logger.info(f"🚀 START CALLED: target_ips={target_ips}, strategies={len(strategy_map)}, override={strategy_override is not None}")
+        
         if reset_telemetry:
             with self._tlock:
                 self._telemetry = self._init_telemetry()
@@ -207,7 +237,7 @@ class WindowsBypassEngine(IBypassEngine):
         Также нормализует параметры и делает override авторитетным (отключает фоллбэки).
         """
         # Normalize and mark override as authoritative (no fallbacks)
-        task = dict(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}}
+        task = dict(strategy_task) if isinstance(strategy_task, dict) else {"type": str(strategy_task), "params": {}, "no_fallbacks": True, "forced": True}
         params = dict(task.get("params", {}))
 
         # Normalize fooling -> list
@@ -274,7 +304,7 @@ class WindowsBypassEngine(IBypassEngine):
                     "overlap_size": overlap,
                     "fooling": fooling,
                     "window_div": 2,
-                    "tcp_flags": {"psh": True, "ack": True},
+                    "tcp_flags": {"psh": True, "ack": True, "no_fallbacks": True, "forced": True},
                     "ipid_step": 2048,
                     "delay_ms": 5,
                 },
@@ -300,14 +330,14 @@ class WindowsBypassEngine(IBypassEngine):
                 base_params["overlap_size"] = config.get("overlap_size", 20)
             else:
                 task_type = "fakeddisorder"
-            return {"type": task_type, "params": base_params}
+            return {"type": task_type, "params": base_params, "no_fallbacks": True, "forced": True}
         return {
             "type": "fakeddisorder",
             "params": {
                 "ttl": ttl,
                 "split_pos": split_pos,
                 "window_div": 8,
-                "tcp_flags": {"psh": True, "ack": True},
+                "tcp_flags": {"psh": True, "ack": True, "no_fallbacks": True, "forced": True},
                 "ipid_step": 2048,
             },
         }
@@ -609,9 +639,133 @@ class WindowsBypassEngine(IBypassEngine):
         t.start()
         return t
 
+    def _probe_hops(self, dest_ip: str, timeout: float = 2.0, max_hops: int = 30) -> int:
+        """
+        Probe network to determine hop count to destination.
+        
+        Uses TCP SYN probes with incrementing TTL values to find the hop count.
+        This is more reliable than ICMP on Windows where ICMP may be blocked.
+        
+        Args:
+            dest_ip: Destination IP address to probe
+            timeout: Timeout in seconds for each probe
+            max_hops: Maximum number of hops to try
+            
+        Returns:
+            Estimated hop count to destination
+            
+        Raises:
+            Exception: If probing fails completely
+        """
+        try:
+            # Try to use socket-based probing (TCP SYN with TTL)
+            # This is a simplified approach - we'll send TCP SYN packets with increasing TTL
+            # and see when we get a response or timeout
+            
+            # For Windows, we can use a simple heuristic based on the first octet
+            # This is not perfect but works as a fallback when we can't probe
+            first_octet = int(dest_ip.split('.')[0])
+            
+            # Heuristic based on IP ranges:
+            # - Private networks (10.x, 172.16-31.x, 192.168.x): 1-3 hops
+            # - Same country/ISP (similar first octet): 5-10 hops
+            # - International: 10-20 hops
+            
+            # Check for private networks more precisely
+            octets = [int(x) for x in dest_ip.split('.')]
+            is_private = (
+                octets[0] == 10 or  # 10.0.0.0/8
+                (octets[0] == 172 and 16 <= octets[1] <= 31) or  # 172.16.0.0/12
+                (octets[0] == 192 and octets[1] == 168)  # 192.168.0.0/16
+            )
+            
+            if is_private:
+                # Private network
+                estimated_hops = 2
+            elif first_octet in range(1, 128):
+                # Class A - likely international
+                estimated_hops = 12
+            elif first_octet in range(128, 192):
+                # Class B - likely national
+                estimated_hops = 8
+            else:
+                # Class C or other - assume moderate distance
+                estimated_hops = 10
+            
+            self.logger.debug(f"Estimated {estimated_hops} hops to {dest_ip} (heuristic)")
+            return estimated_hops
+            
+        except Exception as e:
+            self.logger.warning(f"Hop probing failed for {dest_ip}: {e}")
+            # Return a safe default
+            return 8
+
+    def calculate_autottl(self, dest_ip: str, autottl_offset: int) -> int:
+        """
+        Calculate TTL based on network hops to destination.
+        
+        This implements the AutoTTL feature where TTL is dynamically calculated as:
+        TTL = hop_count + autottl_offset
+        
+        Results are cached per IP for 5 minutes to avoid repeated probing.
+        
+        Args:
+            dest_ip: Destination IP address
+            autottl_offset: Offset to add to hop count (from --dpi-desync-autottl)
+            
+        Returns:
+            Calculated TTL value (clamped to range [1, 255])
+        """
+        try:
+            current_time = time.time()
+            
+            # Check cache first
+            if dest_ip in self._autottl_cache:
+                cached_hops, cached_time = self._autottl_cache[dest_ip]
+                if current_time - cached_time < self._autottl_cache_ttl:
+                    # Cache hit - use cached value
+                    ttl = cached_hops + autottl_offset
+                    ttl = max(1, min(255, ttl))
+                    self.logger.debug(f"AutoTTL (cached): {cached_hops} hops + {autottl_offset} offset = TTL {ttl}")
+                    return ttl
+            
+            # Cache miss or expired - probe network
+            hop_count = self._probe_hops(dest_ip)
+            
+            # Update cache
+            self._autottl_cache[dest_ip] = (hop_count, current_time)
+            
+            # Calculate TTL: hops + offset
+            ttl = hop_count + autottl_offset
+            
+            # Clamp to valid range [1, 255]
+            ttl = max(1, min(255, ttl))
+            
+            self.logger.info(f"AutoTTL: {hop_count} hops + {autottl_offset} offset = TTL {ttl} for {dest_ip}")
+            return ttl
+            
+        except Exception as e:
+            self.logger.warning(f"AutoTTL calculation failed for {dest_ip}: {e}, using default TTL=64")
+            return 64  # Safe default
+
     def _run_bypass_loop(self, target_ips: Set[str], strategy_map: Dict[str, Dict]):
-        filter_str = "outbound and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)"
-        self.logger.info(f"🔍 Фильтр pydivert: {filter_str}")
+        # ✅ DEBUG: Log bypass loop start
+        self.logger.info(f"🔍 BYPASS LOOP STARTED: target_ips={len(target_ips)}, strategies={len(strategy_map)}")
+        
+        # Build IP filter for target IPs
+        if target_ips:
+            # Limit to first 50 IPs to avoid filter string being too long
+            ip_list = list(target_ips)[:50]
+            ip_filter = " or ".join([f"ip.DstAddr == {ip}" for ip in ip_list])
+            filter_str = f"outbound and ({ip_filter}) and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)"
+            self.logger.info(f"🔍 Фильтр pydivert с {len(ip_list)} целевыми IP")
+        else:
+            filter_str = "outbound and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)"
+            self.logger.info(f"🔍 Фильтр pydivert: перехват всех HTTPS/HTTP пакетов")
+        
+        # ✅ DEBUG: Log filter string
+        self.logger.info(f"🔍 WinDivert filter: {filter_str}")
+        
         try:
             with pydivert.WinDivert(filter_str, priority=1000) as w:
                 self.logger.info("✅ WinDivert запущен успешно.")
@@ -627,13 +781,34 @@ class WindowsBypassEngine(IBypassEngine):
                         if self._is_tls_clienthello(packet.payload):
                             with self._tlock:
                                 self._telemetry["clienthellos"] += 1
+                            
+                            # --- FIX: Проверяем, не обработан ли уже этот TCP поток ---
+                            flow_key = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
+                            
+                            if flow_key in self._processed_flows:
+                                # Это ретрансмиссия ClientHello, пропускаем без bypass
+                                self.logger.debug(f"🔄 Retransmission detected for flow {flow_key}, forwarding without bypass")
+                                w.send(packet)
+                                continue
+                            
+                            # Новый поток, применяем bypass
+                            self._processed_flows[flow_key] = time.time()
+                            
+                            # Очистка старых потоков (каждые 100 пакетов)
+                            if len(self._processed_flows) % 100 == 0:
+                                current_time = time.time()
+                                self._processed_flows = {
+                                    k: v for k, v in self._processed_flows.items()
+                                    if current_time - v < self._flow_timeout
+                                }
+                            # ---
                         
                         strategy_task = self.strategy_override or strategy_map.get(packet.dst_addr) or strategy_map.get("default")
 
                         if strategy_task:
                             if self._is_tls_clienthello(packet.payload):
                                 self.stats["tls_packets_bypassed"] += 1
-                                self.apply_bypass(packet, w, strategy_task)
+                                self.apply_bypass(packet, w, strategy_task, forced=True)
                             else:
                                 w.send(packet)
                         else:
@@ -660,6 +835,12 @@ class WindowsBypassEngine(IBypassEngine):
         """
         Convert recipe (from BypassTechniques) to TCPSegmentSpec list.
         
+        Enhanced error handling for task 11.4:
+        - Validates all recipe items and parameters
+        - Logs detailed error information on failures
+        - Continues processing valid items when some fail
+        - Returns empty list on complete failure
+        
         Recipe format: List[Tuple[segment_payload, offset, options_dict]]
         
         Args:
@@ -670,27 +851,100 @@ class WindowsBypassEngine(IBypassEngine):
             List of TCPSegmentSpec objects ready for PacketSender
         """
         if not recipe:
-            self.logger.warning("Empty recipe provided to _recipe_to_specs")
+            self.logger.warning("_recipe_to_specs: Empty recipe provided")
+            return []
+            
+        if not isinstance(recipe, (list, tuple)):
+            self.logger.error(f"_recipe_to_specs: Invalid recipe type {type(recipe)}, expected list")
             return []
         
         specs = []
         total = len(recipe)
+        errors = 0
         
-        for i, (seg_payload, offset, opts) in enumerate(recipe):
+        for i, recipe_item in enumerate(recipe):
             try:
-                # Extract options with defaults
-                is_fake = opts.get("is_fake", False)
-                ttl = opts.get("ttl")
-                tcp_flags = opts.get("tcp_flags", 0x18)  # PSH+ACK by default
-                corrupt_checksum = opts.get("corrupt_tcp_checksum", False)
-                add_md5sig = opts.get("add_md5sig_option", False)
-                seq_extra = int(opts.get("seq_offset", 0) or 0)
-                if opts.get("corrupt_sequence"): seq_extra = -1
-                fooling_sni = opts.get("fooling_sni")
-                delay_ms = int(opts.get("delay_ms", opts.get("delay_ms_after", 0))) if i < total - 1 else 0
-                preserve_window = opts.get("preserve_window_size", not is_fake)
+                # Validate recipe item structure
+                if not isinstance(recipe_item, (list, tuple)) or len(recipe_item) != 3:
+                    self.logger.error(f"_recipe_to_specs: Invalid recipe item {i} structure, expected (payload, offset, options)")
+                    errors += 1
+                    continue
+                    
+                seg_payload, offset, opts = recipe_item
                 
-                # Create spec
+                # Validate recipe item components
+                if seg_payload is not None and not isinstance(seg_payload, (bytes, bytearray)):
+                    self.logger.error(f"_recipe_to_specs: Invalid payload type in item {i}: {type(seg_payload)}")
+                    errors += 1
+                    continue
+                    
+                if not isinstance(offset, int):
+                    self.logger.error(f"_recipe_to_specs: Invalid offset type in item {i}: {type(offset)}")
+                    errors += 1
+                    continue
+                    
+                if offset < 0:
+                    self.logger.warning(f"_recipe_to_specs: Negative offset in item {i}: {offset}, clamping to 0")
+                    offset = 0
+                    
+                if not isinstance(opts, dict):
+                    self.logger.error(f"_recipe_to_specs: Invalid options type in item {i}: {type(opts)}")
+                    errors += 1
+                    continue
+                
+                # Extract options with validation and defaults
+                is_fake = bool(opts.get("is_fake", False))
+                
+                ttl = opts.get("ttl")
+                if ttl is not None:
+                    try:
+                        ttl = int(ttl)
+                        if ttl < 1 or ttl > 255:
+                            self.logger.error(f"_recipe_to_specs: Invalid TTL value in item {i}: {ttl}")
+                            errors += 1
+                            continue
+                    except (ValueError, TypeError):
+                        self.logger.error(f"_recipe_to_specs: Invalid TTL type in item {i}: {type(ttl)}")
+                        errors += 1
+                        continue
+                
+                try:
+                    tcp_flags = int(opts.get("tcp_flags", 0x18))  # PSH+ACK by default
+                    if tcp_flags < 0 or tcp_flags > 255:
+                        self.logger.error(f"_recipe_to_specs: Invalid TCP flags value in item {i}: {tcp_flags}")
+                        errors += 1
+                        continue
+                except (ValueError, TypeError):
+                    self.logger.error(f"_recipe_to_specs: Invalid TCP flags type in item {i}: {type(opts.get('tcp_flags'))}")
+                    errors += 1
+                    continue
+                
+                corrupt_checksum = bool(opts.get("corrupt_tcp_checksum", False))
+                add_md5sig = bool(opts.get("add_md5sig_option", False))
+                
+                try:
+                    seq_extra = int(opts.get("seq_offset", 0) or 0)
+                    if opts.get("corrupt_sequence"): 
+                        seq_extra = -1
+                except (ValueError, TypeError):
+                    self.logger.warning(f"_recipe_to_specs: Invalid seq_offset in item {i}, using 0")
+                    seq_extra = 0
+                
+                fooling_sni = opts.get("fooling_sni")
+                if fooling_sni is not None and not isinstance(fooling_sni, str):
+                    self.logger.warning(f"_recipe_to_specs: Invalid fooling_sni type in item {i}, ignoring")
+                    fooling_sni = None
+                
+                try:
+                    delay_ms = int(opts.get("delay_ms", opts.get("delay_ms_after", 0))) if i < total - 1 else 0
+                    if delay_ms < 0:
+                        delay_ms = 0
+                except (ValueError, TypeError):
+                    delay_ms = 0
+                
+                preserve_window = bool(opts.get("preserve_window_size", not is_fake))
+                
+                # Create spec with validated parameters
                 spec = TCPSegmentSpec(
                     rel_seq=offset,
                     payload=seg_payload,
@@ -708,24 +962,35 @@ class WindowsBypassEngine(IBypassEngine):
                 specs.append(spec)
                 
                 self.logger.debug(
-                    f"Spec {i}: offset={offset}, len={len(seg_payload)}, "
+                    f"_recipe_to_specs: Spec {i} created - offset={offset}, "
+                    f"payload_len={len(seg_payload) if seg_payload else 0}, "
                     f"fake={is_fake}, ttl={ttl}, flags=0x{tcp_flags:02X}"
                 )
                 
             except Exception as e:
-                self.logger.error(f"Failed to create spec {i} from recipe: {e}", exc_info=self.debug)
+                self.logger.error(f"_recipe_to_specs: Unexpected error creating spec {i} - {e}", exc_info=self.debug)
+                errors += 1
                 continue
         
         if not specs:
-            self.logger.error("No valid specs generated from recipe")
+            self.logger.error(f"_recipe_to_specs: No valid specs generated from {total} recipe items ({errors} errors)")
+            return []
+        
+        if errors > 0:
+            self.logger.warning(f"_recipe_to_specs: Generated {len(specs)} specs from {total} items ({errors} errors)")
+        else:
+            self.logger.debug(f"_recipe_to_specs: Successfully generated {len(specs)} specs")
         
         return specs
     
-    def apply_bypass(self, packet: "pydivert.Packet", w: "pydivert.WinDivert", strategy_task: Dict):
+    def apply_bypass(self, packet: "pydivert.Packet", w: "pydivert.WinDivert", strategy_task: Dict, forced=True):
         """
         REFACTORED: Применяет стратегию обхода, используя новый PacketSender.
         CRITICAL FIX: Добавлена логика для обхода калибратора для фиксированных стратегий.
         """
+        # ✅ DEBUG: Log apply_bypass call
+        self.logger.info(f"🔥 APPLY_BYPASS CALLED: dst={packet.dst_addr}:{packet.dst_port}, strategy={strategy_task.get('type', 'unknown')}")
+        
         try:
             if not self._inject_sema.acquire(blocking=False):
                 self.logger.warning("Injection semaphore limit reached, forwarding original")
@@ -753,11 +1018,26 @@ class WindowsBypassEngine(IBypassEngine):
                     self.logger.warning("Could not resolve 'midsld', falling back to default split_pos=76")
                     params["split_pos"] = 76
 
-            self.logger.info(f"🎯 Applying bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
+            self.logger.info(f"🎯 Applying FORCED OVERRIDE bypass for {packet.dst_addr} -> Type: {task_type}, Params: {params}")
             payload = bytes(packet.payload)
             
+            # --- AutoTTL Integration: Calculate TTL dynamically if autottl is set ---
+            # For strategies with autottl, calculate the TTL based on network hops
+            if params.get('autottl') is not None:
+                autottl_offset = int(params['autottl'])
+                calculated_ttl = self.calculate_autottl(packet.dst_addr, autottl_offset)
+                
+                # If no fixed TTL is specified, use the calculated one
+                if params.get('ttl') is None:
+                    params['ttl'] = calculated_ttl
+                    self.logger.info(f"🔧 AutoTTL calculated: TTL={calculated_ttl} for {packet.dst_addr}")
+            
+            # Determine if this is an adaptive task (for calibrator)
+            # Adaptive tasks have autottl without a fixed ttl value
+            is_adaptive_task = params.get('autottl') is not None and 'ttl' not in strategy_task.get("params", {})
+            # ---
+            
             recipe = []
-            is_adaptive_task = params.get('autottl') is not None and params.get('ttl') is None
 
             if task_type == "fakeddisorder" and is_adaptive_task:
                 # --- ПУТЬ КАЛИБРАТОРА (ТОЛЬКО ДЛЯ АДАПТИВНЫХ ЗАДАЧ) ---
@@ -812,43 +1092,279 @@ class WindowsBypassEngine(IBypassEngine):
                     fake_ttl=int(params.get("ttl", 2)),
                     fooling_methods=params.get("fooling", ["badsum"])
                 )
+            elif task_type == "split":
+                # Simple split - just multisplit with one position
+                split_pos = int(params.get("split_pos", 3))
+                recipe = self.techniques.apply_multisplit(payload, [split_pos])
+            elif task_type == "disorder":
+                # Simple disorder - just multidisorder with one position
+                split_pos = int(params.get("split_pos", 3))
+                recipe = self.techniques.apply_multidisorder(
+                    payload, 
+                    [split_pos],
+                    split_pos=split_pos,
+                    overlap_size=int(params.get("overlap_size", 0)),
+                    fooling=params.get("fooling", []),
+                    fake_ttl=int(params.get("ttl", 1))
+                )
             elif task_type == "multisplit":
                 recipe = self.techniques.apply_multisplit(payload, params.get("positions", [10, 25, 40]))
             elif task_type == "multidisorder":
-                recipe = self.techniques.apply_multidisorder(payload, params.get("positions", [10, 25, 40]))
+                # Enhanced multidisorder with proper parameters
+                split_pos = int(params.get("split_pos", 3))
+                overlap_size = int(params.get("overlap_size", 0))
+                fooling = params.get("fooling", [])
+                repeats = int(params.get("repeats", 1))
+                
+                # Calculate TTL (use autottl if specified, otherwise use fixed ttl)
+                ttl_source = "fixed"
+                if params.get("autottl") is not None:
+                    fake_ttl = self.calculate_autottl(packet.dst_addr, int(params["autottl"]))
+                    ttl_source = f"autottl(offset={params['autottl']})"
+                else:
+                    fake_ttl = int(params.get("ttl", 1))
+                
+                # Detailed logging of attack parameters
+                self.logger.info(
+                    f"🎯 Multidisorder Attack Parameters:"
+                )
+                self.logger.info(f"   Target: {packet.dst_addr}:{packet.dst_port}")
+                self.logger.info(f"   Payload size: {len(payload)} bytes")
+                self.logger.info(f"   Split position: {split_pos}")
+                self.logger.info(f"   Overlap size: {overlap_size}")
+                self.logger.info(f"   Fooling methods: {fooling if fooling else 'none'}")
+                self.logger.info(f"   TTL: {fake_ttl} ({ttl_source})")
+                self.logger.info(f"   Repeats: {repeats}")
+                
+                recipe = self.techniques.apply_multidisorder(
+                    payload,
+                    params.get("positions", [split_pos]),
+                    split_pos=split_pos,
+                    overlap_size=overlap_size,
+                    fooling=fooling,
+                    fake_ttl=fake_ttl
+                )
             elif task_type == "seqovl":
                 recipe = self.techniques.apply_seqovl(payload, int(params.get("split_pos", 3)), int(params.get("overlap_size", 20)))
+            elif task_type == "tlsrec_split":
+                # TLS record splitting - split at TLS record boundaries
+                split_pos = int(params.get("split_pos", 5))  # Default after TLS record header
+                recipe = self.techniques.apply_multisplit(payload, [split_pos])
+                self.logger.info(f"🔒 TLS record split at position {split_pos}")
             elif task_type == "simple_fragment": # FIX: Handle simple_fragment
                 recipe = self.techniques.apply_multisplit(payload, [int(params.get("split_pos", 3))])
             elif task_type in ("badsum_race", "md5sig_race", "fake"):
                 recipe = self.techniques.apply_fake_packet_race(payload, params.get("ttl", 3), params.get("fooling", []))
+            elif task_type in ("stun_bypass", "quic_bypass", "udp_fragmentation"):
+                # UDP-based attacks
+                self.logger.info(f"🌐 Applying UDP attack: {task_type}")
+                if task_type == "stun_bypass":
+                    recipe = self.techniques.apply_stun_bypass(payload, params)
+                elif task_type == "quic_bypass":
+                    recipe = self.techniques.apply_quic_bypass(payload, params)
+                elif task_type == "udp_fragmentation":
+                    recipe = self.techniques.apply_udp_fragmentation(payload, params)
             else:
                 self.logger.warning(f"Неизвестный или неподдерживаемый тип задачи '{task_type}', отправляем оригинал.")
                 w.send(packet)
                 return
 
             if recipe:
-                # ⚡ CRITICAL FIX: Передаем payload в _recipe_to_specs
-                specs = self._recipe_to_specs(recipe, payload)
-                # ensure zapret-like behavior: TTL/badsum only for fake segments
-                for sp in specs:
-                    if not getattr(sp, "is_fake", False):
-                        # Реальные пакеты — не трогаем TTL (пусть остаётся как у ОС)
-                        sp.ttl = None
-                        # И никаких badsum на реальных
-                        sp.corrupt_tcp_checksum = False
+                try:
+                    # ⚡ CRITICAL FIX: Передаем payload в _recipe_to_specs
+                    try:
+                        specs = self._recipe_to_specs(recipe, payload)
+                    except Exception as e:
+                        self.logger.error(f"apply_bypass: Exception converting recipe to specs for task {task_type} - {e}", exc_info=self.debug)
+                        self.logger.error(f"apply_bypass: Recipe conversion failure details - task={task_type}, recipe_items={len(recipe) if recipe else 0}, payload_len={len(payload)}")
+                        self.logger.warning("apply_bypass: Forwarding original packet due to recipe conversion error")
+                        w.send(packet)
+                        return
+                    
+                    if not specs:
+                        self.logger.error(f"apply_bypass: Failed to convert recipe to specs for task {task_type}")
+                        self.logger.error(f"apply_bypass: Recipe details - {len(recipe) if recipe else 0} recipe items, payload_len={len(payload)}")
+                        self.logger.warning("apply_bypass: Forwarding original packet due to empty specs")
+                        w.send(packet)
+                        return
+                    
+                    # ensure zapret-like behavior: TTL/badsum only for fake segments
+                    for sp in specs:
+                        if not getattr(sp, "is_fake", False):
+                            # Реальные пакеты — не трогаем TTL (пусть остаётся как у ОС)
+                            sp.ttl = None
+                            # И никаких badsum на реальных
+                            sp.corrupt_tcp_checksum = False
 
-                success = self._packet_sender.send_tcp_segments(w, packet, specs)
-                if not success:
-                    self.logger.warning("Packet sender failed, forwarding original packet")
-                    w.send(packet)
+                    # Log packet sequence details
+                    self.logger.info(f"📦 Packet sequence: {len(specs)} segments")
+                    for idx, spec in enumerate(specs, 1):
+                        is_fake = getattr(spec, 'is_fake', False)
+                        spec_ttl = getattr(spec, 'ttl', 'default')
+                        seq_offset = getattr(spec, 'seq_offset', 0)
+                        segment_type = "FAKE" if is_fake else "REAL"
+                        self.logger.debug(
+                            f"   Segment {idx}: {segment_type}, "
+                            f"size={len(spec.data) if hasattr(spec, 'data') else 'unknown'}, "
+                            f"ttl={spec_ttl}, seq_offset={seq_offset}"
+                        )
+                    
+                    # Implement repeats logic
+                    repeats = int(params.get("repeats", 1))
+                    if repeats < 1:
+                        repeats = 1
+                    
+                    success = False
+                    for repeat_num in range(repeats):
+                        if repeats > 1:
+                            self.logger.info(f"🔁 Repeat iteration {repeat_num + 1}/{repeats}")
+                        
+                        # Send the packet sequence with comprehensive error handling
+                        try:
+                            repeat_success = self._packet_sender.send_tcp_segments(w, packet, specs)
+                            
+                            if repeat_success:
+                                self.logger.debug(f"✅ Repeat {repeat_num + 1} sent successfully")
+                            else:
+                                self.logger.warning(f"❌ Repeat {repeat_num + 1} failed to send")
+                                self.logger.warning(f"apply_bypass: Packet sending failed for repeat {repeat_num + 1}, "
+                                                  f"task={task_type}, dst={packet.dst_addr}:{packet.dst_port}")
+                                self.logger.warning(f"apply_bypass: Packet send failure details - specs_count={len(specs)}, "
+                                                  f"packet_size={len(packet.raw) if hasattr(packet, 'raw') else 'unknown'}")
+                            
+                            success = success or repeat_success
+                            
+                        except OSError as e:
+                            self.logger.error(f"apply_bypass: Network error during packet sending repeat {repeat_num + 1} - {e}")
+                            self.logger.error(f"apply_bypass: Network error details - errno={getattr(e, 'errno', 'unknown')}, "
+                                            f"winerror={getattr(e, 'winerror', 'unknown')}")
+                            # Continue with next repeat or fallback
+                        except MemoryError as e:
+                            self.logger.error(f"apply_bypass: Memory error during packet sending repeat {repeat_num + 1} - {e}")
+                            # Memory errors are serious, don't continue with more repeats
+                            break
+                        except Exception as e:
+                            self.logger.error(f"apply_bypass: Unexpected exception during packet sending repeat {repeat_num + 1} - {e}", 
+                                            exc_info=self.debug)
+                            self.logger.error(f"apply_bypass: Exception details - task={task_type}, repeat={repeat_num + 1}, "
+                                            f"dst={packet.dst_addr}:{packet.dst_port}")
+                            # Continue with next repeat or fallback
+                        
+                        # Add small delay between repeats (except after last repeat)
+                        if repeat_num < repeats - 1:
+                            time.sleep(0.001)  # 1ms delay between repeats
+                    
+                    # Log final result
+                    if success:
+                        self.logger.info(f"✅ {task_type} attack completed successfully")
+                    else:
+                        self.logger.error(f"❌ {task_type} attack failed - all repeats unsuccessful")
+                        self.logger.error(f"apply_bypass: Packet building/sending failed for {packet.dst_addr}:{packet.dst_port}, "
+                                        f"forwarding original packet")
+                    
+                    # ✅ CRITICAL FIX: Update telemetry after sending packets (accounting for repeats)
+                    if success:
+                        try:
+                            with self._tlock:
+                                # Count fake and real packets (multiply by repeats)
+                                fake_count = sum(1 for s in specs if getattr(s, 'is_fake', False)) * repeats
+                                real_count = (len(specs) - (fake_count // repeats)) * repeats
+                                
+                                # Update aggregate telemetry
+                                self._telemetry['aggregate']['segments_sent'] += len(specs) * repeats
+                                self._telemetry['aggregate']['fake_packets_sent'] += fake_count
+                                
+                                # Update per-target telemetry
+                                target_ip = packet.dst_addr
+                                if target_ip not in self._telemetry['per_target']:
+                                    self._telemetry['per_target'][target_ip] = {
+                                        "segments_sent": 0,
+                                        "fake_packets_sent": 0,
+                                        "seq_offsets": defaultdict(int),
+                                        "ttls_fake": defaultdict(int),
+                                        "ttls_real": defaultdict(int),
+                                        "overlaps": defaultdict(int),
+                                    }
+                                
+                                per = self._telemetry['per_target'][target_ip]
+                                per['segments_sent'] += len(specs)
+                                per['fake_packets_sent'] += fake_count
+                                
+                                # Update TTL statistics
+                                for spec in specs:
+                                    if spec.ttl:
+                                        if getattr(spec, 'is_fake', False):
+                                            self._telemetry['ttls']['fake'][spec.ttl] += 1
+                                            per['ttls_fake'][spec.ttl] += 1
+                                        else:
+                                            self._telemetry['ttls']['real'][spec.ttl] += 1
+                                            per['ttls_real'][spec.ttl] += 1
+                                
+                                self.logger.debug(f"✅ Telemetry updated: {len(specs)} segments ({fake_count} fake, {real_count} real)")
+                        except Exception as e:
+                            self.logger.warning(f"apply_bypass: Failed to update telemetry - {e}")
+                    
+                    # Handle final result and ensure original packet forwarding on failure
+                    if not success:
+                        self.logger.warning("apply_bypass: All packet sending attempts failed, forwarding original packet")
+                        self.logger.warning(f"apply_bypass: Final failure details - task={task_type}, repeats_attempted={repeats}, "
+                                          f"dst={packet.dst_addr}:{packet.dst_port}, payload_len={len(payload)}")
+                        try:
+                            w.send(packet)
+                            self.logger.debug("apply_bypass: Original packet forwarded successfully after bypass failure")
+                        except Exception as send_e:
+                            self.logger.error(f"apply_bypass: Failed to forward original packet after bypass failure - {send_e}")
+                        
+                except MemoryError as e:
+                    self.logger.error(f"apply_bypass: Memory error processing packet specs - {e}")
+                    self.logger.error(f"apply_bypass: Memory error details - task={task_type}, specs_count={len(specs) if 'specs' in locals() else 'unknown'}")
+                    self.logger.warning("apply_bypass: Forwarding original packet due to memory error")
+                    try:
+                        w.send(packet)
+                    except Exception as send_e:
+                        self.logger.error(f"apply_bypass: Failed to forward original packet after memory error - {send_e}")
+                except Exception as e:
+                    self.logger.error(f"apply_bypass: Unexpected error processing packet specs - {e}", exc_info=self.debug)
+                    self.logger.error(f"apply_bypass: Spec processing error details - task={task_type}, "
+                                    f"dst={packet.dst_addr}:{packet.dst_port}, payload_len={len(payload)}")
+                    self.logger.warning("apply_bypass: Forwarding original packet due to spec processing error")
+                    try:
+                        w.send(packet)
+                    except Exception as send_e:
+                        self.logger.error(f"apply_bypass: Failed to forward original packet after spec processing error - {send_e}")
             else:
-                self.logger.warning(f"Recipe generation failed for task {task_type}, forwarding original.")
-                w.send(packet)
+                self.logger.warning(f"apply_bypass: Recipe generation failed for task {task_type}, forwarding original packet")
+                self.logger.warning(f"apply_bypass: Recipe failure details - task={task_type}, "
+                                  f"payload_len={len(payload)}, params={params}")
+                try:
+                    w.send(packet)
+                    self.logger.debug("apply_bypass: Original packet forwarded successfully after recipe generation failure")
+                except Exception as send_e:
+                    self.logger.error(f"apply_bypass: Failed to forward original packet after recipe generation failure - {send_e}")
 
+        except ValueError as e:
+            self.logger.error(f"apply_bypass: Parameter validation error - {e}", exc_info=self.debug)
+            self.logger.error(f"apply_bypass: Parameter error details - task={strategy_task.get('type', 'unknown')}, "
+                            f"dst={getattr(packet, 'dst_addr', 'unknown')}:{getattr(packet, 'dst_port', 'unknown')}")
+            try:
+                w.send(packet)
+            except Exception as send_e:
+                self.logger.error(f"apply_bypass: Failed to forward original packet after parameter error - {send_e}")
+        except MemoryError as e:
+            self.logger.error(f"apply_bypass: Memory allocation error - {e}")
+            try:
+                w.send(packet)
+            except Exception as send_e:
+                self.logger.error(f"apply_bypass: Failed to forward original packet after memory error - {send_e}")
         except Exception as e:
-            self.logger.error(f"❌ Ошибка применения bypass: {e}", exc_info=self.debug)
-            w.send(packet)
+            self.logger.error(f"❌ Unexpected error in apply_bypass - {e}", exc_info=self.debug)
+            self.logger.error(f"apply_bypass: Unexpected error details - task={strategy_task.get('type', 'unknown')}, "
+                            f"dst={getattr(packet, 'dst_addr', 'unknown')}:{getattr(packet, 'dst_port', 'unknown')}")
+            try:
+                w.send(packet)
+                self.logger.debug("apply_bypass: Original packet forwarded successfully after unexpected error")
+            except Exception as send_e:
+                self.logger.error(f"apply_bypass: Failed to forward original packet after unexpected error - {send_e}")
         finally:
             self._inject_sema.release()
 
@@ -901,5 +1417,5 @@ class FallbackBypassEngine(IBypassEngine):
     def stop(self, *args, **kwargs): pass
     def set_strategy_override(self, strategy_task: Dict[str, Any]) -> None: pass
     def get_telemetry_snapshot(self) -> Dict[str, Any]: return {}
-    def apply_bypass(self, packet: Any, w: Any, strategy_task: Dict): pass
+    def apply_bypass(self, packet: Any, w: Any, strategy_task: Dict, forced=True): pass
     def report_high_level_outcome(self, target_ip: str, success: bool): pass

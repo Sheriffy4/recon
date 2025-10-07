@@ -1,0 +1,710 @@
+"""
+Intelligent Strategy Generator - Task 24.3 Implementation
+Integrates UnifiedFingerprinter, StrategyRuleEngine, and StrategyCombinator
+for intelligent DPI bypass strategy generation.
+
+Combines data from recon_summary.json + PCAP analysis for enhanced strategy generation.
+"""
+
+import asyncio
+import logging
+import json
+import os
+from typing import Dict, List, Optional, Any, Tuple, Set
+from dataclasses import dataclass, field
+from datetime import datetime
+import statistics
+
+LOG = logging.getLogger('intelligent_strategy_generator')
+
+# Import components with fallbacks
+try:
+    from .strategy_rule_engine import StrategyRuleEngine, RuleEvaluationResult
+    RULE_ENGINE_AVAILABLE = True
+except ImportError as e:
+    LOG.warning(f"Rule engine not available: {e}")
+    RULE_ENGINE_AVAILABLE = False
+    StrategyRuleEngine = None
+    RuleEvaluationResult = None
+
+try:
+    from ..strategy_combinator import StrategyCombinator
+    COMBINATOR_AVAILABLE = True
+except ImportError as e:
+    LOG.warning(f"Strategy combinator not available: {e}")
+    COMBINATOR_AVAILABLE = False
+    
+    # Mock StrategyCombinator
+    class StrategyCombinator:
+        def suggest_combinations_from_rule_recommendations(self, *args, **kwargs):
+            return [("mock_strategy", {"type": "mock", "params": {}, "no_fallbacks": True, "forced": True}})]
+
+try:
+    from ..fingerprint.unified_fingerprinter import UnifiedFingerprinter
+    FINGERPRINTER_AVAILABLE = True
+except ImportError as e:
+    LOG.warning(f"Unified fingerprinter not available: {e}")
+    FINGERPRINTER_AVAILABLE = False
+    UnifiedFingerprinter = None
+
+# Mock PCAP analyzer if not available
+try:
+    from ..pcap.rst_analyzer import RSTTriggerAnalyzer
+    PCAP_ANALYSIS_AVAILABLE = True
+except ImportError:
+    LOG.warning("PCAP analyzer not available - using mock")
+    PCAP_ANALYSIS_AVAILABLE = False
+    
+    class MockRSTTriggerAnalyzer:
+        async def analyze_pcap(self, pcap_file):
+            return {
+                "rst_triggers": [],
+                "connection_patterns": {},
+                "timing_analysis": {},
+                "fragmentation_behavior": {},
+                "dpi_fingerprint": {}
+            }
+    StrategyCombinator = None
+
+try:
+    from ..fingerprint.unified_fingerprinter import UnifiedFingerprinter, FingerprintingConfig
+    FINGERPRINTER_AVAILABLE = True
+except ImportError as e:
+    LOG.warning(f"Unified fingerprinter not available: {e}")
+    FINGERPRINTER_AVAILABLE = False
+    UnifiedFingerprinter = None
+    FingerprintingConfig = None
+
+# Import PCAP analysis
+try:
+    import find_rst_triggers
+    PCAP_ANALYSIS_AVAILABLE = True
+except ImportError:
+    LOG.warning("PCAP analysis (find_rst_triggers) not available")
+    PCAP_ANALYSIS_AVAILABLE = False
+
+# Mock RST analyzer for when real one is not available
+class MockRSTAnalyzer:
+    """Mock RST analyzer"""
+    
+    def __init__(self, pcap_path: str = None):
+        self.pcap_path = pcap_path
+    
+    async def analyze_pcap(self, pcap_file: str) -> Dict[str, Any]:
+        """Mock PCAP analysis"""
+        return {
+            "rst_triggers": [],
+            "connection_patterns": {},
+            "timing_analysis": {"avg_response_time": 0.0, "timeout_rate": 0.0},
+            "fragmentation_behavior": {"vulnerable": False, "filtered": False},
+            "dpi_fingerprint": {}
+        }
+
+
+@dataclass
+class StrategyEffectivenessData:
+    """Data about strategy effectiveness from recon_summary.json"""
+    strategy_id: str
+    strategy_description: str
+    success_rate: float
+    successful_sites: int
+    total_sites: int
+    avg_latency_ms: float
+    dpi_type: str
+    dpi_confidence: float
+    engine_telemetry: Dict[str, Any]
+    per_target_results: Dict[str, Dict[str, Any]]
+
+
+@dataclass
+class PCAPAnalysisData:
+    """Data from PCAP analysis"""
+    rst_triggers: List[Dict[str, Any]]
+    connection_patterns: Dict[str, Any]
+    timing_analysis: Dict[str, Any]
+    fragmentation_behavior: Dict[str, Any]
+    dpi_fingerprint: Dict[str, Any]
+
+
+@dataclass
+class IntelligentStrategyRecommendation:
+    """Enhanced strategy recommendation with intelligence data"""
+    strategy_name: str
+    strategy_config: Dict[str, Any]
+    confidence_score: float
+    reasoning: List[str]
+    expected_success_rate: float
+    priority: int
+    source_data: List[str]  # What data sources contributed to this recommendation
+    risk_factors: List[str]
+    optimization_hints: List[str]
+
+
+class IntelligentStrategyGenerator:
+    """
+    Advanced strategy generator that combines multiple data sources:
+    1. recon_summary.json - Historical strategy effectiveness
+    2. PCAP analysis - Network behavior patterns
+    3. Fingerprinting data - DPI characteristics
+    4. Rule engine - Expert knowledge
+    5. Strategy combinator - Complex strategy creation
+    """
+    
+    def __init__(self, 
+                 rule_engine: Optional[Any] = None,
+                 combinator: Optional[Any] = None,
+                 fingerprinter: Optional[Any] = None):
+        
+        # Initialize components with fallbacks
+        if rule_engine:
+            self.rule_engine = rule_engine
+        elif RULE_ENGINE_AVAILABLE and StrategyRuleEngine:
+            try:
+                self.rule_engine = StrategyRuleEngine()
+            except Exception as e:
+                LOG.warning(f"Failed to initialize rule engine: {e}")
+                self.rule_engine = None
+        else:
+            self.rule_engine = None
+            
+        if combinator:
+            self.combinator = combinator
+        elif COMBINATOR_AVAILABLE and StrategyCombinator:
+            try:
+                self.combinator = StrategyCombinator()
+            except Exception as e:
+                LOG.warning(f"Failed to initialize combinator: {e}")
+                self.combinator = None
+        else:
+            self.combinator = None
+            
+        if fingerprinter:
+            self.fingerprinter = fingerprinter
+        elif FINGERPRINTER_AVAILABLE and UnifiedFingerprinter:
+            try:
+                self.fingerprinter = UnifiedFingerprinter()
+            except Exception as e:
+                LOG.warning(f"Failed to initialize fingerprinter: {e}")
+                self.fingerprinter = None
+        else:
+            self.fingerprinter = None
+        
+        # Data caches
+        self.recon_summary_data: Optional[Dict[str, Any]] = None
+        self.pcap_analysis_data: Optional[PCAPAnalysisData] = None
+        self.historical_effectiveness: Dict[str, float] = {}
+        
+        # Statistics
+        self.generation_stats = {
+            "strategies_generated": 0,
+            "data_sources_used": 0,
+            "avg_confidence": 0.0,
+            "recommendations_created": 0
+        }
+    
+    def load_recon_summary(self, summary_file: str) -> bool:
+        """
+        Load and parse recon_summary.json data.
+        
+        Args:
+            summary_file: Path to recon_summary.json
+            
+        Returns:
+            True if loaded successfully, False otherwise
+        """
+        try:
+            if not os.path.exists(summary_file):
+                LOG.warning(f"Summary file not found: {summary_file}")
+                return False
+            
+            with open(summary_file, 'r', encoding='utf-8') as f:
+                self.recon_summary_data = json.load(f)
+            
+            # Extract historical effectiveness data
+            self._extract_historical_effectiveness()
+            
+            LOG.info(f"Loaded recon summary with {len(self.historical_effectiveness)} strategy effectiveness records")
+            return True
+            
+        except Exception as e:
+            LOG.error(f"Failed to load recon summary: {e}")
+            return False
+    
+    def _extract_historical_effectiveness(self):
+        """Extract strategy effectiveness data from recon summary"""
+        if not self.recon_summary_data:
+            return
+        
+        # Extract best strategy data
+        best_strategy = self.recon_summary_data.get("best_strategy", {})
+        if best_strategy:
+            strategy_desc = best_strategy.get("strategy", "")
+            success_rate = best_strategy.get("success_rate", 0.0)
+            self.historical_effectiveness[strategy_desc] = success_rate
+        
+        # Extract all tested strategies if available
+        all_strategies = self.recon_summary_data.get("all_strategies", [])
+        for strategy_data in all_strategies:
+            if isinstance(strategy_data, dict):
+                strategy_desc = strategy_data.get("strategy", "")
+                success_rate = strategy_data.get("success_rate", 0.0)
+                if strategy_desc:
+                    self.historical_effectiveness[strategy_desc] = success_rate
+    
+    async def analyze_pcap(self, pcap_file: str) -> bool:
+        """
+        Analyze PCAP file for network behavior patterns.
+        
+        Args:
+            pcap_file: Path to PCAP file
+            
+        Returns:
+            True if analyzed successfully, False otherwise
+        """
+        try:
+            if not PCAP_ANALYSIS_AVAILABLE:
+                LOG.warning("PCAP analysis not available")
+                return False
+            
+            if not os.path.exists(pcap_file):
+                LOG.warning(f"PCAP file not found: {pcap_file}")
+                return False
+            
+            # Analyze RST triggers and patterns
+            analyzer = MockRSTAnalyzer(pcap_path=pcap_file)
+            rst_analysis = await analyzer.analyze_pcap(pcap_file)
+            
+            # Extract key patterns
+            self.pcap_analysis_data = PCAPAnalysisData(
+                rst_triggers=rst_analysis.get("rst_triggers", []),
+                connection_patterns=rst_analysis.get("connection_patterns", {}),
+                timing_analysis=rst_analysis.get("timing_analysis", {}),
+                fragmentation_behavior=rst_analysis.get("fragmentation_behavior", {}),
+                dpi_fingerprint=rst_analysis.get("dpi_fingerprint", {})
+            )
+            
+            LOG.info(f"PCAP analysis complete: {len(self.pcap_analysis_data.rst_triggers)} RST triggers found")
+            return True
+            
+        except Exception as e:
+            LOG.error(f"Failed to analyze PCAP: {e}")
+            return False
+    
+    async def generate_intelligent_strategies(self, 
+                                            target_domain: str,
+                                            count: int = 10,
+                                            include_experimental: bool = False) -> List[IntelligentStrategyRecommendation]:
+        """
+        Generate intelligent strategy recommendations using all available data sources.
+        
+        Args:
+            target_domain: Target domain for strategy generation
+            count: Number of strategies to generate
+            include_experimental: Whether to include experimental strategies
+            
+        Returns:
+            List of intelligent strategy recommendations
+        """
+        
+        recommendations = []
+        data_sources_used = []
+        
+        # 1. Get fingerprint data
+        fingerprint_data = {}
+        try:
+            if self.fingerprinter:
+                # Use correct method name for fingerprinting
+                if hasattr(self.fingerprinter, 'fingerprint_domain'):
+                    fingerprint_result = await self.fingerprinter.fingerprint_domain(target_domain)
+                elif hasattr(self.fingerprinter, 'fingerprint'):
+                    fingerprint_result = await self.fingerprinter.fingerprint(target_domain, 443)
+                else:
+                    LOG.warning("No suitable fingerprinting method found")
+                    fingerprint_result = None
+                
+                if fingerprint_result:
+                    if hasattr(fingerprint_result, 'to_dict'):
+                        fingerprint_data = fingerprint_result.to_dict()
+                    else:
+                        fingerprint_data = {"domain": target_domain, "confidence": 0.5}
+                    data_sources_used.append("fingerprinting")
+        except Exception as e:
+            LOG.warning(f"Fingerprinting failed: {e}")
+        
+        # 2. Apply rule engine
+        rule_recommendations = []
+        if fingerprint_data:
+            try:
+                rule_result = self.rule_engine.evaluate_fingerprint(fingerprint_data)
+                rule_recommendations = rule_result.recommended_techniques
+                data_sources_used.append("rule_engine")
+            except Exception as e:
+                LOG.warning(f"Rule engine evaluation failed: {e}")
+        
+        # 3. Analyze historical effectiveness
+        historical_insights = self._analyze_historical_effectiveness(target_domain)
+        if historical_insights:
+            data_sources_used.append("historical_data")
+        
+        # 4. Analyze PCAP patterns
+        pcap_insights = self._analyze_pcap_patterns()
+        if pcap_insights:
+            data_sources_used.append("pcap_analysis")
+        
+        # 5. Generate base strategies using combinator
+        base_strategies = []
+        if rule_recommendations:
+            try:
+                rule_result = self.rule_engine.evaluate_fingerprint(fingerprint_data)
+                combinator_strategies = self.combinator.suggest_combinations_from_rule_recommendations(
+                    rule_recommendations,
+                    rule_result.technique_priorities,
+                    rule_result.technique_confidences
+                )
+                base_strategies.extend(combinator_strategies)
+                data_sources_used.append("strategy_combinator")
+            except Exception as e:
+                LOG.warning(f"Strategy combination failed: {e}")
+        
+        # 6. Enhance strategies with intelligence
+        for i, (strategy_name, strategy_config) in enumerate(base_strategies[:count]):
+            recommendation = self._create_intelligent_recommendation(
+                strategy_name,
+                strategy_config,
+                fingerprint_data,
+                historical_insights,
+                pcap_insights,
+                rule_recommendations
+            )
+            recommendations.append(recommendation)
+        
+        # 7. Add PCAP-specific strategies if available
+        if self.pcap_analysis_data and len(recommendations) < count:
+            pcap_strategies = self._generate_pcap_specific_strategies(count - len(recommendations))
+            recommendations.extend(pcap_strategies)
+        
+        # 8. Add historical best performers
+        if self.historical_effectiveness and len(recommendations) < count:
+            historical_strategies = self._generate_historical_strategies(count - len(recommendations))
+            recommendations.extend(historical_strategies)
+        
+        # Sort by confidence and priority
+        recommendations.sort(key=lambda x: (x.priority, x.confidence_score), reverse=True)
+        
+        # Update statistics
+        self.generation_stats["strategies_generated"] += len(recommendations)
+        self.generation_stats["data_sources_used"] = len(data_sources_used)
+        if recommendations:
+            self.generation_stats["avg_confidence"] = statistics.mean([r.confidence_score for r in recommendations])
+        self.generation_stats["recommendations_created"] += 1
+        
+        LOG.info(f"Generated {len(recommendations)} intelligent strategies using {len(data_sources_used)} data sources")
+        
+        return recommendations[:count]
+    
+    def _analyze_historical_effectiveness(self, target_domain: str) -> Dict[str, Any]:
+        """Analyze historical strategy effectiveness for insights"""
+        insights = {}
+        
+        if not self.recon_summary_data:
+            return insights
+        
+        # Analyze best performing strategies
+        best_strategy = self.recon_summary_data.get("best_strategy", {})
+        if best_strategy:
+            insights["best_historical_strategy"] = best_strategy.get("strategy", "")
+            insights["best_success_rate"] = best_strategy.get("success_rate", 0.0)
+            insights["best_dpi_type"] = best_strategy.get("dpi_type", "unknown")
+            insights["best_dpi_confidence"] = best_strategy.get("dpi_confidence", 0.0)
+        
+        # Analyze per-target success patterns
+        per_target = self.recon_summary_data.get("best_strategy", {}).get("engine_telemetry_full", {}).get("per_target", {})
+        successful_targets = []
+        failed_targets = []
+        
+        for target_ip, target_data in per_target.items():
+            if target_data.get("high_level_success", False):
+                successful_targets.append(target_ip)
+            else:
+                failed_targets.append(target_ip)
+        
+        insights["successful_targets"] = successful_targets
+        insights["failed_targets"] = failed_targets
+        insights["target_success_rate"] = len(successful_targets) / (len(successful_targets) + len(failed_targets)) if (successful_targets or failed_targets) else 0.0
+        
+        # Extract telemetry patterns
+        telemetry = best_strategy.get("engine_telemetry", {})
+        insights["rst_count"] = telemetry.get("RST", 0)
+        insights["clienthellos_sent"] = telemetry.get("CH", 0)
+        insights["serverhellos_received"] = telemetry.get("SH", 0)
+        
+        return insights
+    
+    def _analyze_pcap_patterns(self) -> Dict[str, Any]:
+        """Analyze PCAP data for strategy insights"""
+        insights = {}
+        
+        if not self.pcap_analysis_data:
+            return insights
+        
+        # Analyze RST trigger patterns
+        rst_triggers = self.pcap_analysis_data.rst_triggers
+        if rst_triggers:
+            insights["rst_trigger_count"] = len(rst_triggers)
+            insights["common_rst_patterns"] = self._extract_common_rst_patterns(rst_triggers)
+        
+        # Analyze fragmentation behavior
+        frag_behavior = self.pcap_analysis_data.fragmentation_behavior
+        if frag_behavior:
+            insights["fragmentation_vulnerable"] = frag_behavior.get("vulnerable", False)
+            insights["fragmentation_filtered"] = frag_behavior.get("filtered", False)
+        
+        # Analyze timing patterns
+        timing = self.pcap_analysis_data.timing_analysis
+        if timing:
+            insights["avg_response_time"] = timing.get("avg_response_time", 0.0)
+            insights["timeout_rate"] = timing.get("timeout_rate", 0.0)
+        
+        return insights
+    
+    def _extract_common_rst_patterns(self, rst_triggers: List[Dict[str, Any]]) -> List[str]:
+        """Extract common patterns from RST triggers"""
+        patterns = []
+        
+        # Analyze trigger types
+        trigger_types = [trigger.get("trigger_type", "") for trigger in rst_triggers]
+        common_types = [t for t in set(trigger_types) if trigger_types.count(t) > 1]
+        
+        if "sni_detection" in common_types:
+            patterns.append("SNI-based blocking detected")
+        if "payload_inspection" in common_types:
+            patterns.append("Deep packet inspection detected")
+        if "timing_based" in common_types:
+            patterns.append("Timing-based detection detected")
+        
+        return patterns
+    
+    def _create_intelligent_recommendation(self,
+                                         strategy_name: str,
+                                         strategy_config: Dict[str, Any],
+                                         fingerprint_data: Dict[str, Any],
+                                         historical_insights: Dict[str, Any],
+                                         pcap_insights: Dict[str, Any],
+                                         rule_recommendations: List[str]) -> IntelligentStrategyRecommendation:
+        """Create an intelligent strategy recommendation with reasoning"""
+        
+        reasoning = []
+        confidence_factors = []
+        risk_factors = []
+        optimization_hints = []
+        source_data = []
+        
+        # Base confidence from strategy type
+        base_confidence = 0.5
+        
+        # Fingerprint-based reasoning
+        if fingerprint_data:
+            source_data.append("fingerprint")
+            dpi_confidence = fingerprint_data.get("confidence", 0.0)
+            if dpi_confidence > 0.7:
+                reasoning.append(f"High-confidence DPI fingerprint (confidence: {dpi_confidence:.2f})")
+                confidence_factors.append(dpi_confidence * 0.3)
+            
+            fragmentation_handling = fingerprint_data.get("fragmentation_handling", "unknown")
+            if fragmentation_handling == "vulnerable" and "multisplit" in strategy_name:
+                reasoning.append("DPI vulnerable to fragmentation - multisplit strategy recommended")
+                confidence_factors.append(0.2)
+            elif fragmentation_handling == "filtered" and "multisplit" in strategy_name:
+                reasoning.append("DPI filters fragmentation - multisplit strategy may fail")
+                risk_factors.append("Fragmentation filtering detected")
+                confidence_factors.append(-0.1)
+        
+        # Historical effectiveness reasoning
+        if historical_insights:
+            source_data.append("historical")
+            best_historical = historical_insights.get("best_historical_strategy", "")
+            if best_historical and strategy_name in best_historical:
+                historical_success = historical_insights.get("best_success_rate", 0.0)
+                reasoning.append(f"Similar strategy historically successful (success rate: {historical_success:.2f})")
+                confidence_factors.append(historical_success * 0.25)
+            
+            rst_count = historical_insights.get("rst_count", 0)
+            if rst_count > 0:
+                reasoning.append(f"Historical RST injection detected ({rst_count} RSTs)")
+                risk_factors.append("RST injection risk")
+        
+        # PCAP analysis reasoning
+        if pcap_insights:
+            source_data.append("pcap")
+            if pcap_insights.get("fragmentation_vulnerable", False) and "multisplit" in strategy_name:
+                reasoning.append("PCAP analysis confirms fragmentation vulnerability")
+                confidence_factors.append(0.15)
+            
+            rst_patterns = pcap_insights.get("common_rst_patterns", [])
+            if rst_patterns:
+                reasoning.append(f"PCAP analysis detected: {', '.join(rst_patterns)}")
+                if "SNI-based blocking detected" in rst_patterns:
+                    optimization_hints.append("Consider SNI obfuscation techniques")
+        
+        # Rule engine reasoning
+        if rule_recommendations and any(rec in strategy_name for rec in rule_recommendations):
+            source_data.append("rules")
+            reasoning.append("Strategy matches rule engine recommendations")
+            confidence_factors.append(0.1)
+        
+        # Calculate final confidence
+        final_confidence = base_confidence + sum(confidence_factors)
+        final_confidence = max(0.0, min(1.0, final_confidence))  # Clamp to [0, 1]
+        
+        # Determine priority
+        priority = 50
+        if final_confidence > 0.8:
+            priority = 90
+        elif final_confidence > 0.6:
+            priority = 70
+        elif final_confidence > 0.4:
+            priority = 50
+        else:
+            priority = 30
+        
+        # Estimate success rate
+        expected_success_rate = final_confidence * 0.8  # Conservative estimate
+        
+        return IntelligentStrategyRecommendation(
+            strategy_name=strategy_name,
+            strategy_config=strategy_config,
+            confidence_score=final_confidence,
+            reasoning=reasoning,
+            expected_success_rate=expected_success_rate,
+            priority=priority,
+            source_data=source_data,
+            risk_factors=risk_factors,
+            optimization_hints=optimization_hints
+        )
+    
+    def _generate_pcap_specific_strategies(self, count: int) -> List[IntelligentStrategyRecommendation]:
+        """Generate strategies specifically based on PCAP analysis"""
+        strategies = []
+        
+        if not self.pcap_analysis_data:
+            return strategies
+        
+        # Generate strategies based on RST triggers
+        rst_triggers = self.pcap_analysis_data.rst_triggers
+        if rst_triggers:
+            # If SNI-based blocking detected, recommend SNI obfuscation
+            sni_blocks = [t for t in rst_triggers if t.get("trigger_type") == "sni_detection"]
+            if sni_blocks:
+                strategy = IntelligentStrategyRecommendation(
+                    strategy_name="pcap_sni_obfuscation",
+                    strategy_config={"type": "client_hello_split", "params": {"split_pos": 5, "no_fallbacks": True, "forced": True}},
+                    confidence_score=0.7,
+                    reasoning=["PCAP analysis detected SNI-based blocking"],
+                    expected_success_rate=0.6,
+                    priority=80,
+                    source_data=["pcap"],
+                    risk_factors=[],
+                    optimization_hints=["Split Client Hello at SNI extension"]
+                )
+                strategies.append(strategy)
+        
+        return strategies[:count]
+    
+    def _generate_historical_strategies(self, count: int) -> List[IntelligentStrategyRecommendation]:
+        """Generate strategies based on historical effectiveness"""
+        strategies = []
+        
+        if not self.historical_effectiveness:
+            return strategies
+        
+        # Sort by effectiveness
+        sorted_strategies = sorted(
+            self.historical_effectiveness.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        for strategy_desc, success_rate in sorted_strategies[:count]:
+            # Parse strategy description to create config
+            strategy_config = self._parse_strategy_description(strategy_desc)
+            
+            strategy = IntelligentStrategyRecommendation(
+                strategy_name=f"historical_{strategy_desc[:20]}",
+                strategy_config=strategy_config,
+                confidence_score=success_rate,
+                reasoning=[f"Historically successful strategy (success rate: {success_rate:.2f})"],
+                expected_success_rate=success_rate * 0.9,  # Slightly conservative
+                priority=60,
+                source_data=["historical"],
+                risk_factors=[],
+                optimization_hints=[]
+            )
+            strategies.append(strategy)
+        
+        return strategies
+    
+    def _parse_strategy_description(self, description: str) -> Dict[str, Any]:
+        """Parse strategy description into configuration"""
+        # Simple parser for common strategy formats
+        config = {"type": "unknown", "params": {}, "no_fallbacks": True, "forced": True}}
+        
+        if "multidisorder" in description:
+            config["type"] = "tcp_multidisorder"
+        elif "multisplit" in description:
+            config["type"] = "tcp_multisplit"
+        elif "fakeddisorder" in description:
+            config["type"] = "tcp_fakeddisorder"
+        
+        # Extract parameters
+        if "ttl=" in description:
+            import re
+            ttl_match = re.search(r"ttl=(\d+)", description)
+            if ttl_match:
+                config["params"]["ttl"] = int(ttl_match.group(1))
+        
+        if "split_pos=" in description:
+            import re
+            pos_match = re.search(r"split_pos=(\d+)", description)
+            if pos_match:
+                config["params"]["split_pos"] = int(pos_match.group(1))
+        
+        return config
+    
+    def get_generation_statistics(self) -> Dict[str, Any]:
+        """Get strategy generation statistics"""
+        return self.generation_stats.copy()
+
+
+# Factory function
+def create_intelligent_strategy_generator() -> IntelligentStrategyGenerator:
+    """Create an intelligent strategy generator with default components"""
+    return IntelligentStrategyGenerator()
+
+
+# Example usage
+if __name__ == "__main__":
+    async def main():
+        # Create generator
+        generator = create_intelligent_strategy_generator()
+        
+        # Load data
+        generator.load_recon_summary("recon_summary.json")
+        await generator.analyze_pcap("out2.pcap")
+        
+        # Generate strategies
+        strategies = await generator.generate_intelligent_strategies("example.com", count=5)
+        
+        print(f"Generated {len(strategies)} intelligent strategies:")
+        for i, strategy in enumerate(strategies, 1):
+            print(f"\n{i}. {strategy.strategy_name}")
+            print(f"   Confidence: {strategy.confidence_score:.2f}")
+            print(f"   Expected Success: {strategy.expected_success_rate:.2f}")
+            print(f"   Priority: {strategy.priority}")
+            print(f"   Sources: {', '.join(strategy.source_data)}")
+            print(f"   Reasoning: {'; '.join(strategy.reasoning)}")
+            if strategy.risk_factors:
+                print(f"   Risks: {'; '.join(strategy.risk_factors)}")
+            if strategy.optimization_hints:
+                print(f"   Hints: {'; '.join(strategy.optimization_hints)}")
+    
+    asyncio.run(main())

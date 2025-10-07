@@ -23,14 +23,16 @@ try:
     from core.fingerprint.config import AdvancedFingerprintingConfig, get_config_manager
     from core.fingerprint.diagnostics import get_diagnostic_system
     from ml.zapret_strategy_generator import ZapretStrategyGenerator
-    from core.hybrid_engine import HybridEngine
+    # ✅ FIX: Lazy import to avoid circular dependency
+    # from core.hybrid_engine import HybridEngine
 except ImportError:
     from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType
     from core.fingerprint.config import AdvancedFingerprintingConfig, get_config_manager
     from core.fingerprint.diagnostics import get_diagnostic_system
     from ml.zapret_strategy_generator import ZapretStrategyGenerator
-    from core.hybrid_engine import HybridEngine
+    # ✅ FIX: Lazy import to avoid circular dependency
+    # from core.hybrid_engine import HybridEngine
 
 
 @dataclass

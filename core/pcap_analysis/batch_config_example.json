@@ -1,0 +1,96 @@
+{
+  "_comment": "Batch Processing Configuration Example",
+  "_description": "Configuration for processing multiple PCAP comparisons in batch mode",
+  
+  "auto_apply_fixes": false,
+  "parallel_processing": true,
+  "max_parallel": 3,
+  "output_base_dir": "./batch_results",
+  
+  "comparisons": [
+    {
+      "name": "x_com_analysis",
+      "description": "Analysis of x.com domain bypass effectiveness",
+      "recon_pcap": "recon_x.pcap",
+      "zapret_pcap": "zapret_x.pcap",
+      "output_dir": "./batch_results/x_com",
+      "strategy_params": {
+        "dpi_desync": "fake,fakeddisorder",
+        "split_pos": 3,
+        "split_seqovl": null,
+        "ttl": 3,
+        "fooling": ["badsum", "badseq"]
+      },
+      "priority": "high"
+    },
+    {
+      "name": "youtube_analysis",
+      "description": "Analysis of YouTube domain bypass patterns",
+      "recon_pcap": "recon_youtube.pcap",
+      "zapret_pcap": "zapret_youtube.pcap",
+      "output_dir": "./batch_results/youtube",
+      "strategy_params": {
+        "dpi_desync": "fake,disorder",
+        "split_pos": 2,
+        "ttl": 4,
+        "fooling": ["badsum"]
+      },
+      "priority": "medium"
+    },
+    {
+      "name": "instagram_analysis",
+      "description": "Analysis of Instagram domain bypass effectiveness",
+      "recon_pcap": "recon_instagram.pcap",
+      "zapret_pcap": "zapret_instagram.pcap",
+      "output_dir": "./batch_results/instagram",
+      "strategy_params": {
+        "dpi_desync": "fake",
+        "ttl": 3,
+        "fooling": ["badsum"]
+      },
+      "priority": "low"
+    },
+    {
+      "name": "facebook_analysis",
+      "description": "Analysis of Facebook domain bypass patterns",
+      "recon_pcap": "recon_facebook.pcap",
+      "zapret_pcap": "zapret_facebook.pcap",
+      "output_dir": "./batch_results/facebook",
+      "strategy_params": {
+        "dpi_desync": "fake,fakeddisorder",
+        "split_pos": 1,
+        "ttl": 2,
+        "fooling": ["badseq"]
+      },
+      "priority": "medium"
+    }
+  ],
+  
+  "validation_settings": {
+    "test_domains": ["x.com", "youtube.com", "instagram.com", "facebook.com"],
+    "timeout": 30,
+    "retry_count": 3,
+    "parallel_validation": true
+  },
+  
+  "reporting": {
+    "generate_summary": true,
+    "include_visualizations": true,
+    "export_formats": ["json", "markdown", "html"],
+    "create_comparison_matrix": true,
+    "include_performance_metrics": true
+  },
+  
+  "error_handling": {
+    "continue_on_error": true,
+    "max_retries": 2,
+    "retry_delay": 5,
+    "save_partial_results": true
+  },
+  
+  "performance": {
+    "memory_limit_per_job": 1024,
+    "timeout_per_comparison": 600,
+    "enable_progress_reporting": true
+  }
+}

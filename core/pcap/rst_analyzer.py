@@ -10,6 +10,50 @@ except ImportError:
     print("[ERROR] Scapy is required for this analysis. Please run: pip install scapy", file=sys.stderr)
     sys.exit(1)
 
+def build_json_report(pcap_file: str, triggers: List[Dict[str, Any]], no_reassemble: bool) -> Dict[str, Any]:
+    report = {"pcap_file": pcap_file, "analysis_timestamp": datetime.now().isoformat(), "incident_count": len(triggers), "incidents": []}
+    for t in triggers:
+        trig_idx = detect_trigger_index(t)
+        rst_idx = detect_rst_index(t)
+        
+        assembled_payload, stream_label, reassembly_meta = b"", None, {}
+        if not no_reassemble and isinstance(trig_idx, int):
+            assembled_payload, stream_label, reassembly_meta = reassemble_clienthello(pcap_file, trig_idx, max_back=10)
+        
+        if not stream_label: stream_label = get_stream_label(t, pcap_file, trig_idx or rst_idx)
+
+        tls = parse_client_hello(assembled_payload) or {}
+        entropy_analysis = analyze_payload_entropy(assembled_payload)
+        recs = generate_ml_enhanced_strategies(tls, t)
+
+        incident = {
+            "stream": stream_label, "rst_index": rst_idx, "trigger_index": trig_idx,
+            "injected": bool(get_first(t, ["is_injected","dpi_injection","injection"], False)),
+            "ttl_rst": get_first(t, ["rst_ttl","ttl_rst","rst_ttl_value"]),
+            "expected_ttl": get_first(t, ["expected_ttl","server_ttl"]),
+            "ttl_difference": get_first(t, ["ttl_difference","ttl_diff"]),
+            "time_delta": get_first(t, ["time_delta","dt"]),
+            "reassembly_metadata": reassembly_meta,
+            "entropy_analysis": entropy_analysis,
+            "tls": {
+                "is_client_hello": tls.get("is_client_hello", False), "record_version": tls.get("record_version"),
+                "client_version": tls.get("client_version"), "sni": tls.get("sni") or [],
+                "cipher_suites": tls.get("cipher_suites") or [], "cipher_suites_raw": tls.get("cipher_suites_raw") or [],
+                "extensions": tls.get("extensions") or [], "alpn": tls.get("alpn") or [],
+                "supported_versions": tls.get("supported_versions") or [], "signature_algorithms": tls.get("signature_algorithms") or [],
+                "supported_groups": tls.get("supported_groups") or [], "ec_point_formats": tls.get("ec_point_formats") or [],
+                "ch_length": tls.get("ch_length"),
+            },
+            "payload_preview_hex": (assembled_payload[:64].hex() if assembled_payload else ""),
+            "recommended_strategies": recs
+        }
+        report["incidents"].append(incident)
+
+    if report["incidents"]:
+        pattern_analyzer = BlockingPatternAnalyzer()
+        report["statistical_analysis"] = pattern_analyzer.analyze_incidents(report["incidents"])
+    return report
+
 class RSTTriggerAnalyzer:
     """
     Анализирует PCAP-файл для нахождения исходящих пакетов,
@@ -26,6 +70,8 @@ class RSTTriggerAnalyzer:
             'rst_triggers': []
         })
 
+    
+    
     def analyze(self) -> List[Dict[str, Any]]:
         """
         Выполняет полный анализ PCAP и возвращает список найденных триггеров.
