@@ -1,3 +1,0 @@
-@echo off
-echo Testing x.com with multidisorder strategy...
-python cli.py x.com --strategy "--dpi-desync=multidisorder --dpi-desync-split-pos=1 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum,badseq" --count 1 --timeout 10

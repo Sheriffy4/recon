@@ -1,8 +1,0 @@
-================================================================================
-COMPREHENSIVE PCAP VERIFICATION REPORT
-================================================================================
-Generated: 2025-09-23T11:15:58.128845
-Zapret PCAP: zapret.pcap
-Recon PCAP: out2.pcap
-
-ERROR: No flow analysis available

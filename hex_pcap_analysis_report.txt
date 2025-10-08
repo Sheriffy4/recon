@@ -1,8 +1,0 @@
-================================================================================
-HEX-LEVEL PCAP ANALYSIS REPORT
-================================================================================
-Generated: 2025-09-23T11:15:58.386641
-Zapret PCAP: zapret.pcap
-Recon PCAP: out2.pcap
-
-ERROR: No packet analysis available
