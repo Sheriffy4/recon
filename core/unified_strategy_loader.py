@@ -107,19 +107,32 @@ class UnifiedStrategyLoader:
         """
         normalized = params.copy()
         
-        # Convert single-item lists to strings for certain parameters
-        string_params = ['fooling', 'fake_sni']
+        # ✅ НЕ конвертируем fooling в строку - оставляем список если есть
+        # (изменение от Эксперта 2)
+        string_params = ['fake_sni']  # fooling убрали отсюда
+
         for param in string_params:
             if param in normalized and isinstance(normalized[param], list):
                 if len(normalized[param]) == 1:
                     normalized[param] = normalized[param][0]
-                elif len(normalized[param]) > 1:
-                    # Keep as list if multiple values
-                    pass
-                else:
-                    # Empty list, remove parameter
+                elif len(normalized[param]) == 0:
                     del normalized[param]
         
+        # ✅ Нормализация fooling отдельно
+        if 'fooling' in normalized:
+            fooling = normalized['fooling']
+            if isinstance(fooling, list):
+                # Убираем дубликаты и пустые значения
+                fooling = [f for f in fooling if f]
+                normalized['fooling'] = list(dict.fromkeys(fooling))  # Remove duplicates, preserve order
+                # Если остался один элемент - можно оставить списком или строкой
+                # Оставляем списком для консистентности
+            elif isinstance(fooling, str):
+                # Если запятая-разделённая строка - преобразуем в список
+                if ',' in fooling:
+                    normalized['fooling'] = [f.strip() for f in fooling.split(',') if f.strip()]
+                # Иначе оставляем строкой
+
         return normalized
     
     def load_strategy(self, strategy_input: Union[str, Dict[str, Any]]) -> NormalizedStrategy:
@@ -521,8 +534,8 @@ class UnifiedStrategyLoader:
         # Validate split position
         if 'split_pos' in params:
             split_pos = params['split_pos']
-            if not isinstance(split_pos, int) or split_pos < 1:
-                raise StrategyValidationError(f"Invalid split_pos value: {split_pos} (must be >= 1)")
+            if split_pos != 'midsld' and (not isinstance(split_pos, int) or split_pos < 1):
+                raise StrategyValidationError(f"Invalid split_pos value: {split_pos} (must be >= 1 or 'midsld')")
         
         # Validate overlap size
         if 'overlap_size' in params:
@@ -536,12 +549,28 @@ class UnifiedStrategyLoader:
             if not isinstance(repeats, int) or repeats < 1 or repeats > 10:
                 raise StrategyValidationError(f"Invalid repeats value: {repeats} (must be 1-10)")
         
-        # Validate fooling method
+        # ✅ УЛУЧШЕННАЯ ВАЛИДАЦИЯ fooling (поддержка списков И строк)
         if 'fooling' in params:
-            fooling = params['fooling']
-            valid_fooling = {'badseq', 'badsum', 'md5sig', 'none'}
-            if fooling not in valid_fooling:
-                raise StrategyValidationError(f"Invalid fooling method: {fooling} (must be one of {valid_fooling})")
+            valid_fooling = {'badseq', 'badsum', 'md5sig', 'none', 'hopbyhop'}
+            fooling_value = params['fooling']
+
+            # Поддержка списка методов
+            if isinstance(fooling_value, (list, tuple)):
+                invalid_methods = [m for m in fooling_value if m not in valid_fooling]
+                if invalid_methods:
+                    raise StrategyValidationError(
+                        f"Invalid fooling methods: {invalid_methods} (must be from {valid_fooling})"
+                    )
+            # Поддержка одиночной строки
+            elif isinstance(fooling_value, str):
+                if fooling_value not in valid_fooling:
+                    raise StrategyValidationError(
+                        f"Invalid fooling method: {fooling_value} (must be one of {valid_fooling})"
+                    )
+            else:
+                raise StrategyValidationError(
+                    f"fooling must be string or list, got {type(fooling_value)}"
+                )
     
     def load_strategies_from_file(self, file_path: Union[str, Path]) -> Dict[str, NormalizedStrategy]:
         """

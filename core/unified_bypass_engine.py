@@ -208,36 +208,35 @@ class UnifiedBypassEngine:
             self._log_final_statistics()
     
     def apply_strategy(self, target_ip: str, strategy_input: Union[str, Dict[str, Any]], 
-                      domain: Optional[str] = None) -> bool:
+                  domain: Optional[str] = None) -> bool:
         """
         Apply a strategy to a specific target with forced override.
-        
-        This method ensures the strategy is applied with forced override,
-        matching testing mode behavior exactly. It replicates the exact
-        packet building logic used in testing mode.
-        
-        Args:
-            target_ip: Target IP address
-            strategy_input: Strategy configuration (string or dict)
-            domain: Optional domain name for logging
-            
-        Returns:
-            True if strategy was applied successfully
         """
         try:
             # Load and normalize strategy
+            self.logger.debug(f"Loading strategy for {target_ip} ({domain or 'no domain'})")
             normalized_strategy = self.strategy_loader.load_strategy(strategy_input)
             
             # Validate strategy
+            self.logger.debug(f"Validating strategy: {normalized_strategy.type}")
             self.strategy_loader.validate_strategy(normalized_strategy)
             
             # Create forced override (CRITICAL)
+            self.logger.debug(f"Creating forced override for {normalized_strategy.type}")
             forced_config = self.strategy_loader.create_forced_override(normalized_strategy)
             
             # CRITICAL: Ensure forced override parameters match testing mode exactly
+            self.logger.debug(f"Ensuring testing mode compatibility")
             forced_config = self._ensure_testing_mode_compatibility(forced_config)
             
+            # ✅ ПРОВЕРКА КРИТИЧНЫХ ФЛАГОВ
+            if not forced_config.get('no_fallbacks'):
+                self.logger.warning(f"⚠️ no_fallbacks is not True for {target_ip}!")
+            if not forced_config.get('forced'):
+                self.logger.warning(f"⚠️ forced is not True for {target_ip}!")
+
             # Apply to engine with forced override
+            self.logger.debug(f"Applying forced override to engine")
             self.engine.set_strategy_override(forced_config)
             
             # Track application
@@ -262,8 +261,19 @@ class UnifiedBypassEngine:
                 
             return True
             
+        except StrategyValidationError as e:
+            # Специальная обработка ошибок валидации
+            self.logger.error(f"❌ Strategy validation failed for {target_ip}: {e}")
+            if self.config.debug:
+                import traceback
+                self.logger.error(f"Validation traceback:\n{traceback.format_exc()}")
+            return False
         except Exception as e:
+            # Общие ошибки
+            import traceback
             self.logger.error(f"❌ Failed to apply strategy to {target_ip}: {e}")
+            if self.config.debug:
+                self.logger.error(f"Full traceback:\n{traceback.format_exc()}")
             return False
     
     def _ensure_testing_mode_compatibility(self, forced_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -446,13 +456,109 @@ class UnifiedBypassEngine:
                 'test_duration_ms': (time.time() - test_start) * 1000,
                 'timestamp': test_start
             }
+
+    def test_forced_override(self, target_ip: str, strategy_input: Union[str, Dict[str, Any]],
+                        domain: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Тестовый метод для проверки forced override с подробным логированием.
+
+        Args:
+            target_ip: Target IP address
+            strategy_input: Strategy to test
+            domain: Optional domain name
+
+        Returns:
+            Dict с результатами теста и диагностической информацией
+        """
+        result = {
+            'success': False,
+            'target_ip': target_ip,
+            'domain': domain,
+            'errors': [],
+            'warnings': [],
+            'steps_completed': [],
+            'timestamp': time.time()
+        }
+
+        try:
+            # Шаг 1: Загрузка стратегии
+            self.logger.info(f"[TEST] Step 1/6: Loading strategy for {domain or target_ip}")
+            normalized_strategy = self.strategy_loader.load_strategy(strategy_input)
+            result['steps_completed'].append('strategy_loaded')
+            result['strategy_type'] = normalized_strategy.type
+            result['raw_strategy'] = normalized_strategy.raw_string
+
+            # Шаг 2: Валидация
+            self.logger.info(f"[TEST] Step 2/6: Validating strategy")
+            self.strategy_loader.validate_strategy(normalized_strategy)
+            result['steps_completed'].append('strategy_validated')
+
+            # Шаг 3: Создание forced override
+            self.logger.info(f"[TEST] Step 3/6: Creating forced override")
+            forced_config = self.strategy_loader.create_forced_override(normalized_strategy)
+            result['steps_completed'].append('forced_override_created')
+            result['forced_config'] = forced_config
+
+            # Проверка критичных флагов
+            if not forced_config.get('no_fallbacks'):
+                result['warnings'].append('no_fallbacks is not True!')
+            if not forced_config.get('forced'):
+                result['warnings'].append('forced is not True!')
+
+            # Шаг 4: Обеспечение совместимости с testing mode
+            self.logger.info(f"[TEST] Step 4/6: Ensuring testing mode compatibility")
+            forced_config = self._ensure_testing_mode_compatibility(forced_config)
+            result['steps_completed'].append('testing_mode_compatibility_ensured')
+            result['final_config'] = forced_config
+
+            # Шаг 5: Применение к движку
+            self.logger.info(f"[TEST] Step 5/6: Applying to engine")
+            self.engine.set_strategy_override(forced_config)
+            result['steps_completed'].append('applied_to_engine')
+
+            # Даём движку время обработать
+            time.sleep(0.1)
+
+            # Шаг 6: Тест подключения
+            self.logger.info(f"[TEST] Step 6/6: Testing connection")
+            connection_start = time.time()
+            connection_success = self._simulate_testing_mode_connection(target_ip, domain, 5.0)
+            connection_duration = time.time() - connection_start
+
+            result['steps_completed'].append('connection_tested')
+            result['connection_success'] = connection_success
+            result['connection_duration_ms'] = connection_duration * 1000
+
+            # Получаем телеметрию
+            telemetry = self.engine.get_telemetry_snapshot()
+            result['telemetry'] = telemetry
+
+            result['success'] = True
+            self.logger.info(f"[TEST] ✅ All steps completed successfully")
+            self.logger.info(f"[TEST] Connection: {'SUCCESS' if connection_success else 'FAILED'} ({connection_duration*1000:.1f}ms)")
+
+        except Exception as e:
+            import traceback
+            error_msg = f"{type(e).__name__}: {str(e)}"
+            result['errors'].append(error_msg)
+            result['traceback'] = traceback.format_exc()
+
+            failed_step = result['steps_completed'][-1] if result['steps_completed'] else 'initialization'
+            self.logger.error(f"[TEST] ❌ Failed at step: {failed_step}")
+            self.logger.error(f"[TEST] Error: {error_msg}")
+            if self.config.debug:
+                self.logger.error(f"[TEST] Traceback:\n{result['traceback']}")
+
+        # Добавляем предупреждения если есть
+        if result['warnings']:
+            self.logger.warning(f"[TEST] Warnings: {', '.join(result['warnings'])}")
+
+        result['test_duration_ms'] = (time.time() - result['timestamp']) * 1000
+        return result
     
     def _simulate_testing_mode_connection(self, target_ip: str, domain: Optional[str], timeout: float) -> bool:
         """
         Simulate the connection testing that testing mode would perform.
-        
-        In a real implementation, this would make actual HTTPS connections
-        to test if the bypass strategy works. For now, we simulate this.
         
         Args:
             target_ip: Target IP address
@@ -462,6 +568,7 @@ class UnifiedBypassEngine:
         Returns:
             True if connection would succeed with current strategy
         """
+        sock = None
         try:
             import socket
             import ssl
@@ -471,22 +578,58 @@ class UnifiedBypassEngine:
             sock.settimeout(timeout)
             
             # Connect to target
-            sock.connect((target_ip, 443))
+            try:
+                sock.connect((target_ip, 443))
+            except socket.timeout:
+                self.logger.debug(f"TCP connection timeout for {target_ip}")
+                return False
+            except ConnectionRefusedError:
+                self.logger.debug(f"Connection refused by {target_ip}")
+                return False
+            except OSError as e:
+                self.logger.debug(f"TCP connection failed for {target_ip}: {e}")
+                return False
             
             # If we have a domain, use it for SNI
             if domain:
                 context = ssl.create_default_context()
-                with context.wrap_socket(sock, server_hostname=domain) as ssock:
-                    # Connection successful
-                    return True
+                # Отключаем проверку сертификата для тестирования
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+
+                try:
+                    with context.wrap_socket(sock, server_hostname=domain) as ssock:
+                        # Connection successful
+                        self.logger.debug(f"SSL connection successful for {target_ip} ({domain})")
+                        return True
+                except ssl.SSLError as e:
+                    self.logger.debug(f"SSL handshake failed for {target_ip}: {e}")
+                    # TCP connection succeeded but SSL failed - partial success
+                    # Для DPI bypass это может быть достаточно
+                    return False
+                except socket.timeout:
+                    self.logger.debug(f"SSL timeout for {target_ip}")
+                    return False
+                except Exception as e:
+                    self.logger.debug(f"SSL connection error for {target_ip}: {e}")
+                    return False
             else:
-                # Simple TCP connection test
-                sock.close()
+                # Simple TCP connection test - success
+                self.logger.debug(f"TCP connection successful for {target_ip}")
                 return True
-                
-        except Exception as e:
-            self.logger.debug(f"Connection test failed for {target_ip}: {e}")
+
+        except ImportError as e:
+            self.logger.warning(f"Cannot test connection - missing module: {e}")
             return False
+        except Exception as e:
+            self.logger.warning(f"Unexpected error during connection test for {target_ip}: {e}", exc_info=self.config.debug)
+            return False
+        finally:
+            if sock:
+                try:
+                    sock.close()
+                except Exception:
+                    pass
     
     def _calculate_telemetry_delta(self, baseline: Dict[str, Any], final: Dict[str, Any]) -> Dict[str, Any]:
         """
