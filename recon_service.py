@@ -27,11 +27,73 @@ except ImportError:
     RICH_AVAILABLE = False
 
     class Console:
-        def print(self, *args, **kwargs):
-            print(*args)
+        """Fallback Console without rich."""
+        def __init__(self, *args, **kwargs):
+            pass
 
+        def print(self, text="", *args, **kwargs):
+            # Убираем rich markup если есть
+            if isinstance(text, str):
+                import re
+                text = re.sub(r'\[.*?\]', '', text)
+            # Если передали объект таблицы, его нужно как-то распечатать
+            elif hasattr(text, '__str__'):
+                text = str(text)
+            print(text)
 
-console = Console() if RICH_AVAILABLE else Console()
+    class Panel:
+        """Fallback Panel without rich."""
+        def __init__(self, text, **kwargs):
+            self.text = text
+            self.title = kwargs.get('title', '')
+            import re
+            self.clean_text = re.sub(r'\[.*?\]', '', str(self.text))
+
+        def __str__(self):
+            return f"--- {self.title} ---\n{self.clean_text}\n--------------------"
+
+    class Table:
+        """Fallback Table without rich."""
+        def __init__(self, *args, **kwargs):
+            self.title = kwargs.get('title')
+            self.columns = []
+            self.rows = []
+
+        def add_column(self, header, *args, **kwargs):
+            self.columns.append(header)
+
+        def add_row(self, *args):
+            self.rows.append(args)
+
+        def __str__(self):
+            output = []
+            if self.title:
+                output.append(f"--- {self.title} ---")
+
+            if self.columns:
+                output.append(" | ".join(map(str, self.columns)))
+                output.append("-" * (sum(len(str(c)) for c in self.columns) + 3 * len(self.columns)))
+
+            for row in self.rows:
+                output.append(" | ".join(map(str, row)))
+            return "\n".join(output)
+
+    class Live:
+        """Fallback Live without rich."""
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+        def update(self, *args, **kwargs):
+            pass
+
+# Create console instance after defining fallbacks
+console = Console()
 
 
 class DPIBypassService:
@@ -199,13 +261,13 @@ class DPIBypassService:
 
             # Create unified bypass engine (replaces old BypassEngine)
             self.bypass_engine = UnifiedBypassEngine(config=engine_config)
-            
+
             # Create unified strategy loader for consistent strategy processing
             self.strategy_loader = UnifiedStrategyLoader(debug=True)
 
             # UNIFIED STRATEGY LOADING: Use UnifiedStrategyLoader for all strategies
             # This replaces the old StrategyInterpreter approach with unified loading
-            
+
             strategy_map = {}
             target_ips = set()
             ip_to_domain = {}  # Маппинг IP -> домен для правильного выбора стратегии
@@ -236,11 +298,11 @@ class DPIBypassService:
 
             # UNIFIED STRATEGY PROCESSING: Create forced overrides for all domains
             # This ensures identical behavior to testing mode
-            
+
             self.logger.info("=" * 70)
             self.logger.info("UNIFIED STRATEGY LOADING WITH FORCED OVERRIDES")
             self.logger.info("=" * 70)
-            
+
             mapped_count = 0
             for ip in sorted(target_ips):  # Sort for consistent logging
                 domain = ip_to_domain.get(ip)
@@ -250,7 +312,7 @@ class DPIBypassService:
                         # Check for explicit strategy (not default)
                         domain_lower = domain.lower()
                         has_explicit_strategy = False
-                        
+
                         # Check exact match
                         if domain_lower in self.domain_strategies:
                             has_explicit_strategy = True
@@ -260,41 +322,41 @@ class DPIBypassService:
                                 if strategy_domain != "default" and domain_lower.endswith("." + strategy_domain):
                                     has_explicit_strategy = True
                                     break
-                        
+
                         if not has_explicit_strategy:
                             self.logger.error(f"❌ CRITICAL: x.com domain '{domain}' has NO explicit strategy!")
                             self.logger.error(f"❌ IP {ip} for {domain} would fall back to default strategy")
                             self.logger.error(f"❌ x.com MUST have explicit strategy - cannot use default")
                             raise ValueError(f"x.com domain '{domain}' (IP {ip}) has no explicit strategy configured")
-                    
+
                     strategy_str = self.get_strategy_for_domain(domain)
                     if strategy_str:
                         try:
                             # UNIFIED LOADING: Use UnifiedStrategyLoader instead of StrategyInterpreter
                             normalized_strategy = self.strategy_loader.load_strategy(strategy_str)
-                            
+
                             # FORCED OVERRIDE: Create forced override for this strategy
                             forced_config = self.strategy_loader.create_forced_override(normalized_strategy)
-                            
+
                             # Map by IP address (not domain!)
                             strategy_map[ip] = forced_config
                             mapped_count += 1
-                            
+
                             # Log each IP -> domain -> strategy mapping with forced override
                             self.logger.info(f"✅ Mapped IP {ip} ({domain}) -> {normalized_strategy.type} (FORCED OVERRIDE)")
                             self.logger.info(f"   no_fallbacks: {forced_config.get('no_fallbacks', False)}")
                             self.logger.info(f"   forced: {forced_config.get('forced', False)}")
-                            
+
                         except Exception as e:
                             self.logger.error(f"❌ Failed to load strategy for {domain} ({ip}): {e}")
                             # Continue with other strategies
                             continue
-            
+
             # Log total count of mapped IPs
             self.logger.info("=" * 70)
             self.logger.info(f"✅ Total IP mappings with FORCED OVERRIDES: {mapped_count}")
             self.logger.info("=" * 70)
-            
+
             # Verify no fallback to default for x.com
             x_com_domains = [d for d in self.monitored_domains if 'x.com' in d.lower()]
             if x_com_domains:
@@ -318,15 +380,15 @@ class DPIBypassService:
                 try:
                     # Load default strategy using UnifiedStrategyLoader
                     default_normalized = self.strategy_loader.load_strategy(self.domain_strategies["default"])
-                    
+
                     # Create forced override for default strategy
                     default_forced = self.strategy_loader.create_forced_override(default_normalized)
-                    
+
                     strategy_map["default"] = default_forced
                     self.logger.info(f"✅ Default strategy with FORCED OVERRIDE: {default_normalized.type}")
                     self.logger.info(f"   no_fallbacks: {default_forced.get('no_fallbacks', False)}")
                     self.logger.info(f"   forced: {default_forced.get('forced', False)}")
-                    
+
                     # Log warning if default strategy would be used for any IP
                     unmapped_ips = target_ips - set(strategy_map.keys())
                     if unmapped_ips:
@@ -338,7 +400,7 @@ class DPIBypassService:
                             if 'x.com' in domain.lower():
                                 self.logger.error(f"❌ CRITICAL: x.com IP using default strategy!")
                                 raise ValueError(f"x.com IP {ip} would use default strategy - this is not allowed")
-                                
+
                 except Exception as e:
                     self.logger.error(f"❌ Failed to process default strategy: {e}")
                     # Continue without default strategy
@@ -402,10 +464,10 @@ class DPIBypassService:
             # UNIFIED ENGINE START: Start with forced strategies and no_fallbacks=True
             # This matches testing mode behavior exactly
             self.logger.info("🚀 Starting UnifiedBypassEngine with FORCED OVERRIDE strategies")
-            
+
             # Start the unified engine with all forced override strategies
             engine_thread = self.bypass_engine.start(target_ips, strategy_map)
-            
+
             # Verify engine started successfully
             # Note: UnifiedBypassEngine doesn't have a 'running' attribute like the old engine
             # Instead, we check if the thread was created successfully
@@ -423,25 +485,25 @@ class DPIBypassService:
             # Test bypass functionality using unified engine
             test_domain = next(iter(self.monitored_domains))
             test_ip = None
-            
+
             # Find IP for test domain
             for ip, domain in ip_to_domain.items():
                 if domain == test_domain:
                     test_ip = ip
                     break
-            
+
             if test_ip:
                 try:
                     # Test strategy application like testing mode
                     test_strategy = self.get_strategy_for_domain(test_domain)
                     if test_strategy:
                         self.logger.info(f"🧪 Testing FORCED OVERRIDE strategy for {test_domain} ({test_ip})")
-                        
+
                         # Use unified engine's testing mode compatibility
                         test_result = self.bypass_engine.test_strategy_like_testing_mode(
                             test_ip, test_strategy, test_domain, timeout=5.0
                         )
-                        
+
                         if test_result.get('success', False):
                             self.logger.info(f"✅ FORCED OVERRIDE test successful for {test_domain}")
                         else:
@@ -449,7 +511,7 @@ class DPIBypassService:
                             self.logger.info("This may be normal if the site is blocked. Bypass will still work.")
                     else:
                         self.logger.warning(f"⚠️ No strategy found for test domain {test_domain}")
-                        
+
                 except Exception as e:
                     self.logger.warning(f"⚠️ FORCED OVERRIDE test failed: {e}")
                     self.logger.info("This may be normal if the site is blocked. Bypass will still work.")
@@ -530,7 +592,7 @@ class DPIBypassService:
         fooling = config.get("fooling", "none")
         ttl = config.get("ttl", 3)
         split_pos = config.get("split_pos", 3)
-        
+
         if desync_method == "multisplit":
             positions = []
             split_count = config.get("split_count", 3)
@@ -569,7 +631,7 @@ class DPIBypassService:
                 "tcp_flags": {"psh": True, "ack": True},
                 "ipid_step": 2048,
             }
-            
+
             # Для fakeddisorder всегда используем fakeddisorder стратегию
             if desync_method == "fakeddisorder":
                 task_type = "fakeddisorder"
@@ -602,7 +664,7 @@ class DPIBypassService:
                 # Передаём fooling как список
                 base_params["fooling"] = [fooling] if fooling else []
             return {"type": task_type, "params": base_params, "no_fallbacks": True, "forced": True}
-        
+
         return {
             "type": "fakeddisorder",
             "params": {
@@ -621,7 +683,7 @@ class DPIBypassService:
                 # Log diagnostics before stopping
                 if hasattr(self.bypass_engine, 'log_diagnostics_summary'):
                     self.bypass_engine.log_diagnostics_summary()
-                
+
                 self.bypass_engine.stop()
                 self.logger.info("🛑 UnifiedBypassEngine stopped")
             except Exception as e:

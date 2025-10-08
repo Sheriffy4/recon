@@ -22,18 +22,6 @@ from .unified_strategy_loader import (
     load_strategies_from_file
 )
 
-from .unified_bypass_engine import (
-    UnifiedBypassEngine,
-    UnifiedEngineConfig,
-    UnifiedBypassEngineError
-)
-
-# Core bypass engine
-from .bypass.engine.base_engine import (
-    WindowsBypassEngine,
-    EngineConfig
-)
-
 # Utility components
 from .packet_validator import PacketValidator
 from .simple_packet_validator import SimplePacketValidator
@@ -42,22 +30,19 @@ from .simple_packet_validator import SimplePacketValidator
 from .strategy_combinator import StrategyCombinator
 from .strategy_comparator import StrategyComparator
 
+# NOTE: Eagerly importing platform-dependent modules like UnifiedBypassEngine
+# was causing ImportError on non-Windows systems. They are now imported
+# directly where needed, rather than being exposed through the package's __init__.
+
 __all__ = [
     # Unified components (primary interfaces)
     'UnifiedStrategyLoader',
-    'NormalizedStrategy', 
+    'NormalizedStrategy',
     'StrategyLoadError',
     'StrategyValidationError',
     'load_strategy',
     'create_forced_override',
     'load_strategies_from_file',
-    'UnifiedBypassEngine',
-    'UnifiedEngineConfig',
-    'UnifiedBypassEngineError',
-    
-    # Core engine
-    'WindowsBypassEngine',
-    'EngineConfig',
     
     # Utilities
     'PacketValidator',
