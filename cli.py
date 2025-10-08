@@ -18,15 +18,8 @@ def apply_forced_override(original_func, *args, **kwargs):
 
 
 # Windows asyncio: подавим Proactor-спам и улучшим совместимость
-import sys, asyncio as _asyncio
-if sys.platform == "win32":
-    try:
-        _asyncio.set_event_loop_policy(_asyncio.WindowsSelectorEventLoopPolicy())
-    except Exception:
-        pass
-
-import os
 import sys
+import os
 import argparse
 import socket
 import logging
@@ -34,12 +27,20 @@ import time
 import json
 import asyncio
 import inspect
-from typing import Dict, Any, Optional, Tuple, Set, List
-from urllib.parse import urlparse
+import threading
 import statistics
 import platform
+from typing import Dict, Any, Optional, Tuple, Set, List
+from urllib.parse import urlparse
 from datetime import datetime
 from dataclasses import dataclass
+
+# Windows asyncio policy - ПОСЛЕ импортов
+if sys.platform == "win32":
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except Exception:
+        pass
 # <<< FIX: Removed incorrect import, it will be imported locally where needed >>>
 # from core.strategy_interpreter import StrategyInterpreter
 
@@ -83,10 +84,19 @@ except ImportError:
     RICH_AVAILABLE = False
 
     class Console:
-        def print(self, text, *args, **kwargs):
+        """Fallback Console without rich."""
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def print(self, text="", *args, **kwargs):
+            # Убираем rich markup если есть
+            if isinstance(text, str):
+                import re
+                text = re.sub(r'\[.*?\]', '', text)
             print(text)
 
     class Panel:
+        """Fallback Panel without rich."""
         def __init__(self, text, **kwargs):
             self.text = text
 
@@ -94,6 +104,10 @@ except ImportError:
             return str(self.text)
 
     class Progress:
+        """Fallback Progress without rich."""
+        def __init__(self, *args, **kwargs):
+            pass
+
         def __enter__(self):
             return self
 
@@ -107,14 +121,21 @@ except ImportError:
             pass
 
     class Prompt:
+        """Fallback Prompt without rich."""
         @staticmethod
         def ask(text, *args, **kwargs):
-            return input(text)
+            return input(text + ": ")
 
     class Confirm:
+        """Fallback Confirm without rich."""
         @staticmethod
         def ask(text, *args, **kwargs):
-            return input(f"{text} (y/n): ").lower() == "y"
+            default = kwargs.get('default', False)
+            default_str = 'Y/n' if default else 'y/N'
+            response = input(f"{text} ({default_str}): ").lower()
+            if not response:
+                return default
+            return response in ('y', 'yes', 'да')
 
 
 # --- Scapy (для захвата/pcap-парсинга) ---
@@ -153,13 +174,16 @@ except Exception:
 try:
     from core.bypass.attacks.combo.advanced_traffic_profiler import (
         AdvancedTrafficProfiler,
-        # <<< FIX: Import UnifiedFingerprint here, not DPIFingerprint >>>
-        UnifiedFingerprint as DPIFingerprint, # Use an alias for compatibility if needed elsewhere
+        UnifiedFingerprint
     )
-
+    # Создаем явный алиас для обратной совместимости
+    DPIFingerprint = UnifiedFingerprint
     PROFILER_AVAILABLE = True
 except Exception:
     PROFILER_AVAILABLE = False
+    # Dummy для безопасности
+    UnifiedFingerprint = None
+    DPIFingerprint = None
 
 # Packet pattern validator (optional)
 try:
@@ -181,12 +205,24 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)-7s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
 )
-# Fix for Windows console encoding issues
-import sys
-if sys.platform == 'win32':
-    console = Console(highlight=False, legacy_windows=False, force_terminal=True, no_color=False, emoji=False)
-else:
-    console = Console(highlight=False) if RICH_AVAILABLE else Console()
+# Создание console с проверкой платформы
+def _create_console():
+    """Create console with platform-specific settings."""
+    if RICH_AVAILABLE:
+        if sys.platform == 'win32':
+            return Console(
+                highlight=False,
+                legacy_windows=False,
+                force_terminal=True,
+                emoji=False,
+                markup=True
+            )
+        else:
+            return Console(highlight=False)
+    else:
+        return Console()
+
+console = _create_console()
 
 # <<< FIX 1: Correct the import path for AdvancedReportingIntegration >>>
 try:
@@ -308,39 +344,51 @@ def build_bpf_from_ips(
 
 
 # --- Advanced DNS functionality ---
-# <<< FIX: Filter for valid IPs from DoH and use get_running_loop >>>
 async def resolve_all_ips(domain: str) -> Set[str]:
     """Агрегирует IP-адреса для домена из системного резолвера и DoH."""
     from ipaddress import ip_address
+
     def _is_ip(s):
+        if not s:
+            return False
         try:
             ip_address(s)
             return True
-        except ValueError:
+        except (ValueError, TypeError):
             return False
 
     ips = set()
-    loop = asyncio.get_running_loop()
 
-    # 1. Системный резолвер (getaddrinfo)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # Если нет running loop (например в синхронном контексте)
+        loop = asyncio.get_event_loop()
+
+    # 1. Системный резолвер (getaddrinfo) - IPv4
     try:
         res = await loop.getaddrinfo(domain, None, family=socket.AF_INET)
-        ips.update(info[4][0] for info in res if _is_ip(info[4][0]))
-    except socket.gaierror:
-        pass
+        ips.update(info[4][0] for info in res if info[4] and _is_ip(info[4][0]))
+    except (socket.gaierror, OSError) as e:
+        if console:
+            console.print(f"[dim]IPv4 resolution failed for {domain}: {e}[/dim]")
+
     # 1.1. IPv6 (если доступно)
     try:
         res6 = await loop.getaddrinfo(domain, None, family=socket.AF_INET6)
-        ips.update(info[4][0] for info in res6 if _is_ip(info[4][0]))
-    except socket.gaierror:
-        pass
+        ips.update(info[4][0] for info in res6 if info[4] and _is_ip(info[4][0]))
+    except (socket.gaierror, OSError) as e:
+        if console:
+            console.print(f"[dim]IPv6 resolution failed for {domain}: {e}[/dim]")
 
-    # 2. DoH (исправленная версия с множественными провайдерами)
+    # 2. DoH (улучшенная версия)
     try:
         import aiohttp
         import json
 
-        async with aiohttp.ClientSession() as s:
+        timeout = aiohttp.ClientTimeout(total=5, connect=2)
+
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             doh_servers = [
                 "https://1.1.1.1/dns-query",
                 "https://8.8.8.8/resolve",
@@ -348,28 +396,33 @@ async def resolve_all_ips(domain: str) -> Set[str]:
             ]
             
             for doh in doh_servers:
-                try:
-                    # Сначала A, затем AAAA
-                    for rrtype in ("A", "AAAA"):
-                        params = {"name": domain, "type": rrtype, "no_fallbacks": True, "forced": True}
+                for rrtype in ("A", "AAAA"):
+                    try:
+                        params = {"name": domain, "type": rrtype}
                         headers = {"accept": "application/dns-json"}
-                        async with s.get(
-                            doh, params=params, headers=headers, timeout=3
-                        ) as r:
-                            if r.status == 200:
-                                text = await r.text()
+
+                        async with session.get(
+                            doh, params=params, headers=headers, timeout=aiohttp.ClientTimeout(total=3)
+                        ) as response:
+                            if response.status == 200:
                                 try:
-                                    j = json.loads(text)
-                                    for ans in j.get("Answer", []):
-                                        data = ans.get("data")
-                                        if data and _is_ip(data):
-                                            ips.add(data)
-                                except json.JSONDecodeError:
+                                    data = await response.json()
+                                    for ans in data.get("Answer", []):
+                                        ip_data = ans.get("data")
+                                        if ip_data and _is_ip(ip_data):
+                                            ips.add(ip_data)
+                                except (json.JSONDecodeError, aiohttp.ContentTypeError):
                                     continue
-                except Exception:
-                    continue
+                    except asyncio.TimeoutError:
+                        continue
+                    except Exception:
+                        continue
+
     except ImportError:
-        pass
+        pass  # aiohttp не установлен - тихо пропускаем
+    except Exception as e:
+        if console:
+            console.print(f"[dim]DoH resolution error: {e}[/dim]")
 
     return {ip for ip in ips if _is_ip(ip)}
 # <<< END FIX >>>
@@ -1571,8 +1624,8 @@ async def run_hybrid_mode(args):
 
     doh_resolver = DoHResolver()
     from core.unified_bypass_engine import UnifiedEngineConfig
-    config = UnifiedEngineConfig(debug=args.debug)
-    hybrid_engine = UnifiedBypassEngine(config)
+    engine_config = UnifiedEngineConfig(debug=args.debug)
+    hybrid_engine = UnifiedBypassEngine(engine_config)
 
     reporter = SimpleReporter(debug=args.debug)
     
@@ -1916,9 +1969,18 @@ async def run_hybrid_mode(args):
             parsed_strategy = strategy_interpreter.interpret_strategy(s_str)
             # <<< END FIX >>>
             if parsed_strategy:
+                # ✅ ГАРАНТИРУЕМ forced override флаги
+                if 'params' not in parsed_strategy:
+                    parsed_strategy['params'] = {}
+                if not isinstance(parsed_strategy['params'], dict):
+                    parsed_strategy['params'] = {}
+
+                parsed_strategy['params']['no_fallbacks'] = True
+                parsed_strategy['params']['forced'] = True
+
                 engine_task = {
                     "type": parsed_strategy.get("type", "unknown"),
-                    "params": parsed_strategy.get("params", {"no_fallbacks": True, "forced": True})
+                    "params": parsed_strategy['params']
                 }
                 if ds and isinstance(engine_task.get("params"), dict):
                     p = engine_task["params"]
@@ -2983,8 +3045,22 @@ async def run_per_domain_mode(args):
                 # <<< FIX: Use the interpreter instance to parse the strategy >>>
                 ps = strategy_interpreter.interpret_strategy(s)
                 # <<< END FIX >>>
-                structured.append({"type": ps.get("type","unknown"),
-                                   "params": ps.get("params", {"no_fallbacks": True, "forced": True})})
+                if ps:
+                    # ✅ ГАРАНТИРУЕМ forced override флаги
+                    if 'params' not in ps:
+                        ps['params'] = {}
+                    if not isinstance(ps['params'], dict):
+                        ps['params'] = {}
+
+                    ps['params']['no_fallbacks'] = True
+                    ps['params']['forced'] = True
+
+                    structured.append({
+                        "type": ps.get("type", "unknown"),
+                        "params": ps['params']
+                    })
+                else:
+                    structured.append(s) # fallback for unparseable
             except Exception:
                 structured.append(s)  # fallback
         if learning_cache:
