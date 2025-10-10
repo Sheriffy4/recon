@@ -594,7 +594,12 @@ class NativePydivertEngine(BaseBypassEngine):
                     original_packet.interface,
                     original_packet.direction,
                 )
-                self.windivert_handle.send(pydivert_packet)
+                recalc_checksum = not options.get("bad_checksum", False)
+                if not recalc_checksum:
+                    self.logger.debug(
+                        f"Sending segment {i+1} with bad_checksum, disabling checksum recalculation."
+                    )
+                self.windivert_handle.send(pydivert_packet, recalculate_checksum=recalc_checksum)
                 self.stats.packets_sent += 1
             self.logger.debug(
                 f"Successfully sent {len(segments)} orchestrated segments."
@@ -879,7 +884,12 @@ class NativePydivertEngine(BaseBypassEngine):
                 original_packet.interface,
                 original_packet.direction,
             )
-            self.windivert_handle.send(packet_obj)
+            recalc_checksum = not packet_info.checksum_corrupted
+            if not recalc_checksum:
+                self.logger.debug(
+                    f"Sending segment {segment_num} with corrupted checksum, disabling checksum recalculation."
+                )
+            self.windivert_handle.send(packet_obj, recalculate_checksum=recalc_checksum)
             self.logger.debug(
                 f"Segment {segment_num} sent successfully ({packet_info.packet_size} bytes)"
             )
