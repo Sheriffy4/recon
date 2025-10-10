@@ -59,10 +59,17 @@ class BypassStrategy:
         return " ".join(params)
 
     def to_native_format(self) -> Dict[str, Any]:
-        return {
-            "type": self.attacks[0] if self.attacks else "fakedisorder",
+        """
+        FIXED: Removed syntax error (leading comma) and ensured
+        forced override flags are correctly placed.
+        """
+        native_format = {
+            "type": self.attacks[0] if self.attacks else "fakeddisorder",
             "params": self.parameters.copy(),
-        , "no_fallbacks": True, "forced": True}
+            "no_fallbacks": True,
+            "forced": True
+        }
+        return native_format
 
 
 @dataclass
@@ -463,58 +470,3 @@ def suggest_pool_strategies(domains: List[str]) -> Dict[str, BypassStrategy]:
             )
 
     return suggestions
-
-
-# Test the implementation
-if __name__ == "__main__":
-    print("Testing complete pool management system...")
-
-    # Create strategies
-    strategy1 = BypassStrategy(
-        id="test1",
-        name="Test Strategy 1",
-        attacks=["tcp_fragmentation"],
-        parameters={"split_pos": 3},
-    )
-
-    strategy2 = BypassStrategy(
-        id="test2",
-        name="Test Strategy 2",
-        attacks=["http_manipulation"],
-        parameters={"split_pos": 5},
-    )
-
-    # Create manager
-    manager = StrategyPoolManager()
-
-    # Create pools
-    pool1 = manager.create_pool("Social Media", strategy1, "For social media sites")
-    pool2 = manager.create_pool("CDN Sites", strategy2, "For CDN hosted sites")
-
-    # Add domains
-    manager.add_domain_to_pool(pool1.id, "youtube.com")
-    manager.add_domain_to_pool(pool1.id, "twitter.com")
-    manager.add_domain_to_pool(pool2.id, "cloudflare.com")
-
-    # Test subdomain strategy
-    subdomain_strategy = BypassStrategy(
-        id="youtube_video",
-        name="YouTube Video Strategy",
-        attacks=["multisplit"],
-        parameters={"positions": [1, 3, 5]},
-    )
-
-    manager.set_subdomain_strategy(pool1.id, "www.youtube.com", subdomain_strategy)
-
-    # Test strategy resolution
-    strategy = manager.get_strategy_for_domain("youtube.com")
-    print(f"Strategy for youtube.com: {strategy.name if strategy else 'None'}")
-
-    strategy = manager.get_strategy_for_domain("www.youtube.com")
-    print(f"Strategy for www.youtube.com: {strategy.name if strategy else 'None'}")
-
-    # Test statistics
-    stats = manager.get_pool_statistics()
-    print(f"Pool statistics: {stats}")
-
-    print("✅ Complete pool management system test passed!")

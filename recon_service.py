@@ -8,6 +8,19 @@ import signal
 from pathlib import Path
 from typing import Dict, Set, Optional
 from urllib.parse import urlparse
+# <<< НАЧАЛО ИЗМЕНЕНИЙ: Новые импорты >>>
+import argparse
+# Импортируем необходимые классы из cli.py.
+# В идеале их стоит вынести в отдельный утилитный модуль, но для простоты сделаем так.
+try:
+    from cli import PacketCapturer, build_bpf_from_ips, SCAPY_AVAILABLE
+except ImportError as e:
+    print(f"Не удалось импортировать компоненты из cli.py: {e}")
+    PacketCapturer = None
+    build_bpf_from_ips = None
+    SCAPY_AVAILABLE = False
+# <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
+
 
 # Добавляем путь к проекту
 if __name__ == "__main__" and __package__ is None:
@@ -37,12 +50,16 @@ console = Console() if RICH_AVAILABLE else Console()
 class DPIBypassService:
     """Служба обхода DPI с поддержкой стратегий по доменам."""
 
-    def __init__(self):
+    # <<< ИЗМЕНЕНИЕ: Добавляем pcap_file в конструктор >>>
+    def __init__(self, pcap_file: Optional[str] = None):
         self.running = False
         self.domain_strategies: Dict[str, str] = {}
         self.monitored_domains: Set[str] = set()
         self.bypass_engine = None
         self.logger = self.setup_logging()
+        # <<< ИЗМЕНЕНИЕ: Новые атрибуты для захвата >>>
+        self.pcap_file = pcap_file
+        self.capturer = None
 
         # Настройка обработчиков сигналов
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -233,6 +250,19 @@ class DPIBypassService:
                 return False
 
             self.logger.info(f"✅ Resolved {len(target_ips)} unique IP addresses from {len(self.monitored_domains)} domains")
+
+            # <<< НАЧАЛО ИЗМЕНЕНИЙ: Запуск захвата трафика >>>
+            if self.pcap_file and SCAPY_AVAILABLE and PacketCapturer and build_bpf_from_ips:
+                try:
+                    bpf_filter = build_bpf_from_ips(target_ips, port=443)
+                    self.capturer = PacketCapturer(filename=self.pcap_file, bpf=bpf_filter)
+                    self.capturer.start()
+                    self.logger.info(f"🔴 PCAP capture started to '{self.pcap_file}' with filter: {bpf_filter}")
+                except Exception as e:
+                    self.logger.error(f"❌ Failed to start PCAP capture: {e}")
+            elif self.pcap_file:
+                self.logger.warning("⚠️ PCAP capture requested, but Scapy or helpers are not available.")
+            # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
             # UNIFIED STRATEGY PROCESSING: Create forced overrides for all domains
             # This ensures identical behavior to testing mode
@@ -453,6 +483,13 @@ class DPIBypassService:
                 except Exception as e:
                     self.logger.warning(f"⚠️ FORCED OVERRIDE test failed: {e}")
                     self.logger.info("This may be normal if the site is blocked. Bypass will still work.")
+                # <<< НАЧАЛО ИЗМЕНЕНИЙ: Добавьте блок finally >>>
+                finally:
+                    # КРИТИЧЕСКИ ВАЖНО: Очищаем глобальный override после теста,
+                    # чтобы он не влиял на реальный трафик.
+                    if hasattr(self.bypass_engine, 'clear_strategy_override'):
+                        self.bypass_engine.clear_strategy_override()
+                # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
             else:
                 self.logger.warning(f"⚠️ Could not find IP for test domain {test_domain}")
 
@@ -505,7 +542,26 @@ class DPIBypassService:
                         config["split_pos"] = int(pos_value)
                     elif "," in pos_value:
                         # Берем первую позицию из списка
-                        config["split_pos"] = int(pos_value.split(",")[0])
+                        first_pos = pos_value.split(",")[0]
+                        # Поддержка специальных значений
+                        if first_pos in ['cipher', 'midsld', 'sni']:
+                            config["split_pos"] = first_pos
+                        else:
+                            try:
+                                config["split_pos"] = int(first_pos)
+                            except ValueError:
+                                # Если не удается преобразовать, сохраняем как строку
+                                config["split_pos"] = first_pos
+                    else:
+                        # Одиночное значение - может быть числом или специальным значением
+                        if pos_value in ['cipher', 'midsld', 'sni']:
+                            config["split_pos"] = pos_value
+                        else:
+                            try:
+                                config["split_pos"] = int(pos_value)
+                            except ValueError:
+                                # Если не удается преобразовать, сохраняем как строку
+                                config["split_pos"] = pos_value
 
                 elif part.startswith("--dpi-desync-fooling="):
                     fooling = part.split("=")[1]
@@ -616,6 +672,15 @@ class DPIBypassService:
 
     def stop_bypass_engine(self):
         """Останавливает движок обхода DPI."""
+        # <<< НАЧАЛО ИЗМЕНЕНИЙ: Остановка захвата >>>
+        if self.capturer:
+            try:
+                self.capturer.stop()
+                self.logger.info(f"🔴 PCAP capture stopped. File saved to '{self.pcap_file}'")
+            except Exception as e:
+                self.logger.error(f"❌ Error stopping PCAP capture: {e}")
+        # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
+
         if self.bypass_engine:
             try:
                 # Log diagnostics before stopping
@@ -719,7 +784,16 @@ class DPIBypassService:
 
 def main():
     """Точка входа в службу."""
-    service = DPIBypassService()
+    # <<< НАЧАЛО ИЗМЕНЕНИЙ: Парсинг аргументов командной строки >>>
+    parser = argparse.ArgumentParser(description="Recon DPI Bypass Service")
+    parser.add_argument("--pcap", type=str, help="Enable traffic capture to the specified PCAP file.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
+    args = parser.parse_args()
+
+    service = DPIBypassService(pcap_file=args.pcap)
+    if args.debug:
+        service.logger.setLevel(logging.DEBUG)
+    # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
     try:
         success = service.run()

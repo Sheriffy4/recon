@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# Файл: core/unified_strategy_loader.py
 """
 Unified Strategy Loader - Single strategy loading interface for all modes
 
@@ -88,9 +88,14 @@ class UnifiedStrategyLoader:
         # Required parameters for each attack type
         self.required_params = {
             'fakeddisorder': [],  # Can work with defaults
-            'multisplit': ['split_pos'],
+            
+            # <<< НАЧАЛО ИЗМЕНЕНИЙ: Исправлено обязательное поле для multisplit >>>
+            # 'multisplit': ['split_pos'],  # НЕПРАВИЛЬНО
+            'multisplit': ['split_count'], # ПРАВИЛЬНО
+            # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
+
             'multidisorder': [],
-            'fake': ['ttl'],
+            'fake': [], # ttl is not strictly required, can be autottl
             'split': ['split_pos'],
             'disorder': [],
             'seqovl': ['overlap_size']
@@ -104,34 +109,34 @@ class UnifiedStrategyLoader:
         Normalize parameters to consistent format.
         
         Handles various parameter formats and ensures consistency.
+        - 'fooling' is always a list of unique strings.
+        - 'fake_sni' is always a single string.
         """
         normalized = params.copy()
         
-        # ✅ НЕ конвертируем fooling в строку - оставляем список если есть
-        # (изменение от Эксперта 2)
-        string_params = ['fake_sni']  # fooling убрали отсюда
-
-        for param in string_params:
-            if param in normalized and isinstance(normalized[param], list):
-                if len(normalized[param]) == 1:
-                    normalized[param] = normalized[param][0]
-                elif len(normalized[param]) == 0:
-                    del normalized[param]
+        # Normalize 'fake_sni' to be a single string
+        if 'fake_sni' in normalized and isinstance(normalized['fake_sni'], list):
+            if len(normalized['fake_sni']) >= 1:
+                normalized['fake_sni'] = normalized['fake_sni'][0]
+            else:
+                del normalized['fake_sni']
         
-        # ✅ Нормализация fooling отдельно
+        # Normalize 'fooling' to always be a list of unique strings
         if 'fooling' in normalized:
-            fooling = normalized['fooling']
-            if isinstance(fooling, list):
-                # Убираем дубликаты и пустые значения
-                fooling = [f for f in fooling if f]
-                normalized['fooling'] = list(dict.fromkeys(fooling))  # Remove duplicates, preserve order
-                # Если остался один элемент - можно оставить списком или строкой
-                # Оставляем списком для консистентности
-            elif isinstance(fooling, str):
-                # Если запятая-разделённая строка - преобразуем в список
-                if ',' in fooling:
-                    normalized['fooling'] = [f.strip() for f in fooling.split(',') if f.strip()]
-                # Иначе оставляем строкой
+            fooling_val = normalized['fooling']
+            fooling_list = []
+            if isinstance(fooling_val, str):
+                fooling_list = [f.strip() for f in fooling_val.split(',') if f.strip()]
+            elif isinstance(fooling_val, list):
+                fooling_list = [str(f).strip() for f in fooling_val if str(f).strip()]
+            elif fooling_val is not None:
+                fooling_list = [str(fooling_val)]
+            
+            # Remove duplicates while preserving order and handle empty list
+            if fooling_list:
+                normalized['fooling'] = list(dict.fromkeys(fooling_list))
+            else:
+                del normalized['fooling']
 
         return normalized
     
@@ -151,15 +156,22 @@ class UnifiedStrategyLoader:
         """
         try:
             if isinstance(strategy_input, dict):
-                return self._load_from_dict(strategy_input)
+                strategy = self._load_from_dict(strategy_input)
             elif isinstance(strategy_input, str):
-                return self._load_from_string(strategy_input)
+                strategy = self._load_from_string(strategy_input)
             else:
                 raise StrategyLoadError(f"Unsupported strategy input type: {type(strategy_input)}")
-                
+            
+            # Final validation after loading and normalization
+            self.validate_strategy(strategy)
+            return strategy
+
+        except (StrategyLoadError, StrategyValidationError) as e:
+            self.logger.error(f"Failed to load and validate strategy: {e}")
+            raise
         except Exception as e:
-            self.logger.error(f"Failed to load strategy: {e}")
-            raise StrategyLoadError(f"Strategy loading failed: {e}") from e
+            self.logger.error(f"Unexpected error during strategy loading: {e}")
+            raise StrategyLoadError(f"Strategy loading failed unexpectedly: {e}") from e
     
     def _load_from_string(self, strategy_string: str) -> NormalizedStrategy:
         """Load strategy from string format (Zapret or function style)."""
@@ -181,9 +193,12 @@ class UnifiedStrategyLoader:
         if 'type' not in strategy_dict:
             raise StrategyLoadError("Strategy dict missing 'type' field")
         
+        # Normalize parameters right after loading from dict
+        normalized_params = self._normalize_params(strategy_dict.get('params', {}))
+
         return NormalizedStrategy(
             type=strategy_dict['type'],
-            params=strategy_dict.get('params', {}),
+            params=normalized_params,
             no_fallbacks=True,  # CRITICAL: Always forced override
             forced=True,
             raw_string=str(strategy_dict),
@@ -202,28 +217,80 @@ class UnifiedStrategyLoader:
         """Parse Zapret command-line style strategy with comprehensive parameter support."""
         params = {}
         attack_type = "fakeddisorder"  # Default
-        
+
         # Extract desync method
         desync_match = re.search(r'--dpi-desync=([^\s]+)', strategy_string)
         if desync_match:
-            desync_methods = desync_match.group(1).split(',')
-            # Determine attack type from methods
+            desync_methods = [m.strip() for m in desync_match.group(1).split(',')]
+
+            # <<< НАЧАЛО ИЗМЕНЕНИЙ: Явная проверка комбинации fake,disorder >>>
             if 'fake' in desync_methods and 'disorder' in desync_methods:
                 attack_type = 'fakeddisorder'
-            elif 'multidisorder' in desync_methods:
-                attack_type = 'multidisorder'
-            elif 'multisplit' in desync_methods:
-                attack_type = 'multisplit'
-            elif len(desync_methods) == 1:
-                attack_type = desync_methods[0]
+                self.logger.debug("Detected 'fake,disorder' combination, setting attack type to 'fakeddisorder'")
             else:
-                attack_type = desync_methods[0]  # Use first method
+                # Определяем приоритетный порядок, от более сложных и специфичных к более простым.
+                priority_order = [
+                    'multidisorder',
+                    'fakeddisorder',
+                    'multisplit',
+                    'disorder2',
+                    'seqovl',
+                    'disorder',
+                    'split',
+                    'fake'
+                ]
+
+                # Ищем первый совпавший метод из приоритетного списка
+                found_type = None
+                for method in priority_order:
+                    if method in desync_methods:
+                        found_type = method
+                        break # Нашли самый приоритетный, выходим
+
+                if found_type:
+                    attack_type = found_type
+                    self.logger.debug(f"Prioritized attack type '{attack_type}' selected from {desync_methods}")
+                elif desync_methods:
+                    # Если ничего из приоритетного списка не найдено,
+                    # откатываемся к старому поведению - берем первый метод.
+                    attack_type = desync_methods[0]
+                    self.logger.debug(f"No prioritized attack type found, falling back to first method: '{attack_type}'")
+           
+
+        # Extract split-pos parameter (can be comma-separated list or special values)
+        split_pos_match = re.search(r'--dpi-desync-split-pos=([^\s]+)', strategy_string)
+        if split_pos_match:
+            split_pos_str = split_pos_match.group(1)
+            
+            # Check for special values (midsld, cipher, etc.)
+            special_values = ['midsld', 'cipher', 'sni']
+            if split_pos_str in special_values:
+                params['split_pos'] = split_pos_str
+            elif ',' in split_pos_str:
+                # Multiple positions - parse as list (can be mix of numbers and special values)
+                parts = [p.strip() for p in split_pos_str.split(',') if p.strip()]
+                parsed_parts = []
+                for part in parts:
+                    if part in special_values:
+                        parsed_parts.append(part)
+                    else:
+                        try:
+                            parsed_parts.append(int(part))
+                        except ValueError:
+                            self.logger.warning(f"Could not parse split-pos part: {part}")
+                if parsed_parts:
+                    params['split_pos'] = parsed_parts
+            else:
+                # Single position - try to parse as int
+                try:
+                    params['split_pos'] = int(split_pos_str)
+                except ValueError:
+                    self.logger.warning(f"Could not parse split-pos: {split_pos_str}")
         
-        # Extract integer parameters
+        # Extract other integer parameters
         int_params = {
             'ttl': 'dpi_desync_ttl',
-            'autottl': 'dpi_desync_autottl', 
-            'split-pos': 'split_pos',
+            'autottl': 'dpi_desync_autottl',
             'split-count': 'split_count',
             'split-seqovl': 'overlap_size',
             'repeats': 'dpi_desync_repeats',
@@ -254,11 +321,7 @@ class UnifiedStrategyLoader:
             match = re.search(pattern, strategy_string)
             if match:
                 value = match.group(1)
-                if param_name == 'fooling':
-                    # Handle comma-separated fooling methods
-                    params[param_key] = value.split(',') if ',' in value else value
-                else:
-                    params[param_key] = value
+                params[param_key] = value
         
         # Extract flag parameters (can be with or without value)
         flag_params = {
@@ -283,13 +346,6 @@ class UnifiedStrategyLoader:
         # Handle special autottl flag without value (defaults to 2)
         if '--dpi-desync-autottl' in strategy_string and 'autottl' not in params:
             params['autottl'] = 2
-        
-        # Validate mutual exclusivity of ttl and autottl
-        if 'ttl' in params and 'autottl' in params:
-            raise StrategyLoadError(
-                f"Cannot specify both --dpi-desync-ttl and --dpi-desync-autottl in the same strategy. "
-                f"These parameters are mutually exclusive. Strategy: {strategy_string}"
-            )
         
         # Set default for repeats if not specified
         if 'repeats' not in params:
@@ -492,11 +548,7 @@ class UnifiedStrategyLoader:
         
         # Check required parameters
         required = self.required_params.get(strategy.type, [])
-        missing = []
-        
-        for param in required:
-            if param not in strategy.params:
-                missing.append(param)
+        missing = [param for param in required if param not in strategy.params]
         
         if missing:
             raise StrategyValidationError(
@@ -519,57 +571,74 @@ class UnifiedStrategyLoader:
         """Validate individual parameter values."""
         params = strategy.params
         
+        # Validate mutual exclusivity of ttl and autottl
+        if 'ttl' in params and params.get('ttl') is not None and \
+           'autottl' in params and params.get('autottl') is not None:
+            raise StrategyValidationError("Cannot specify both ttl and autottl; they are mutually exclusive.")
+
         # Validate TTL values
-        if 'ttl' in params:
+        if 'ttl' in params and params['ttl'] is not None:
             ttl = params['ttl']
-            if not isinstance(ttl, int) or ttl < 1 or ttl > 255:
-                raise StrategyValidationError(f"Invalid TTL value: {ttl} (must be 1-255)")
+            if not isinstance(ttl, int) or not (1 <= ttl <= 255):
+                raise StrategyValidationError(f"Invalid TTL value: {ttl} (must be an integer 1-255)")
         
         # Validate autottl values
-        if 'autottl' in params:
+        if 'autottl' in params and params['autottl'] is not None:
             autottl = params['autottl']
-            if not isinstance(autottl, int) or autottl < 1 or autottl > 10:
-                raise StrategyValidationError(f"Invalid autottl value: {autottl} (must be 1-10)")
+            if not isinstance(autottl, int) or not (1 <= autottl <= 10):
+                raise StrategyValidationError(f"Invalid autottl value: {autottl} (must be an integer 1-10)")
         
-        # Validate split position
-        if 'split_pos' in params:
+        # Validate split position (can be int, list of ints/strings, or special values)
+        if 'split_pos' in params and params['split_pos'] is not None:
             split_pos = params['split_pos']
-            if not isinstance(split_pos, int) or split_pos < 1:
-                raise StrategyValidationError(f"Invalid split_pos value: {split_pos} (must be >= 1)")
+            special_values = ['midsld', 'cipher', 'sni']
+            
+            if isinstance(split_pos, list):
+                # Validate list of positions (can be mix of ints and special values)
+                for p in split_pos:
+                    if isinstance(p, int):
+                        if p < 1:
+                            raise StrategyValidationError(f"Invalid split_pos list: {split_pos} (integer values must be >= 1)")
+                    elif isinstance(p, str):
+                        if p not in special_values:
+                            raise StrategyValidationError(f"Invalid split_pos list: {split_pos} (string values must be one of {special_values})")
+                    else:
+                        raise StrategyValidationError(f"Invalid split_pos list: {split_pos} (values must be integers >= 1 or special values {special_values})")
+            elif isinstance(split_pos, str):
+                # Validate special string value
+                if split_pos not in special_values:
+                    raise StrategyValidationError(f"Invalid split_pos value: {split_pos} (must be integer >= 1 or one of {special_values})")
+            elif isinstance(split_pos, int):
+                # Validate integer value
+                if split_pos < 1:
+                    raise StrategyValidationError(f"Invalid split_pos value: {split_pos} (must be >= 1)")
+            else:
+                raise StrategyValidationError(f"Invalid split_pos type: {type(split_pos).__name__} (must be int, str, or list)")
         
         # Validate overlap size
-        if 'overlap_size' in params:
+        if 'overlap_size' in params and params['overlap_size'] is not None:
             overlap_size = params['overlap_size']
             if not isinstance(overlap_size, int) or overlap_size < 0:
                 raise StrategyValidationError(f"Invalid overlap_size value: {overlap_size} (must be >= 0)")
         
         # Validate repeats
-        if 'repeats' in params:
+        if 'repeats' in params and params['repeats'] is not None:
             repeats = params['repeats']
-            if not isinstance(repeats, int) or repeats < 1 or repeats > 10:
-                raise StrategyValidationError(f"Invalid repeats value: {repeats} (must be 1-10)")
+            if not isinstance(repeats, int) or not (1 <= repeats <= 10):
+                raise StrategyValidationError(f"Invalid repeats value: {repeats} (must be an integer 1-10)")
         
-        # ✅ УЛУЧШЕННАЯ ВАЛИДАЦИЯ fooling (поддержка списков И строк)
-        if 'fooling' in params:
+        # Validate fooling methods
+        if 'fooling' in params and params['fooling'] is not None:
             valid_fooling = {'badseq', 'badsum', 'md5sig', 'none', 'hopbyhop'}
             fooling_value = params['fooling']
 
-            # Поддержка списка методов
-            if isinstance(fooling_value, (list, tuple)):
-                invalid_methods = [m for m in fooling_value if m not in valid_fooling]
-                if invalid_methods:
-                    raise StrategyValidationError(
-                        f"Invalid fooling methods: {invalid_methods} (must be from {valid_fooling})"
-                    )
-            # Поддержка одиночной строки
-            elif isinstance(fooling_value, str):
-                if fooling_value not in valid_fooling:
-                    raise StrategyValidationError(
-                        f"Invalid fooling method: {fooling_value} (must be one of {valid_fooling})"
-                    )
-            else:
+            if not isinstance(fooling_value, list):
+                 raise StrategyValidationError(f"Internal Error: 'fooling' should be a list, but got {type(fooling_value)}")
+
+            invalid_methods = [m for m in fooling_value if m not in valid_fooling]
+            if invalid_methods:
                 raise StrategyValidationError(
-                    f"fooling must be string or list, got {type(fooling_value)}"
+                    f"Invalid fooling methods: {invalid_methods} (must be from {valid_fooling})"
                 )
     
     def load_strategies_from_file(self, file_path: Union[str, Path]) -> Dict[str, NormalizedStrategy]:

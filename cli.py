@@ -1,25 +1,13 @@
 # recon/cli.py
-def apply_forced_override(original_func, *args, **kwargs):
-    """
-    Обертка для принудительного применения стратегий.
-    КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ для идентичного поведения с режимом тестирования.
-    """
-    # Добавляем forced параметры
-    if len(args) > 1 and isinstance(args[1], dict):
-        # Второй аргумент - стратегия
-        strategy = args[1].copy()
-        strategy['no_fallbacks'] = True
-        strategy['forced'] = True
-        args = (args[0], strategy) + args[2:]
-        print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
-    
-    return original_func(*args, **kwargs)
-
-
-
 # Windows asyncio: подавим Proactor-спам и улучшим совместимость
 import sys
 import os
+
+# --- Настройка путей для импортов ---
+# Добавляем текущую директорию в sys.path для корректного импорта модулей
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 import argparse
 import socket
 import logging
@@ -41,8 +29,6 @@ if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     except Exception:
         pass
-# <<< FIX: Removed incorrect import, it will be imported locally where needed >>>
-# from core.strategy_interpreter import StrategyInterpreter
 
 # --- Конфигурация Scapy для Windows ---
 if platform.system() == "Windows":
@@ -205,6 +191,13 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)-7s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
 )
+
+# Определяем LOG сразу после настройки логирования
+import builtins
+if not hasattr(builtins, "LOG"):
+    LOG = logging.getLogger("recon")
+    LOG.setLevel(logging.getLogger().level)
+    builtins.LOG = LOG
 # Создание console с проверкой платформы
 def _create_console():
     """Create console with platform-specific settings."""
@@ -248,6 +241,15 @@ except Exception:
 
 import threading
 
+
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)-7s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+# Fallback для модулей, которые используют LOG напрямую - уже определен выше
 
 class PacketCapturer:
     """
@@ -1881,9 +1883,8 @@ async def run_hybrid_mode(args):
                 for strategy_str in strategies:
                     # Parse strategy to dict format for validation
                     try:
-                        from core.strategy_interpreter import StrategyInterpreter
-                        interpreter = StrategyInterpreter()
-                        parsed = interpreter.interpret_strategy(strategy_str)
+                        # Use the unified loader for parsing, not the old interpreter
+                        parsed = hybrid_engine.strategy_loader.load_strategy(strategy_str).to_engine_format()
                         
                         if parsed:
                             # Validate the parsed strategy
@@ -1949,59 +1950,14 @@ async def run_hybrid_mode(args):
                     "[dim][AI] Applied adaptive learning to optimize strategy order[/dim]"
                 )
                 strategies = optimized_strategies
-    console.print("[dim]Parsing strategies into structured format...[/dim]")
-    # <<< FIX: Import and instantiate StrategyInterpreter >>>
-    from core.strategy_interpreter import StrategyInterpreter
-    strategy_interpreter = StrategyInterpreter()
-    # <<< END FIX >>>
-    structured_strategies = []
-    domain_for_priors = None
-    try:
-        from core.strategy_manager import StrategyManager
-        sm = StrategyManager()
-        domain_for_priors = list(dns_cache.keys())[0] if dns_cache else None
-        ds = sm.get_strategy(domain_for_priors) if domain_for_priors else None
-    except Exception:
-        ds = None
-    for s_str in strategies:
-        try:
-            # <<< FIX: Use the interpreter instance to parse the strategy >>>
-            parsed_strategy = strategy_interpreter.interpret_strategy(s_str)
-            # <<< END FIX >>>
-            if parsed_strategy:
-                # ✅ ГАРАНТИРУЕМ forced override флаги
-                if 'params' not in parsed_strategy:
-                    parsed_strategy['params'] = {}
-                if not isinstance(parsed_strategy['params'], dict):
-                    parsed_strategy['params'] = {}
 
-                parsed_strategy['params']['no_fallbacks'] = True
-                parsed_strategy['params']['forced'] = True
-
-                engine_task = {
-                    "type": parsed_strategy.get("type", "unknown"),
-                    "params": parsed_strategy['params']
-                }
-                if ds and isinstance(engine_task.get("params"), dict):
-                    p = engine_task["params"]
-                    if ds.split_pos and "split_pos" not in p:
-                        p["split_pos"] = int(ds.split_pos)
-                    if ds.overlap_size and "overlap_size" not in p:
-                        p["overlap_size"] = int(ds.overlap_size)
-                    if ds.fooling_modes and "fooling" not in p:
-                        p["fooling"] = ds.fooling_modes
-                structured_strategies.append(engine_task)
-                console.print(f"[green][OK][/green] Parsed strategy: {engine_task['type']} with params: {engine_task['params']}")
-            else:
-                console.print(
-                    f"[yellow]Warning: Could not parse strategy: {s_str}[/yellow]"
-                )
-        except Exception as e:
-            console.print(f"[red]Error parsing strategy '{s_str}': {e}[/red]")
+    # REFACTOR: Remove manual parsing using the old interpreter.
+    # The UnifiedBypassEngine will handle this internally.
+    structured_strategies = strategies
 
     if not structured_strategies:
         console.print(
-            "[bold red]Fatal Error: No valid strategies could be parsed.[/bold red]"
+            "[bold red]Fatal Error: No valid strategies could be prepared.[/bold red]"
         )
         return
 
@@ -3034,35 +2990,11 @@ async def run_per_domain_mode(args):
         )
         generator = ZapretStrategyGenerator()
         strategies = generator.generate_strategies(None, count=args.count)
-        # Parse to structured tasks for engine compatibility
-        # <<< FIX: Import and instantiate StrategyInterpreter >>>
-        from core.strategy_interpreter import StrategyInterpreter
-        strategy_interpreter = StrategyInterpreter()
-        # <<< END FIX >>>
-        structured = []
-        for s in strategies:
-            try:
-                # <<< FIX: Use the interpreter instance to parse the strategy >>>
-                ps = strategy_interpreter.interpret_strategy(s)
-                # <<< END FIX >>>
-                if ps:
-                    # ✅ ГАРАНТИРУЕМ forced override флаги
-                    if 'params' not in ps:
-                        ps['params'] = {}
-                    if not isinstance(ps['params'], dict):
-                        ps['params'] = {}
+        
+        # REFACTOR: The new UnifiedBypassEngine handles strategy parsing internally.
+        # We can pass the raw strategy strings directly.
+        structured_strategies = strategies
 
-                    ps['params']['no_fallbacks'] = True
-                    ps['params']['forced'] = True
-
-                    structured.append({
-                        "type": ps.get("type", "unknown"),
-                        "params": ps['params']
-                    })
-                else:
-                    structured.append(s) # fallback for unparseable
-            except Exception:
-                structured.append(s)  # fallback
         if learning_cache:
             optimized_strategies = learning_cache.get_smart_strategy_order(
                 strategies, hostname, ip
@@ -3071,9 +3003,10 @@ async def run_per_domain_mode(args):
                 console.print(
                     f"[dim][AI] Applied learning optimization for {hostname}[/dim]"
                 )
-                strategies = optimized_strategies
+                structured_strategies = optimized_strategies
+
         domain_results = await hybrid_engine.test_strategies_hybrid(
-            strategies=structured or strategies,
+            strategies=structured_strategies,
             test_sites=[site],
             ips=all_target_ips,
             dns_cache=dns_cache,
@@ -3149,7 +3082,21 @@ async def run_per_domain_mode(args):
     hybrid_engine.cleanup()
 
 
-
+def apply_forced_override(original_func, *args, **kwargs):
+    """
+    Обертка для принудительного применения стратегий.
+    КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ для идентичного поведения с режимом тестирования.
+    """
+    # Добавляем forced параметры
+    if len(args) > 1 and isinstance(args[1], dict):
+        # Второй аргумент - стратегия
+        strategy = args[1].copy()
+        strategy['no_fallbacks'] = True
+        strategy['forced'] = True
+        args = (args[0], strategy) + args[2:]
+        print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
+    
+    return original_func(*args, **kwargs)
 
 
 def load_all_attacks():
@@ -3189,7 +3136,23 @@ def main():
     load_all_attacks()
 
     parser = argparse.ArgumentParser(
-        description="Recon: An autonomous tool to find and apply working bypass strategies against DPI.",
+        description="""Recon: An autonomous tool to find and apply working bypass strategies against DPI.
+
+DPI Strategy Support:
+  Supports advanced DPI bypass strategies including packet splitting at positions 3, 10, and SNI,
+  with badsum fooling and other techniques. Use --dpi-desync-split-pos and --dpi-desync-fooling
+  parameters to configure strategies.
+
+Examples:
+  # Basic split strategy
+  python cli.py --dpi-desync=split --dpi-desync-split-pos=3,10 --dpi-desync-fooling=badsum x.com
+  
+  # SNI-focused strategy  
+  python cli.py --dpi-desync=split --dpi-desync-split-pos=sni --dpi-desync-fooling=badsum x.com
+  
+  # Combined strategy (recommended)
+  python cli.py --dpi-desync=split --dpi-desync-split-pos=3,10,sni --dpi-desync-fooling=badsum x.com
+        """,
         formatter_class=argparse.RawTextHelpFormatter,
     )
     # Basic arguments
@@ -3494,7 +3457,41 @@ def main():
         help="Save current execution results as baseline with specified name (requires --validate).",
     )
 
+    # Add DPI strategy arguments to parser
+    dpi_integration = None
+    try:
+        from core.cli import integrate_dpi_with_existing_cli
+        dpi_integration = integrate_dpi_with_existing_cli(parser)
+        LOG.info("DPI strategy parameters integrated into CLI")
+    except ImportError as e:
+        LOG.warning(f"DPI CLI integration not available: {e}")
+    except Exception as e:
+        LOG.error(f"Failed to integrate DPI parameters: {e}")
+
     args = parser.parse_args()
+
+    # Parse DPI configuration from CLI arguments
+    dpi_config = None
+    if dpi_integration:
+        try:
+            dpi_config = dpi_integration.parse_and_create_config(args)
+            if dpi_config.enabled:
+                LOG.info(f"DPI strategy enabled: {dpi_config.desync_mode} mode with positions {dpi_config.split_positions}")
+                
+                # Integrate DPI with UnifiedBypassEngine if available
+                try:
+                    from core.bypass.integration import patch_unified_bypass_engine_for_dpi
+                    patch_unified_bypass_engine_for_dpi(UnifiedBypassEngine)
+                    LOG.info("UnifiedBypassEngine patched with DPI support")
+                except ImportError as e:
+                    LOG.warning(f"DPI engine integration not available: {e}")
+                except Exception as e:
+                    LOG.error(f"Failed to patch UnifiedBypassEngine with DPI: {e}")
+            else:
+                LOG.info("DPI strategy disabled")
+        except Exception as e:
+            LOG.error(f"Failed to parse DPI configuration: {e}")
+            dpi_config = None
 
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)

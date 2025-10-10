@@ -1068,12 +1068,13 @@ async def run_second_pass_from_report(
     use_advanced_reporting: bool=False,
     save_adv_file: Optional[str]=None
 ):
-    # ✅ FIX: Lazy import HybridEngine here
+    # ✅ FIX: Lazy import UnifiedBypassEngine here
     try:
-        from core.hybrid_engine import HybridEngine
+        # Используем новый унифицированный движок
+        from core.unified_bypass_engine import UnifiedBypassEngine
         from core.doh_resolver import DoHResolver
     except ImportError as e:
-        print(f"[INFO] HybridEngine/DoHResolver недоступны — второй прогон пропущен: {e}")
+        print(f"[INFO] UnifiedBypassEngine/DoHResolver недоступны — второй прогон пропущен: {e}")
         return
 
     host_to_strats: Dict[str, List[str]] = {}
@@ -1117,7 +1118,11 @@ async def run_second_pass_from_report(
             integration = get_reporting_integration()
             print("[INFO] AdvancedReportingIntegration initialized")
 
-    resolver, engine = DoHResolver(), HybridEngine(debug=False, enable_enhanced_tracking=False, enable_online_optimization=False)
+    from core.unified_bypass_engine import UnifiedEngineConfig
+    
+    resolver = DoHResolver()
+    engine_config = UnifiedEngineConfig(debug=False)
+    engine = UnifiedBypassEngine(config=engine_config)
     all_results: Dict[str, Any] = {}
     adv_reports: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -1192,7 +1197,7 @@ async def run_second_pass_from_report(
         try:
             comp = await integration.export_comprehensive_report(format_type="json", include_raw_data=True)
             with open(save_adv_file, "w", encoding="utf-8") as f:
-                json.dump(comp, f, ensure_ascii=False, indent=2)
+                json.dump(comp, f, ensure_ascii=False, indent=2, default=str)
             print(f"[OK] advanced comprehensive report saved → {save_adv_file}")
         except Exception as e:
             print(f"[WARN] cannot save advanced report: {e}")
