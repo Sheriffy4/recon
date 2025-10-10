@@ -102,6 +102,7 @@ class SegmentPacketBuilder:
                 payload=payload,
                 corrupt_checksum=bad_checksum,
                 tcp_options=self._merge_tcp_options(context.tcp_options, options),
+                raw_packet=context.raw_packet,
             )
             construction_time = (time.time() - start_time) * 1000
             self.stats["packets_built"] += 1
@@ -142,30 +143,12 @@ class SegmentPacketBuilder:
         payload: bytes,
         corrupt_checksum: bool = False,
         tcp_options: bytes = b"",
+        raw_packet: Optional[bytes] = None,
     ) -> bytes:
         """
         Build raw TCP packet with complete control over headers.
-
-        Args:
-            src_ip: Source IP address
-            dst_ip: Destination IP address
-            src_port: Source port
-            dst_port: Destination port
-            seq: TCP sequence number
-            ack: TCP acknowledgment number
-            flags: TCP flags
-            window: TCP window size
-            ttl: IP TTL value
-            payload: Packet payload
-            corrupt_checksum: Whether to corrupt TCP checksum
-            tcp_options: TCP options bytes
-
-        Returns:
-            Raw packet bytes
         """
-        src_ip_bytes = socket.inet_aton(src_ip)
-        dst_ip_bytes = socket.inet_aton(dst_ip)
-        tcp_header = self._build_tcp_header(
+        tcp_hdr = self._build_tcp_header(
             src_port=src_port,
             dst_port=dst_port,
             seq=seq,
@@ -174,20 +157,46 @@ class SegmentPacketBuilder:
             window=window,
             tcp_options=tcp_options,
         )
+
+        ip_hl = (raw_packet[0] & 0x0F) * 4 if raw_packet else 20
+
+        # Build IP header from scratch
+        total_len = ip_hl + len(tcp_hdr) + len(payload)
+
+        raw = bytearray(raw_packet) if raw_packet else bytearray(ip_hl)
+        if not raw_packet:
+            raw[0] = (4 << 4) | 5
+            raw[9] = 6 # TCP
+            raw[12:16] = socket.inet_aton(src_ip)
+            raw[16:20] = socket.inet_aton(dst_ip)
+
+        ip_hdr = self._build_ip_header(raw, ip_hl, total_len, ttl, None)
+
+        # Assemble packet
+        seg_raw = bytearray(ip_hdr + tcp_hdr + payload)
+
+        # Final IP checksum calculation
+        seg_raw[10:12] = b"\x00\x00"
+        ip_csum = self.builder.calculate_checksum(seg_raw[:ip_hl])
+        seg_raw[10:12] = struct.pack("!H", ip_csum)
+
+        # TCP checksum calculation
+        tcp_start = ip_hl
+        tcp_end = ip_hl + len(tcp_hdr)
+        good_csum = self.builder.build_tcp_checksum(socket.inet_aton(src_ip), socket.inet_aton(dst_ip), seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+
         if corrupt_checksum:
-            tcp_checksum = 57005
+            bad_csum = 0xBEEF if b"\x13\x12" in tcp_options else 0xDEAD
+            seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
         else:
-            tcp_checksum = self.builder.build_tcp_checksum(
-                src_ip_bytes, dst_ip_bytes, tcp_header, payload
-            )
-        tcp_header = tcp_header[:16] + struct.pack("!H", tcp_checksum) + tcp_header[18:]
-        ip_header = self._build_ip_header(
-            src_ip_bytes=src_ip_bytes,
-            dst_ip_bytes=dst_ip_bytes,
-            total_length=20 + len(tcp_header) + len(payload),
-            ttl=ttl,
-        )
-        return ip_header + tcp_header + payload
+            seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum)
+
+        # Re-calculate IP checksum just in case
+        seg_raw[10:12] = b"\x00\x00"
+        ip_csum2 = self.builder.calculate_checksum(seg_raw[:ip_hl])
+        seg_raw[10:12] = struct.pack("!H", ip_csum2)
+
+        return bytes(seg_raw)
 
     def _build_tcp_header(
         self,
@@ -246,37 +255,46 @@ class SegmentPacketBuilder:
                 out += b"\x00" * (4 - len(out) % 4)
         return out
 
-    def _build_ip_header(
-        self, src_ip_bytes: bytes, dst_ip_bytes: bytes, total_length: int, ttl: int
-    ) -> bytes:
+    def _build_ip_header(self, raw: bytearray, ip_hl: int, total_len: int,
+                           ttl: int, ip_id: Optional[int]) -> bytearray:
         """
-        Build IP header with precise control.
-
-        Args:
-            src_ip_bytes: Source IP as bytes
-            dst_ip_bytes: Destination IP as bytes
-            total_length: Total packet length
-            ttl: Time To Live value
-
-        Returns:
-            IP header bytes
+        Builds a new IPv4 header from scratch, preserving key fields
+        from the original header.
         """
-        ip_header = struct.pack(
-            "!BBHHHBBH4s4s",
-            69,
-            0,
-            total_length,
-            0,
-            0,
-            ttl,
-            6,
-            0,
-            src_ip_bytes,
-            dst_ip_bytes,
-        )
-        ip_checksum = self.builder.calculate_checksum(ip_header)
-        ip_header = ip_header[:10] + struct.pack("!H", ip_checksum) + ip_header[12:]
-        return ip_header
+        vihl = raw[0]
+        version = (vihl >> 4) & 0x0F
+        ihl = vihl & 0x0F
+        if version != 4 or ihl < 5:
+            raise ValueError(f"Unsupported IP header: version={version}, ihl={ihl}")
+
+        tos = raw[1]
+        if ip_id is None:
+            ip_id_val = struct.unpack("!H", raw[4:6])[0]
+        else:
+            ip_id_val = int(ip_id) & 0xFFFF
+
+        flags_frag = struct.unpack("!H", raw[6:8])[0]
+        proto = raw[9]
+        src = raw[12:16]
+        dst = raw[16:20]
+
+        ip_hdr = bytearray(ihl * 4)
+        ip_hdr[0] = (4 << 4) | ihl            # Version/IHL
+        ip_hdr[1] = tos                       # DSCP/ECN
+        ip_hdr[2:4] = struct.pack("!H", total_len)
+        ip_hdr[4:6] = struct.pack("!H", ip_id_val)
+        ip_hdr[6:8] = struct.pack("!H", flags_frag)
+        ip_hdr[8] = ttl & 0xFF
+        ip_hdr[9] = proto
+        ip_hdr[10:12] = b"\x00\x00"
+        ip_hdr[12:16] = src
+        ip_hdr[16:20] = dst
+
+        # Copy IP options if they exist
+        if ihl > 5:
+            ip_hdr[20:ihl*4] = raw[20:ihl*4]
+
+        return ip_hdr
 
     def _get_source_ip(self, dst_ip: str) -> str:
         """

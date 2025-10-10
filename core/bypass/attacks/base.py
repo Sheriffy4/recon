@@ -67,6 +67,7 @@ class AttackContext:
     src_port: Optional[int] = None
     domain: Optional[str] = None
     payload: bytes = b""
+    raw_packet: Optional[bytes] = None
     protocol: str = "tcp"
     seq: Optional[int] = None
     ack: Optional[int] = None
@@ -78,6 +79,7 @@ class AttackContext:
     tcp_window_size: int = 65535
     tcp_urgent_pointer: int = 0
     tcp_options: bytes = b""
+    ttl: Optional[int] = None
     connection_id: str = ""
     packet_id: int = 0
     session_established: bool = False
