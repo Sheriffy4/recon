@@ -2,6 +2,7 @@
 # File: core/bypass/packet/builder.py
 
 import struct
+import socket
 from typing import Optional, List
 import logging
 
@@ -205,19 +206,17 @@ class PacketBuilder:
                 if len(tcp_options) % 4 != 0:
                     tcp_options += b"\x01" * (4 - len(tcp_options) % 4)
             
-            # Build TCP header
+            # Build TCP header from original header + options
             tcp_flags = spec.flags & 0xFF
-            tcp_hdr = self._build_tcp_header_with_options(
-                src_port=src_port,
-                dst_port=dst_port,
-                seq=seq,
-                ack=base_ack,
-                flags=tcp_flags,
-                window=window,
-                tcp_options=tcp_options
-            )
+            base_tcp_header = raw[ip_hl:ip_hl+20]  # first 20 bytes of TCP
+            tcp_hdr = self._build_tcp_header_with_options(base_tcp_header, tcp_options)
+            # apply seq/ack/flags/window after building header
+            tcp_hdr[4:8]  = struct.pack("!I", seq)
+            tcp_hdr[8:12] = struct.pack("!I", base_ack)
+            tcp_hdr[13]   = tcp_flags & 0xFF
+            tcp_hdr[14:16]= struct.pack("!H", window)
             
-            # Build IP header
+            # Build IP header (copy from original + set total_len/ttl/id)
             ip_hdr = self._build_ip_header_from_original(
                 raw=raw,
                 ip_hl=ip_hl,
@@ -229,27 +228,20 @@ class PacketBuilder:
             # Assemble packet
             seg_raw = bytearray(ip_hdr + tcp_hdr + seg_payload)
             
-            # ✅ Calculate IP checksum (ONCE) - используем self, а не self.builder!
+            # Calculate IP checksum (once)
             seg_raw[10:12] = b"\x00\x00"
-            ip_csum = self.calculate_checksum(bytes(seg_raw[:ip_hl]))  # ✅ self.calculate_checksum
+            ip_csum = self.calculate_checksum(bytes(seg_raw[:ip_hl]))
             seg_raw[10:12] = struct.pack("!H", ip_csum)
             
             self.logger.debug(f"IP checksum: 0x{ip_csum:04X}")
             
-            # ✅ Calculate TCP checksum - используем self, а не self.builder!
+            # Calculate TCP checksum
             tcp_start = ip_hl
             tcp_end = ip_hl + len(tcp_hdr)
-            
             # Zero out checksum field before calculation
             seg_raw[tcp_start+16:tcp_start+18] = b"\x00\x00"
-            
-            # Calculate good checksum using build_tcp_checksum
-            good_csum = self.build_tcp_checksum(  # ✅ self.build_tcp_checksum
-                socket.inet_aton(src_ip),
-                socket.inet_aton(dst_ip),
-                seg_raw[tcp_start:tcp_end],
-                seg_raw[tcp_end:]
-            )
+            # Calculate good checksum
+            good_csum = self._tcp_checksum(seg_raw[:ip_hl], seg_raw[tcp_start:tcp_start+len(tcp_hdr)], seg_raw[tcp_end:])
             
             # Apply checksum (good or corrupted)
             corrupt_checksum = getattr(spec, 'corrupt_tcp_checksum', False)
@@ -397,6 +389,41 @@ class PacketBuilder:
         
         self.logger.debug(f"Built TCP header: {len(tcp_hdr)} bytes (with {len(tcp_options)} bytes options)")
         return tcp_hdr
+
+    def _build_ip_header_from_original(self, raw: bytes, ip_hl: int, total_len: int, ttl: Optional[int], ip_id: Optional[int]) -> bytearray:
+        """
+        Copy original IPv4 header and update total length, ttl (if provided), and id (if provided).
+        """
+        ip_hdr = bytearray(raw[:ip_hl])
+        # total length
+        ip_hdr[2:4] = struct.pack("!H", total_len)
+        # IP ID
+        if ip_id is not None:
+            ip_hdr[4:6] = struct.pack("!H", int(ip_id) & 0xFFFF)
+        # TTL
+        if ttl is not None:
+            ip_hdr[8] = int(ttl) & 0xFF
+        # zero checksum here, we will fill later
+        ip_hdr[10:12] = b"\x00\x00"
+        return ip_hdr
+
+    # compatibility helpers (public-style wrappers)
+    def calculate_checksum(self, data: bytes) -> int:
+        return self._checksum16(data)
+
+    def build_tcp_checksum(self, src_ip: bytes, dst_ip: bytes, tcp_header: bytes, payload: bytes) -> int:
+        """
+        Public-style TCP checksum (src/dst + tcp hdr + payload).
+        Kept for compatibility if other code calls it.
+        """
+        pseudo = src_ip + dst_ip + b"\x00\x06" + struct.pack("!H", len(tcp_header) + len(payload))
+        # zero checksum inside tcp_header
+        hdr = bytearray(tcp_header)
+        hdr[16:18] = b"\x00\x00"
+        data = pseudo + bytes(hdr) + payload
+        if len(data) % 2:
+            data += b"\x00"
+        return self._checksum16(data)
 
     def _inject_md5sig_option(self, tcp_hdr: bytes) -> bytes:
         """Inject TCP MD5 signature option."""
