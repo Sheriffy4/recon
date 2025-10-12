@@ -298,7 +298,7 @@ class PacketBuilder(IPacketBuilder):
             struct.pack_into("!H", tcp_header, 16, tcp_checksum)
             return bytes(ip_header) + bytes(tcp_header) + new_payload
         except Exception as e:
-            cls.logger.error(f"Failed to assemble TCP packet: {e}")
+            logging.getLogger(__name__).error(f"Failed to assemble TCP packet: {e}")
             return original_raw + new_payload if original_raw else new_payload
 
     @staticmethod
@@ -705,7 +705,7 @@ class PacketBuilder(IPacketBuilder):
                 elif opt_name == "NOP":
                     options_bytes += b"\x01"
         while len(options_bytes) % 4 != 0:
-            options_bytes += b"\x00"
+            options_bytes += b"\x01"  # NOP padding
         return options_bytes
 
     def _build_ipv4_pseudo_header(self, params: PacketParams, tcp_length: int) -> bytes:
@@ -720,7 +720,7 @@ class PacketBuilder(IPacketBuilder):
         src_ip = params.src_ip or "::"
         src_ip_bytes = socket.inet_pton(socket.AF_INET6, src_ip)
         dst_ip_bytes = socket.inet_pton(socket.AF_INET6, params.dst_ip)
-        return src_ip_bytes + dst_ip_bytes + struct.pack("!IH", tcp_length, 6)
+        return src_ip_bytes + dst_ip_bytes + struct.pack("!I3xB", tcp_length, 6)
 
     def build_tls_packet(
         self,

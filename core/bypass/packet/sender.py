@@ -76,7 +76,7 @@ class PacketSender:
             # Блокируем ретрансмит ОС на время инъекции
             with self._create_tcp_retransmission_blocker(original_packet) as blocker:
                 # ⚡ CRITICAL: Даем блокировщику время на инициализацию
-                if blocker and not isinstance(blocker, bool):
+                if blocker:
                     time.sleep(0.005)  # 5ms для гарантированного запуска
                     self.logger.debug("✅ Retransmission blocker initialized")
                 
@@ -117,7 +117,7 @@ class PacketSender:
                 
                 # Отправка с правильными задержками
                 for i, (pkt, spec) in enumerate(packets_to_send):
-                    packet_start = time.perf_counter()
+                    # allow_fix - это и есть наш ключ к решению проблемы №1
                     allow_fix = not spec.corrupt_tcp_checksum
                     
                     # Логируем тип пакета и параметры — удобно сопоставлять с PCAP
@@ -370,28 +370,14 @@ class PacketSender:
             
     def _batch_safe_send(self, w: "pydivert.WinDivert", pkt: "pydivert.Packet", allow_fix_checksums: bool = True) -> bool:
         """
-        Оптимизированная отправка для батч-операций.
-        ✅ CRITICAL FIX: Preserve corrupted checksums for fake packets
+        Оптимизированная отправка для батч-операций с правильной обработкой checksum.
         """
         try:
-            # ✅ FIX: For fake packets with bad checksum, use WINDIVERT_FLAG_NO_CHECKSUM
+            # Используем параметр recalculate_checksum=False, чтобы сохранить "плохую" чек-сумму
+            w.send(pkt, recalculate_checksum=allow_fix_checksums)
             if not allow_fix_checksums:
-                # Send with NO_CHECKSUM flag to preserve corrupted checksum
-                try:
-                    # Try to use send with flags parameter
-                    w.send(pkt, flags=0x0001)  # WINDIVERT_FLAG_NO_CHECKSUM = 0x0001
-                    self.logger.debug("✅ Sent fake packet with NO_CHECKSUM flag (checksum preserved)")
-                    return True
-                except TypeError:
-                    # Fallback: pydivert version doesn't support flags parameter
-                    # In this case, checksum will be recalculated by WinDivert
-                    self.logger.warning("⚠️ WinDivert send() doesn't support flags, checksum may be recalculated")
-                    w.send(pkt)
-                    return True
-            else:
-                # Normal send for real packets
-                w.send(pkt)
-                return True
+                self.logger.debug("✅ Sent packet with checksum recalculation disabled.")
+            return True
         except OSError as e:
             if getattr(e, "winerror", None) == 258 and allow_fix_checksums:
                 self.logger.debug("WinDivert batch send timeout (258). Retrying with checksum helper...")

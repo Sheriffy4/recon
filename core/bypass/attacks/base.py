@@ -634,20 +634,7 @@ class AttackResult:
             return len(self.segments) > 0
         return False
 
-    @property
-    def segments(self):
-        """Get segments from result."""
-        if self.metadata and "segments" in self.metadata:
-            return self.metadata["segments"]
-        return getattr(self, "_segments", None)
-
-    @segments.setter
-    def segments(self, value):
-        """Set segments in result."""
-        if not self.metadata:
-            self.metadata = {}
-        self.metadata["segments"] = value
-        self._segments = value
+    
 
     def get_segment_count(self) -> int:
         """
@@ -731,7 +718,7 @@ class AttackResultHelper:
     ) -> AttackResult:
         """Create a failed AttackResult."""
         return AttackResult(
-            status=AttackStatus.FAILED,
+            status=AttackStatus.FAILURE,
             technique_used=technique_used,
             error_message=error_message,
             metadata=metadata or {},
@@ -1001,16 +988,6 @@ class BaseAttack(ABC):
         """Unique name for this attack."""
         pass
 
-    @abstractmethod
-    async def execute(self, context: AttackContext, **kwargs) -> AttackResult:
-        """
-        Executes the attack.
-        **kwargs will contain all specific parameters from the strategy,
-        like 'split_pos', 'ttl', 'attack_types', etc. The method should
-        only use the parameters it needs.
-        """
-        pass
-
     @property
     def description(self) -> str:
         """Human-readable description of the attack."""
@@ -1037,13 +1014,7 @@ class BaseAttack(ABC):
     @abstractmethod
     def execute(self, context: AttackContext) -> AttackResult:
         """
-        Execute the attack.
-
-        Args:
-            context: Attack execution context
-
-        Returns:
-            AttackResult with execution details
+        Sync execute interface. If you need async, wrap in execute_with_network_validation.
         """
         pass
 
@@ -1128,12 +1099,7 @@ class BaseAttack(ABC):
                     status=AttackStatus.INVALID_PARAMS,
                     error_message="Invalid attack context",
                 )
-            import inspect
-
-            if inspect.iscoroutinefunction(self.execute):
-                result = await self.execute(context)
-            else:
-                result = await asyncio.to_thread(self.execute, context)
+            result = await asyncio.to_thread(self.execute, context)
             result.processing_time_ms = (time.time() - start_time) * 1000
             result.technique_used = self.name
             self._update_stats(result)

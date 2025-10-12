@@ -175,26 +175,28 @@ class SegmentPacketBuilder:
         # Assemble packet
         seg_raw = bytearray(ip_hdr + tcp_hdr + payload)
 
-        # Final IP checksum calculation
+        # Final IP checksum calculation (single pass)
         seg_raw[10:12] = b"\x00\x00"
         ip_csum = self.builder.calculate_checksum(seg_raw[:ip_hl])
         seg_raw[10:12] = struct.pack("!H", ip_csum)
+        self.logger.debug(f"✅ IP checksum set: 0x{ip_csum:04X}")
 
         # TCP checksum calculation
         tcp_start = ip_hl
         tcp_end = ip_hl + len(tcp_hdr)
-        good_csum = self.builder.build_tcp_checksum(socket.inet_aton(src_ip), socket.inet_aton(dst_ip), seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:])
+        # Zero CSUM field before calculation
+        seg_raw[tcp_start+16:tcp_start+18] = b"\x00\x00"
+        good_csum = self.builder.build_tcp_checksum(
+            socket.inet_aton(src_ip), socket.inet_aton(dst_ip),
+            seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:]
+        )
 
         if corrupt_checksum:
             bad_csum = 0xBEEF if b"\x13\x12" in tcp_options else 0xDEAD
             seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
         else:
             seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum)
-
-        # Re-calculate IP checksum just in case
-        seg_raw[10:12] = b"\x00\x00"
-        ip_csum2 = self.builder.calculate_checksum(seg_raw[:ip_hl])
-        seg_raw[10:12] = struct.pack("!H", ip_csum2)
+            self.logger.debug(f"✅ TCP checksum set: 0x{good_csum:04X}")
 
         return bytes(seg_raw)
 
@@ -226,7 +228,7 @@ class SegmentPacketBuilder:
         options_padded = tcp_options
         if len(options_padded) % 4 != 0:
             padding = 4 - len(options_padded) % 4
-            options_padded += b"\x00" * padding
+            options_padded += b"\x01" * padding  # NOP padding
         header_length = (20 + len(options_padded)) // 4
         tcp_header = struct.pack(
             "!HHIIBBHHH",
@@ -252,7 +254,7 @@ class SegmentPacketBuilder:
             md5opt = b"\x13\x12" + b"\x00" * 16
             out = out + md5opt
             if len(out) % 4 != 0:
-                out += b"\x00" * (4 - len(out) % 4)
+                out += b"\x01" * (4 - len(out) % 4)  # NOP padding
         return out
 
     def _build_ip_header(self, raw: bytearray, ip_hl: int, total_len: int,

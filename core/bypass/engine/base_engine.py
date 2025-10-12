@@ -214,6 +214,8 @@ class WindowsBypassEngine(IBypassEngine):
         
         
         self._position_resolver = PositionResolver()
+        # cache split_pos per flow
+        self._split_pos_cache: Dict[Tuple[str,int,str,int], int] = {}
         # ---
 
     def attach_controller(self, base_rules, zapret_parser, task_translator,
@@ -822,9 +824,7 @@ class WindowsBypassEngine(IBypassEngine):
         except Exception:
             # В случае любой ошибки парсинга, безопасно возвращаем None
             return None
-    # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
-
-    def _run_bypass_loop(self, target_ips: Set[str], strategy_map: Dict[str, Dict]):
+    
     
 
     def _run_bypass_loop(self, target_ips: Set[str], strategy_map: Dict[str, Dict]):
@@ -1071,29 +1071,47 @@ class WindowsBypassEngine(IBypassEngine):
             payload = bytes(packet.payload)
             split_pos_val = params.get("split_pos")
 
+            flow_key = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
             if isinstance(split_pos_val, str):
                 self.logger.debug(f"Resolving special split_pos: '{split_pos_val}'")
                 resolved_pos = None
                 if split_pos_val == 'midsld':
                     resolved_pos = self._estimate_split_pos_from_ch(payload)
                     if not resolved_pos:
-                        self.logger.warning("Could not resolve 'midsld', falling back to 76")
-                        resolved_pos = 76
+                        cached = self._split_pos_cache.get(flow_key)
+                        if cached:
+                            self.logger.info(f"Using cached 'midsld' split_pos={cached}")
+                            resolved_pos = cached
+                        else:
+                            self.logger.warning("Could not resolve 'midsld', falling back to 76")
+                            resolved_pos = 76
                 elif split_pos_val == 'sni':
                     # Используем _position_resolver, который был добавлен в __init__
                     resolved_pos = self._position_resolver.resolve_sni_position(payload)
                     if not resolved_pos:
-                        self.logger.warning("Could not resolve 'sni', falling back to 55")
-                        resolved_pos = 55
+                        cached = self._split_pos_cache.get(flow_key)
+                        if cached:
+                            self.logger.info(f"Using cached 'sni' split_pos={cached}")
+                            resolved_pos = cached
+                        else:
+                            self.logger.warning("Could not resolve 'sni', falling back to 55")
+                            resolved_pos = 55
                 elif split_pos_val == 'cipher':
                     resolved_pos = self._resolve_cipher_pos(payload)
                     if not resolved_pos:
-                        self.logger.warning("Could not resolve 'cipher', falling back to 45")
-                        resolved_pos = 45
+                        cached = self._split_pos_cache.get(flow_key)
+                        if cached:
+                            self.logger.info(f"Using cached 'cipher' split_pos={cached}")
+                            resolved_pos = cached
+                        else:
+                            self.logger.warning("Could not resolve 'cipher', falling back to 45")
+                            resolved_pos = 45
                 
                 if resolved_pos is not None:
                     self.logger.info(f"Resolved '{split_pos_val}' to position {resolved_pos}")
                     params["split_pos"] = resolved_pos
+                    # save to cache
+                    self._split_pos_cache[flow_key] = resolved_pos
                 else:
                     # Если по какой-то причине разрешение не удалось, откатываемся к безопасному значению
                     self.logger.error(f"Failed to resolve special split_pos '{split_pos_val}', using default 3.")

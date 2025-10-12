@@ -1,23 +1,23 @@
 # path: core/bypass/techniques/primitives.py
-# CORRECTED VERSION
+# ULTIMATE CORRECTED VERSION - Best of both approaches
 
 import struct
-import os
 import random
 import string
 from typing import List, Tuple, Dict, Optional
 
 def _gen_fake_sni(original: Optional[str] = None) -> str:
-    # zapret-подобный стиль: случайный label + .edu
-    # можешь заменить на .com/.net по вкусу или подстраиваться под TLD оригинала
+    """Generate fake SNI in zapret style."""
     label = "".join(random.choices(string.ascii_lowercase + string.digits, k=random.randint(8, 14)))
-    tld = "edu"
+    tld = random.choice(["edu", "com", "net", "org"])
     return f"{label}.{tld}"
 
 class BypassTechniques:
     """
-    Библиотека продвинутых техник обхода DPI.
+    Библиотека продвинутых техник обхода DPI в стиле zapret.
     Генерирует "рецепты" - последовательности сегментов для отправки.
+    
+    CRITICAL: Все offset'ы должны быть >= 0 для корректной работы с _recipe_to_specs!
     """
 
     @staticmethod
@@ -28,6 +28,14 @@ class BypassTechniques:
     ) -> List[Tuple[bytes, int, dict]]:
         """
         Создает race-атаку: фейковый пакет + оригинал.
+        
+        Args:
+            payload: Данные для отправки
+            ttl: TTL для фейкового пакета
+            fooling: Методы обмана ['badsum', 'md5sig', 'fakesni']
+        
+        Returns:
+            [(fake_payload, 0, opts), (real_payload, 0, opts)]
         """
         if fooling is None:
             fooling = ["badsum"]
@@ -38,10 +46,10 @@ class BypassTechniques:
             "tcp_flags": 0x18,  # PSH+ACK
             "corrupt_tcp_checksum": "badsum" in fooling,
             "add_md5sig_option": "md5sig" in fooling,
-            "delay_ms_after": 5  # Небольшая задержка перед отправкой оригинала
+            "delay_ms_after": 5
         }
 
-        if "fakesni" in (fooling or []):
+        if "fakesni" in fooling:
             opts_fake["fooling_sni"] = _gen_fake_sni()
         
         opts_real = {
@@ -58,16 +66,26 @@ class BypassTechniques:
     def apply_fakeddisorder(
          payload: bytes,
          split_pos: int = 76,
-         overlap_size: int = 336,
+         overlap_size: int = 0,  # ✅ По умолчанию 0 (не используется в modern zapret)
          fake_ttl: int = 1,
          fooling_methods: List[str] = None,
-         delay_ms: int = 5
+         delay_ms: int = 0
      ) -> List[Tuple[bytes, int, dict]]:
          """
          CRITICAL FIX: Реализация fakeddisorder в стиле zapret.
          
+         Порядок отправки: fake (полный payload, TTL=1) -> part2 -> part1
+         
+         Args:
+             payload: Полный payload для отправки
+             split_pos: Позиция разделения (обычно середина SNI)
+             overlap_size: Размер перекрытия (обычно 0 для fakeddisorder)
+             fake_ttl: TTL для фейкового пакета (обычно 1-4)
+             fooling_methods: Список методов обмана ['badsum', 'md5sig', 'badseq', 'fakesni']
+             delay_ms: Задержка после фейкового пакета (миллисекунды)
+         
          Returns:
-             List[Tuple[bytes, int, dict]]: List of (payload, offset, options)
+             List[Tuple[bytes, int, dict]]: [(payload, offset, options), ...]
          """
          if fooling_methods is None:
              fooling_methods = ["badsum"]
@@ -76,9 +94,10 @@ class BypassTechniques:
              opts_real = {"is_fake": False, "tcp_flags": 0x18}
              return [(payload, 0, opts_real)]
  
-         part1, part2 = (payload[:split_pos], payload[split_pos:])
+         part1 = payload[:split_pos]
+         part2 = payload[split_pos:]
  
-         # Фейковый пакет - это всегда полный payload.
+         # Фейковый пакет - это всегда полный payload
          fake_payload = payload
  
          opts_fake = {
@@ -86,51 +105,33 @@ class BypassTechniques:
              "ttl": fake_ttl,
              "tcp_flags": 0x18,  # PSH+ACK
              "corrupt_tcp_checksum": "badsum" in fooling_methods,
-             "delay_ms_after": delay_ms
+             "delay_ms_after": delay_ms if delay_ms > 0 else 0
          }
  
          if "md5sig" in fooling_methods:
              opts_fake["add_md5sig_option"] = True
          if "badseq" in fooling_methods:
-             opts_fake["seq_extra"] = -1
+             # ✅ CRITICAL: Используем corrupt_sequence (читается в _recipe_to_specs)
+             opts_fake["corrupt_sequence"] = True
  
          if "fakesni" in fooling_methods:
              opts_fake["fooling_sni"] = _gen_fake_sni()
  
-         opts_real1 = {"is_fake": False, "tcp_flags": 0x10}  # ACK
+         # ✅ ОБЕ части должны иметь PSH+ACK (0x18) для корректного reassembly
+         opts_real1 = {"is_fake": False, "tcp_flags": 0x18}  # PSH+ACK
          opts_real2 = {"is_fake": False, "tcp_flags": 0x18}  # PSH+ACK
          
-         real_part2_offset = len(part1) - overlap_size
- 
-         # Правильный порядок отправки: fake, real_part2, real_part1
+         # ✅ CRITICAL: Предотвращаем отрицательные offset через max()
+         # Если overlap_size > 0, part2 начинается раньше для создания перекрытия
+         # Если overlap_size = 0 (обычный случай), part2 начинается точно с split_pos
+         real_part2_offset = max(split_pos - overlap_size, 0)
+         
+         # Правильный порядок отправки: fake, part2, part1
          return [
-             (fake_payload, 0, opts_fake),
-             (part2, real_part2_offset, opts_real2),
-             (part1, 0, opts_real1)
+             (fake_payload, 0, opts_fake),           # offset=0 (начало исходного SEQ)
+             (part2, real_part2_offset, opts_real2), # ✅ offset с защитой от отрицательных значений
+             (part1, 0, opts_real1)                  # offset=0
          ]
-
-    @staticmethod
-    def apply_multisplit(
-        payload: bytes, positions: List[int]
-    ) -> List[Tuple[bytes, int, dict]]:
-        """
-        Разделяет payload на несколько сегментов по указанным позициям.
-        """
-        if not positions:
-            return [(payload, 0, {"is_fake": False})]
-            
-        segments, last_pos = ([], 0)
-        opts = {"is_fake": False, "tcp_flags": 0x18} # PSH+ACK
-
-        for pos in sorted(positions):
-            if pos > last_pos and pos < len(payload):
-                segments.append((payload[last_pos:pos], last_pos, opts))
-                last_pos = pos
-        
-        if last_pos < len(payload):
-            segments.append((payload[last_pos:], last_pos, opts))
-            
-        return segments
 
     @staticmethod
     def apply_multidisorder(
@@ -145,17 +146,15 @@ class BypassTechniques:
         Enhanced multidisorder attack with proper packet sequencing.
         
         Creates a sequence of packets:
-        1. Fake packet with low TTL and fooling methods (badseq, badsum, etc.)
-        2. Overlapping segments in disorder (part2 first, then part1)
-        
-        This matches the Zapret multidisorder behavior for x.com bypass.
+        1. Fake packet with low TTL and fooling methods
+        2. Disordered segments (part2 first, then part1)
         
         Args:
-            payload: Original payload to split
-            positions: Split positions (for backward compatibility, uses first position)
+            payload: Original payload
+            positions: Split positions (uses first for backward compatibility)
             split_pos: Explicit split position (overrides positions[0])
-            overlap_size: Size of sequence overlap between segments
-            fooling: List of fooling methods to apply (badseq, badsum, md5sig)
+            overlap_size: Размер перекрытия (обычно 0)
+            fooling: List of fooling methods ['badseq', 'badsum', 'md5sig', 'fakesni']
             fake_ttl: TTL for fake packet
             
         Returns:
@@ -182,22 +181,26 @@ class BypassTechniques:
         segments = []
         
         # Segment 1: Fake packet with low TTL and fooling
-        fake_payload = BypassTechniques._generate_fake_payload(payload, len(part1))
+        fake_payload = payload  # ✅ Используем весь payload (как в zapret)
         fake_opts = {
             "is_fake": True,
             "ttl": fake_ttl,
             "tcp_flags": 0x18,  # PSH+ACK
             "corrupt_tcp_checksum": "badsum" in fooling,
-            "seq_offset": -10000 if "badseq" in fooling else 0,
-            "add_md5sig": "md5sig" in fooling,
+            # ✅ CRITICAL: Используем corrupt_sequence для совместимости с _recipe_to_specs
+            "corrupt_sequence": True if "badseq" in fooling else False,
+            "add_md5sig_option": True if "md5sig" in fooling else False,
         }
+        
+        if "fakesni" in fooling:
+            fake_opts["fooling_sni"] = _gen_fake_sni()
+        
         segments.append((fake_payload, 0, fake_opts))
         
-        # Calculate sequence offset for overlapping segments
+        # ✅ CRITICAL: Предотвращаем отрицательные offset
         if overlap_size > 0 and len(part1) > 0 and len(part2) > 0:
-            # Overlap: part2 starts earlier to create sequence overlap
             actual_overlap = min(overlap_size, len(part1), len(part2))
-            part2_seq_offset = actual_split_pos - actual_overlap
+            part2_seq_offset = max(actual_split_pos - actual_overlap, 0)
         else:
             part2_seq_offset = actual_split_pos
         
@@ -220,43 +223,29 @@ class BypassTechniques:
             segments.append((part1, 0, part1_opts))
         
         return segments
-    
+
     @staticmethod
-    def _generate_fake_payload(original_payload: bytes, target_size: int) -> bytes:
+    def apply_multisplit(
+        payload: bytes, positions: List[int]
+    ) -> List[Tuple[bytes, int, dict]]:
         """
-        Generate a fake payload for the fake packet.
-        
-        Creates a plausible-looking payload that will be dropped by DPI
-        due to low TTL, but looks legitimate enough to trigger DPI inspection.
-        
-        Args:
-            original_payload: Original payload to base fake on
-            target_size: Target size for fake payload
+        Разделяет payload на несколько сегментов по указанным позициям.
+        """
+        if not positions:
+            return [(payload, 0, {"is_fake": False, "tcp_flags": 0x18})]
             
-        Returns:
-            Fake payload bytes
-        """
-        if len(original_payload) < 6:
-            # Too short, just return some generic data
-            return b'\x16\x03\x01\x00\x00' + b'\x00' * max(0, target_size - 5)
+        segments, last_pos = ([], 0)
+        opts = {"is_fake": False, "tcp_flags": 0x18}  # PSH+ACK
+
+        for pos in sorted(positions):
+            if pos > last_pos and pos < len(payload):
+                segments.append((payload[last_pos:pos], last_pos, opts))
+                last_pos = pos
         
-        # Check if it's TLS
-        if original_payload[0] == 0x16 and original_payload[1] == 0x03:
-            # TLS - create a fake TLS record
-            tls_version = original_payload[1:3]
-            fake_content = b'\x00' * min(target_size, 100)
-            fake_len = len(fake_content).to_bytes(2, 'big')
-            return b'\x16' + tls_version + fake_len + fake_content
-        
-        # Generic fake - slightly modify original
-        fake_size = min(len(original_payload), target_size)
-        fake_payload = bytearray(original_payload[:fake_size])
-        
-        # Modify every 10th byte to make it "fake"
-        for i in range(0, len(fake_payload), 10):
-            fake_payload[i] = (fake_payload[i] + 1) % 256
-        
-        return bytes(fake_payload)
+        if last_pos < len(payload):
+            segments.append((payload[last_pos:], last_pos, opts))
+            
+        return segments
 
     @staticmethod
     def apply_seqovl(
@@ -264,19 +253,25 @@ class BypassTechniques:
     ) -> List[Tuple[bytes, int, dict]]:
         """
         Создает перекрытие последовательностей (sequence overlap).
-        """
-        if split_pos >= len(payload):
-            return [(payload, 0, {"is_fake": False})]
-            
-        part1, part2 = (payload[:split_pos], payload[split_pos:])
-        overlap_data = b"\x00" * overlap_size
-        part1_with_overlap = overlap_data + part1
         
-        opts = {"is_fake": False, "tcp_flags": 0x18}
+        ✅ CRITICAL FIX: Правильная реализация с предотвращением отрицательных offset.
+        """
+        # ✅ Проверяем, что split_pos валиден с учетом overlap
+        if split_pos >= len(payload) or split_pos - overlap_size < 0:
+            return [(payload, 0, {"is_fake": False, "tcp_flags": 0x18})]
+        
+        part1 = payload[:split_pos]
+        
+        # ✅ Вторая часть начинается раньше для создания перекрытия
+        overlap_start = split_pos - overlap_size
+        part2 = payload[overlap_start:]
+        
+        opts = {"is_fake": False, "tcp_flags": 0x18}  # PSH+ACK
 
+        # ✅ Правильный порядок: part1 сначала, потом part2 с перекрытием
         return [
-            (part2, split_pos, opts), 
-            (part1_with_overlap, -overlap_size, opts)
+            (part1, 0, opts),              # Первая часть
+            (part2, overlap_start, opts)   # Вторая часть (перекрывает конец первой)
         ]
 
     @staticmethod
@@ -329,7 +324,8 @@ class BypassTechniques:
     @staticmethod
     def apply_badsum_fooling(packet_data: bytearray) -> bytearray:
         """
-        Портит TCP checksum в пакете.
+        Портит TCP checksum в пакете (legacy method).
+        NOTE: Prefer using corrupt_tcp_checksum option in segments.
         """
         ip_header_len = (packet_data[0] & 0x0F) * 4
         tcp_checksum_pos = ip_header_len + 16
@@ -340,7 +336,8 @@ class BypassTechniques:
     @staticmethod
     def apply_md5sig_fooling(packet_data: bytearray) -> bytearray:
         """
-        Портит TCP checksum значением, характерным для md5sig атак.
+        Портит TCP checksum значением, характерным для md5sig атак (legacy method).
+        NOTE: Prefer using add_md5sig_option in segments.
         """
         ip_header_len = (packet_data[0] & 0x0F) * 4
         tcp_checksum_pos = ip_header_len + 16
