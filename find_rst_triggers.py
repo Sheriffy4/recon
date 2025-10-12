@@ -8,7 +8,10 @@ import asyncio
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple, Set, Iterable
 import logging
-from collections import Counter
+import socket
+import time
+import struct
+from collections import Counter, defaultdict, namedtuple
 import math
 import ipaddress
 
@@ -40,7 +43,7 @@ HYBRID_AVAILABLE = True  # Assume available, will check when needed
 
 # Попытка импортировать scapy для доступа к payload/переассемблированию
 try:
-    from scapy.all import PcapReader, TCP, IP, IPv6, Raw, rdpcap
+    from scapy.all import PcapReader, TCP, IP, IPv6, Raw, rdpcap, wrpcap
     SCAPY_AVAILABLE = True
 except ImportError as e:
     print(f"[WARNING] Scapy недоступен: {e}")
@@ -1202,6 +1205,263 @@ async def run_second_pass_from_report(
         except Exception as e:
             print(f"[WARN] cannot save advanced report: {e}")
 
+def _autodetect_local_ip_from_pcap(pcap_file: str) -> str:
+    priv = defaultdict(int)
+    def _is_priv(ip):
+        try:
+            a = ip.split('.')
+            o1, o2 = int(a[0]), int(a[1])
+            return (o1==10) or (o1==172 and 16<=o2<=31) or (o1==192 and o2==168)
+        except: return False
+    with PcapReader(pcap_file) as pr:
+        for i, pkt in enumerate(pr, 1):
+            if i>200: break
+            try:
+                if IP in pkt and _is_priv(pkt[IP].src):
+                    priv[pkt[IP].src]+=1
+            except: pass
+    if priv:
+        return max(priv.items(), key=lambda x:x[1])[0]
+    return None
+
+def _get_tuple(pkt):
+    if IP in pkt and TCP in pkt:
+        return (pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport, int(pkt.time))
+    if IPv6 in pkt and TCP in pkt:
+        return (pkt[IPv6].src, pkt[TCP].sport, pkt[IPv6].dst, pkt[TCP].dport, int(pkt.time))
+    return None
+
+def _pkt_ttl(pkt):
+    if IP in pkt: return int(pkt[IP].ttl)
+    if IPv6 in pkt: return int(pkt[IPv6].hlim)
+    return None
+
+def _has_md5sig(pkt):
+    # TCP options kind=19,len=18
+    try:
+        if TCP in pkt:
+            # быстрый парсер опций из байтов TCP-заголовка
+            # data offset
+            if IP in pkt:
+                ip_hl = pkt[IP].ihl*4
+                tcp_ofs = ip_hl+20
+                dataofs = pkt[TCP].dataofs*4
+                opt_bytes = bytes(pkt.payload)[(dataofs-20):] if dataofs>20 else b""
+            elif IPv6 in pkt:
+                # у Scapy для TCP в IPv6 dataofs тоже валиден
+                dataofs = pkt[TCP].dataofs*4
+                opt_bytes = bytes(pkt[TCP])[:dataofs][20:] if dataofs>20 else b""
+            else:
+                return False
+            b = bytes(pkt[TCP])
+            hdr_len = pkt[TCP].dataofs*4
+            opts = b[20:hdr_len] if hdr_len>20 else b""
+            # простая проверка наличия \x13\x12
+            return (b"\x13\x12" in opts)
+    except:
+        return False
+    return False
+
+def _recalc_checksums(pkt):
+    # Быстрый детектор badsum: сравним записанную TCP checksum с пересчитанной
+    try:
+        if TCP not in pkt: return False, False
+        # Извлекаем байты IP/TCP
+        if IP in pkt:
+            ip = pkt[IP]
+            ip_bytes = bytes(ip)
+            tcp_bytes = bytes(ip.payload)
+            # Пересчитаем IP чексум
+            def _sum16(data):
+                if len(data)%2: data+=b"\x00"
+                s=0
+                for i in range(0,len(data),2):
+                    s += (data[i]<<8)+data[i+1]
+                    s = (s & 0xFFFF) + (s>>16)
+                return (~s) & 0xFFFF
+            ip_hdr = bytearray(ip_bytes[:ip.ihl*4])
+            ip_hdr[10:12]=b"\x00\x00"
+            ip_ok = (struct.unpack("!H", ip_bytes[10:12])[0] == _sum16(bytes(ip_hdr)))
+            # Пересчитаем TCP чексум с псевдозаголовком
+            src = ip_bytes[12:16]; dst = ip_bytes[16:20]
+            proto = ip_bytes[9]
+            tcp_len = len(tcp_bytes)
+            pseudo = src+dst+bytes([0, proto])+struct.pack("!H", tcp_len)
+            tb = bytearray(tcp_bytes); tb[16:18]=b"\x00\x00"
+            tcp_ok = (struct.unpack("!H", tcp_bytes[16:18])[0] == _sum16(pseudo+bytes(tb)))
+            return ip_ok, tcp_ok
+        # IPv6: пересчитаем только TCP (IP6 без checksum)
+        if IPv6 in pkt:
+            v6 = pkt[IPv6]; tcp = pkt[TCP]
+            src = socket.inet_pton(socket.AF_INET6, v6.src)
+            dst = socket.inet_pton(socket.AF_INET6, v6.dst)
+            tcp_bytes = bytes(tcp)
+            tcp_len = len(tcp_bytes)
+            pseudo = src+dst+struct.pack("!I3xB", tcp_len, 6)
+            def _sum16(data):
+                if len(data)%2: data+=b"\x00"
+                s=0
+                for i in range(0,len(data),2):
+                    s += (data[i]<<8)+data[i+1]
+                    s = (s & 0xFFFF) + (s>>16)
+                return (~s) & 0xFFFF
+            tb = bytearray(tcp_bytes); tb[16:18]=b"\x00\x00"
+            tcp_ok = (struct.unpack("!H", tcp_bytes[16:18])[0] == _sum16(pseudo+bytes(tb)))
+            return True, tcp_ok
+    except:
+        pass
+    return False, False
+
+def _classify_window(segments):
+    """
+    segments: list of dicts with keys:
+      idx, flow, ttl, tcp_ok, ip_ok, md5, flags, paylen, seq, rel_seq
+    returns: (label:str, meta:dict)
+    """
+    # sort by time/idx
+    segs = sorted(segments, key=lambda x: x["idx"])
+    fake = [s for s in segs if s["ttl"] is not None and s["ttl"] <= 4 or (not s["tcp_ok"]) or s["md5"]]
+    # estimate pattern
+    rels = [s["rel_seq"] for s in segs]
+    ttls = [s["ttl"] for s in segs]
+    has_md5 = any(s["md5"] for s in segs)
+    count = len(segs)
+    # try fakeddisorder (fake + part2 + part1)
+    if fake and len(segs)>=3 and segs[0] in fake:
+        # две «реальные» после фейка
+        rel_after = [s["rel_seq"] for s in segs[1:]]
+        # паттерн: [split_pos, 0] или [0, split_pos]
+        if 0 in rel_after and any(r>0 for r in rel_after):
+            split_pos = max([r for r in rel_after if r>0] or [0])
+            label = f"fakeddisorder_badsum={'y' if not segs[0]['tcp_ok'] else 'n'}_ttl{segs[0]['ttl']}_split{split_pos}{'_md5' if has_md5 else ''}"
+            return label, {"type":"fakeddisorder","split_pos":split_pos}
+    # fake race (fake + real)
+    if fake and count>=2 and segs[0] in fake:
+        if segs[1]["rel_seq"]==0:
+            label = f"fake_race_badsum={'y' if not segs[0]['tcp_ok'] else 'n'}_ttl{segs[0]['ttl']}{'_md5' if has_md5 else ''}"
+            return label, {"type":"fake_race"}
+    # multisplit/split: без фейка, несколько real с различными rel_seq
+    if not fake and count>=2:
+        splits = sorted(set([s["rel_seq"] for s in segs]))
+        if len(splits)>=2:
+            if len(splits)==2:
+                label = f"split_{splits[1]}"
+                return label, {"type":"split","split_pos":splits[1]}
+            else:
+                label = f"multisplit_{','.join(str(x) for x in splits[1:])}"
+                return label, {"type":"multisplit","positions":splits[1:]}
+    # seqovl эвристика: второй сегмент начинается раньше длины первого
+    if count>=2 and segs[1]["rel_seq"]>0 and segs[1]["rel_seq"] < segs[0]["paylen"]:
+        label = f"seqovl_ovl{segs[0]['paylen']-segs[1]['rel_seq']}"
+        return label, {"type":"seqovl","overlap":segs[0]['paylen']-segs[1]['rel_seq']}
+    # fallback
+    return "unknown", {"type":"unknown"}
+
+def export_strategy_samples(pcap_file: str, out_dir: str, window_ms: float = 200.0, max_samples: int = 1):
+    """
+    Экспортирует по одному эталонному примеру пакетов на каждую распознанную стратегию.
+    - pcap_file: входной PCAP (например, out2.pcap)
+    - out_dir: каталог для сохранения (pcap+json на каждую стратегию)
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    index = {}  # label -> info
+    local_ip = _autodetect_local_ip_from_pcap(pcap_file)
+
+    # 1) Собираем все TCP с payload и индексируем по flow
+    FlowKey = namedtuple("FlowKey", "src sp dst dp")
+    flows = defaultdict(list)  # flow -> list of (idx, time, pkt)
+
+    with PcapReader(pcap_file) as pr:
+        for i, pkt in enumerate(pr, 1):
+            try:
+                if TCP in pkt and (pkt[TCP].payload):
+                    if IP in pkt:
+                        fk = FlowKey(pkt[IP].src, int(pkt[TCP].sport), pkt[IP].dst, int(pkt[TCP].dport))
+                    elif IPv6 in pkt:
+                        fk = FlowKey(pkt[IPv6].src, int(pkt[TCP].sport), pkt[IPv6].dst, int(pkt[TCP].dport))
+                    else:
+                        continue
+                    flows[fk].append((i, float(pkt.time), pkt))
+            except Exception:
+                continue
+
+    # 2) Для каждого flow находим окна вокруг ClientHello
+    samples_written = 0
+    labels_taken = set()
+    for fk, items in flows.items():
+        # сортируем по времени/индексу
+        items.sort(key=lambda x: x[1])
+        # найдём потенциальные CH-секции: первый пакет, где в payload есть 0x16 .. 0x01 (ClientHello)
+        candidate_idx = []
+        for idx, ts, pkt in items:
+            raw = bytes(pkt[TCP].payload) if pkt[TCP].payload else b""
+            off = find_clienthello_offset(raw)
+            if off is not None:
+                candidate_idx.append((idx, ts))
+        if not candidate_idx:
+            continue
+        for idx0, ts0 in candidate_idx:
+            # окно 0..window_ms
+            window = []
+            for idx, ts, pkt in items:
+                if ts < ts0: continue
+                if (ts - ts0)*1000.0 > window_ms: break
+                window.append((idx, ts, pkt))
+            if not window:
+                continue
+            # превратим окно в фичи
+            base_seq = int(window[0][2][TCP].seq)
+            segs = []
+            for idx, ts, pkt in window:
+                pay = bytes(pkt[TCP].payload) if pkt[TCP].payload else b""
+                ttl = _pkt_ttl(pkt)
+                ip_ok, tcp_ok = _recalc_checksums(pkt)
+                md5 = _has_md5sig(pkt)
+                flags = int(pkt[TCP].flags)
+                rel = (int(pkt[TCP].seq) - base_seq) & 0xFFFFFFFF
+                # нормализуем rel в 0.. если переполнения нет — будет ок
+                if rel > (1<<31):  # редкий случай wrap-around
+                    rel = 0
+                segs.append({
+                    "idx": idx,
+                    "ttl": ttl,
+                    "tcp_ok": tcp_ok,
+                    "ip_ok": ip_ok,
+                    "md5": md5,
+                    "flags": flags,
+                    "paylen": len(pay),
+                    "seq": int(pkt[TCP].seq),
+                    "rel_seq": rel,
+                })
+            label, meta = _classify_window(segs)
+            # сохраняем только по одному примеру на стратегию
+            if label not in labels_taken and label != "unknown":
+                labels_taken.add(label)
+                # write pcap sample with сегменты из окна
+                out_pcap = os.path.join(out_dir, f"strategy_{label}.pcap")
+                wrpcap(out_pcap, [p for _,_,p in window])
+                # write json meta
+                info = {
+                    "flow": f"{fk.src}:{fk.sp} -> {fk.dst}:{fk.dp}",
+                    "label": label,
+                    "meta": meta,
+                    "base_packet_index": window[0][0],
+                    "packet_indices": [idx for idx,_,_ in window],
+                    "segments": segs
+                }
+                with open(os.path.join(out_dir, f"strategy_{label}.json"), "w", encoding="utf-8") as f:
+                    json.dump(info, f, ensure_ascii=False, indent=2)
+                index[label] = info
+                samples_written += 1
+            if samples_written >= 64:  # safety cap
+                break
+
+    # итоговый индекс
+    with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as f:
+        json.dump(index, f, ensure_ascii=False, indent=2)
+    print(f"[OK] Strategy samples exported: {len(index)} (→ {out_dir})")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Находит RST‑триггеры в PCAP, вытаскивает TLS ClientHello и генерит рекомендации стратегий. Может запустить второй прогон через HybridEngine.")
     parser.add_argument("pcap_file", help="Путь к PCAP‑файлу")
@@ -1217,6 +1477,7 @@ def main():
     parser.add_argument("--save-inspect-json", type=str, default=None, help="Сохранить сырой отчёт pcap_inspect в файл")
     parser.add_argument("--advanced-report", action="store_true", help="Сгенерировать AdvancedReportingIntegration артефакты")
     parser.add_argument("--advanced-report-file", type=str, default="advanced_report.json", help="Куда сохранить сводный advanced-отчёт")
+    parser.add_argument("--export-strategy-samples", type=str, help="Каталог для выгрузки пер-стратегийных PCAP/JSON самплов")
 
     args = parser.parse_args()
 
@@ -1353,6 +1614,9 @@ def main():
     # Запуск асинхронного хвоста, если есть, что делать
     if args.second_pass or (args.advanced_report and ADV_REPORTING_AVAILABLE):
         asyncio.run(_async_tail())
+
+    if args.export_strategy_samples and SCAPY_AVAILABLE:
+        export_strategy_samples(args.pcap_file, args.export_strategy_samples)
 
 if __name__ == "__main__":
     main()
