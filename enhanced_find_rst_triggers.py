@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# File: enhanced_find_rst_triggers.py
 """
 Enhanced Find RST Triggers - DPI Fingerprinting Analysis Tool
 
