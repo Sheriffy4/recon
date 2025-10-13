@@ -1238,13 +1238,18 @@ class WindowsBypassEngine(IBypassEngine):
             if recipe:
                 try:
                     specs = self._recipe_to_specs(recipe, payload)
-                    if not specs:
-                        self.logger.error(f"apply_bypass: Failed to convert recipe to specs for task {task_type}")
-                        w.send(packet)
-                        return
-                    
+            
+                    # Получаем методы "обмана" из параметров задачи
+                    fooling_methods = params.get("fooling", [])
+
                     for sp in specs:
-                        if not getattr(sp, "is_fake", False):
+                        if getattr(sp, "is_fake", False):
+                            # ЯВНО гарантируем, что для фейковых пакетов будет плохая контрольная сумма,
+                            # если это предусмотрено стратегией.
+                            if "badsum" in fooling_methods:
+                                sp.corrupt_tcp_checksum = True
+                        else:
+                            # ЯВНО гарантируем, что для реальных пакетов контрольная сумма будет правильной.
                             sp.ttl = None
                             sp.corrupt_tcp_checksum = False
 
