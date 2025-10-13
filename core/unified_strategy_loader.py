@@ -223,10 +223,10 @@ class UnifiedStrategyLoader:
         if desync_match:
             desync_methods = [m.strip() for m in desync_match.group(1).split(',')]
 
-            # <<< НАЧАЛО ИЗМЕНЕНИЙ: Явная проверка комбинации fake,disorder >>>
-            if 'fake' in desync_methods and 'disorder' in desync_methods:
+            # <<< НАЧАЛО ИЗМЕНЕНИЙ: Явная проверка комбинации fake,disorder и fake,multidisorder >>>
+            if 'fake' in desync_methods and ('disorder' in desync_methods or 'multidisorder' in desync_methods):
                 attack_type = 'fakeddisorder'
-                self.logger.debug("Detected 'fake,disorder' combination, setting attack type to 'fakeddisorder'")
+                self.logger.debug("Detected 'fake,disorder' or 'fake,multidisorder' combination, setting attack type to 'fakeddisorder'")
             else:
                 # Определяем приоритетный порядок, от более сложных и специфичных к более простым.
                 priority_order = [
