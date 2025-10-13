@@ -1462,6 +1462,260 @@ def export_strategy_samples(pcap_file: str, out_dir: str, window_ms: float = 200
     print(f"[OK] Strategy samples exported: {len(index)} (→ {out_dir})")
 
 
+# ==============================================================================
+# НОВЫЙ КЛАСС ДЛЯ АНАЛИЗА СБОЕВ ПОТОКОВ (ДИАГНОСТИКА ВТОРИЧНОЙ ПРОБЛЕМЫ)
+# ==============================================================================
+
+class FlowFailureAnalyzer:
+    """
+    Анализирует PCAP на предмет неудачных TCP-потоков ПОСЛЕ обхода DPI.
+    Диагностирует проблемы с TCP Sequence Numbers и ответы сервера.
+    """
+    def __init__(self, pcap_file: str, local_ip: Optional[str] = None):
+        self.pcap_file = pcap_file
+        self.local_ip = local_ip
+        self.flows = defaultdict(list)
+        if not SCAPY_AVAILABLE:
+            raise ImportError("Scapy не найден. Анализ потоков невозможен.")
+
+    def analyze(self):
+        """Основной метод для запуска анализа."""
+        print("\n" + "="*80)
+        print("🚀 ЗАПУСК АНАЛИЗА СБОЕВ TCP-ПОТОКОВ (POST-BYPASS)")
+        print("="*80)
+
+        packets = rdpcap(self.pcap_file)
+        if not self.local_ip:
+            self.local_ip = self._autodetect_local_ip(packets)
+            if not self.local_ip:
+                LOG.error("Не удалось определить локальный IP. Анализ остановлен.")
+                return
+
+        # 1. Группировка пакетов по потокам
+        for pkt in packets:
+            if TCP in pkt and IP in pkt:
+                flow_key = self._get_flow_key(pkt)
+                self.flows[flow_key].append(pkt)
+
+        LOG.info(f"Найдено {len(self.flows)} TCP-потоков.")
+
+        # 2. Анализ каждого потока
+        failed_flows_count = 0
+        for flow_key, packets in self.flows.items():
+            # Нас интересуют только исходящие потоки от нашей машины
+            if flow_key[0] != self.local_ip:
+                continue
+
+            analysis_result = self._analyze_stream(packets)
+            if analysis_result["is_failed_bypass_attempt"]:
+                failed_flows_count += 1
+                self._print_stream_report(flow_key, analysis_result)
+
+        if failed_flows_count == 0:
+            print("\n✅ Не найдено потоков с признаками неудачного обхода (Server Hello -> RST).")
+        else:
+            print(f"\n🏁 Анализ завершен. Найдено {failed_flows_count} подозрительных потоков.")
+        print("="*80)
+
+
+    def _analyze_stream(self, packets: List[Any]) -> Dict:
+        """Анализирует один TCP-поток на предмет ошибок сборки."""
+        report = {
+            "is_failed_bypass_attempt": False,
+            "checks": {},
+            "conclusion": "Причина сбоя не установлена.",
+            "recommendation": "Проверьте PCAP вручную."
+        }
+
+        outbound_payload_pkts = [p for p in packets if p[IP].src == self.local_ip and TCP in p and p[TCP].payload]
+        inbound_pkts = [p for p in packets if p[IP].dst == self.local_ip]
+
+        # Эвристика для поиска fakeddisorder: 3 исходящих пакета с данными в начале
+        if len(outbound_payload_pkts) < 3:
+            return report
+
+        # Предполагаем, что первые 3 пакета - это наша атака
+        fake_pkt, part2_pkt, part1_pkt = outbound_payload_pkts[0], outbound_payload_pkts[1], outbound_payload_pkts[2]
+
+        # Проверка 1: Анализ фейкового пакета
+        report["checks"]["fake_packet"] = self._check_fake_packet(fake_pkt)
+
+        # Проверка 2: Анализ сборки реальных сегментов
+        report["checks"]["reassembly"] = self._check_reassembly(part1_pkt, part2_pkt)
+
+        # Проверка 3: Анализ ответа сервера
+        report["checks"]["server_response"] = self._check_server_response(inbound_pkts, part1_pkt[IP].dst)
+
+        # Итоговое заключение
+        if (report["checks"]["server_response"].get("pattern") == "SH_THEN_RST_FROM_SERVER"):
+            report["is_failed_bypass_attempt"] = True
+            if report["checks"]["reassembly"]["status"] == "FAIL":
+                report["conclusion"] = "Наиболее вероятная причина - ошибка в TCP Sequence Number реальных сегментов."
+                report["recommendation"] = "Проверьте логику вычисления `seq_offset` в `base_engine.py` и `segment_packet_builder.py`. Убедитесь, что `seq(part2) == seq(part1) + len(part1)`."
+            elif report["checks"]["fake_packet"]["status"] == "FAIL":
+                 report["conclusion"] = "Обнаружены проблемы в фейковом пакете. Хотя ответ от сервера есть, это может влиять на сессию."
+                 report["recommendation"] = "Убедитесь, что у фейкового пакета всегда неверная контрольная сумма и низкий TTL."
+            else:
+                report["conclusion"] = "Обход DPI, вероятно, успешен, но сервер разрывает соединение из-за невалидного Client Hello."
+                report["recommendation"] = "Проверьте, что содержимое `part1` и `part2` при сборке дает корректный Client Hello. Возможно, проблема в `split_pos`."
+
+        return report
+
+    def _check_fake_packet(self, pkt: Any) -> Dict:
+        """Проверяет TTL и контрольную сумму фейкового пакета."""
+        res = {"status": "PASS", "details": []}
+
+        # Проверка TTL
+        if pkt[IP].ttl > 10:
+            res["status"] = "FAIL"
+            res["details"].append(f"❌ TTL слишком высокий ({pkt[IP].ttl}), ожидался низкий (1-4).")
+        else:
+            res["details"].append(f"✅ TTL низкий ({pkt[IP].ttl}).")
+
+        # Проверка контрольной суммы
+        is_valid, _ = self._recalculate_checksums(pkt)
+        if is_valid:
+            res["status"] = "FAIL"
+            res["details"].append("❌ TCP Checksum ВЕРНАЯ, хотя ожидалась неверная (badsum).")
+        else:
+            res["details"].append("✅ TCP Checksum неверная, как и ожидалось.")
+
+        return res
+
+    def _check_reassembly(self, part1_pkt: Any, part2_pkt: Any) -> Dict:
+        """Проверяет корректность TCP Sequence Numbers для сборки."""
+        res = {"status": "PASS", "details": []}
+
+        seq1 = part1_pkt[TCP].seq
+        len1 = len(part1_pkt[TCP].payload)
+        seq2 = part2_pkt[TCP].seq
+
+        expected_seq2 = (seq1 + len1) & 0xFFFFFFFF # Учитываем переполнение
+
+        res["details"].append(f"  - Part1: seq={seq1}, len={len1}")
+        res["details"].append(f"  - Part2: seq={seq2}")
+        res["details"].append(f"  - Ожидаемый seq для Part2: {expected_seq2}")
+
+        if seq2 != expected_seq2:
+            res["status"] = "FAIL"
+            res["details"].append(f"❌ ОШИБКА: Sequence number для Part2 некорректен! Разница: {seq2 - expected_seq2}")
+        else:
+            res["details"].append("✅ Sequence numbers корректны для сборки.")
+
+        return res
+
+    def _check_server_response(self, inbound_packets: List[Any], server_ip: str) -> Dict:
+        """Ищет Server Hello и последующий RST от сервера."""
+        res = {"status": "UNKNOWN", "pattern": "NO_RESPONSE", "details": []}
+
+        server_hello_pkt = None
+        rst_pkt = None
+
+        for i, pkt in enumerate(inbound_packets):
+            if pkt[IP].src != server_ip: continue
+
+            # Ищем Server Hello (SYN+ACK - начало сессии, или PSH+ACK с TLS Server Hello)
+            if TCP in pkt and (pkt[TCP].flags.SA or (pkt[TCP].flags.PA and pkt[TCP].payload and bytes(pkt[TCP].payload)[0] == 0x16)):
+                if self._is_tls_server_hello(bytes(pkt[TCP].payload)):
+                    server_hello_pkt = pkt
+                    res["details"].append(f"✅ Найден Server Hello в пакете #{pkt.packet_num if hasattr(pkt, 'packet_num') else 'N/A'}.")
+
+                    # Ищем RST сразу после Server Hello
+                    if i + 1 < len(inbound_packets):
+                        next_pkt = inbound_packets[i+1]
+                        if next_pkt[IP].src == server_ip and TCP in next_pkt and next_pkt[TCP].flags.R:
+                            rst_pkt = next_pkt
+                            res["details"].append(f"✅ Найден RST от сервера сразу после Server Hello в пакете #{rst_pkt.packet_num if hasattr(rst_pkt, 'packet_num') else 'N/A'}.")
+                    break
+
+        if server_hello_pkt and rst_pkt:
+            res["status"] = "FAIL"
+            res["pattern"] = "SH_THEN_RST_FROM_SERVER"
+        elif server_hello_pkt and not rst_pkt:
+            res["status"] = "PASS"
+            res["pattern"] = "SH_ONLY"
+            res["details"].append("✅ Получен Server Hello, но RST от сервера не найден. Проблема может быть дальше в потоке.")
+        else:
+            res["details"].append("❌ Server Hello от целевого сервера не найден.")
+
+        return res
+
+    def _print_stream_report(self, flow_key: Tuple, report: Dict):
+        """Выводит отформатированный отчет по одному потоку."""
+        print("\n" + "-"*70)
+        print(f"🔍 Анализ потока: {flow_key[0]}:{flow_key[1]} -> {flow_key[2]}:{flow_key[3]}")
+        print("-"*70)
+
+        # Отчет по фейковому пакету
+        fake_check = report["checks"]["fake_packet"]
+        print(f"  [1] Анализ фейкового пакета: [{fake_check['status']}]")
+        for detail in fake_check["details"]:
+            print(f"      {detail}")
+
+        # Отчет по сборке
+        reasm_check = report["checks"]["reassembly"]
+        print(f"  [2] Проверка сборки реальных сегментов: [{reasm_check['status']}]")
+        for detail in reasm_check["details"]:
+            print(f"      {detail}")
+
+        # Отчет по ответу сервера
+        resp_check = report["checks"]["server_response"]
+        print(f"  [3] Анализ ответа сервера: [{resp_check['status']}]")
+        for detail in resp_check["details"]:
+            print(f"      {detail}")
+
+        print("\n  --- Заключение ---")
+        print(f"  Вывод: {report['conclusion']}")
+        print(f"  Рекомендация: {report['recommendation']}")
+        print("-"*70)
+
+    def _get_flow_key(self, pkt: Any) -> Tuple:
+        return (pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport)
+
+    def _autodetect_local_ip(self, packets: List[Any]) -> Optional[str]:
+        # ... (эта функция уже есть в pcap_checksum_validator, можно скопировать)
+        src_ips = Counter()
+        for i, pkt in enumerate(packets):
+            if i > 200: break
+            if IP in pkt and pkt[IP].src:
+                try:
+                    if ipaddress.ip_address(pkt[IP].src).is_private:
+                        src_ips[pkt[IP].src] += 1
+                except ValueError:
+                    continue
+        if src_ips:
+            return src_ips.most_common(1)[0][0]
+        return None
+
+    def _recalculate_checksums(self, pkt: Any) -> Tuple[bool, bool]:
+        # ... (эта функция тоже есть, можно адаптировать)
+        try:
+            # TCP Checksum
+            tcp_pkt = pkt.copy()
+            original_tcp_chksum = tcp_pkt[TCP].chksum
+            del tcp_pkt[TCP].chksum
+            recalculated_tcp_chksum = IP(bytes(tcp_pkt))[TCP].chksum
+            tcp_valid = original_tcp_chksum == recalculated_tcp_chksum
+
+            # IP Checksum
+            ip_pkt = pkt[IP].copy()
+            original_ip_chksum = ip_pkt.chksum
+            del ip_pkt.chksum
+            recalculated_ip_chksum = IP(bytes(ip_pkt)).chksum
+            ip_valid = original_ip_chksum == recalculated_ip_chksum
+
+            return tcp_valid, ip_valid
+        except Exception:
+            return False, False
+
+    def _is_tls_server_hello(self, payload: bytes) -> bool:
+        # Простая проверка на Server Hello (Handshake Type 2)
+        return payload and len(payload) > 5 and payload[0] == 0x16 and payload[5] == 0x02
+
+# ==============================================================================
+# ИНТЕГРАЦИЯ В `main()`
+# ==============================================================================
+
 def main():
     parser = argparse.ArgumentParser(description="Находит RST‑триггеры в PCAP, вытаскивает TLS ClientHello и генерит рекомендации стратегий. Может запустить второй прогон через HybridEngine.")
     parser.add_argument("pcap_file", help="Путь к PCAP‑файлу")
@@ -1479,11 +1733,22 @@ def main():
     parser.add_argument("--advanced-report-file", type=str, default="advanced_report.json", help="Куда сохранить сводный advanced-отчёт")
     parser.add_argument("--export-strategy-samples", type=str, help="Каталог для выгрузки пер-стратегийных PCAP/JSON самплов")
 
+    # <<< НОВЫЙ АРГУМЕНТ >>>
+    parser.add_argument("--analyze-flow-failures", action="store_true", help="Запустить детальный анализ неудачных TCP-потоков для диагностики проблем сборки.")
+    parser.add_argument("--local-ip", help="IP-адрес локальной машины для анализа потоков (если автоопределение неверно).")
+
+
     args = parser.parse_args()
 
     if not os.path.exists(args.pcap_file):
         print(f"[ERROR] Файл не найден: {args.pcap_file}", file=sys.stderr)
         sys.exit(1)
+
+    # <<< НОВЫЙ РЕЖИМ РАБОТЫ >>>
+    if args.analyze_flow_failures:
+        analyzer = FlowFailureAnalyzer(args.pcap_file, local_ip=args.local_ip)
+        analyzer.analyze()
+        sys.exit(0)
 
     # Анализ RST
     analyzer = RSTTriggerAnalyzer(args.pcap_file)
