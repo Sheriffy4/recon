@@ -1,0 +1,139 @@
+{
+  "mobile.x.com": [
+    {
+      "strategy_id": "f7d3bdd2e196",
+      "strategy": "fakeddisorder(fooling=['badsum'], overlap_size=0, split_pos=76, ttl=3)",
+      "result_status": "ALL_SITES_WORKING",
+      "successful_sites": 1,
+      "total_sites": 1,
+      "success_rate": 1.0,
+      "avg_latency_ms": 475.0854969024658,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null,
+      "engine_telemetry": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "CH": 1,
+        "SH": 1,
+        "RST": 0
+      },
+      "site_results": {
+        "https://mobile.x.com": [
+          "WORKING",
+          "172.66.0.227",
+          475.0854969024658,
+          400
+        ]
+      }
+    },
+    {
+      "strategy_id": "26c37d1699ce",
+      "strategy": "--dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-split-pos=76 --dpi-desync-ttl=3",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null,
+      "engine_telemetry": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "CH": 46,
+        "SH": 1,
+        "RST": 1
+      },
+      "site_results": {
+        "https://mobile.x.com": [
+          "TIMEOUT",
+          "172.66.0.227",
+          12033.432245254517,
+          0
+        ]
+      }
+    },
+    {
+      "strategy_id": "29e1f674f663",
+      "strategy": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=15",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null,
+      "engine_telemetry": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "CH": 47,
+        "SH": 1,
+        "RST": 1
+      },
+      "site_results": {
+        "https://mobile.x.com": [
+          "TIMEOUT",
+          "172.66.0.227",
+          8957.260847091675,
+          0
+        ]
+      }
+    },
+    {
+      "strategy_id": "29457fbccb27",
+      "strategy": "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null,
+      "engine_telemetry": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "CH": 48,
+        "SH": 1,
+        "RST": 1
+      },
+      "site_results": {
+        "https://mobile.x.com": [
+          "TIMEOUT",
+          "172.66.0.227",
+          8591.21060371399,
+          0
+        ]
+      }
+    },
+    {
+      "strategy_id": "00bf4c1e93a1",
+      "strategy": "--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-fooling=badsum,badseq",
+      "result_status": "NO_SITES_WORKING",
+      "successful_sites": 0,
+      "total_sites": 1,
+      "success_rate": 0.0,
+      "avg_latency_ms": 0.0,
+      "fingerprint_used": false,
+      "dpi_type": null,
+      "dpi_confidence": null,
+      "engine_telemetry": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "CH": 49,
+        "SH": 1,
+        "RST": 1
+      },
+      "site_results": {
+        "https://mobile.x.com": [
+          "TIMEOUT",
+          "172.66.0.227",
+          8615.131855010986,
+          0
+        ]
+      }
+    }
+  ]
+}

@@ -269,9 +269,9 @@ class MonitoringWebServer:
                     }]
                 },
                 options: {
-                    responsive: true,
-                    plugins: { legend: { display: true }, tooltip: { enabled: true } },
-                    scales: { y: { beginAtZero: true, max: 1.0 } }
+                    responsive: True,
+                    plugins: { legend: { display: True}, tooltip: { enabled: True} },
+                    scales: { y: { beginAtZero: True, max: 1.0 } }
                 }
             };
             if (quicChart) {

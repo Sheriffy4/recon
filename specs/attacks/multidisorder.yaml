@@ -1,0 +1,173 @@
+# Multidisorder Attack Specification
+# Splits packet into multiple segments and sends them in out-of-order sequence
+
+name: multidisorder
+aliases:
+  - tcp_multidisorder
+description: Split packet into multiple segments and send them in out-of-order sequence
+category: tcp_fragmentation
+
+parameters:
+  - name: split_positions
+    type: list[int]
+    default: null
+    required: true
+    description: List of byte positions where to split the packet
+  
+  - name: num_splits
+    type: int
+    default: null
+    min: 2
+    max: 10
+    required: false
+    description: Number of equal-sized splits (alternative to split_positions)
+  
+  - name: disorder_pattern
+    type: str
+    default: "reverse"
+    required: false
+    description: Pattern for disorder (reverse, random, custom)
+    allowed_values:
+      - reverse
+      - random
+      - custom
+  
+  - name: custom_order
+    type: list[int]
+    default: null
+    required: false
+    description: Custom send order indices (e.g., [2, 0, 1])
+  
+  - name: disorder_delay_ms
+    type: float
+    default: 1.0
+    min: 0.0
+    required: false
+    description: Delay in milliseconds between disordered packets
+
+expected_packets:
+  count: "{len(split_positions) + 1 or num_splits}"
+  order:
+    - note: "Packets are sent in disordered sequence based on disorder_pattern"
+    - note: "Sequence numbers remain correct, only send order changes"
+    - note: "For reverse pattern: last segment sent first, first segment sent last"
+
+validation_rules:
+  sequence_numbers:
+    - rule: "segments[0].seq == original_seq (in logical order)"
+      description: "First segment (logically) must start at original sequence number"
+      severity: critical
+    
+    - rule: "for i in range(1, len(segments)): segments[i].seq == segments[i-1].seq + len(segments[i-1].payload) (in logical order)"
+      description: "Each segment sequence must follow previous segment (in logical order)"
+      severity: critical
+  
+  payload:
+    - rule: "b''.join(s.payload for s in sorted(segments, key=lambda x: x.seq)) == original_payload"
+      description: "Combined payload (in sequence order) must equal original"
+      severity: critical
+  
+  packet_count:
+    - rule: "if params.split_positions: len(packets) == len(params.split_positions) + 1"
+      description: "Must generate correct number of packets"
+      severity: critical
+    
+    - rule: "if params.num_splits: len(packets) == params.num_splits"
+      description: "Must generate correct number of packets based on num_splits"
+      severity: critical
+  
+  packet_order:
+    - rule: "if params.disorder_pattern == 'reverse': packets == list(reversed(sorted(packets, key=lambda x: x.seq)))"
+      description: "For reverse pattern, packets must be sent in reverse sequence order"
+      severity: critical
+    
+    - rule: "if params.disorder_pattern == 'custom': verify custom_order is valid permutation"
+      description: "For custom pattern, custom_order must be valid permutation"
+      severity: critical
+    
+    - rule: "packets (in send order) != sorted(packets, key=lambda x: x.seq)"
+      description: "Packets must NOT be in sequence order (must be disordered)"
+      severity: critical
+  
+  checksum:
+    - rule: "all(p.checksum_valid for p in packets)"
+      description: "All packets must have valid checksums"
+      severity: critical
+  
+  ttl:
+    - rule: "all(p.ttl in [64, 128] for p in packets)"
+      description: "All packets should have default system TTL"
+      severity: warning
+
+test_variations:
+  reverse_two:
+    description: "Two segments in reverse order"
+    params:
+      split_positions: [50]
+      disorder_pattern: "reverse"
+  
+  reverse_three:
+    description: "Three segments in reverse order"
+    params:
+      split_positions: [30, 60]
+      disorder_pattern: "reverse"
+  
+  random_disorder:
+    description: "Random disorder pattern"
+    params:
+      num_splits: 4
+      disorder_pattern: "random"
+  
+  custom_order:
+    description: "Custom disorder pattern"
+    params:
+      split_positions: [20, 40, 60]
+      disorder_pattern: "custom"
+      custom_order: [2, 0, 3, 1]
+  
+  with_delay:
+    description: "Disorder with custom delay"
+    params:
+      split_positions: [30, 60]
+      disorder_pattern: "reverse"
+      disorder_delay_ms: 5.0
+
+error_cases:
+  missing_params:
+    description: "Must specify split_positions or num_splits"
+    params:
+      disorder_pattern: "reverse"
+    expected_error: "Must specify split_positions or num_splits"
+  
+  invalid_disorder_pattern:
+    description: "Invalid disorder pattern"
+    params:
+      split_positions: [50]
+      disorder_pattern: "invalid"
+    expected_error: "Invalid disorder_pattern"
+  
+  custom_without_order:
+    description: "Custom pattern requires custom_order"
+    params:
+      split_positions: [50]
+      disorder_pattern: "custom"
+    expected_error: "custom_order required for custom disorder_pattern"
+  
+  invalid_custom_order:
+    description: "custom_order must be valid permutation"
+    params:
+      split_positions: [30, 60]
+      disorder_pattern: "custom"
+      custom_order: [0, 1, 5]
+    expected_error: "custom_order must be valid permutation of segment indices"
+
+notes:
+  - "Splits packet into multiple segments and sends them out-of-order"
+  - "All segments have valid checksums and correct sequence numbers"
+  - "No TTL manipulation - all packets reach destination"
+  - "TCP stack will reorder packets correctly"
+  - "DPI may not handle out-of-order packets correctly"
+  - "reverse pattern: sends segments in reverse order (last first)"
+  - "random pattern: sends segments in random order"
+  - "custom pattern: sends segments in specified order"
+  - "More effective than simple disorder for complex DPI"

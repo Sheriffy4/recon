@@ -1,7 +1,0 @@
-{
-  "instagram.com": {
-    "strategy1_fakeddisorder": "--dpi-desync=fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=4",
-    "strategy2_fake": "--dpi-desync=fake --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=8",
-    "strategy3_disorder": "--dpi-desync=disorder --dpi-desync-split-pos=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2"
-  }
-}

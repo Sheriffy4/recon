@@ -1,0 +1,173 @@
+# Fake Attack Specification
+# Sends a fake packet with low TTL before the real packet
+
+name: fake
+aliases:
+  - fake_packet
+  - fakeonly
+  - fake-desync
+description: Send fake packet with low TTL before real packet to fool DPI
+category: tcp_manipulation
+
+parameters:
+  - name: ttl
+    type: int
+    default: 1
+    min: 1
+    max: 255
+    required: false
+    description: TTL for fake packet (typically 1-3 to expire before DPI)
+  
+  - name: fake_ttl
+    type: int
+    default: null
+    min: 1
+    max: 255
+    required: false
+    description: Alternative TTL parameter (overrides ttl if specified)
+  
+  - name: fooling
+    type: list[str]
+    default: []
+    required: false
+    description: Fooling methods to apply to fake packet
+    allowed_values:
+      - badsum
+      - md5sig
+      - badseq
+      - none
+  
+  - name: fake_sni
+    type: str
+    default: null
+    required: false
+    description: Fake SNI hostname to use in fake packet
+  
+  - name: fake_http
+    type: str
+    default: null
+    required: false
+    description: Fake HTTP request to send
+  
+  - name: fake_tls
+    type: str
+    default: null
+    required: false
+    description: Fake TLS ClientHello to send (e.g., PAYLOADTLS)
+
+expected_packets:
+  count: 2
+  order:
+    - packet_index: 0
+      name: fake_packet
+      properties:
+        ttl: "{ttl or fake_ttl or 1}"
+        tcp_flags: "PSH+ACK (0x18)"
+        is_fake: true
+        payload: "fake payload (modified or generated)"
+      
+    - packet_index: 1
+      name: real_packet
+      properties:
+        ttl: "64 or 128 (default system TTL)"
+        tcp_flags: "PSH+ACK (0x18)"
+        is_fake: false
+        payload: "original payload"
+
+validation_rules:
+  sequence_numbers:
+    - rule: "fake_packet.seq == real_packet.seq"
+      description: "Fake packet must have same sequence number as real packet"
+      severity: critical
+  
+  ttl:
+    - rule: "fake_packet.ttl == params.ttl or params.fake_ttl"
+      description: "Fake packet must have specified TTL"
+      severity: critical
+    
+    - rule: "real_packet.ttl in [64, 128]"
+      description: "Real packet should have default system TTL"
+      severity: warning
+  
+  checksum:
+    - rule: "if 'badsum' in params.fooling: fake_packet.checksum_valid == False"
+      description: "Fake packet must have bad checksum when badsum fooling specified"
+      severity: critical
+    
+    - rule: "real_packet.checksum_valid == True"
+      description: "Real packet must have valid checksum"
+      severity: critical
+  
+  packet_count:
+    - rule: "len(packets) == 2"
+      description: "Must generate exactly 2 packets"
+      severity: critical
+  
+  packet_order:
+    - rule: "packets[0].is_fake == True"
+      description: "First packet must be fake"
+      severity: critical
+    
+    - rule: "packets[1].is_fake == False"
+      description: "Second packet must be real"
+      severity: critical
+
+test_variations:
+  minimal:
+    description: "Minimal fake attack with default parameters"
+    params:
+      ttl: 1
+  
+  with_badsum:
+    description: "Fake attack with bad checksum fooling"
+    params:
+      ttl: 1
+      fooling: ["badsum"]
+  
+  with_multiple_fooling:
+    description: "Fake attack with multiple fooling methods"
+    params:
+      ttl: 1
+      fooling: ["badsum", "md5sig", "badseq"]
+  
+  high_ttl:
+    description: "Fake attack with higher TTL"
+    params:
+      ttl: 3
+      fooling: ["badsum"]
+  
+  with_fake_sni:
+    description: "Fake attack with custom SNI"
+    params:
+      ttl: 1
+      fooling: ["badsum"]
+      fake_sni: "google.com"
+
+error_cases:
+  invalid_ttl_zero:
+    description: "TTL cannot be 0"
+    params:
+      ttl: 0
+    expected_error: "ttl must be between 1 and 255"
+  
+  invalid_ttl_high:
+    description: "TTL cannot exceed 255"
+    params:
+      ttl: 256
+    expected_error: "ttl must be between 1 and 255"
+  
+  invalid_fooling:
+    description: "Invalid fooling method"
+    params:
+      ttl: 1
+      fooling: ["invalid_method"]
+    expected_error: "Unknown fooling method"
+
+notes:
+  - "Fake packet should expire before reaching DPI due to low TTL"
+  - "DPI sees fake packet and allows connection"
+  - "Real packet reaches destination with correct data"
+  - "Most effective with TTL 1-3"
+  - "badsum fooling corrupts TCP checksum to fool DPI"
+  - "md5sig adds fake MD5 signature TCP option"
+  - "badseq corrupts sequence number (typically offset -10000)"

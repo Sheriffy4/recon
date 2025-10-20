@@ -1,0 +1,79 @@
+{
+  "dpi_strategy": {
+    "enabled": true,
+    "desync_mode": "split",
+    "split_positions": [3, 10, "sni"],
+    "fooling_methods": ["badsum"],
+    "ttl": null,
+    "repeats": 1,
+    "split_count": null,
+    "split_seqovl": null
+  },
+  "presets": {
+    "conservative": {
+      "enabled": true,
+      "desync_mode": "split",
+      "split_positions": [3],
+      "fooling_methods": [],
+      "ttl": null,
+      "repeats": 1
+    },
+    "aggressive": {
+      "enabled": true,
+      "desync_mode": "split", 
+      "split_positions": [3, 10, "sni"],
+      "fooling_methods": ["badsum", "badseq"],
+      "ttl": 4,
+      "repeats": 2
+    },
+    "sni_focused": {
+      "enabled": true,
+      "desync_mode": "split",
+      "split_positions": ["sni"],
+      "fooling_methods": ["badsum"],
+      "ttl": null,
+      "repeats": 1
+    },
+    "multisplit": {
+      "enabled": true,
+      "desync_mode": "multisplit",
+      "split_positions": [3, 10],
+      "fooling_methods": ["badsum"],
+      "split_count": 5,
+      "split_seqovl": 20,
+      "repeats": 1
+    }
+  },
+  "domain_specific": {
+    "x.com": {
+      "enabled": true,
+      "desync_mode": "split",
+      "split_positions": [3, 10, "sni"],
+      "fooling_methods": ["badsum"],
+      "repeats": 2
+    },
+    "*.twimg.com": {
+      "enabled": true,
+      "desync_mode": "multisplit",
+      "split_positions": [3, 10],
+      "fooling_methods": ["badsum"],
+      "split_count": 7,
+      "split_seqovl": 30
+    },
+    "instagram.com": {
+      "enabled": true,
+      "desync_mode": "split",
+      "split_positions": ["sni"],
+      "fooling_methods": ["badsum"]
+    }
+  },
+  "validation": {
+    "max_split_positions": 5,
+    "max_ttl": 255,
+    "max_repeats": 10,
+    "max_split_count": 20,
+    "supported_desync_modes": ["split", "fake", "disorder", "multisplit"],
+    "supported_fooling_methods": ["badsum", "badseq", "md5sig", "hopbyhop"],
+    "supported_special_positions": ["sni", "cipher", "midsld"]
+  }
+}

@@ -1,0 +1,143 @@
+# Split Attack Specification
+# Splits packet at specified position into two TCP segments
+
+name: split
+aliases:
+  - tcp_split
+description: Split packet at specified position into two separate TCP segments
+category: tcp_fragmentation
+
+parameters:
+  - name: split_pos
+    type: int
+    default: null
+    min: 1
+    required: true
+    description: Position in bytes where to split the packet
+  
+  - name: split_position
+    type: int
+    default: null
+    min: 1
+    required: false
+    description: Alternative parameter name for split_pos
+
+expected_packets:
+  count: 2
+  order:
+    - packet_index: 0
+      name: first_part
+      properties:
+        length: "{split_pos}"
+        seq: "{original_seq}"
+        tcp_flags: "PSH+ACK (0x18)"
+        payload: "original_payload[0:split_pos]"
+      
+    - packet_index: 1
+      name: second_part
+      properties:
+        length: "{len(original_payload) - split_pos}"
+        seq: "{original_seq + split_pos}"
+        tcp_flags: "PSH+ACK (0x18)"
+        payload: "original_payload[split_pos:]"
+
+validation_rules:
+  sequence_numbers:
+    - rule: "first_part.seq == original_seq"
+      description: "First part must start at original sequence number"
+      severity: critical
+    
+    - rule: "second_part.seq == first_part.seq + len(first_part.payload)"
+      description: "Second part sequence must follow first part"
+      severity: critical
+  
+  payload:
+    - rule: "first_part.payload + second_part.payload == original_payload"
+      description: "Combined payload must equal original"
+      severity: critical
+    
+    - rule: "len(first_part.payload) == params.split_pos"
+      description: "First part length must match split position"
+      severity: critical
+    
+    - rule: "len(second_part.payload) == len(original_payload) - params.split_pos"
+      description: "Second part length must be remainder"
+      severity: critical
+  
+  packet_count:
+    - rule: "len(packets) == 2"
+      description: "Must generate exactly 2 packets"
+      severity: critical
+  
+  packet_order:
+    - rule: "packets[0].seq < packets[1].seq"
+      description: "Packets must be in sequence order"
+      severity: critical
+  
+  checksum:
+    - rule: "all(p.checksum_valid for p in packets)"
+      description: "All packets must have valid checksums"
+      severity: critical
+  
+  ttl:
+    - rule: "all(p.ttl in [64, 128] for p in packets)"
+      description: "All packets should have default system TTL"
+      severity: warning
+
+test_variations:
+  minimal:
+    description: "Split at position 1"
+    params:
+      split_pos: 1
+  
+  early_split:
+    description: "Split early in payload"
+    params:
+      split_pos: 3
+  
+  middle_split:
+    description: "Split in middle of payload"
+    params:
+      split_pos: 50
+  
+  late_split:
+    description: "Split late in payload"
+    params:
+      split_pos: 100
+  
+  sni_split:
+    description: "Split at SNI position for TLS"
+    params:
+      split_pos: 76
+
+error_cases:
+  missing_split_pos:
+    description: "split_pos is required"
+    params: {}
+    expected_error: "split_pos is required"
+  
+  zero_split_pos:
+    description: "split_pos cannot be 0"
+    params:
+      split_pos: 0
+    expected_error: "split_pos must be >= 1"
+  
+  negative_split_pos:
+    description: "split_pos cannot be negative"
+    params:
+      split_pos: -1
+    expected_error: "split_pos must be >= 1"
+  
+  split_pos_exceeds_payload:
+    description: "split_pos exceeds payload length"
+    params:
+      split_pos: 10000
+    expected_error: "split_pos exceeds payload length"
+
+notes:
+  - "Splits single TCP segment into two segments"
+  - "Useful for breaking up DPI signatures"
+  - "Common split positions: 1, 3, 76 (SNI position in TLS)"
+  - "Both segments have valid checksums and sequential sequence numbers"
+  - "No TTL manipulation - both packets reach destination"
+  - "If split_pos exceeds payload length, split at payload length / 2"

@@ -1,0 +1,37 @@
+{
+  "fakeddisorder": {
+    "avg_time_ms": 0.21907600021222606,
+    "std_dev_ms": 0.0543399636528229,
+    "min_time_ms": 0.1795999996829778,
+    "max_time_ms": 0.4728999992948957,
+    "iterations": 50
+  },
+  "seqovl": {
+    "avg_time_ms": 0.2233119991433341,
+    "std_dev_ms": 0.10517255719195152,
+    "min_time_ms": 0.17690000095171854,
+    "max_time_ms": 0.9113999985856935,
+    "iterations": 50
+  },
+  "multidisorder": {
+    "avg_time_ms": 0.20620000053895637,
+    "std_dev_ms": 0.03370125649127271,
+    "min_time_ms": 0.17859999934444204,
+    "max_time_ms": 0.3020000003743917,
+    "iterations": 50
+  },
+  "disorder": {
+    "avg_time_ms": 0.25590199962607585,
+    "std_dev_ms": 0.082955853655819,
+    "min_time_ms": 0.17640000442042947,
+    "max_time_ms": 0.6739000018569641,
+    "iterations": 50
+  },
+  "multisplit": {
+    "avg_time_ms": 0.21540599991567433,
+    "std_dev_ms": 0.03943151853059587,
+    "min_time_ms": 0.17980000120587647,
+    "max_time_ms": 0.3482000029180199,
+    "iterations": 50
+  }
+}

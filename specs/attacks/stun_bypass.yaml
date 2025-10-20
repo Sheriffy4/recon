@@ -1,0 +1,31 @@
+name: "STUN Bypass"
+description: "STUN protocol bypass for VoIP and messaging applications like Telegram, WhatsApp"
+category: "UDP"
+protocol: "UDP"
+target_ports: [3478, 5349, 19302, 19305]
+parameters:
+  - name: "stun_method"
+    type: "string"
+    default: "binding"
+    description: "STUN method to use"
+    options: ["binding", "allocate", "refresh"]
+  - name: "fake_transaction_id"
+    type: "boolean"
+    default: true
+    description: "Use fake transaction ID in STUN header"
+  - name: "fragment_size"
+    type: "integer"
+    default: 64
+    description: "Fragment STUN packets at this size"
+  - name: "delay_ms"
+    type: "integer"
+    default: 10
+    description: "Delay between fragments in milliseconds"
+implementation:
+  class: "STUNBypassAttack"
+  module: "core.bypass.attacks.udp.stun_bypass"
+effectiveness:
+  telegram: 0.85
+  whatsapp: 0.80
+  discord: 0.75
+  general_voip: 0.70

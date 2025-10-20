@@ -1,10 +1,27 @@
-# Список заблокированных доменов для обхода DPI
-# Каждый домен на новой строке. Строки с # игнорируются.
-
-rutracker.org
-nnmclub.to
-rutor.info
 x.com
-youtube.com
-googlevideo.com
 instagram.com
+nnmclub.to
+rutracker.org
+youtube.com
+facebook.com
+www.x.com
+api.x.com
+mobile.x.com
+pbs.twimg.com
+abs.twimg.com
+abs-0.twimg.com
+video.twimg.com
+ton.twimg.com
+static.cdninstagram.com
+scontent-arn2-1.cdninstagram.com
+edge-chat.instagram.com
+static.xx.fbcdn.net
+external.xx.fbcdn.net
+youtubei.googleapis.com
+i.ytimg.com
+i1.ytimg.com
+i2.ytimg.com
+lh3.ggpht.com
+lh4.ggpht.com
+www.youtube.com
+www.facebook.com

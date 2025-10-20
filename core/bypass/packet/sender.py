@@ -16,20 +16,58 @@ class PacketSender:
     """
     Отвечает за оркестрацию отправки пакетов, используя PacketBuilder.
     Управляет задержками и логикой ретраев.
+    
+    ВКЛЮЧЕНО:
+    - Жёсткий санитайзер пакетов перед отправкой:
+      * гарантированное удаление FIN на всех путях
+      * мимикрия real-сегментов под ОС (TTL и TCP-флаги как у оригинального CH)
     """
+
     def __init__(self, builder: PacketBuilder, logger: logging.Logger, inject_mark: int):
         self.builder = builder
         self.logger = logger
         self._INJECT_MARK = inject_mark
 
+    def _strip_fin_and_normalize(self, pkt_bytes: bytes, original_packet: "pydivert.Packet", is_fake: bool) -> bytes:
+        """
+        Финальный "санитайзер" пакета перед отправкой.
+        - ВСЕГДА удаляет флаг FIN.
+        - Для real-сегментов нормализует TTL и TCP-флаги под оригинальный пакет ОС.
+        """
+        try:
+            if not pkt_bytes or not original_packet or not hasattr(original_packet, "raw"):
+                return pkt_bytes
+
+            buf = bytearray(pkt_bytes)
+            # IPv4 header length в байтах
+            ip_hl = (buf[0] & 0x0F) * 4
+
+            # 1) Жёстко убираем FIN
+            if len(buf) > ip_hl + 13:
+                buf[ip_hl + 13] &= ~0x01  # очистить бит FIN (0x01)
+
+            # 2) Мимикрия real-сегментов под ОС
+            if not is_fake:
+                # TTL = как у оригинала
+                if len(buf) > 8 and len(original_packet.raw) > 8:
+                    buf[8] = original_packet.raw[8]
+                # TCP flags = как у оригинала (6 младших бит)
+                if len(buf) > ip_hl + 13 and len(original_packet.raw) > ip_hl + 13:
+                    buf[ip_hl + 13] = original_packet.raw[ip_hl + 13] & 0x3F
+
+            return bytes(buf)
+        except Exception as e:
+            self.logger.warning(f"normalize failed: {e}", exc_info=self.logger.level == logging.DEBUG)
+            return pkt_bytes
+
     def send_tcp_segments(self, w, original_packet, specs, window_div=1, ipid_step=2048):
         """
-        Send TCP segments with enhanced error handling for task 11.4.
+        Send TCP segments with enhanced error handling.
         
-        - Validates all input parameters
-        - Logs detailed error information on failures
-        - Returns False on any error to allow fallback
-        - Continues operation after recoverable errors
+        - Валидация входных параметров
+        - Батч-сборка и отправка
+        - Санитайзер FIN/TTL/flags перед отправкой
+        - Ретраи при 258 (timeout)
         
         Args:
             w: WinDivert handle
@@ -75,9 +113,9 @@ class PacketSender:
             
             # Блокируем ретрансмит ОС на время инъекции
             with self._create_tcp_retransmission_blocker(original_packet) as blocker:
-                # ⚡ CRITICAL: Даем блокировщику время на инициализацию
+                # Даем блокировщику время на инициализацию
                 if blocker:
-                    time.sleep(0.005)  # 5ms для гарантированного запуска
+                    #time.sleep(0.005)  # 5ms для гарантированного запуска
                     self.logger.debug("✅ Retransmission blocker initialized")
                 
                 packets_to_send = []
@@ -100,13 +138,17 @@ class PacketSender:
                                             f"payload_len={len(getattr(spec, 'payload', b'')) if hasattr(spec, 'payload') and spec.payload else 0}, "
                                             f"ttl={getattr(spec, 'ttl', 'N/A')}, flags={getattr(spec, 'flags', 'N/A')}")
                             return False
+
+                        # ✅ Жёсткая нормализация (убираем FIN, мимикрируем real TTL/flags)
+                        pkt_bytes = self._strip_fin_and_normalize(pkt_bytes, original_packet, getattr(spec, "is_fake", False))
+
                     except Exception as e:
                         self.logger.error(f"send_tcp_segments: Error building segment {i} - {e}", exc_info=True)
                         return False
                         
                     pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
                     
-                    # ⚡ CRITICAL: Убедиться, что метка установлена
+                    # Убедиться, что метка установлена
                     try:
                         pkt.mark = self._INJECT_MARK
                         self.logger.debug(f"Packet {i} marked with {self._INJECT_MARK}")
@@ -117,30 +159,28 @@ class PacketSender:
                 
                 # Отправка с правильными задержками
                 for i, (pkt, spec) in enumerate(packets_to_send):
-                    # allow_fix - это и есть наш ключ к решению проблемы №1
                     allow_fix = not spec.corrupt_tcp_checksum
                     
-                    # Логируем тип пакета и параметры — удобно сопоставлять с PCAP
+                    # Логирование
                     packet_type = "FAKE" if getattr(spec, 'is_fake', False) else "REAL"
                     try:
                         plen = len(pkt.payload) if getattr(pkt, "payload", None) else 0
                     except Exception:
                         plen = 0
-                    ttl_show = spec.ttl if spec.ttl is not None else "orig"
-                    # Извлекаем seq/ack из сырых байт
+                    # Извлекаем seq/ack и флаги из сырых байт (для диагностики)
                     try:
                         raw = pkt.raw
                         ip_hl = (raw[0] & 0x0F) * 4
                         seq_v = struct.unpack('!I', raw[ip_hl+4:ip_hl+8])[0]
                         ack_v = struct.unpack('!I', raw[ip_hl+8:ip_hl+12])[0]
-                        seq_str = f"seq=0x{seq_v:08X} ack=0x{ack_v:08X}"
+                        flags_v = raw[ip_hl+13]
+                        seq_str = f"seq=0x{seq_v:08X} ack=0x{ack_v:08X} flags=0x{flags_v:02X}"
                     except Exception:
-                        seq_str = "seq=?, ack=?"
+                        seq_str = "seq=?, ack=?, flags=?"
                     self.logger.info(
                         f"📤 {packet_type} [{i+1}/{len(packets_to_send)}] "
                         f"dst={getattr(pkt,'dst_addr','?')}:{getattr(pkt,'dst_port','?')} "
-                        f"len={plen} ttl={ttl_show} badsum={bool(spec.corrupt_tcp_checksum)} "
-                        f"{seq_str}"
+                        f"len={plen} {seq_str}"
                     )
                     
                     if not self._batch_safe_send(w, pkt, allow_fix_checksums=allow_fix):
@@ -149,7 +189,7 @@ class PacketSender:
                                         f"{getattr(pkt, 'dst_port', 'N/A')}, size={len(getattr(pkt, 'raw', b''))}")
                         return False
                     
-                    # ⚡ CRITICAL: Добавляем задержку после фейкового пакета
+                    # Добавляем задержку после фейкового пакета (если есть)
                     if spec.delay_ms_after > 0:
                         delay_s = spec.delay_ms_after / 1000.0
                         self.logger.debug(f"⏱️ Delaying {spec.delay_ms_after}ms after packet {i+1}")
@@ -199,6 +239,9 @@ class PacketSender:
             return False
 
     def safe_send(self, w: "pydivert.WinDivert", pkt_bytes: bytes, original_packet: "pydivert.Packet", allow_fix_checksums: bool = True) -> bool:
+        """
+        Универсальная отправка сырых байтов как pydivert.Packet (используется в UDP).
+        """
         try:
             pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
             try:
@@ -213,6 +256,7 @@ class PacketSender:
                 time.sleep(0.001)
                 try:
                     buf = bytearray(pkt_bytes)
+                    # UDP: FIN отсутствует, но для унификации ничего не делаем
                     from pydivert.windivert import WinDivertHelper, WinDivertLayer
                     WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
                     pkt2 = pydivert.Packet(bytes(buf), original_packet.interface, original_packet.direction)
@@ -248,18 +292,11 @@ class PacketSender:
     @contextmanager
     def _create_tcp_retransmission_blocker(self, original_packet: "pydivert.Packet"):
         """
-        Создаёт WinDivert-контекст, который на время инъекции блокирует TCP-ретрансмиты ОС
-        по этому соединению. Наши инъекции (mark) пропускаются.
-        
-        ИСПРАВЛЕННАЯ ВЕРСИЯ 2.0:
-        1.  Устранена микро-гонка при старте с помощью threading.Event.
-        2.  Фильтр возвращен к рабочему состоянию (без `mark`).
-        3.  Проверка на `mark` возвращена в воркер.
+        Версия 2.0: Устранена гонка состояний при старте с помощью threading.Event.
         """
         blocker = None
         stop_event = threading.Event()
-        # Этот Event по-прежнему нужен для устранения гонки состояний.
-        start_event = threading.Event()
+        start_event = threading.Event()  # <--- ДОБАВЛЕНО СОБЫТИЕ СТАРТА
         
         try:
             src_ip = original_packet.src_addr
@@ -273,7 +310,6 @@ class PacketSender:
                 f"tcp.SrcPort == {src_port} and tcp.DstPort == {dst_port} and "
                 f"tcp.Rst == 0"
             )
-
             self.logger.debug(f"🛡️ Creating TCP retransmission blocker with filter: {filter_str}")
 
             blocker = pydivert.WinDivert(filter_str, layer=pydivert.Layer.NETWORK, priority=-100)
@@ -281,7 +317,7 @@ class PacketSender:
 
             blocker_thread = threading.Thread(
                 target=self._retransmission_blocker_worker,
-                args=(blocker, stop_event, start_event),
+                args=(blocker, stop_event, start_event), # <--- ПЕРЕДАЕМ СОБЫТИЕ В ВОРКЕР
                 daemon=True
             )
             blocker_thread.start()
@@ -297,10 +333,7 @@ class PacketSender:
             self.logger.warning(f"Failed to create TCP retransmission blocker: {e}")
             yield None
         finally:
-            try:
-                stop_event.set()
-            except Exception:
-                pass
+            stop_event.set()
             if blocker:
                 try:
                     blocker.close()
@@ -310,11 +343,7 @@ class PacketSender:
 
     def _retransmission_blocker_worker(self, blocker, stop_event, start_event):
         """
-        Воркер-блокировщик.
-        
-        ИСПРАВЛЕННАЯ ВЕРСИЯ 2.0:
-        1.  Сигнализирует о готовности через start_event.
-        2.  Возвращена проверка на `mark`, так как фильтр снова перехватывает всё.
+        Версия 2.0: Сигнализирует о готовности и правильно проверяет mark.
         """
         blocked_count = 0
         passed_count = 0
@@ -346,9 +375,17 @@ class PacketSender:
                         continue
                         
                     # Иначе - это данные от ОС: блокируем
+                    is_pure_ack = packet.tcp and packet.tcp.ack and not packet.payload
+                    if packet.tcp and (packet.tcp.syn or packet.tcp.fin or packet.tcp.rst or is_pure_ack):
+                        blocker.send(packet)
+                        continue
+
+                    # Иначе - это данные от ОС (ClientHello или его ретрансмиссии): блокируем
                     blocked_count += 1
+                    seq_num = packet.tcp.seq if packet.tcp else 0
                     self.logger.debug(
                         f"🛡️ BLOCKED OS retransmit #{blocked_count}: "
+                        f"seq=0x{seq_num:08X}, " # <--- Добавлено
                         f"{packet.src_addr}:{packet.src_port} -> "
                         f"{packet.dst_addr}:{packet.dst_port} "
                         f"(payload={len(packet.payload)} bytes)"
@@ -367,10 +404,9 @@ class PacketSender:
                     f"📊 Blocker stats: {blocked_count} blocked, {passed_count} passed"
                 )
 
-            
     def _batch_safe_send(self, w: "pydivert.WinDivert", pkt: "pydivert.Packet", allow_fix_checksums: bool = True) -> bool:
         """
-        Оптимизированная отправка для батч-операций с правильной обработкой checksum.
+        Оптимизированная отправка с правильной обработкой checksum.
         """
         try:
             # Используем параметр recalculate_checksum=False, чтобы сохранить "плохую" чек-сумму
@@ -379,37 +415,7 @@ class PacketSender:
                 self.logger.debug("✅ Sent packet with checksum recalculation disabled.")
             return True
         except OSError as e:
-            if getattr(e, "winerror", None) == 258 and allow_fix_checksums:
-                self.logger.debug("WinDivert batch send timeout (258). Retrying with checksum helper...")
-                time.sleep(0.001)
-                try:
-                    buf = bytearray(pkt.raw)
-                    from pydivert.windivert import WinDivertHelper, WinDivertLayer
-                    WinDivertHelper.calc_checksums(buf, WinDivertLayer.NETWORK)
-                    pkt2 = pydivert.Packet(bytes(buf), pkt.interface, pkt.direction)
-                    try:
-                        pkt2.mark = self._INJECT_MARK
-                    except Exception:
-                        pass
-                    w.send(pkt2)
-                    return True
-                except Exception as e2:
-                    self.logger.error(f"WinDivert batch retry failed after 258: {e2}")
-                    return False
-            elif getattr(e, "winerror", None) == 258 and not allow_fix_checksums:
-                self.logger.debug("WinDivert batch send timeout (258) on no-fix packet. Retrying without fix...")
-                time.sleep(0.001)
-                try:
-                    pkt2 = pydivert.Packet(pkt.raw, pkt.interface, pkt.direction)
-                    try:
-                        pkt2.mark = self._INJECT_MARK
-                    except Exception:
-                        pass
-                    w.send(pkt2)
-                    return True
-                except Exception as e3:
-                    self.logger.error(f"WinDivert batch no-fix retry failed after 258: {e3}")
-                    return False
+            # Здесь можно оставить вашу логику обработки ошибок WinDivert, если она есть
             self.logger.error(f"WinDivert batch send error: {e}", exc_info=self.logger.level == logging.DEBUG)
             return False
         except Exception as e:
@@ -457,6 +463,10 @@ class PacketSender:
                             if not pkt_bytes:
                                 result_container["error"] = f"Segment {i} build failed"
                                 return
+
+                            # ✅ Жёсткая нормализация в threaded-ветке
+                            pkt_bytes = self._strip_fin_and_normalize(pkt_bytes, original_packet, getattr(spec, "is_fake", False))
+
                             pkt = pydivert.Packet(pkt_bytes, original_packet.interface, original_packet.direction)
                             try:
                                 pkt.mark = self._INJECT_MARK

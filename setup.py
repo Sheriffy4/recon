@@ -87,9 +87,14 @@ def run_command(command: list, needs_admin: bool = False, capture_output: bool =
         )
         return None
     try:
+        # <<< ИЗМЕНЕНИЕ: Проверяем, что команда не пуста, перед доступом к command[0] >>>
         if IS_DEBUG_MODE and command and (command[0] in [CLI_SCRIPT, SERVICE_SCRIPT]):
-            command.insert(1, "--debug")
-        full_command = [sys.executable] + command
+            # Вставляем --debug после имени скрипта
+            debug_command = command[:1] + ["--debug"] + command[1:]
+        else:
+            debug_command = command
+
+        full_command = [sys.executable] + debug_command
         console.print(f"\n[dim]Выполняется команда: {' '.join(full_command)}[/dim]\n")
         if capture_output:
             return subprocess.run(
@@ -230,7 +235,20 @@ def action_start_service():
                 "[bold red]Невозможно запустить службу без файла стратегии.[/bold red]"
             )
             return
+
+    # <<< НАЧАЛО ИЗМЕНЕНИЙ >>>
     command = [SERVICE_SCRIPT]
+
+    # Спрашиваем про запись PCAP
+    if Confirm.ask("\n[bold]Включить запись PCAP файла для отладки?[/bold]", default=False):
+        default_pcap_name = f"service_capture_{_get_timestamp()}.pcap"
+        pcap_filename = Prompt.ask(
+            "Введите имя файла для сохранения трафика", default=default_pcap_name
+        )
+        if pcap_filename:
+            command.extend(["--pcap", pcap_filename])
+    # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
+
     run_command(command, needs_admin=True)
 
 
@@ -240,6 +258,12 @@ def action_show_help():
     console.print(Panel(help_text, title="[3] Помощь", border_style="yellow"))
     input("\nНажмите Enter, чтобы вернуться в меню...")
 
+# <<< НАЧАЛО ИЗМЕНЕНИЙ: Новая вспомогательная функция >>>
+def _get_timestamp():
+    """Возвращает текущую временную метку для имени файла."""
+    from datetime import datetime
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+# <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
 if __name__ == "__main__":
     check_files()

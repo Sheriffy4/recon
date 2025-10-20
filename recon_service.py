@@ -80,64 +80,53 @@ class DPIBypassService:
         self.running = False
 
     def load_strategies(self) -> bool:
-        """Загружает стратегии из файлов конфигурации."""
+        """
+        Загружает стратегии из файла конфигурации.
+        FIX: Унифицировано для загрузки ТОЛЬКО из domain_strategies.json.
+        """
         strategies_loaded = 0
+        self.domain_strategies = {} # Очищаем перед загрузкой
 
-        # 1. Пытаемся загрузить из strategies.json (основной файл)
-        strategies_file = Path("strategies.json")
-        if strategies_file.exists():
-            try:
-                with open(strategies_file, "r", encoding="utf-8") as f:
-                    self.domain_strategies = json.load(f)
-
-                strategies_loaded = len(self.domain_strategies)
-                if strategies_loaded > 0:
-                    self.logger.info(
-                        f"✅ Loaded {strategies_loaded} domain-specific strategies"
-                    )
-                    return True
-            except Exception as e:
-                self.logger.warning(f"Failed to load strategies.json: {e}")
-
-        # 2. Пытаемся загрузить из domain_strategies.json
+        # --- START OF FIX: Use domain_strategies.json as the single source of truth ---
         domain_strategies_file = Path("domain_strategies.json")
         if domain_strategies_file.exists():
             try:
                 with open(domain_strategies_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
+                # Загружаем стратегии для конкретных доменов
                 domain_strategies = data.get("domain_strategies", {})
                 for domain, strategy_data in domain_strategies.items():
                     strategy = strategy_data.get("strategy", "")
                     if strategy:
                         self.domain_strategies[domain] = strategy
                         strategies_loaded += 1
+                
+                # Загружаем стратегию по умолчанию, если она есть
+                default_strategy = data.get("default_strategy")
+                if isinstance(default_strategy, dict):
+                    default_strategy = default_strategy.get("strategy")
+
+                if default_strategy and isinstance(default_strategy, str):
+                    self.domain_strategies["default"] = default_strategy
+                    self.logger.info(f"✅ Loaded default strategy.")
 
                 if strategies_loaded > 0:
                     self.logger.info(
-                        f"✅ Loaded {strategies_loaded} domain-specific strategies"
+                        f"✅ Loaded {strategies_loaded} domain-specific strategies from {domain_strategies_file}"
                     )
+                
+                if self.domain_strategies:
                     return True
+
             except Exception as e:
-                self.logger.warning(f"Failed to load domain strategies: {e}")
-
-        # 3. Fallback к старому формату (best_strategy.json)
-        legacy_file = Path("best_strategy.json")
-        if legacy_file.exists():
-            try:
-                with open(legacy_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                strategy = data.get("strategy", "")
-                if strategy:
-                    # Используем стратегию для всех доменов
-                    self.domain_strategies["default"] = strategy
-                    strategies_loaded = 1
-                    self.logger.info("✅ Loaded legacy strategy for all domains")
-                    return True
-            except Exception as e:
-                self.logger.warning(f"Failed to load legacy strategy: {e}")
-
+                self.logger.error(f"❌ Failed to load {domain_strategies_file}: {e}")
+                return False
+        # --- END OF FIX ---
+        
+        # Если основной файл не найден или пуст, сообщаем об ошибке.
+        self.logger.error(f"❌ Strategy file '{domain_strategies_file}' not found or is empty.")
+        self.logger.error("   Please run strategy discovery first to generate it.")
         return False
 
     def load_domains(self) -> bool:

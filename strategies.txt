@@ -1,0 +1,2 @@
+--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=3
+--dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badseq

@@ -244,15 +244,11 @@ class StrategyInterpreter:
         Returns:
             AttackTask ready for execution
         """
-        # <<< НАЧАЛО ИЗМЕНЕНИЙ: ИСПРАВЛЕННАЯ ЛОГИКА ПРИОРИТЕТОВ >>>
         attack_type = "unknown"
         
-        # Priority 1: Check for specific, powerful combinations first.
-        # This ensures that 'split' with 'badsum' is correctly identified as a race attack.
         if "badsum" in strategy.fooling and (DPIMethod.SPLIT in strategy.methods or DPIMethod.FAKE in strategy.methods):
             attack_type = "badsum_race"
         
-        # Priority 2: Check for explicit desync methods if no combination was found.
         elif DPIMethod.MULTIDISORDER in strategy.methods:
             attack_type = "multidisorder"
         elif DPIMethod.FAKEDDISORDER in strategy.methods:
@@ -264,22 +260,17 @@ class StrategyInterpreter:
         elif DPIMethod.MULTISPLIT in strategy.methods:
             attack_type = "multisplit"
         elif DPIMethod.SPLIT in strategy.methods:
-            # This is now just a simple split, as the badsum case is handled above.
             attack_type = "split"
         elif DPIMethod.FAKE in strategy.methods:
             attack_type = "fake"
             
-        # Priority 3: Check for fooling methods only if no explicit desync method was found.
         elif "badsum" in strategy.fooling:
             attack_type = "badsum_race"
             
-        # Priority 4: Default fallback if nothing else matches.
         else:
             attack_type = "fakeddisorder"
             self.logger.warning(f"No explicit attack type found, defaulting to fakeddisorder for strategy: {strategy.raw_strategy}")
-        # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
         
-        # Handle TTL vs AutoTTL (mutually exclusive)
         ttl = None
         autottl = None
         if strategy.autottl is not None:
@@ -287,10 +278,8 @@ class StrategyInterpreter:
         elif strategy.ttl is not None:
             ttl = strategy.ttl
         else:
-            # Default TTL if neither specified
             ttl = 4
         
-        # Build AttackTask with all parameters
         return AttackTask(
             attack_type=attack_type,
             ttl=ttl,
@@ -306,21 +295,11 @@ class StrategyInterpreter:
     def interpret_strategy(self, strategy_str: str) -> Optional[Dict[str, Any]]:
         """
         Main entry point to interpret a strategy and convert it to a dict format.
-        
-        This method returns a dictionary for backward compatibility with existing code.
-        Use interpret_strategy_as_task() if you need an AttackTask object.
-        
-        Args:
-            strategy_str: Zapret-style strategy string
-            
-        Returns:
-            Dictionary with 'type' and 'params' keys, or None if parsing/validation fails
         """
         attack_task = self.interpret_strategy_as_task(strategy_str)
         if not attack_task:
             return None
         
-        # Convert AttackTask to legacy dict format
         params = {
             'split_pos': attack_task.split_pos,
             'overlap_size': attack_task.overlap_size,
@@ -351,33 +330,34 @@ class StrategyInterpreter:
     def interpret_strategy_as_task(self, strategy_str: str) -> Optional[AttackTask]:
         """
         Interpret a strategy and return it as an AttackTask object.
-        
-        Args:
-            strategy_str: Zapret-style strategy string
-            
-        Returns:
-            AttackTask object ready for execution, or None if parsing/validation fails
         """
         strategy = self.parse_strategy(strategy_str)
         
-        # X.COM FAKEDDISORDER FIX - специальная обработка для x.com
+        # --- START OF FIX: Enforce best-practice parameters for fakeddisorder ---
         if DPIMethod.FAKEDDISORDER in strategy.methods:
-            # Принудительно устанавливаем правильные параметры для fakeddisorder
+            # Enforce known-good parameters for this attack type.
             if strategy.ttl is None or strategy.ttl > 10:
-                strategy.ttl = 3  # КРИТИЧНО: TTL=3 для fakeddisorder
+                strategy.ttl = 3  # CRITICAL: TTL=3 is effective
             if strategy.split_pos is None:
-                strategy.split_pos = 3  # КРИТИЧНО: split_pos=3 для x.com
+                strategy.split_pos = 3  # CRITICAL: split_pos=3 is effective
             if strategy.split_seqovl is None:
-                strategy.split_seqovl = 336  # Размер overlap
-            if not strategy.fooling:
-                strategy.fooling = ["badsum", "badseq"]  # Методы обмана
+                # Use a larger overlap for better results against some DPIs
+                strategy.split_seqovl = 336
+            if not strategy.fooling or "badseq" not in strategy.fooling:
+                # CRITICAL: Add 'badseq' to prevent server-side TCP confusion
+                if not strategy.fooling:
+                    strategy.fooling = []
+                if "badsum" not in strategy.fooling:
+                    strategy.fooling.append("badsum")
+                if "badseq" not in strategy.fooling:
+                    strategy.fooling.append("badseq")
             
-            self.logger.info(f"🎯 Fakeddisorder fix applied: TTL={strategy.ttl}, split_pos={strategy.split_pos}")
+            self.logger.info(f"🎯 Fakeddisorder fix applied: TTL={strategy.ttl}, split_pos={strategy.split_pos}, fooling={strategy.fooling}")
+        # --- END OF FIX ---
         
         if not self.validate_strategy(strategy):
             return None
 
-        # Convert to AttackTask using the new method
         try:
             attack_task = self._config_to_strategy_task(strategy)
             self.logger.info(f"✅ Strategy interpreted: {attack_task.attack_type} "
@@ -397,13 +377,12 @@ if __name__ == '__main__':
     
     test_strategies = [
         "--dpi-desync=fake,disorder --dpi-desync-fooling=badsum,badseq --dpi-desync-split-pos=64 --dpi-desync-ttl=3",
-        "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=256, split_pos=64, ttl=3)",
+        "fakeddisorder(fooling=['badsum'], overlap_size=256, split_pos=64, ttl=3)", # This will be fixed
         "--dpi-desync=multisplit",
         "--dpi-desync=split --dpi-desync-split-pos=midsld",
         "--dpi-desync=fake --dpi-desync-autottl=256",
         "--dpi-desync=disorder2,split",
-        "--dpi-desync=fakeddisorder",
-        # <<< ИЗМЕНЕНИЕ: Добавляем тестовый кейс для новой логики >>>
+        "--dpi-desync=fakeddisorder", # This will be fixed
         "--dpi-desync=split --dpi-desync-fooling=badsum"
     ]
 

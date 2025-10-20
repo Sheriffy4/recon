@@ -1,0 +1,782 @@
+{
+  "timestamp": "2025-10-07T16:04:54.530224",
+  "errors": [
+    {
+      "file": "full_deployment.log",
+      "line_number": 12,
+      "error_line": "2025-10-07 16:00:27,310 - full_deployment - ERROR - Failed to create deployment backup: maximum recursion depth exceeded",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "10: 2025-10-07 16:00:23,156 - full_deployment - INFO -    Backed up: recon_service.py",
+        "11: 2025-10-07 16:00:23,168 - full_deployment - INFO -    Backed up: enhanced_find_rst_triggers.py",
+        "12: 2025-10-07 16:00:27,310 - full_deployment - ERROR - Failed to create deployment backup: maximum recursion depth exceeded",
+        "13: 2025-10-07 16:00:27,320 - full_deployment - INFO - Removing feature flags...",
+        "14: 2025-10-07 16:00:27,330 - full_deployment - INFO - Deleting old engine code..."
+      ],
+      "timestamp": "2025-10-07 16:00:27"
+    },
+    {
+      "file": "full_deployment.log",
+      "line_number": 19,
+      "error_line": "2025-10-07 16:00:27,397 - full_deployment - ERROR - Failed to update README.md: [WinError 3] \u0421\u0438\u0441\u0442\u0435\u043c\u0435 \u043d\u0435 \u0443\u0434\u0430\u0435\u0442\u0441\u044f \u043d\u0430\u0439\u0442\u0438 \u0443\u043a\u0430\u0437\u0430\u043d\u043d\u044b\u0439 \u043f\u0443\u0442\u044c: ''",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "17: 2025-10-07 16:00:27,369 - full_deployment - INFO -    Deleted: sites.txt.backup",
+        "18: 2025-10-07 16:00:27,393 - full_deployment - INFO - Updating documentation...",
+        "19: 2025-10-07 16:00:27,397 - full_deployment - ERROR - Failed to update README.md: [WinError 3] \u0421\u0438\u0441\u0442\u0435\u043c\u0435 \u043d\u0435 \u0443\u0434\u0430\u0435\u0442\u0441\u044f \u043d\u0430\u0439\u0442\u0438 \u0443\u043a\u0430\u0437\u0430\u043d\u043d\u044b\u0439 \u043f\u0443\u0442\u044c: ''",
+        "20: 2025-10-07 16:00:27,410 - full_deployment - INFO -    Updated documentation: docs/ARCHITECTURE.md",
+        "21: 2025-10-07 16:00:27,417 - full_deployment - INFO -    Updated documentation: docs/DEPLOYMENT.md"
+      ],
+      "timestamp": "2025-10-07 16:00:27"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 63,
+      "error_line": "2025-10-07 15:57:17,654 - service_deployment - ERROR - Service failed to start",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "61: 2025-10-07 15:57:15,717 - BypassEngine - INFO - \u2705 WinDivert \u0437\u0430\u043f\u0443\u0449\u0435\u043d \u0443\u0441\u043f\u0435\u0448\u043d\u043e.",
+        "62: 2025-10-07 15:57:15,718 - BypassEngine - INFO - \ud83d\udc42 Inbound observer started",
+        "63: 2025-10-07 15:57:17,654 - service_deployment - ERROR - Service failed to start",
+        "64: 2025-10-07 15:57:17,655 - service_deployment - INFO - Monitoring stopped",
+        "65: "
+      ],
+      "timestamp": "2025-10-07 15:57:17"
+    },
+    {
+      "file": "testing_deployment.log",
+      "line_number": 15,
+      "error_line": "2025-10-07 15:53:14,939 - testing_deployment - ERROR -    Failed to resolve youtube.com: name 'socket' is not defined",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "13: 2025-10-07 15:53:14,930 - testing_deployment - INFO -      Diagnostics: True",
+        "14: 2025-10-07 15:53:14,930 - testing_deployment - INFO -      Strategy Logging: True",
+        "15: 2025-10-07 15:53:14,939 - testing_deployment - ERROR -    Failed to resolve youtube.com: name 'socket' is not defined",
+        "16: 2025-10-07 15:53:14,942 - testing_deployment - ERROR -    Failed to resolve x.com: name 'socket' is not defined",
+        "17: 2025-10-07 15:53:14,948 - testing_deployment - INFO -    Total Tests: 0"
+      ],
+      "timestamp": "2025-10-07 15:53:14"
+    },
+    {
+      "file": "testing_deployment.log",
+      "line_number": 16,
+      "error_line": "2025-10-07 15:53:14,942 - testing_deployment - ERROR -    Failed to resolve x.com: name 'socket' is not defined",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "14: 2025-10-07 15:53:14,930 - testing_deployment - INFO -      Strategy Logging: True",
+        "15: 2025-10-07 15:53:14,939 - testing_deployment - ERROR -    Failed to resolve youtube.com: name 'socket' is not defined",
+        "16: 2025-10-07 15:53:14,942 - testing_deployment - ERROR -    Failed to resolve x.com: name 'socket' is not defined",
+        "17: 2025-10-07 15:53:14,948 - testing_deployment - INFO -    Total Tests: 0",
+        "18: 2025-10-07 15:53:14,948 - testing_deployment - INFO -    Successful: 0"
+      ],
+      "timestamp": "2025-10-07 15:53:14"
+    },
+    {
+      "file": "testing_deployment.log",
+      "line_number": 19,
+      "error_line": "2025-10-07 15:53:14,948 - testing_deployment - INFO -    Failed: 0",
+      "pattern_matched": "Failed.*",
+      "context": [
+        "17: 2025-10-07 15:53:14,948 - testing_deployment - INFO -    Total Tests: 0",
+        "18: 2025-10-07 15:53:14,948 - testing_deployment - INFO -    Successful: 0",
+        "19: 2025-10-07 15:53:14,948 - testing_deployment - INFO -    Failed: 0",
+        "20: 2025-10-07 15:53:14,953 - testing_deployment - INFO -    Success Rate: 0.0%",
+        "21: 2025-10-07 15:53:15,971 - testing_deployment - INFO -    Deployment Duration: 0.08s"
+      ],
+      "timestamp": "2025-10-07 15:53:14"
+    },
+    {
+      "file": "domain_testing.log",
+      "line_number": 99,
+      "error_line": "2025-10-06 12:10:12,196 - core.real_domain_tester - ERROR - DNS resolution failed for cdnjs.cloudflare.net: [Errno 11001] getaddrinfo failed",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "97: 2025-10-06 12:10:12,164 - core.attack_execution_engine - INFO - Executing attack: fake with params: {}",
+        "98: 2025-10-06 12:10:12,164 - core.real_domain_tester - INFO - Testing cdnjs.cloudflare.net with attack fake",
+        "99: 2025-10-06 12:10:12,196 - core.real_domain_tester - ERROR - DNS resolution failed for cdnjs.cloudflare.net: [Errno 11001] getaddrinfo failed",
+        "100: 2025-10-06 12:10:12,197 - core.real_domain_tester - INFO - Testing www.fastly.com with attack fake",
+        "101: 2025-10-06 12:10:28,378 - __main__ - INFO - Testing 1 attacks: fake"
+      ],
+      "timestamp": "2025-10-06 12:10:12"
+    },
+    {
+      "file": "domain_testing.log",
+      "line_number": 199,
+      "error_line": "2025-10-06 12:10:28,410 - core.real_domain_tester - ERROR - DNS resolution failed for cdnjs.cloudflare.net: [Errno 11001] getaddrinfo failed",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "197: 2025-10-06 12:10:28,407 - core.attack_execution_engine - INFO - Executing attack: fake with params: {}",
+        "198: 2025-10-06 12:10:28,407 - core.real_domain_tester - INFO - Testing cdnjs.cloudflare.net with attack fake",
+        "199: 2025-10-06 12:10:28,410 - core.real_domain_tester - ERROR - DNS resolution failed for cdnjs.cloudflare.net: [Errno 11001] getaddrinfo failed",
+        "200: 2025-10-06 12:10:28,410 - core.real_domain_tester - INFO - Testing www.fastly.com with attack fake",
+        "201: 2025-10-06 12:10:28,412 - core.real_domain_tester - INFO - Resolved www.fastly.com -> 146.75.117.57"
+      ],
+      "timestamp": "2025-10-06 12:10:28"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 3,
+      "error_line": "2025-10-03 12:00:00,478 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Test error",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "1: 2025-10-03 11:59:26,333 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "2: 2025-10-03 12:00:00,475 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "3: 2025-10-03 12:00:00,478 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Test error",
+        "4: 2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "5: 2025-10-03 12:01:10,590 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting"
+      ],
+      "timestamp": "2025-10-03 12:00:00"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 4,
+      "error_line": "2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "2: 2025-10-03 12:00:00,475 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "3: 2025-10-03 12:00:00,478 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Test error",
+        "4: 2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "5: 2025-10-03 12:01:10,590 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "6: 2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Test error"
+      ],
+      "timestamp": "2025-10-03 12:00:00"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 6,
+      "error_line": "2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Test error",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "4: 2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "5: 2025-10-03 12:01:10,590 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "6: 2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Test error",
+        "7: 2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "8: 2025-10-03 12:01:25,004 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting"
+      ],
+      "timestamp": "2025-10-03 12:01:10"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 7,
+      "error_line": "2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "5: 2025-10-03 12:01:10,590 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "6: 2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Test error",
+        "7: 2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "8: 2025-10-03 12:01:25,004 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "9: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: This is a test error"
+      ],
+      "timestamp": "2025-10-03 12:01:10"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 9,
+      "error_line": "2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: This is a test error",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "7: 2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "8: 2025-10-03 12:01:25,004 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "9: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: This is a test error",
+        "10: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "11: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Corrupted packet at position 42"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 10,
+      "error_line": "2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "8: 2025-10-03 12:01:25,004 - pcap_analysis - INFO - [logging_config.py:275] - PCAP Analysis System Starting",
+        "9: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: This is a test error",
+        "10: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "11: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Corrupted packet at position 42",
+        "12: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:356] - Attempting recovery: Skip corrupted packets and continue parsing"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 11,
+      "error_line": "2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Corrupted packet at position 42",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "9: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: This is a test error",
+        "10: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "11: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Corrupted packet at position 42",
+        "12: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:356] - Attempting recovery: Skip corrupted packets and continue parsing",
+        "13: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:361] - Recovery successful: Skip corrupted packets and continue parsing"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 12,
+      "error_line": "2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:356] - Attempting recovery: Skip corrupted packets and continue parsing",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "10: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - [error_handling.py:343] - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "11: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Corrupted packet at position 42",
+        "12: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:356] - Attempting recovery: Skip corrupted packets and continue parsing",
+        "13: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:361] - Recovery successful: Skip corrupted packets and continue parsing",
+        "14: 2025-10-03 12:01:25,022 - pcap_analysis.graceful_parser - WARNING - [graceful_degradation.py:262] - Normal parsing failed: Scapy not available for normal parsing"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 13,
+      "error_line": "2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:361] - Recovery successful: Skip corrupted packets and continue parsing",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "11: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - [error_handling.py:332] - MEDIUM SEVERITY: Corrupted packet at position 42",
+        "12: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:356] - Attempting recovery: Skip corrupted packets and continue parsing",
+        "13: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:361] - Recovery successful: Skip corrupted packets and continue parsing",
+        "14: 2025-10-03 12:01:25,022 - pcap_analysis.graceful_parser - WARNING - [graceful_degradation.py:262] - Normal parsing failed: Scapy not available for normal parsing",
+        "15: 2025-10-03 12:01:25,022 - pcap_analysis.graceful_parser - INFO - [graceful_degradation.py:269] - Trying fallback strategy: raw_packet_extraction"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis.log",
+      "line_number": 14,
+      "error_line": "2025-10-03 12:01:25,022 - pcap_analysis.graceful_parser - WARNING - [graceful_degradation.py:262] - Normal parsing failed: Scapy not available for normal parsing",
+      "pattern_matched": "Failed.*",
+      "context": [
+        "12: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:356] - Attempting recovery: Skip corrupted packets and continue parsing",
+        "13: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - [error_handling.py:361] - Recovery successful: Skip corrupted packets and continue parsing",
+        "14: 2025-10-03 12:01:25,022 - pcap_analysis.graceful_parser - WARNING - [graceful_degradation.py:262] - Normal parsing failed: Scapy not available for normal parsing",
+        "15: 2025-10-03 12:01:25,022 - pcap_analysis.graceful_parser - INFO - [graceful_degradation.py:269] - Trying fallback strategy: raw_packet_extraction",
+        "16: 2025-10-03 12:01:25,027 - pcap_analysis.graceful_parser - INFO - [graceful_degradation.py:269] - Trying fallback strategy: raw_packet_extraction"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 1,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:00:00.478181\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482000.4781806, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "1: {\"timestamp\": \"2025-10-03T12:00:00.478181\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482000.4781806, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+        "2: {\"timestamp\": \"2025-10-03T12:00:00.479186\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "3: {\"timestamp\": \"2025-10-03T12:01:10.594736\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482070.5947363, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 2,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:00:00.479186\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "1: {\"timestamp\": \"2025-10-03T12:00:00.478181\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482000.4781806, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+        "2: {\"timestamp\": \"2025-10-03T12:00:00.479186\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "3: {\"timestamp\": \"2025-10-03T12:01:10.594736\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482070.5947363, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+        "4: {\"timestamp\": \"2025-10-03T12:01:10.597165\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 3,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:01:10.594736\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482070.5947363, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "1: {\"timestamp\": \"2025-10-03T12:00:00.478181\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482000.4781806, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+        "2: {\"timestamp\": \"2025-10-03T12:00:00.479186\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "3: {\"timestamp\": \"2025-10-03T12:01:10.594736\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482070.5947363, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+        "4: {\"timestamp\": \"2025-10-03T12:01:10.597165\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "5: {\"timestamp\": \"2025-10-03T12:01:25.008171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: This is a test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.007123, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"This is a test error\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 71, in demo_basic_error_handling\\n    raise ValueError(\\\"This is a test error\\\")\\nValueError: This is a test error\\n\"}}"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 4,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:01:10.597165\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "2: {\"timestamp\": \"2025-10-03T12:00:00.479186\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "3: {\"timestamp\": \"2025-10-03T12:01:10.594736\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482070.5947363, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+        "4: {\"timestamp\": \"2025-10-03T12:01:10.597165\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "5: {\"timestamp\": \"2025-10-03T12:01:25.008171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: This is a test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.007123, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"This is a test error\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 71, in demo_basic_error_handling\\n    raise ValueError(\\\"This is a test error\\\")\\nValueError: This is a test error\\n\"}}",
+        "6: {\"timestamp\": \"2025-10-03T12:01:25.009171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 5,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:01:25.008171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: This is a test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.007123, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"This is a test error\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 71, in demo_basic_error_handling\\n    raise ValueError(\\\"This is a test error\\\")\\nValueError: This is a test error\\n\"}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "3: {\"timestamp\": \"2025-10-03T12:01:10.594736\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482070.5947363, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"Test error\", \"traceback\": \"NoneType: None\\n\"}}",
+        "4: {\"timestamp\": \"2025-10-03T12:01:10.597165\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "5: {\"timestamp\": \"2025-10-03T12:01:25.008171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: This is a test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.007123, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"This is a test error\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 71, in demo_basic_error_handling\\n    raise ValueError(\\\"This is a test error\\\")\\nValueError: This is a test error\\n\"}}",
+        "6: {\"timestamp\": \"2025-10-03T12:01:25.009171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "7: {\"timestamp\": \"2025-10-03T12:01:25.013188\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Corrupted packet at position 42\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"pcap_parsing\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.0131881, \"context\": {\"operation\": \"pcap_parsing\", \"component\": \"pcap_parser\", \"metadata\": {}}, \"original_error\": null, \"traceback\": null}}"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 6,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:01:25.009171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "4: {\"timestamp\": \"2025-10-03T12:01:10.597165\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "5: {\"timestamp\": \"2025-10-03T12:01:25.008171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: This is a test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.007123, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"This is a test error\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 71, in demo_basic_error_handling\\n    raise ValueError(\\\"This is a test error\\\")\\nValueError: This is a test error\\n\"}}",
+        "6: {\"timestamp\": \"2025-10-03T12:01:25.009171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "7: {\"timestamp\": \"2025-10-03T12:01:25.013188\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Corrupted packet at position 42\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"pcap_parsing\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.0131881, \"context\": {\"operation\": \"pcap_parsing\", \"component\": \"pcap_parser\", \"metadata\": {}}, \"original_error\": null, \"traceback\": null}}",
+        "8: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Attempting recovery: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 356, \"extra\": {\"taskName\": null}}"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 7,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:01:25.013188\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Corrupted packet at position 42\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"pcap_parsing\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.0131881, \"context\": {\"operation\": \"pcap_parsing\", \"component\": \"pcap_parser\", \"metadata\": {}}, \"original_error\": null, \"traceback\": null}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "5: {\"timestamp\": \"2025-10-03T12:01:25.008171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: This is a test error\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"system_error\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.007123, \"context\": {\"operation\": \"unknown\", \"component\": \"unknown\", \"metadata\": {}}, \"original_error\": \"This is a test error\", \"traceback\": \"Traceback (most recent call last):\\n  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 71, in demo_basic_error_handling\\n    raise ValueError(\\\"This is a test error\\\")\\nValueError: This is a test error\\n\"}}",
+        "6: {\"timestamp\": \"2025-10-03T12:01:25.009171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "7: {\"timestamp\": \"2025-10-03T12:01:25.013188\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Corrupted packet at position 42\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"pcap_parsing\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.0131881, \"context\": {\"operation\": \"pcap_parsing\", \"component\": \"pcap_parser\", \"metadata\": {}}, \"original_error\": null, \"traceback\": null}}",
+        "8: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Attempting recovery: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 356, \"extra\": {\"taskName\": null}}",
+        "9: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Recovery successful: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 361, \"extra\": {\"taskName\": null}}"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 8,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Attempting recovery: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 356, \"extra\": {\"taskName\": null}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "6: {\"timestamp\": \"2025-10-03T12:01:25.009171\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"No recovery actions available for ErrorCategory.SYSTEM_ERROR\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 343, \"extra\": {\"taskName\": null}}",
+        "7: {\"timestamp\": \"2025-10-03T12:01:25.013188\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Corrupted packet at position 42\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"pcap_parsing\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.0131881, \"context\": {\"operation\": \"pcap_parsing\", \"component\": \"pcap_parser\", \"metadata\": {}}, \"original_error\": null, \"traceback\": null}}",
+        "8: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Attempting recovery: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 356, \"extra\": {\"taskName\": null}}",
+        "9: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Recovery successful: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 361, \"extra\": {\"taskName\": null}}",
+        "10: {\"timestamp\": \"2025-10-03T12:01:28.308433\", \"level\": \"ERROR\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Error in demo_function: Demo error for logging\", \"module\": \"logging_config\", \"function\": \"log_error_with_context\", \"line\": 392, \"exception\": {\"type\": \"ValueError\", \"message\": \"Demo error for logging\", \"traceback\": [\"Traceback (most recent call last):\\n\", \"  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 280, in demo_debug_logging\\n    raise ValueError(\\\"Demo error for logging\\\")\\n\", \"ValueError: Demo error for logging\\n\"]}, \"extra\": {\"taskName\": null, \"error_type\": \"ValueError\", \"error_message\": \"Demo error for logging\", \"context\": \"demo_function\", \"extra_info\": \"demo_value\"}}"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 9,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Recovery successful: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 361, \"extra\": {\"taskName\": null}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "7: {\"timestamp\": \"2025-10-03T12:01:25.013188\", \"level\": \"WARNING\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"MEDIUM SEVERITY: Corrupted packet at position 42\", \"module\": \"error_handling\", \"function\": \"_log_error\", \"line\": 332, \"extra\": {\"taskName\": null, \"category\": \"pcap_parsing\", \"severity\": \"medium\", \"recoverable\": true, \"timestamp\": 1759482085.0131881, \"context\": {\"operation\": \"pcap_parsing\", \"component\": \"pcap_parser\", \"metadata\": {}}, \"original_error\": null, \"traceback\": null}}",
+        "8: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Attempting recovery: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 356, \"extra\": {\"taskName\": null}}",
+        "9: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Recovery successful: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 361, \"extra\": {\"taskName\": null}}",
+        "10: {\"timestamp\": \"2025-10-03T12:01:28.308433\", \"level\": \"ERROR\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Error in demo_function: Demo error for logging\", \"module\": \"logging_config\", \"function\": \"log_error_with_context\", \"line\": 392, \"exception\": {\"type\": \"ValueError\", \"message\": \"Demo error for logging\", \"traceback\": [\"Traceback (most recent call last):\\n\", \"  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 280, in demo_debug_logging\\n    raise ValueError(\\\"Demo error for logging\\\")\\n\", \"ValueError: Demo error for logging\\n\"]}, \"extra\": {\"taskName\": null, \"error_type\": \"ValueError\", \"error_message\": \"Demo error for logging\", \"context\": \"demo_function\", \"extra_info\": \"demo_value\"}}",
+        "11: "
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\errors.log",
+      "line_number": 10,
+      "error_line": "{\"timestamp\": \"2025-10-03T12:01:28.308433\", \"level\": \"ERROR\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Error in demo_function: Demo error for logging\", \"module\": \"logging_config\", \"function\": \"log_error_with_context\", \"line\": 392, \"exception\": {\"type\": \"ValueError\", \"message\": \"Demo error for logging\", \"traceback\": [\"Traceback (most recent call last):\\n\", \"  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 280, in demo_debug_logging\\n    raise ValueError(\\\"Demo error for logging\\\")\\n\", \"ValueError: Demo error for logging\\n\"]}, \"extra\": {\"taskName\": null, \"error_type\": \"ValueError\", \"error_message\": \"Demo error for logging\", \"context\": \"demo_function\", \"extra_info\": \"demo_value\"}}",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "8: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Attempting recovery: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 356, \"extra\": {\"taskName\": null}}",
+        "9: {\"timestamp\": \"2025-10-03T12:01:25.014334\", \"level\": \"INFO\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Recovery successful: Skip corrupted packets and continue parsing\", \"module\": \"error_handling\", \"function\": \"_attempt_recovery\", \"line\": 361, \"extra\": {\"taskName\": null}}",
+        "10: {\"timestamp\": \"2025-10-03T12:01:28.308433\", \"level\": \"ERROR\", \"logger\": \"pcap_analysis.error_handler\", \"message\": \"Error in demo_function: Demo error for logging\", \"module\": \"logging_config\", \"function\": \"log_error_with_context\", \"line\": 392, \"exception\": {\"type\": \"ValueError\", \"message\": \"Demo error for logging\", \"traceback\": [\"Traceback (most recent call last):\\n\", \"  File \\\"C:\\\\Users\\\\admin\\\\Downloads\\\\zapretttt\\\\DPI_Blockcheck\\\\recon_v109\\\\recon_v09\\\\combo\\\\recon\\\\demo_error_handling_recovery.py\\\", line 280, in demo_debug_logging\\n    raise ValueError(\\\"Demo error for logging\\\")\\n\", \"ValueError: Demo error for logging\\n\"]}, \"extra\": {\"taskName\": null, \"error_type\": \"ValueError\", \"error_message\": \"Demo error for logging\", \"context\": \"demo_function\", \"extra_info\": \"demo_value\"}}",
+        "11: "
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 1,
+      "error_line": "2025-10-03 12:00:00,478 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "1: 2025-10-03 12:00:00,478 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+        "2: 2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "3: 2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error"
+      ],
+      "timestamp": "2025-10-03 12:00:00"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 2,
+      "error_line": "2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "1: 2025-10-03 12:00:00,478 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+        "2: 2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "3: 2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+        "4: 2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR"
+      ],
+      "timestamp": "2025-10-03 12:00:00"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 3,
+      "error_line": "2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "1: 2025-10-03 12:00:00,478 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+        "2: 2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "3: 2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+        "4: 2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "5: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: This is a test error"
+      ],
+      "timestamp": "2025-10-03 12:01:10"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 4,
+      "error_line": "2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "2: 2025-10-03 12:00:00,479 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "3: 2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+        "4: 2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "5: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: This is a test error",
+        "6: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR"
+      ],
+      "timestamp": "2025-10-03 12:01:10"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 5,
+      "error_line": "2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: This is a test error",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "3: 2025-10-03 12:01:10,594 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Test error",
+        "4: 2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "5: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: This is a test error",
+        "6: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "7: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Corrupted packet at position 42"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 6,
+      "error_line": "2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "4: 2025-10-03 12:01:10,597 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "5: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: This is a test error",
+        "6: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "7: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Corrupted packet at position 42",
+        "8: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Attempting recovery: Skip corrupted packets and continue parsing"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 7,
+      "error_line": "2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Corrupted packet at position 42",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "5: 2025-10-03 12:01:25,008 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: This is a test error",
+        "6: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "7: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Corrupted packet at position 42",
+        "8: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Attempting recovery: Skip corrupted packets and continue parsing",
+        "9: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Recovery successful: Skip corrupted packets and continue parsing"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 8,
+      "error_line": "2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Attempting recovery: Skip corrupted packets and continue parsing",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "6: 2025-10-03 12:01:25,009 - pcap_analysis.error_handler - WARNING - No recovery actions available for ErrorCategory.SYSTEM_ERROR",
+        "7: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Corrupted packet at position 42",
+        "8: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Attempting recovery: Skip corrupted packets and continue parsing",
+        "9: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Recovery successful: Skip corrupted packets and continue parsing",
+        "10: 2025-10-03 12:01:28,308 - pcap_analysis.error_handler - ERROR - Error in demo_function: Demo error for logging"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 9,
+      "error_line": "2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Recovery successful: Skip corrupted packets and continue parsing",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "7: 2025-10-03 12:01:25,013 - pcap_analysis.error_handler - WARNING - MEDIUM SEVERITY: Corrupted packet at position 42",
+        "8: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Attempting recovery: Skip corrupted packets and continue parsing",
+        "9: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Recovery successful: Skip corrupted packets and continue parsing",
+        "10: 2025-10-03 12:01:28,308 - pcap_analysis.error_handler - ERROR - Error in demo_function: Demo error for logging",
+        "11: Traceback (most recent call last):"
+      ],
+      "timestamp": "2025-10-03 12:01:25"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 10,
+      "error_line": "2025-10-03 12:01:28,308 - pcap_analysis.error_handler - ERROR - Error in demo_function: Demo error for logging",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "8: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Attempting recovery: Skip corrupted packets and continue parsing",
+        "9: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Recovery successful: Skip corrupted packets and continue parsing",
+        "10: 2025-10-03 12:01:28,308 - pcap_analysis.error_handler - ERROR - Error in demo_function: Demo error for logging",
+        "11: Traceback (most recent call last):",
+        "12:   File \"C:\\Users\\admin\\Downloads\\zapretttt\\DPI_Blockcheck\\recon_v109\\recon_v09\\combo\\recon\\demo_error_handling_recovery.py\", line 280, in demo_debug_logging"
+      ],
+      "timestamp": "2025-10-03 12:01:28"
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 11,
+      "error_line": "Traceback (most recent call last):",
+      "pattern_matched": "Traceback.*",
+      "context": [
+        "9: 2025-10-03 12:01:25,014 - pcap_analysis.error_handler - INFO - Recovery successful: Skip corrupted packets and continue parsing",
+        "10: 2025-10-03 12:01:28,308 - pcap_analysis.error_handler - ERROR - Error in demo_function: Demo error for logging",
+        "11: Traceback (most recent call last):",
+        "12:   File \"C:\\Users\\admin\\Downloads\\zapretttt\\DPI_Blockcheck\\recon_v109\\recon_v09\\combo\\recon\\demo_error_handling_recovery.py\", line 280, in demo_debug_logging",
+        "13:     raise ValueError(\"Demo error for logging\")"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 12,
+      "error_line": "File \"C:\\Users\\admin\\Downloads\\zapretttt\\DPI_Blockcheck\\recon_v109\\recon_v09\\combo\\recon\\demo_error_handling_recovery.py\", line 280, in demo_debug_logging",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "10: 2025-10-03 12:01:28,308 - pcap_analysis.error_handler - ERROR - Error in demo_function: Demo error for logging",
+        "11: Traceback (most recent call last):",
+        "12:   File \"C:\\Users\\admin\\Downloads\\zapretttt\\DPI_Blockcheck\\recon_v109\\recon_v09\\combo\\recon\\demo_error_handling_recovery.py\", line 280, in demo_debug_logging",
+        "13:     raise ValueError(\"Demo error for logging\")",
+        "14: ValueError: Demo error for logging"
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 13,
+      "error_line": "raise ValueError(\"Demo error for logging\")",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "11: Traceback (most recent call last):",
+        "12:   File \"C:\\Users\\admin\\Downloads\\zapretttt\\DPI_Blockcheck\\recon_v109\\recon_v09\\combo\\recon\\demo_error_handling_recovery.py\", line 280, in demo_debug_logging",
+        "13:     raise ValueError(\"Demo error for logging\")",
+        "14: ValueError: Demo error for logging",
+        "15: "
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "logs\\pcap_analysis_errors.log",
+      "line_number": 14,
+      "error_line": "ValueError: Demo error for logging",
+      "pattern_matched": "ERROR.*",
+      "context": [
+        "12:   File \"C:\\Users\\admin\\Downloads\\zapretttt\\DPI_Blockcheck\\recon_v109\\recon_v09\\combo\\recon\\demo_error_handling_recovery.py\", line 280, in demo_debug_logging",
+        "13:     raise ValueError(\"Demo error for logging\")",
+        "14: ValueError: Demo error for logging",
+        "15: "
+      ],
+      "timestamp": null
+    },
+    {
+      "file": "attack_validation.log",
+      "line_number": 10,
+      "error_line": "2025-08-27 20:50:26,581 - INFO - Failed: 12 (21.8%)",
+      "pattern_matched": "Failed.*",
+      "context": [
+        "8: 2025-08-27 20:50:26,580 - INFO - Total Tests: 55",
+        "9: 2025-08-27 20:50:26,580 - INFO - Successful: 43 (78.2%)",
+        "10: 2025-08-27 20:50:26,581 - INFO - Failed: 12 (21.8%)",
+        "11: 2025-08-27 20:50:26,581 - INFO - ",
+        "12: Results by Category:"
+      ],
+      "timestamp": "2025-08-27 20:50:26"
+    }
+  ],
+  "forced_override_usage": [
+    {
+      "file": "service_deployment.log",
+      "line_number": 4,
+      "line": "2025-10-07 15:57:15,641 - core.unified_bypass_engine - INFO - \ud83d\ude80 UnifiedBypassEngine initialized with forced override enabled",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 5,
+      "line": "2025-10-07 15:57:15,641 - core.unified_bypass_engine - INFO - \u2705 FORCED OVERRIDE: Enabled by default (matches testing mode)",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 16,
+      "line": "2025-10-07 15:57:15,646 - core.unified_bypass_engine - INFO - \ud83d\ude80 UnifiedBypassEngine initialized with forced override enabled",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 17,
+      "line": "2025-10-07 15:57:15,647 - core.unified_bypass_engine - INFO - \u2705 FORCED OVERRIDE: Enabled by default (matches testing mode)",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 18,
+      "line": "2025-10-07 15:57:15,647 - core.unified_bypass_engine - INFO - \u2705 Forced Override Validation: All checks passed",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 19,
+      "line": "2025-10-07 15:57:15,648 - core.unified_strategy_loader - DEBUG - Created forced override: {'type': 'multidisorder', 'params': {'split_pos': 3, 'repeats': 1}, 'no_fallbacks': True, 'forced': True, 'override_mode': True}",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 34,
+      "line": "2025-10-07 15:57:15,707 - core.unified_strategy_loader - DEBUG - Created forced override: {'type': 'multidisorder', 'params': {'split_pos': 3, 'fooling': 'badseq', 'repeats': 1}, 'no_fallbacks': True, 'forced': True, 'override_mode': True}",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 36,
+      "line": "2025-10-07 15:57:15,707 - core.unified_strategy_loader - DEBUG - Created forced override: {'type': 'multidisorder', 'params': {'split_pos': 3, 'fooling': 'badseq', 'repeats': 1}, 'no_fallbacks': True, 'forced': True, 'override_mode': True}",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 38,
+      "line": "2025-10-07 15:57:15,709 - core.unified_strategy_loader - DEBUG - Created forced override: {'type': 'multidisorder', 'params': {'split_pos': 3, 'fooling': 'badseq', 'repeats': 1}, 'no_fallbacks': True, 'forced': True, 'override_mode': True}",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 41,
+      "line": "2025-10-07 15:57:15,709 - core.unified_strategy_loader - DEBUG - Created forced override: {'type': 'multidisorder', 'params': {'split_pos': 3, 'fooling': 'badseq', 'repeats': 1}, 'no_fallbacks': True, 'forced': True, 'override_mode': True}",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 42,
+      "line": "2025-10-07 15:57:15,709 - core.unified_bypass_engine - INFO - \ud83d\udccb Loaded strategy for 142.250.74.78: multidisorder with forced override",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 43,
+      "line": "2025-10-07 15:57:15,710 - core.unified_strategy_loader - DEBUG - Created forced override: {'type': 'multidisorder', 'params': {'split_pos': 3, 'fooling': 'badseq', 'repeats': 1}, 'no_fallbacks': True, 'forced': True, 'override_mode': True}",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 44,
+      "line": "2025-10-07 15:57:15,710 - core.unified_bypass_engine - INFO - \ud83d\udccb Loaded strategy for 172.66.0.227: multidisorder with forced override",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 45,
+      "line": "2025-10-07 15:57:15,710 - core.unified_strategy_loader - DEBUG - Created forced override: {'type': 'multidisorder', 'params': {'split_pos': 3, 'fooling': 'badseq', 'repeats': 1}, 'no_fallbacks': True, 'forced': True, 'override_mode': True}",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 46,
+      "line": "2025-10-07 15:57:15,710 - core.unified_bypass_engine - INFO - \ud83d\udccb Loaded strategy for 157.240.245.174: multidisorder with forced override",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "service_deployment.log",
+      "line_number": 58,
+      "line": "2025-10-07 15:57:15,713 - core.unified_bypass_engine - INFO -    Forced overrides applied: 0",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:57:15"
+    },
+    {
+      "file": "testing_deployment.log",
+      "line_number": 9,
+      "line": "2025-10-07 15:53:14,916 - core.unified_strategy_loader - DEBUG - Created forced override: {'type': 'multidisorder', 'params': {'split_pos': 3, 'repeats': 1}, 'no_fallbacks': True, 'forced': True, 'override_mode': True}",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:53:14"
+    },
+    {
+      "file": "testing_deployment.log",
+      "line_number": 22,
+      "line": "2025-10-07 15:53:15,972 - testing_deployment - INFO -    Forced Overrides: 0",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:53:15"
+    },
+    {
+      "file": "testing_deployment.log",
+      "line_number": 24,
+      "line": "2025-10-07 15:53:15,975 - testing_deployment - WARNING -    - No forced overrides detected - may indicate configuration issue",
+      "pattern_matched": "forced.*override",
+      "timestamp": "2025-10-07 15:53:15"
+    }
+  ],
+  "domain_success_rates": {
+    "youtube.com": {
+      "attempts": 6,
+      "successes": 0,
+      "failures": 1,
+      "success_rate": 0.0,
+      "files": [
+        "testing_deployment.log",
+        "domain_testing.log"
+      ]
+    },
+    "x.com": {
+      "attempts": 9,
+      "successes": 0,
+      "failures": 1,
+      "success_rate": 0.0,
+      "files": [
+        "testing_deployment.log",
+        "domain_testing.log"
+      ]
+    },
+    "instagram.com": {
+      "attempts": 8,
+      "successes": 0,
+      "failures": 0,
+      "success_rate": 0.0,
+      "files": [
+        "domain_testing.log"
+      ]
+    },
+    "rutracker.org": {
+      "attempts": 2,
+      "successes": 0,
+      "failures": 0,
+      "success_rate": 0.0,
+      "files": [
+        "domain_testing.log"
+      ]
+    }
+  },
+  "summary": {
+    "total_log_files": 14,
+    "total_errors": 43,
+    "total_forced_override_usages": 19,
+    "domains_analyzed": 4,
+    "critical_errors": 0,
+    "forced_override_detected": true
+  }
+}

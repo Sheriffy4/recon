@@ -1,4 +1,0 @@
-{
-  "x.com": "--dpi-desync=multisplit --dpi-desync-split-count=6 --dpi-desync-split-seqovl=25 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=5",
-  "nnmclub.to": "--dpi-desync=multisplit --dpi-desync-split-count=6 --dpi-desync-split-seqovl=25 --dpi-desync-fooling=badsum --dpi-desync-repeats=2 --dpi-desync-ttl=5"
-}

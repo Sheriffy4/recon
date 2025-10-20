@@ -1,0 +1,31 @@
+name: "QUIC Bypass"
+description: "QUIC protocol bypass for HTTP/3 and modern web applications"
+category: "UDP"
+protocol: "UDP"
+target_ports: [443, 80, 8080, 8443]
+parameters:
+  - name: "quic_version"
+    type: "string"
+    default: "v1"
+    description: "QUIC version to target"
+    options: ["v1", "draft-29", "draft-27"]
+  - name: "connection_id_scramble"
+    type: "boolean"
+    default: true
+    description: "Scramble QUIC connection ID"
+  - name: "packet_number_offset"
+    type: "integer"
+    default: 1000
+    description: "Offset for packet number manipulation"
+  - name: "initial_salt_fake"
+    type: "boolean"
+    default: true
+    description: "Use fake initial salt in QUIC handshake"
+implementation:
+  class: "QUICBypassAttack"
+  module: "core.bypass.attacks.udp.quic_bypass"
+effectiveness:
+  google: 0.75
+  cloudflare: 0.70
+  fastly: 0.65
+  general_http3: 0.60

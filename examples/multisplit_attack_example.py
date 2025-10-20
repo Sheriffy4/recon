@@ -153,7 +153,7 @@ def demonstrate_attack_variants():
         b"Content-Type: application/json\r\n"
         b"Content-Length: 89\r\n"
         b"\r\n"
-        b'{"setting": "firewall_rules", "action": "disable", "target": "all", "confirm": true}'
+        b'{"setting": "firewall_rules", "action": "disable", "target": "all", "confirm": True}'
     )
 
     context = AttackContext(

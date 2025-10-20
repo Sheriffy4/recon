@@ -1,19 +1,373 @@
 {
-  "strategy_id": "26c37d1699ce",
-  "strategy": "--dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-split-pos=76 --dpi-desync-ttl=3",
-  "result_status": "ALL_SITES_WORKING",
-  "successful_sites": 1,
-  "total_sites": 1,
-  "success_rate": 1.0,
-  "avg_latency_ms": 298.30312728881836,
-  "fingerprint_used": false,
-  "dpi_type": null,
-  "dpi_confidence": null,
+  "strategy_id": "e56cde85606d",
+  "strategy": "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+  "result_status": "PARTIAL_SUCCESS",
+  "successful_sites": 14,
+  "total_sites": 25,
+  "success_rate": 0.56,
+  "avg_latency_ms": 1171.1839096886772,
+  "fingerprint_used": true,
+  "dpi_type": "unknown",
+  "dpi_confidence": 0.3,
   "engine_telemetry": {
-    "segments_sent": 2,
+    "segments_sent": 0,
     "fake_packets_sent": 0,
-    "CH": 2,
-    "SH": 1,
+    "CH": 216,
+    "SH": 66,
     "RST": 0
+  },
+  "site_results": {
+    "https://x.com": [
+      "WORKING",
+      "162.159.140.229",
+      1335.7658386230469,
+      400
+    ],
+    "https://instagram.com": [
+      "TIMEOUT",
+      "57.144.222.34",
+      9871.708393096924,
+      0
+    ],
+    "https://nnmclub.to": [
+      "WORKING",
+      "188.114.96.1",
+      1137.4602317810059,
+      200
+    ],
+    "https://rutracker.org": [
+      "WORKING",
+      "172.67.182.196",
+      1392.6351070404053,
+      200
+    ],
+    "https://youtube.com": [
+      "TIMEOUT",
+      "216.58.207.206",
+      9867.390155792236,
+      0
+    ],
+    "https://facebook.com": [
+      "WORKING",
+      "31.13.72.36",
+      2404.801845550537,
+      400
+    ],
+    "https://www.x.com": [
+      "WORKING",
+      "172.66.0.227",
+      2382.3869228363037,
+      400
+    ],
+    "https://api.x.com": [
+      "ERROR",
+      "172.66.0.227",
+      1324.4540691375732,
+      0
+    ],
+    "https://mobile.x.com": [
+      "WORKING",
+      "172.66.0.227",
+      1358.6301803588867,
+      400
+    ],
+    "https://pbs.twimg.com": [
+      "ERROR",
+      "199.232.172.159",
+      1356.5261363983154,
+      0
+    ],
+    "https://abs.twimg.com": [
+      "ERROR",
+      "199.232.172.159",
+      551.1338710784912,
+      0
+    ],
+    "https://abs-0.twimg.com": [
+      "TIMEOUT",
+      "104.244.43.131",
+      8509.12356376648,
+      0
+    ],
+    "https://video.twimg.com": [
+      "ERROR",
+      "199.232.172.158",
+      1026.275396347046,
+      0
+    ],
+    "https://ton.twimg.com": [
+      "ERROR",
+      "199.232.172.159",
+      967.003345489502,
+      0
+    ],
+    "https://static.cdninstagram.com": [
+      "WORKING",
+      "31.13.72.53",
+      1006.502628326416,
+      404
+    ],
+    "https://scontent-arn2-1.cdninstagram.com": [
+      "ERROR",
+      "31.13.72.53",
+      938.1077289581299,
+      0
+    ],
+    "https://edge-chat.instagram.com": [
+      "WORKING",
+      "31.13.72.53",
+      895.3509330749512,
+      404
+    ],
+    "https://static.xx.fbcdn.net": [
+      "WORKING",
+      "31.13.72.12",
+      994.6825504302979,
+      400
+    ],
+    "https://external.xx.fbcdn.net": [
+      "ERROR",
+      "57.144.222.128",
+      788.2561683654785,
+      0
+    ],
+    "https://youtubei.googleapis.com": [
+      "WORKING",
+      "216.239.34.223",
+      890.1758193969727,
+      405
+    ],
+    "https://i.ytimg.com": [
+      "WORKING",
+      "216.58.207.246",
+      748.2216358184814,
+      404
+    ],
+    "https://i1.ytimg.com": [
+      "WORKING",
+      "142.250.74.174",
+      750.9956359863281,
+      404
+    ],
+    "https://i2.ytimg.com": [
+      "WORKING",
+      "216.239.38.60",
+      767.7950859069824,
+      404
+    ],
+    "https://www.youtube.com": [
+      "TIMEOUT",
+      "N/A",
+      8292.696475982666,
+      0
+    ],
+    "https://www.facebook.com": [
+      "WORKING",
+      "31.13.72.36",
+      331.17032051086426,
+      400
+    ]
+  },
+  "engine_telemetry_full": {
+    "start_ts": 1760950203.345978,
+    "strategy_key": null,
+    "aggregate": {
+      "segments_sent": 0,
+      "fake_packets_sent": 0,
+      "modified_packets_sent": 0,
+      "quic_segments_sent": 0
+    },
+    "ttls": {
+      "fake": {},
+      "real": {}
+    },
+    "seq_offsets": {},
+    "overlaps": {},
+    "clienthellos": 216,
+    "serverhellos": 66,
+    "rst_count": 0,
+    "per_target": {
+      "162.159.140.229": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950328.315021
+      },
+      "172.66.0.227": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950330.2794068
+      },
+      "188.114.96.1": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950328.981091
+      },
+      "216.58.207.206": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950328.1387963
+      },
+      "31.13.72.36": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950332.463982
+      },
+      "172.67.182.196": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950330.263234
+      },
+      "57.144.222.34": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950328.9762986
+      },
+      "199.232.172.159": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950330.077046
+      },
+      "199.232.172.158": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950329.6135018
+      },
+      "31.13.72.53": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950330.9687865
+      },
+      "216.239.34.223": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950331.6524868
+      },
+      "31.13.72.12": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950331.5747163
+      },
+      "216.58.207.246": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950331.7970548
+      },
+      "57.144.222.128": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950331.4407983
+      },
+      "142.250.74.174": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950332.0318491
+      },
+      "216.239.38.60": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950332.209616
+      },
+      "104.244.43.131": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950358.2125096
+      },
+      "8.8.4.4": {
+        "segments_sent": 0,
+        "fake_packets_sent": 0,
+        "seq_offsets": {},
+        "ttls_fake": {},
+        "ttls_real": {},
+        "overlaps": {},
+        "last_outcome": "ok",
+        "last_outcome_ts": 1760950311.424006
+      }
+    },
+    "duration_sec": 219.8663980960846
   }
 }

@@ -1,0 +1,24 @@
+[
+  {
+    "pcap_file": "mock_analysis",
+    "total_packets": 100,
+    "tcp_packets": 80,
+    "tls_packets": 40,
+    "effectiveness_score": 0.85,
+    "strategy_validations": [
+      {
+        "strategy_name": "split_3",
+        "validation_passed": true,
+        "confidence_score": 0.9,
+        "evidence": [
+          "Mock evidence for split_3"
+        ],
+        "issues": []
+      }
+    ],
+    "recommendations": [
+      "Mock recommendation"
+    ],
+    "issues_found": []
+  }
+]

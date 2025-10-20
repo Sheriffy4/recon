@@ -1,0 +1,991 @@
+{
+  "workflow_id": "validation_20251009_101217",
+  "start_time": "2025-10-09T10:12:17.651371",
+  "target_domain": "youtube.com",
+  "capture_duration": 5,
+  "end_to_end_results": {
+    "validation_summary": {
+      "timestamp": "2025-10-09T10:12:17.776355",
+      "total_tests": 8,
+      "successful_tests": 8,
+      "failed_tests": 0,
+      "success_rate": 1.0,
+      "total_duration": 0.12000179290771484,
+      "total_packets_analyzed": 14,
+      "total_strategy_applications": 6
+    },
+    "test_results": [
+      {
+        "test_name": "baseline_no_dpi",
+        "config": {
+          "test_name": "baseline_no_dpi",
+          "dpi_desync_mode": "split",
+          "split_positions": [],
+          "fooling_methods": [],
+          "target_domain": "youtube.com",
+          "capture_duration": 30,
+          "output_dir": "test_results"
+        },
+        "success": true,
+        "pcap_file": "test_validation_fixed\\end_to_end_tests\\baseline_no_dpi_20251009_101217.pcap",
+        "analysis_results": {
+          "total_packets": 1,
+          "tcp_packets": 1,
+          "split_packets_detected": 0,
+          "badsum_packets_detected": 0,
+          "sni_splits_detected": 0,
+          "position_3_splits": 0,
+          "position_10_splits": 0,
+          "strategy_applications": 0,
+          "packet_sizes": [],
+          "checksum_analysis": {},
+          "split_position_analysis": {},
+          "errors": [],
+          "split_effectiveness": 0.0,
+          "badsum_effectiveness": 0.0
+        },
+        "performance_metrics": {
+          "test_duration": 0.011484146118164062,
+          "packets_processed": 1,
+          "strategy_applications": 0,
+          "success_rate": 1.0
+        },
+        "errors": [],
+        "timestamp": "2025-10-09T10:12:17.669313"
+      },
+      {
+        "test_name": "split_position_3",
+        "config": {
+          "test_name": "split_position_3",
+          "dpi_desync_mode": "split",
+          "split_positions": [
+            "3"
+          ],
+          "fooling_methods": [],
+          "target_domain": "youtube.com",
+          "capture_duration": 30,
+          "output_dir": "test_results"
+        },
+        "success": true,
+        "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_3_20251009_101217.pcap",
+        "analysis_results": {
+          "total_packets": 2,
+          "tcp_packets": 2,
+          "split_packets_detected": 1,
+          "badsum_packets_detected": 0,
+          "sni_splits_detected": 0,
+          "position_3_splits": 1,
+          "position_10_splits": 0,
+          "strategy_applications": 1,
+          "packet_sizes": [
+            3,
+            169
+          ],
+          "checksum_analysis": {},
+          "split_position_analysis": {},
+          "errors": [],
+          "split_effectiveness": 0.5,
+          "badsum_effectiveness": 0.0
+        },
+        "performance_metrics": {
+          "test_duration": 0.016538381576538086,
+          "packets_processed": 2,
+          "strategy_applications": 1,
+          "success_rate": 1.0
+        },
+        "errors": [],
+        "timestamp": "2025-10-09T10:12:17.688846"
+      },
+      {
+        "test_name": "split_position_10",
+        "config": {
+          "test_name": "split_position_10",
+          "dpi_desync_mode": "split",
+          "split_positions": [
+            "10"
+          ],
+          "fooling_methods": [],
+          "target_domain": "youtube.com",
+          "capture_duration": 30,
+          "output_dir": "test_results"
+        },
+        "success": true,
+        "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_10_20251009_101217.pcap",
+        "analysis_results": {
+          "total_packets": 2,
+          "tcp_packets": 2,
+          "split_packets_detected": 0,
+          "badsum_packets_detected": 0,
+          "sni_splits_detected": 0,
+          "position_3_splits": 0,
+          "position_10_splits": 0,
+          "strategy_applications": 0,
+          "packet_sizes": [
+            162
+          ],
+          "checksum_analysis": {},
+          "split_position_analysis": {},
+          "errors": [],
+          "split_effectiveness": 0.0,
+          "badsum_effectiveness": 0.0
+        },
+        "performance_metrics": {
+          "test_duration": 0.013997316360473633,
+          "packets_processed": 2,
+          "strategy_applications": 0,
+          "success_rate": 1.0
+        },
+        "errors": [],
+        "timestamp": "2025-10-09T10:12:17.705132"
+      },
+      {
+        "test_name": "split_position_sni",
+        "config": {
+          "test_name": "split_position_sni",
+          "dpi_desync_mode": "split",
+          "split_positions": [
+            "sni"
+          ],
+          "fooling_methods": [],
+          "target_domain": "youtube.com",
+          "capture_duration": 30,
+          "output_dir": "test_results"
+        },
+        "success": true,
+        "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_sni_20251009_101217.pcap",
+        "analysis_results": {
+          "total_packets": 2,
+          "tcp_packets": 2,
+          "split_packets_detected": 0,
+          "badsum_packets_detected": 0,
+          "sni_splits_detected": 0,
+          "position_3_splits": 0,
+          "position_10_splits": 0,
+          "strategy_applications": 0,
+          "packet_sizes": [
+            129
+          ],
+          "checksum_analysis": {},
+          "split_position_analysis": {},
+          "errors": [],
+          "split_effectiveness": 0.0,
+          "badsum_effectiveness": 0.0
+        },
+        "performance_metrics": {
+          "test_duration": 0.012778282165527344,
+          "packets_processed": 2,
+          "strategy_applications": 0,
+          "success_rate": 1.0
+        },
+        "errors": [],
+        "timestamp": "2025-10-09T10:12:17.718912"
+      },
+      {
+        "test_name": "badsum_only",
+        "config": {
+          "test_name": "badsum_only",
+          "dpi_desync_mode": "split",
+          "split_positions": [],
+          "fooling_methods": [
+            "badsum"
+          ],
+          "target_domain": "youtube.com",
+          "capture_duration": 30,
+          "output_dir": "test_results"
+        },
+        "success": true,
+        "pcap_file": "test_validation_fixed\\end_to_end_tests\\badsum_only_20251009_101217.pcap",
+        "analysis_results": {
+          "total_packets": 1,
+          "tcp_packets": 1,
+          "split_packets_detected": 0,
+          "badsum_packets_detected": 0,
+          "sni_splits_detected": 0,
+          "position_3_splits": 0,
+          "position_10_splits": 0,
+          "strategy_applications": 0,
+          "packet_sizes": [],
+          "checksum_analysis": {},
+          "split_position_analysis": {},
+          "errors": [],
+          "split_effectiveness": 0.0,
+          "badsum_effectiveness": 0.0
+        },
+        "performance_metrics": {
+          "test_duration": 0.004385471343994141,
+          "packets_processed": 1,
+          "strategy_applications": 0,
+          "success_rate": 1.0
+        },
+        "errors": [],
+        "timestamp": "2025-10-09T10:12:17.724349"
+      },
+      {
+        "test_name": "split_3_10_with_badsum",
+        "config": {
+          "test_name": "split_3_10_with_badsum",
+          "dpi_desync_mode": "split",
+          "split_positions": [
+            "3",
+            "10"
+          ],
+          "fooling_methods": [
+            "badsum"
+          ],
+          "target_domain": "youtube.com",
+          "capture_duration": 30,
+          "output_dir": "test_results"
+        },
+        "success": true,
+        "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_3_10_with_badsum_20251009_101217.pcap",
+        "analysis_results": {
+          "total_packets": 2,
+          "tcp_packets": 2,
+          "split_packets_detected": 1,
+          "badsum_packets_detected": 1,
+          "sni_splits_detected": 0,
+          "position_3_splits": 1,
+          "position_10_splits": 0,
+          "strategy_applications": 2,
+          "packet_sizes": [
+            3,
+            169
+          ],
+          "checksum_analysis": {},
+          "split_position_analysis": {},
+          "errors": [],
+          "split_effectiveness": 0.5,
+          "badsum_effectiveness": 0.5
+        },
+        "performance_metrics": {
+          "test_duration": 0.014295578002929688,
+          "packets_processed": 2,
+          "strategy_applications": 2,
+          "success_rate": 1.0
+        },
+        "errors": [],
+        "timestamp": "2025-10-09T10:12:17.741635"
+      },
+      {
+        "test_name": "split_sni_with_badsum",
+        "config": {
+          "test_name": "split_sni_with_badsum",
+          "dpi_desync_mode": "split",
+          "split_positions": [
+            "sni"
+          ],
+          "fooling_methods": [
+            "badsum"
+          ],
+          "target_domain": "youtube.com",
+          "capture_duration": 30,
+          "output_dir": "test_results"
+        },
+        "success": true,
+        "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_sni_with_badsum_20251009_101217.pcap",
+        "analysis_results": {
+          "total_packets": 2,
+          "tcp_packets": 2,
+          "split_packets_detected": 0,
+          "badsum_packets_detected": 1,
+          "sni_splits_detected": 0,
+          "position_3_splits": 0,
+          "position_10_splits": 0,
+          "strategy_applications": 1,
+          "packet_sizes": [
+            129
+          ],
+          "checksum_analysis": {},
+          "split_position_analysis": {},
+          "errors": [],
+          "split_effectiveness": 0.0,
+          "badsum_effectiveness": 0.5
+        },
+        "performance_metrics": {
+          "test_duration": 0.01724410057067871,
+          "packets_processed": 2,
+          "strategy_applications": 1,
+          "success_rate": 1.0
+        },
+        "errors": [],
+        "timestamp": "2025-10-09T10:12:17.759873"
+      },
+      {
+        "test_name": "full_strategy_test",
+        "config": {
+          "test_name": "full_strategy_test",
+          "dpi_desync_mode": "split",
+          "split_positions": [
+            "3",
+            "10",
+            "sni"
+          ],
+          "fooling_methods": [
+            "badsum"
+          ],
+          "target_domain": "youtube.com",
+          "capture_duration": 30,
+          "output_dir": "test_results"
+        },
+        "success": true,
+        "pcap_file": "test_validation_fixed\\end_to_end_tests\\full_strategy_test_20251009_101217.pcap",
+        "analysis_results": {
+          "total_packets": 2,
+          "tcp_packets": 2,
+          "split_packets_detected": 1,
+          "badsum_packets_detected": 1,
+          "sni_splits_detected": 0,
+          "position_3_splits": 1,
+          "position_10_splits": 0,
+          "strategy_applications": 2,
+          "packet_sizes": [
+            3,
+            169
+          ],
+          "checksum_analysis": {},
+          "split_position_analysis": {},
+          "errors": [],
+          "split_effectiveness": 0.5,
+          "badsum_effectiveness": 0.5
+        },
+        "performance_metrics": {
+          "test_duration": 0.008973121643066406,
+          "packets_processed": 2,
+          "strategy_applications": 2,
+          "success_rate": 1.0
+        },
+        "errors": [],
+        "timestamp": "2025-10-09T10:12:17.775361"
+      }
+    ],
+    "strategy_effectiveness": {
+      "split_position_3": {
+        "tests": 3,
+        "successes": 3,
+        "avg_applications": 1.0,
+        "success_rate": 1.0
+      },
+      "split_position_10": {
+        "tests": 3,
+        "successes": 3,
+        "avg_applications": 0.0,
+        "success_rate": 1.0
+      },
+      "split_position_sni": {
+        "tests": 3,
+        "successes": 3,
+        "avg_applications": 0.0,
+        "success_rate": 1.0
+      },
+      "badsum_fooling": {
+        "tests": 4,
+        "successes": 4,
+        "avg_applications": 0.75,
+        "success_rate": 1.0
+      },
+      "combined_strategies": {
+        "tests": 4,
+        "successes": 4,
+        "avg_applications": 1.25,
+        "success_rate": 1.0
+      }
+    },
+    "performance_analysis": {
+      "average_test_duration": 0.012462049722671509,
+      "min_test_duration": 0.004385471343994141,
+      "max_test_duration": 0.01724410057067871,
+      "total_packets_processed": 14,
+      "average_packets_per_test": 1.75,
+      "throughput_packets_per_second": 14.0
+    },
+    "recommendations": [
+      "All strategies are performing well. Continue with current implementation."
+    ],
+    "issues_found": [],
+    "next_steps": [
+      "All tests passed successfully",
+      "Consider running tests with real network traffic",
+      "Implement performance optimizations if needed",
+      "Deploy to production environment with monitoring"
+    ]
+  },
+  "pcap_analysis_results": [
+    {
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\baseline_no_dpi_20251009_101217.pcap",
+      "analysis_timestamp": "2025-10-09T10:12:17.933125",
+      "total_packets": 1,
+      "tcp_packets": 1,
+      "tls_packets": 0,
+      "effectiveness_score": 0.0,
+      "strategy_validations": [
+        {
+          "strategy_name": "split_3",
+          "expected_behavior": "Packets split at position 3 with 3-byte first part",
+          "observed_behavior": "Found 0 3-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 3-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_10",
+          "expected_behavior": "Packets split at position 10 with 10-byte first part",
+          "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 10-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_sni",
+          "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+          "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No TLS Client Hello packets found",
+            "No SNI split patterns detected"
+          ]
+        },
+        {
+          "strategy_name": "badsum",
+          "expected_behavior": "TCP packets with intentionally invalid checksums",
+          "observed_behavior": "Found 0 invalid checksums out of 1 TCP packets",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No invalid checksums detected"
+          ]
+        }
+      ],
+      "recommendations": [
+        "\u274c DPI strategies are not working effectively - major issues detected",
+        "\ud83d\udd27 Split position 3 not detected - verify packet splitting logic",
+        "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+        "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+        "\ud83d\udd27 Badsum not detected - verify checksum manipulation",
+        "\u26a0\ufe0f No TLS traffic detected - verify HTTPS connections",
+        "\ud83d\udcca Small packet capture - may need longer capture duration"
+      ],
+      "issues_found": [
+        "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given",
+        "Analysis failed: 'charmap' codec can't encode character '\\u274c' in position 563: character maps to <undefined>"
+      ]
+    },
+    {
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_3_20251009_101217.pcap",
+      "analysis_timestamp": "2025-10-09T10:12:17.997984",
+      "total_packets": 2,
+      "tcp_packets": 2,
+      "tls_packets": 1,
+      "effectiveness_score": 0.2125,
+      "strategy_validations": [
+        {
+          "strategy_name": "split_3",
+          "expected_behavior": "Packets split at position 3 with 3-byte first part",
+          "observed_behavior": "Found 1 3-byte packets, 1 continuations",
+          "validation_passed": true,
+          "confidence_score": 0.5,
+          "evidence": [
+            "Found packet with 3-byte payload: seq=1000",
+            "Found continuation packet: seq=1003"
+          ],
+          "issues": []
+        },
+        {
+          "strategy_name": "split_10",
+          "expected_behavior": "Packets split at position 10 with 10-byte first part",
+          "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 10-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_sni",
+          "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+          "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No TLS Client Hello packets found",
+            "No SNI split patterns detected"
+          ]
+        },
+        {
+          "strategy_name": "badsum",
+          "expected_behavior": "TCP packets with intentionally invalid checksums",
+          "observed_behavior": "Found 0 invalid checksums out of 2 TCP packets",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No invalid checksums detected"
+          ]
+        }
+      ],
+      "recommendations": [
+        "\u274c DPI strategies are not working effectively - major issues detected",
+        "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+        "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+        "\ud83d\udd27 Badsum not detected - verify checksum manipulation",
+        "\ud83d\udcca Small packet capture - may need longer capture duration"
+      ],
+      "issues_found": [
+        "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given",
+        "Analysis failed: 'charmap' codec can't encode character '\\u2705' in position 564: character maps to <undefined>"
+      ]
+    },
+    {
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_10_20251009_101217.pcap",
+      "analysis_timestamp": "2025-10-09T10:12:18.042784",
+      "total_packets": 2,
+      "tcp_packets": 2,
+      "tls_packets": 0,
+      "effectiveness_score": 0.0,
+      "strategy_validations": [
+        {
+          "strategy_name": "split_3",
+          "expected_behavior": "Packets split at position 3 with 3-byte first part",
+          "observed_behavior": "Found 0 3-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 3-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_10",
+          "expected_behavior": "Packets split at position 10 with 10-byte first part",
+          "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 10-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_sni",
+          "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+          "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No TLS Client Hello packets found",
+            "No SNI split patterns detected"
+          ]
+        },
+        {
+          "strategy_name": "badsum",
+          "expected_behavior": "TCP packets with intentionally invalid checksums",
+          "observed_behavior": "Found 0 invalid checksums out of 2 TCP packets",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No invalid checksums detected"
+          ]
+        }
+      ],
+      "recommendations": [
+        "\u274c DPI strategies are not working effectively - major issues detected",
+        "\ud83d\udd27 Split position 3 not detected - verify packet splitting logic",
+        "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+        "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+        "\ud83d\udd27 Badsum not detected - verify checksum manipulation",
+        "\u26a0\ufe0f No TLS traffic detected - verify HTTPS connections",
+        "\ud83d\udcca Small packet capture - may need longer capture duration"
+      ],
+      "issues_found": [
+        "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given",
+        "Analysis failed: 'charmap' codec can't encode character '\\u274c' in position 565: character maps to <undefined>"
+      ]
+    },
+    {
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_sni_20251009_101217.pcap",
+      "analysis_timestamp": "2025-10-09T10:12:18.092845",
+      "total_packets": 2,
+      "tcp_packets": 2,
+      "tls_packets": 0,
+      "effectiveness_score": 0.0,
+      "strategy_validations": [
+        {
+          "strategy_name": "split_3",
+          "expected_behavior": "Packets split at position 3 with 3-byte first part",
+          "observed_behavior": "Found 0 3-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 3-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_10",
+          "expected_behavior": "Packets split at position 10 with 10-byte first part",
+          "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 10-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_sni",
+          "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+          "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No TLS Client Hello packets found",
+            "No SNI split patterns detected"
+          ]
+        },
+        {
+          "strategy_name": "badsum",
+          "expected_behavior": "TCP packets with intentionally invalid checksums",
+          "observed_behavior": "Found 0 invalid checksums out of 2 TCP packets",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No invalid checksums detected"
+          ]
+        }
+      ],
+      "recommendations": [
+        "\u274c DPI strategies are not working effectively - major issues detected",
+        "\ud83d\udd27 Split position 3 not detected - verify packet splitting logic",
+        "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+        "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+        "\ud83d\udd27 Badsum not detected - verify checksum manipulation",
+        "\u26a0\ufe0f No TLS traffic detected - verify HTTPS connections",
+        "\ud83d\udcca Small packet capture - may need longer capture duration"
+      ],
+      "issues_found": [
+        "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given",
+        "Analysis failed: 'charmap' codec can't encode character '\\u274c' in position 566: character maps to <undefined>"
+      ]
+    },
+    {
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\badsum_only_20251009_101217.pcap",
+      "analysis_timestamp": "2025-10-09T10:12:18.139957",
+      "total_packets": 1,
+      "tcp_packets": 1,
+      "tls_packets": 0,
+      "effectiveness_score": 0.0,
+      "strategy_validations": [
+        {
+          "strategy_name": "split_3",
+          "expected_behavior": "Packets split at position 3 with 3-byte first part",
+          "observed_behavior": "Found 0 3-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 3-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_10",
+          "expected_behavior": "Packets split at position 10 with 10-byte first part",
+          "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 10-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_sni",
+          "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+          "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No TLS Client Hello packets found",
+            "No SNI split patterns detected"
+          ]
+        },
+        {
+          "strategy_name": "badsum",
+          "expected_behavior": "TCP packets with intentionally invalid checksums",
+          "observed_behavior": "Found 0 invalid checksums out of 1 TCP packets",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No invalid checksums detected"
+          ]
+        }
+      ],
+      "recommendations": [
+        "\u274c DPI strategies are not working effectively - major issues detected",
+        "\ud83d\udd27 Split position 3 not detected - verify packet splitting logic",
+        "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+        "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+        "\ud83d\udd27 Badsum not detected - verify checksum manipulation",
+        "\u26a0\ufe0f No TLS traffic detected - verify HTTPS connections",
+        "\ud83d\udcca Small packet capture - may need longer capture duration"
+      ],
+      "issues_found": [
+        "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given",
+        "Analysis failed: 'charmap' codec can't encode character '\\u274c' in position 559: character maps to <undefined>"
+      ]
+    },
+    {
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_3_10_with_badsum_20251009_101217.pcap",
+      "analysis_timestamp": "2025-10-09T10:12:18.164362",
+      "total_packets": 2,
+      "tcp_packets": 2,
+      "tls_packets": 1,
+      "effectiveness_score": 0.46249999999999997,
+      "strategy_validations": [
+        {
+          "strategy_name": "split_3",
+          "expected_behavior": "Packets split at position 3 with 3-byte first part",
+          "observed_behavior": "Found 1 3-byte packets, 1 continuations",
+          "validation_passed": true,
+          "confidence_score": 0.5,
+          "evidence": [
+            "Found packet with 3-byte payload: seq=1000",
+            "Found continuation packet: seq=1003"
+          ],
+          "issues": []
+        },
+        {
+          "strategy_name": "split_10",
+          "expected_behavior": "Packets split at position 10 with 10-byte first part",
+          "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 10-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_sni",
+          "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+          "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No TLS Client Hello packets found",
+            "No SNI split patterns detected"
+          ]
+        },
+        {
+          "strategy_name": "badsum",
+          "expected_behavior": "TCP packets with intentionally invalid checksums",
+          "observed_behavior": "Found 1 invalid checksums out of 2 TCP packets",
+          "validation_passed": true,
+          "confidence_score": 1.0,
+          "evidence": [
+            "Invalid checksum detected: 0xFFFF",
+            "Found 1/2 packets with invalid checksums"
+          ],
+          "issues": []
+        }
+      ],
+      "recommendations": [
+        "\u274c DPI strategies are not working effectively - major issues detected",
+        "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+        "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+        "\ud83d\udcca Small packet capture - may need longer capture duration"
+      ],
+      "issues_found": [
+        "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given",
+        "Analysis failed: 'charmap' codec can't encode character '\\u2705' in position 570: character maps to <undefined>"
+      ]
+    },
+    {
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_sni_with_badsum_20251009_101217.pcap",
+      "analysis_timestamp": "2025-10-09T10:12:18.190759",
+      "total_packets": 2,
+      "tcp_packets": 2,
+      "tls_packets": 0,
+      "effectiveness_score": 0.25,
+      "strategy_validations": [
+        {
+          "strategy_name": "split_3",
+          "expected_behavior": "Packets split at position 3 with 3-byte first part",
+          "observed_behavior": "Found 0 3-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 3-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_10",
+          "expected_behavior": "Packets split at position 10 with 10-byte first part",
+          "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 10-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_sni",
+          "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+          "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No TLS Client Hello packets found",
+            "No SNI split patterns detected"
+          ]
+        },
+        {
+          "strategy_name": "badsum",
+          "expected_behavior": "TCP packets with intentionally invalid checksums",
+          "observed_behavior": "Found 1 invalid checksums out of 2 TCP packets",
+          "validation_passed": true,
+          "confidence_score": 1.0,
+          "evidence": [
+            "Invalid checksum detected: 0xFFFF",
+            "Found 1/2 packets with invalid checksums"
+          ],
+          "issues": []
+        }
+      ],
+      "recommendations": [
+        "\u274c DPI strategies are not working effectively - major issues detected",
+        "\ud83d\udd27 Split position 3 not detected - verify packet splitting logic",
+        "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+        "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+        "\u26a0\ufe0f No TLS traffic detected - verify HTTPS connections",
+        "\ud83d\udcca Small packet capture - may need longer capture duration"
+      ],
+      "issues_found": [
+        "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given",
+        "Analysis failed: 'charmap' codec can't encode character '\\u274c' in position 569: character maps to <undefined>"
+      ]
+    },
+    {
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\full_strategy_test_20251009_101217.pcap",
+      "analysis_timestamp": "2025-10-09T10:12:18.227362",
+      "total_packets": 2,
+      "tcp_packets": 2,
+      "tls_packets": 1,
+      "effectiveness_score": 0.46249999999999997,
+      "strategy_validations": [
+        {
+          "strategy_name": "split_3",
+          "expected_behavior": "Packets split at position 3 with 3-byte first part",
+          "observed_behavior": "Found 1 3-byte packets, 1 continuations",
+          "validation_passed": true,
+          "confidence_score": 0.5,
+          "evidence": [
+            "Found packet with 3-byte payload: seq=1000",
+            "Found continuation packet: seq=1003"
+          ],
+          "issues": []
+        },
+        {
+          "strategy_name": "split_10",
+          "expected_behavior": "Packets split at position 10 with 10-byte first part",
+          "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No packets with 10-byte payload found"
+          ]
+        },
+        {
+          "strategy_name": "split_sni",
+          "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+          "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+          "validation_passed": false,
+          "confidence_score": 0.0,
+          "evidence": [],
+          "issues": [
+            "No TLS Client Hello packets found",
+            "No SNI split patterns detected"
+          ]
+        },
+        {
+          "strategy_name": "badsum",
+          "expected_behavior": "TCP packets with intentionally invalid checksums",
+          "observed_behavior": "Found 1 invalid checksums out of 2 TCP packets",
+          "validation_passed": true,
+          "confidence_score": 1.0,
+          "evidence": [
+            "Invalid checksum detected: 0xFFFF",
+            "Found 1/2 packets with invalid checksums"
+          ],
+          "issues": []
+        }
+      ],
+      "recommendations": [
+        "\u274c DPI strategies are not working effectively - major issues detected",
+        "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+        "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+        "\ud83d\udcca Small packet capture - may need longer capture duration"
+      ],
+      "issues_found": [
+        "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given",
+        "Analysis failed: 'charmap' codec can't encode character '\\u2705' in position 566: character maps to <undefined>"
+      ]
+    }
+  ],
+  "final_report": {
+    "report_id": "validation_report_20251009_101218",
+    "validation_summary": {
+      "success_rate": 1.0,
+      "total_tests": 8,
+      "successful_tests": 8,
+      "effectiveness_score": 0.1734375
+    },
+    "strategy_performance": {
+      "3": {
+        "success_rate": 1.0,
+        "tests_conducted": 3,
+        "issues_count": 0
+      },
+      "10": {
+        "success_rate": 1.0,
+        "tests_conducted": 3,
+        "issues_count": 0
+      },
+      "sni": {
+        "success_rate": 1.0,
+        "tests_conducted": 3,
+        "issues_count": 0
+      },
+      "badsum": {
+        "success_rate": 1.0,
+        "tests_conducted": 4,
+        "issues_count": 1
+      }
+    },
+    "recommendations_count": 10,
+    "issues_count": 17
+  },
+  "success": true,
+  "errors": [],
+  "end_time": "2025-10-09T10:12:18.307822"
+}

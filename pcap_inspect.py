@@ -1,8 +1,9 @@
 # pcap_inspect.py
 import json, struct
+import logging
 from collections import defaultdict
-from typing import Dict, List, Tuple, Optional
-from scapy.all import rdpcap, IP, TCP, Raw
+from typing import Dict, List, Tuple, Optional, Any
+from scapy.all import rdpcap, IP, TCP, Raw, PcapReader, wrpcap, Scapy_Exception, IPv6
 
 def is_tls_clienthello(payload: bytes) -> bool:
     try:
@@ -180,6 +181,155 @@ def inspect_pcap(pcap_path: str) -> Dict:
             "metrics": analysis
         })
     return report
+
+class AttackValidator:
+    """
+    Валидирует инциденты, обнаруженные в pcap_inspect,
+    проверяя корректность применения техник атаки (fake/real).
+    """
+    def __init__(self, pcap_inspect_report: Dict[str, Any]):
+        self.report = pcap_inspect_report or {}
+        # Для быстрого доступа индексируем потоки по их ключу
+        self.flows_by_key = {
+            flow.get("flow_key"): flow
+            for flow in self.report.get("flows", [])
+            if flow.get("flow_key")
+        }
+        self.logger = logging.getLogger("AttackValidator")
+
+    def _normalize_stream_key(self, stream_label: str) -> Optional[str]:
+        """Приводит ключ потока к формату 'ip:port-ip:port' для поиска."""
+        try:
+            # Ожидаемый формат: "192.168.18.188:54709-162.159.140.229:443"
+            parts = stream_label.replace(" -> ", "-").split("-")
+            src = parts[0]
+            dst = parts[1]
+            
+            # pcap_inspect использует формат "src:port -> dst:port"
+            return f"{src} -> {dst}"
+        except Exception:
+            return None
+
+    def validate_incident(self, incident: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Валидирует один инцидент, проверяя пакеты в соответствующем потоке.
+        """
+        stream_label = incident.get("stream")
+        if not stream_label:
+            return None
+
+        flow_key = self._normalize_stream_key(stream_label)
+        flow_data = self.flows_by_key.get(flow_key)
+
+        if not flow_data:
+            return {"detected": False, "confidence": 0.1, "issues": ["Flow not found in pcap_inspect report."]}
+
+        packets = flow_data.get("packets", [])
+        if not packets:
+            return {"detected": False, "confidence": 0.1, "issues": ["No packets found for this flow."]}
+
+        # --- Основная логика валидации ---
+        issues = []
+        fixes = []
+        
+        # 1. Проверяем, был ли первый пакет фейковым, как и ожидалось
+        first_pkt = packets[0]
+        if not first_pkt.get("is_fake_candidate"):
+            issues.append("No fake packet detected for fakeddisorder-style attack.")
+            fixes.append("Ensure fake packet is sent first with low TTL or bad checksum.")
+
+        # 2. Проверяем, что "реальные" пакеты не помечены как фейковые
+        real_packets_with_bad_checksum = []
+        for i, pkt in enumerate(packets[1:]): # Пропускаем первый (предположительно фейковый)
+            if not pkt.get("tcp_checksum_valid"):
+                real_packets_with_bad_checksum.append(i + 1)
+        
+        if real_packets_with_bad_checksum:
+            issues.append(f"Real segments have invalid TCP checksums (packets: {real_packets_with_bad_checksum}).")
+            fixes.append("Ensure TCP checksum is valid for all real segments.")
+
+        if not issues:
+            return {
+                "detected": True,
+                "confidence": 0.95,
+                "issues": [],
+                "fixes": []
+            }
+        else:
+            return {
+                "detected": False,
+                "confidence": 0.8,
+                "issues": issues,
+                "fixes": fixes
+            }
+
+# --- START OF FIX: Restored functions from the old version ---
+
+def _has_md5sig(pkt):
+    """Checks for the TCP MD5 Signature option (kind=19)."""
+    try:
+        if TCP in pkt:
+            # Scapy's options are a list of tuples (kind, value)
+            for opt_kind, _ in pkt[TCP].options:
+                if opt_kind == 19:
+                    return True
+            # Fallback for raw byte parsing if Scapy fails
+            b = bytes(pkt[TCP])
+            hdr_len = pkt[TCP].dataofs * 4
+            opts = b[20:hdr_len] if hdr_len > 20 else b""
+            return b"\x13\x12" in opts  # kind=19, len=18
+    except Exception:
+        return False
+    return False
+
+def _classify_window(segments):
+    """
+    Restored classification logic from the old, working version.
+    This logic is more flexible and correctly identifies complex attack patterns.
+    """
+    segs = sorted(segments, key=lambda x: x["idx"])
+    fake = [s for s in segs if (s["ttl"] is not None and s["ttl"] <= 4) or (not s["tcp_ok"]) or s["md5"]]
+    
+    rels = [s["rel_seq"] for s in segs]
+    ttls = [s["ttl"] for s in segs]
+    has_md5 = any(s["md5"] for s in segs)
+    count = len(segs)
+
+    # fakeddisorder (fake + part2 + part1)
+    if fake and len(segs) >= 3 and segs[0] in fake:
+        rel_after = [s["rel_seq"] for s in segs[1:]]
+        if 0 in rel_after and any(r > 0 for r in rel_after):
+            split_pos = max([r for r in rel_after if r > 0] or [0])
+            label = f"fakeddisorder_badsum={'y' if not segs[0]['tcp_ok'] else 'n'}_ttl{segs[0]['ttl']}_split{split_pos}{'_md5' if has_md5 else ''}"
+            return label, {"type": "fakeddisorder", "split_pos": split_pos}
+
+    # fake race (fake + real)
+    if fake and count >= 2 and segs[0] in fake:
+        if segs[1]["rel_seq"] == 0:
+            label = f"fake_race_badsum={'y' if not segs[0]['tcp_ok'] else 'n'}_ttl{segs[0]['ttl']}{'_md5' if has_md5 else ''}"
+            return label, {"type": "fake_race"}
+
+    # multisplit/split (no fake packets)
+    if not fake and count >= 2:
+        splits = sorted(set([s["rel_seq"] for s in segs]))
+        if len(splits) >= 2 and splits[0] == 0:
+            positions = splits[1:]
+            if len(positions) == 1:
+                label = f"split_{positions[0]}"
+                return label, {"type": "split", "split_pos": positions[0]}
+            else:
+                label = f"multisplit_{','.join(str(x) for x in positions)}"
+                return label, {"type": "multisplit", "positions": positions}
+
+    # seqovl heuristic
+    if count >= 2 and segs[1]["rel_seq"] > 0 and segs[1]["rel_seq"] < segs[0]["paylen"]:
+        overlap = segs[0]['paylen'] - segs[1]['rel_seq']
+        label = f"seqovl_ovl{overlap}"
+        return label, {"type": "seqovl", "overlap": overlap}
+
+    return "unknown", {"type": "unknown"}
+
+# --- END OF FIX ---
 
 if __name__ == "__main__":
     import argparse

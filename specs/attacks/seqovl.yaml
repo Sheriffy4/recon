@@ -1,0 +1,178 @@
+# Sequence Overlap Attack Specification
+# Creates overlapping TCP sequence numbers to confuse DPI
+
+name: seqovl
+aliases:
+  - tcp_seqovl
+  - sequence_overlap
+  - fakeddisorder_seqovl
+  - seqovl_fakeddisorder
+description: Create overlapping TCP sequence numbers to confuse DPI reassembly
+category: tcp_manipulation
+
+parameters:
+  - name: split_pos
+    type: int
+    default: 3
+    min: 1
+    required: true
+    description: Position in bytes where to split the payload
+  
+  - name: overlap_size
+    type: int
+    default: 10
+    min: 1
+    required: true
+    description: Size of sequence overlap in bytes
+  
+  - name: overlap_pattern
+    type: str
+    default: "duplicate"
+    required: false
+    description: Pattern for overlap data
+    allowed_values:
+      - duplicate
+      - modified
+      - random
+
+expected_packets:
+  count: 2
+  order:
+    - packet_index: 0
+      name: first_part
+      properties:
+        seq: "{original_seq}"
+        length: "{split_pos + overlap_size}"
+        tcp_flags: "PSH+ACK (0x18)"
+        payload: "original_payload[0:split_pos+overlap_size]"
+      
+    - packet_index: 1
+      name: second_part
+      properties:
+        seq: "{original_seq + split_pos}"
+        length: "{len(original_payload) - split_pos}"
+        tcp_flags: "PSH+ACK (0x18)"
+        payload: "original_payload[split_pos:]"
+        overlap_start: "{split_pos}"
+        overlap_end: "{split_pos + overlap_size}"
+
+validation_rules:
+  sequence_numbers:
+    - rule: "first_part.seq == original_seq"
+      description: "First part must start at original sequence number"
+      severity: critical
+    
+    - rule: "second_part.seq == first_part.seq + split_pos"
+      description: "Second part must overlap with first part"
+      severity: critical
+    
+    - rule: "second_part.seq < first_part.seq + len(first_part.payload)"
+      description: "Second part sequence must be within first part range (overlap)"
+      severity: critical
+    
+    - rule: "overlap_size == (first_part.seq + len(first_part.payload)) - second_part.seq"
+      description: "Overlap size must match parameter"
+      severity: critical
+  
+  payload:
+    - rule: "if params.overlap_pattern == 'duplicate': first_part.payload[split_pos:split_pos+overlap_size] == second_part.payload[0:overlap_size]"
+      description: "For duplicate pattern, overlap data must be identical"
+      severity: critical
+    
+    - rule: "if params.overlap_pattern == 'modified': first_part.payload[split_pos:split_pos+overlap_size] != second_part.payload[0:overlap_size]"
+      description: "For modified pattern, overlap data must be different"
+      severity: critical
+  
+  packet_count:
+    - rule: "len(packets) == 2"
+      description: "Must generate exactly 2 packets"
+      severity: critical
+  
+  packet_order:
+    - rule: "packets[0].seq < packets[1].seq"
+      description: "Packets must be in sequence order"
+      severity: critical
+  
+  checksum:
+    - rule: "all(p.checksum_valid for p in packets)"
+      description: "All packets must have valid checksums"
+      severity: critical
+  
+  ttl:
+    - rule: "all(p.ttl in [64, 128] for p in packets)"
+      description: "All packets should have default system TTL"
+      severity: warning
+
+test_variations:
+  minimal_overlap:
+    description: "Minimal sequence overlap"
+    params:
+      split_pos: 3
+      overlap_size: 1
+  
+  small_overlap:
+    description: "Small sequence overlap"
+    params:
+      split_pos: 3
+      overlap_size: 10
+  
+  large_overlap:
+    description: "Large sequence overlap"
+    params:
+      split_pos: 76
+      overlap_size: 336
+  
+  modified_overlap:
+    description: "Overlap with modified data"
+    params:
+      split_pos: 3
+      overlap_size: 10
+      overlap_pattern: "modified"
+  
+  random_overlap:
+    description: "Overlap with random data"
+    params:
+      split_pos: 3
+      overlap_size: 10
+      overlap_pattern: "random"
+
+error_cases:
+  missing_overlap_size:
+    description: "overlap_size is required"
+    params:
+      split_pos: 3
+    expected_error: "overlap_size is required"
+  
+  zero_overlap:
+    description: "overlap_size must be positive"
+    params:
+      split_pos: 3
+      overlap_size: 0
+    expected_error: "overlap_size must be >= 1"
+  
+  overlap_exceeds_payload:
+    description: "overlap_size cannot exceed payload length"
+    params:
+      split_pos: 3
+      overlap_size: 10000
+    expected_error: "overlap_size exceeds available payload"
+  
+  invalid_overlap_pattern:
+    description: "Invalid overlap pattern"
+    params:
+      split_pos: 3
+      overlap_size: 10
+      overlap_pattern: "invalid"
+    expected_error: "Invalid overlap_pattern"
+
+notes:
+  - "Creates overlapping TCP sequence numbers"
+  - "Second packet starts before first packet ends"
+  - "TCP stack handles overlap by using data from first packet"
+  - "DPI may be confused by overlapping sequences"
+  - "duplicate pattern: overlap data is identical in both packets"
+  - "modified pattern: overlap data is different (DPI confusion)"
+  - "random pattern: overlap data is random in second packet"
+  - "Effective against DPI that doesn't handle overlaps correctly"
+  - "Often combined with fakeddisorder for maximum effectiveness"
+  - "Common overlap sizes: 10, 336 bytes"

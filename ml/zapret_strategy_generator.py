@@ -108,7 +108,7 @@ class ZapretStrategyGenerator:
         Generate DPI bypass strategies, enhanced to use fingerprint data.
         
         Args:
-            fingerprint: DPIFingerprint object with detected characteristics
+            fingerprint: DPIFingerprint object with detected characteristics (can be None)
             count: Number of strategies to generate
             
         Returns:
@@ -116,11 +116,20 @@ class ZapretStrategyGenerator:
         """
         strategies = []
         
+        # Defensive check: ensure fingerprint is not None before accessing attributes
+        if fingerprint is None:
+            self.logger.info("No fingerprint provided, generating generic strategies only")
+            generic_strategies = self._generate_generic_strategies(count)
+            return generic_strategies
+        
         # Use fingerprint data to generate targeted strategies
         if fingerprint:
-            # Extract strategy hints from fingerprint
+            # Extract strategy hints from fingerprint (with safety checks)
             raw_metrics = getattr(fingerprint, 'raw_metrics', {})
-            hints = raw_metrics.get('strategy_hints', [])
+            # Ensure raw_metrics is a dict (not None)
+            if raw_metrics is None:
+                raw_metrics = {}
+            hints = raw_metrics.get('strategy_hints', []) if isinstance(raw_metrics, dict) else []
             
             # FIXED: Check fragmentation vulnerability from fingerprint first
             # Try multiple ways to access fragmentation info

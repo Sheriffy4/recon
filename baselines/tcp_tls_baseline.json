@@ -1,0 +1,21 @@
+{
+  "name": "tcp_tls_baseline",
+  "timestamp": "2025-10-06T12:06:23.243388",
+  "version": "1.0",
+  "total_tests": 0,
+  "passed_tests": 0,
+  "failed_tests": 0,
+  "results": [],
+  "metadata": {
+    "attack_summary": {
+      "failure_patterns": {
+        "sequence_number_errors": 0,
+        "checksum_errors": 0,
+        "ttl_errors": 0,
+        "packet_count_errors": 0,
+        "parser_errors": 0
+      }
+    },
+    "duration": 0.002312183380126953
+  }
+}

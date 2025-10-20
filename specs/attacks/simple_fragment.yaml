@@ -1,0 +1,207 @@
+# Simple Fragment Attack Specification
+# Basic TCP fragmentation attack that splits packets into smaller segments
+
+name: simple_fragment
+aliases:
+  - simple_tcp_fragment
+  - basic_fragment
+description: Basic TCP fragmentation that splits packets into smaller segments to evade DPI signature matching
+category: tcp_fragmentation
+
+parameters:
+  - name: fragment_size
+    type: int
+    default: 8
+    min: 1
+    max: 1460
+    required: false
+    description: Size of each fragment in bytes (default 8 bytes)
+  
+  - name: max_fragments
+    type: int
+    default: null
+    min: 2
+    max: 100
+    required: false
+    description: Maximum number of fragments to create (null = unlimited)
+  
+  - name: fragment_delay_ms
+    type: float
+    default: 0.0
+    min: 0.0
+    max: 1000.0
+    required: false
+    description: Delay in milliseconds between sending fragments
+
+expected_packets:
+  count: "ceil(payload_length / fragment_size)"
+  order:
+    - packet_index: 0
+      name: fragment_1
+      properties:
+        length: "{min(fragment_size, payload_length)}"
+        seq: "{original_seq}"
+        tcp_flags: "PSH+ACK (0x18)"
+        payload: "original_payload[0:fragment_size]"
+      
+    - packet_index: 1
+      name: fragment_2
+      properties:
+        length: "{min(fragment_size, payload_length - fragment_size)}"
+        seq: "{original_seq + fragment_size}"
+        tcp_flags: "PSH+ACK (0x18)"
+        payload: "original_payload[fragment_size:2*fragment_size]"
+    
+    - packet_index: "..."
+      name: fragment_n
+      properties:
+        length: "{remaining_bytes}"
+        seq: "{original_seq + (n-1) * fragment_size}"
+        tcp_flags: "PSH+ACK (0x18)"
+        payload: "original_payload[(n-1)*fragment_size:n*fragment_size]"
+
+validation_rules:
+  sequence_numbers:
+    - rule: "fragments[0].seq == original_seq"
+      description: "First fragment must start at original sequence number"
+      severity: critical
+    
+    - rule: "for i in range(len(fragments)-1): fragments[i+1].seq == fragments[i].seq + len(fragments[i].payload)"
+      description: "Each fragment sequence must follow previous fragment"
+      severity: critical
+    
+    - rule: "all(f.seq >= original_seq for f in fragments)"
+      description: "All fragment sequences must be >= original sequence"
+      severity: critical
+  
+  payload:
+    - rule: "''.join(f.payload for f in fragments) == original_payload"
+      description: "Combined fragment payloads must equal original"
+      severity: critical
+    
+    - rule: "all(len(f.payload) <= params.fragment_size for f in fragments[:-1])"
+      description: "All fragments except last must be <= fragment_size"
+      severity: critical
+    
+    - rule: "len(fragments[-1].payload) <= params.fragment_size"
+      description: "Last fragment must be <= fragment_size"
+      severity: critical
+  
+  packet_count:
+    - rule: "len(fragments) >= 2"
+      description: "Must generate at least 2 fragments"
+      severity: critical
+    
+    - rule: "if params.max_fragments: len(fragments) <= params.max_fragments"
+      description: "Must not exceed max_fragments if specified"
+      severity: error
+    
+    - rule: "len(fragments) == ceil(len(original_payload) / params.fragment_size)"
+      description: "Fragment count must match expected calculation"
+      severity: critical
+  
+  packet_order:
+    - rule: "all(fragments[i].seq < fragments[i+1].seq for i in range(len(fragments)-1))"
+      description: "Fragments must be in sequence order"
+      severity: critical
+  
+  checksum:
+    - rule: "all(f.checksum_valid for f in fragments)"
+      description: "All fragments must have valid checksums"
+      severity: critical
+  
+  ttl:
+    - rule: "all(f.ttl in [64, 128] for f in fragments)"
+      description: "All fragments should have default system TTL"
+      severity: warning
+  
+  tcp_flags:
+    - rule: "all(f.tcp_flags == 0x18 for f in fragments)"
+      description: "All fragments should have PSH+ACK flags"
+      severity: warning
+
+test_variations:
+  minimal:
+    description: "Minimal fragmentation with 8-byte fragments"
+    params:
+      fragment_size: 8
+  
+  tiny_fragments:
+    description: "Very small 1-byte fragments"
+    params:
+      fragment_size: 1
+  
+  small_fragments:
+    description: "Small 4-byte fragments"
+    params:
+      fragment_size: 4
+  
+  medium_fragments:
+    description: "Medium 16-byte fragments"
+    params:
+      fragment_size: 16
+  
+  large_fragments:
+    description: "Large 64-byte fragments"
+    params:
+      fragment_size: 64
+  
+  with_delay:
+    description: "Fragments with 1ms delay between sends"
+    params:
+      fragment_size: 8
+      fragment_delay_ms: 1.0
+  
+  limited_fragments:
+    description: "Limit to maximum 5 fragments"
+    params:
+      fragment_size: 8
+      max_fragments: 5
+
+error_cases:
+  zero_fragment_size:
+    description: "fragment_size cannot be 0"
+    params:
+      fragment_size: 0
+    expected_error: "fragment_size must be >= 1"
+  
+  negative_fragment_size:
+    description: "fragment_size cannot be negative"
+    params:
+      fragment_size: -1
+    expected_error: "fragment_size must be >= 1"
+  
+  fragment_size_too_large:
+    description: "fragment_size exceeds MTU"
+    params:
+      fragment_size: 2000
+    expected_error: "fragment_size must be <= 1460"
+  
+  max_fragments_too_small:
+    description: "max_fragments must be at least 2"
+    params:
+      fragment_size: 8
+      max_fragments: 1
+    expected_error: "max_fragments must be >= 2"
+  
+  negative_delay:
+    description: "fragment_delay_ms cannot be negative"
+    params:
+      fragment_size: 8
+      fragment_delay_ms: -1.0
+    expected_error: "fragment_delay_ms must be >= 0.0"
+
+notes:
+  - "Simplest form of TCP fragmentation"
+  - "Breaks payload into equal-sized fragments"
+  - "All fragments have valid checksums and sequential sequence numbers"
+  - "No TTL manipulation - all fragments reach destination"
+  - "Effective against DPI that expects full packets"
+  - "Small fragment sizes (1-8 bytes) are most effective"
+  - "Fragment size of 1 byte creates maximum fragmentation"
+  - "Fragment size of 8 bytes is good balance between effectiveness and overhead"
+  - "Can add delay between fragments to further confuse DPI"
+  - "max_fragments can limit total fragments for performance"
+  - "Last fragment may be smaller than fragment_size"
+  - "TCP stack reassembles fragments automatically"
+

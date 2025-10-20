@@ -8,7 +8,7 @@ ensuring the CLI supports every attack registered in the AttackRegistry.
 
 import logging
 from typing import Dict, List, Set, Optional, Any, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from core.bypass.attacks.registry import AttackRegistry
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class AttackInfo:
     parameters: List[str]
     default_params: Dict[str, Any]
     description: str
-    aliases: List[str] = None
+    aliases: List[str] = field(default_factory=list)
     
     def __post_init__(self):
         if self.aliases is None:
@@ -354,24 +354,65 @@ class ComprehensiveAttackMapping:
         if params is None:
             params = attack_info.default_params
         
-        # Add parameter-specific arguments
+        # Add parameter-specific arguments with special handling for certain attacks
+        param_mappings = {
+            'split_pos': '--dpi-desync-split-pos',
+            'split_count': '--dpi-desync-split-count',
+            'split_seqovl': '--dpi-desync-split-seqovl',
+            'ttl': '--dpi-desync-ttl',
+            'fooling': '--dpi-desync-fooling',
+            'repeats': '--dpi-desync-repeats',
+            'delay': '--dpi-desync-delay',
+            'fragment_size': '--dpi-desync-split-pos',  # For IP fragmentation
+            'window_size': '--tcp-window-size'
+        }
+        
+        # Special handling for specific attack types
+        if attack_name in ['seqovl', 'sequence_overlap', 'tcp_seqovl']:
+            # For seqovl attacks, use overlap_size as split_seqovl if available
+            if 'overlap_size' in params and 'split_seqovl' not in params:
+                params = params.copy()
+                params['split_seqovl'] = params['overlap_size']
+        
+        elif attack_name in ['multisplit', 'tcp_multisplit']:
+            # For multisplit attacks, calculate split_count from positions if available
+            if 'positions' in params and 'split_count' not in params:
+                params = params.copy()
+                positions = params['positions']
+                params['split_count'] = len(positions) if positions else 3
+            # Set default split_seqovl to 0 if not specified
+            if 'split_seqovl' not in params:
+                params = params.copy()
+                params['split_seqovl'] = 0
+        
+        # Add parameters
         for param_name in attack_info.parameters:
             if param_name in params:
                 value = params[param_name]
-                
-                # Map parameter names to zapret arguments
-                param_mappings = {
-                    'split_pos': '--dpi-desync-split-pos',
-                    'split_count': '--dpi-desync-split-count',
-                    'split_seqovl': '--dpi-desync-split-seqovl',
-                    'ttl': '--dpi-desync-ttl',
-                    'fooling': '--dpi-desync-fooling',
-                    'repeats': '--dpi-desync-repeats',
-                    'delay': '--dpi-desync-delay',
-                    'fragment_size': '--dpi-desync-split-pos',  # For IP fragmentation
-                    'window_size': '--tcp-window-size'
-                }
-                
+                # Special handling for list parameters - convert to comma-separated string
+                if isinstance(value, list):
+                    if param_name == 'positions':
+                        # For positions parameter, convert to comma-separated string without brackets
+                        value = ','.join(str(v) for v in value)
+                    else:
+                        # For other list parameters, convert to comma-separated string
+                        value = ','.join(str(v) for v in value)
+                if param_name in param_mappings:
+                    cmd_parts.append(f"{param_mappings[param_name]}={value}")
+        
+        # Add additional parameters that might not be in attack_info.parameters
+        additional_params = ['split_pos', 'split_count', 'split_seqovl', 'ttl', 'fooling']
+        for param_name in additional_params:
+            if param_name in params and param_name not in attack_info.parameters:
+                # Special handling for list parameters - convert to comma-separated string
+                value = params[param_name]
+                if isinstance(value, list):
+                    if param_name == 'positions':
+                        # For positions parameter, convert to comma-separated string without brackets
+                        value = ','.join(str(v) for v in value)
+                    else:
+                        # For other list parameters, convert to comma-separated string
+                        value = ','.join(str(v) for v in value)
                 if param_name in param_mappings:
                     cmd_parts.append(f"{param_mappings[param_name]}={value}")
         
@@ -381,25 +422,67 @@ class ComprehensiveAttackMapping:
         """Extract attack type from zapret strategy string."""
         strategy_lower = strategy.lower()
         
-        # Check for specific patterns in the strategy string
-        type_patterns = {
-            'multisplit': ['multisplit'],
-            'fake_disorder': ['fake,disorder', 'fakeddisorder', 'fake,fakeddisorder'],
-            'multidisorder': ['multidisorder'],
-            'sequence_overlap': ['seqovl'],
-            'badsum_race': ['badsum'],
-            'md5sig_race': ['md5sig'],
-            'ip_fragmentation': ['ipfrag2'],
-            'force_tcp': ['filter-udp=443'],
-            'simple_fragment': ['split'],
-            'timing_based': ['delay'],
-            'quic_fragmentation': ['filter-udp=443']
-        }
+        # Check for specific patterns in the strategy string with FIXED priorities
+        # Order matters - most specific patterns first
+        type_patterns = [
+            # Priority 1: Very specific multi-component patterns (highest priority)
+            ('fake_fakeddisorder', ['fake,fakeddisorder']),
+            ('tcp_multisplit', ['tcp.*multisplit', 'multisplit.*tcp']),
+            ('tcp_multidisorder', ['tcp.*multidisorder', 'multidisorder.*tcp']),
+            ('tcp_seqovl', ['tcp.*seqovl', 'seqovl.*tcp']),
+            
+            # Priority 2: Specific zapret command patterns (very specific)
+            ('ip_fragmentation_advanced', ['ipfrag2']),
+            ('timing_based_evasion', ['dpi-desync-delay', 'delay=']),
+            ('force_tcp', ['filter-udp=443']),
+            ('badsum_race', ['dpi-desync-fooling=badsum', 'fooling.*badsum', 'badsum']),
+            ('md5sig_race', ['dpi-desync-fooling=md5sig', 'fooling.*md5sig', 'md5sig']),
+            ('badseq_fooling', ['dpi-desync-fooling=badseq', 'fooling.*badseq']),
+            
+            # Priority 3: Fake disorder patterns (must come before generic disorder)
+            ('fake_disorder', ['fake,disorder', 'fakeddisorder', 'fake.*disorder']),
+            
+            # Priority 4: Multi-attack patterns (must come before single variants)
+            ('multisplit', ['multisplit']),
+            ('multidisorder', ['multidisorder']),
+            ('sequence_overlap', ['seqovl']),
+            
+            # Priority 5: TLS/HTTP specific patterns
+            ('tls_record_fragmentation', ['tls.*record.*split', 'tls-record-split']),
+            ('http_header_case', ['http.*header.*case', 'http-header-case']),
+            ('h2_frame_splitting', ['h2.*frame.*split', 'http2.*frame']),
+            ('sni_manipulation', ['sni.*manip', 'host.*header']),
+            
+            # Priority 6: QUIC patterns
+            ('quic_fragmentation', ['quic.*frag', 'udp.*443.*frag']),
+            ('quic_bypass', ['quic.*bypass', 'disable.*quic']),
+            
+            # Priority 7: Window and TCP options patterns
+            ('window_manipulation', ['tcp.*window', 'window.*scale']),
+            ('tcp_options_modification', ['tcp.*options', 'tcp-options-modify']),
+            
+            # Priority 8: Basic fragmentation patterns (lower priority)
+            ('simple_fragment', ['\\bsplit\\b(?!.*multi)', 'split']),  # split but not multisplit
+            ('tcp_fragmentation', ['tcp.*split(?!.*multi)']),  # tcp split but not multisplit
+            ('ip_fragmentation', ['ip.*frag(?!2)']),  # ip frag but not ipfrag2
+            
+            # Priority 9: Timing patterns (generic, lower priority)
+            ('timing_based', ['\\bdelay\\b', 'timing']),
+            
+            # Priority 10: Generic patterns (lowest priority)
+            ('disorder', ['\\bdisorder\\b(?!.*multi)(?!.*fake)']),  # disorder but not multidisorder or fake disorder
+        ]
         
-        for attack_type, patterns in type_patterns.items():
+        import re
+        for attack_type, patterns in type_patterns:
             for pattern in patterns:
-                if pattern in strategy_lower:
-                    return attack_type
+                try:
+                    if re.search(pattern, strategy_lower):
+                        return attack_type
+                except re.error:
+                    # Fallback to simple string matching for invalid regex
+                    if pattern in strategy_lower:
+                        return attack_type
         
         # Check against all registered attacks
         for attack_name in self.attacks:
@@ -456,7 +539,10 @@ if __name__ == '__main__':
     print(f"\nSupported attacks ({len(mapping.get_all_attacks())}):")
     for attack_name in sorted(mapping.get_all_attacks().keys()):
         attack_info = mapping.get_attack_info(attack_name)
-        print(f"  {attack_name}: {attack_info.zapret_args}")
+        if attack_info:
+            print(f"  {attack_name}: {attack_info.zapret_args}")
+        else:
+            print(f"  {attack_name}: No attack info available")
     
     print(f"\nCategories ({len(mapping.get_categories())}):")
     for category in mapping.get_categories():

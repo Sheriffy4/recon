@@ -211,7 +211,7 @@ async def demo_web_integration():
             "type": "demo_update",
             "message": "This is a demonstration broadcast",
             "timestamp": asyncio.get_event_loop().time(),
-        }
+        , "no_fallbacks": True, "forced": True}
     )
     print("✅ Broadcast update sent (no active connections)")
 

@@ -1,0 +1,314 @@
+# TCP Options Modification Attack Specification
+# Modifies or adds TCP options to confuse DPI systems
+
+name: tcp_options_modification
+aliases:
+  - tcp_options_mod
+  - tcp_options_manipulation
+  - tcp_opts_mod
+description: Modifies or adds TCP options to confuse DPI systems that parse TCP headers
+category: tcp_manipulation
+
+parameters:
+  - name: add_options
+    type: list[str]
+    default: []
+    required: false
+    description: TCP options to add
+    allowed_values:
+      - mss
+      - window_scale
+      - sack_permitted
+      - sack
+      - timestamp
+      - md5sig
+      - fastopen
+      - mptcp
+      - nop
+      - eol
+  
+  - name: remove_options
+    type: list[str]
+    default: []
+    required: false
+    description: TCP options to remove
+    allowed_values:
+      - mss
+      - window_scale
+      - sack_permitted
+      - sack
+      - timestamp
+      - md5sig
+      - fastopen
+      - mptcp
+  
+  - name: modify_options
+    type: dict
+    default: {}
+    required: false
+    description: "TCP options to modify with new values (e.g., mss: 1460, timestamp: [12345, 67890])"
+  
+  - name: add_padding
+    type: bool
+    default: false
+    required: false
+    description: Add NOP padding to TCP options
+  
+  - name: padding_size
+    type: int
+    default: 4
+    min: 1
+    max: 40
+    required: false
+    description: Size of NOP padding in bytes
+  
+  - name: corrupt_options
+    type: bool
+    default: false
+    required: false
+    description: Intentionally corrupt TCP options format
+
+expected_packets:
+  count: 1
+  order:
+    - packet_index: 0
+      name: modified_packet
+      properties:
+        seq: "{original_seq}"
+        tcp_flags: "PSH+ACK (0x18)"
+        payload: "original_payload"
+        tcp_options: "modified according to parameters"
+        tcp_options_length: "adjusted based on modifications"
+
+validation_rules:
+  tcp_options:
+    - rule: "for opt in params.add_options: opt in modified_packet.tcp_options"
+      description: "All specified options must be added"
+      severity: critical
+    
+    - rule: "for opt in params.remove_options: opt not in modified_packet.tcp_options"
+      description: "All specified options must be removed"
+      severity: critical
+    
+    - rule: "for opt, val in params.modify_options.items(): modified_packet.tcp_options[opt] == val"
+      description: "All modified options must have specified values"
+      severity: critical
+    
+    - rule: "if params.add_padding: 'nop' in modified_packet.tcp_options"
+      description: "NOP padding must be present if add_padding=true"
+      severity: critical
+    
+    - rule: "if params.add_padding: count_nop_options(modified_packet) >= params.padding_size"
+      description: "NOP padding count must match padding_size"
+      severity: warning
+  
+  tcp_header:
+    - rule: "modified_packet.tcp_header_length >= 20"
+      description: "TCP header must be at least 20 bytes"
+      severity: critical
+    
+    - rule: "modified_packet.tcp_header_length <= 60"
+      description: "TCP header must not exceed 60 bytes"
+      severity: critical
+    
+    - rule: "modified_packet.tcp_header_length % 4 == 0"
+      description: "TCP header length must be multiple of 4"
+      severity: critical
+    
+    - rule: "if params.corrupt_options: modified_packet.tcp_options_valid == False"
+      description: "TCP options must be invalid if corrupt_options=true"
+      severity: critical
+  
+  sequence_numbers:
+    - rule: "modified_packet.seq == original_seq"
+      description: "Modified packet must have original sequence number"
+      severity: critical
+  
+  payload:
+    - rule: "modified_packet.payload == original_payload"
+      description: "Modified packet must have original payload"
+      severity: critical
+  
+  packet_count:
+    - rule: "len(packets) == 1"
+      description: "Must generate exactly 1 packet"
+      severity: critical
+  
+  checksum:
+    - rule: "if not params.corrupt_options: modified_packet.checksum_valid == True"
+      description: "Packet must have valid checksum unless corrupting options"
+      severity: critical
+  
+  ttl:
+    - rule: "modified_packet.ttl in [64, 128]"
+      description: "Packet should have default system TTL"
+      severity: warning
+
+test_variations:
+  add_md5sig:
+    description: "Add MD5 signature option"
+    params:
+      add_options: ["md5sig"]
+  
+  add_multiple_options:
+    description: "Add multiple TCP options"
+    params:
+      add_options: ["mss", "window_scale", "sack_permitted", "timestamp"]
+  
+  remove_timestamp:
+    description: "Remove timestamp option"
+    params:
+      remove_options: ["timestamp"]
+  
+  modify_mss:
+    description: "Modify MSS value"
+    params:
+      modify_options:
+        mss: 1460
+  
+  add_nop_padding:
+    description: "Add NOP padding"
+    params:
+      add_padding: true
+      padding_size: 8
+  
+  add_and_modify:
+    description: "Add new options and modify existing"
+    params:
+      add_options: ["md5sig", "fastopen"]
+      modify_options:
+        mss: 1400
+        window_scale: 7
+  
+  corrupt_options:
+    description: "Intentionally corrupt TCP options"
+    params:
+      add_options: ["md5sig"]
+      corrupt_options: true
+  
+  maximal_options:
+    description: "Add maximum number of options"
+    params:
+      add_options: ["mss", "window_scale", "sack_permitted", "timestamp", "md5sig", "fastopen"]
+      add_padding: true
+      padding_size: 4
+
+error_cases:
+  invalid_option_name:
+    description: "Invalid TCP option name"
+    params:
+      add_options: ["invalid_option"]
+    expected_error: "Unknown TCP option"
+  
+  padding_size_too_large:
+    description: "Padding size exceeds maximum"
+    params:
+      add_padding: true
+      padding_size: 50
+    expected_error: "padding_size must be <= 40"
+  
+  negative_padding_size:
+    description: "Padding size cannot be negative"
+    params:
+      add_padding: true
+      padding_size: -1
+    expected_error: "padding_size must be >= 1"
+  
+  options_exceed_header_size:
+    description: "Too many options exceed TCP header size limit"
+    params:
+      add_options: ["mss", "window_scale", "sack_permitted", "timestamp", "md5sig", "fastopen", "mptcp"]
+      add_padding: true
+      padding_size: 40
+    expected_error: "TCP options exceed maximum header size"
+  
+  conflicting_operations:
+    description: "Cannot add and remove same option"
+    params:
+      add_options: ["mss"]
+      remove_options: ["mss"]
+    expected_error: "Cannot add and remove same option"
+
+notes:
+  - "Modifies TCP options to confuse DPI header parsing"
+  - "TCP options are located between TCP header and payload"
+  - "Maximum TCP header size is 60 bytes (40 bytes for options)"
+  - "Each option has specific format: kind, length, data"
+  - "NOP (No Operation) option used for padding and alignment"
+  - "EOL (End of Option List) marks end of options"
+  - "Common options: MSS, Window Scale, SACK, Timestamp"
+  - "MD5 signature option (RFC 2385) adds authentication"
+  - "TCP Fast Open option (RFC 7413) allows data in SYN"
+  - "MPTCP options (RFC 6824) for multipath TCP"
+  - "DPI systems may not parse all TCP options correctly"
+  - "Adding unexpected options can confuse DPI"
+  - "Removing expected options can bypass DPI checks"
+  - "Modifying option values can evade signature matching"
+  - "NOP padding can be used to align options"
+  - "Corrupt options can cause DPI parsing errors"
+  - "TCP stack typically ignores unknown options"
+  - "Some options only valid in specific TCP states (SYN, etc.)"
+  - "Option order can affect DPI behavior"
+  - "Effective against DPI that strictly validates TCP options"
+
+tcp_option_formats:
+  mss:
+    kind: 2
+    length: 4
+    description: "Maximum Segment Size"
+    format: "kind(1) + length(1) + mss_value(2)"
+  
+  window_scale:
+    kind: 3
+    length: 3
+    description: "Window Scale Factor"
+    format: "kind(1) + length(1) + shift_count(1)"
+  
+  sack_permitted:
+    kind: 4
+    length: 2
+    description: "SACK Permitted"
+    format: "kind(1) + length(1)"
+  
+  sack:
+    kind: 5
+    length: "variable (10-34)"
+    description: "Selective Acknowledgment"
+    format: "kind(1) + length(1) + blocks(8*n)"
+  
+  timestamp:
+    kind: 8
+    length: 10
+    description: "Timestamp and Echo"
+    format: "kind(1) + length(1) + ts_value(4) + ts_echo(4)"
+  
+  md5sig:
+    kind: 19
+    length: 18
+    description: "MD5 Signature"
+    format: "kind(1) + length(1) + signature(16)"
+  
+  fastopen:
+    kind: 34
+    length: "variable (6-18)"
+    description: "TCP Fast Open"
+    format: "kind(1) + length(1) + cookie(4-16)"
+  
+  mptcp:
+    kind: 30
+    length: "variable"
+    description: "Multipath TCP"
+    format: "kind(1) + length(1) + subtype(1) + data(n)"
+  
+  nop:
+    kind: 1
+    length: 1
+    description: "No Operation (padding)"
+    format: "kind(1)"
+  
+  eol:
+    kind: 0
+    length: 1
+    description: "End of Option List"
+    format: "kind(1)"
+

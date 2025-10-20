@@ -21,6 +21,7 @@ import platform
 from typing import Dict, Any, Optional, Tuple, Set, List
 from urllib.parse import urlparse
 from datetime import datetime
+from collections import defaultdict
 from dataclasses import dataclass
 
 # Windows asyncio policy - ПОСЛЕ импортов
@@ -64,6 +65,7 @@ try:
     from rich.panel import Panel
     from rich.progress import Progress
     from rich.prompt import Prompt, Confirm
+    from rich.table import Table
 
     RICH_AVAILABLE = True
 except ImportError:
@@ -122,6 +124,32 @@ except ImportError:
             if not response:
                 return default
             return response in ('y', 'yes', 'да')
+
+    class Table:
+        """Fallback Table without rich."""
+        def __init__(self, *args, **kwargs):
+            self.title = kwargs.get("title", "")
+            self._headers = []
+            self._rows = []
+
+        def add_column(self, header, *args, **kwargs):
+            self._headers.append(header)
+
+        def add_row(self, *args, **kwargs):
+            self._rows.append(args)
+
+        def __str__(self):
+            lines = []
+            if self.title:
+                lines.append(f"\n--- {self.title} ---")
+            
+            if self._headers:
+                lines.append("\t".join(map(str, self._headers)))
+            
+            for row in self._rows:
+                lines.append("\t".join(map(str, row)))
+            
+            return "\n".join(lines)
 
 
 # --- Scapy (для захвата/pcap-парсинга) ---
@@ -730,12 +758,29 @@ class SimpleEvolutionarySearcher:
         return population
 
     def genes_to_zapret_strategy(self, genes: Dict[str, Any]) -> str:
+        """
+        Convert genes to zapret strategy command.
+        
+        This function has been updated to properly support all attack types
+        registered in the AttackRegistry and generate appropriate zapret commands.
+        """
+        from core.bypass.attacks.attack_registry import get_attack_registry
         from core.attack_mapping import get_attack_mapping
         
-        strategy_type = genes.get("type", "fake_disorder")
+        strategy_type = genes.get("type", "fakeddisorder")
+        registry = get_attack_registry()
         attack_mapping = get_attack_mapping()
         
-        # Try to generate command using comprehensive mapping
+        # Validate that this is a known attack type
+        try:
+            # Try to get the attack handler to verify it exists
+            handler = registry.get_attack_handler(strategy_type)
+            if handler is None:
+                logger.warning(f"Unknown attack type '{strategy_type}', using fallback")
+        except Exception as e:
+            logger.warning(f"Error validating attack type '{strategy_type}': {e}")
+        
+        # Try to generate command using comprehensive mapping first
         zapret_cmd = attack_mapping.get_zapret_command(strategy_type, genes)
         if zapret_cmd:
             return zapret_cmd
@@ -749,10 +794,11 @@ class SimpleEvolutionarySearcher:
         disable_quic = genes.get("disable_quic", False)
         reorder_distance = genes.get("reorder_distance", 3)
         
-        # Legacy mappings with updated names
+        # Updated legacy mappings with correct zapret commands for all attack types
         legacy_mappings = {
             "fakedisorder": "--dpi-desync=fake,disorder",
             "fake_disorder": "--dpi-desync=fake,disorder", 
+            "fakeddisorder": "--dpi-desync=fake,disorder",
             "tcp_fakeddisorder": "--dpi-desync=fake,disorder",
             "multisplit": "--dpi-desync=multisplit",
             "tcp_multisplit": "--dpi-desync=multisplit",
@@ -761,44 +807,74 @@ class SimpleEvolutionarySearcher:
             "seqovl": "--dpi-desync=fake,disorder",
             "sequence_overlap": "--dpi-desync=fake,disorder",
             "tcp_seqovl": "--dpi-desync=fake,disorder",
-            "badsum_race": "--dpi-desync=fake --dpi-desync-fooling=badsum",
-            "md5sig_race": "--dpi-desync=fake --dpi-desync-fooling=md5sig",
-            "ip_fragmentation": "--dpi-desync=ipfrag2",
-            "ip_fragmentation_advanced": "--dpi-desync=ipfrag2",
+            "badsum_race": "--dpi-desync=fake",
+            "md5sig_race": "--dpi-desync=fake",
+            "ip_fragmentation": "--dpi-desync=split",
+            "ip_fragmentation_advanced": "--dpi-desync=split",
             "force_tcp": "--filter-udp=443 --dpi-desync=fake,disorder",
             "tcp_reorder": "--dpi-desync=disorder",
             "simple_fragment": "--dpi-desync=split",
-            "tcp_fragmentation": "--dpi-desync=split"
+            "tcp_fragmentation": "--dpi-desync=split",
+            # Add correct mappings for disorder and split
+            "disorder": "--dpi-desync=disorder",
+            "disorder2": "--dpi-desync=disorder",
+            "split": "--dpi-desync=split",
+            "fake": "--dpi-desync=fake",
+            "wssize_limit": "--dpi-desync=wssize",
+            "tlsrec_split": "--dpi-desync=tlsrec",
         }
         
         if strategy_type in legacy_mappings:
             strategy_parts.append(legacy_mappings[strategy_type])
             
-            # Add common parameters
+            # Handle parameters based on attack type
             if "multisplit" in strategy_type:
-                split_count = genes.get("split_count", 3)
+                # Handle positions parameter for multisplit
+                positions = genes.get("positions", [1, 5, 10])
+                split_count = genes.get("split_count", len(positions) if positions else 3)
                 strategy_parts.append(f"--dpi-desync-split-count={split_count}")
-                if split_seqovl:
-                    strategy_parts.append(f"--dpi-desync-split-seqovl={split_seqovl}")
-            elif "split" in strategy_type or "disorder" in strategy_type:
+                
+                # Add split_seqovl for multisplit
+                multisplit_seqovl = genes.get("split_seqovl", genes.get("overlap_size", 0))
+                strategy_parts.append(f"--dpi-desync-split-seqovl={multisplit_seqovl}")
+                    
+            elif strategy_type in ["seqovl", "sequence_overlap", "tcp_seqovl"]:
+                # seqovl attacks need both split_pos and split_seqovl
                 strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
-                if "seqovl" in strategy_type or "sequence_overlap" in strategy_type:
-                    strategy_parts.append(f"--dpi-desync-split-seqovl={split_seqovl}")
+                seqovl_value = genes.get("split_seqovl", genes.get("overlap_size", split_seqovl))
+                strategy_parts.append(f"--dpi-desync-split-seqovl={seqovl_value}")
+                    
+            elif strategy_type in ["disorder", "disorder2", "split", "simple_fragment", "tcp_fragmentation"] or \
+                 ("split" in strategy_type and "multisplit" not in strategy_type) or \
+                 ("disorder" in strategy_type and "multidisorder" not in strategy_type):
+                # For disorder and split attacks, add split_pos
+                strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
+                
             elif "fragmentation" in strategy_type:
                 strategy_parts.append(f"--dpi-desync-split-pos={fragment_size}")
             
-            # Add TTL if not a race attack
-            if "race" not in strategy_type:
-                strategy_parts.append(f"--dpi-desync-ttl={ttl}")
-            elif ttl != 3: # For race attacks, add TTL only if it's not the default
-                strategy_parts.append(f"--dpi-desync-ttl={ttl}")
+            # Handle TTL for appropriate attacks
+            if strategy_type not in ["disorder", "split"] or "fake" in strategy_type:
+                # For attacks that need TTL or are fake-based attacks
+                if "ttl" in genes or "fake" in strategy_type:
+                    strategy_parts.append(f"--dpi-desync-ttl={ttl}")
             
-            # Add fooling method if not already specified
-            if "--dpi-desync-fooling=" not in " ".join(strategy_parts):
-                fooling = genes.get("fooling", "badsum")
-                strategy_parts.append(f"--dpi-desync-fooling={fooling}")
+            # Handle fooling methods
+            fooling_already_added = any("--dpi-desync-fooling=" in part for part in strategy_parts)
+            if not fooling_already_added:
+                # Add fooling for attacks that typically need it
+                fooling_attacks = ["fake", "fakeddisorder", "fake_disorder", "fakeddisorder", 
+                                 "tcp_fakeddisorder", "badsum_race", "md5sig_race", "badseq_fooling"]
+                if strategy_type in fooling_attacks or "race" in strategy_type:
+                    fooling = genes.get("fooling", "badsum")
+                    # Ensure fooling is a string or list
+                    if isinstance(fooling, list):
+                        fooling_str = ",".join(fooling) if len(fooling) > 1 else fooling[0]
+                    else:
+                        fooling_str = str(fooling)
+                    strategy_parts.append(f"--dpi-desync-fooling={fooling_str}")
         else:
-            # Generic fallback
+            # Generic fallback for unknown attack types
             strategy_parts.append("--dpi-desync=fake")
             strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
             strategy_parts.append(f"--dpi-desync-ttl={ttl}")
@@ -926,6 +1002,253 @@ class SimpleEvolutionarySearcher:
         )
         return best_chromosome
 
+    def _validate_attack_parameters(self, attack_type: str, genes: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and normalize parameters for a specific attack type using AttackRegistry."""
+        try:
+            # Use AttackRegistry for comprehensive validation
+            from core.bypass.attacks.attack_registry import get_attack_registry
+            
+            registry = get_attack_registry()
+            
+            # Normalize attack type - remove tcp_ prefix and other prefixes for registry lookup
+            normalized_type = self._normalize_attack_type_for_registry(attack_type)
+            
+            # First, apply parameter correction using legacy validation
+            # This ensures parameters are in valid ranges
+            corrected_genes = self._legacy_validate_attack_parameters(attack_type, genes)
+            
+            # Then validate the corrected parameters using the registry
+            validation_result = registry.validate_parameters(normalized_type, corrected_genes)
+            
+            if not validation_result.is_valid:
+                # Log validation error but return the corrected parameters anyway
+                LOG.warning(f"AttackRegistry validation failed for {attack_type} even after correction: {validation_result.error_message}")
+            
+            # Return the corrected parameters
+            validated = corrected_genes
+            
+            # Get attack metadata to add any missing default parameters
+            metadata = registry.get_attack_metadata(attack_type)
+            if metadata:
+                for param_name, default_value in metadata.optional_params.items():
+                    if param_name not in validated:
+                        validated[param_name] = default_value
+            
+            # Special handling for positions parameter in multisplit
+            if attack_type in ["multisplit", "tcp_multisplit"] and "positions" in validated:
+                positions = validated["positions"]
+                if isinstance(positions, list) and len(positions) > 0:
+                    # Ensure split_count matches positions length
+                    validated["split_count"] = len(positions)
+            
+            return validated
+            
+        except Exception as e:
+            LOG.warning(f"Failed to use AttackRegistry validation for {attack_type}: {e}")
+            # Fall back to legacy validation
+            return self._legacy_validate_attack_parameters(attack_type, genes)
+    
+    def _normalize_attack_type_for_registry(self, attack_type: str) -> str:
+        """Normalize attack type for AttackRegistry lookup by removing prefixes."""
+        # Remove common prefixes
+        prefixes_to_remove = ["tcp_", "udp_", "http_", "tls_"]
+        
+        normalized = attack_type
+        for prefix in prefixes_to_remove:
+            if normalized.startswith(prefix):
+                normalized = normalized[len(prefix):]
+                break
+        
+        # Handle special cases
+        type_mappings = {
+            "badsum_race": "fake",
+            "md5sig_race": "fake", 
+            "ip_fragmentation": "split",
+            "ip_fragmentation_advanced": "split",
+            "force_tcp": "fakeddisorder",  # Map to closest equivalent
+            "tcp_reorder": "disorder",
+            "simple_fragment": "split",
+            "tcp_fragmentation": "split"
+        }
+        
+        return type_mappings.get(normalized, normalized)
+    
+    def _legacy_validate_attack_parameters(self, attack_type: str, genes: Dict[str, Any]) -> Dict[str, Any]:
+        """Legacy parameter validation for backward compatibility."""
+        validated = genes.copy()
+        
+        # Parameter validation rules for each attack type
+        validation_rules = {
+            "multisplit": {
+                "positions": {"type": list, "default": [1, 5, 10]},
+                "split_count": {"type": int, "min": 2, "max": 10, "default": 3},
+                "split_seqovl": {"type": int, "min": 0, "max": 100, "default": 0},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+            },
+            "tcp_multisplit": {
+                "positions": {"type": list, "default": [1, 5, 10]},
+                "split_count": {"type": int, "min": 2, "max": 10, "default": 3},
+                "split_seqovl": {"type": int, "min": 0, "max": 100, "default": 20},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+            },
+            "seqovl": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
+                "split_seqovl": {"type": int, "min": 5, "max": 100, "default": 20},
+                "overlap_size": {"type": int, "min": 5, "max": 100, "default": 20},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 3}
+            },
+            "sequence_overlap": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
+                "split_seqovl": {"type": int, "min": 5, "max": 100, "default": 20},
+                "overlap_size": {"type": int, "min": 5, "max": 100, "default": 20},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 3}
+            },
+            "tcp_seqovl": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
+                "split_seqovl": {"type": int, "min": 5, "max": 100, "default": 20},
+                "overlap_size": {"type": int, "min": 5, "max": 100, "default": 20},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 3}
+            },
+            "fake_disorder": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+            },
+            "fakeddisorder": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+            },
+            "multidisorder": {
+                "positions": {"type": list, "default": [1, 5, 10]},
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+            },
+            "tcp_multidisorder": {
+                "positions": {"type": list, "default": [1, 5, 10]},
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+            },
+            "disorder": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3}
+            },
+            "split": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 5}
+            },
+            "simple_fragment": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 5}
+            },
+            "tcp_fragmentation": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 5}
+            },
+            "ip_fragmentation": {
+                "split_pos": {"type": int, "min": 1, "max": 50, "default": 8},
+                "fragment_size": {"type": int, "min": 8, "max": 64, "default": 8},
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+            },
+            "badsum_race": {
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
+                "fooling": {"type": list, "values": ["badsum", "badseq", "badack"], "default": ["badsum"]}
+            },
+            "md5sig_race": {
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 6},
+                "fooling": {"type": list, "values": ["badsum", "badseq", "badack"], "default": ["badseq"]}
+            }
+        }
+        
+        # Apply validation rules if they exist for this attack type
+        if attack_type in validation_rules:
+            rules = validation_rules[attack_type]
+            
+            for param_name, rule in rules.items():
+                if param_name in validated:
+                    value = validated[param_name]
+                    
+                    # Type validation
+                    if rule["type"] == int:
+                        try:
+                            value = int(value)
+                            # Range validation
+                            if "min" in rule and value < rule["min"]:
+                                value = rule["min"]
+                            if "max" in rule and value > rule["max"]:
+                                value = rule["max"]
+                            validated[param_name] = value
+                        except (ValueError, TypeError):
+                            validated[param_name] = rule.get("default", 3)
+                    
+                    elif rule["type"] == str:
+                        # String validation
+                        if "values" in rule and value not in rule["values"]:
+                            validated[param_name] = rule.get("default", rule["values"][0])
+                    
+                    elif rule["type"] == list:
+                        # List validation
+                        if not isinstance(value, list):
+                            # Convert string to list if needed
+                            if isinstance(value, str):
+                                if "values" in rule and value in rule["values"]:
+                                    validated[param_name] = [value]
+                                else:
+                                    validated[param_name] = rule.get("default", [])
+                            else:
+                                validated[param_name] = rule.get("default", [])
+                        else:
+                            # Validate list elements if values are specified
+                            if "values" in rule:
+                                validated_list = [item for item in value if item in rule["values"]]
+                                if not validated_list:
+                                    validated_list = rule.get("default", [])
+                                validated[param_name] = validated_list
+                            else:
+                                validated[param_name] = value
+                
+                else:
+                    # Add default value if parameter is missing
+                    if "default" in rule:
+                        validated[param_name] = rule["default"]
+        else:
+            # Fallback validation for unknown attack types
+            # Apply common parameter corrections
+            if "ttl" in validated:
+                try:
+                    ttl_value = int(validated["ttl"])
+                    if ttl_value < 1:
+                        validated["ttl"] = 1
+                    elif ttl_value > 255:
+                        validated["ttl"] = 255
+                    else:
+                        validated["ttl"] = ttl_value
+                except (ValueError, TypeError):
+                    validated["ttl"] = 3
+            
+            if "split_pos" in validated:
+                try:
+                    split_pos = validated["split_pos"]
+                    if isinstance(split_pos, str) and split_pos not in ["cipher", "sni", "midsld"]:
+                        validated["split_pos"] = int(split_pos)
+                    elif isinstance(split_pos, int) and split_pos < 1:
+                        validated["split_pos"] = 1
+                except (ValueError, TypeError):
+                    validated["split_pos"] = 3
+            
+            if "overlap_size" in validated:
+                try:
+                    overlap_size = int(validated["overlap_size"])
+                    if overlap_size < 0:
+                        validated["overlap_size"] = 0
+                    else:
+                        validated["overlap_size"] = overlap_size
+                except (ValueError, TypeError):
+                    validated["overlap_size"] = 10
+        
+        # Special handling for positions parameter in multisplit
+        if attack_type in ["multisplit", "tcp_multisplit"] and "positions" in validated:
+            positions = validated["positions"]
+            if isinstance(positions, list) and len(positions) > 0:
+                # Ensure split_count matches positions length
+                validated["split_count"] = len(positions)
+        
+        return validated
+
 
 # Adaptive learning and caching system
 import pickle
@@ -979,8 +1302,28 @@ class AdaptiveLearningCache:
         return f"{domain}_{ip}_{strategy_hash}"
 
     def _extract_strategy_type(self, strategy: str) -> str:
-        """Извлекает тип стратегии из полной строки с поддержкой всех атак."""
+        """
+        Извлекает тип стратегии из полной строки с поддержкой всех атак.
+        
+        Args:
+            strategy: Строка стратегии zapret для анализа
+            
+        Returns:
+            str: Имя типа атаки или 'unknown' если не найден
+            
+        Raises:
+            ValueError: Если strategy не является строкой или пустой
+        """
+        # Parameter validation
+        if not isinstance(strategy, str):
+            raise ValueError(f"Strategy must be a string, got {type(strategy)}")
+        
+        if not strategy or not strategy.strip():
+            raise ValueError("Strategy cannot be empty or whitespace-only")
+        
+        from core.bypass.attacks.attack_registry import get_attack_registry
         from core.attack_mapping import get_attack_mapping
+        import re
         
         # Use comprehensive attack mapping for extraction
         attack_mapping = get_attack_mapping()
@@ -989,43 +1332,114 @@ class AdaptiveLearningCache:
         if extracted_type != "unknown":
             return extracted_type
         
-        # Fallback to legacy extraction for backward compatibility
-        strategy_lower = strategy.lower()
+        # Also try direct registry lookup for known attack types
+        registry = get_attack_registry()
+        known_attacks = registry.list_attacks()
         
-        # Enhanced pattern matching
-        type_patterns = {
-            "fake_disorder": ["fake,disorder", "fakedisorder", "fakeddisorder", "fake,fakeddisorder"],
-            "multisplit": ["multisplit"],
-            "tcp_multisplit": ["multisplit"],
-            "multidisorder": ["multidisorder"],
-            "tcp_multidisorder": ["multidisorder"],
-            "sequence_overlap": ["seqovl", "sequence_overlap"],
-            "tcp_seqovl": ["seqovl"],
-            "badsum_race": ["badsum"],
-            "md5sig_race": ["md5sig"],
-            "ip_fragmentation": ["ipfrag2"],
-            "force_tcp": ["filter-udp=443"],
-            "simple_fragment": ["split"],
-            "tcp_fragmentation": ["split"],
-            "timing_based": ["delay"],
-            "window_manipulation": ["window"]
-        }
+        # Normalize strategy for pattern matching
+        strategy_lower = strategy.lower().strip()
         
-        for attack_type, patterns in type_patterns.items():
-            for pattern in patterns:
-                if pattern in strategy_lower:
+        # Check if any known attack type is directly mentioned in the strategy
+        for attack_type in known_attacks:
+            if attack_type in strategy_lower:
+                # Ensure it's a word boundary match to avoid false positives
+                if re.search(rf'\b{re.escape(attack_type)}\b', strategy_lower):
                     return attack_type
         
-        # Check for any registered attack names in the strategy
-        all_attacks = attack_mapping.get_all_attacks()
-        for attack_name in all_attacks:
-            if attack_name.lower() in strategy_lower:
-                return attack_name
+        # Enhanced pattern matching with FIXED priorities
+        # Order is CRITICAL - most specific patterns MUST come first
+        priority_patterns = [
+            # Priority 1: Very specific multi-component patterns (highest priority)
+            ("fake_fakeddisorder", [r"fake,fakeddisorder", r"fakeddisorder.*fake", r"fake.*fakeddisorder"]),
+            ("tcp_multisplit", [r"tcp.*multisplit", r"multisplit.*tcp", r"tcp_multisplit"]),
+            ("tcp_multidisorder", [r"tcp.*multidisorder", r"multidisorder.*tcp", r"tcp_multidisorder"]),
+            ("tcp_seqovl", [r"tcp.*seqovl", r"seqovl.*tcp", r"tcp_seqovl"]),
             
-            # Check aliases
-            attack_info = all_attacks[attack_name]
-            for alias in attack_info.aliases:
-                if alias.lower() in strategy_lower:
+            # Priority 2: Specific zapret command patterns (very specific)
+            ("ip_fragmentation_advanced", [r"\bipfrag2\b"]),
+            ("timing_based_evasion", [r"dpi-desync-delay", r"delay=\d+", r"timing.*evasion"]),
+            ("force_tcp", [r"filter-udp=443"]),
+            ("badsum_race", [r"dpi-desync-fooling=badsum", r"fooling.*badsum"]),
+            ("md5sig_race", [r"dpi-desync-fooling=md5sig", r"fooling.*md5sig"]),
+            ("badseq_fooling", [r"dpi-desync-fooling=badseq", r"fooling.*badseq"]),
+            
+            # Priority 3: Fake disorder patterns (must come before generic disorder)
+            ("fake_disorder", [r"fake.*disorder", r"disorder.*fake", r"fake,disorder"]),
+            
+            # Priority 4: Multi-attack patterns (must come before single variants)
+            ("multisplit", [r"\bmultisplit\b"]),
+            ("multidisorder", [r"\bmultidisorder\b"]),
+            ("sequence_overlap", [r"\bseqovl\b", r"sequence_overlap"]),
+            
+            # Priority 5: TLS/HTTP specific patterns
+            ("tls_record_fragmentation", [r"tls.*record.*split", r"tls-record-split"]),
+            ("http_header_case", [r"http.*header.*case", r"http-header-case"]),
+            ("h2_frame_splitting", [r"h2.*frame.*split", r"http2.*frame"]),
+            ("sni_manipulation", [r"sni.*manip", r"host.*header"]),
+            
+            # Priority 6: QUIC patterns
+            ("quic_fragmentation", [r"quic.*frag", r"udp.*443.*frag"]),
+            ("quic_bypass", [r"quic.*bypass", r"disable.*quic"]),
+            
+            # Priority 7: Window and TCP options patterns
+            ("window_manipulation", [r"tcp.*window", r"window.*scale"]),
+            ("tcp_options_modification", [r"tcp.*options", r"tcp-options-modify"]),
+            
+            # Priority 8: Basic fragmentation patterns (lower priority)
+            ("simple_fragment", [r"\bsplit\b(?!.*multi)"]),  # split but not multisplit
+            ("tcp_fragmentation", [r"tcp.*split(?!.*multi)"]),  # tcp split but not multisplit
+            ("ip_fragmentation", [r"ip.*frag(?!2)"]),  # ip frag but not ipfrag2
+            
+            # Priority 9: Timing patterns (generic, lower priority)
+            ("timing_based", [r"\bdelay\b", r"timing"]),
+            
+            # Priority 10: Generic patterns (lowest priority)
+            ("disorder", [r"\bdisorder\b(?!.*multi)(?!.*fake)"]),  # disorder but not multidisorder or fake disorder
+            ("fake", [r"\bfake\b(?!.*disorder)"]),  # fake but not fake disorder
+            ("split", [r"\bsplit\b(?!.*multi)(?!.*seq)"]),  # split but not multisplit or seqovl
+        ]
+        
+        # Apply patterns in priority order
+        for attack_type, patterns in priority_patterns:
+            for pattern in patterns:
+                try:
+                    if re.search(pattern, strategy_lower):
+                        return attack_type
+                except re.error as e:
+                    # Log regex errors but continue processing
+                    import logging
+                    logging.warning(f"Invalid regex pattern '{pattern}' for attack '{attack_type}': {e}")
+                    continue
+        
+        # Fallback: Check for any registered attack names in the strategy
+        # This provides comprehensive coverage for all registered attacks
+        all_attacks = attack_mapping.get_all_attacks()
+        
+        # Sort attacks by name length (longest first) to prioritize more specific matches
+        sorted_attacks = sorted(all_attacks.items(), key=lambda x: len(x[0]), reverse=True)
+        
+        for attack_name, attack_info in sorted_attacks:
+            # Check exact attack name match
+            attack_name_lower = attack_name.lower()
+            if attack_name_lower in strategy_lower:
+                # Ensure it's a word boundary match to avoid false positives
+                if re.search(rf'\b{re.escape(attack_name_lower)}\b', strategy_lower):
+                    return attack_name
+            
+            # Check aliases (also sorted by length)
+            sorted_aliases = sorted(attack_info.aliases, key=len, reverse=True)
+            for alias in sorted_aliases:
+                alias_lower = alias.lower()
+                if alias_lower in strategy_lower:
+                    if re.search(rf'\b{re.escape(alias_lower)}\b', strategy_lower):
+                        return attack_name
+        
+        # Final fallback: partial matching for compound attack names
+        for attack_name, attack_info in sorted_attacks:
+            attack_parts = attack_name.lower().split('_')
+            if len(attack_parts) > 1:
+                # Check if all parts of the attack name are present
+                if all(part in strategy_lower for part in attack_parts if len(part) > 2):
                     return attack_name
         
         return "unknown"
@@ -1601,8 +2015,9 @@ async def run_hybrid_mode(args):
 
     # Исправляем логику загрузки доменов
     if args.domains_file:
-        domains_file = args.target
-        default_domains = [config.DEFAULT_DOMAIN]
+        # Теперь используется правильный путь к файлу
+        domains_file = args.target 
+        default_domains = []
     else:
         domains_file = None
         default_domains = [args.target]
@@ -1833,40 +2248,49 @@ async def run_hybrid_mode(args):
 
     # Шаг 3: Подготовка стратегий
     console.print("\n[yellow]Step 3: Preparing bypass strategies...[/yellow]")
-    if args.strategy:
+
+    strategies = []
+    # 1. Приоритет: файл стратегий
+    if args.strategies_file and os.path.exists(args.strategies_file):
+        console.print(f"[cyan]Loading strategies from file: {args.strategies_file}[/cyan]")
+        try:
+            with open(args.strategies_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    s = line.strip()
+                    if s and not s.startswith("#"):
+                        strategies.append(s)
+            strategies = list(dict.fromkeys(strategies))  # Удаляем дубликаты, сохраняя порядок
+            if not strategies:
+                console.print("[yellow]Warning: strategies file is empty after filtering.[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Error reading strategies file: {e}[/red]")
+
+    # 2. Если файл есть и указан флаг --no-generate, больше ничего не делаем
+    if strategies and args.no_generate:
+        console.print(f"Using {len(strategies)} strategies from file (auto-generation disabled).")
+    # 3. Иначе, если указана одна стратегия через --strategy
+    elif args.strategy:
         strategies = [args.strategy]
         console.print(f"Testing specific strategy: [cyan]{args.strategy}[/cyan]")
+    # 4. Иначе (или если файл пуст, а --no-generate не указан), генерируем
     else:
-        generator = ZapretStrategyGenerator()
-        fingerprint_for_strategy = None
-        if fingerprints:
-            first_fp = next(iter(fingerprints.values()), None)
-            # Check if fingerprint is valid (not None)
-            if first_fp is not None:
-                fingerprint_for_strategy = first_fp
-                console.print("Using fingerprint for strategy generation")
-            else:
-                console.print("[yellow]⚠ Warning: Fingerprinting returned no valid results[/yellow]")
-                console.print("[dim]  → No suitable fingerprinting method found for this target[/dim]")
-                console.print("[dim]  → Falling back to generic bypass strategies[/dim]")
-                fingerprint_for_strategy = None
-        else:
-            fingerprint_for_strategy = None
-        
-        try:
-            strategies = generator.generate_strategies(fingerprint_for_strategy, count=args.count)
-            console.print(f"Generated {len(strategies)} strategies to test.")
-        except Exception as e:
-            console.print(f"[red]✗ Error generating strategies: {e}[/red]")
-            console.print("[yellow]Falling back to default strategies...[/yellow]")
-            console.print("[dim]💡 Tip: You can specify a manual strategy with --strategy flag[/dim]")
-            console.print("[dim]   Example: --strategy 'fake,disorder --split-pos=3 --fooling=badsum'[/dim]")
-            # Fallback to a few proven strategies
-            strategies = [
-                "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum",
-                "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq",
-                "--dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10"
-            ]
+        if not args.no_generate:
+            generator = ZapretStrategyGenerator()
+            fingerprint_for_strategy = next(iter(fingerprints.values()), None) if fingerprints else None
+            try:
+                more_strategies = generator.generate_strategies(fingerprint_for_strategy, count=args.count)
+                # Добавляем только уникальные
+                for s in more_strategies:
+                    if s not in strategies:
+                        strategies.append(s)
+                console.print(f"Generated {len(more_strategies)} strategies (total unique: {len(strategies)}).")
+            except Exception as e:
+                console.print(f"[red]✗ Error generating strategies: {e}[/red]")
+                if not strategies: # Если совсем ничего нет, добавляем фоллбэк
+                    strategies.extend([
+                        "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum",
+                        "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq",
+                    ])
         
         # Validate strategies if --validate flag is enabled
         if args.validate and strategies:
@@ -1961,6 +2385,12 @@ async def run_hybrid_mode(args):
         )
         return
 
+    # --- START OF FIX: Initialize data structure for per-domain results ---
+    # This will store all successful attempts for each domain to find the best one.
+    # Format: { "domain.com": [{"strategy": "...", "latency": 123.4}, ...], ... }
+    domain_strategy_map = defaultdict(list)
+    # --- END OF FIX ---
+
     # Шаг 4: Гибридное тестирование
     console.print("\n[yellow]Step 4: Hybrid testing with forced DNS...[/yellow]")
     
@@ -2019,6 +2449,20 @@ async def run_hybrid_mode(args):
         strategy = result["strategy"]
         success_rate = result["success_rate"]
         avg_latency = result["avg_latency_ms"]
+
+        # --- START OF FIX: Process detailed site_results to build per-domain map ---
+        if 'site_results' in result:
+            for site_url, site_result_tuple in result['site_results'].items():
+                # site_result_tuple is (status, ip, latency, http_code)
+                status, _, latency, _ = site_result_tuple
+                if status == 'WORKING':
+                    hostname = urlparse(site_url).hostname or site_url
+                    domain_strategy_map[hostname].append({
+                        "strategy": strategy,
+                        "latency_ms": latency
+                    })
+        # --- END OF FIX ---
+
         for domain, ip in dns_cache.items():
             dpi_hash = ""
             if (
@@ -2212,27 +2656,54 @@ async def run_hybrid_mode(args):
         best_strategy_result = working_strategies[0]
         best_strategy = best_strategy_result["strategy"]
         console.print(
-            f"\n[bold green][TROPHY] Best strategy:[/bold green] [cyan]{best_strategy}[/cyan]"
+            f"\n[bold green][TROPHY] Best Overall Strategy:[/bold green] [cyan]{best_strategy}[/cyan]"
         )
+        
+        # --- START OF FIX: Display per-domain optimal strategies ---
+        if domain_strategy_map:
+            console.print("\n[bold underline]Per-Domain Optimal Strategy Report[/bold underline]")
+            domain_best_strategies = {}
+            
+            # Find the best strategy for each domain
+            for domain, results in domain_strategy_map.items():
+                # Sort by latency (lower is better)
+                best_result = sorted(results, key=lambda x: x['latency_ms'])[0]
+                domain_best_strategies[domain] = best_result
+
+            # Create and print the results table
+            table = Table(title="Optimal Strategy per Domain")
+            table.add_column("Domain", style="cyan", no_wrap=True)
+            table.add_column("Best Strategy", style="green")
+            table.add_column("Latency (ms)", justify="right", style="magenta")
+            
+            for domain, best in sorted(domain_best_strategies.items()):
+                table.add_row(domain, best['strategy'], f"{best['latency_ms']:.1f}")
+            
+            console.print(table)
+        # --- END OF FIX ---
+
         try:
             from core.strategy_manager import StrategyManager
 
             strategy_manager = StrategyManager()
-            for result in working_strategies:
-                strategy = result["strategy"]
-                success_rate = result["success_rate"]
-                avg_latency = result["avg_latency_ms"]
-                for domain in dns_cache.keys():
+            # --- START OF FIX: Save the BEST strategy for EACH domain ---
+            if domain_strategy_map:
+                for domain, results in domain_strategy_map.items():
+                    best_result = sorted(results, key=lambda x: x['latency_ms'])[0]
                     strategy_manager.add_strategy(
-                        domain, strategy, success_rate, avg_latency
+                        domain,
+                        best_result['strategy'],
+                        1.0,  # Success rate is 100% for this specific domain
+                        best_result['latency_ms']
                     )
+            # --- END OF FIX ---
             strategy_manager.save_strategies()
             console.print(
-                f"[green][SAVE] Strategies saved for {len(dns_cache)} domains[/green]"
+                f"[green][SAVE] Optimal strategies saved for {len(domain_strategy_map)} domains to domain_strategies.json[/green]"
             )
             with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
                 json.dump(best_strategy_result, f, indent=2, ensure_ascii=False)
-            console.print(f"[green][SAVE] Legacy format saved to '{STRATEGY_FILE}'[/green]")
+            console.print(f"[green][SAVE] Best overall strategy saved to '{STRATEGY_FILE}'[/green]")
         except Exception as e:
             console.print(f"[red]Error saving strategies: {e}[/red]")
 
@@ -2261,17 +2732,23 @@ async def run_hybrid_mode(args):
 
     system_report = await advanced_reporter.generate_system_performance_report(period_hours=24)
 
+    # --- START OF FIX: Add domain_strategy_map to the final report ---
     final_report_data = {
         "target": args.target,
         "execution_time_seconds": time.time() - reporter.start_time,
         "total_strategies_tested": len(test_results),
         "working_strategies_found": len(working_strategies),
         "success_rate": (len(working_strategies) / len(test_results) if test_results else 0),
-        "best_strategy": working_strategies[0] if working_strategies else None,
+        "best_overall_strategy": working_strategies[0] if working_strategies else None,
+        "domain_specific_results": {
+            domain: sorted(results, key=lambda x: x['latency_ms'])[0]
+            for domain, results in domain_strategy_map.items()
+        },
         "report_summary": {
             "generated_at": datetime.now().isoformat(),
             "period": system_report.report_period if system_report else "N/A"
         },
+    # --- END OF FIX ---
         "key_metrics": {
             "overall_success_rate": (len(working_strategies) / len(test_results) * 100) if test_results else 0,
             "total_domains_tested": len(dm.domains),
@@ -3278,6 +3755,19 @@ Examples:
         help="Disable fail-fast optimization (skips heavy probes on obviously blocked domains).",
     )
     parser.add_argument(
+        '--strategies-file', '-S', type=str,
+        help='Path to a file with strategies (one per line). Lines with # are ignored.'
+    )
+    parser.add_argument(
+        '--no-generate', action='store_true',
+        help='Do not auto-generate strategies (use only those from --strategies-file or --strategy).'
+    )
+    parser.add_argument(
+        '--strategy-repeats', type=int, default=1,
+        help='Repeat each strategy N times for stability testing (default: 1).'
+    )
+    
+    parser.add_argument(
         "--enable-scapy",
         action="store_true",
         help="Enable scapy-dependent probes (slower on Windows, disabled by default).",
@@ -3624,3 +4114,227 @@ Examples:
 
 if __name__ == "__main__":
     main()
+
+
+class SimpleEvolutionarySearcher:
+    """
+    Simple evolutionary searcher for CLI integration testing.
+    
+    This class provides the CLI functionality needed for attack dispatch integration,
+    including strategy generation and parameter validation.
+    """
+    
+    def __init__(self, population_size: int = 20, generations: int = 5):
+        self.population_size = population_size
+        self.generations = generations
+        self.logger = logging.getLogger("SimpleEvolutionarySearcher")
+        
+        # Initialize attack registry for parameter validation
+        try:
+            from core.bypass.attacks.attack_registry import get_attack_registry
+            self.attack_registry = get_attack_registry()
+        except ImportError:
+            self.logger.warning("Attack registry not available, using fallback validation")
+            self.attack_registry = None
+    
+    def genes_to_zapret_strategy(self, genes: Dict[str, Any]) -> str:
+        """
+        Convert attack genes to zapret command line strategy.
+        
+        Args:
+            genes: Dictionary containing attack type and parameters
+            
+        Returns:
+            String containing zapret command line arguments
+        """
+        attack_type = genes.get("type", "")
+        strategy_parts = ["--dpi-desync"]
+        
+        try:
+            if attack_type == "fakeddisorder":
+                strategy_parts.extend(["--dpi-desync-fake", "--dpi-desync-disorder"])
+                if "split_pos" in genes:
+                    if isinstance(genes["split_pos"], int):
+                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                    elif genes["split_pos"] in ["cipher", "sni", "midsld"]:
+                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                if "ttl" in genes:
+                    strategy_parts.append(f"--dpi-desync-ttl={genes['ttl']}")
+                if "fake_sni" in genes:
+                    strategy_parts.append(f"--dpi-desync-fake-sni={genes['fake_sni']}")
+                    
+            elif attack_type == "seqovl":
+                strategy_parts.append("--dpi-desync-split-seqovl")
+                if "split_pos" in genes:
+                    if isinstance(genes["split_pos"], int):
+                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                    elif genes["split_pos"] in ["cipher", "sni", "midsld"]:
+                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                if "overlap_size" in genes:
+                    strategy_parts.append(f"--dpi-desync-split-seqovl={genes['overlap_size']}")
+                if "fake_ttl" in genes:
+                    strategy_parts.append(f"--dpi-desync-ttl={genes['fake_ttl']}")
+                    
+            elif attack_type == "multidisorder":
+                strategy_parts.append("--dpi-desync-multidisorder")
+                if "positions" in genes:
+                    if isinstance(genes["positions"], list):
+                        positions_str = ",".join(map(str, genes["positions"]))
+                        strategy_parts.append(f"--dpi-desync-multidisorder={positions_str}")
+                if "fooling" in genes:
+                    if isinstance(genes["fooling"], list):
+                        fooling_str = ",".join(genes["fooling"])
+                        strategy_parts.append(f"--dpi-desync-fooling={fooling_str}")
+                    
+            elif attack_type == "disorder":
+                strategy_parts.append("--dpi-desync-disorder")
+                if "split_pos" in genes:
+                    if isinstance(genes["split_pos"], int):
+                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                    elif genes["split_pos"] in ["cipher", "sni", "midsld"]:
+                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                        
+            elif attack_type == "disorder2":
+                strategy_parts.append("--dpi-desync-disorder")
+                if "split_pos" in genes:
+                    if isinstance(genes["split_pos"], int):
+                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                if "ack_first" in genes and genes["ack_first"]:
+                    strategy_parts.append("--dpi-desync-ack-first")
+                    
+            elif attack_type == "multisplit":
+                strategy_parts.append("--dpi-desync-multisplit")
+                if "split_count" in genes:
+                    strategy_parts.append(f"--dpi-desync-split-count={genes['split_count']}")
+                if "positions" in genes and isinstance(genes["positions"], list):
+                    positions_str = ",".join(map(str, genes["positions"]))
+                    strategy_parts.append(f"--dpi-desync-positions={positions_str}")
+                    
+            elif attack_type == "split":
+                strategy_parts.append("--dpi-desync-split")
+                if "split_pos" in genes:
+                    if isinstance(genes["split_pos"], int):
+                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                        
+            elif attack_type == "fake":
+                strategy_parts.append("--dpi-desync-fake")
+                if "ttl" in genes:
+                    strategy_parts.append(f"--dpi-desync-ttl={genes['ttl']}")
+                if "fooling" in genes:
+                    if isinstance(genes["fooling"], list):
+                        fooling_str = ",".join(genes["fooling"])
+                        strategy_parts.append(f"--dpi-desync-fooling={fooling_str}")
+            
+            else:
+                self.logger.warning(f"Unknown attack type: {attack_type}")
+                return "--dpi-desync"
+                
+        except Exception as e:
+            self.logger.error(f"Error generating strategy for {attack_type}: {e}")
+            return "--dpi-desync"
+        
+        return " ".join(strategy_parts)
+    
+    def _extract_strategy_type(self, strategy: str) -> str:
+        """
+        Extract attack type from zapret command line strategy.
+        
+        Args:
+            strategy: Zapret command line string
+            
+        Returns:
+            Extracted attack type
+        """
+        strategy = strategy.lower()
+        
+        # Priority patterns - most specific first
+        if "--dpi-desync-split-seqovl" in strategy:
+            return "sequence_overlap"
+        elif "fake" in strategy and "disorder" in strategy:
+            if "fakeddisorder" in strategy:
+                return "fake_fakeddisorder"
+            return "fake_disorder"
+        elif "--dpi-desync-multidisorder" in strategy:
+            return "multidisorder"
+        elif "--dpi-desync-multisplit" in strategy:
+            return "multisplit"
+        elif "--dpi-desync-disorder" in strategy:
+            return "disorder"
+        elif "--dpi-desync-split" in strategy and "--dpi-desync-split-count" not in strategy:
+            return "simple_fragment"
+        elif "--dpi-desync-fake" in strategy:
+            if "badsum" in strategy:
+                return "badsum_race"
+            elif "md5sig" in strategy:
+                return "md5sig_race"
+            return "fake"
+        elif "--filter-udp" in strategy:
+            return "force_tcp"
+        else:
+            return "unknown"
+    
+    def _validate_attack_parameters(self, attack_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate and normalize attack parameters.
+        
+        Args:
+            attack_type: Type of attack
+            params: Parameters to validate
+            
+        Returns:
+            Validated and normalized parameters
+        """
+        validated_params = params.copy()
+        
+        # Ensure type is preserved
+        validated_params["type"] = attack_type
+        
+        # Use attack registry if available
+        if self.attack_registry:
+            try:
+                validation_result = self.attack_registry.validate_parameters(attack_type, params)
+                if not validation_result.is_valid:
+                    self.logger.warning(f"Parameter validation failed for {attack_type}: {validation_result.error_message}")
+                    # Return minimal valid parameters
+                    validated_params = self._get_minimal_params(attack_type)
+                    validated_params["type"] = attack_type
+            except Exception as e:
+                self.logger.warning(f"Parameter validation error for {attack_type}: {e}")
+        
+        # Basic parameter validation and normalization
+        if attack_type in ["fakeddisorder", "seqovl", "disorder", "disorder2", "split"]:
+            if "split_pos" not in validated_params:
+                validated_params["split_pos"] = 5  # Default split position
+        
+        if attack_type in ["multidisorder", "multisplit"]:
+            if "positions" not in validated_params:
+                validated_params["positions"] = [1, 5, 10]  # Default positions
+        
+        if attack_type == "seqovl":
+            if "overlap_size" not in validated_params:
+                validated_params["overlap_size"] = 10  # Default overlap size
+        
+        if attack_type in ["fakeddisorder", "fake", "seqovl"]:
+            if "ttl" not in validated_params:
+                validated_params["ttl"] = 3  # Default TTL
+        
+        return validated_params
+    
+    def _get_minimal_params(self, attack_type: str) -> Dict[str, Any]:
+        """Get minimal valid parameters for an attack type."""
+        minimal_params = {
+            "fakeddisorder": {"split_pos": 5, "ttl": 3},
+            "seqovl": {"split_pos": 5, "overlap_size": 10, "fake_ttl": 2},
+            "multidisorder": {"positions": [1, 5]},
+            "disorder": {"split_pos": 5},
+            "disorder2": {"split_pos": 5, "ack_first": True},
+            "multisplit": {"positions": [1, 5], "split_count": 2},
+            "split": {"split_pos": 5},
+            "fake": {"ttl": 3}
+        }
+        return minimal_params.get(attack_type, {"split_pos": 5}).copy()
+
+
+if __name__ == "__main__":
+    # Main CLI entry point would go here
+    pass

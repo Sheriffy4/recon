@@ -1,0 +1,258 @@
+{
+  "name": "x_com_with_fingerprint",
+  "timestamp": "2025-10-06T12:45:29.229384",
+  "version": "1.0",
+  "total_tests": 19,
+  "passed_tests": 0,
+  "failed_tests": 19,
+  "results": [
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum'], overlap_size=336, split_pos=76, ttl=3)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum'], overlap_size=336, split_pos=76, ttl=3)"
+      }
+    },
+    {
+      "attack_name": "--dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-split-pos=76 --dpi-desync-ttl=3",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "--dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-split-pos=76 --dpi-desync-ttl=3"
+      }
+    },
+    {
+      "attack_name": "multidisorder(fooling=['badseq'], split_pos=1, ttl=64)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "multidisorder(fooling=['badseq'], split_pos=1, ttl=64)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum'], overlap_size=0, split_pos=3, ttl=3)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum'], overlap_size=0, split_pos=3, ttl=3)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=4, ttl=5)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=4, ttl=5)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=3)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=3)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=8, ttl=5)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=8, ttl=5)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=5)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=5)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=7)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=7)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=8)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=8)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=1)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=1)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=2, ttl=5)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=2, ttl=5)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=7, ttl=5)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=7, ttl=5)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=4)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=3, ttl=4)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=10, ttl=5)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=10, ttl=5)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=6, ttl=5)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=6, ttl=5)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badseq'], overlap_size=0, split_pos=midsld, ttl=4)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badseq'], overlap_size=0, split_pos=midsld, ttl=4)"
+      }
+    },
+    {
+      "attack_name": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=1, ttl=5)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "fakeddisorder(fooling=['badsum', 'badseq'], overlap_size=0, split_pos=1, ttl=5)"
+      }
+    },
+    {
+      "attack_name": "multisplit(overlap_size=10, split_count=3, ttl=64)",
+      "passed": false,
+      "packet_count": 0,
+      "validation_passed": true,
+      "validation_issues": [],
+      "execution_time": 0.0,
+      "metadata": {
+        "domain": "unknown",
+        "success_rate": 0.0,
+        "strategy": "multisplit(overlap_size=10, split_count=3, ttl=64)"
+      }
+    }
+  ],
+  "metadata": {}
+}

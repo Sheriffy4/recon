@@ -1,0 +1,134 @@
+{
+  "pcap_file": "test_validation_fixed\\end_to_end_tests\\baseline_no_dpi_20251009_101217.pcap",
+  "analysis_timestamp": "2025-10-09T10:12:17.933125",
+  "total_packets": 1,
+  "tcp_packets": 1,
+  "tls_packets": 0,
+  "strategy_validations": [
+    {
+      "strategy_name": "split_3",
+      "expected_behavior": "Packets split at position 3 with 3-byte first part",
+      "observed_behavior": "Found 0 3-byte packets, 0 continuations",
+      "validation_passed": false,
+      "confidence_score": 0.0,
+      "evidence": [],
+      "issues": [
+        "No packets with 3-byte payload found"
+      ]
+    },
+    {
+      "strategy_name": "split_10",
+      "expected_behavior": "Packets split at position 10 with 10-byte first part",
+      "observed_behavior": "Found 0 10-byte packets, 0 continuations",
+      "validation_passed": false,
+      "confidence_score": 0.0,
+      "evidence": [],
+      "issues": [
+        "No packets with 10-byte payload found"
+      ]
+    },
+    {
+      "strategy_name": "split_sni",
+      "expected_behavior": "TLS Client Hello packets split at SNI extension position",
+      "observed_behavior": "Found 0 TLS packets, 0 potential SNI splits",
+      "validation_passed": false,
+      "confidence_score": 0.0,
+      "evidence": [],
+      "issues": [
+        "No TLS Client Hello packets found",
+        "No SNI split patterns detected"
+      ]
+    },
+    {
+      "strategy_name": "badsum",
+      "expected_behavior": "TCP packets with intentionally invalid checksums",
+      "observed_behavior": "Found 0 invalid checksums out of 1 TCP packets",
+      "validation_passed": false,
+      "confidence_score": 0.0,
+      "evidence": [],
+      "issues": [
+        "No invalid checksums detected"
+      ]
+    }
+  ],
+  "youtube_analysis": {
+    "file": "test_validation_fixed\\end_to_end_tests\\baseline_no_dpi_20251009_101217.pcap",
+    "statistics": {
+      "total_packets": 1,
+      "dns_queries": 0,
+      "dns_responses": 0,
+      "tcp_connections": 1,
+      "http_requests": 0,
+      "https_connections": 1,
+      "rst_packets": 0,
+      "connection_attempts": {
+        "192.168.1.100:12345 -> 142.250.74.14:443": 1
+      },
+      "response_codes": {},
+      "blocked_connections": [],
+      "timeouts": [],
+      "errors": []
+    },
+    "youtube_domains": [],
+    "ip_addresses": [
+      "142.250.74.14",
+      "192.168.1.100"
+    ],
+    "issues": [
+      "\u274c DNS \u0437\u0430\u043f\u0440\u043e\u0441\u044b \u043d\u0435 \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d\u044b - \u0432\u043e\u0437\u043c\u043e\u0436\u043d\u0430 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0430 \u0441 DNS",
+      "\u274c YouTube \u0434\u043e\u043c\u0435\u043d\u044b \u0432 DNS \u0437\u0430\u043f\u0440\u043e\u0441\u0430\u0445 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b"
+    ],
+    "analysis_complete": true
+  },
+  "split_analysis": null,
+  "client_hello_analysis": null,
+  "checksum_validation": {
+    "total_checksums": 1,
+    "unique_checksums": 1,
+    "invalid_checksums": 0,
+    "invalid_percentage": 0.0,
+    "most_common_checksums": [
+      [
+        7891,
+        1
+      ]
+    ],
+    "zero_checksums": 0,
+    "ffff_checksums": 0
+  },
+  "packet_size_analysis": {},
+  "sequence_analysis": {
+    "tcp_streams": {
+      "('192.168.1.100', 12345, '142.250.74.14', 443)": {
+        "packet_count": 1,
+        "packet_sizes": [],
+        "small_packets": 0,
+        "sequence_numbers": [
+          0
+        ],
+        "gaps_detected": []
+      }
+    },
+    "split_patterns": [],
+    "sequence_gaps": [],
+    "out_of_order_packets": 0,
+    "first_packet_time": 1759993937.657829,
+    "last_packet_time": 1759993937.657829,
+    "total_duration": 0.0,
+    "inter_packet_intervals": [],
+    "burst_patterns": []
+  },
+  "effectiveness_score": 0.0,
+  "recommendations": [
+    "\u274c DPI strategies are not working effectively - major issues detected",
+    "\ud83d\udd27 Split position 3 not detected - verify packet splitting logic",
+    "\ud83d\udd27 Split position 10 not detected - verify packet splitting logic",
+    "\ud83d\udd27 SNI split not detected - verify SNI detection and splitting",
+    "\ud83d\udd27 Badsum not detected - verify checksum manipulation",
+    "\u26a0\ufe0f No TLS traffic detected - verify HTTPS connections",
+    "\ud83d\udcca Small packet capture - may need longer capture duration"
+  ],
+  "issues_found": [
+    "Split position analyzer failed: analyze_split_positions() takes 0 positional arguments but 1 was given"
+  ]
+}

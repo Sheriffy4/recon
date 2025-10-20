@@ -204,7 +204,7 @@ class BypassEngineAPI:
                     pool.add_domain(domain)
 
             await self.broadcast_update(
-                {"type": "pool_created", "pool_id": pool.id, "pool_name": pool.name}
+                {"type": "pool_created", "pool_id": pool.id, "pool_name": pool.name, "no_fallbacks": True, "forced": True}
             )
 
             return web.json_response(
@@ -337,7 +337,7 @@ class BypassEngineAPI:
             pool.updated_at = datetime.now()
 
             await self.broadcast_update(
-                {"type": "pool_updated", "pool_id": pool.id, "pool_name": pool.name}
+                {"type": "pool_updated", "pool_id": pool.id, "pool_name": pool.name, "no_fallbacks": True, "forced": True}
             )
 
             return web.json_response(
@@ -365,7 +365,7 @@ class BypassEngineAPI:
             del self.pool_manager.pools[pool_id]
 
             await self.broadcast_update(
-                {"type": "pool_deleted", "pool_id": pool_id, "pool_name": pool_name}
+                {"type": "pool_deleted", "pool_id": pool_id, "pool_name": pool_name, "no_fallbacks": True, "forced": True}
             )
 
             return web.json_response(
@@ -392,7 +392,7 @@ class BypassEngineAPI:
 
             if success:
                 await self.broadcast_update(
-                    {"type": "domain_added", "pool_id": pool_id, "domain": domain}
+                    {"type": "domain_added", "pool_id": pool_id, "domain": domain, "no_fallbacks": True, "forced": True}
                 )
 
                 return web.json_response(
@@ -418,7 +418,7 @@ class BypassEngineAPI:
 
             if success:
                 await self.broadcast_update(
-                    {"type": "domain_removed", "pool_id": pool_id, "domain": domain}
+                    {"type": "domain_removed", "pool_id": pool_id, "domain": domain, "no_fallbacks": True, "forced": True}
                 )
 
                 return web.json_response(
@@ -473,7 +473,7 @@ class BypassEngineAPI:
                     "type": "subdomain_strategy_set",
                     "pool_id": pool_id,
                     "subdomain": subdomain,
-                }
+                , "no_fallbacks": True, "forced": True}
             )
 
             return web.json_response(
@@ -507,7 +507,7 @@ class BypassEngineAPI:
                         "type": "subdomain_strategy_removed",
                         "pool_id": pool_id,
                         "subdomain": subdomain,
-                    }
+                    , "no_fallbacks": True, "forced": True}
                 )
 
                 return web.json_response(
@@ -638,7 +638,7 @@ class BypassEngineAPI:
                         "attack_id": attack_id,
                         "success": test_result.success,
                         "execution_time": test_result.execution_time_ms,
-                    }
+                    , "no_fallbacks": True, "forced": True}
                 )
 
                 return web.json_response(
@@ -707,7 +707,7 @@ class BypassEngineAPI:
                 "status": "running",
                 "started_at": datetime.now(),
                 "results": [],
-            }
+            , "no_fallbacks": True, "forced": True}
 
             # Run tests asynchronously
             asyncio.create_task(self._run_all_attacks_test(test_session_id, attack_ids))
@@ -764,7 +764,7 @@ class BypassEngineAPI:
                             "completed": test_data["completed_attacks"],
                             "total": test_data["total_attacks"],
                             "latest_result": test_data["results"][-1],
-                        }
+                        , "no_fallbacks": True, "forced": True}
                     )
 
                     # Small delay between tests
@@ -800,7 +800,7 @@ class BypassEngineAPI:
                         if test_data["total_attacks"] > 0
                         else 0
                     ),
-                }
+                , "no_fallbacks": True, "forced": True}
             )
 
         except Exception as e:
@@ -818,7 +818,7 @@ class BypassEngineAPI:
 
             if success:
                 await self.broadcast_update(
-                    {"type": "attack_enabled", "attack_id": attack_id}
+                    {"type": "attack_enabled", "attack_id": attack_id, "no_fallbacks": True, "forced": True}
                 )
 
                 return web.json_response(
@@ -849,7 +849,7 @@ class BypassEngineAPI:
                         "type": "attack_disabled",
                         "attack_id": attack_id,
                         "reason": reason,
-                    }
+                    , "no_fallbacks": True, "forced": True}
                 )
 
                 return web.json_response(
@@ -985,7 +985,7 @@ class BypassEngineAPI:
                     {
                         "type": "config_imported",
                         "imported_pools": result["imported_pools"],
-                    }
+                    , "no_fallbacks": True, "forced": True}
                 )
 
             return web.json_response(result)
@@ -1256,7 +1256,7 @@ class BypassEngineAPI:
                     try:
                         data = json.loads(msg.data)
                         if data.get("type") == "ping":
-                            await ws.send_str(json.dumps({"type": "pong"}))
+                            await ws.send_str(json.dumps({"type": "pong", "no_fallbacks": True, "forced": True}))
                     except json.JSONDecodeError:
                         pass
                 elif msg.type == WSMsgType.ERROR:
@@ -1331,7 +1331,7 @@ class BypassEngineAPI:
                     "test_id": test_id,
                     "domain": domain,
                     "results": test_data["results"],
-                }
+                , "no_fallbacks": True, "forced": True}
             )
 
         except Exception as e:

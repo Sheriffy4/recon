@@ -1,0 +1,32 @@
+name: "UDP Fragmentation"
+description: "Generic UDP packet fragmentation bypass"
+category: "UDP"
+protocol: "UDP"
+target_ports: [53, 123, 161, 500, 1194, 4500]
+parameters:
+  - name: "fragment_size"
+    type: "integer"
+    default: 32
+    description: "Size of each UDP fragment"
+  - name: "fragment_delay"
+    type: "integer"
+    default: 5
+    description: "Delay between fragments in milliseconds"
+  - name: "fragment_order"
+    type: "string"
+    default: "normal"
+    description: "Order of fragment transmission"
+    options: ["normal", "reverse", "random"]
+  - name: "duplicate_fragments"
+    type: "boolean"
+    default: false
+    description: "Send duplicate fragments"
+implementation:
+  class: "UDPFragmentationAttack"
+  module: "core.bypass.attacks.udp.udp_fragmentation"
+effectiveness:
+  dns: 0.80
+  ntp: 0.75
+  snmp: 0.70
+  openvpn: 0.85
+  ipsec: 0.75

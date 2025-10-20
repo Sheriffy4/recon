@@ -243,24 +243,38 @@ class NativePydivertEngine(BaseBypassEngine):
                         return
                 self._active_count += 1
                 self.windivert_handle = self._global_handle
+        
             self.logger.debug("Starting packet interception loop")
             while not self.stop_event.is_set():
                 try:
                     packet = self.windivert_handle.recv()
                     if not packet:
                         continue
+                    
                     self.stats.packets_processed += 1
-                    was_handled = False
-                    if self.recipe_mode:
-                        if not self._recipe_consumed and self._should_process_packet(
-                            packet
-                        ):
-                            self._recipe_consumed = True
-                            was_handled = self._process_packet_with_recipe(packet)
-                    elif self._should_process_packet(packet):
-                        was_handled = self._process_packet_with_attack(packet)
-                    if not was_handled:
+
+                    # ### START OF CRITICAL FIX ###
+                    # Decide if this packet needs special handling.
+                    if self._should_process_packet(packet):
+                        # This packet is a candidate for bypass. We will handle it.
+                        # The original packet will NOT be sent.
+                        
+                        # Determine if we are in recipe mode or attack mode.
+                        if self.recipe_mode:
+                            if not self._recipe_consumed:
+                                self._recipe_consumed = True
+                                self._process_packet_with_recipe(packet)
+                            # If recipe is already consumed, we drop subsequent packets for this flow
+                            # to prevent retransmissions from interfering.
+                        else:
+                            self._process_packet_with_attack(packet)
+                    
+                    else:
+                        # This packet is not a bypass candidate (e.g., not a ClientHello),
+                        # so we send it along unmodified.
                         self.windivert_handle.send(packet)
+                    # ### END OF CRITICAL FIX ###
+
                 except Exception as e:
                     if not self.stop_event.is_set():
                         self.logger.debug(f"Ошибка обработки пакета в цикле: {e}")

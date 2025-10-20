@@ -1,4 +1,4 @@
-# --- START OF FILE find_rst_triggers.py (UPGRADED) ---
+# --- START OF FILE find_rst_triggers.py (UPGRADED WITH FLOW FAILURE ANALYSIS) ---
 
 import argparse
 import sys
@@ -14,6 +14,11 @@ import struct
 from collections import Counter, defaultdict, namedtuple
 import math
 import ipaddress
+# EXPERT 2: New imports for enhanced analysis
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import NamedTuple
+
 
 # Подавляем излишне "шумные" предупреждения от Scapy TLS
 logging.getLogger("scapy.layers.ssl_tls").setLevel(logging.ERROR)
@@ -27,23 +32,18 @@ if project_root not in sys.path:
 
 from core.pcap.rst_analyzer import RSTTriggerAnalyzer
 
-# Для второго прогона
-# ✅ FIX: Lazy import to avoid circular dependency
-# Import HybridEngine only when needed, not at module level
-# try:
-#     from core.hybrid_engine import HybridEngine
-#     from core.doh_resolver import DoHResolver
-#     HYBRID_AVAILABLE = True
-# except ImportError as e:
-#     print(f"[WARNING] HybridEngine/DoHResolver недоступны: {e}")
-#     HYBRID_AVAILABLE = False
+try:
+    # pcap_inspect.py из вашего проекта
+    from pcap_inspect import inspect_pcap, AttackValidator
+    PCAP_INSPECT_AVAILABLE = True
+except Exception as e:
+    print(f"[WARNING] pcap_inspect unavailable: {e}")
+    PCAP_INSPECT_AVAILABLE = False
 
-# Lazy import - will be imported inside functions that need it
-HYBRID_AVAILABLE = True  # Assume available, will check when needed
 
 # Попытка импортировать scapy для доступа к payload/переассемблированию
 try:
-    from scapy.all import PcapReader, TCP, IP, IPv6, Raw, rdpcap, wrpcap
+    from scapy.all import PcapReader, TCP, IP, IPv6, Raw, rdpcap, wrpcap, Scapy_Exception
     SCAPY_AVAILABLE = True
 except ImportError as e:
     print(f"[WARNING] Scapy недоступен: {e}")
@@ -59,15 +59,6 @@ try:
 except Exception as e:
     print(f"[WARNING] AdvancedReportingIntegration unavailable: {e}")
     ADV_REPORTING_AVAILABLE = False
-
-try:
-    # pcap_inspect.py из вашего проекта
-    from pcap_inspect import inspect_pcap
-    PCAP_INSPECT_AVAILABLE = True
-except Exception as e:
-    print(f"[WARNING] pcap_inspect unavailable: {e}")
-    PCAP_INSPECT_AVAILABLE = False
-
 
 # Зависимости для расширенного анализа
 try:
@@ -88,31 +79,21 @@ TLS_EXT_NAMES = {
     0x0017: "sct", 0x0023: "extended_master_secret", 0x002b: "supported_versions",
     0x002d: "psk_key_exchange_modes", 0x0031: "pre_shared_key", 0x0033: "key_share",
     0xff01: "renegotiation_info",
+    0xfe0d: "encrypted_client_hello", 0x0029: "pre_shared_key", 0x0015: "padding",
+    0x0018: "token_binding", 0x754f: "channel_id",
 }
-# Расширенный словарь шифров для устранения предупреждений
 TLS_CIPHER_NAMES = {
-    # TLS 1.3
-    0x1301: "TLS_AES_128_GCM_SHA256",
-    0x1302: "TLS_AES_256_GCM_SHA384",
-    0x1303: "TLS_CHACHA20_POLY1305_SHA256",
-    0x1304: "TLS_AES_128_CCM_SHA256",
-    0x1305: "TLS_AES_128_CCM_8_SHA256",
-    # TLS 1.2
-    0xC02F: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-    0xC030: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-    0xC02B: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-    0xC02C: "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-    0xCCA8: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
-    0xCCA9: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
-    0x009C: "TLS_RSA_WITH_AES_128_GCM_SHA256",
-    0x009D: "TLS_RSA_WITH_AES_256_GCM_SHA384",
-    0x002F: "TLS_RSA_WITH_AES_128_CBC_SHA",
-    0x0035: "TLS_RSA_WITH_AES_256_CBC_SHA",
-    0xC013: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+    0x1301: "TLS_AES_128_GCM_SHA256", 0x1302: "TLS_AES_256_GCM_SHA384",
+    0x1303: "TLS_CHACHA20_POLY1305_SHA256", 0x1304: "TLS_AES_128_CCM_SHA256",
+    0x1305: "TLS_AES_128_CCM_8_SHA256", 0xC02F: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+    0xC030: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384", 0xC02B: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+    0xC02C: "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", 0xCCA8: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+    0xCCA9: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256", 0x009C: "TLS_RSA_WITH_AES_128_GCM_SHA256",
+    0x009D: "TLS_RSA_WITH_AES_256_GCM_SHA384", 0x002F: "TLS_RSA_WITH_AES_128_CBC_SHA",
+    0x0035: "TLS_RSA_WITH_AES_256_CBC_SHA", 0xC013: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
     0xC014: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
 }
 
-# GREASE helper
 def is_grease(v: int) -> bool:
     try:
         return (v & 0x0F0F) == 0x0A0A
@@ -123,27 +104,18 @@ def strip_grease_from_list(int_list: List[int]) -> List[int]:
     return [x for x in int_list if not is_grease(int(x))]
 
 def find_clienthello_offset(payload: bytes) -> Optional[int]:
-    """Находит смещение первой TLS-записи Handshake с типом ClientHello (0x16 ... 0x01 ...)."""
-    if not payload or len(payload) < 6:
-        return None
+    if not payload or len(payload) < 6: return None
     limit = len(payload) - 6
     for i in range(limit):
-        # TLS record header: ContentType(0x16), Version(0x03, 0x00..0x04)
         try:
             if payload[i] == 0x16 and payload[i+1] == 0x03 and payload[i+2] in (0x00, 0x01, 0x02, 0x03, 0x04):
-                # handshake type should be at i+5
-                if payload[i+5] == 0x01:  # ClientHello
+                if payload[i+5] == 0x01:
                     return i
         except Exception:
             continue
     return None
 
 def extract_sni_loose(payload: bytes) -> List[str]:
-    """
-    Грубый поиск SNI по структуре расширения 0x0000:
-      00 00 [ext_len(2)] [list_len(2)] [name_type=0(1)] [name_len(2)] [host bytes]
-    Используем как fallback, когда структурный парсер не сработал.
-    """
     snis: Set[str] = set()
     n = len(payload)
     i = 0
@@ -161,7 +133,6 @@ def extract_sni_loose(payload: bytes) -> List[str]:
                         p += 3
                         if name_type == 0 and p + name_len <= end_ext and name_len > 0:
                             host = payload[p:p+name_len].decode("utf-8", "ignore").strip().lower()
-                            # Простая валидация: доменное имя, не IP
                             if host and "." in host:
                                 try:
                                     ipaddress.ip_address(host)
@@ -173,70 +144,75 @@ def extract_sni_loose(payload: bytes) -> List[str]:
     return sorted(snis)
 
 def _iter_tls_record_starts(payload: bytes) -> Iterable[Tuple[int, int, int]]:
-    """Итерируется по потенциальным начальным позициям TLS-записей в потоке байтов."""
     i = 0
     while i + 5 <= len(payload):
         content_type = payload[i]
-        # Проверка на валидные типы контента (handshake, alert, application_data, и т.д.)
         if content_type in {20, 21, 22, 23}:
             version = int.from_bytes(payload[i+1:i+3], "big")
-            # Проверка на валидные версии TLS (e.g., 0x0301 to 0x0304)
             if 0x0300 <= version <= 0x0304:
                 length = int.from_bytes(payload[i+3:i+5], "big")
-                if length > 0:  # упрощенная проверка
+                if length > 0:
                     yield i, content_type, length
         i += 1
 
-# ====== Enhanced TLS Parser ======
+def parse_ech_extension(data: bytes) -> Dict[str, Any]:
+    try:
+        if len(data) < 4: return {}
+        ech_version = int.from_bytes(data[0:2], 'big')
+        config_id = data[2]
+        return {'ech_supported': True, 'ech_version': ech_version, 'config_id': config_id, 'raw_length': len(data)}
+    except Exception:
+        return {}
+
+def parse_key_share_extension(data: bytes) -> List[Dict[str, Any]]:
+    shares = []
+    try:
+        if len(data) < 2: return shares
+        total_len = int.from_bytes(data[0:2], 'big')
+        pos = 2
+        while pos + 4 <= len(data) and pos < total_len + 2:
+            group = int.from_bytes(data[pos:pos+2], 'big')
+            key_len = int.from_bytes(data[pos+2:pos+4], 'big')
+            key_exchange = data[pos+4:pos+4+key_len] if key_len > 0 else b""
+            shares.append({'group': f"0x{group:04x}", 'key_length': key_len, 'key_exchange_preview': key_exchange[:16].hex() if key_exchange else ""})
+            pos += 4 + key_len
+    except Exception:
+        pass
+    return shares
+
 def parse_client_hello(payload: bytes) -> Optional[Dict[str, Any]]:
-    """Улучшенный парсер TLS ClientHello: умеет находить CH внутри потока, даже если до него есть байты."""
     try:
         start = find_clienthello_offset(payload)
-        if start is None:
-            return None
-
+        if start is None: return None
         pos = start
-        # читаем первую TLS-запись
-        if pos + 5 > len(payload):
-            return None
+        if pos + 5 > len(payload): return None
         ct = payload[pos]
         rec_ver = int.from_bytes(payload[pos+1:pos+3], "big")
         rec_len = int.from_bytes(payload[pos+3:pos+5], "big")
         pos += 5
-
         rec_end = pos + rec_len
         rec = payload[pos:rec_end] if rec_end <= len(payload) else payload[pos:]
-        if ct != 0x16 or len(rec) < 4:
-            return None
-
+        if ct != 0x16 or len(rec) < 4: return None
         hs_type = rec[0]
         hs_len = int.from_bytes(rec[1:4], "big")
-        if hs_type != 0x01:
-            return None
-
+        if hs_type != 0x01: return None
         body = rec[4:4+hs_len] if 4+hs_len <= len(rec) else rec[4:]
         off = 0
-        if len(body) < 2+32+1:
-            return None
-
+        if len(body) < 2+32+1: return None
         client_version = int.from_bytes(body[off:off+2], "big"); off += 2
-        off += 32  # random
+        off += 32
         sid_len = body[off]; off += 1
         off += sid_len
-
-        if off + 2 > len(body):
-            return None
+        if off + 2 > len(body): return None
         cs_len = int.from_bytes(body[off:off+2], "big"); off += 2
         cs_bytes = body[off:off+cs_len]; off += cs_len
         cipher_suites_raw = [(cs_bytes[i] << 8) | cs_bytes[i+1] for i in range(0, len(cs_bytes), 2) if i+1 < len(cs_bytes)]
         cipher_suites_raw = [c for c in cipher_suites_raw if isinstance(c, int)]
         cipher_suites_no_grease = strip_grease_from_list(cipher_suites_raw)
-
-        if off >= len(body):
-            return None
+        if off >= len(body): return None
         comp_len = body[off]; off += 1
         off += comp_len
-
+        tls_data = {}
         sni_list, exts, alpn_list, sup_ver, sig_algs, groups, points = [], [], [], [], [], [], []
         if off + 2 <= len(body):
             ext_total = int.from_bytes(body[off:off+2], "big"); off += 2
@@ -257,14 +233,12 @@ def parse_client_hello(payload: bytes) -> Optional[Dict[str, Any]]:
                             nl = int.from_bytes(ed[p:p+2], "big"); p += 2
                             host = ed[p:p+nl].decode("utf-8","ignore").strip().lower(); p += nl
                             if nt == 0 and host:
-                                # Исключим IP, оставим домены
                                 try:
                                     ipaddress.ip_address(host)
                                 except ValueError:
                                     sni_list.append(host)
-                    except Exception:
-                        pass
-                elif et == 0x0010 and len(ed) >= 2:  # ALPN
+                    except Exception: pass
+                elif et == 0x0010 and len(ed) >= 2:
                     try:
                         lst_len = int.from_bytes(ed[0:2], "big"); p = 2
                         endp = min(len(ed), 2+lst_len)
@@ -272,9 +246,8 @@ def parse_client_hello(payload: bytes) -> Optional[Dict[str, Any]]:
                             nlen = ed[p]; p += 1
                             proto = ed[p:p+nlen].decode("ascii","ignore"); p += nlen
                             if proto: alpn_list.append(proto)
-                    except Exception:
-                        pass
-                elif et == 0x002b and len(ed) >= 1:  # supported_versions
+                    except Exception: pass
+                elif et == 0x002b and len(ed) >= 1:
                     try:
                         vlen = ed[0]; p = 1
                         tmp = []
@@ -284,55 +257,53 @@ def parse_client_hello(payload: bytes) -> Optional[Dict[str, Any]]:
                                 if not is_grease(vc):
                                     tmp.append(TLS_VER_MAP.get(vc, f"0x{vc:04x}"))
                         sup_ver = tmp
-                    except Exception:
-                        pass
-                elif et == 0x000d and len(ed) >= 2:  # signature_algorithms
+                    except Exception: pass
+                elif et == 0x000d and len(ed) >= 2:
                     try:
                         alg_len = int.from_bytes(ed[0:2], "big"); p = 2
                         for i in range(0, alg_len, 2):
                             if p+i+1 < len(ed):
                                 alg = int.from_bytes(ed[p+i:p+i+2], "big")
                                 sig_algs.append(f"0x{alg:04x}")
-                    except Exception:
-                        pass
-                elif et == 0x000a and len(ed) >= 2:  # groups
+                    except Exception: pass
+                elif et == 0x000a and len(ed) >= 2:
                     try:
                         g_len = int.from_bytes(ed[0:2], "big"); p = 2
                         for i in range(0, g_len, 2):
                             if p+i+1 < len(ed):
                                 g = int.from_bytes(ed[p+i:p+i+2], "big")
                                 groups.append(f"0x{g:04x}")
-                    except Exception:
-                        pass
-                elif et == 0x000b and len(ed) >= 1:  # ec_point_formats
+                    except Exception: pass
+                elif et == 0x000b and len(ed) >= 1:
                     try:
                         pf_len = ed[0]; p = 1
                         for i in range(pf_len):
                             if p+i < len(ed):
                                 pf = ed[p+i]
                                 points.append(f"0x{pf:02x}")
-                    except Exception:
-                        pass
-
-        return {
-            "is_client_hello": True,
-            "record_version": TLS_VER_MAP.get(rec_ver, f"0x{rec_ver:04x}"),
-            "client_version": TLS_VER_MAP.get(client_version, f"0x{client_version:04x}"),
-            "sni": sni_list,
+                    except Exception: pass
+                elif et == 0x0033:
+                    key_shares = parse_key_share_extension(ed)
+                    if key_shares: tls_data["key_share"] = key_shares
+                elif et == 0xfe0d:
+                    ech_info = parse_ech_extension(ed)
+                    if ech_info: tls_data["encrypted_client_hello"] = ech_info
+                elif et == 0x0015:
+                    tls_data["padding_length"] = el
+                    tls_data["has_padding"] = True
+        result = {
+            "is_client_hello": True, "record_version": TLS_VER_MAP.get(rec_ver, f"0x{rec_ver:04x}"),
+            "client_version": TLS_VER_MAP.get(client_version, f"0x{client_version:04x}"), "sni": sni_list,
             "cipher_suites": [TLS_CIPHER_NAMES.get(c, f"0x{c:04x}") for c in cipher_suites_no_grease],
-            "cipher_suites_raw": cipher_suites_raw,
-            "extensions": list(dict.fromkeys(exts)),  # дедуп
-            "alpn": alpn_list,
-            "supported_versions": sup_ver,
-            "signature_algorithms": sig_algs,
-            "supported_groups": groups,
-            "ec_point_formats": points,
-            "ch_length": len(body),
+            "cipher_suites_raw": cipher_suites_raw, "extensions": list(dict.fromkeys(exts)), "alpn": alpn_list,
+            "supported_versions": sup_ver, "signature_algorithms": sig_algs, "supported_groups": groups,
+            "ec_point_formats": points, "ch_length": len(body),
         }
+        result.update(tls_data)
+        return result
     except Exception:
         return None
 
-# Умная реассемблировка с TCP state machine
 class TCPStreamReassembler:
     """Правильная реассемблировка с учетом retransmissions, out-of-order, overlap"""
     def __init__(self):
@@ -408,48 +379,27 @@ class TCPStreamReassembler:
                 if idx == target_index:
                     target_pkt = pkt
                     break
-
-        if not target_pkt or TCP not in target_pkt:
-            return b"", {}
-
+        if not target_pkt or TCP not in target_pkt: return b"", {}
         target_stream_key = self._get_stream_key(target_pkt)
         target_direction_key = self._get_dir_key(target_pkt)
-
-        state = {
-            'segments': {}, 'base_seq': None, 'retrans_count': 0, 'out_of_order_count': 0, 'max_seq_seen': 0
-        }
-
+        state = {'segments': {}, 'base_seq': None, 'retrans_count': 0, 'out_of_order_count': 0, 'max_seq_seen': 0}
         with PcapReader(pcap_file) as pr:
             for idx, pkt in enumerate(pr, 1):
-                if idx > target_index:
-                    break
-                if TCP not in pkt or self._get_stream_key(pkt) != target_stream_key:
-                    continue
-                if self._get_dir_key(pkt) != target_direction_key:
-                    continue
-
+                if idx > target_index: break
+                if TCP not in pkt or self._get_stream_key(pkt) != target_stream_key: continue
+                if self._get_dir_key(pkt) != target_direction_key: continue
                 seq = int(pkt[TCP].seq)
                 payload = bytes(pkt[TCP].payload) if pkt[TCP].payload else b""
-                if not payload:
-                    continue
-
-                if state['base_seq'] is None:
-                    state['base_seq'] = seq
-
-                if seq < state['max_seq_seen']:
-                    state['out_of_order_count'] += 1
-
+                if not payload: continue
+                if state['base_seq'] is None: state['base_seq'] = seq
+                if seq < state['max_seq_seen']: state['out_of_order_count'] += 1
                 if seq in state['segments']:
                     state['retrans_count'] += 1
-                    if len(payload) > len(state['segments'][seq]):
-                        state['segments'][seq] = payload
+                    if len(payload) > len(state['segments'][seq]): state['segments'][seq] = payload
                 else:
                     state['segments'][seq] = payload
-
                 state['max_seq_seen'] = max(state['max_seq_seen'], seq + len(payload))
-
         sorted_segments = sorted(state['segments'].items())
-
         assembled = b""
         if sorted_segments:
             assembled = sorted_segments[0][1]
@@ -458,22 +408,16 @@ class TCPStreamReassembler:
             for seq, data in sorted_segments[1:]:
                 if seq < last_end:
                     overlap = last_end - seq
-                    if overlap < len(data):
-                        assembled += data[overlap:]
+                    if overlap < len(data): assembled += data[overlap:]
                 else:
-                    # разрыв — просто склеиваем (далее parse_client_hello сам найдёт валидную точку старта)
                     assembled += data
                 last_end = max(last_end, seq + len(data))
-
         ch_off = find_clienthello_offset(assembled)
         metadata = {
-            'retransmissions': state['retrans_count'],
-            'out_of_order': state['out_of_order_count'],
+            'retransmissions': state['retrans_count'], 'out_of_order': state['out_of_order_count'],
             'overlaps': len(self._detect_overlaps([(s[0], s[1]) for s in sorted_segments])),
-            'total_segments': len(state['segments']),
-            'reassembly_confidence': self._calculate_confidence(state),
-            'clienthello_found': ch_off is not None,
-            'clienthello_offset': ch_off if ch_off is not None else -1,
+            'total_segments': len(state['segments']), 'reassembly_confidence': self._calculate_confidence(state),
+            'clienthello_found': ch_off is not None, 'clienthello_offset': ch_off if ch_off is not None else -1,
         }
         return assembled, metadata
 
@@ -517,6 +461,90 @@ def analyze_payload_entropy(payload: bytes) -> Dict[str, Any]:
         'chi_square': chi_square, 'anomaly_score': entropy_variance * chi_square / 1000,
         'suspicious_patterns': _detect_repetitive_patterns(payload)
     }
+
+class AdvancedSignatureAnalyzer:
+    """Обнаруживает специфичные сигнатуры DPI по аномалиям в ClientHello"""
+    
+    def __init__(self):
+        self.known_dpi_patterns = {
+            'sni_length_trigger': lambda tls: self._check_sni_length(tls),
+            'cipher_order_trigger': lambda tls: self._check_cipher_order(tls),
+            'extension_order_trigger': lambda tls: self._check_extension_order(tls),
+            'rare_extension_trigger': lambda tls: self._check_rare_extensions(tls),
+            'padding_trigger': lambda tls: self._check_padding_pattern(tls),
+            'ech_detection_trigger': lambda tls: self._check_ech_presence(tls),
+        }
+    
+    def analyze_tls_fingerprint(self, tls_data: Dict) -> Dict[str, Any]:
+        """Анализирует TLS отпечаток на предмет DPI-триггеров"""
+        results = {}
+        
+        for pattern_name, checker in self.known_dpi_patterns.items():
+            score, reason = checker(tls_data)
+            if score > 0.3:
+                results[pattern_name] = {
+                    'score': score,
+                    'reason': reason,
+                    'mitigation': self._suggest_mitigation(pattern_name, tls_data)
+                }
+        
+        return {
+            'risk_score': sum(r['score'] for r in results.values()),
+            'triggers': results,
+            'recommended_evasions': self._generate_evasion_strategies(results)
+        }
+    
+    def _check_sni_length(self, tls: Dict) -> Tuple[float, str]:
+        sni_list = tls.get('sni', [])
+        if not sni_list: return 0.0, ""
+        sni = sni_list[0]
+        if len(sni) > 64: return 0.8, f"Длинное SNI ({len(sni)} chars) может триггерить DPI"
+        elif len(sni) < 4: return 0.6, f"Короткое SNI ({len(sni)} chars) подозрительно"
+        return 0.0, ""
+    
+    def _check_cipher_order(self, tls: Dict) -> Tuple[float, str]:
+        ciphers = tls.get('cipher_suites', [])
+        if not ciphers: return 0.0, ""
+        if ciphers and any("TLS_AES" in c for c in ciphers[:2]):
+            return 0.0, "Нормальный порядок (TLS 1.3 сначала)"
+        else:
+            return 0.7, "Подозрительный порядок шифров (TLS 1.3 не в начале)"
+    
+    def _check_extension_order(self, tls: Dict) -> Tuple[float, str]:
+        # Placeholder for more complex logic
+        return 0.0, ""
+
+    def _check_rare_extensions(self, tls: Dict) -> Tuple[float, str]:
+        extensions = tls.get('extensions', [])
+        rare_exts = {'token_binding', 'channel_id'}
+        found_rare = rare_exts.intersection(extensions)
+        if found_rare: return 0.9, f"Редкие расширения: {', '.join(found_rare)}"
+        return 0.0, ""
+    
+    def _check_padding_pattern(self, tls: Dict) -> Tuple[float, str]:
+        # Placeholder for more complex logic
+        return 0.0, ""
+
+    def _check_ech_presence(self, tls: Dict) -> Tuple[float, str]:
+        if tls.get('encrypted_client_hello'):
+            return 0.95, "Обнаружено Encrypted ClientHello (блокируется некоторыми DPI)"
+        return 0.0, ""
+    
+    def _suggest_mitigation(self, pattern_name: str, tls_data: Dict) -> str:
+        # Placeholder for mitigation logic
+        return "No specific mitigation suggested."
+
+    def _generate_evasion_strategies(self, triggers: Dict) -> List[str]:
+        strategies = []
+        if 'ech_detection_trigger' in triggers:
+            strategies.append("--remove-extension=encrypted_client_hello")
+        if 'rare_extension_trigger' in triggers:
+            strategies.append("--strip-rare-extensions")
+        if 'cipher_order_trigger' in triggers:
+            strategies.append("--reorder-ciphers --tls13-first")
+        if 'sni_length_trigger' in triggers:
+            strategies.append("--randomize-sni-length --sni-padding")
+        return strategies
 
 # Статистический анализ паттернов
 class BlockingPatternAnalyzer:
@@ -647,352 +675,499 @@ def _synthesize_sni(tls: Dict[str, Any], trigger: Dict[str, Any], stream_label: 
         try:
             dst_part = stream_label.split("-")[1]
             h = dst_part.split(":")[0].strip("[]").lower()
-            # если это IP — используем fallback, иначе вернем как есть
-            if _is_ip(h):
-                return FAKE_SNI_FALLBACK
-            if "." in h:
-                return h
+            # --- НОВАЯ ПРОВЕРКА ---
+            # Проверяем, что хост состоит из допустимых символов
+            if all(c in "abcdefghijklmnopqrstuvwxyz0123456789.-" for c in h):
+                if _is_ip(h):
+                    return FAKE_SNI_FALLBACK
+                if "." in h:
+                    return h
+            # --- КОНЕЦ ПРОВЕРКИ ---
         except Exception:
             pass
     return None
 
-def generate_ml_enhanced_strategies(tls: Dict[str, Any], trigger: Dict[str, Any], raw_payload: bytes) -> List[Dict[str, Any]]:
-    recs: List[Dict[str, Any]] = []
+def generate_advanced_strategies(tls: Dict, triggers: Dict, entropy_data: Dict, 
+                               signature_analysis: Dict) -> List[Dict[str, Any]]:
+    strategies = []
+    base_score = 0.5
+    risk_score = signature_analysis.get('risk_score', 0)
 
-    def add(cmd: str, base: float, reason: str, dpi_type: str):
-        recs.append({"cmd": cmd, "score": round(base, 3), "reason": reason, "dpi_type": dpi_type})
+    # ### START OF FIX ###
+    # Translate abstract recommendations into concrete zapret-style commands.
 
-    dpi_type = "unknown"
-    if trigger.get('injected', False) or trigger.get('ttl_difference', 0) > 4:
-        dpi_type = "stateful"
-    elif tls.get('ch_length', 0) or tls.get("is_client_hello"):
-        dpi_type = "signature_based"
+    if tls.get('supported_versions'):
+        if 'TLS1.3' in tls['supported_versions']:
+            base_score += 0.2
+            # This is a conceptual strategy; we map it to a robust fakeddisorder.
+            strategies.append({'cmd': '--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-fooling=badsum,badseq', 'score': base_score, 'reason': 'Forcing TLS 1.3 behavior with a robust disorder attack', 'dpi_type': 'signature_based'})
 
-    # Получим stream_label, если есть, чтобы синтезировать SNI при необходимости
-    stream_label = trigger.get("stream") or trigger.get("stream_id") or None
-    sni = _synthesize_sni(tls, trigger, stream_label)
-    has_real_sni = bool(tls.get("sni"))
+    if tls.get('encrypted_client_hello'):
+        # ECH is hard to bypass; suggest a strong fragmentation strategy.
+        strategies.append({'cmd': '--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=10', 'score': 0.85, 'reason': 'Using multisplit fragmentation to bypass ECH inspection', 'dpi_type': 'sni_based'})
+    else:
+        # Map --fake-sni-random to a fake race attack.
+        strategies.append({'cmd': '--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum', 'score': 0.75, 'reason': 'Using a fake packet race to hide real SNI', 'dpi_type': 'sni_based'})
 
-    if tls.get("is_client_hello"):
-        if dpi_type == 'signature_based':
-            if has_real_sni:
-                add('--dpi-desync=split --dpi-desync-split-pos=sni', 0.88, 'Signature evasion: SNI boundary split', dpi_type)
-                add(f'--dpi-desync=fake --dpi-desync-fake-sni={tls["sni"][0][::-1]} --dpi-desync-ttl=1', 0.85, 'Signature evasion: Fake reversed SNI', dpi_type)
-            if len(tls.get('cipher_suites_raw', [])) > 15:
-                add('--dpi-desync=split --dpi-desync-split-pos=cipher', 0.82, 'Signature evasion: Split at cipher suites', dpi_type)
+    entropy_score = entropy_data.get('anomaly_score', 0)
+    if entropy_score > 0.5:
+        # Map --fragment-tls to a multisplit strategy.
+        strategies.append({'cmd': '--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=15', 'score': 0.8, 'reason': f'High entropy ({entropy_score:.2f}) suggests fragmentation (multisplit)', 'dpi_type': 'entropy_based'})
 
-        elif dpi_type == 'stateful':
-            # Для fake всегда указываем fake-sni (реальный или fallback)
-            fsni = sni or FAKE_SNI_FALLBACK
-            add(f"--dpi-desync=fake --dpi-desync-fake-sni={fsni} --dpi-desync-ttl=1 --dpi-desync-fooling=badsum", 0.85, "State confusion: fake with badsum, low TTL", dpi_type)
-            add(f"--dpi-desync=fake,disorder --dpi-desync-fake-sni={fsni} --dpi-desync-ttl=2 --dpi-desync-fooling=badsum", 0.80, "State confusion: fake+disorder with fooling", dpi_type)
-            add("--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-ttl=4", 0.78, "State confusion: multi-fragmentation with overlap", dpi_type)
+    if tls.get('key_share'):
+        key_share_groups = [ks.get('group', '') for ks in tls.get('key_share', [])]
+        if len(key_share_groups) > 2:
+            # Map --optimize-keyshare to a simple split at a safe position.
+            strategies.append({'cmd': '--dpi-desync=split --dpi-desync-split-pos=128', 'score': 0.7, 'reason': f'Complex KeyShare groups; trying a simple split after headers', 'dpi_type': 'signature_based'})
 
-    if not recs:
-        # Фоллбэки, не требующие SNI
-        if b'\x16\x03' in raw_payload or b'\x00\x00\x00' in raw_payload:
-            add("--dpi-desync=split --dpi-desync-split-pos=cipher --dpi-desync-ttl=2", 0.75, "TLS-like pattern found — split near ciphers", "unknown")
-        if len(raw_payload) > 350:
-            add("--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-ttl=4", 0.72, "Large payload — multi-fragmentation", "unknown")
-        if sni:
-            add(f"--dpi-desync=fake --dpi-desync-fake-sni={sni} --dpi-desync-ttl=1 --dpi-desync-fooling=badsum", 0.7, "Fallback fake with synthesized SNI", "unknown")
+    if triggers.get('injected') or triggers.get('ttl_difference', 0) > 4:
+        # These are already good zapret-style commands.
+        strategies.extend([
+            {'cmd': '--dpi-desync=fake,disorder --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq --dpi-desync-split-pos=sni', 'score': 0.9, 'reason': 'Stateful DPI detected - full desynchronization', 'dpi_type': 'stateful'},
+            {'cmd': '--dpi-desync=multisplit --dpi-desync-split-count=4 --dpi-desync-split-seqovl=10', 'score': 0.85, 'reason': 'Adaptive multi-fragmentation against stateful DPI', 'dpi_type': 'stateful'}
+        ])
+    
+    # ### END OF FIX ###
+    
+    strategies.sort(key=lambda x: x['score'], reverse=True)
+    return strategies[:8]
 
-        if not recs:
-            add("--dpi-desync=fake,disorder --dpi-desync-fake-sni=a.invalid --dpi-desync-fooling=badsum --dpi-desync-split-pos=76 --dpi-desync-ttl=3", 0.64, "Desperation fallback with safe fake-sni", "unknown")
 
-    # Дедуп и сортировка
-    seen, uniq = set(), []
-    for r in recs:
-        if r["cmd"] not in seen:
-            seen.add(r["cmd"])
-            uniq.append(r)
-    uniq.sort(key=lambda x: x["score"], reverse=True)
-    return uniq[:6]
 
 def locate_clienthello_start(pcap_file: str, idx_hint: int) -> Optional[int]:
-    """Находит индекс пакета, где начинается ClientHello, в том же потоке и направлении, что и idx_hint."""
-    if not SCAPY_AVAILABLE or not isinstance(idx_hint, int) or idx_hint <= 0:
-        return None
-
+    if not SCAPY_AVAILABLE or not isinstance(idx_hint, int) or idx_hint <= 0: return None
     target_pkt = None
     with PcapReader(pcap_file) as pr:
         for i, pkt in enumerate(pr, 1):
             if i == idx_hint:
                 target_pkt = pkt
                 break
-    if not target_pkt or TCP not in target_pkt:
-        return None
-
-    # Определяем поток/направление
+    if not target_pkt or TCP not in target_pkt: return None
     def dir_key(pkt):
         if TCP in pkt:
             if IP in pkt: return (pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport)
             if IPv6 in pkt: return (pkt[IPv6].src, pkt[TCP].sport, pkt[IPv6].dst, pkt[TCP].dport)
         return None
-
     stream_key = None
     if TCP in target_pkt:
-        if IP in target_pkt:
-            stream_key = tuple(sorted(((target_pkt[IP].src, target_pkt[TCP].sport),
-                                       (target_pkt[IP].dst, target_pkt[TCP].dport))))
-        elif IPv6 in target_pkt:
-            stream_key = tuple(sorted(((target_pkt[IPv6].src, target_pkt[TCP].sport),
-                                       (target_pkt[IPv6].dst, target_pkt[TCP].dport))))
-    if not stream_key:
-        return None
-
+        if IP in target_pkt: stream_key = tuple(sorted(((target_pkt[IP].src, target_pkt[TCP].sport), (target_pkt[IP].dst, target_pkt[TCP].dport))))
+        elif IPv6 in target_pkt: stream_key = tuple(sorted(((target_pkt[IPv6].src, target_pkt[TCP].sport), (target_pkt[IPv6].dst, target_pkt[TCP].dport))))
+    if not stream_key: return None
     tdir = dir_key(target_pkt)
     found_idx = None
-
     with PcapReader(pcap_file) as pr:
         for i, pkt in enumerate(pr, 1):
-            if i > idx_hint:
-                break
+            if i > idx_hint: break
             if TCP in pkt:
-                # тот же поток и направление
-                if IP in pkt:
-                    sk = tuple(sorted(((pkt[IP].src, pkt[TCP].sport), (pkt[IP].dst, pkt[TCP].dport))))
-                elif IPv6 in pkt:
-                    sk = tuple(sorted(((pkt[IPv6].src, pkt[TCP].sport), (pkt[IPv6].dst, pkt[TCP].dport))))
-                else:
-                    continue
-                if sk != stream_key or dir_key(pkt) != tdir:
-                    continue
+                if IP in pkt: sk = tuple(sorted(((pkt[IP].src, pkt[TCP].sport), (pkt[IP].dst, pkt[TCP].dport))))
+                elif IPv6 in pkt: sk = tuple(sorted(((pkt[IPv6].src, pkt[TCP].sport), (pkt[IPv6].dst, pkt[TCP].dport))))
+                else: continue
+                if sk != stream_key or dir_key(pkt) != tdir: continue
                 raw = bytes(pkt[TCP].payload) if pkt[TCP].payload else b""
-                if not raw:
-                    continue
-                # ищем сигнатуру начала CH прямо в этом TCP-сегменте
+                if not raw: continue
                 off = find_clienthello_offset(raw)
                 if off is not None:
-                    # Нашли пакет с началом CH. Берем самый первый из найденных до нашего триггера.
-                    if found_idx is None:
-                        found_idx = i
+                    if found_idx is None: found_idx = i
     return found_idx
 
-# NEW: helpers to map stream labels between modules
-def _normalize_stream_to_arrow(stream_label: Optional[str]) -> Optional[str]:
-    # find_rst_triggers: "src:sp-dst:dp" -> "src:sp -> dst:dp"
-    if not stream_label or "-" not in stream_label:
-        return None
-    try:
-        left, right = stream_label.split("-", 1)
-        return f"{left.strip()} -> {right.strip()}"
-    except Exception:
-        return None
+class AttackType(Enum):
+    FAKEDDISORDER = "fakeddisorder"
+    SPLIT = "split"
+    MULTISPLIT = "multisplit"
+    SEQOVL = "seqovl"
+    FAKE_RACE = "fake_race"
+    UNKNOWN = "unknown"
 
-def _parse_arrow_flow(flow_str: str) -> Optional[Tuple[str,int,str,int]]:
-    # "a.b.c.d:12345 -> e.f.g.h:443"
-    try:
-        left, right = flow_str.split("->")
-        lhost, lport = left.strip().rsplit(":", 1)
-        rhost, rport = right.strip().rsplit(":", 1)
-        return (lhost.strip("[] "), int(lport), rhost.strip("[] "), int(rport))
-    except Exception:
-        return None
+@dataclass
+class PacketAnalysis:
+    index: int
+    ttl: int
+    tcp_checksum: int
+    tcp_checksum_valid: bool
+    is_fake: bool
+    fake_indicators: List[str] = field(default_factory=list)
+    payload_len: int = 0
+    seq: int = 0
+    rel_seq: int = 0
+    flags: str = ""
+    has_md5sig: bool = False
+    timestamp: float = 0.0
 
-# NEW: AttackValidator over pcap_inspect metrics
-class AttackValidator:
-    """
-    Сопоставляет инциденты из find_rst_triggers с flow-метриками pcap_inspect
-    и оценивает корректность реализации «фейк/реал».
-    """
-    @staticmethod
-    def _score_pair(m: Dict[str, Any]) -> Tuple[float, List[str], List[str]]:
-        # Возвращает (confidence 0..1, issues, fixes)
-        issues, fixes = [], []
-        score = 0.0
+@dataclass 
+class AttackDiagnosis:
+    attack_type: AttackType
+    confidence: float
+    issues: List[str] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+    packet_sequence: List[PacketAnalysis] = field(default_factory=list)
 
-        if m.get("fake_first", False):
-            score += 0.25
-        else:
-            issues.append("fake_first=false: фейк идёт не первым")
-            fixes.append("Добавьте 'disorder' в --dpi-desync=..., чтобы фейк шёл первым")
+class FlowFailureAnalyzer:
+    def __init__(self, pcap_file: str, local_ip: str, flow_port: int = 443, window_ms: float = 800.0):
+        if not SCAPY_AVAILABLE: raise RuntimeError("Scapy не установлен, анализ невозможен.")
+        self.pcap_file = pcap_file
+        self.local_ip = local_ip
+        self.flow_port = flow_port
+        self.window_ms = window_ms
+        self.flows = defaultdict(list)
+        self.analysis_verdicts = Counter()
 
-        if m.get("csum_fake_bad", False):
-            score += 0.20
-        else:
-            issues.append("csum_fake_bad=false: чек-сумма фейка не испорчена")
-            fixes.append("Добавьте '--dpi-desync-fooling=badsum' (или badseq)")
+    def analyze(self):
+        print("\n" + "="*80)
+        print("🚀 ЗАПУСК РАСШИРЕННОЙ ДИАГНОСТИКИ СБОЕВ TCP-ПОТОКОВ (POST-BYPASS)")
+        print("="*80)
+        try:
+            packets = rdpcap(self.pcap_file)
+        except Scapy_Exception as e:
+            LOG.error(f"Не удалось прочитать PCAP файл: {e}")
+            return
+        if not self.local_ip:
+            self.local_ip = self._autodetect_local_ip(packets)
+            if not self.local_ip:
+                LOG.error("Не удалось определить локальный IP. Укажите его через --local-ip. Анализ остановлен.")
+                return
+        has_inbound_traffic = False
+        for i, pkt in enumerate(packets):
+            if TCP in pkt and IP in pkt:
+                is_outbound = pkt[IP].src == self.local_ip
+                if not is_outbound: has_inbound_traffic = True
+                if is_outbound and int(pkt[TCP].dport) != self.flow_port: continue
+                pkt.packet_num = i + 1
+                flow_key = self._get_flow_key(pkt)
+                if flow_key: self.flows[flow_key].append(pkt)
+        if not has_inbound_traffic:
+            print("\n" + "!"*80)
+            print("! КРИТИЧЕСКОЕ ПРЕДУПРЕЖДЕНИЕ: В PCAP-ФАЙЛЕ ПОЛНОСТЬЮ ОТСУТСТВУЕТ ВХОДЯЩИЙ ТРАФИК!")
+            print("! Анализ ответа сервера (ServerHello/RST) НЕВОЗМОЖЕН.")
+            print("! ПРИЧИНА: Ваш фильтр захвата трафика (pydivert/WinPCAP) настроен НЕПРАВИЛЬНО.")
+            print("! РЕШЕНИЕ: Убедитесь, что фильтр захватывает ОБА направления (inbound и outbound).")
+            print("!"*80 + "\n")
+        LOG.info(f"Найдено {len(self.flows)} TCP-потоков к порту {self.flow_port}.")
+        failed_flows_count = 0
+        for flow_key, stream_pkts in self.flows.items():
+            if flow_key[0] != self.local_ip: continue
+            analysis_result = self._analyze_stream(stream_pkts)
+            if analysis_result["is_failed_bypass_attempt"]:
+                failed_flows_count += 1
+                self.analysis_verdicts[analysis_result["verdict"]] += 1
+                self._print_stream_report(flow_key, analysis_result)
+        self._print_summary_report(failed_flows_count)
 
-        if m.get("seq_order_ok", False):
-            score += 0.20
-        else:
-            issues.append("seq_order_ok=false: подозрительный порядок SEQ")
-            fixes.append("Попробуйте '--dpi-desync-split-seqovl=10' или 'multisplit'")
+    def _print_summary_report(self, failed_count: int):
+        print("\n" + "="*80)
+        print("🏁 АНАЛИЗ ЗАВЕРШЕН")
+        print("="*80)
+        if failed_count == 0:
+            print("✅ Не найдено потоков с явными признаками неудачного обхода.")
+            return
+        print(f"Найдено {failed_count} подозрительных потоков. Статистика по вердиктам:")
+        for verdict, count in self.analysis_verdicts.most_common():
+            print(f"  - {verdict}: {count} раз")
+        if self.analysis_verdicts:
+            top_verdict = self.analysis_verdicts.most_common(1)[0][0]
+            print("\n--- ОСНОВНАЯ РЕКОМЕНДАЦИЯ ---")
+            if top_verdict == "ОШИБКА ЗАХВАТА ТРАФИКА":
+                print("❗️ Ваша главная проблема - неправильная настройка захвата трафика. Вы не видите ответы сервера.")
+                print("   Решение: Настройте pydivert/Wireshark для захвата и 'inbound', и 'outbound' трафика.")
+            elif top_verdict == "РЕТРАНСМИССИЯ ОТ ОС":
+                print("❗️ Ваша главная проблема - операционная система мешает вашей инъекции, отправляя свои пакеты.")
+                print("   Решение: Ваш движок обхода ДОЛЖЕН блокировать оригинальный ClientHello от ОС.")
+            elif top_verdict == "КРИТИЧЕСКАЯ ОШИБКА SEQ":
+                 print("❗️ Ваша главная проблема - неверный расчёт TCP Sequence Number в реальных сегментах.")
+                 print("   Решение: Перепроверьте логику: `new_seq = base_seq + rel_seq`. Ошибка в коде вашего движка.")
+            elif top_verdict == "REAL ПАКЕТЫ С BAD CHECKSUM":
+                 print("❗️ Ваша главная проблема - реальные (не фейковые) пакеты отправляются с неверной TCP checksum.")
+                 print("   Решение: Убедитесь, что ваш PacketSender/Builder ПЕРЕСЧИТЫВАЕТ checksum для всех реальных пакетов.")
+        print("="*80)
 
-        # TTL и время
-        ttl_ok = m.get("ttl_order_ok", False)
-        pair_dt = float(m.get("pair_dt_ms", 1000.0))
-        if ttl_ok:
-            score += 0.20
-        else:
-            # Мягкая альтернатива TTL: если окно времени маленькое — часть очков
-            if pair_dt <= 50.0:
-                score += 0.10
-            issues.append("ttl_order_ok=false: порядок TTL не подтверждает fake->real")
-            fixes.append("Уменьшите '--dpi-desync-ttl' до 1-2, чтобы фейк умер ближе")
-
-        # Флаги
-        if m.get("flags_real_psh", False) and m.get("flags_fake_no_psh", True):
-            score += 0.05
-        else:
-            issues.append("PSH-флаги: real должен иметь PSH, fake — не обязан")
-            fixes.append("Увеличьте фрагментацию или переиграйте split-позицию")
-
-        # Временное окно
-        if pair_dt <= 10.0:
-            score += 0.10
-        elif pair_dt <= 50.0:
-            score += 0.05
-        else:
-            issues.append(f"pair_dt_ms={pair_dt:.1f}ms слишком велико")
-            fixes.append("Увеличьте 'disorder' и уменьшите TTL на фейке")
-
-        return min(1.0, score), issues, fixes
-
-    def __init__(self, pcap_report: Dict[str, Any]):
-        self._flows = {}
-        for item in (pcap_report or {}).get("flows", []):
-            flow = item.get("flow")
-            if flow:
-                self._flows[flow] = item
-
-    def validate_incident(self, inc: Dict[str, Any]) -> Dict[str, Any]:
-        stream = inc.get("stream")
-        flow_arrow = _normalize_stream_to_arrow(stream)
-        result = {
-            "matched_flow": flow_arrow,
-            "confidence": 0.0,
-            "detected": False,
-            "issues": [],
-            "fixes": [],
-            "metrics": None,
+    def _analyze_stream(self, packets: List[Any]) -> Dict:
+        report = {
+            "is_failed_bypass_attempt": False,
+            "checks": {},
+            "verdict": "НЕИЗВЕСТНАЯ ОШИБКА",
+            "recommendation": "Проверьте PCAP вручную."
         }
-        if not flow_arrow or flow_arrow not in self._flows:
-            result["issues"].append("Не найден соотв. flow в pcap_inspect")
-            return result
+        outbound_pkts = [p for p in packets if p[IP].src == self.local_ip]
+        inbound_pkts = [p for p in packets if p[IP].dst == self.local_ip]
+        outbound_payload_pkts = [p for p in outbound_pkts if p[TCP].payload]
+        if not outbound_payload_pkts or len(outbound_payload_pkts) < 2: return report
+        out_win, in_win = self._select_attack_window(outbound_payload_pkts, inbound_pkts)
+        if not out_win: return report
+        
+        report["checks"]["checksums"] = self._analyze_packet_checksums(out_win)
+        report["checks"]["fake_packet"] = self._check_fake_packet(out_win)
+        report["checks"]["reassembly"] = self._check_reassembly_smart(out_win)
+        report["checks"]["server_response"] = self._check_server_response(in_win, out_win)
 
-        metrics = (self._flows[flow_arrow] or {}).get("metrics")
-        if not metrics:
-            result["issues"].append("pcap_inspect не дал метрики по этому flow")
-            return result
+        reasm_check = report["checks"]["reassembly"]
+        resp_check = report["checks"]["server_response"]
+        checksum_check = report["checks"]["checksums"]
 
-        conf, issues, fixes = self._score_pair(metrics)
-        result.update({
-            "detected": True,
-            "confidence": conf,
-            "issues": issues,
-            "fixes": fixes,
-            "metrics": metrics
-        })
-        return result
+        if resp_check["pattern"] == "NO_INBOUND_CAPTURE":
+            report["is_failed_bypass_attempt"] = True
+            report["verdict"] = "ОШИБКА ЗАХВАТА ТРАФИКА"
+            report["recommendation"] = "Настройте pydivert/Wireshark для захвата 'inbound' и 'outbound' трафика."
+        elif checksum_check["status"] == "FAIL":
+            report["is_failed_bypass_attempt"] = True
+            report["verdict"] = "REAL ПАКЕТЫ С BAD CHECKSUM"
+            report["recommendation"] = "КРИТИЧНО: Real пакеты имеют невалидную checksum! Проверьте, что corrupt_tcp_checksum применяется ТОЛЬКО к fake пакетам."
+        elif reasm_check["status"] == "FAIL":
+            report["is_failed_bypass_attempt"] = True
+            report["verdict"] = "КРИТИЧЕСКАЯ ОШИБКА SEQ"
+            report["recommendation"] = f"Неверный расчёт TCP SEQ. {reasm_check['details'][0]}"
+        elif reasm_check["pattern"] == "DUPLICATES_FOUND":
+            report["is_failed_bypass_attempt"] = True
+            report["verdict"] = "РЕТРАНСМИССИЯ ОТ ОС"
+            report["recommendation"] = "Ваш движок должен блокировать оригинальный пакет от ОС после инъекции."
+        elif resp_check["pattern"] == "SH_RECEIVED":
+            report["is_failed_bypass_attempt"] = False
+            report["verdict"] = "УСПЕШНЫЙ ОБХОД"
+            report["recommendation"] = "Стратегия сработала, ServerHello получен."
+        elif resp_check["pattern"] in ("NO_RESPONSE_TIMEOUT", "NO_SERVER_HELLO_IN_BUFFER"):
+            report["is_failed_bypass_attempt"] = True
+            report["verdict"] = "СЕРВЕР НЕ ОТВЕЧАЕТ"
+            report["recommendation"] = "Вероятно, реальные пакеты повреждены (bad checksum?) или сервер не может собрать ClientHello."
+        
+        return report
 
-# NEW: refine strategies using validation findings
-def _has_token(cmd: str, token: str) -> bool:
-    return token in cmd.replace(",", " ")
-
-def refine_strategies_with_validation(recs: List[Dict[str, Any]], validation: Dict[str, Any]) -> List[Dict[str, Any]]:
-    if not validation or not validation.get("detected"):
-        return recs
-
-    issues = set(validation.get("issues") or [])
-    fixes = []
-
-    def apply_fix(cmd: str) -> str:
-        new_cmd = cmd
-        # Если нет badsum — добавим
-        if any("csum_fake_bad=false" in i for i in issues) and not _has_token(new_cmd, "badsum"):
-            if "--dpi-desync-fooling=" in new_cmd:
-                new_cmd = new_cmd.replace("--dpi-desync-fooling=", "--dpi-desync-fooling=badsum,")
-            else:
-                new_cmd += " --dpi-desync-fooling=badsum"
-            fixes.append("Добавлен badsum")
-
-        # Если fake_first=false -> disorder
-        if any("fake_first=false" in i for i in issues) and "disorder" not in new_cmd:
-            if "--dpi-desync=" in new_cmd:
-                new_cmd = new_cmd.replace("--dpi-desync=", "--dpi-desync=disorder,")
-            else:
-                new_cmd += " --dpi-desync=disorder"
-            fixes.append("Добавлен disorder")
-
-        # Если ttl_order_ok=false -> ttl=1..2
-        if any("ttl_order_ok=false" in i for i in issues) and "--dpi-desync-ttl=" not in new_cmd:
-            new_cmd += " --dpi-desync-ttl=2"
-            fixes.append("Добавлен ttl=2")
-
-        # Если seq_order_ok=false — добавить seqovl
-        if any("seq_order_ok=false" in i for i in issues) and "--dpi-desync-split-seqovl=" not in new_cmd:
-            new_cmd += " --dpi-desync-split-seqovl=10"
-            fixes.append("Добавлен split-seqovl=10")
-
-        # Если окно времени слишком велико — повысим фрагментацию
-        if any(i.startswith("pair_dt_ms=") for i in issues) and "multisplit" not in new_cmd:
-            if "--dpi-desync=" in new_cmd:
-                new_cmd = new_cmd.replace("--dpi-desync=", "--dpi-desync=multisplit,")
-            else:
-                new_cmd += " --dpi-desync=multisplit --dpi-desync-split-count=3"
-            if "--dpi-desync-split-count=" not in new_cmd:
-                new_cmd += " --dpi-desync-split-count=3"
-            fixes.append("Добавлен multisplit")
-
-        return new_cmd
-
-    refined = []
-    for r in recs:
-        new_cmd = apply_fix(r["cmd"])
-        if new_cmd != r["cmd"]:
-            refined.append({
-                **r,
-                "cmd": new_cmd,
-                "reason": r["reason"] + " | refined by pcap validation",
-                "refined_from": r["cmd"],
-                "refine_notes": list(set(fixes)),
-                "validation_confidence": validation.get("confidence", 0.0),
-            })
+    def _analyze_packet_checksums(self, packets: List[Any]) -> Dict[str, Any]:
+        results = {"status": "PASS", "details": [], "fake_packets": [], "real_packets": [], "checksum_issues": []}
+        for i, pkt in enumerate(packets):
+            is_fake = self._is_fake_pkt(pkt)
+            try:
+                if TCP in pkt:
+                    tcp_original = pkt[TCP].chksum
+                    pkt_copy = pkt.copy()
+                    del pkt_copy[TCP].chksum
+                    pkt_copy = IP(bytes(pkt_copy))
+                    tcp_recalculated = pkt_copy[TCP].chksum
+                    tcp_valid = (tcp_original == tcp_recalculated)
+                    if not is_fake and not tcp_valid:
+                        results["checksum_issues"].append(f"❌ КРИТИЧЕСКАЯ ОШИБКА: Real пакет #{i+1} имеет НЕВАЛИДНУЮ checksum (0x{tcp_original:04X} вместо 0x{tcp_recalculated:04X}).")
+            except Exception as e:
+                results["checksum_issues"].append(f"⚠️ Не удалось проверить пакет #{i+1}: {e}")
+        if results["checksum_issues"]:
+            results["status"] = "FAIL"
+            results["details"] = results["checksum_issues"]
         else:
-            refined.append(r)
-    # Дедуп
-    seen, uniq = set(), []
-    for r in refined:
-        if r["cmd"] in seen:
-            continue
-        seen.add(r["cmd"])
-        uniq.append(r)
-    return uniq
+            results["details"] = ["✅ Все checksums корректны"]
+        return results
 
+    def _check_reassembly_smart(self, out_win: List[Any]) -> Dict:
+        reals = [p for p in out_win if not self._is_fake_pkt(p)]
+        if len(reals) < 2: return {"status": "SKIP", "pattern": "NOT_ENOUGH_REALS", "details": [f"Недостаточно real-сегментов ({len(reals)}) для анализа."]}
+        segs = [(int(p[TCP].seq), len(bytes(p[TCP].payload) if p[TCP].payload else b""), p.packet_num) for p in reals]
+        seq_counts = Counter(s[0] for s in segs)
+        if any(c > 1 for c in seq_counts.values()):
+            return {"status": "PASS", "pattern": "DUPLICATES_FOUND", "details": ["Обнаружены дубликаты/ретрансмиты real-пакетов (одинаковые SEQ). Это может быть помеха от ОС."]}
+        segs.sort(key=lambda x: x[0])
+        gaps = []
+        for i in range(len(segs) - 1):
+            s1, l1, num1 = segs[i]
+            s2, _, num2 = segs[i+1]
+            expected_s2 = (s1 + l1) & 0xFFFFFFFF
+            if s2 != expected_s2:
+                gaps.append(f"Разрыв между п.#{num1} и п.#{num2}: ожидался seq={expected_s2}, получен={s2}")
+        if not gaps:
+            return {"status": "PASS", "pattern": "CONTINUOUS_STREAM", "details": ["Real-сегменты образуют логически непрерывную последовательность."]}
+        return {"status": "FAIL", "pattern": "STREAM_HAS_GAPS", "details": gaps}
+
+    def _check_fake_packet(self, out_win: List[Any]) -> Dict:
+        first_pkt = out_win[0]
+        res = {"status": "PASS", "details": []}
+        is_fake = False
+        ttl = first_pkt[IP].ttl if IP in first_pkt else None
+        if ttl and ttl <= 4:
+            res["details"].append(f"✅ Низкий TTL ({ttl}).")
+            is_fake = True
+        try:
+            tcp_pkt = first_pkt.copy()
+            original_tcp_chksum = tcp_pkt[TCP].chksum
+            del tcp_pkt[TCP].chksum
+            recalculated_tcp_chksum = IP(bytes(tcp_pkt))[TCP].chksum
+            if original_tcp_chksum != recalculated_tcp_chksum:
+                 res["details"].append(f"✅ Неверная TCP Checksum (0x{original_tcp_chksum:04X}).")
+                 is_fake = True
+        except Exception: pass
+        if not is_fake: return {"status": "SKIP", "details": ["Недостаточно признаков, чтобы считать первый пакет fake."]}
+        return res
+
+    def _check_server_response(self, inbound_packets: List[Any], outbound_packets: List[Any]) -> Dict:
+        if not inbound_packets: return {"status": "FAIL", "pattern": "NO_INBOUND_CAPTURE", "details": ["В PCAP нет входящих пакетов."]}
+        last_real_pkt = self._last_real_pkt(outbound_packets)
+        if not last_real_pkt: return {"status": "UNKNOWN", "pattern": "NO_REALS_SENT", "details": ["Не найден 'real' пакет для отсчёта."]}
+        t0 = last_real_pkt.time
+        server_ip = outbound_packets[0][IP].dst
+        buf = bytearray()
+        for pkt in inbound_packets:
+            if pkt[IP].src != server_ip or pkt.time < t0: continue
+            if (pkt.time - t0) * 1000.0 > self.window_ms: break
+            if TCP in pkt and pkt[TCP].payload:
+                buf.extend(bytes(pkt[TCP].payload))
+        if self._find_server_hello_in_buffer(bytes(buf)):
+            return {"status": "PASS", "pattern": "SH_RECEIVED", "details": ["Обнаружен ServerHello в ответном трафике."]}
+        elif buf:
+            return {"status": "FAIL", "pattern": "NO_SERVER_HELLO_IN_BUFFER", "details": ["Ответ от сервера получен, но ServerHello в нем не найден."]}
+        else:
+            return {"status": "FAIL", "pattern": "NO_RESPONSE_TIMEOUT", "details": [f"В течение {self.window_ms}мс после инъекции нет ответа от сервера."]}
+    
+    def _print_stream_report(self, flow_key: Tuple, report: Dict):
+        print("\n" + "-"*70)
+        print(f"🔍 Анализ потока: {flow_key[0]}:{flow_key[1]} -> {flow_key[2]}:{flow_key[3]}")
+        print("-"*70)
+        status_map = {"PASS": "✅", "FAIL": "❌", "SKIP": "🟡", "UNKNOWN": "❓"}
+        for check_name, check_data in report["checks"].items():
+            status = check_data.get("status", "UNKNOWN")
+            symbol = status_map.get(status, "❓")
+            print(f"  {symbol} {check_name.replace('_', ' ').capitalize()}: [{status}]")
+            for detail in check_data.get("details", []):
+                print(f"      - {detail}")
+        print("\n  --- ДИАГНОЗ ---")
+        print(f"  Вердикт: {report['verdict']}")
+        print(f"  Рекомендация: {report['recommendation']}")
+        print("-"*70)
+
+    def _get_flow_key(self, pkt: Any) -> Optional[Tuple[str, int, str, int]]:
+        try:
+            if IP in pkt and TCP in pkt:
+                if pkt[IP].src == self.local_ip:
+                    return (pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport)
+                else:
+                    return (pkt[IP].dst, pkt[TCP].dport, pkt[IP].src, pkt[TCP].sport)
+        except Exception: pass
+        return None
+
+    def _select_attack_window(self, outbound_payload_pkts: List[Any], inbound_pkts: List[Any]) -> Tuple[List[Any], List[Any]]:
+        if not outbound_payload_pkts: return [], []
+        t0 = outbound_payload_pkts[0].time
+        out_win = [p for p in outbound_payload_pkts if (p.time - t0)*1000.0 <= self.window_ms]
+        in_win = [p for p in inbound_pkts if p.time >= t0 and (p.time - t0)*1000.0 <= self.window_ms]
+        return out_win, in_win
+
+    def _find_server_hello_in_buffer(self, buf: bytes) -> bool:
+        try:
+            n = len(buf)
+            for i in range(0, max(0, n-6)):
+                if buf[i] == 0x16 and buf[i+1] == 0x03 and buf[i+2] in (0x00,1,2,3,4):
+                    if buf[i+5] == 0x02: return True
+        except Exception: pass
+        return False
+
+    def _last_real_pkt(self, out_win: List[Any]) -> Optional[Any]:
+        reals = [p for p in out_win if not self._is_fake_pkt(p)]
+        return reals[-1] if reals else None
+
+    def _autodetect_local_ip(self, packets: List[Any]) -> Optional[str]:
+        src_ips = Counter()
+        for i, pkt in enumerate(packets):
+            if i > 200: break
+            if IP in pkt and pkt[IP].src:
+                try:
+                    if ipaddress.ip_address(pkt[IP].src).is_private:
+                        src_ips[pkt[IP].src] += 1
+                except ValueError: continue
+        return src_ips.most_common(1)[0][0] if src_ips else None
+
+    def _is_fake_pkt(self, pkt: Any) -> bool:
+        try:
+            if IP in pkt and pkt[IP].ttl <= 4: return True
+            tcp_pkt = pkt.copy()
+            original_tcp_chksum = tcp_pkt[TCP].chksum
+            del tcp_pkt[TCP].chksum
+            recalculated_tcp_chksum = IP(bytes(tcp_pkt))[TCP].chksum
+            if original_tcp_chksum != recalculated_tcp_chksum: return True
+        except Exception: pass
+        return False
+
+class StrategyOptimizer:
+    def __init__(self, history_file: str = "strategy_history.json"):
+        self.history_file = history_file
+        self.success_rates = self._load_history()
+    
+    def _load_history(self) -> Dict[str, float]:
+        try:
+            with open(self.history_file, 'r') as f: return json.load(f)
+        except: return {}
+    
+    def record_success(self, strategy: str, success: bool, target: str = ""):
+        key = f"{strategy}|{target}" if target else strategy
+        if key not in self.success_rates: self.success_rates[key] = {'success': 0, 'total': 0}
+        self.success_rates[key]['total'] += 1
+        if success: self.success_rates[key]['success'] += 1
+        self._save_history()
+    
+    def optimize_strategies(self, strategies: List[Dict], target: str = "") -> List[Dict]:
+        optimized = []
+        for strategy in strategies:
+            cmd = strategy['cmd']
+            key = f"{cmd}|{target}" if target else cmd
+            base_score = strategy['score']
+            if key in self.success_rates:
+                history = self.success_rates[key]
+                success_rate = history['success'] / history['total']
+                adjusted_score = base_score * (0.3 + 0.7 * success_rate)
+                strategy['score'] = min(adjusted_score, 1.0)
+                strategy['success_rate'] = success_rate
+                strategy['trials'] = history['total']
+            optimized.append(strategy)
+        return sorted(optimized, key=lambda x: x['score'], reverse=True)
+    
+    def _save_history(self):
+        try:
+            with open(self.history_file, 'w') as f: json.dump(self.success_rates, f, indent=2)
+        except Exception as e: print(f"Warning: Cannot save strategy history: {e}")
+
+def enhanced_build_json_report(pcap_file: str, triggers: List[Dict], no_reassemble: bool, validate: bool, strategy_optimizer: StrategyOptimizer) -> Dict[str, Any]:
+    report = {"pcap_file": pcap_file, "analysis_timestamp": datetime.now().isoformat(), "incident_count": len(triggers), "incidents": [], "enhanced_analysis": True}
+    signature_analyzer = AdvancedSignatureAnalyzer()
+    for t in triggers:
+        trig_idx = detect_trigger_index(t)
+        rst_idx = detect_rst_index(t)
+        assembled_payload, stream_label, reassembly_meta = b"", None, {}
+        if not no_reassemble and isinstance(trig_idx, int):
+            ch_idx = locate_clienthello_start(pcap_file, trig_idx)
+            real_idx = ch_idx or trig_idx
+            assembled_payload, stream_label, reassembly_meta = reassemble_clienthello(pcap_file, real_idx)
+        if not stream_label: stream_label = get_stream_label(t, pcap_file, trig_idx or rst_idx)
+        tls = parse_client_hello(assembled_payload) or {}
+        entropy_analysis = analyze_payload_entropy(assembled_payload)
+        signature_analysis = signature_analyzer.analyze_tls_fingerprint(tls)
+        enhanced_strategies = generate_advanced_strategies(tls, t, entropy_analysis, signature_analysis)
+        target_host = (tls.get('sni', [''])[0] if tls.get('sni') else "")
+        optimized_strategies = strategy_optimizer.optimize_strategies(enhanced_strategies, target_host)
+        incident = {
+            "stream": stream_label, "rst_index": rst_idx, "trigger_index": trig_idx,
+            "injected": bool(get_first(t, ["is_injected","dpi_injection"], False)),
+            "ttl_difference": get_first(t, ["ttl_difference","ttl_diff"]),
+            "reassembly_metadata": reassembly_meta, "tls": tls, "signature_analysis": signature_analysis,
+            "entropy_analysis": entropy_analysis, "recommended_strategies": optimized_strategies,
+            "advanced_metadata": {
+                "ech_detected": bool(tls.get('encrypted_client_hello')),
+                "key_share_groups": [ks.get('group') for ks in tls.get('key_share', [])],
+                "padding_used": tls.get('has_padding', False),
+                "tls13_support": 'TLS1.3' in (tls.get('supported_versions') or [])
+            }
+        }
+        report["incidents"].append(incident)
+    return report
 
 def build_json_report(pcap_file: str, triggers: List[Dict[str, Any]], no_reassemble: bool, validate: bool) -> Dict[str, Any]:
-    report = {
-        "pcap_file": pcap_file,
-        "analysis_timestamp": datetime.now().isoformat(),
-        "incident_count": len(triggers),
-        "incidents": []
-    }
-
-    # NEW: единоразовый запуск pcap_inspect
+    report = {"pcap_file": pcap_file, "analysis_timestamp": datetime.now().isoformat(), "incident_count": len(triggers), "incidents": []}
     pcap_inspect_report = None
     validator = None
     if validate and PCAP_INSPECT_AVAILABLE:
         try:
             pcap_inspect_report = inspect_pcap(pcap_file)
             validator = AttackValidator(pcap_inspect_report)
-        except Exception as e:
-            print(f"[WARNING] pcap_inspect failed: {e}")
-
+        except Exception as e: print(f"[WARNING] pcap_inspect failed: {e}")
     for t in triggers:
         trig_idx = detect_trigger_index(t)
         rst_idx = detect_rst_index(t)
-        
         assembled_payload, stream_label, reassembly_meta = b"", None, {}
         if not no_reassemble and isinstance(trig_idx, int):
             ch_idx = locate_clienthello_start(pcap_file, trig_idx)
             real_idx = ch_idx or trig_idx
             assembled_payload, stream_label, reassembly_meta = reassemble_clienthello(pcap_file, real_idx)
-        
-        if not stream_label:
-            stream_label = get_stream_label(t, pcap_file, trig_idx or rst_idx)
-
+        if not stream_label: stream_label = get_stream_label(t, pcap_file, trig_idx or rst_idx)
         tls = parse_client_hello(assembled_payload) or {}
         if not tls.get("sni"):
             loose = extract_sni_loose(assembled_payload)
@@ -1000,86 +1175,47 @@ def build_json_report(pcap_file: str, triggers: List[Dict[str, Any]], no_reassem
                 tls.setdefault("is_client_hello", True)
                 tls["sni"] = loose
         entropy_analysis = analyze_payload_entropy(assembled_payload)
-        
-        # базовые рекомендации
-        recs = generate_ml_enhanced_strategies(tls, t, assembled_payload)
-
-        # NEW: валидация по pcap_inspect и рефайн стратегий
+        signature_analyzer = AdvancedSignatureAnalyzer()
+        signature_analysis = signature_analyzer.analyze_tls_fingerprint(tls)
+        recs = generate_advanced_strategies(tls, t, entropy_analysis, signature_analysis)
         validation = {}
         if validator and stream_label:
             try:
-                # у inc мы храним stream как в find_rst_triggers
-                # validator сам нормализует до "src:sp -> dst:dp"
                 fake_real_eval = validator.validate_incident({"stream": stream_label})
                 validation = fake_real_eval or {}
-                # рефайн рекомендаций
-                recs = refine_strategies_with_validation(recs, validation)
-            except Exception as e:
-                validation = {"error": f"validation_failed: {e}"}
-
+            except Exception as e: validation = {"error": f"validation_failed: {e}"}
         incident = {
-            "stream": stream_label,
-            "rst_index": rst_idx,
-            "trigger_index": trig_idx,
+            "stream": stream_label, "rst_index": rst_idx, "trigger_index": trig_idx,
             "injected": bool(get_first(t, ["is_injected","dpi_injection","injection", "dpi_injection_suspected"], False)),
             "ttl_rst": get_first(t, ["rst_ttl","ttl_rst","rst_ttl_value", "rst_packet_ttl"]),
             "expected_ttl": get_first(t, ["expected_ttl","server_ttl", "server_base_ttl"]),
             "ttl_difference": get_first(t, ["ttl_difference","ttl_diff"]),
             "time_delta": get_first(t, ["time_delta","dt"]),
-            "reassembly_metadata": reassembly_meta,
-            "entropy_analysis": entropy_analysis,
-            "tls": {
-                "is_client_hello": tls.get("is_client_hello", False),
-                "record_version": tls.get("record_version"),
-                "client_version": tls.get("client_version"),
-                "sni": tls.get("sni") or [],
-                "cipher_suites": tls.get("cipher_suites") or [],
-                "cipher_suites_raw": tls.get("cipher_suites_raw") or [],
-                "extensions": tls.get("extensions") or [],
-                "alpn": tls.get("alpn") or [],
-                "supported_versions": tls.get("supported_versions") or [],
-                "signature_algorithms": tls.get("signature_algorithms") or [],
-                "supported_groups": tls.get("supported_groups") or [],
-                "ec_point_formats": tls.get("ec_point_formats") or [],
-                "ch_length": tls.get("ch_length"),
-            },
+            "reassembly_metadata": reassembly_meta, "entropy_analysis": entropy_analysis, "tls": tls,
             "payload_preview_hex": (assembled_payload[:64].hex() if assembled_payload else ""),
-            "recommended_strategies": recs,
-            # NEW: pcap_inspect validation footprint
-            "attack_validation": validation
+            "recommended_strategies": recs, "attack_validation": validation, "signature_analysis": signature_analysis,
+            "advanced_metadata": {
+                "ech_detected": bool(tls.get('encrypted_client_hello')),
+                "key_share_groups": [ks.get('group') for ks in tls.get('key_share', [])],
+                "padding_used": tls.get('has_padding', False),
+                "tls13_support": 'TLS1.3' in (tls.get('supported_versions') or [])
+            }
         }
         report["incidents"].append(incident)
-
     if report["incidents"]:
         pattern_analyzer = BlockingPatternAnalyzer()
         report["statistical_analysis"] = pattern_analyzer.analyze_incidents(report["incidents"])
-
-    # NEW: прикрепим сырой отчёт pcap_inspect (коротко), чтобы не потерять контекст
     if pcap_inspect_report:
-        report["pcap_inspect_summary"] = {
-            "flows_count": len(pcap_inspect_report.get("flows", []))
-        }
-
+        report["pcap_inspect_summary"] = {"flows_count": len(pcap_inspect_report.get("flows", []))}
     return report
 
-
-async def run_second_pass_from_report(
-    report: Dict[str, Any],
-    limit: int,
-    port: int,
-    engine_override: Optional[str],
-    use_advanced_reporting: bool=False,
-    save_adv_file: Optional[str]=None
-):
-    # ✅ FIX: Lazy import UnifiedBypassEngine here
+async def run_second_pass_from_report(report: Dict[str, Any], limit: int, port: int, engine_override: Optional[str], use_advanced_reporting: bool=False, save_adv_file: Optional[str]=None):
     try:
-        # Используем новый унифицированный движок
         from core.unified_bypass_engine import UnifiedBypassEngine
         from core.doh_resolver import DoHResolver
     except ImportError as e:
         print(f"[INFO] UnifiedBypassEngine/DoHResolver недоступны — второй прогон пропущен: {e}")
         return
-
     host_to_strats: Dict[str, List[str]] = {}
     host_to_dpi: Dict[str, str] = {}
     for inc in report.get("incidents", []):
@@ -1092,50 +1228,35 @@ async def run_second_pass_from_report(
                 try:
                     dst_part = stream.split("-")[1]
                     host = dst_part.split(":")[0].strip("[]")
-                except Exception:
-                    continue
-            if not host:
-                continue
+                except Exception: continue
+            if not host: continue
             cmds = [r["cmd"] for r in recs[:max(1, limit)]]
             host_to_strats.setdefault(host, [])
             for c in cmds:
-                if c not in host_to_strats[host]:
-                    host_to_strats[host].append(c)
-            # derive dpi_type
+                if c not in host_to_strats[host]: host_to_strats[host].append(c)
             dpi_type = "unknown"
-            if inc.get("injected", False) or (inc.get("ttl_difference") or 0) > 4:
-                dpi_type = "stateful"
-            elif ((inc.get("tls") or {}).get("is_client_hello")):
-                dpi_type = "signature_based"
+            if inc.get("injected", False) or (inc.get("ttl_difference") or 0) > 4: dpi_type = "stateful"
+            elif ((inc.get("tls") or {}).get("is_client_hello")): dpi_type = "signature_based"
             host_to_dpi[host] = host_to_dpi.get(host) or dpi_type
-
     if not host_to_strats:
         print("[INFO] Нет стратегий для второго прогона (реков не найдено).")
         return
-
-    # Advanced reporting integration
     integration = None
     if use_advanced_reporting and ADV_REPORTING_AVAILABLE:
         ok = await initialize_advanced_reporting()
         if ok:
             integration = get_reporting_integration()
             print("[INFO] AdvancedReportingIntegration initialized")
-
     from core.unified_bypass_engine import UnifiedEngineConfig
-    
     resolver = DoHResolver()
     engine_config = UnifiedEngineConfig(debug=False)
     engine = UnifiedBypassEngine(config=engine_config)
     all_results: Dict[str, Any] = {}
     adv_reports: Dict[str, List[Dict[str, Any]]] = {}
-
     for host, strategies in host_to_strats.items():
-        try:
-            ip = await resolver.resolve(host)
-        except Exception:
-            ip = None
-        if not ip:
-            ip = host if host and (host.replace(".", "").isdigit() or ':' in host) else None
+        try: ip = await resolver.resolve(host)
+        except Exception: ip = None
+        if not ip: ip = host if host and (host.replace(".", "").isdigit() or ':' in host) else None
         dns_cache, ips = ({host: ip} if ip else {}), ({ip} if ip else set())
         test_site = f"https://{host}"
         dpi_type = host_to_dpi.get(host, "unknown")
@@ -1148,62 +1269,31 @@ async def run_second_pass_from_report(
             )
             all_results[host] = results
             best = [r for r in results if r.get("success_rate", 0) > 0]
-            if best:
-                print(f"   ✓ best: {best[0]['strategy']} (rate={best[0]['success_rate']:.0%}, {best[0].get('avg_latency_ms', 0):.1f}ms)")
-            else:
-                print("   ✗ нет успехов на втором прогоне")
-
-            # Advanced reporting per strategy
+            if best: print(f"   ✓ best: {best[0]['strategy']} (rate={best[0]['success_rate']:.0%}, {best[0].get('avg_latency_ms', 0):.1f}ms)")
+            else: print("   ✗ нет успехов на втором прогоне")
             if integration:
                 adv_reports.setdefault(host, [])
                 for r in results:
                     attack_name = r.get("strategy") or "unknown_strategy"
                     exec_ms = float(r.get("avg_latency_ms", 0.0))
                     success = float(r.get("success_rate", 0.0)) > 0.0
-                    eff = float(r.get("success_rate", 0.0))  # трактуем как 0..1
-                    execution_result = {
-                        "dpi_type": dpi_type,
-                        "execution_time_ms": exec_ms,
-                        "success": success,
-                        "effectiveness_score": eff,
-                        "ml_prediction": r.get("ml_prediction") or {},
-                    }
-                    adv = await integration.generate_attack_report(
-                        attack_name=attack_name, target_domain=host, execution_result=execution_result
-                    )
+                    eff = float(r.get("success_rate", 0.0))
+                    execution_result = {"dpi_type": dpi_type, "execution_time_ms": exec_ms, "success": success, "effectiveness_score": eff, "ml_prediction": r.get("ml_prediction") or {}}
+                    adv = await integration.generate_attack_report(attack_name=attack_name, target_domain=host, execution_result=execution_result)
                     if adv:
-                        # dataclass -> dict может быть сериализован в export_comprehensive_report
-                        adv_reports[host].append({
-                            "attack_name": adv.attack_name,
-                            "target_domain": adv.target_domain,
-                            "dpi_type": adv.dpi_type,
-                            "success": adv.success,
-                            "effectiveness_score": adv.effectiveness_score,
-                            "execution_time_ms": adv.execution_time_ms,
-                            "timestamp": adv.timestamp.isoformat(),
-                            "recommendations": adv.recommendations,
-                        })
-
-        except Exception as e:
-            print(f"   [WARN] second pass failed for {host}: {e}")
-
+                        adv_reports[host].append({"attack_name": adv.attack_name, "target_domain": adv.target_domain, "dpi_type": adv.dpi_type, "success": adv.success, "effectiveness_score": adv.effectiveness_score, "execution_time_ms": adv.execution_time_ms, "timestamp": adv.timestamp.isoformat(), "recommendations": adv.recommendations})
+        except Exception as e: print(f"   [WARN] second pass failed for {host}: {e}")
     out_name = f"pcap_second_pass_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     try:
-        with open(out_name, "w", encoding="utf-8") as f:
-            json.dump(all_results, f, ensure_ascii=False, indent=2)
+        with open(out_name, "w", encoding="utf-8") as f: json.dump(all_results, f, ensure_ascii=False, indent=2)
         print(f"\n[OK] second-pass results saved → {out_name}")
-    except Exception as e:
-        print(f"[WARN] cannot save second-pass file: {e}")
-
-    # Итоговый advanced comprehensive report (опционально)
+    except Exception as e: print(f"[WARN] cannot save second-pass file: {e}")
     if integration and save_adv_file:
         try:
             comp = await integration.export_comprehensive_report(format_type="json", include_raw_data=True)
-            with open(save_adv_file, "w", encoding="utf-8") as f:
-                json.dump(comp, f, ensure_ascii=False, indent=2, default=str)
+            with open(save_adv_file, "w", encoding="utf-8") as f: json.dump(comp, f, ensure_ascii=False, indent=2, default=str)
             print(f"[OK] advanced comprehensive report saved → {save_adv_file}")
-        except Exception as e:
-            print(f"[WARN] cannot save advanced report: {e}")
+        except Exception as e: print(f"[WARN] cannot save advanced report: {e}")
 
 def _autodetect_local_ip_from_pcap(pcap_file: str) -> str:
     priv = defaultdict(int)
@@ -1237,28 +1327,19 @@ def _pkt_ttl(pkt):
     return None
 
 def _has_md5sig(pkt):
-    # TCP options kind=19,len=18
+    """Checks for the TCP MD5 Signature option (kind=19)."""
     try:
         if TCP in pkt:
-            # быстрый парсер опций из байтов TCP-заголовка
-            # data offset
-            if IP in pkt:
-                ip_hl = pkt[IP].ihl*4
-                tcp_ofs = ip_hl+20
-                dataofs = pkt[TCP].dataofs*4
-                opt_bytes = bytes(pkt.payload)[(dataofs-20):] if dataofs>20 else b""
-            elif IPv6 in pkt:
-                # у Scapy для TCP в IPv6 dataofs тоже валиден
-                dataofs = pkt[TCP].dataofs*4
-                opt_bytes = bytes(pkt[TCP])[:dataofs][20:] if dataofs>20 else b""
-            else:
-                return False
+            # Scapy's options are a list of tuples (kind, value)
+            for opt_kind, _ in pkt[TCP].options:
+                if opt_kind == 19:
+                    return True
+            # Fallback for raw byte parsing if Scapy fails
             b = bytes(pkt[TCP])
-            hdr_len = pkt[TCP].dataofs*4
-            opts = b[20:hdr_len] if hdr_len>20 else b""
-            # простая проверка наличия \x13\x12
-            return (b"\x13\x12" in opts)
-    except:
+            hdr_len = pkt[TCP].dataofs * 4
+            opts = b[20:hdr_len] if hdr_len > 20 else b""
+            return b"\x13\x12" in opts  # kind=19, len=18
+    except Exception:
         return False
     return False
 
@@ -1314,48 +1395,50 @@ def _recalc_checksums(pkt):
 
 def _classify_window(segments):
     """
-    segments: list of dicts with keys:
-      idx, flow, ttl, tcp_ok, ip_ok, md5, flags, paylen, seq, rel_seq
-    returns: (label:str, meta:dict)
+    Restored classification logic from the old, working version.
+    This logic is more flexible and correctly identifies complex attack patterns.
     """
-    # sort by time/idx
     segs = sorted(segments, key=lambda x: x["idx"])
-    fake = [s for s in segs if s["ttl"] is not None and s["ttl"] <= 4 or (not s["tcp_ok"]) or s["md5"]]
-    # estimate pattern
+    fake = [s for s in segs if (s["ttl"] is not None and s["ttl"] <= 4) or (not s["tcp_ok"]) or s["md5"]]
+    
     rels = [s["rel_seq"] for s in segs]
     ttls = [s["ttl"] for s in segs]
     has_md5 = any(s["md5"] for s in segs)
     count = len(segs)
-    # try fakeddisorder (fake + part2 + part1)
-    if fake and len(segs)>=3 and segs[0] in fake:
-        # две «реальные» после фейка
+
+    # fakeddisorder (fake + part2 + part1)
+    if fake and len(segs) >= 3 and segs[0] in fake:
         rel_after = [s["rel_seq"] for s in segs[1:]]
-        # паттерн: [split_pos, 0] или [0, split_pos]
-        if 0 in rel_after and any(r>0 for r in rel_after):
-            split_pos = max([r for r in rel_after if r>0] or [0])
+        if 0 in rel_after and any(r > 0 for r in rel_after):
+            split_pos = max([r for r in rel_after if r > 0] or [0])
             label = f"fakeddisorder_badsum={'y' if not segs[0]['tcp_ok'] else 'n'}_ttl{segs[0]['ttl']}_split{split_pos}{'_md5' if has_md5 else ''}"
-            return label, {"type":"fakeddisorder","split_pos":split_pos}
+            return label, {"type": "fakeddisorder", "split_pos": split_pos}
+
     # fake race (fake + real)
-    if fake and count>=2 and segs[0] in fake:
-        if segs[1]["rel_seq"]==0:
+    if fake and count >= 2 and segs[0] in fake:
+        if segs[1]["rel_seq"] == 0:
             label = f"fake_race_badsum={'y' if not segs[0]['tcp_ok'] else 'n'}_ttl{segs[0]['ttl']}{'_md5' if has_md5 else ''}"
-            return label, {"type":"fake_race"}
-    # multisplit/split: без фейка, несколько real с различными rel_seq
-    if not fake and count>=2:
+            return label, {"type": "fake_race"}
+
+    # multisplit/split (no fake packets)
+    if not fake and count >= 2:
         splits = sorted(set([s["rel_seq"] for s in segs]))
-        if len(splits)>=2:
-            if len(splits)==2:
-                label = f"split_{splits[1]}"
-                return label, {"type":"split","split_pos":splits[1]}
+        if len(splits) >= 2 and splits[0] == 0:
+            positions = splits[1:]
+            if len(positions) == 1:
+                label = f"split_{positions[0]}"
+                return label, {"type": "split", "split_pos": positions[0]}
             else:
-                label = f"multisplit_{','.join(str(x) for x in splits[1:])}"
-                return label, {"type":"multisplit","positions":splits[1:]}
-    # seqovl эвристика: второй сегмент начинается раньше длины первого
-    if count>=2 and segs[1]["rel_seq"]>0 and segs[1]["rel_seq"] < segs[0]["paylen"]:
-        label = f"seqovl_ovl{segs[0]['paylen']-segs[1]['rel_seq']}"
-        return label, {"type":"seqovl","overlap":segs[0]['paylen']-segs[1]['rel_seq']}
-    # fallback
-    return "unknown", {"type":"unknown"}
+                label = f"multisplit_{','.join(str(x) for x in positions)}"
+                return label, {"type": "multisplit", "positions": positions}
+
+    # seqovl heuristic
+    if count >= 2 and segs[1]["rel_seq"] > 0 and segs[1]["rel_seq"] < segs[0]["paylen"]:
+        overlap = segs[0]['paylen'] - segs[1]['rel_seq']
+        label = f"seqovl_ovl{overlap}"
+        return label, {"type": "seqovl", "overlap": overlap}
+
+    return "unknown", {"type": "unknown"}
 
 def export_strategy_samples(pcap_file: str, out_dir: str, window_ms: float = 200.0, max_samples: int = 1):
     """
@@ -1443,6 +1526,7 @@ def export_strategy_samples(pcap_file: str, out_dir: str, window_ms: float = 200
                 # write json meta
                 info = {
                     "flow": f"{fk.src}:{fk.sp} -> {fk.dst}:{fk.dp}",
+                   
                     "label": label,
                     "meta": meta,
                     "base_packet_index": window[0][0],
@@ -1462,262 +1546,186 @@ def export_strategy_samples(pcap_file: str, out_dir: str, window_ms: float = 200
     print(f"[OK] Strategy samples exported: {len(index)} (→ {out_dir})")
 
 
-# ==============================================================================
-# НОВЫЙ КЛАСС ДЛЯ АНАЛИЗА СБОЕВ ПОТОКОВ (ДИАГНОСТИКА ВТОРИЧНОЙ ПРОБЛЕМЫ)
-# ==============================================================================
 
-class FlowFailureAnalyzer:
-    """
-    Анализирует PCAP на предмет неудачных TCP-потоков ПОСЛЕ обхода DPI.
-    Диагностирует проблемы с TCP Sequence Numbers и ответы сервера.
-    """
-    def __init__(self, pcap_file: str, local_ip: Optional[str] = None):
-        self.pcap_file = pcap_file
-        self.local_ip = local_ip
-        self.flows = defaultdict(list)
-        if not SCAPY_AVAILABLE:
-            raise ImportError("Scapy не найден. Анализ потоков невозможен.")
+def export_strategy_samples_json(
+    pcap_file: str,
+    out_json: str,
+    *,
+    local_ip: str = None,
+    flow_port: int = 443,
+    window_ms: float = 800.0,
+    cap_per_label: int = 1,
+    include_inbound: bool = True
+) -> dict:
+    if not SCAPY_AVAILABLE:
+        raise RuntimeError("Scapy не установлен")
+    res = {
+        "pcap_file": os.path.abspath(pcap_file),
+        "local_ip": None,
+        "flow_port": int(flow_port),
+        "window_ms": float(window_ms),
+        "samples": [],
+        "counts_by_label": {}
+    }
 
-    def analyze(self):
-        """Основной метод для запуска анализа."""
-        print("\n" + "="*80)
-        print("🚀 ЗАПУСК АНАЛИЗА СБОЕВ TCP-ПОТОКОВ (POST-BYPASS)")
-        print("="*80)
+    def _autodetect():
+        try:
+            return _autodetect_local_ip_from_pcap(pcap_file)
+        except Exception:
+            return None
 
-        packets = rdpcap(self.pcap_file)
-        if not self.local_ip:
-            self.local_ip = self._autodetect_local_ip(packets)
-            if not self.local_ip:
-                LOG.error("Не удалось определить локальный IP. Анализ остановлен.")
-                return
+    lip = local_ip or _autodetect()
+    res["local_ip"] = lip
 
-        # 1. Группировка пакетов по потокам
-        for pkt in packets:
-            if TCP in pkt and IP in pkt:
-                flow_key = self._get_flow_key(pkt)
-                self.flows[flow_key].append(pkt)
+    FlowKey = namedtuple("FlowKey", "src sp dst dp")
+    flows_out = defaultdict(list)
+    flows_in  = defaultdict(list)
 
-        LOG.info(f"Найдено {len(self.flows)} TCP-потоков.")
-
-        # 2. Анализ каждого потока
-        failed_flows_count = 0
-        for flow_key, packets in self.flows.items():
-            # Нас интересуют только исходящие потоки от нашей машины
-            if flow_key[0] != self.local_ip:
+    with PcapReader(pcap_file) as pr:
+        for i, pkt in enumerate(pr, 1):
+            try:
+                if TCP in pkt:
+                    dport = int(pkt[TCP].dport)
+                    if dport != flow_port:
+                        continue
+                    if IP in pkt:
+                        fk = FlowKey(pkt[IP].src, int(pkt[TCP].sport), pkt[IP].dst, dport)
+                        is_out = (lip is None) or (pkt[IP].src == lip)
+                    elif IPv6 in pkt:
+                        fk = FlowKey(pkt[IPv6].src, int(pkt[TCP].sport), pkt[IPv6].dst, dport)
+                        is_out = (lip is None) or (pkt[IPv6].src == lip)
+                    else:
+                        continue
+                    pkt.packet_num = i
+                    if is_out:
+                        flows_out[fk].append(pkt)
+                    else:
+                        flows_in[fk].append(pkt)
+            except Exception:
                 continue
 
-            analysis_result = self._analyze_stream(packets)
-            if analysis_result["is_failed_bypass_attempt"]:
-                failed_flows_count += 1
-                self._print_stream_report(flow_key, analysis_result)
-
-        if failed_flows_count == 0:
-            print("\n✅ Не найдено потоков с признаками неудачного обхода (Server Hello -> RST).")
-        else:
-            print(f"\n🏁 Анализ завершен. Найдено {failed_flows_count} подозрительных потоков.")
-        print("="*80)
-
-
-    def _analyze_stream(self, packets: List[Any]) -> Dict:
-        """Анализирует один TCP-поток на предмет ошибок сборки."""
-        report = {
-            "is_failed_bypass_attempt": False,
-            "checks": {},
-            "conclusion": "Причина сбоя не установлена.",
-            "recommendation": "Проверьте PCAP вручную."
-        }
-
-        outbound_payload_pkts = [p for p in packets if p[IP].src == self.local_ip and TCP in p and p[TCP].payload]
-        inbound_pkts = [p for p in packets if p[IP].dst == self.local_ip]
-
-        # Эвристика для поиска fakeddisorder: 3 исходящих пакета с данными в начале
-        if len(outbound_payload_pkts) < 3:
-            return report
-
-        # Предполагаем, что первые 3 пакета - это наша атака
-        fake_pkt, part2_pkt, part1_pkt = outbound_payload_pkts[0], outbound_payload_pkts[1], outbound_payload_pkts[2]
-
-        # Проверка 1: Анализ фейкового пакета
-        report["checks"]["fake_packet"] = self._check_fake_packet(fake_pkt)
-
-        # Проверка 2: Анализ сборки реальных сегментов
-        report["checks"]["reassembly"] = self._check_reassembly(part1_pkt, part2_pkt)
-
-        # Проверка 3: Анализ ответа сервера
-        report["checks"]["server_response"] = self._check_server_response(inbound_pkts, part1_pkt[IP].dst)
-
-        # Итоговое заключение
-        if (report["checks"]["server_response"].get("pattern") == "SH_THEN_RST_FROM_SERVER"):
-            report["is_failed_bypass_attempt"] = True
-            if report["checks"]["reassembly"]["status"] == "FAIL":
-                report["conclusion"] = "Наиболее вероятная причина - ошибка в TCP Sequence Number реальных сегментов."
-                report["recommendation"] = "Проверьте логику вычисления `seq_offset` в `base_engine.py` и `segment_packet_builder.py`. Убедитесь, что `seq(part2) == seq(part1) + len(part1)`."
-            elif report["checks"]["fake_packet"]["status"] == "FAIL":
-                 report["conclusion"] = "Обнаружены проблемы в фейковом пакете. Хотя ответ от сервера есть, это может влиять на сессию."
-                 report["recommendation"] = "Убедитесь, что у фейкового пакета всегда неверная контрольная сумма и низкий TTL."
-            else:
-                report["conclusion"] = "Обход DPI, вероятно, успешен, но сервер разрывает соединение из-за невалидного Client Hello."
-                report["recommendation"] = "Проверьте, что содержимое `part1` и `part2` при сборке дает корректный Client Hello. Возможно, проблема в `split_pos`."
-
-        return report
-
-    def _check_fake_packet(self, pkt: Any) -> Dict:
-        """Проверяет TTL и контрольную сумму фейкового пакета."""
-        res = {"status": "PASS", "details": []}
-
-        # Проверка TTL
-        if pkt[IP].ttl > 10:
-            res["status"] = "FAIL"
-            res["details"].append(f"❌ TTL слишком высокий ({pkt[IP].ttl}), ожидался низкий (1-4).")
-        else:
-            res["details"].append(f"✅ TTL низкий ({pkt[IP].ttl}).")
-
-        # Проверка контрольной суммы
-        is_valid, _ = self._recalculate_checksums(pkt)
-        if is_valid:
-            res["status"] = "FAIL"
-            res["details"].append("❌ TCP Checksum ВЕРНАЯ, хотя ожидалась неверная (badsum).")
-        else:
-            res["details"].append("✅ TCP Checksum неверная, как и ожидалось.")
-
-        return res
-
-    def _check_reassembly(self, part1_pkt: Any, part2_pkt: Any) -> Dict:
-        """Проверяет корректность TCP Sequence Numbers для сборки."""
-        res = {"status": "PASS", "details": []}
-
-        seq1 = part1_pkt[TCP].seq
-        len1 = len(part1_pkt[TCP].payload)
-        seq2 = part2_pkt[TCP].seq
-
-        expected_seq2 = (seq1 + len1) & 0xFFFFFFFF # Учитываем переполнение
-
-        res["details"].append(f"  - Part1: seq={seq1}, len={len1}")
-        res["details"].append(f"  - Part2: seq={seq2}")
-        res["details"].append(f"  - Ожидаемый seq для Part2: {expected_seq2}")
-
-        if seq2 != expected_seq2:
-            res["status"] = "FAIL"
-            res["details"].append(f"❌ ОШИБКА: Sequence number для Part2 некорректен! Разница: {seq2 - expected_seq2}")
-        else:
-            res["details"].append("✅ Sequence numbers корректны для сборки.")
-
-        return res
-
-    def _check_server_response(self, inbound_packets: List[Any], server_ip: str) -> Dict:
-        """Ищет Server Hello и последующий RST от сервера."""
-        res = {"status": "UNKNOWN", "pattern": "NO_RESPONSE", "details": []}
-
-        server_hello_pkt = None
-        rst_pkt = None
-
-        for i, pkt in enumerate(inbound_packets):
-            if pkt[IP].src != server_ip: continue
-
-            # Ищем Server Hello (SYN+ACK - начало сессии, или PSH+ACK с TLS Server Hello)
-            if TCP in pkt and (pkt[TCP].flags.SA or (pkt[TCP].flags.PA and pkt[TCP].payload and bytes(pkt[TCP].payload)[0] == 0x16)):
-                if self._is_tls_server_hello(bytes(pkt[TCP].payload)):
-                    server_hello_pkt = pkt
-                    res["details"].append(f"✅ Найден Server Hello в пакете #{pkt.packet_num if hasattr(pkt, 'packet_num') else 'N/A'}.")
-
-                    # Ищем RST сразу после Server Hello
-                    if i + 1 < len(inbound_packets):
-                        next_pkt = inbound_packets[i+1]
-                        if next_pkt[IP].src == server_ip and TCP in next_pkt and next_pkt[TCP].flags.R:
-                            rst_pkt = next_pkt
-                            res["details"].append(f"✅ Найден RST от сервера сразу после Server Hello в пакете #{rst_pkt.packet_num if hasattr(rst_pkt, 'packet_num') else 'N/A'}.")
-                    break
-
-        if server_hello_pkt and rst_pkt:
-            res["status"] = "FAIL"
-            res["pattern"] = "SH_THEN_RST_FROM_SERVER"
-        elif server_hello_pkt and not rst_pkt:
-            res["status"] = "PASS"
-            res["pattern"] = "SH_ONLY"
-            res["details"].append("✅ Получен Server Hello, но RST от сервера не найден. Проблема может быть дальше в потоке.")
-        else:
-            res["details"].append("❌ Server Hello от целевого сервера не найден.")
-
-        return res
-
-    def _print_stream_report(self, flow_key: Tuple, report: Dict):
-        """Выводит отформатированный отчет по одному потоку."""
-        print("\n" + "-"*70)
-        print(f"🔍 Анализ потока: {flow_key[0]}:{flow_key[1]} -> {flow_key[2]}:{flow_key[3]}")
-        print("-"*70)
-
-        # Отчет по фейковому пакету
-        fake_check = report["checks"]["fake_packet"]
-        print(f"  [1] Анализ фейкового пакета: [{fake_check['status']}]")
-        for detail in fake_check["details"]:
-            print(f"      {detail}")
-
-        # Отчет по сборке
-        reasm_check = report["checks"]["reassembly"]
-        print(f"  [2] Проверка сборки реальных сегментов: [{reasm_check['status']}]")
-        for detail in reasm_check["details"]:
-            print(f"      {detail}")
-
-        # Отчет по ответу сервера
-        resp_check = report["checks"]["server_response"]
-        print(f"  [3] Анализ ответа сервера: [{resp_check['status']}]")
-        for detail in resp_check["details"]:
-            print(f"      {detail}")
-
-        print("\n  --- Заключение ---")
-        print(f"  Вывод: {report['conclusion']}")
-        print(f"  Рекомендация: {report['recommendation']}")
-        print("-"*70)
-
-    def _get_flow_key(self, pkt: Any) -> Tuple:
-        return (pkt[IP].src, pkt[TCP].sport, pkt[IP].dst, pkt[TCP].dport)
-
-    def _autodetect_local_ip(self, packets: List[Any]) -> Optional[str]:
-        # ... (эта функция уже есть в pcap_checksum_validator, можно скопировать)
-        src_ips = Counter()
-        for i, pkt in enumerate(packets):
-            if i > 200: break
-            if IP in pkt and pkt[IP].src:
-                try:
-                    if ipaddress.ip_address(pkt[IP].src).is_private:
-                        src_ips[pkt[IP].src] += 1
-                except ValueError:
-                    continue
-        if src_ips:
-            return src_ips.most_common(1)[0][0]
+    # Хелперы
+    def _pkt_ttl(pkt):
+        try:
+            if IP in pkt: return int(pkt[IP].ttl)
+            if IPv6 in pkt: return int(pkt[IPv6].hlim)
+        except Exception:
+            pass
         return None
 
-    def _recalculate_checksums(self, pkt: Any) -> Tuple[bool, bool]:
-        # ... (эта функция тоже есть, можно адаптировать)
+    def _read_tcp_csum(pkt):
         try:
-            # TCP Checksum
-            tcp_pkt = pkt.copy()
-            original_tcp_chksum = tcp_pkt[TCP].chksum
-            del tcp_pkt[TCP].chksum
-            recalculated_tcp_chksum = IP(bytes(tcp_pkt))[TCP].chksum
-            tcp_valid = original_tcp_chksum == recalculated_tcp_chksum
-
-            # IP Checksum
-            ip_pkt = pkt[IP].copy()
-            original_ip_chksum = ip_pkt.chksum
-            del ip_pkt.chksum
-            recalculated_ip_chksum = IP(bytes(ip_pkt)).chksum
-            ip_valid = original_ip_chksum == recalculated_ip_chksum
-
-            return tcp_valid, ip_valid
+            b = bytes(pkt[TCP])
+            return struct.unpack("!H", b[16:18])[0]
         except Exception:
-            return False, False
+            return None
 
-    def _is_tls_server_hello(self, payload: bytes) -> bool:
-        # Простая проверка на Server Hello (Handshake Type 2)
-        return payload and len(payload) > 5 and payload[0] == 0x16 and payload[5] == 0x02
+    def _is_fake(pkt):
+        ttl = _pkt_ttl(pkt)
+        ip_ok, tcp_ok = _recalc_checksums(pkt)
+        md5 = _has_md5sig(pkt)
+        csum = _read_tcp_csum(pkt)
+        return (ttl is not None and ttl <= 4) or (not tcp_ok) or md5 or (csum in (0xDEAD, 0xBEEF))
 
-# ==============================================================================
-# ИНТЕГРАЦИЯ В `main()`
-# ==============================================================================
+    def _classify_and_build_segments(out_win):
+        if not out_win:
+            return None, None, None
+        base_seq = int(out_win[0][TCP].seq)
+        segs = []
+        for pkt in out_win:
+            pay = bytes(pkt[TCP].payload) if pkt[TCP].payload else b""
+            ttl = _pkt_ttl(pkt)
+            ip_ok, tcp_ok = _recalc_checksums(pkt)
+            md5 = _has_md5sig(pkt)
+            flags = int(pkt[TCP].flags)
+            cur_seq = int(pkt[TCP].seq)
+            rel = (cur_seq - base_seq) & 0xFFFFFFFF
+            if rel > (1<<31): rel = 0
+            csum = _read_tcp_csum(pkt)
+            segs.append({
+                "idx": int(getattr(pkt, "packet_num", 0)),
+                "ttl": ttl,
+                "tcp_ok": bool(tcp_ok),
+                "ip_ok": bool(ip_ok),
+                "md5": bool(md5),
+                "flags": flags,
+                "paylen": len(pay),
+                "seq": cur_seq,
+                "rel_seq": rel,
+                "badsum_val": ("0x%04X" % csum) if isinstance(csum, int) else None
+            })
+        label, meta = _classify_window(segs)
+        return segs, label, meta
+
+    def _select_window(out_pkts, in_pkts, include_inbound):
+        out_payload = [p for p in out_pkts if TCP in p and p[TCP].payload]
+        if not out_payload:
+            return [], [], None
+        t0 = None
+        for p in out_payload:
+            raw = bytes(p[TCP].payload) if p[TCP].payload else b""
+            if find_clienthello_offset(raw) is not None:
+                t0 = float(p.time); break
+        if t0 is None:
+            t0 = float(out_payload[0].time)
+        out_win = [p for p in out_payload if float(p.time) >= t0 and (float(p.time)-t0)*1000.0 <= window_ms]
+        in_win = [p for p in in_pkts     if float(p.time) >= t0 and (float(p.time)-t0)*1000.0 <= window_ms] if include_inbound else []
+        base_idx = int(out_win[0].packet_num) if out_win else None
+        return out_win, in_win, base_idx
+
+    samples = []
+    label_caps = defaultdict(int)
+
+    for fk, out_pkts in flows_out.items():
+        out_pkts.sort(key=lambda p: float(getattr(p, "time", 0.0)))
+        in_pkts = flows_in.get(FlowKey(fk.dst, fk.dp, fk.src, fk.sp), [])
+        in_pkts.sort(key=lambda p: float(getattr(p, "time", 0.0)))
+
+        out_win, in_win, base_idx = _select_window(out_pkts, in_pkts, include_inbound)
+        if not out_win:
+            continue
+        segs, label, meta = _classify_and_build_segments(out_win)
+        if not segs or not label or label == "unknown":
+            continue
+        if label_caps[label] >= cap_per_label:
+            continue
+        label_caps[label] += 1
+
+        pkt_indices = [int(getattr(p, "packet_num", 0)) for p in out_win]
+        sample = {
+            "flow": f"{fk.src}:{fk.sp} -> {fk.dst}:{fk.dp}",
+            "label": label,
+            "meta": meta or {},
+            "base_packet_index": base_idx,
+            "packet_indices": pkt_indices,
+            "segments": segs
+        }
+
+        if include_inbound:
+            rst_ttls, rst_cnt = [], 0
+            for p in in_win:
+                try:
+                    if TCP in p and (int(p[TCP].flags) & 0x04):
+                        rst_cnt += 1
+                        rst_ttls.append(_pkt_ttl(p))
+                except Exception:
+                    pass
+            sample["inbound_summary"] = {"rst_count": rst_cnt, "rst_ttls": rst_ttls}
+
+        samples.append(sample)
+
+    res["samples"] = samples
+    res["counts_by_label"] = dict(sorted((label_caps.items()), key=lambda x: x[0]))
+    try:
+        with open(out_json, "w", encoding="utf-8") as f:
+            json.dump(res, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[WARN] cannot save {out_json}: {e}")
+    return res
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Находит RST‑триггеры в PCAP, вытаскивает TLS ClientHello и генерит рекомендации стратегий. Может запустить второй прогон через HybridEngine.")
+    parser = argparse.ArgumentParser(description="Находит RST‑триггеры в PCAP, вытаскивает TLS ClientHello и генерит рекомендации стратегий.")
     parser.add_argument("pcap_file", help="Путь к PCAP‑файлу")
     parser.add_argument("--no-reassemble", action="store_true", help="Не пытаться собирать фрагментированный ClientHello")
     parser.add_argument("--json", action="store_true", help="Вывести результат в JSON (stdout)")
@@ -1726,17 +1734,21 @@ def main():
     parser.add_argument("--second-pass-limit", type=int, default=6, help="Сколько стратегий на домен во втором прогоне (default: 6)")
     parser.add_argument("--second-pass-port", type=int, default=443, help="Порт второго прогона (default: 443)")
     parser.add_argument("--engine-override", choices=["native","external"], default=None, help="Принудительный движок для второго прогона")
-    # NEW:
     parser.add_argument("--validate", action="store_true", help="Валидировать «фейк/реал» через pcap_inspect и авто-рефайн стратегий")
     parser.add_argument("--save-inspect-json", type=str, default=None, help="Сохранить сырой отчёт pcap_inspect в файл")
     parser.add_argument("--advanced-report", action="store_true", help="Сгенерировать AdvancedReportingIntegration артефакты")
     parser.add_argument("--advanced-report-file", type=str, default="advanced_report.json", help="Куда сохранить сводный advanced-отчёт")
     parser.add_argument("--export-strategy-samples", type=str, help="Каталог для выгрузки пер-стратегийных PCAP/JSON самплов")
-
-    # <<< НОВЫЙ АРГУМЕНТ >>>
+    parser.add_argument("--export-strategy-samples-json", type=str, help="Сохранить все сэмплы стратегий в единый JSON файл")
+    parser.add_argument("--flow-port", type=int, default=443, help="Анализировать только потоки на этот порт (default: 443)")
+    parser.add_argument("--flow-window-ms", type=float, default=800.0, help="Ширина окна анализа после CH/первого payload, мс (default: 800)")
     parser.add_argument("--analyze-flow-failures", action="store_true", help="Запустить детальный анализ неудачных TCP-потоков для диагностики проблем сборки.")
     parser.add_argument("--local-ip", help="IP-адрес локальной машины для анализа потоков (если автоопределение неверно).")
-
+    parser.add_argument("--enable-ech-analysis", action="store_true", help="Анализ Encrypted ClientHello")
+    parser.add_argument("--strategy-history", type=str, default="strategy_history.json", help="Файл истории успешности стратегий")
+    parser.add_argument("--adaptive-optimization", action="store_true", help="Адаптивная оптимизация стратегий на основе истории")
+    parser.add_argument("--risk-threshold", type=float, default=0.7, help="Порог риска для агрессивных стратегий (0.0-1.0)")
+    parser.add_argument("--export-fingerprints", type=str, help="Экспорт TLS отпечатков в JSON файл")
 
     args = parser.parse_args()
 
@@ -1744,30 +1756,23 @@ def main():
         print(f"[ERROR] Файл не найден: {args.pcap_file}", file=sys.stderr)
         sys.exit(1)
 
-    # <<< НОВЫЙ РЕЖИМ РАБОТЫ >>>
     if args.analyze_flow_failures:
-        analyzer = FlowFailureAnalyzer(args.pcap_file, local_ip=args.local_ip)
+        analyzer = FlowFailureAnalyzer(
+            args.pcap_file,
+            local_ip=args.local_ip,
+            flow_port=args.flow_port,
+            window_ms=args.flow_window_ms,
+        )
         analyzer.analyze()
         sys.exit(0)
 
-    # Анализ RST
     analyzer = RSTTriggerAnalyzer(args.pcap_file)
     triggers = analyzer.analyze()
+    
+    strategy_optimizer = StrategyOptimizer(args.strategy_history)
+    
+    report = enhanced_build_json_report(args.pcap_file, triggers, args.no_reassemble, args.validate, strategy_optimizer)
 
-    # Собираем основной отчёт, внутри него уже прикрепится pcap_inspect validation (при наличии)
-    report = build_json_report(args.pcap_file, triggers, args.no_reassemble, args.validate)
-
-    # Дополнительно — сохранить сырой отчёт pcap_inspect, если просили
-    if args.save_inspect_json and PCAP_INSPECT_AVAILABLE:
-        try:
-            raw_inspect = inspect_pcap(args.pcap_file)
-            with open(args.save_inspect_json, "w", encoding="utf-8") as f:
-                json.dump(raw_inspect, f, ensure_ascii=False, indent=2)
-            print(f"[OK] pcap_inspect report saved → {args.save_inspect_json}")
-        except Exception as e:
-            print(f"[WARN] cannot save pcap_inspect report: {e}")
-
-    # Вывод/сохранение JSON
     if args.json or args.json_file:
         if args.json_file:
             try:
@@ -1784,61 +1789,28 @@ def main():
         if SCAPY_AVAILABLE and report.get("incidents"):
             print("\n[PCAP → TLS] Детали ClientHello, рекомендации и валидация")
             for inc in report["incidents"]:
-                trig_idx = inc.get("trigger_index")
-                rst_idx = inc.get("rst_index")
                 print("\n============================================================")
                 print(f"Поток: {inc.get('stream', '<unknown>')}")
-                if isinstance(rst_idx, int): print(f"RST получен в пакете: {rst_idx}")
-                if isinstance(trig_idx, int): print(f"Вероятный триггер: пакет #{trig_idx}")
-
+                
                 tls = inc.get("tls", {}) or {}
                 if tls.get("is_client_hello"):
                     print(f"  • SNI: {', '.join(tls.get('sni') or []) or '<не указано>'}")
                     print(f"  • ALPN: {', '.join(tls.get('alpn') or []) or '<не указано>'}")
-                    print(f"  • TLS Versions: {', '.join(tls.get('supported_versions') or []) or '<не указано>'}")
-                    print(f"  • CH length: {tls.get('ch_length')}")
-                    print(f"  • Extensions count: {len(tls.get('extensions', []))}")
-                    print(f"  • Cipher suites count: {len(tls.get('cipher_suites', []))}")
-                elif inc.get("payload_preview_hex"):
-                    print(f"  • ClientHello не разобран. Начало payload (hex): {inc['payload_preview_hex']}")
+                    if inc.get('advanced_metadata', {}).get('ech_detected'):
+                        print("  • ECH: [bold yellow]Detected[/bold yellow]")
+                
+                sig_analysis = inc.get("signature_analysis", {})
+                if sig_analysis.get('triggers'):
+                    print("\n  DPI СИГНАТУРЫ:")
+                    for name, data in sig_analysis['triggers'].items():
+                        print(f"   • {name}: {data['reason']} (score: {data['score']:.2f})")
 
-                # Рекомендации (уже со встроенным рефайном)
                 recs = inc.get("recommended_strategies") or []
                 if recs:
                     print("\n  РЕКОМЕНДАЦИИ ПО СТРАТЕГИЯМ:")
                     for r in recs[:3]:
-                        marker = " (refined)" if r.get("refined_from") else ""
-                        print(f"   • {r['cmd']}{marker}   [{r['score']:.2f}] — {r['reason']}")
-                        if r.get("refine_notes"):
-                            print(f"       ↳ fixes: {', '.join(r['refine_notes'])}")
-                else:
-                    print("\n  РЕКОМЕНДАЦИИ ПО СТРАТЕГИЯМ: (не найдено)")
+                        print(f"   • {r['cmd']}   [{r['score']:.2f}] — {r['reason']}")
 
-                # Валидация
-                val = inc.get("attack_validation") or {}
-                if val:
-                    conf = val.get("confidence", 0.0)
-                    print(f"  • Валидация fake/real: detected={val.get('detected', False)}, confidence={conf:.2f}")
-                    if val.get("issues"):
-                        print(f"    issues: {', '.join(val['issues'])}")
-                    if val.get("fixes"):
-                        print(f"    fixes: {', '.join(val['fixes'])}")
-
-        stats = report.get("statistical_analysis")
-        if stats:
-            print("\n[СТАТИСТИЧЕСКИЙ АНАЛИЗ ПАТТЕРНОВ БЛОКИРОВОК]")
-            print("============================================================")
-            if stats.get('sni_patterns'):
-                print("  • Частые SNI-триггеры:")
-                for pattern, count in stats['sni_patterns']: print(f"    - {pattern}: {count} раз")
-            if stats.get('size_boundaries'):
-                sz = stats['size_boundaries']
-                if 'mean' in sz: print(f"  • Размеры ClientHello: min={sz['min']}, max={sz['max']}, mean={sz['mean']:.1f}")
-            if stats.get('ttl_signature'):
-                ttl = stats['ttl_signature']
-                if 'mean' in ttl: print(f"  • TTL инъекций: mean={ttl['mean']:.1f}, std={ttl['std']:.1f}")
-
-    # Асинхронная часть: второй прогон + advanced reporting/export (если требуется)
     async def _async_tail():
         reporting = None
         if args.advanced_report:
@@ -1851,7 +1823,6 @@ def main():
                 else:
                     reporting = get_reporting_integration()
 
-        # Второй прогон
         if args.second_pass:
             await run_second_pass_from_report(
                 report,
@@ -1862,10 +1833,8 @@ def main():
                 save_adv_file=(args.advanced_report_file if args.advanced_report else None)
             )
 
-        # Экспорт advanced-отчета (если просили)
         if args.advanced_report_file and reporting and not args.second_pass:
             try:
-                # NB: export_comprehensive_report реализован в интеграции; формат управляется флагами
                 comprehensive = await reporting.export_comprehensive_report(
                     format_type="json",
                     include_raw_data=True
@@ -1876,12 +1845,26 @@ def main():
             except Exception as e:
                 print(f"[WARN] Не удалось экспортировать advanced-отчет: {e}")
 
-    # Запуск асинхронного хвоста, если есть, что делать
     if args.second_pass or (args.advanced_report and ADV_REPORTING_AVAILABLE):
         asyncio.run(_async_tail())
 
-    if args.export_strategy_samples and SCAPY_AVAILABLE:
-        export_strategy_samples(args.pcap_file, args.export_strategy_samples)
+    if args.export_strategy_samples_json and SCAPY_AVAILABLE:
+        export_strategy_samples_json(
+            pcap_file=args.pcap_file,
+            out_json=args.export_strategy_samples_json,
+            local_ip=None,
+            flow_port=args.flow_port,
+            window_ms=args.flow_window_ms,
+            cap_per_label=1,
+            include_inbound=True
+        )
+        print(f"[OK] Strategy samples JSON saved → {args.export_strategy_samples_json}")
 
 if __name__ == "__main__":
+    if not SCAPY_AVAILABLE:
+        print("[ERROR] Scapy не установлен. Пожалуйста, установите его: pip install scapy")
+        if any(arg in sys.argv for arg in ["--analyze-flow-failures", "--validate", "--export-strategy-samples"]):
+             print("[ERROR] Выбранный режим требует Scapy. Установка прервана.")
+             sys.exit(1)
+    
     main()

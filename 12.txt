@@ -1,0 +1,1353 @@
+Step 4: Hybrid testing with forced DNS...
+10:11:09 [INFO   ] unified_engine: Using modern bypass engine for strategy testing
+10:11:09 [INFO   ] unified_engine: KB: recommendations for 172.66.0.227: {'cdn': 'cloudflare', 'split_pos': 76, 'overlap_size': 336, 'fooling_methods': ['badsum']}
+10:11:12 [INFO   ] unified_engine: QUIC/ECH signals for x.com: {'ech_present': False, 'quic_ping_ok': False, 'http3_support': False}
+10:11:12 [INFO   ] unified_engine: Found 162 available attacks in registry
+10:11:12 [INFO   ] unified_engine: Enhanced 4 strategies to 4 registry-optimized strategies
+10:11:12 [INFO   ] unified_engine: KB‑recommended strategies prepended
+10:11:12 [INFO   ] unified_engine: Начинаем реальное тестирование 6 стратегий с помощью BypassEngine...
+10:11:12 [INFO   ] unified_engine: --> Тест 1/6: fakeddisorder(fooling=['badsum'], overlap_size=0, split_pos=76, ttl=3)
+10:11:12 [INFO   ] BypassEngine: 🚀 START CALLED: target_ips={'142.251.38.86', '31.13.72.12', '188.114.97.1', '216.58.209.206', '172.64.150.129', '216.239.36.223', '172.67.182.196', '31.13.72.36', '108.177.14.132', '199.232.172.159', '162.159.140.229', '31.13.72.53', '209.85.233.138', '104.244.43.131', '142.251.38.65', '172.66.0.227', '216.239.38.60', '157.240.245.174'}, strategies=1, override=True
+10:11:12 [INFO   ] BypassEngine: 🚀 Запуск универсального движка обхода DPI...
+10:11:12 [INFO   ] BypassEngine: 🔍 BYPASS LOOP STARTED: target_ips=18, strategies=1
+10:11:12 [INFO   ] BypassEngine: 🔍 Фильтр pydivert с 18 целевыми IP
+10:11:12 [INFO   ] BypassEngine: 🔍 WinDivert filter: outbound and (ip.DstAddr == 142.251.38.86 or ip.DstAddr == 31.13.72.12 or ip.DstAddr == 188.114.97.1 or ip.DstAddr == 216.58.209.206 or ip.DstAddr == 172.64.150.129 or ip.DstAddr == 216.239.36.223 or ip.DstAddr == 172.67.182.196 or ip.DstAddr == 31.13.72.36 or ip.DstAddr == 108.177.14.132 or ip.DstAddr == 199.232.172.159 or ip.DstAddr == 162.159.140.229 or ip.DstAddr == 31.13.72.53 or ip.DstAddr == 209.85.233.138 or ip.DstAddr == 104.244.43.131 or ip.DstAddr == 142.251.38.65 or ip.DstAddr == 172.66.0.227 or ip.DstAddr == 216.239.38.60 or ip.DstAddr == 157.240.245.174) and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)
+10:11:12 [INFO   ] BypassEngine: 👂 Inbound observer started
+10:11:12 [INFO   ] BypassEngine: ✅ WinDivert запущен успешно.
+10:11:14 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=fakeddisorder
+10:11:14 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:14 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:14 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.67.182.196:443 len=517 seq=0x1AF3025B ack=0xF2DB6678 flags=0x18
+10:11:14 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.67.182.196:443 len=441 seq=0x1AF302A7 ack=0xF2DB6678 flags=0x18
+10:11:14 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.67.182.196:443 len=76 seq=0x1AF3025B ack=0xF2DB6678 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=fakeddisorder
+10:11:15 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:15 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:15 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=188.114.97.1:443 len=517 seq=0xCDB7C932 ack=0x3F6B1CB8 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=188.114.97.1:443 len=441 seq=0xCDB7C97E ack=0x3F6B1CB8 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=188.114.97.1:443 len=76 seq=0xCDB7C932 ack=0x3F6B1CB8 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:15 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:15 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:15 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x5A8FE9A9 ack=0x3CE41889 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0x5A8FE9F5 ack=0x3CE41889 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0x5A8FE9A9 ack=0x3CE41889 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=fakeddisorder
+10:11:15 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:15 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:15 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.64.150.129:443 len=517 seq=0xFF61027A ack=0x2A118D62 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.64.150.129:443 len=441 seq=0xFF6102C6 ack=0x2A118D62 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.64.150.129:443 len=76 seq=0xFF61027A ack=0x2A118D62 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:15 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:15 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:15 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0xE6152960 ack=0x817F9038 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0xE61529AC ack=0x817F9038 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0xE6152960 ack=0x817F9038 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:15 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:15 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:15 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0xBC71ADF0 ack=0xCBA1F354 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0xBC71AE3C ack=0xCBA1F354 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0xBC71ADF0 ack=0xCBA1F354 flags=0x18
+10:11:15 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:11:15 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:15 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:15 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x790F1BCB ack=0x70F47D97 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=441 seq=0x790F1C17 ack=0x70F47D97 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=76 seq=0x790F1BCB ack=0x70F47D97 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:11:16 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:16 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:16 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0xD41C6A08 ack=0x41F66413 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=441 seq=0xD41C6A54 ack=0x41F66413 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=76 seq=0xD41C6A08 ack=0x41F66413 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:16 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:16 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:16 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x08034C07 ack=0x2500F46A flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x08034C53 ack=0x2500F46A flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x08034C07 ack=0x2500F46A flags=0x18
+10:11:16 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.58.209.206:443, strategy=fakeddisorder
+10:11:16 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:16 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:16 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.58.209.206:443 len=517 seq=0xEC976DE8 ack=0x4F71BD44 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.58.209.206:443 len=441 seq=0xEC976E34 ack=0x4F71BD44 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.58.209.206:443 len=76 seq=0xEC976DE8 ack=0x4F71BD44 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:11:16 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:16 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:16 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0xDE45BA28 ack=0x7CB6BEB6 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=441 seq=0xDE45BA74 ack=0x7CB6BEB6 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=76 seq=0xDE45BA28 ack=0x7CB6BEB6 flags=0x18
+10:11:16 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:11:16 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:16 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:16 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x2FE99D8C ack=0xD37A721A flags=0x18
+10:11:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=441 seq=0x2FE99DD8 ack=0xD37A721A flags=0x18
+10:11:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=76 seq=0x2FE99D8C ack=0xD37A721A flags=0x18
+10:11:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x71A9255B ack=0x1EDC1300 flags=0x18
+10:11:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x71A925A7 ack=0x1EDC1300 flags=0x18
+10:11:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x71A9255B ack=0x1EDC1300 flags=0x18
+10:11:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x34EADC5B ack=0x92D16844 flags=0x18
+10:11:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0x34EADCA7 ack=0x92D16844 flags=0x18
+10:11:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0x34EADC5B ack=0x92D16844 flags=0x18
+10:11:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:11:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0xFBA50B11 ack=0x28B97F6D flags=0x18
+10:11:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=441 seq=0xFBA50B5D ack=0x28B97F6D flags=0x18
+10:11:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=76 seq=0xFBA50B11 ack=0x28B97F6D flags=0x18
+10:11:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:11:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x25FF3128 ack=0x3BEC37D9 flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=441 seq=0x25FF3174 ack=0x3BEC37D9 flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=76 seq=0x25FF3128 ack=0x3BEC37D9 flags=0x18
+10:11:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:11:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x983BC7A6 ack=0x0FE20642 flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=441 seq=0x983BC7F2 ack=0x0FE20642 flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=76 seq=0x983BC7A6 ack=0x0FE20642 flags=0x18
+10:11:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:11:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xD80ED24C ack=0xCB54210A flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=441 seq=0xD80ED298 ack=0xCB54210A flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=76 seq=0xD80ED24C ack=0xCB54210A flags=0x18
+10:11:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x2A329901 ack=0x733C99AA flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x2A32994D ack=0x733C99AA flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x2A329901 ack=0x733C99AA flags=0x18
+10:11:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:11:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x0EB886E7 ack=0x7C8A8360 flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=441 seq=0x0EB88733 ack=0x7C8A8360 flags=0x18
+10:11:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=76 seq=0x0EB886E7 ack=0x7C8A8360 flags=0x18
+10:11:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:11:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x61300819 ack=0x67AE1A23 flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=441 seq=0x61300865 ack=0x67AE1A23 flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=76 seq=0x61300819 ack=0x67AE1A23 flags=0x18
+10:11:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0xD04D88C2 ack=0x3878684D flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0xD04D890E ack=0x3878684D flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0xD04D88C2 ack=0x3878684D flags=0x18
+10:11:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:11:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xA42E4385 ack=0xA44D885D flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=441 seq=0xA42E43D1 ack=0xA44D885D flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=76 seq=0xA42E4385 ack=0xA44D885D flags=0x18
+10:11:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:11:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0x48DBF8A2 ack=0xD6010574 flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=441 seq=0x48DBF8EE ack=0xD6010574 flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=76 seq=0x48DBF8A2 ack=0xD6010574 flags=0x18
+10:11:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=fakeddisorder
+10:11:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.36.223:443 len=517 seq=0x61F24263 ack=0xDEDE8D61 flags=0x18
+10:11:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.36.223:443 len=441 seq=0x61F242AF ack=0xDEDE8D61 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.36.223:443 len=76 seq=0x61F24263 ack=0xDEDE8D61 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:20 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:20 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:20 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x058CBB7D ack=0x15148638 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0x058CBBC9 ack=0x15148638 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0x058CBB7D ack=0x15148638 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=142.251.38.86:443, strategy=fakeddisorder
+10:11:20 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:20 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:20 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=142.251.38.86:443 len=517 seq=0xE669AB82 ack=0xD8E21608 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=142.251.38.86:443 len=441 seq=0xE669ABCE ack=0xD8E21608 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=142.251.38.86:443 len=76 seq=0xE669AB82 ack=0xD8E21608 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:20 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:20 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:20 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x4D1686B1 ack=0x8CE3A4D0 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x4D1686FD ack=0x8CE3A4D0 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x4D1686B1 ack=0x8CE3A4D0 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=fakeddisorder
+10:11:20 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:20 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:20 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.38.60:443 len=517 seq=0xAA2D9CC8 ack=0xA896B8A8 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.38.60:443 len=441 seq=0xAA2D9D14 ack=0xA896B8A8 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.38.60:443 len=76 seq=0xAA2D9CC8 ack=0xA896B8A8 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=209.85.233.138:443, strategy=fakeddisorder
+10:11:20 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:20 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:20 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=209.85.233.138:443 len=517 seq=0xAA8A4CF1 ack=0x0DB23AD1 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=209.85.233.138:443 len=441 seq=0xAA8A4D3D ack=0x0DB23AD1 flags=0x18
+10:11:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=209.85.233.138:443 len=76 seq=0xAA8A4CF1 ack=0x0DB23AD1 flags=0x18
+10:11:21 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:21 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:21 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:21 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0xA123ECDD ack=0x42D58A68 flags=0x18
+10:11:21 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0xA123ED29 ack=0x42D58A68 flags=0x18
+10:11:21 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0xA123ECDD ack=0x42D58A68 flags=0x18
+10:11:26 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:11:26 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:26 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:26 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x6F078AE0 ack=0xCBB43BFC flags=0x18
+10:11:26 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=441 seq=0x6F078B2C ack=0xCBB43BFC flags=0x18
+10:11:26 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=76 seq=0x6F078AE0 ack=0xCBB43BFC flags=0x18
+10:11:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:11:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0xA16ABD26 ack=0x8D59CBDC flags=0x18
+10:11:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=441 seq=0xA16ABD72 ack=0x8D59CBDC flags=0x18
+10:11:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=76 seq=0xA16ABD26 ack=0x8D59CBDC flags=0x18
+10:11:51 [INFO   ] unified_engine: Test result: 12/25 sites working, avg latency: 1701.8ms
+10:11:51 [INFO   ] BypassEngine: 🛑 Остановка движка обхода DPI...
+10:11:52 [INFO   ] unified_engine: ✓ Успех: 48% (12/25), задержка: 1701.8ms
+10:11:52 [INFO   ] unified_engine:    Telemetry: SegsSent=0 FakesSent=0 CH=46 SH=39 RST=0
+10:11:52 [INFO   ] unified_engine: --> Тест 2/6: --dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-split-pos=76 --dpi-desync-ttl=3
+10:11:52 [INFO   ] BypassEngine: 🚀 START CALLED: target_ips={'142.251.38.86', '31.13.72.12', '188.114.97.1', '216.58.209.206', '172.64.150.129', '216.239.36.223', '172.67.182.196', '31.13.72.36', '108.177.14.132', '199.232.172.159', '162.159.140.229', '31.13.72.53', '209.85.233.138', '104.244.43.131', '142.251.38.65', '172.66.0.227', '216.239.38.60', '157.240.245.174'}, strategies=1, override=True
+10:11:52 [INFO   ] BypassEngine: 🚀 Запуск универсального движка обхода DPI...
+10:11:52 [INFO   ] BypassEngine: 🔍 BYPASS LOOP STARTED: target_ips=18, strategies=1
+10:11:52 [INFO   ] BypassEngine: 🔍 Фильтр pydivert с 18 целевыми IP
+10:11:52 [INFO   ] BypassEngine: 🔍 WinDivert filter: outbound and (ip.DstAddr == 142.251.38.86 or ip.DstAddr == 31.13.72.12 or ip.DstAddr == 188.114.97.1 or ip.DstAddr == 216.58.209.206 or ip.DstAddr == 172.64.150.129 or ip.DstAddr == 216.239.36.223 or ip.DstAddr == 172.67.182.196 or ip.DstAddr == 31.13.72.36 or ip.DstAddr == 108.177.14.132 or ip.DstAddr == 199.232.172.159 or ip.DstAddr == 162.159.140.229 or ip.DstAddr == 31.13.72.53 or ip.DstAddr == 209.85.233.138 or ip.DstAddr == 104.244.43.131 or ip.DstAddr == 142.251.38.65 or ip.DstAddr == 172.66.0.227 or ip.DstAddr == 216.239.38.60 or ip.DstAddr == 157.240.245.174) and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)
+10:11:52 [INFO   ] BypassEngine: ✅ WinDivert запущен успешно.
+10:11:54 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:54 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:54 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:54 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x36B32CB8 ack=0x755C02FC flags=0x18
+10:11:54 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0x36B32D04 ack=0x755C02FC flags=0x18
+10:11:54 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0x36B32CB8 ack=0x755C02FC flags=0x18
+10:11:54 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=fakeddisorder
+10:11:54 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:54 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:54 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=188.114.97.1:443 len=517 seq=0x2940A282 ack=0x1DDC8BB4 flags=0x18
+10:11:54 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=188.114.97.1:443 len=441 seq=0x2940A2CE ack=0x1DDC8BB4 flags=0x18
+10:11:54 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=188.114.97.1:443 len=76 seq=0x2940A282 ack=0x1DDC8BB4 flags=0x18
+10:11:54 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=fakeddisorder
+10:11:54 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:54 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:54 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.67.182.196:443 len=517 seq=0x3F77EC40 ack=0xD3C873B9 flags=0x18
+10:11:54 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.67.182.196:443 len=441 seq=0x3F77EC8C ack=0xD3C873B9 flags=0x18
+10:11:54 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.67.182.196:443 len=76 seq=0x3F77EC40 ack=0xD3C873B9 flags=0x18
+10:11:54 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:54 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:54 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:54 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x3F650845 ack=0x13F64E72 flags=0x18
+10:11:54 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0x3F650891 ack=0x13F64E72 flags=0x18
+10:11:54 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0x3F650845 ack=0x13F64E72 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:55 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:55 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:55 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x6F11D81A ack=0xA24E20AD flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x6F11D866 ack=0xA24E20AD flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x6F11D81A ack=0xA24E20AD flags=0x18
+10:11:55 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:55 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:55 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:55 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x484F5405 ack=0x8A120D67 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0x484F5451 ack=0x8A120D67 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0x484F5405 ack=0x8A120D67 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.58.209.206:443, strategy=fakeddisorder
+10:11:55 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:55 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:55 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.58.209.206:443 len=517 seq=0x24FBC93B ack=0x1ABF592E flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.58.209.206:443 len=441 seq=0x24FBC987 ack=0x1ABF592E flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.58.209.206:443 len=76 seq=0x24FBC93B ack=0x1ABF592E flags=0x18
+10:11:55 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=fakeddisorder
+10:11:55 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:55 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:55 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.64.150.129:443 len=517 seq=0x98C7F76B ack=0x4BDBBF60 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.64.150.129:443 len=441 seq=0x98C7F7B7 ack=0x4BDBBF60 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.64.150.129:443 len=76 seq=0x98C7F76B ack=0x4BDBBF60 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:11:55 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:55 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:55 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x06681EB3 ack=0xD71BC389 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=441 seq=0x06681EFF ack=0xD71BC389 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=76 seq=0x06681EB3 ack=0xD71BC389 flags=0x18
+10:11:55 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:11:55 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:55 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:55 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x26DB76FA ack=0xB1C04B66 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=441 seq=0x26DB7746 ack=0xB1C04B66 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=76 seq=0x26DB76FA ack=0xB1C04B66 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:11:56 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:56 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:56 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x1BD3BFF9 ack=0x39DA10E3 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=441 seq=0x1BD3C045 ack=0x39DA10E3 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=76 seq=0x1BD3BFF9 ack=0x39DA10E3 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=fakeddisorder
+10:11:56 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:56 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:56 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.67.182.196:443 len=517 seq=0x3B93E49F ack=0x6E334047 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.67.182.196:443 len=441 seq=0x3B93E4EB ack=0x6E334047 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.67.182.196:443 len=76 seq=0x3B93E49F ack=0x6E334047 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:11:56 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:56 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:56 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x3C37BDAA ack=0x079CFEA8 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=441 seq=0x3C37BDF6 ack=0x079CFEA8 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=76 seq=0x3C37BDAA ack=0x079CFEA8 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:56 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:56 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:56 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x6D897415 ack=0x0DBDDBE0 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x6D897461 ack=0x0DBDDBE0 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x6D897415 ack=0x0DBDDBE0 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:11:56 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:56 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:56 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x463602B5 ack=0xF5E4F4A8 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=441 seq=0x46360301 ack=0xF5E4F4A8 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=76 seq=0x463602B5 ack=0xF5E4F4A8 flags=0x18
+10:11:56 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:11:56 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:56 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:56 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x5350440F ack=0x4D9745A9 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=441 seq=0x5350445B ack=0x4D9745A9 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=76 seq=0x5350440F ack=0x4D9745A9 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:57 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:57 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:57 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x4C900847 ack=0xA9FB2155 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x4C900893 ack=0xA9FB2155 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x4C900847 ack=0xA9FB2155 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:11:57 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:57 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:57 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x449280D6 ack=0x477C8439 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=441 seq=0x44928122 ack=0x477C8439 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=76 seq=0x449280D6 ack=0x477C8439 flags=0x18
+10:11:57 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:57 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:57 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:57 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0xD906AA84 ack=0x4FE264FF flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0xD906AAD0 ack=0x4FE264FF flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0xD906AA84 ack=0x4FE264FF flags=0x18
+10:11:57 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:11:57 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:57 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:57 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x6D9EFAE4 ack=0x6DE73EDA flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=441 seq=0x6D9EFB30 ack=0x6DE73EDA flags=0x18
+10:11:57 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=76 seq=0x6D9EFAE4 ack=0x6DE73EDA flags=0x18
+10:11:58 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:11:58 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:58 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:58 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xDA3245BF ack=0xCA030E49 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=441 seq=0xDA32460B ack=0xCA030E49 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=76 seq=0xDA3245BF ack=0xCA030E49 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:11:58 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:58 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:58 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x3297BE06 ack=0x7B7228A2 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=441 seq=0x3297BE52 ack=0x7B7228A2 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=76 seq=0x3297BE06 ack=0x7B7228A2 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:58 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:58 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:58 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x81E1BE5B ack=0x2903123C flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x81E1BEA7 ack=0x2903123C flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x81E1BE5B ack=0x2903123C flags=0x18
+10:11:58 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:11:58 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:58 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:58 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0x7D9680D3 ack=0xE78CE3AF flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=441 seq=0x7D96811F ack=0xE78CE3AF flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=76 seq=0x7D9680D3 ack=0xE78CE3AF flags=0x18
+10:11:58 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:11:58 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:58 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:58 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xA4274B16 ack=0x99695574 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=441 seq=0xA4274B62 ack=0x99695574 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=76 seq=0xA4274B16 ack=0x99695574 flags=0x18
+10:11:58 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=fakeddisorder
+10:11:58 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:58 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:58 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.36.223:443 len=517 seq=0x9924DFF3 ack=0x5A3A27A1 flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.36.223:443 len=441 seq=0x9924E03F ack=0x5A3A27A1 flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.36.223:443 len=76 seq=0x9924DFF3 ack=0x5A3A27A1 flags=0x18
+10:11:59 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=142.251.38.86:443, strategy=fakeddisorder
+10:11:59 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:59 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:59 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=142.251.38.86:443 len=517 seq=0xD1CDF24D ack=0xB0C10ECA flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=142.251.38.86:443 len=441 seq=0xD1CDF299 ack=0xB0C10ECA flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=142.251.38.86:443 len=76 seq=0xD1CDF24D ack=0xB0C10ECA flags=0x18
+10:11:59 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:11:59 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:59 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:59 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x54F2C295 ack=0x8795C7FB flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0x54F2C2E1 ack=0x8795C7FB flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0x54F2C295 ack=0x8795C7FB flags=0x18
+10:11:59 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:11:59 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:59 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:59 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x7B92192B ack=0xA90BFDFC flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=441 seq=0x7B921977 ack=0xA90BFDFC flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=76 seq=0x7B92192B ack=0xA90BFDFC flags=0x18
+10:11:59 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=209.85.233.138:443, strategy=fakeddisorder
+10:11:59 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:59 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:59 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=209.85.233.138:443 len=517 seq=0x45CEFA49 ack=0xAB39FF9F flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=209.85.233.138:443 len=441 seq=0x45CEFA95 ack=0xAB39FF9F flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=209.85.233.138:443 len=76 seq=0x45CEFA49 ack=0xAB39FF9F flags=0x18
+10:11:59 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=fakeddisorder
+10:11:59 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:11:59 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:11:59 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.38.60:443 len=517 seq=0x12F52903 ack=0xAB008124 flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.38.60:443 len=441 seq=0x12F5294F ack=0xAB008124 flags=0x18
+10:11:59 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.38.60:443 len=76 seq=0x12F52903 ack=0xAB008124 flags=0x18
+10:12:00 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:12:00 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:12:00 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:12:00 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0xCADC1132 ack=0x112D61A8 flags=0x18
+10:12:00 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=441 seq=0xCADC117E ack=0x112D61A8 flags=0x18
+10:12:00 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=76 seq=0xCADC1132 ack=0x112D61A8 flags=0x18
+10:12:05 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:12:05 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:12:05 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:12:05 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x459D3BE6 ack=0xEF7DA9DC flags=0x18
+10:12:05 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=441 seq=0x459D3C32 ack=0xEF7DA9DC flags=0x18
+10:12:05 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=76 seq=0x459D3BE6 ack=0xEF7DA9DC flags=0x18
+10:12:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:12:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=441b@76, real_part1=76b@0
+10:12:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:12:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0xDF6720B8 ack=0x3390E37E flags=0x18
+10:12:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=441 seq=0xDF672104 ack=0x3390E37E flags=0x18
+10:12:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=76 seq=0xDF6720B8 ack=0x3390E37E flags=0x18
+10:12:30 [INFO   ] unified_engine: Test result: 12/25 sites working, avg latency: 1571.5ms
+10:12:30 [INFO   ] BypassEngine: 🛑 Остановка движка обхода DPI...
+10:12:31 [INFO   ] unified_engine: ✓ Успех: 48% (12/25), задержка: 1571.5ms
+10:12:31 [INFO   ] unified_engine:    Telemetry: SegsSent=0 FakesSent=0 CH=90 SH=85 RST=1
+10:12:31 [INFO   ] unified_engine: --> Тест 3/6: --dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badsum
+10:12:31 [INFO   ] BypassEngine: 🚀 START CALLED: target_ips={'142.251.38.86', '31.13.72.12', '188.114.97.1', '216.58.209.206', '172.64.150.129', '216.239.36.223', '172.67.182.196', '31.13.72.36', '108.177.14.132', '199.232.172.159', '162.159.140.229', '31.13.72.53', '209.85.233.138', '104.244.43.131', '142.251.38.65', '172.66.0.227', '216.239.38.60', '157.240.245.174'}, strategies=1, override=True
+10:12:31 [INFO   ] BypassEngine: 🚀 Запуск универсального движка обхода DPI...
+10:12:31 [INFO   ] BypassEngine: 🔍 BYPASS LOOP STARTED: target_ips=18, strategies=1
+10:12:31 [INFO   ] BypassEngine: 🔍 Фильтр pydivert с 18 целевыми IP
+10:12:31 [INFO   ] BypassEngine: 🔍 WinDivert filter: outbound and (ip.DstAddr == 142.251.38.86 or ip.DstAddr == 31.13.72.12 or ip.DstAddr == 188.114.97.1 or ip.DstAddr == 216.58.209.206 or ip.DstAddr == 172.64.150.129 or ip.DstAddr == 216.239.36.223 or ip.DstAddr == 172.67.182.196 or ip.DstAddr == 31.13.72.36 or ip.DstAddr == 108.177.14.132 or ip.DstAddr == 199.232.172.159 or ip.DstAddr == 162.159.140.229 or ip.DstAddr == 31.13.72.53 or ip.DstAddr == 209.85.233.138 or ip.DstAddr == 104.244.43.131 or ip.DstAddr == 142.251.38.65 or ip.DstAddr == 172.66.0.227 or ip.DstAddr == 216.239.38.60 or ip.DstAddr == 157.240.245.174) and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)
+10:12:31 [INFO   ] BypassEngine: ✅ WinDivert запущен успешно.
+10:12:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=multisplit
+10:12:33 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=172.66.0.227:443 len=8 seq=0x86F37477 ack=0x4094F1E2 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=172.66.0.227:443 len=509 seq=0x86F3747F ack=0x4094F1E2 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=multisplit
+10:12:33 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=172.66.0.227:443 len=8 seq=0x85EEEBEA ack=0x08C0CEBD flags=0x18
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=172.66.0.227:443 len=509 seq=0x85EEEBF2 ack=0x08C0CEBD flags=0x18
+10:12:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=multisplit
+10:12:33 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=172.67.182.196:443 len=8 seq=0x117B4645 ack=0x19A99509 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=172.67.182.196:443 len=509 seq=0x117B464D ack=0x19A99509 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=multisplit
+10:12:33 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=188.114.97.1:443 len=8 seq=0x02B49E66 ack=0x587C0334 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=188.114.97.1:443 len=509 seq=0x02B49E6E ack=0x587C0334 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=multisplit
+10:12:33 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=162.159.140.229:443 len=8 seq=0xD09A436E ack=0x75F56029 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=162.159.140.229:443 len=509 seq=0xD09A4376 ack=0x75F56029 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=multisplit
+10:12:33 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=172.66.0.227:443 len=8 seq=0x838E4333 ack=0xF58CDE36 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=172.66.0.227:443 len=509 seq=0x838E433B ack=0xF58CDE36 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=multisplit
+10:12:33 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=172.64.150.129:443 len=8 seq=0xCF3F093A ack=0x1D17F35F flags=0x18
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=172.64.150.129:443 len=509 seq=0xCF3F0942 ack=0x1D17F35F flags=0x18
+10:12:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=multisplit
+10:12:33 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.36:443 len=8 seq=0xA6626DA2 ack=0x8A201C38 flags=0x18
+10:12:33 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.36:443 len=509 seq=0xA6626DAA ack=0x8A201C38 flags=0x18
+10:12:34 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.58.209.206:443, strategy=multisplit
+10:12:34 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:34 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=216.58.209.206:443 len=8 seq=0x1B5E78EC ack=0x430504E2 flags=0x18
+10:12:34 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=216.58.209.206:443 len=509 seq=0x1B5E78F4 ack=0x430504E2 flags=0x18
+10:12:34 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=multisplit
+10:12:34 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:34 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=157.240.245.174:443 len=8 seq=0x5D6433CF ack=0xC4C27650 flags=0x18
+10:12:34 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=157.240.245.174:443 len=509 seq=0x5D6433D7 ack=0xC4C27650 flags=0x18
+10:12:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=multisplit
+10:12:41 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:41 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=199.232.172.159:443 len=8 seq=0x2089AB9C ack=0xF6F1218E flags=0x18
+10:12:41 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=199.232.172.159:443 len=509 seq=0x2089ABA4 ack=0xF6F1218E flags=0x18
+10:12:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=multisplit
+10:12:41 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:41 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=216.239.36.223:443 len=8 seq=0x8B1C9327 ack=0xF15D4350 flags=0x18
+10:12:41 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=216.239.36.223:443 len=509 seq=0x8B1C932F ack=0xF15D4350 flags=0x18
+10:12:42 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=multisplit
+10:12:42 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=104.244.43.131:443 len=8 seq=0xB55A1E0B ack=0xED6C0C1A flags=0x18
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=104.244.43.131:443 len=509 seq=0xB55A1E13 ack=0xED6C0C1A flags=0x18
+10:12:42 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=multisplit
+10:12:42 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.53:443 len=8 seq=0xCA28CCD7 ack=0x87B8BC9B flags=0x18
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.53:443 len=509 seq=0xCA28CCDF ack=0x87B8BC9B flags=0x18
+10:12:42 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=multisplit
+10:12:42 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.53:443 len=8 seq=0x72D71EE0 ack=0xFE19855F flags=0x18
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.53:443 len=509 seq=0x72D71EE8 ack=0xFE19855F flags=0x18
+10:12:42 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=multisplit
+10:12:42 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=199.232.172.159:443 len=8 seq=0x1859C4CF ack=0xFC63281A flags=0x18
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=199.232.172.159:443 len=509 seq=0x1859C4D7 ack=0xFC63281A flags=0x18
+10:12:42 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=multisplit
+10:12:42 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.12:443 len=8 seq=0x63BF5B4F ack=0xB73662BE flags=0x18
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.12:443 len=509 seq=0x63BF5B57 ack=0xB73662BE flags=0x18
+10:12:42 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=multisplit
+10:12:42 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.12:443 len=8 seq=0xDEACD7F1 ack=0x899FF1F2 flags=0x18
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.12:443 len=509 seq=0xDEACD7F9 ack=0x899FF1F2 flags=0x18
+10:12:42 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=multisplit
+10:12:42 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.53:443 len=8 seq=0x4DB67FE9 ack=0x2294FF3D flags=0x18
+10:12:42 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.53:443 len=509 seq=0x4DB67FF1 ack=0x2294FF3D flags=0x18
+10:12:44 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=multisplit
+10:12:44 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:44 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=104.244.43.131:443 len=8 seq=0xB55A1E0B ack=0xED6C0C1A flags=0x18
+10:12:44 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=104.244.43.131:443 len=509 seq=0xB55A1E13 ack=0xED6C0C1A flags=0x18
+10:12:44 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=multisplit
+10:12:44 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:44 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.12:443 len=8 seq=0xDEACD7F1 ack=0x899FF1F2 flags=0x18
+10:12:44 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.12:443 len=509 seq=0xDEACD7F9 ack=0x899FF1F2 flags=0x18
+10:12:46 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=multisplit
+10:12:46 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:46 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=104.244.43.131:443 len=8 seq=0xB55A1E0B ack=0xED6C0C1A flags=0x18
+10:12:46 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=104.244.43.131:443 len=509 seq=0xB55A1E13 ack=0xED6C0C1A flags=0x18
+10:12:46 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=multisplit
+10:12:46 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:46 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.12:443 len=8 seq=0xDEACD7F1 ack=0x899FF1F2 flags=0x18
+10:12:46 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.12:443 len=509 seq=0xDEACD7F9 ack=0x899FF1F2 flags=0x18
+10:12:50 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=multisplit
+10:12:50 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:50 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=216.239.38.60:443 len=8 seq=0x2FD5471E ack=0x3145FD5A flags=0x18
+10:12:50 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=216.239.38.60:443 len=509 seq=0x2FD54726 ack=0x3145FD5A flags=0x18
+10:12:50 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=multisplit
+10:12:50 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:50 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.36:443 len=8 seq=0x1955FD23 ack=0xDA5DD091 flags=0x18
+10:12:50 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.36:443 len=509 seq=0x1955FD2B ack=0xDA5DD091 flags=0x18
+10:12:50 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=142.251.38.86:443, strategy=multisplit
+10:12:50 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:50 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=142.251.38.86:443 len=8 seq=0xD19B6D79 ack=0xB8921A43 flags=0x18
+10:12:50 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=142.251.38.86:443 len=509 seq=0xD19B6D81 ack=0xB8921A43 flags=0x18
+10:12:51 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=209.85.233.138:443, strategy=multisplit
+10:12:51 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:51 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=209.85.233.138:443 len=8 seq=0xD31551D6 ack=0x5D99F400 flags=0x18
+10:12:51 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=209.85.233.138:443 len=509 seq=0xD31551DE ack=0x5D99F400 flags=0x18
+10:12:51 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=multisplit
+10:12:51 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:51 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=104.244.43.131:443 len=8 seq=0xB55A1E0B ack=0xED6C0C1A flags=0x19
+10:12:51 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=104.244.43.131:443 len=509 seq=0xB55A1E13 ack=0xED6C0C1A flags=0x19
+10:12:51 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=multisplit
+10:12:51 [INFO   ] BypassEngine: 📦 Packet sequence: 2 segments for multisplit
+10:12:51 [INFO   ] BypassEngine: 📤 REAL [1/2] dst=31.13.72.12:443 len=8 seq=0xDEACD7F1 ack=0x899FF1F2 flags=0x19
+10:12:51 [INFO   ] BypassEngine: 📤 REAL [2/2] dst=31.13.72.12:443 len=509 seq=0xDEACD7F9 ack=0x899FF1F2 flags=0x19
+10:12:59 [INFO   ] unified_engine: Test result: 0/25 sites working, avg latency: 0.0ms
+10:12:59 [INFO   ] BypassEngine: 🛑 Остановка движка обхода DPI...
+10:13:00 [INFO   ] unified_engine: ✗ Провал: ни один сайт не заработал. Причина: NO_SITES_WORKING
+10:13:00 [INFO   ] unified_engine:    Telemetry: SegsSent=0 FakesSent=0 CH=133 SH=88 RST=1
+10:13:00 [INFO   ] unified_engine: --> Тест 4/6: --dpi-desync=fake,multidisorder --dpi-desync-split-pos=3,10 --dpi-desync-fooling=badseq
+10:13:00 [INFO   ] BypassEngine: 🚀 START CALLED: target_ips={'142.251.38.86', '31.13.72.12', '188.114.97.1', '216.58.209.206', '172.64.150.129', '216.239.36.223', '172.67.182.196', '31.13.72.36', '108.177.14.132', '199.232.172.159', '162.159.140.229', '31.13.72.53', '209.85.233.138', '104.244.43.131', '142.251.38.65', '172.66.0.227', '216.239.38.60', '157.240.245.174'}, strategies=1, override=True
+10:13:00 [INFO   ] BypassEngine: 🚀 Запуск универсального движка обхода DPI...
+10:13:00 [INFO   ] BypassEngine: 🔍 BYPASS LOOP STARTED: target_ips=18, strategies=1
+10:13:00 [INFO   ] BypassEngine: 🔍 Фильтр pydivert с 18 целевыми IP
+10:13:00 [INFO   ] BypassEngine: 🔍 WinDivert filter: outbound and (ip.DstAddr == 142.251.38.86 or ip.DstAddr == 31.13.72.12 or ip.DstAddr == 188.114.97.1 or ip.DstAddr == 216.58.209.206 or ip.DstAddr == 172.64.150.129 or ip.DstAddr == 216.239.36.223 or ip.DstAddr == 172.67.182.196 or ip.DstAddr == 31.13.72.36 or ip.DstAddr == 108.177.14.132 or ip.DstAddr == 199.232.172.159 or ip.DstAddr == 162.159.140.229 or ip.DstAddr == 31.13.72.53 or ip.DstAddr == 209.85.233.138 or ip.DstAddr == 104.244.43.131 or ip.DstAddr == 142.251.38.65 or ip.DstAddr == 172.66.0.227 or ip.DstAddr == 216.239.38.60 or ip.DstAddr == 157.240.245.174) and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)
+10:13:00 [INFO   ] BypassEngine: ✅ WinDivert запущен успешно.
+10:13:02 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:13:02 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:02 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:02 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x010C8A4D ack=0x4D4E16AF flags=0x18
+10:13:02 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=514 seq=0x010C8A51 ack=0x4D4E16AF flags=0x18
+10:13:02 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=3 seq=0x010C8A4E ack=0x4D4E16AF flags=0x18
+10:13:02 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:13:02 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:02 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:02 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x5DB5ACAB ack=0xBB1EEDEC flags=0x18
+10:13:02 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=514 seq=0x5DB5ACAF ack=0xBB1EEDEC flags=0x18
+10:13:02 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=3 seq=0x5DB5ACAC ack=0xBB1EEDEC flags=0x18
+10:13:02 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=fakeddisorder
+10:13:02 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:02 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:02 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.64.150.129:443 len=517 seq=0x8D02B34C ack=0x7616FAD2 flags=0x18
+10:13:02 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.64.150.129:443 len=514 seq=0x8D02B350 ack=0x7616FAD2 flags=0x18
+10:13:02 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.64.150.129:443 len=3 seq=0x8D02B34D ack=0x7616FAD2 flags=0x18
+10:13:02 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:13:02 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:02 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:02 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0xF769E7D5 ack=0xE31E6137 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=514 seq=0xF769E7D9 ack=0xE31E6137 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=3 seq=0xF769E7D6 ack=0xE31E6137 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:13:03 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:03 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:03 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x53EECAAD ack=0x8954A7F8 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=514 seq=0x53EECAB1 ack=0x8954A7F8 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=3 seq=0x53EECAAE ack=0x8954A7F8 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=fakeddisorder
+10:13:03 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:03 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:03 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=188.114.97.1:443 len=517 seq=0x9EC4044D ack=0xE83C0EF6 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=188.114.97.1:443 len=514 seq=0x9EC40451 ack=0xE83C0EF6 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=188.114.97.1:443 len=3 seq=0x9EC4044E ack=0xE83C0EF6 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=fakeddisorder
+10:13:03 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:03 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:03 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.67.182.196:443 len=517 seq=0x5A156455 ack=0xC320DF5F flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.67.182.196:443 len=514 seq=0x5A156459 ack=0xC320DF5F flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.67.182.196:443 len=3 seq=0x5A156456 ack=0xC320DF5F flags=0x18
+10:13:03 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:13:03 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:03 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:03 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x6FE6A346 ack=0xBDE11C9C flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=514 seq=0x6FE6A34A ack=0xBDE11C9C flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=3 seq=0x6FE6A347 ack=0xBDE11C9C flags=0x18
+10:13:03 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.58.209.206:443, strategy=fakeddisorder
+10:13:03 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:03 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:03 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.58.209.206:443 len=517 seq=0x6C31FC11 ack=0x687B2ECE flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.58.209.206:443 len=514 seq=0x6C31FC15 ack=0x687B2ECE flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.58.209.206:443 len=3 seq=0x6C31FC12 ack=0x687B2ECE flags=0x18
+10:13:03 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:03 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:03 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:03 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0xB9F6E1A1 ack=0x3BC0EA99 flags=0x18
+10:13:03 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0xB9F6E1A5 ack=0x3BC0EA99 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0xB9F6E1A2 ack=0x3BC0EA99 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:04 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:04 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:04 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x47B4C43C ack=0xB76D5178 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0x47B4C440 ack=0xB76D5178 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0x47B4C43D ack=0xB76D5178 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:13:04 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:04 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:04 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x97197701 ack=0xEB2D4AEC flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=514 seq=0x97197705 ack=0xEB2D4AEC flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=3 seq=0x97197702 ack=0xEB2D4AEC flags=0x18
+10:13:04 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:04 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:04 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:04 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x4741DC43 ack=0xE0D1FEFF flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0x4741DC47 ack=0xE0D1FEFF flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0x4741DC44 ack=0xE0D1FEFF flags=0x18
+10:13:04 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:04 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:04 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:04 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x5DFB1569 ack=0x3B54DDC2 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x5DFB156D ack=0x3B54DDC2 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x5DFB156A ack=0x3B54DDC2 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:04 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:04 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:04 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x4F37AFCA ack=0x05C6AAF5 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0x4F37AFCE ack=0x05C6AAF5 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0x4F37AFCB ack=0x05C6AAF5 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:13:04 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:04 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:04 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x7A56F8AF ack=0x13D40F01 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=514 seq=0x7A56F8B3 ack=0x13D40F01 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=3 seq=0x7A56F8B0 ack=0x13D40F01 flags=0x18
+10:13:04 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:04 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:04 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:04 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x118FCE79 ack=0x7F617592 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x118FCE7D ack=0x7F617592 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x118FCE7A ack=0x7F617592 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:05 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:05 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:05 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xF30DF549 ack=0xA372A503 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0xF30DF54D ack=0xA372A503 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0xF30DF54A ack=0xA372A503 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:13:05 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:05 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:05 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x64615EE5 ack=0x21E3CD7F flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=514 seq=0x64615EE9 ack=0x21E3CD7F flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=3 seq=0x64615EE6 ack=0x21E3CD7F flags=0x18
+10:13:05 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=fakeddisorder
+10:13:05 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:05 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:05 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.36.223:443 len=517 seq=0xDBC3770A ack=0x119A8BAA flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.36.223:443 len=514 seq=0xDBC3770E ack=0x119A8BAA flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.36.223:443 len=3 seq=0xDBC3770B ack=0x119A8BAA flags=0x18
+10:13:05 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:05 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:05 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:05 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xB2B2788D ack=0x5A134003 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0xB2B27891 ack=0x5A134003 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0xB2B2788E ack=0x5A134003 flags=0x18
+10:13:05 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:05 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:05 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:05 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0x2BD019C3 ack=0x97B635DF flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0x2BD019C7 ack=0x97B635DF flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0x2BD019C4 ack=0x97B635DF flags=0x18
+10:13:05 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=142.251.38.86:443, strategy=fakeddisorder
+10:13:05 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:05 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:05 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=142.251.38.86:443 len=517 seq=0x596B1AA8 ack=0x6F613AAA flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=142.251.38.86:443 len=514 seq=0x596B1AAC ack=0x6F613AAA flags=0x18
+10:13:05 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=142.251.38.86:443 len=3 seq=0x596B1AA9 ack=0x6F613AAA flags=0x18
+10:13:06 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=209.85.233.138:443, strategy=fakeddisorder
+10:13:06 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:06 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:06 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=209.85.233.138:443 len=517 seq=0xA0251DE6 ack=0xFB22E8FA flags=0x18
+10:13:06 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=209.85.233.138:443 len=514 seq=0xA0251DEA ack=0xFB22E8FA flags=0x18
+10:13:06 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=209.85.233.138:443 len=3 seq=0xA0251DE7 ack=0xFB22E8FA flags=0x18
+10:13:06 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=fakeddisorder
+10:13:06 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:06 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:06 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.38.60:443 len=517 seq=0xE1903C02 ack=0x38AF758C flags=0x18
+10:13:06 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.38.60:443 len=514 seq=0xE1903C06 ack=0x38AF758C flags=0x18
+10:13:06 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.38.60:443 len=3 seq=0xE1903C03 ack=0x38AF758C flags=0x18
+10:13:06 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:06 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=514b@3, real_part1=3b@0
+10:13:06 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:06 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0xDE0B5AEC ack=0x66960555 flags=0x18
+10:13:06 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0xDE0B5AF0 ack=0x66960555 flags=0x18
+10:13:06 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0xDE0B5AED ack=0x66960555 flags=0x18
+10:13:14 [INFO   ] unified_engine: Test result: 12/25 sites working, avg latency: 1448.8ms
+10:13:14 [INFO   ] BypassEngine: 🛑 Остановка движка обхода DPI...
+10:13:14 [INFO   ] unified_engine: ✓ Успех: 48% (12/25), задержка: 1448.8ms
+10:13:14 [INFO   ] unified_engine:    Telemetry: SegsSent=0 FakesSent=0 CH=166 SH=88 RST=1
+10:13:14 [INFO   ] unified_engine: --> Тест 5/6: --dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badseq
+10:13:14 [INFO   ] BypassEngine: 🚀 START CALLED: target_ips={'142.251.38.86', '31.13.72.12', '188.114.97.1', '216.58.209.206', '172.64.150.129', '216.239.36.223', '172.67.182.196', '31.13.72.36', '108.177.14.132', '199.232.172.159', '162.159.140.229', '31.13.72.53', '209.85.233.138', '104.244.43.131', '142.251.38.65', '172.66.0.227', '216.239.38.60', '157.240.245.174'}, strategies=1, override=True
+10:13:14 [INFO   ] BypassEngine: 🚀 Запуск универсального движка обхода DPI...
+10:13:14 [INFO   ] BypassEngine: 🔍 BYPASS LOOP STARTED: target_ips=18, strategies=1
+10:13:14 [INFO   ] BypassEngine: 🔍 Фильтр pydivert с 18 целевыми IP
+10:13:14 [INFO   ] BypassEngine: 🔍 WinDivert filter: outbound and (ip.DstAddr == 142.251.38.86 or ip.DstAddr == 31.13.72.12 or ip.DstAddr == 188.114.97.1 or ip.DstAddr == 216.58.209.206 or ip.DstAddr == 172.64.150.129 or ip.DstAddr == 216.239.36.223 or ip.DstAddr == 172.67.182.196 or ip.DstAddr == 31.13.72.36 or ip.DstAddr == 108.177.14.132 or ip.DstAddr == 199.232.172.159 or ip.DstAddr == 162.159.140.229 or ip.DstAddr == 31.13.72.53 or ip.DstAddr == 209.85.233.138 or ip.DstAddr == 104.244.43.131 or ip.DstAddr == 142.251.38.65 or ip.DstAddr == 172.66.0.227 or ip.DstAddr == 216.239.38.60 or ip.DstAddr == 157.240.245.174) and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)
+10:13:14 [INFO   ] BypassEngine: ✅ WinDivert запущен успешно.
+10:13:16 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=multidisorder
+10:13:16 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:16 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:16 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x8E9EB323 ack=0xA97EFBA1 flags=0x18
+10:13:16 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=516 seq=0x8E9EB325 ack=0xA97EFBA1 flags=0x18
+10:13:16 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=1 seq=0x8E9EB324 ack=0xA97EFBA1 flags=0x18
+10:13:16 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=multidisorder
+10:13:16 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:16 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:16 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0xB5666E75 ack=0x27D20F2E flags=0x18
+10:13:16 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=516 seq=0xB5666E77 ack=0x27D20F2E flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=1 seq=0xB5666E76 ack=0x27D20F2E flags=0x18
+10:13:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=multidisorder
+10:13:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.64.150.129:443 len=517 seq=0x3213CF73 ack=0x9C8FF0A8 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.64.150.129:443 len=516 seq=0x3213CF75 ack=0x9C8FF0A8 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.64.150.129:443 len=1 seq=0x3213CF74 ack=0x9C8FF0A8 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=multidisorder
+10:13:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0xC3B77485 ack=0x226B306F flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=516 seq=0xC3B77487 ack=0x226B306F flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=1 seq=0xC3B77486 ack=0x226B306F flags=0x18
+10:13:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=multidisorder
+10:13:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.67.182.196:443 len=517 seq=0x27B57F9E ack=0x8E9A4A81 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.67.182.196:443 len=516 seq=0x27B57FA0 ack=0x8E9A4A81 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.67.182.196:443 len=1 seq=0x27B57F9F ack=0x8E9A4A81 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.58.209.206:443, strategy=multidisorder
+10:13:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.58.209.206:443 len=517 seq=0xFE11635C ack=0x9A35A8C2 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.58.209.206:443 len=516 seq=0xFE11635E ack=0x9A35A8C2 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.58.209.206:443 len=1 seq=0xFE11635D ack=0x9A35A8C2 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=multidisorder
+10:13:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x19FD6F12 ack=0xB02C6D14 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=516 seq=0x19FD6F14 ack=0xB02C6D14 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=1 seq=0x19FD6F13 ack=0xB02C6D14 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=multidisorder
+10:13:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=188.114.97.1:443 len=517 seq=0x03D4A9AB ack=0x96AC0F6A flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=188.114.97.1:443 len=516 seq=0x03D4A9AD ack=0x96AC0F6A flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=188.114.97.1:443 len=1 seq=0x03D4A9AC ack=0x96AC0F6A flags=0x18
+10:13:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=multidisorder
+10:13:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0xD3D63034 ack=0x4EE50F96 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=516 seq=0xD3D63036 ack=0x4EE50F96 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=1 seq=0xD3D63035 ack=0x4EE50F96 flags=0x18
+10:13:17 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=multidisorder
+10:13:17 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:17 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:17 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x6D84E1AB ack=0x30B8B2F6 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=516 seq=0x6D84E1AD ack=0x30B8B2F6 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=1 seq=0x6D84E1AC ack=0x30B8B2F6 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=multidisorder
+10:13:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x52E7A8E3 ack=0x3CAF292F flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=516 seq=0x52E7A8E5 ack=0x3CAF292F flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=1 seq=0x52E7A8E4 ack=0x3CAF292F flags=0x18
+10:13:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=multidisorder
+10:13:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x2CF00B37 ack=0xF39ECDF8 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=516 seq=0x2CF00B39 ack=0xF39ECDF8 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=1 seq=0x2CF00B38 ack=0xF39ECDF8 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=multidisorder
+10:13:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0xFCD7EEA9 ack=0xB8BFA2CB flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=516 seq=0xFCD7EEAB ack=0xB8BFA2CB flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=1 seq=0xFCD7EEAA ack=0xB8BFA2CB flags=0x18
+10:13:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=multidisorder
+10:13:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x28CE71F1 ack=0x5E3BCD8E flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=516 seq=0x28CE71F3 ack=0x5E3BCD8E flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=1 seq=0x28CE71F2 ack=0x5E3BCD8E flags=0x18
+10:13:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=multidisorder
+10:13:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x0E2138DB ack=0xAE75C198 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=516 seq=0x0E2138DD ack=0xAE75C198 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=1 seq=0x0E2138DC ack=0xAE75C198 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=multidisorder
+10:13:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xA9080DA0 ack=0x36E38206 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=516 seq=0xA9080DA2 ack=0x36E38206 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=1 seq=0xA9080DA1 ack=0x36E38206 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=multidisorder
+10:13:18 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:18 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:18 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0xABAD56AB ack=0xCB61BDC5 flags=0x18
+10:13:18 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=516 seq=0xABAD56AD ack=0xCB61BDC5 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=1 seq=0xABAD56AC ack=0xCB61BDC5 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=multidisorder
+10:13:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x17425247 ack=0x22EF0BEB flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=516 seq=0x17425249 ack=0x22EF0BEB flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=1 seq=0x17425248 ack=0x22EF0BEB flags=0x18
+10:13:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=multidisorder
+10:13:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xC94970B3 ack=0xD9DDED21 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=516 seq=0xC94970B5 ack=0xD9DDED21 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=1 seq=0xC94970B4 ack=0xD9DDED21 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=multidisorder
+10:13:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0x2744DE35 ack=0x28E40DF6 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=516 seq=0x2744DE37 ack=0x28E40DF6 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=1 seq=0x2744DE36 ack=0x28E40DF6 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=multidisorder
+10:13:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.36.223:443 len=517 seq=0x348FA3D5 ack=0x9B7CA034 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.36.223:443 len=516 seq=0x348FA3D7 ack=0x9B7CA034 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.36.223:443 len=1 seq=0x348FA3D6 ack=0x9B7CA034 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=multidisorder
+10:13:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0x8D7173B9 ack=0x558968ED flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=516 seq=0x8D7173BB ack=0x558968ED flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=1 seq=0x8D7173BA ack=0x558968ED flags=0x18
+10:13:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=142.251.38.86:443, strategy=multidisorder
+10:13:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=142.251.38.86:443 len=517 seq=0xB5504327 ack=0x962A9BA3 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=142.251.38.86:443 len=516 seq=0xB5504329 ack=0x962A9BA3 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=142.251.38.86:443 len=1 seq=0xB5504328 ack=0x962A9BA3 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=209.85.233.138:443, strategy=multidisorder
+10:13:19 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:19 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:19 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=209.85.233.138:443 len=517 seq=0xE6436ABB ack=0x724381F0 flags=0x18
+10:13:19 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=209.85.233.138:443 len=516 seq=0xE6436ABD ack=0x724381F0 flags=0x18
+10:13:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=209.85.233.138:443 len=1 seq=0xE6436ABC ack=0x724381F0 flags=0x18
+10:13:20 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=multidisorder
+10:13:20 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:20 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:20 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.38.60:443 len=517 seq=0x197FC8CB ack=0xC603FCF3 flags=0x18
+10:13:20 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.38.60:443 len=516 seq=0x197FC8CD ack=0xC603FCF3 flags=0x18
+10:13:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.38.60:443 len=1 seq=0x197FC8CC ack=0xC603FCF3 flags=0x18
+10:13:20 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=multidisorder
+10:13:20 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=3), real_part2=516b@1, real_part1=1b@0
+10:13:20 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for multidisorder
+10:13:20 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0xADC7B5E8 ack=0x03B23AB6 flags=0x18
+10:13:20 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=516 seq=0xADC7B5EA ack=0x03B23AB6 flags=0x18
+10:13:20 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=1 seq=0xADC7B5E9 ack=0x03B23AB6 flags=0x18
+10:13:27 [INFO   ] unified_engine: Test result: 12/25 sites working, avg latency: 1279.2ms
+10:13:27 [INFO   ] BypassEngine: 🛑 Остановка движка обхода DPI...
+10:13:27 [INFO   ] unified_engine: ✓ Успех: 48% (12/25), задержка: 1279.2ms
+10:13:27 [INFO   ] unified_engine:    Telemetry: SegsSent=0 FakesSent=0 CH=202 SH=88 RST=1
+10:13:27 [INFO   ] unified_engine: --> Тест 6/6: --dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum --dpi-desync-ttl=64
+10:13:27 [INFO   ] BypassEngine: 🚀 START CALLED: target_ips={'142.251.38.86', '31.13.72.12', '188.114.97.1', '216.58.209.206', '172.64.150.129', '216.239.36.223', '172.67.182.196', '31.13.72.36', '108.177.14.132', '199.232.172.159', '162.159.140.229', '31.13.72.53', '209.85.233.138', '104.244.43.131', '142.251.38.65', '172.66.0.227', '216.239.38.60', '157.240.245.174'}, strategies=1, override=True
+10:13:27 [INFO   ] BypassEngine: 🚀 Запуск универсального движка обхода DPI...
+10:13:27 [INFO   ] BypassEngine: 🔍 BYPASS LOOP STARTED: target_ips=18, strategies=1
+10:13:27 [INFO   ] BypassEngine: 🔍 Фильтр pydivert с 18 целевыми IP
+10:13:27 [INFO   ] BypassEngine: 🔍 WinDivert filter: outbound and (ip.DstAddr == 142.251.38.86 or ip.DstAddr == 31.13.72.12 or ip.DstAddr == 188.114.97.1 or ip.DstAddr == 216.58.209.206 or ip.DstAddr == 172.64.150.129 or ip.DstAddr == 216.239.36.223 or ip.DstAddr == 172.67.182.196 or ip.DstAddr == 31.13.72.36 or ip.DstAddr == 108.177.14.132 or ip.DstAddr == 199.232.172.159 or ip.DstAddr == 162.159.140.229 or ip.DstAddr == 31.13.72.53 or ip.DstAddr == 209.85.233.138 or ip.DstAddr == 104.244.43.131 or ip.DstAddr == 142.251.38.65 or ip.DstAddr == 172.66.0.227 or ip.DstAddr == 216.239.38.60 or ip.DstAddr == 157.240.245.174) and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)
+10:13:27 [INFO   ] BypassEngine: ✅ WinDivert запущен успешно.
+10:13:29 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:13:29 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:29 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:29 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x2F952650 ack=0xA77F6CC1 flags=0x18
+10:13:29 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=514 seq=0x2F952653 ack=0xA77F6CC1 flags=0x18
+10:13:29 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=3 seq=0x2F952650 ack=0xA77F6CC1 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=162.159.140.229:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=162.159.140.229:443 len=517 seq=0x94D81742 ack=0x87FD1D0F flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=162.159.140.229:443 len=514 seq=0x94D81745 ack=0x87FD1D0F flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=162.159.140.229:443 len=3 seq=0x94D81742 ack=0x87FD1D0F flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x2A585265 ack=0x1866D5CA flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=514 seq=0x2A585268 ack=0x1866D5CA flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=3 seq=0x2A585265 ack=0x1866D5CA flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=188.114.97.1:443 len=517 seq=0x20B5F74D ack=0x2C713F93 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=188.114.97.1:443 len=514 seq=0x20B5F750 ack=0x2C713F93 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=188.114.97.1:443 len=3 seq=0x20B5F74D ack=0x2C713F93 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.64.150.129:443 len=517 seq=0xF1932852 ack=0xF5F90FC9 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.64.150.129:443 len=514 seq=0xF1932855 ack=0xF5F90FC9 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.64.150.129:443 len=3 seq=0xF1932852 ack=0xF5F90FC9 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.66.0.227:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.66.0.227:443 len=517 seq=0x6B52039A ack=0xE3FCA826 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.66.0.227:443 len=514 seq=0x6B52039D ack=0xE3FCA826 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.66.0.227:443 len=3 seq=0x6B52039A ack=0xE3FCA826 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.58.209.206:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.58.209.206:443 len=517 seq=0x5586E6FE ack=0xFB3261C6 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.58.209.206:443 len=514 seq=0x5586E701 ack=0xFB3261C6 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.58.209.206:443 len=3 seq=0x5586E6FE ack=0xFB3261C6 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.67.182.196:443 len=517 seq=0xBA24BB6F ack=0x8D3A1B78 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.67.182.196:443 len=514 seq=0xBA24BB72 ack=0x8D3A1B78 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.67.182.196:443 len=3 seq=0xBA24BB6F ack=0x8D3A1B78 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x09C9A05D ack=0x80C871F6 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=514 seq=0x09C9A060 ack=0x80C871F6 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=3 seq=0x09C9A05D ack=0x80C871F6 flags=0x18
+10:13:30 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:30 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:30 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:30 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x6000B419 ack=0xCAA1E935 flags=0x18
+10:13:31 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0x6000B41C ack=0xCAA1E935 flags=0x18
+10:13:31 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0x6000B419 ack=0xCAA1E935 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=fakeddisorder
+10:13:32 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:32 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:32 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.64.150.129:443 len=517 seq=0xF1932852 ack=0xF5F90FC9 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.64.150.129:443 len=514 seq=0xF1932855 ack=0xF5F90FC9 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.64.150.129:443 len=3 seq=0xF1932852 ack=0xF5F90FC9 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=fakeddisorder
+10:13:32 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:32 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:32 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=188.114.97.1:443 len=517 seq=0x20B5F74D ack=0x2C713F93 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=188.114.97.1:443 len=514 seq=0x20B5F750 ack=0x2C713F93 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=188.114.97.1:443 len=3 seq=0x20B5F74D ack=0x2C713F93 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.58.209.206:443, strategy=fakeddisorder
+10:13:32 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:32 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:32 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.58.209.206:443 len=517 seq=0x5586E6FE ack=0xFB3261C6 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.58.209.206:443 len=514 seq=0x5586E701 ack=0xFB3261C6 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.58.209.206:443 len=3 seq=0x5586E6FE ack=0xFB3261C6 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=fakeddisorder
+10:13:32 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:32 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:32 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.67.182.196:443 len=517 seq=0xBA24BB6F ack=0x8D3A1B78 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.67.182.196:443 len=514 seq=0xBA24BB72 ack=0x8D3A1B78 flags=0x18
+10:13:32 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.67.182.196:443 len=3 seq=0xBA24BB6F ack=0x8D3A1B78 flags=0x18
+10:13:33 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:13:33 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:33 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:33 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x09C9A05D ack=0x80C871F6 flags=0x18
+10:13:33 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=514 seq=0x09C9A060 ack=0x80C871F6 flags=0x18
+10:13:33 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=3 seq=0x09C9A05D ack=0x80C871F6 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=fakeddisorder
+10:13:34 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:34 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:34 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.64.150.129:443 len=517 seq=0xF1932852 ack=0xF5F90FC9 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.64.150.129:443 len=514 seq=0xF1932855 ack=0xF5F90FC9 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.64.150.129:443 len=3 seq=0xF1932852 ack=0xF5F90FC9 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=fakeddisorder
+10:13:34 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:34 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:34 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=188.114.97.1:443 len=517 seq=0x20B5F74D ack=0x2C713F93 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=188.114.97.1:443 len=514 seq=0x20B5F750 ack=0x2C713F93 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=188.114.97.1:443 len=3 seq=0x20B5F74D ack=0x2C713F93 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.58.209.206:443, strategy=fakeddisorder
+10:13:34 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:34 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:34 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.58.209.206:443 len=517 seq=0x5586E6FE ack=0xFB3261C6 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.58.209.206:443 len=514 seq=0x5586E701 ack=0xFB3261C6 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.58.209.206:443 len=3 seq=0x5586E6FE ack=0xFB3261C6 flags=0x18
+10:13:34 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:34 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:34 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:34 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x6000B419 ack=0xCAA1E935 flags=0x18
+10:13:35 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0x6000B41C ack=0xCAA1E935 flags=0x18
+10:13:35 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0x6000B419 ack=0xCAA1E935 flags=0x18
+10:13:35 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.67.182.196:443, strategy=fakeddisorder
+10:13:35 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:35 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:35 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.67.182.196:443 len=517 seq=0xBA24BB6F ack=0x8D3A1B78 flags=0x18
+10:13:35 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.67.182.196:443 len=514 seq=0xBA24BB72 ack=0x8D3A1B78 flags=0x18
+10:13:35 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.67.182.196:443 len=3 seq=0xBA24BB6F ack=0x8D3A1B78 flags=0x18
+10:13:37 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:13:37 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:37 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:37 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x09C9A05D ack=0x80C871F6 flags=0x18
+10:13:37 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=514 seq=0x09C9A060 ack=0x80C871F6 flags=0x18
+10:13:37 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=3 seq=0x09C9A05D ack=0x80C871F6 flags=0x18
+10:13:38 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:38 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:38 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:38 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x04BBEA99 ack=0xE61BC365 flags=0x18
+10:13:38 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0x04BBEA9C ack=0xE61BC365 flags=0x18
+10:13:38 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0x04BBEA99 ack=0xE61BC365 flags=0x18
+10:13:38 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:38 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:38 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:38 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xEB4D4EBA ack=0x25BF7B07 flags=0x18
+10:13:38 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0xEB4D4EBD ack=0x25BF7B07 flags=0x18
+10:13:38 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0xEB4D4EBA ack=0x25BF7B07 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0xEC0ABD98 ack=0xCFC91481 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0xEC0ABD9B ack=0xCFC91481 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0xEC0ABD98 ack=0xCFC91481 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:13:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x4F1BDC92 ack=0x807080B7 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=514 seq=0x4F1BDC95 ack=0x807080B7 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=3 seq=0x4F1BDC92 ack=0x807080B7 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x228263F0 ack=0x0F96C745 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x228263F3 ack=0x0F96C745 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x228263F0 ack=0x0F96C745 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xDE6BFE13 ack=0x3E70DCBD flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0xDE6BFE16 ack=0x3E70DCBD flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0xDE6BFE13 ack=0x3E70DCBD flags=0x18
+10:13:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=fakeddisorder
+10:13:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.36.223:443 len=517 seq=0xC9CEAE1F ack=0x7C8A4093 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.36.223:443 len=514 seq=0xC9CEAE22 ack=0x7C8A4093 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.36.223:443 len=3 seq=0xC9CEAE1F ack=0x7C8A4093 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x0234B0BA ack=0xCB47B215 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x0234B0BD ack=0xCB47B215 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x0234B0BA ack=0xCB47B215 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xB1F7F267 ack=0xC1AA8BFE flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0xB1F7F26A ack=0xC1AA8BFE flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0xB1F7F267 ack=0xC1AA8BFE flags=0x18
+10:13:39 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=172.64.150.129:443, strategy=fakeddisorder
+10:13:39 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:39 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:39 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=172.64.150.129:443 len=517 seq=0xF1932852 ack=0xF5F90FC9 flags=0x18
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=172.64.150.129:443 len=514 seq=0xF1932855 ack=0xF5F90FC9 flags=0x19
+10:13:39 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=172.64.150.129:443 len=3 seq=0xF1932852 ack=0xF5F90FC9 flags=0x19
+10:13:40 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=188.114.97.1:443, strategy=fakeddisorder
+10:13:40 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:40 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:40 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=188.114.97.1:443 len=517 seq=0x20B5F74D ack=0x2C713F93 flags=0x18
+10:13:40 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=188.114.97.1:443 len=514 seq=0x20B5F750 ack=0x2C713F93 flags=0x19
+10:13:40 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=188.114.97.1:443 len=3 seq=0x20B5F74D ack=0x2C713F93 flags=0x19
+10:13:40 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:40 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:40 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:40 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x6000B419 ack=0xCAA1E935 flags=0x18
+10:13:40 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0x6000B41C ack=0xCAA1E935 flags=0x19
+10:13:40 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0x6000B419 ack=0xCAA1E935 flags=0x19
+10:13:40 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:40 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:40 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:40 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x04BBEA99 ack=0xE61BC365 flags=0x18
+10:13:40 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0x04BBEA9C ack=0xE61BC365 flags=0x18
+10:13:40 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0x04BBEA99 ack=0xE61BC365 flags=0x18
+10:13:40 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:40 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:40 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:40 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xEB4D4EBA ack=0x25BF7B07 flags=0x18
+10:13:40 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0xEB4D4EBD ack=0x25BF7B07 flags=0x18
+10:13:40 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0xEB4D4EBA ack=0x25BF7B07 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:41 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:41 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:41 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0xEC0ABD98 ack=0xCFC91481 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0xEC0ABD9B ack=0xCFC91481 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0xEC0ABD98 ack=0xCFC91481 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=fakeddisorder
+10:13:41 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:41 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:41 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.36.223:443 len=517 seq=0xC9CEAE1F ack=0x7C8A4093 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.36.223:443 len=514 seq=0xC9CEAE22 ack=0x7C8A4093 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.36.223:443 len=3 seq=0xC9CEAE1F ack=0x7C8A4093 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:41 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:41 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:41 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xDE6BFE13 ack=0x3E70DCBD flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0xDE6BFE16 ack=0x3E70DCBD flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0xDE6BFE13 ack=0x3E70DCBD flags=0x18
+10:13:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:41 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:41 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:41 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x0234B0BA ack=0xCB47B215 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x0234B0BD ack=0xCB47B215 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x0234B0BA ack=0xCB47B215 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:41 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:41 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:41 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x228263F0 ack=0x0F96C745 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x228263F3 ack=0x0F96C745 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x228263F0 ack=0x0F96C745 flags=0x18
+10:13:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:41 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:41 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:41 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xB1F7F267 ack=0xC1AA8BFE flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0xB1F7F26A ack=0xC1AA8BFE flags=0x18
+10:13:41 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0xB1F7F267 ack=0xC1AA8BFE flags=0x18
+10:13:41 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:13:41 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:42 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:42 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x4F1BDC92 ack=0x807080B7 flags=0x18
+10:13:42 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=514 seq=0x4F1BDC95 ack=0x807080B7 flags=0x18
+10:13:42 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=3 seq=0x4F1BDC92 ack=0x807080B7 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:43 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:43 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:43 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x04BBEA99 ack=0xE61BC365 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0x04BBEA9C ack=0xE61BC365 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0x04BBEA99 ack=0xE61BC365 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:43 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:43 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:43 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xEB4D4EBA ack=0x25BF7B07 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0xEB4D4EBD ack=0x25BF7B07 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0xEB4D4EBA ack=0x25BF7B07 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:43 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:43 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:43 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0xEC0ABD98 ack=0xCFC91481 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0xEC0ABD9B ack=0xCFC91481 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0xEC0ABD98 ack=0xCFC91481 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:43 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:43 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:43 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x0234B0BA ack=0xCB47B215 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x0234B0BD ack=0xCB47B215 flags=0x18
+10:13:43 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x0234B0BA ack=0xCB47B215 flags=0x18
+10:13:44 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:44 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:44 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:44 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xDE6BFE13 ack=0x3E70DCBD flags=0x18
+10:13:44 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0xDE6BFE16 ack=0x3E70DCBD flags=0x18
+10:13:44 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0xDE6BFE13 ack=0x3E70DCBD flags=0x18
+10:13:44 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=fakeddisorder
+10:13:44 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:44 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:44 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.36.223:443 len=517 seq=0xC9CEAE1F ack=0x7C8A4093 flags=0x18
+10:13:44 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.36.223:443 len=514 seq=0xC9CEAE22 ack=0x7C8A4093 flags=0x18
+10:13:44 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.36.223:443 len=3 seq=0xC9CEAE1F ack=0x7C8A4093 flags=0x18
+10:13:44 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=157.240.245.174:443, strategy=fakeddisorder
+10:13:44 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:44 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:44 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=157.240.245.174:443 len=517 seq=0x09C9A05D ack=0x80C871F6 flags=0x18
+10:13:44 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=157.240.245.174:443 len=514 seq=0x09C9A060 ack=0x80C871F6 flags=0x19
+10:13:44 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=157.240.245.174:443 len=3 seq=0x09C9A05D ack=0x80C871F6 flags=0x19
+10:13:47 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=fakeddisorder
+10:13:47 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:47 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:47 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.38.60:443 len=517 seq=0x56830E11 ack=0xBED0F903 flags=0x18
+10:13:47 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.38.60:443 len=514 seq=0x56830E14 ack=0xBED0F903 flags=0x18
+10:13:47 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.38.60:443 len=3 seq=0x56830E11 ack=0xBED0F903 flags=0x18
+10:13:47 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:47 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:47 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:47 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x54A35592 ack=0x0A81E5F4 flags=0x18
+10:13:47 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0x54A35595 ack=0x0A81E5F4 flags=0x18
+10:13:47 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0x54A35592 ack=0x0A81E5F4 flags=0x18
+10:13:48 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=142.251.38.86:443, strategy=fakeddisorder
+10:13:48 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:48 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:48 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=142.251.38.86:443 len=517 seq=0xCFBD23D8 ack=0x8C609227 flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=142.251.38.86:443 len=514 seq=0xCFBD23DB ack=0x8C609227 flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=142.251.38.86:443 len=3 seq=0xCFBD23D8 ack=0x8C609227 flags=0x18
+10:13:48 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=209.85.233.138:443, strategy=fakeddisorder
+10:13:48 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:48 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:48 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=209.85.233.138:443 len=517 seq=0x602E8A71 ack=0x77FB326A flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=209.85.233.138:443 len=514 seq=0x602E8A74 ack=0x77FB326A flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=209.85.233.138:443 len=3 seq=0x602E8A71 ack=0x77FB326A flags=0x18
+10:13:48 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:48 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:48 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:48 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0x04BBEA99 ack=0xE61BC365 flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0x04BBEA9C ack=0xE61BC365 flags=0x19
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0x04BBEA99 ack=0xE61BC365 flags=0x19
+10:13:48 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:48 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:48 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:48 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xEB4D4EBA ack=0x25BF7B07 flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0xEB4D4EBD ack=0x25BF7B07 flags=0x19
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0xEB4D4EBA ack=0x25BF7B07 flags=0x19
+10:13:48 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=199.232.172.159:443, strategy=fakeddisorder
+10:13:48 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:48 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:48 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=199.232.172.159:443 len=517 seq=0xEC0ABD98 ack=0xCFC91481 flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=199.232.172.159:443 len=514 seq=0xEC0ABD9B ack=0xCFC91481 flags=0x19
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=199.232.172.159:443 len=3 seq=0xEC0ABD98 ack=0xCFC91481 flags=0x19
+10:13:48 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:48 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:48 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:48 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0xDE6BFE13 ack=0x3E70DCBD flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0xDE6BFE16 ack=0x3E70DCBD flags=0x19
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0xDE6BFE13 ack=0x3E70DCBD flags=0x19
+10:13:48 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.36.223:443, strategy=fakeddisorder
+10:13:48 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:48 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:48 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.36.223:443 len=517 seq=0xC9CEAE1F ack=0x7C8A4093 flags=0x18
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.36.223:443 len=514 seq=0xC9CEAE22 ack=0x7C8A4093 flags=0x19
+10:13:48 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.36.223:443 len=3 seq=0xC9CEAE1F ack=0x7C8A4093 flags=0x19
+10:13:48 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:48 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:48 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:48 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x0234B0BA ack=0xCB47B215 flags=0x18
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x0234B0BD ack=0xCB47B215 flags=0x19
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x0234B0BA ack=0xCB47B215 flags=0x19
+10:13:49 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.53:443, strategy=fakeddisorder
+10:13:49 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:49 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:49 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.53:443 len=517 seq=0x228263F0 ack=0x0F96C745 flags=0x18
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.53:443 len=514 seq=0x228263F3 ack=0x0F96C745 flags=0x19
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.53:443 len=3 seq=0x228263F0 ack=0x0F96C745 flags=0x19
+10:13:49 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.12:443, strategy=fakeddisorder
+10:13:49 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:49 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:49 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.12:443 len=517 seq=0xB1F7F267 ack=0xC1AA8BFE flags=0x18
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.12:443 len=514 seq=0xB1F7F26A ack=0xC1AA8BFE flags=0x19
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.12:443 len=3 seq=0xB1F7F267 ack=0xC1AA8BFE flags=0x19
+10:13:49 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=104.244.43.131:443, strategy=fakeddisorder
+10:13:49 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:49 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:49 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=104.244.43.131:443 len=517 seq=0x4F1BDC92 ack=0x807080B7 flags=0x18
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=104.244.43.131:443 len=514 seq=0x4F1BDC95 ack=0x807080B7 flags=0x19
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=104.244.43.131:443 len=3 seq=0x4F1BDC92 ack=0x807080B7 flags=0x19
+10:13:49 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=142.251.38.86:443, strategy=fakeddisorder
+10:13:49 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:49 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:49 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=142.251.38.86:443 len=517 seq=0xCFBD23D8 ack=0x8C609227 flags=0x18
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=142.251.38.86:443 len=514 seq=0xCFBD23DB ack=0x8C609227 flags=0x18
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=142.251.38.86:443 len=3 seq=0xCFBD23D8 ack=0x8C609227 flags=0x18
+10:13:49 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=209.85.233.138:443, strategy=fakeddisorder
+10:13:49 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:49 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:49 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=209.85.233.138:443 len=517 seq=0x602E8A71 ack=0x77FB326A flags=0x18
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=209.85.233.138:443 len=514 seq=0x602E8A74 ack=0x77FB326A flags=0x18
+10:13:49 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=209.85.233.138:443 len=3 seq=0x602E8A71 ack=0x77FB326A flags=0x18
+10:13:50 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=fakeddisorder
+10:13:50 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:50 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:50 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.38.60:443 len=517 seq=0x56830E11 ack=0xBED0F903 flags=0x18
+10:13:50 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.38.60:443 len=514 seq=0x56830E14 ack=0xBED0F903 flags=0x18
+10:13:50 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.38.60:443 len=3 seq=0x56830E11 ack=0xBED0F903 flags=0x18
+10:13:50 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:50 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:50 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:50 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x54A35592 ack=0x0A81E5F4 flags=0x18
+10:13:50 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0x54A35595 ack=0x0A81E5F4 flags=0x18
+10:13:50 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0x54A35592 ack=0x0A81E5F4 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=fakeddisorder
+10:13:52 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:52 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:52 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.38.60:443 len=517 seq=0x56830E11 ack=0xBED0F903 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.38.60:443 len=514 seq=0x56830E14 ack=0xBED0F903 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.38.60:443 len=3 seq=0x56830E11 ack=0xBED0F903 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=31.13.72.36:443, strategy=fakeddisorder
+10:13:52 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:52 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:52 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=31.13.72.36:443 len=517 seq=0x54A35592 ack=0x0A81E5F4 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=31.13.72.36:443 len=514 seq=0x54A35595 ack=0x0A81E5F4 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=31.13.72.36:443 len=3 seq=0x54A35592 ack=0x0A81E5F4 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=142.251.38.86:443, strategy=fakeddisorder
+10:13:52 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:52 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:52 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=142.251.38.86:443 len=517 seq=0xCFBD23D8 ack=0x8C609227 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=142.251.38.86:443 len=514 seq=0xCFBD23DB ack=0x8C609227 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=142.251.38.86:443 len=3 seq=0xCFBD23D8 ack=0x8C609227 flags=0x18
+10:13:52 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=209.85.233.138:443, strategy=fakeddisorder
+10:13:52 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:52 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:52 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=209.85.233.138:443 len=517 seq=0x602E8A71 ack=0x77FB326A flags=0x18
+10:13:52 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=209.85.233.138:443 len=514 seq=0x602E8A74 ack=0x77FB326A flags=0x18
+10:13:52 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=209.85.233.138:443 len=3 seq=0x602E8A71 ack=0x77FB326A flags=0x18
+10:13:56 [INFO   ] unified_engine: Test result: 0/25 sites working, avg latency: 0.0ms
+10:13:56 [INFO   ] BypassEngine: 🛑 Остановка движка обхода DPI...
+10:13:57 [INFO   ] BypassEngine: 🔥 APPLY_BYPASS V9: dst=216.239.38.60:443, strategy=fakeddisorder
+10:13:57 [INFO   ] BypassTechniques: ✅ V13 Zapret Emulation (Disorder): fake_FULL=517b@0 (ttl=64), real_part2=514b@3, real_part1=3b@0
+10:13:57 [INFO   ] BypassEngine: 📦 Packet sequence: 3 segments for fakeddisorder
+10:13:57 [INFO   ] BypassEngine: 📤 FAKE [1/3] dst=216.239.38.60:443 len=517 seq=0x56830E11 ack=0xBED0F903 flags=0x18
+10:13:57 [INFO   ] BypassEngine: 📤 REAL [2/3] dst=216.239.38.60:443 len=514 seq=0x56830E14 ack=0xBED0F903 flags=0x19
+10:13:57 [INFO   ] BypassEngine: 📤 REAL [3/3] dst=216.239.38.60:443 len=3 seq=0x56830E11 ack=0xBED0F903 flags=0x19
+10:13:57 [INFO   ] unified_engine: ✗ Провал: ни один сайт не заработал. Причина: NO_SITES_WORKING
+10:13:57 [INFO   ] unified_engine:    Telemetry: SegsSent=0 FakesSent=0 CH=312 SH=88 RST=1
+10:13:57 [INFO   ] unified_engine: Knowledge base updated and saved after successful strategy tests
+[SAVE] Updating adaptive learning cache...
+10:13:57 [INFO   ] core.attack_mapping: Building mappings for 162 registered attacks
+10:13:57 [INFO   ] core.bypass.attacks.combo.multi_flow_correlation: Registered 4 default traffic profiles
+10:13:57 [INFO   ] ZapretStrategy: Zapret strategy initialized: methods=['fake', 'fakeddisorder'], split=297, ttl=51
+10:13:57 [INFO   ] FixedFakeDisorderAttack.fake_disorder_fixed: 🔧 Инициализация ИСПРАВЛЕННОЙ fakeddisorder атаки
+10:13:57 [INFO   ] FixedFakeDisorderAttack.fake_disorder_fixed:    split_pos=76, split_seqovl=336
+10:13:57 [INFO   ] FixedFakeDisorderAttack.fake_disorder_fixed:    ttl=1, autottl=None
+10:13:57 [INFO   ] FixedFakeDisorderAttack.fake_disorder_fixed:    fooling=['md5sig', 'badsum', 'badseq']
+10:13:57 [INFO   ] core.attack_mapping: Successfully mapped 162 attacks across 9 categories
+
+Strategy Testing Results
+
+[OK] Found 4 working strategies!
+1. Success: 48% (12/25), Latency: 1279.2ms
+   Strategy: --dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badseq
+2. Success: 48% (12/25), Latency: 1448.8ms
+   Strategy: --dpi-desync=fake,multidisorder --dpi-desync-split-pos=3,10 --dpi-desync-fooling=badseq
+3. Success: 48% (12/25), Latency: 1571.5ms
+   Strategy: --dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-split-pos=76 --dpi-desync-ttl=3
+4. Success: 48% (12/25), Latency: 1701.8ms
+   Strategy: fakeddisorder(fooling=['badsum'], overlap_size=0, split_pos=76, ttl=3)

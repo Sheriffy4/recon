@@ -1,0 +1,382 @@
+Raw Params: --dpi-desync=fake,disorder --dpi-desync-split-pos=cipher --dpi-desync-seqovl=1 --dpi-desync-autottl=-1
+Launching Zapret with a strategy 1/11: --dpi-desync=fake,disorder --dpi-desync-split-pos=cipher --dpi-desync-seqovl=1 --dpi-desync-autottl=-1
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 3140.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 3172.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 2156.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2187.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 2062.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 2281.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 2328.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 2375.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 2016.00 ms (Error: Timeout)
+WORKING    	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 750.00 ms (HTTP: 400)
+WORKING    	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 765.00 ms (HTTP: 400)
+NOT WORKING 	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 3140.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 3172.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2078.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2078.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2140.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 2062.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 3140.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 2593.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 3140.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 2656.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 2078.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 2250.00 ms (Error: Timeout)
+Successes: 2/27
+
+Raw Params: --dpi-desync=fake,disorder --dpi-desync-split-pos=118   --dpi-desync-seqovl=2 --dpi-desync-autottl=-2
+Launching Zapret with a strategy 2/11: --dpi-desync=fake,disorder --dpi-desync-split-pos=118   --dpi-desync-seqovl=2 --dpi-desync-autottl=-2
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 2016.00 ms (Error: Timeout)
+WORKING    	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 344.00 ms (HTTP: 400)
+WORKING    	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 219.00 ms (HTTP: 400)
+NOT WORKING 	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 2031.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 2016.00 ms (Error: Timeout)
+Successes: 2/27
+
+Raw Params: --dpi-desync=fake,disorder --dpi-desync-split-pos=76    --dpi-desync-seqovl=3 --dpi-desync-autottl=-1
+Launching Zapret with a strategy 3/11: --dpi-desync=fake,disorder --dpi-desync-split-pos=76    --dpi-desync-seqovl=3 --dpi-desync-autottl=-1
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2031.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 2031.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 2031.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 2031.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 2000.00 ms (Error: Timeout)
+WORKING    	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 281.00 ms (HTTP: 400)
+WORKING    	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 328.00 ms (HTTP: 400)
+NOT WORKING 	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2031.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 2031.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 2031.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 2015.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 2031.00 ms (Error: Timeout)
+Successes: 2/27
+
+Raw Params: --dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-ttl=3 --dpi-desync-split-pos=76
+Launching Zapret with a strategy 4/11: --dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-ttl=3 --dpi-desync-split-pos=76
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 2015.00 ms (Error: Timeout)
+WORKING    	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 297.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 390.00 ms (HTTP: 404) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 375.00 ms (HTTP: 404)
+WORKING    	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 218.00 ms (HTTP: 204) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 812.00 ms (HTTP: 400)
+WORKING    	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 250.00 ms (HTTP: 404)
+WORKING    	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 265.00 ms (HTTP: 404)
+WORKING    	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 265.00 ms (HTTP: 404)
+WORKING    	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 1140.00 ms (HTTP: 200)
+WORKING    	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 281.00 ms (HTTP: 400)
+WORKING    	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 265.00 ms (HTTP: 400)
+WORKING    	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 375.00 ms (HTTP: 200)
+WORKING    	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 187.00 ms (HTTP: 200)
+WORKING    	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 390.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 406.00 ms (HTTP: 200)
+WORKING    	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 250.00 ms (HTTP: 204) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 375.00 ms (HTTP: 404)
+WORKING    	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 937.00 ms (HTTP: 400)
+WORKING    	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 297.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 422.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 562.00 ms (HTTP: 400)
+WORKING    	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 1000.00 ms (HTTP: 200)
+WORKING    	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 265.00 ms (HTTP: 200)
+WORKING    	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 313.00 ms (HTTP: 200)
+WORKING    	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 453.00 ms (HTTP: 200)
+WORKING    	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 390.00 ms (HTTP: 405)
+Successes: 26/27
+
+Raw Params: --dpi-desync=split --dpi-desync-split-pos=64
+Launching Zapret with a strategy 5/11: --dpi-desync=split --dpi-desync-split-pos=64
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 203.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 141.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 219.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 156.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 171.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 172.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 515.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 218.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 281.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 359.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 234.00 ms (Error: ClientConnectionError: ClientConnectorError)
+NOT WORKING 	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 141.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 156.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 141.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 171.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 172.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 218.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 141.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 172.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 171.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 172.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 203.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 94.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorError)
+NOT WORKING 	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 437.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+Successes: 0/27
+
+Raw Params: --dpi-desync=split --dpi-desync-split-pos=105
+Launching Zapret with a strategy 6/11: --dpi-desync=split --dpi-desync-split-pos=105
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 203.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 140.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 203.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 171.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 515.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 218.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 296.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 343.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 203.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 140.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 156.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 140.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 171.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 171.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 125.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 171.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 188.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 125.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 188.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 93.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 171.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 484.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+Successes: 0/27
+
+Raw Params: --dpi-desync=split --dpi-desync-split-pos=297
+Launching Zapret with a strategy 7/11: --dpi-desync=split --dpi-desync-split-pos=297
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 172.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 328.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 219.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 188.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 125.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 110.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 78.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 172.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 2016.00 ms (Error: Timeout)
+Successes: 0/27
+
+Raw Params: --dpi-desync=split --dpi-desync-split-pos=313
+Launching Zapret with a strategy 8/11: --dpi-desync=split --dpi-desync-split-pos=313
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 172.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 344.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 172.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 203.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 125.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 187.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 2047.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 94.00 ms (Error: ClientConnectionError: ClientConnectorSSLError)
+NOT WORKING 	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 2000.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 2047.00 ms (Error: Timeout)
+Successes: 0/27
+
+Raw Params: --dpi-desync=multisplit --dpi-desync-split-pos=64 --dpi-desync-autottl=1
+Launching Zapret with a strategy 9/11: --dpi-desync=multisplit --dpi-desync-split-pos=64 --dpi-desync-autottl=1
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 2032.00 ms (Error: Timeout)
+WORKING    	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 234.00 ms (HTTP: 400)
+WORKING    	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 234.00 ms (HTTP: 400)
+NOT WORKING 	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 3157.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 2016.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 2032.00 ms (Error: Timeout)
+NOT WORKING 	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 2016.00 ms (Error: Timeout)
+Successes: 2/27
+
+Raw Params: --dpi-desync=multidisorder --dpi-desync-split-pos=64
+Launching Zapret with a strategy 10/11: --dpi-desync=multidisorder --dpi-desync-split-pos=64
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 2031.00 ms (Error: Timeout)
+WORKING    	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 297.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 406.00 ms (HTTP: 404) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 359.00 ms (HTTP: 404)
+WORKING    	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 234.00 ms (HTTP: 204) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 812.00 ms (HTTP: 400)
+WORKING    	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 281.00 ms (HTTP: 404)
+WORKING    	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 234.00 ms (HTTP: 404)
+WORKING    	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 250.00 ms (HTTP: 404)
+WORKING    	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 1297.00 ms (HTTP: 200)
+WORKING    	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 250.00 ms (HTTP: 400)
+WORKING    	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 281.00 ms (HTTP: 400)
+WORKING    	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 391.00 ms (HTTP: 200)
+WORKING    	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 219.00 ms (HTTP: 200)
+WORKING    	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 266.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 453.00 ms (HTTP: 200)
+WORKING    	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 218.00 ms (HTTP: 204) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 390.00 ms (HTTP: 404)
+WORKING    	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 781.00 ms (HTTP: 400)
+WORKING    	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 281.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 375.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 546.00 ms (HTTP: 400)
+WORKING    	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 1016.00 ms (HTTP: 200)
+WORKING    	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 281.00 ms (HTTP: 200)
+WORKING    	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 328.00 ms (HTTP: 200)
+WORKING    	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 437.00 ms (HTTP: 200)
+WORKING    	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 343.00 ms (HTTP: 405)
+Successes: 26/27
+
+Raw Params: --dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=3
+Launching Zapret with a strategy 11/11: --dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=3
+Making requests, pass 1/1...
+Displaying results...
+NOT WORKING 	URL: https://abs-0.twimg.com | IP: 104.244.43.131:443 | Latency: 2016.00 ms (Error: Timeout)
+WORKING    	URL: https://abs.twimg.com | IP: 199.232.172.159:443 | Latency: 360.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://api.x.com | IP: 172.66.0.227:443 | Latency: 547.00 ms (HTTP: 404) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://edge-chat.instagram.com | IP: 31.13.72.53:443 | Latency: 328.00 ms (HTTP: 404)
+WORKING    	URL: https://external.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 203.00 ms (HTTP: 204) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://facebook.com | IP: 31.13.72.36:443 | Latency: 813.00 ms (HTTP: 400)
+WORKING    	URL: https://i.ytimg.com | IP: 216.58.210.150:443 | Latency: 266.00 ms (HTTP: 404)
+WORKING    	URL: https://i1.ytimg.com | IP: 216.58.210.174:443 | Latency: 235.00 ms (HTTP: 404)
+WORKING    	URL: https://i2.ytimg.com | IP: 216.239.38.60:443 | Latency: 219.00 ms (HTTP: 404)
+WORKING    	URL: https://instagram.com | IP: 157.240.245.174:443 | Latency: 1203.00 ms (HTTP: 200)
+WORKING    	URL: https://lh3.ggpht.com | IP: 216.58.209.161:443 | Latency: 235.00 ms (HTTP: 400)
+WORKING    	URL: https://lh4.ggpht.com | IP: 216.58.209.161:443 | Latency: 266.00 ms (HTTP: 400)
+WORKING    	URL: https://mobile.x.com | IP: 162.159.140.229:443 | Latency: 360.00 ms (HTTP: 200)
+WORKING    	URL: https://nnmclub.to | IP: 104.21.112.1:443 | Latency: 188.00 ms (HTTP: 200)
+WORKING    	URL: https://pbs.twimg.com | IP: 104.18.37.127:443 | Latency: 360.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://rutracker.org | IP: 104.21.32.39:443 | Latency: 438.00 ms (HTTP: 200)
+WORKING    	URL: https://scontent-arn2-1.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 219.00 ms (HTTP: 204) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://static.cdninstagram.com | IP: 31.13.72.53:443 | Latency: 344.00 ms (HTTP: 404)
+WORKING    	URL: https://static.xx.fbcdn.net | IP: 31.13.72.12:443 | Latency: 813.00 ms (HTTP: 400)
+WORKING    	URL: https://ton.twimg.com | IP: 199.232.172.159:443 | Latency: 297.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://video.twimg.com | IP: 199.232.172.158:443 | Latency: 360.00 ms (HTTP: 400) (Error: ReadError: IncompleteReadError)
+WORKING    	URL: https://www.facebook.com | IP: 31.13.72.36:443 | Latency: 563.00 ms (HTTP: 400)
+WORKING    	URL: https://www.x.com | IP: 162.159.140.229:443 | Latency: 1219.00 ms (HTTP: 200)
+WORKING    	URL: https://www.youtube.com | IP: 173.194.221.198:443 | Latency: 297.00 ms (HTTP: 200)
+WORKING    	URL: https://x.com | IP: 172.66.0.227:443 | Latency: 313.00 ms (HTTP: 200)
+WORKING    	URL: https://youtube.com | IP: 216.58.209.174:443 | Latency: 422.00 ms (HTTP: 200)
+WORKING    	URL: https://youtubei.googleapis.com | IP: 216.239.34.223:443 | Latency: 328.00 ms (HTTP: 405)
+Successes: 26/27
+
+
+--- All strategies have been tested, displaying final results ---
+
+Strategies with 26/27 successes:
+--dpi-desync=fake,disorder --dpi-desync-fooling=badsum --dpi-desync-ttl=3 --dpi-desync-split-pos=76
+--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=3
+--dpi-desync=multidisorder --dpi-desync-split-pos=64
+
+Strategies with 2/27 successes:
+--dpi-desync=fake,disorder --dpi-desync-split-pos=118   --dpi-desync-seqovl=2 --dpi-desync-autottl=-2
+--dpi-desync=fake,disorder --dpi-desync-split-pos=76    --dpi-desync-seqovl=3 --dpi-desync-autottl=-1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=cipher --dpi-desync-seqovl=1 --dpi-desync-autottl=-1
+--dpi-desync=multisplit --dpi-desync-split-pos=64 --dpi-desync-autottl=1
+
+Strategies with 0/27 successes:
+--dpi-desync=split --dpi-desync-split-pos=105
+--dpi-desync=split --dpi-desync-split-pos=297
+--dpi-desync=split --dpi-desync-split-pos=313
+--dpi-desync=split --dpi-desync-split-pos=64

@@ -6,15 +6,17 @@ async def brute_force_domains(domains: List[str], port: int = 443, max_per_attac
     from core.bypass.attacks.registry import AttackRegistry
     from core.dependencies import DependencyInjector
 from core.dns.robust_dns_handler import RobustDNSHandler
-from core.hybrid_engine import HybridEngine
+from core.unified_bypass_engine import UnifiedBypassEngine
 from core.utils.logging_helpers import setup_logging
 from core.config import load_config
     from core.pcap.enhanced_packet_capturer import create_enhanced_packet_capturer
     attacks = AttackRegistry.list()  # ожидается список имён
-    engine = HybridEngine(debug=False, enable_advanced_fingerprinting=False, enable_modern_bypass=False, enable_enhanced_tracking=True)
+    from core.unified_bypass_engine import UnifiedEngineConfig
+    config = UnifiedEngineConfig(debug=False)
+    engine = UnifiedBypassEngine(config)
     results = []
     for domain in domains:
-        dns_cache = {domain: None}  # HybridEngine резолвит сам
+        dns_cache = {domain: None}  # UnifiedBypassEngine резолвит сам
         ips = set()
         capturer = create_enhanced_packet_capturer(f"bf_{domain}_{int(time.time())}.pcap", target_ips=ips, port=port)
         strategies = []

@@ -1,0 +1,406 @@
+{
+  "validation_summary": {
+    "timestamp": "2025-10-09T10:12:17.776355",
+    "total_tests": 8,
+    "successful_tests": 8,
+    "failed_tests": 0,
+    "success_rate": 1.0,
+    "total_duration": 0.12000179290771484,
+    "total_packets_analyzed": 14,
+    "total_strategy_applications": 6
+  },
+  "test_results": [
+    {
+      "test_name": "baseline_no_dpi",
+      "config": {
+        "test_name": "baseline_no_dpi",
+        "dpi_desync_mode": "split",
+        "split_positions": [],
+        "fooling_methods": [],
+        "target_domain": "youtube.com",
+        "capture_duration": 30,
+        "output_dir": "test_results"
+      },
+      "success": true,
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\baseline_no_dpi_20251009_101217.pcap",
+      "analysis_results": {
+        "total_packets": 1,
+        "tcp_packets": 1,
+        "split_packets_detected": 0,
+        "badsum_packets_detected": 0,
+        "sni_splits_detected": 0,
+        "position_3_splits": 0,
+        "position_10_splits": 0,
+        "strategy_applications": 0,
+        "packet_sizes": [],
+        "checksum_analysis": {},
+        "split_position_analysis": {},
+        "errors": [],
+        "split_effectiveness": 0.0,
+        "badsum_effectiveness": 0.0
+      },
+      "performance_metrics": {
+        "test_duration": 0.011484146118164062,
+        "packets_processed": 1,
+        "strategy_applications": 0,
+        "success_rate": 1.0
+      },
+      "errors": [],
+      "timestamp": "2025-10-09T10:12:17.669313"
+    },
+    {
+      "test_name": "split_position_3",
+      "config": {
+        "test_name": "split_position_3",
+        "dpi_desync_mode": "split",
+        "split_positions": [
+          "3"
+        ],
+        "fooling_methods": [],
+        "target_domain": "youtube.com",
+        "capture_duration": 30,
+        "output_dir": "test_results"
+      },
+      "success": true,
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_3_20251009_101217.pcap",
+      "analysis_results": {
+        "total_packets": 2,
+        "tcp_packets": 2,
+        "split_packets_detected": 1,
+        "badsum_packets_detected": 0,
+        "sni_splits_detected": 0,
+        "position_3_splits": 1,
+        "position_10_splits": 0,
+        "strategy_applications": 1,
+        "packet_sizes": [
+          3,
+          169
+        ],
+        "checksum_analysis": {},
+        "split_position_analysis": {},
+        "errors": [],
+        "split_effectiveness": 0.5,
+        "badsum_effectiveness": 0.0
+      },
+      "performance_metrics": {
+        "test_duration": 0.016538381576538086,
+        "packets_processed": 2,
+        "strategy_applications": 1,
+        "success_rate": 1.0
+      },
+      "errors": [],
+      "timestamp": "2025-10-09T10:12:17.688846"
+    },
+    {
+      "test_name": "split_position_10",
+      "config": {
+        "test_name": "split_position_10",
+        "dpi_desync_mode": "split",
+        "split_positions": [
+          "10"
+        ],
+        "fooling_methods": [],
+        "target_domain": "youtube.com",
+        "capture_duration": 30,
+        "output_dir": "test_results"
+      },
+      "success": true,
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_10_20251009_101217.pcap",
+      "analysis_results": {
+        "total_packets": 2,
+        "tcp_packets": 2,
+        "split_packets_detected": 0,
+        "badsum_packets_detected": 0,
+        "sni_splits_detected": 0,
+        "position_3_splits": 0,
+        "position_10_splits": 0,
+        "strategy_applications": 0,
+        "packet_sizes": [
+          162
+        ],
+        "checksum_analysis": {},
+        "split_position_analysis": {},
+        "errors": [],
+        "split_effectiveness": 0.0,
+        "badsum_effectiveness": 0.0
+      },
+      "performance_metrics": {
+        "test_duration": 0.013997316360473633,
+        "packets_processed": 2,
+        "strategy_applications": 0,
+        "success_rate": 1.0
+      },
+      "errors": [],
+      "timestamp": "2025-10-09T10:12:17.705132"
+    },
+    {
+      "test_name": "split_position_sni",
+      "config": {
+        "test_name": "split_position_sni",
+        "dpi_desync_mode": "split",
+        "split_positions": [
+          "sni"
+        ],
+        "fooling_methods": [],
+        "target_domain": "youtube.com",
+        "capture_duration": 30,
+        "output_dir": "test_results"
+      },
+      "success": true,
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_position_sni_20251009_101217.pcap",
+      "analysis_results": {
+        "total_packets": 2,
+        "tcp_packets": 2,
+        "split_packets_detected": 0,
+        "badsum_packets_detected": 0,
+        "sni_splits_detected": 0,
+        "position_3_splits": 0,
+        "position_10_splits": 0,
+        "strategy_applications": 0,
+        "packet_sizes": [
+          129
+        ],
+        "checksum_analysis": {},
+        "split_position_analysis": {},
+        "errors": [],
+        "split_effectiveness": 0.0,
+        "badsum_effectiveness": 0.0
+      },
+      "performance_metrics": {
+        "test_duration": 0.012778282165527344,
+        "packets_processed": 2,
+        "strategy_applications": 0,
+        "success_rate": 1.0
+      },
+      "errors": [],
+      "timestamp": "2025-10-09T10:12:17.718912"
+    },
+    {
+      "test_name": "badsum_only",
+      "config": {
+        "test_name": "badsum_only",
+        "dpi_desync_mode": "split",
+        "split_positions": [],
+        "fooling_methods": [
+          "badsum"
+        ],
+        "target_domain": "youtube.com",
+        "capture_duration": 30,
+        "output_dir": "test_results"
+      },
+      "success": true,
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\badsum_only_20251009_101217.pcap",
+      "analysis_results": {
+        "total_packets": 1,
+        "tcp_packets": 1,
+        "split_packets_detected": 0,
+        "badsum_packets_detected": 0,
+        "sni_splits_detected": 0,
+        "position_3_splits": 0,
+        "position_10_splits": 0,
+        "strategy_applications": 0,
+        "packet_sizes": [],
+        "checksum_analysis": {},
+        "split_position_analysis": {},
+        "errors": [],
+        "split_effectiveness": 0.0,
+        "badsum_effectiveness": 0.0
+      },
+      "performance_metrics": {
+        "test_duration": 0.004385471343994141,
+        "packets_processed": 1,
+        "strategy_applications": 0,
+        "success_rate": 1.0
+      },
+      "errors": [],
+      "timestamp": "2025-10-09T10:12:17.724349"
+    },
+    {
+      "test_name": "split_3_10_with_badsum",
+      "config": {
+        "test_name": "split_3_10_with_badsum",
+        "dpi_desync_mode": "split",
+        "split_positions": [
+          "3",
+          "10"
+        ],
+        "fooling_methods": [
+          "badsum"
+        ],
+        "target_domain": "youtube.com",
+        "capture_duration": 30,
+        "output_dir": "test_results"
+      },
+      "success": true,
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_3_10_with_badsum_20251009_101217.pcap",
+      "analysis_results": {
+        "total_packets": 2,
+        "tcp_packets": 2,
+        "split_packets_detected": 1,
+        "badsum_packets_detected": 1,
+        "sni_splits_detected": 0,
+        "position_3_splits": 1,
+        "position_10_splits": 0,
+        "strategy_applications": 2,
+        "packet_sizes": [
+          3,
+          169
+        ],
+        "checksum_analysis": {},
+        "split_position_analysis": {},
+        "errors": [],
+        "split_effectiveness": 0.5,
+        "badsum_effectiveness": 0.5
+      },
+      "performance_metrics": {
+        "test_duration": 0.014295578002929688,
+        "packets_processed": 2,
+        "strategy_applications": 2,
+        "success_rate": 1.0
+      },
+      "errors": [],
+      "timestamp": "2025-10-09T10:12:17.741635"
+    },
+    {
+      "test_name": "split_sni_with_badsum",
+      "config": {
+        "test_name": "split_sni_with_badsum",
+        "dpi_desync_mode": "split",
+        "split_positions": [
+          "sni"
+        ],
+        "fooling_methods": [
+          "badsum"
+        ],
+        "target_domain": "youtube.com",
+        "capture_duration": 30,
+        "output_dir": "test_results"
+      },
+      "success": true,
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\split_sni_with_badsum_20251009_101217.pcap",
+      "analysis_results": {
+        "total_packets": 2,
+        "tcp_packets": 2,
+        "split_packets_detected": 0,
+        "badsum_packets_detected": 1,
+        "sni_splits_detected": 0,
+        "position_3_splits": 0,
+        "position_10_splits": 0,
+        "strategy_applications": 1,
+        "packet_sizes": [
+          129
+        ],
+        "checksum_analysis": {},
+        "split_position_analysis": {},
+        "errors": [],
+        "split_effectiveness": 0.0,
+        "badsum_effectiveness": 0.5
+      },
+      "performance_metrics": {
+        "test_duration": 0.01724410057067871,
+        "packets_processed": 2,
+        "strategy_applications": 1,
+        "success_rate": 1.0
+      },
+      "errors": [],
+      "timestamp": "2025-10-09T10:12:17.759873"
+    },
+    {
+      "test_name": "full_strategy_test",
+      "config": {
+        "test_name": "full_strategy_test",
+        "dpi_desync_mode": "split",
+        "split_positions": [
+          "3",
+          "10",
+          "sni"
+        ],
+        "fooling_methods": [
+          "badsum"
+        ],
+        "target_domain": "youtube.com",
+        "capture_duration": 30,
+        "output_dir": "test_results"
+      },
+      "success": true,
+      "pcap_file": "test_validation_fixed\\end_to_end_tests\\full_strategy_test_20251009_101217.pcap",
+      "analysis_results": {
+        "total_packets": 2,
+        "tcp_packets": 2,
+        "split_packets_detected": 1,
+        "badsum_packets_detected": 1,
+        "sni_splits_detected": 0,
+        "position_3_splits": 1,
+        "position_10_splits": 0,
+        "strategy_applications": 2,
+        "packet_sizes": [
+          3,
+          169
+        ],
+        "checksum_analysis": {},
+        "split_position_analysis": {},
+        "errors": [],
+        "split_effectiveness": 0.5,
+        "badsum_effectiveness": 0.5
+      },
+      "performance_metrics": {
+        "test_duration": 0.008973121643066406,
+        "packets_processed": 2,
+        "strategy_applications": 2,
+        "success_rate": 1.0
+      },
+      "errors": [],
+      "timestamp": "2025-10-09T10:12:17.775361"
+    }
+  ],
+  "strategy_effectiveness": {
+    "split_position_3": {
+      "tests": 3,
+      "successes": 3,
+      "avg_applications": 1.0,
+      "success_rate": 1.0
+    },
+    "split_position_10": {
+      "tests": 3,
+      "successes": 3,
+      "avg_applications": 0.0,
+      "success_rate": 1.0
+    },
+    "split_position_sni": {
+      "tests": 3,
+      "successes": 3,
+      "avg_applications": 0.0,
+      "success_rate": 1.0
+    },
+    "badsum_fooling": {
+      "tests": 4,
+      "successes": 4,
+      "avg_applications": 0.75,
+      "success_rate": 1.0
+    },
+    "combined_strategies": {
+      "tests": 4,
+      "successes": 4,
+      "avg_applications": 1.25,
+      "success_rate": 1.0
+    }
+  },
+  "performance_analysis": {
+    "average_test_duration": 0.012462049722671509,
+    "min_test_duration": 0.004385471343994141,
+    "max_test_duration": 0.01724410057067871,
+    "total_packets_processed": 14,
+    "average_packets_per_test": 1.75,
+    "throughput_packets_per_second": 14.0
+  },
+  "recommendations": [
+    "All strategies are performing well. Continue with current implementation."
+  ],
+  "issues_found": [],
+  "next_steps": [
+    "All tests passed successfully",
+    "Consider running tests with real network traffic",
+    "Implement performance optimizations if needed",
+    "Deploy to production environment with monitoring"
+  ]
+}
