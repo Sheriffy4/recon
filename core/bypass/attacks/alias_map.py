@@ -1,5 +1,4 @@
 # core/attacks/alias_map.py
-import re
 
 _ALIAS_MAP = {
     # fakeddisorder family
@@ -31,7 +30,10 @@ _ALIAS_MAP = {
     "disorder": "disorder",
     "tcp_split": "split",
     "tcp_disorder": "disorder",
+    "filter-udp": "fakeddisorder",
+    "force_tcp": "fakeddisorder",
 }
+
 
 def normalize_attack_name(name: str) -> str:
     if not name:

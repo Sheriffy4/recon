@@ -18,7 +18,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 @register_attack
@@ -36,7 +36,7 @@ class XORPayloadEncryptionAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -45,6 +45,19 @@ class XORPayloadEncryptionAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "key_strategy": "random",
+            "key_length": 32,
+            "key_rotation": False,
+            "include_header": True,
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute XOR payload encryption attack."""
@@ -213,7 +226,7 @@ class AESPayloadEncryptionAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -222,6 +235,19 @@ class AESPayloadEncryptionAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "mode": "CTR",
+            "key_size": 256,
+            "include_iv": True,
+            "padding_scheme": "PKCS7",
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute AES payload encryption attack."""
@@ -348,7 +374,7 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -357,6 +383,17 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "use_poly1305": False,
+            "nonce_strategy": "random",
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ChaCha20 payload encryption attack."""
@@ -486,7 +523,7 @@ class MultiLayerEncryptionAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -495,6 +532,17 @@ class MultiLayerEncryptionAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "layers": ["xor", "aes", "chacha20"],
+            "key_derivation": "pbkdf2",
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute multi-layer encryption attack."""

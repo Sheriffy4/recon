@@ -11,7 +11,6 @@ from typing import Dict, List, Optional, Any
 from enum import Enum
 
 # ### FIX 2: Import standardized models ###
-from .unified_models import DNSAnalysisResult, AnalysisStatus
 from dataclasses import dataclass, field
 
 LOG = logging.getLogger(__name__)

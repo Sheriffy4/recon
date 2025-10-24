@@ -240,7 +240,9 @@ def action_start_service():
     command = [SERVICE_SCRIPT]
 
     # Спрашиваем про запись PCAP
-    if Confirm.ask("\n[bold]Включить запись PCAP файла для отладки?[/bold]", default=False):
+    if Confirm.ask(
+        "\n[bold]Включить запись PCAP файла для отладки?[/bold]", default=False
+    ):
         default_pcap_name = f"service_capture_{_get_timestamp()}.pcap"
         pcap_filename = Prompt.ask(
             "Введите имя файла для сохранения трафика", default=default_pcap_name
@@ -258,11 +260,15 @@ def action_show_help():
     console.print(Panel(help_text, title="[3] Помощь", border_style="yellow"))
     input("\nНажмите Enter, чтобы вернуться в меню...")
 
+
 # <<< НАЧАЛО ИЗМЕНЕНИЙ: Новая вспомогательная функция >>>
 def _get_timestamp():
     """Возвращает текущую временную метку для имени файла."""
     from datetime import datetime
+
     return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
 # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
 if __name__ == "__main__":

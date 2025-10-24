@@ -8,6 +8,7 @@ import logging
 import sys
 import os
 from typing import List, Tuple
+from core.bypass.attacks.attack_registry import register_attack
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)-8s %(message)s")
 LOG = logging.getLogger("AttackStatusSafety")

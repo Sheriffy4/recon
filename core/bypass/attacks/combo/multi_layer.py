@@ -14,7 +14,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 @register_attack
@@ -39,6 +39,14 @@ class TCPHTTPComboAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"segment_size": 32, "header_case": "random"}
+    
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TCP + HTTP combo attack."""
         start_time = time.time()
@@ -180,6 +188,14 @@ class TLSFragmentationComboAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"fragment_size": 64, "tls_record_split": True}
+    
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS + Fragmentation combo attack."""
         start_time = time.time()
@@ -330,6 +346,18 @@ class PayloadTunnelingComboAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "obfuscation_type": "xor",
+            "tunnel_protocol": "dns",
+            "encryption_key": b"default_key_123",
+        }
+    
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute Payload + Tunneling combo attack."""
         start_time = time.time()
@@ -518,6 +546,16 @@ class AdaptiveMultiLayerAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        """This attack has no required parameters as it adapts automatically."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Optional parameters to control the adaptation level."""
+        return {"adaptation_level": "medium"}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute adaptive multi-layer attack."""

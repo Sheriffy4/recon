@@ -1,9 +1,12 @@
+# core/bypass/attacks/combo/baseline.py
+
 """
 Baseline Attack - No modifications applied.
 Used to establish a baseline for bypass effectiveness testing.
 """
 
 import time
+import asyncio
 from typing import List, Optional, Dict, Any
 from core.bypass.attacks.base import (
     BaseAttack,
@@ -11,8 +14,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
-
+from core.bypass.attacks.attack_registry import register_attack
 
 @register_attack
 class BaselineAttack(BaseAttack):
@@ -37,11 +39,24 @@ class BaselineAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
 
+
+    @property
+    def required_params(self) -> List[str]:
+        """Baseline attack requires no parameters."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Baseline attack has no optional parameters."""
+        return {}
+
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute the baseline test."""
         start_time = time.time()
         try:
-            segments = [(context.payload, 0)]
+            # AttackResult ожидает список сегментов в формате (данные, смещение, опции)
+            segments = [(context.payload, 0, {})]
             await asyncio.sleep(0)
             latency = (time.time() - start_time) * 1000
             return AttackResult(

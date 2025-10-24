@@ -905,9 +905,11 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
     tests.append(
         {
             "type": "connectivity",
-            "description": f"Test basic connectivity to {domain, "no_fallbacks": True, "forced": True}",
+            "description": f"Test basic connectivity to {domain}",
             "ports": [80, 443],
             "timeout": 10,
+            "no_fallbacks": True, 
+            "forced": True
         }
     )
     if platform == PlatformType.YOUTUBE:
@@ -916,8 +918,10 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
                 {
                     "type": "video_streaming",
                     "description": "Test video streaming capability",
-                    "test_urls": [f"https://{domain, "no_fallbacks": True, "forced": True}/test_video"],
+                    "test_urls": [f"https://{domain}/test_video"],
                     "expected_content_type": "video/*",
+                    "no_fallbacks": True, 
+                    "forced": True
                 }
             )
     elif platform == PlatformType.TWITTER:
@@ -926,8 +930,10 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
                 {
                     "type": "image_loading",
                     "description": "Test image loading capability",
-                    "test_urls": [f"https://{domain, "no_fallbacks": True, "forced": True}/test_image.jpg"],
+                    "test_urls": [f"https://{domain}/test_image.jpg"],
                     "expected_content_type": "image/*",
+                    "no_fallbacks": True, 
+                    "forced": True
                 }
             )
     recommendations = handler.get_subdomain_recommendations(domain)
@@ -935,9 +941,11 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
         tests.append(
             {
                 "type": "strategy_test",
-                "description": f"Test {strategy.name, "no_fallbacks": True, "forced": True} strategy",
+                "description": f"Test {strategy.name} strategy",
                 "strategy": strategy,
                 "confidence": confidence,
+                "no_fallbacks": True, 
+                "forced": True
             }
         )
     return tests

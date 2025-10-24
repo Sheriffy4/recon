@@ -1,15 +1,15 @@
 import time
-import random
 import logging
-from typing import List
+from typing import List, Dict, Any
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
-from core.integration.advanced_attack_registry import get_advanced_attack_registry
+from core.bypass.attacks.base import BaseAttack
+from core.bypass.attacks.metadata import AttackCategories
+from core.bypass.attacks.attack_registry import register_attack
 
 LOG = logging.getLogger(__name__)
 
 
-class StatefulFragmentationAttack(AdvancedAttack):
+class StatefulFragmentationAttack(BaseAttack):
     """
     Sends a fragmented payload with a garbage packet in the middle to confuse stateful DPIs.
     Example sequence for a ClientHello:
@@ -20,7 +20,23 @@ class StatefulFragmentationAttack(AdvancedAttack):
     A less sophisticated DPI might see the garbage and fail to reassemble the stream correctly.
     """
 
-    async def execute(self, context: AttackContext) -> AttackResult:
+    @property
+    def name(self) -> str:
+        return "stateful_fragmentation"
+
+    @property
+    def category(self) -> str:
+        return AttackCategories.TCP
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"split_pos": 10, "garbage_data": b"GARBAGE_PACKET"}
+
+    def execute(self, context: AttackContext) -> AttackResult:
         start_time = time.time()
         try:
             payload = context.payload
@@ -29,7 +45,7 @@ class StatefulFragmentationAttack(AdvancedAttack):
                     status=AttackStatus.INVALID_PARAMS,
                     error_message="Payload too small for stateful fragmentation.",
                 )
-            params = {**self.config.default_params, **context.params}
+            params = context.params
             split_pos = params.get("split_pos", 10)
             garbage_data_param = params.get("garbage_data", b"GARBAGE_PACKET")
             garbage_data = (
@@ -75,7 +91,7 @@ class StatefulFragmentationAttack(AdvancedAttack):
             )
 
 
-class AdvancedOverlapAttack(AdvancedAttack):
+class AdvancedOverlapAttack(BaseAttack):
     """
     Sends overlapping TCP segments with different data.
     - Segment 1 (for DPI): Contains `dpi_payload`
@@ -84,7 +100,23 @@ class AdvancedOverlapAttack(AdvancedAttack):
     A simple DPI might inspect the `dpi_payload` and miss the real data.
     """
 
-    async def execute(self, context: AttackContext) -> AttackResult:
+    @property
+    def name(self) -> str:
+        return "advanced_overlap"
+
+    @property
+    def category(self) -> str:
+        return AttackCategories.TCP
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"dpi_payload": b"GET / HTTP/1.1\\r\\nHost: example.com\\r\\n\\r\\n"}
+
+    def execute(self, context: AttackContext) -> AttackResult:
         start_time = time.time()
         try:
             real_payload = context.payload
@@ -93,7 +125,7 @@ class AdvancedOverlapAttack(AdvancedAttack):
                     status=AttackStatus.INVALID_PARAMS,
                     error_message="Payload is empty.",
                 )
-            params = {**self.config.default_params, **context.params}
+            params = context.params
             dpi_payload_param = params.get("dpi_payload", b"GET / HTTP/1.1\\r\\n\\r\\n")
             dpi_payload = (
                 dpi_payload_param.encode()
@@ -130,36 +162,5 @@ class AdvancedOverlapAttack(AdvancedAttack):
             )
 
 
-stateful_fragment_config = AdvancedAttackConfig(
-    name="stateful_fragment",
-    priority=20,
-    complexity="High",
-    target_protocols=["tcp", "tls"],
-    dpi_signatures=["stateful_dpi", "ROSKOMNADZOR_TSPU", "generic_stateful_inspector"],
-    description="Injects a garbage packet between two valid fragments to confuse stateful DPI.",
-    default_params={"split_pos": 10, "garbage_data": b"GARBAGE_PACKET_CONTENT"},
-    learning_enabled=True,
-)
-advanced_overlap_config = AdvancedAttackConfig(
-    name="advanced_overlap",
-    priority=15,
-    complexity="High",
-    target_protocols=["tcp", "tls"],
-    dpi_signatures=["signature_matching_dpi", "generic_proxy"],
-    description="Uses overlapping segments with different data for DPI and host to cause desync.",
-    default_params={
-        "dpi_payload": b"GET / HTTP/1.1\\r\\nHost: example.com\\r\\n\\r\\n"
-    },
-    learning_enabled=True,
-)
-try:
-    registry = get_advanced_attack_registry()
-    registry.register_attack(StatefulFragmentationAttack, stateful_fragment_config)
-    registry.register_attack(AdvancedOverlapAttack, advanced_overlap_config)
-    LOG.info(
-        "Successfully registered stateful and overlap attacks with AdvancedAttackRegistry."
-    )
-except Exception as e:
-    LOG.error(
-        f"Failed to register stateful/overlap attacks with AdvancedAttackRegistry: {e}"
-    )
+# Note: Attack registration is handled by the @register_attack decorator
+# These classes can be imported and used directly or registered via decorator

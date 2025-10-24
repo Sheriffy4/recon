@@ -22,7 +22,7 @@ except ImportError:
     check_is_fitted = None
 from core.fingerprint.models import EnhancedFingerprint, DPIBehaviorProfile
 from core.fingerprint.analyzer import PacketAnalyzer
-from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.attack_registry import AttackRegistry
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from core.fingerprint.ech_detector import ECHDetector
 from core.interfaces import IProber, IClassifier, IAttackAdapter, IFingerprintEngine
@@ -188,7 +188,11 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         )
         return fp
 
-    async def analyze_dpi_behavior(self, fingerprint: "EnhancedFingerprint", extended_metrics: Optional[Dict[str, Any]] = None) -> "DPIBehaviorProfile":
+    async def analyze_dpi_behavior(
+        self,
+        fingerprint: "EnhancedFingerprint",
+        extended_metrics: Optional[Dict[str, Any]] = None,
+    ) -> "DPIBehaviorProfile":
         """
         Create comprehensive behavioral profile with enhanced behavioral analysis
         """
@@ -372,7 +376,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         self._update_cache(cache_key, refined_fp)
         LOG.info(f"Fingerprint refinement completed for {refined_fp.domain}")
         return refined_fp
-        
+
     def collect_extended_fingerprint_metrics(self, domain: str) -> Dict[str, Any]:
         """
         Сбор расширенных метрик через единую точку правды: ECHDetector.

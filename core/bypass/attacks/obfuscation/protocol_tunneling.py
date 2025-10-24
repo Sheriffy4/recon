@@ -13,14 +13,14 @@ import base64
 import struct
 import hashlib
 import json
-from typing import List
+from typing import List, Dict, Any
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 
 
 @register_attack
@@ -38,7 +38,7 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -47,6 +47,15 @@ class HTTPTunnelingObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP tunneling obfuscation attack."""
@@ -282,7 +291,7 @@ class DNSOverHTTPSTunnelingAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -291,6 +300,15 @@ class DNSOverHTTPSTunnelingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS over HTTPS tunneling attack."""
@@ -424,7 +442,7 @@ class WebSocketTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -433,6 +451,15 @@ class WebSocketTunnelingObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute WebSocket tunneling obfuscation attack."""
@@ -612,7 +639,7 @@ class SSHTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -621,6 +648,15 @@ class SSHTunnelingObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute SSH tunneling obfuscation attack."""
@@ -797,7 +833,7 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -806,6 +842,15 @@ class VPNTunnelingObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute VPN tunneling obfuscation attack."""

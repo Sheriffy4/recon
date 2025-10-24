@@ -21,13 +21,13 @@ try:
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 
 
 @dataclass
@@ -65,25 +65,31 @@ class BadChecksumRaceAttack(BaseAttack):
     3. DPI may cache the fake packet and miss the real one
     """
 
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {}
+
     def __init__(self, config: Optional[RaceAttackConfig] = None):
         super().__init__()
         self.config = config or RaceAttackConfig()
-        self._name = "badsum_race"
-        self._category = "tcp"
-        self._description = "Race condition with bad checksum fake packet + real packet"
         self._mock_success = True
 
     @property
     def name(self) -> str:
-        return self._name
+        return "badsum_race"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Race condition with bad checksum fake packet + real packet"
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute bad checksum race attack."""
@@ -213,21 +219,26 @@ class LowTTLPoisoningAttack(BaseAttack):
     def __init__(self, config: Optional[RaceAttackConfig] = None):
         super().__init__()
         self.config = config or RaceAttackConfig()
-        self._name = "low_ttl_poisoning"
-        self._category = "tcp"
-        self._description = "Low TTL packets for DPI cache poisoning"
 
     @property
     def name(self) -> str:
-        return self._name
+        return "low_ttl_poisoning"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Low TTL packets for DPI cache poisoning"
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute low TTL poisoning attack."""
@@ -337,21 +348,26 @@ class CacheConfusionAttack(BaseAttack):
     def __init__(self, config: Optional[RaceAttackConfig] = None):
         super().__init__()
         self.config = config or RaceAttackConfig()
-        self._name = "cache_confusion_race"
-        self._category = "tcp"
-        self._description = "Multiple race conditions for DPI cache confusion"
 
     @property
     def name(self) -> str:
-        return self._name
+        return "cache_confusion_race"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Multiple race conditions for DPI cache confusion"
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute cache confusion attack."""
@@ -471,23 +487,26 @@ class MD5SigRaceAttack(BaseAttack):
     def __init__(self, config: Optional[RaceAttackConfig] = None):
         super().__init__()
         self.config = config or RaceAttackConfig()
-        self._name = "md5sig_race"
-        self._category = "tcp"
-        self._description = (
-            "Race condition with MD5 signature fake packet + real packet"
-        )
 
     @property
     def name(self) -> str:
-        return self._name
+        return "md5sig_race"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Race condition with MD5 signature fake packet + real packet"
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute MD5 signature race attack."""

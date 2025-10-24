@@ -63,9 +63,12 @@ class MonitoringWebServer:
 
     async def api_quic(self, request: Request) -> Response:
         """API: QUIC-метрики из базы знаний."""
-        data = {"domain_quic_scores": {}, "note": "PCAP-derived ServerHello/ClientHello ratio"}
+        data = {
+            "domain_quic_scores": {},
+            "note": "PCAP-derived ServerHello/ClientHello ratio",
+        }
         try:
-            from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
+            from core.knowledge.cdn_asn_knowledge_base import CdnAsnKnowledgeBase
             kb = CdnAsnKnowledgeBase()
             data["domain_quic_scores"] = getattr(kb, "domain_quic_scores", {})
         except Exception as e:
@@ -128,8 +131,8 @@ class MonitoringWebServer:
 
     async def api_get_config(self, request: Request) -> Response:
         """API: Получить конфигурацию."""
-        from core.monitoring_system import asdict
 
+        from dataclasses import asdict
         config_dict = asdict(self.monitoring_system.config)
         return web.json_response(config_dict)
 

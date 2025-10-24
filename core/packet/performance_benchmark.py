@@ -8,15 +8,14 @@ import statistics
 import tracemalloc
 import sys
 import os
-from typing import List, Dict, Any
+from typing import List
 from dataclasses import dataclass
 
 # Добавляем путь к проекту
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from recon.core.packet.raw_packet_engine import RawPacketEngine
 from recon.core.packet.scapy_compatibility import ScapyCompatibilityLayer
-from recon.core.packet.packet_models import ProtocolType
 
 
 @dataclass
@@ -436,19 +435,19 @@ class PacketPerformanceBenchmark:
                     compat_result.memory_peak, 1
                 )
 
-                print(f"\n  📊 Сравнение:")
+                print("\n  📊 Сравнение:")
                 print(f"    Ускорение по времени: {time_speedup:.2f}x")
                 print(f"    Соотношение памяти: {memory_ratio:.2f}x")
 
                 if time_speedup > 1.5:
-                    print(f"    ✅ Значительное ускорение!")
+                    print("    ✅ Значительное ускорение!")
                 elif time_speedup > 1.1:
-                    print(f"    ✅ Умеренное ускорение")
+                    print("    ✅ Умеренное ускорение")
                 else:
-                    print(f"    ⚠️ Минимальное ускорение")
+                    print("    ⚠️ Минимальное ускорение")
 
         # Общая статистика
-        print(f"\n📋 Общая статистика:")
+        print("\n📋 Общая статистика:")
         print("-" * 50)
 
         total_operations = len([r for r in self.results if "Побайтовая" in r.method])
@@ -466,11 +465,11 @@ class PacketPerformanceBenchmark:
         print(f"  Среднее ускорение: {avg_speedup:.2f}x")
 
         if avg_speedup > 2.0:
-            print(f"  🚀 Отличная производительность!")
+            print("  🚀 Отличная производительность!")
         elif avg_speedup > 1.5:
-            print(f"  ✅ Хорошая производительность")
+            print("  ✅ Хорошая производительность")
         else:
-            print(f"  ⚠️ Требуется оптимизация")
+            print("  ⚠️ Требуется оптимизация")
 
     def save_results_to_file(self, filename: str = "benchmark_results.json"):
         """Сохранение результатов в файл."""

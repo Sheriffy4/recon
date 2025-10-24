@@ -12,7 +12,7 @@ from statistics import mean, median
 from collections import defaultdict
 from core.bypass.attacks.base import AttackResult, AttackStatus
 from core.integration.integration_config import PerformanceMetrics
-from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.attack_registry import AttackRegistry
 
 LOG = logging.getLogger("ResultProcessor")
 

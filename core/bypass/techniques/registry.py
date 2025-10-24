@@ -6,7 +6,7 @@ from functools import wraps
 import inspect
 
 from core.bypass.types import TechniqueType, TechniqueParams
-from core.bypass.exceptions import TechniqueNotFoundError, InvalidStrategyError
+from core.bypass.exceptions import TechniqueNotFoundError
 from .primitives import BypassTechniques
 
 
@@ -49,7 +49,7 @@ class TechniqueRegistry:
 
         def decorator(func: Callable) -> Callable:
             sig = inspect.signature(func)
-            
+
             # Handle both string and TechniqueType enum
             if isinstance(technique_type, str):
                 technique_name = technique_type
@@ -62,10 +62,10 @@ class TechniqueRegistry:
             else:
                 technique_name = technique_type.value
                 technique_enum = technique_type
-            
+
             info = TechniqueInfo(
                 technique_type=technique_enum,  # May be None if string doesn't match enum
-                name=technique_name, # type: ignore
+                name=technique_name,  # type: ignore
                 category=category,
                 description=description or func.__doc__ or "",
                 implementation=func,
@@ -73,7 +73,7 @@ class TechniqueRegistry:
                 required_params=required_params or [],
                 optional_params=optional_params or [],
                 signature=sig,
-            ) # type: ignore
+            )  # type: ignore
             self._techniques[technique_name] = info
             if category not in self._categories:
                 self._categories[category] = []
@@ -93,10 +93,9 @@ class TechniqueRegistry:
     def get_technique(self, technique_name: str) -> Optional["TechniqueInfo"]:
         """Get technique info by name."""
         technique = self._techniques.get(technique_name)
-        if not technique and technique_name == "disorder": # backward-compat
+        if not technique and technique_name == "disorder":  # backward-compat
             return self._techniques.get("fakeddisorder")
         return technique
-
 
     def get_techniques_by_category(self, category: str) -> List["TechniqueInfo"]:
         """Get all techniques in a category."""
@@ -121,7 +120,7 @@ class TechniqueRegistry:
 
     def apply_technique(
         self, technique_name: str, packet_data: bytes, params: TechniqueParams
-    ) -> Any: # Returns List[Tuple[bytes, int, dict]] for segmentation techniques
+    ) -> Any:  # Returns List[Tuple[bytes, int, dict]] for segmentation techniques
         """Apply a technique to packet data.
 
         Args:
@@ -139,13 +138,15 @@ class TechniqueRegistry:
         technique_callable = self.get_technique(technique_name)
 
         if not technique_callable:
-            raise TechniqueNotFoundError(f"Technique '{technique_name}' not found in registry")
+            raise TechniqueNotFoundError(
+                f"Technique '{technique_name}' not found in registry"
+            )
 
         # For now, we assume params is a dict
         missing_params = [
             p
             for p in inspect.signature(technique_callable).parameters
-            if p not in params and p not in ['payload', 'fooling_methods']
+            if p not in params and p not in ["payload", "fooling_methods"]
         ]
         if missing_params:
             # This is a soft-fail for now, will be logged by the engine
@@ -217,17 +218,25 @@ class TechniqueInfo:
             "supported_protocols": self.supported_protocols,
             "required_params": self.required_params,
             "optional_params": self.optional_params,
-        , "no_fallbacks": True, "forced": True}
+            "no_fallbacks": True,
+            "forced": True,
+        }
+
+
 class TechniqueResult:
     """Simple container for technique execution result (compat layer)."""
+
     def __init__(self, success: bool, data: Any = None, error: Optional[str] = None):
         self.success = success
         self.data = data
         self.error = error
 
+
 class FakeddisorderTechnique(TechniqueInfo):
     """Alias for compatibility with older tests expecting this symbol."""
+
     pass
+
 
 __all__ = [
     "TechniqueRegistry",
@@ -246,5 +255,3 @@ registry._techniques["seqovl"] = BypassTechniques.apply_seqovl
 # For backward compatibility
 FakeddisorderTechnique = BypassTechniques.apply_fakeddisorder
 TechniqueResult = Union[List[Any], None]
-
-

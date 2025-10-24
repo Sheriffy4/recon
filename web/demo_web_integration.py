@@ -17,7 +17,6 @@ try:
     from aiohttp import web
     from web.bypass_integration import create_bypass_integration
     from core.bypass.strategies.pool_management import BypassStrategy, PoolPriority
-    from core.bypass.attacks.attack_definition import AttackCategory, AttackComplexity
 except ImportError as e:
     print(f"❌ Import failed: {e}")
     sys.exit(1)
@@ -35,7 +34,7 @@ async def demo_web_integration():
     pool_manager = integration.get_pool_manager()
     attack_registry = integration.get_attack_registry()
     api = integration.get_api()
-    dashboard = integration.get_dashboard()
+    _ = integration.get_dashboard()  # Test dashboard access
 
     print("✅ Integration components initialized")
 
@@ -211,7 +210,9 @@ async def demo_web_integration():
             "type": "demo_update",
             "message": "This is a demonstration broadcast",
             "timestamp": asyncio.get_event_loop().time(),
-        , "no_fallbacks": True, "forced": True}
+            "no_fallbacks": True,
+            "forced": True,
+        }
     )
     print("✅ Broadcast update sent (no active connections)")
 

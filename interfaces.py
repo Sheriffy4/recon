@@ -1,16 +1,54 @@
 """
-Централизованный модуль для всех интерфейсов системы.
-Это решает проблемы циклических зависимостей и упрощает архитектуру.
+Централизованный модуль интерфейсов для системы обхода DPI.
+
+Основные цели:
+- Решение проблем циклических зависимостей между модулями
+- Упрощение архитектуры через четкое разделение интерфейсов
+- Обеспечение совместимости между различными компонентами
+- Стандартизация API для всех подсистем
+
+Группы интерфейсов:
+1. Обнаружение и анализ DPI:
+   - IProber: Зондирование DPI систем
+   - IClassifier: Классификация типов DPI
+   - IFingerprintEngine: Создание отпечатков DPI
+
+2. Выполнение атак:
+   - IAttackAdapter: Адаптация и выполнение атак
+   - IEffectivenessTester: Тестирование эффективности
+
+3. Обучение и оптимизация:
+   - ILearningMemory: Сохранение результатов обучения
+   - IStrategyGenerator: Генерация стратегий
+   - IEvolutionarySearcher: Эволюционный поиск
+
+4. Управление и координация:
+   - IClosedLoopManager: Управление замкнутым циклом
+   - IPacketBuilder: Построение пакетов
+
+Принципы проектирования:
+- Все интерфейсы наследуются от ABC (Abstract Base Class)
+- Методы помечены @abstractmethod для обязательной реализации
+- Типизация через typing для лучшей документации
+- Минимальные зависимости для избежания циклических импортов
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union
 from core.fingerprint.models import EnhancedFingerprint
 from recon.bypass.attacks.base import AttackContext, AttackResult
 
 
 class IProber(ABC):
-    """Interface for DPI probing functionality."""
+    """
+    Интерфейс для зондирования и обнаружения DPI систем.
+
+    Основные функции:
+    - Активное зондирование целевых доменов
+    - Обнаружение типа и характеристик DPI
+    - Сбор данных для создания отпечатков
+    - Предварительная классификация DPI систем
+    """
 
     @abstractmethod
     async def run_probes(
@@ -51,7 +89,21 @@ class IFingerprintEngine(ABC):
 
 
 class IAttackAdapter(ABC):
-    """Interface for attack adaptation functionality."""
+    """
+    Интерфейс для адаптации и выполнения атак обхода DPI.
+
+    Основные функции:
+    - Выполнение атак по имени с контекстом
+    - Получение списка доступных атак
+    - Адаптация параметров под конкретные условия
+    - Интеграция с AttackRegistry и AttackDispatcher
+
+    Поддерживаемые категории атак:
+    - TCP-based: fakeddisorder, seqovl, multisplit
+    - UDP-based: QUIC манипуляции
+    - HTTP-based: заголовки и содержимое
+    - TLS-based: ClientHello модификации
+    """
 
     @abstractmethod
     async def execute_attack_by_name(
@@ -145,7 +197,25 @@ class IEvolutionarySearcher(ABC):
 
 
 class IPacketBuilder(ABC):
-    """Interface for unified packet building functionality."""
+    """
+    Интерфейс для унифицированного построения сетевых пакетов.
+
+    Основные функции:
+    - Создание TCP пакетов с заданными параметрами
+    - Поддержка различных TCP флагов и опций
+    - Настройка IP заголовков (TTL, DSCP, etc.)
+    - Интеграция с системой инъекции пакетов
+
+    Поддерживаемые протоколы:
+    - TCP: Полная поддержка всех флагов и опций
+    - UDP: Базовая поддержка для QUIC
+    - IP: Настройка заголовков и фрагментации
+
+    Используется AttackDispatcher и PacketSender для:
+    - Генерации последовательностей пакетов
+    - Инъекции через WinDivert
+    - Контроля временных задержек
+    """
 
     @abstractmethod
     def create_tcp_packet(self, **kwargs) -> Optional[Union[Any, bytes]]:

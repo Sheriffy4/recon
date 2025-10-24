@@ -14,15 +14,14 @@ import time
 import random
 import struct
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
-
+from core.bypass.attacks.attack_registry import register_attack
 
 @register_attack
 class TLSHandshakeManipulationAttack(BaseAttack):
@@ -51,6 +50,19 @@ class TLSHandshakeManipulationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "manipulation_type": "fragmentation",
+            "fragment_size": 64,
+            "timing_delay_ms": 10,
+            "include_fake_messages": False
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS handshake manipulation attack."""
@@ -326,6 +338,18 @@ class TLSVersionDowngradeAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "target_version": "tls1.2",
+            "downgrade_method": "record_version",
+            "include_fallback_scsv": True
+        }
+
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS version downgrade attack."""
         start_time = time.time()
@@ -532,6 +556,19 @@ class TLSExtensionManipulationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "manipulation_type": "inject_fake",
+            "extension_count": 3,
+            "randomize_order": True,
+            "include_grease": True
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS extension manipulation attack."""
@@ -825,6 +862,19 @@ class TLSRecordFragmentationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "fragmentation_method": "tcp_segments",
+            "fragment_size": 128,
+            "max_fragments": 8,
+            "randomize_sizes": True
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS record fragmentation attack."""

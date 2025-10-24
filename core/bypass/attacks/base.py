@@ -3,6 +3,7 @@ Base classes for all DPI bypass attacks.
 Unified interface that combines all legacy attack systems.
 """
 
+
 import time
 import logging
 import asyncio
@@ -10,6 +11,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, asdict, replace
 from typing import Dict, Any, Optional, List, Union, TYPE_CHECKING, Tuple, Type
 from enum import Enum
+
 
 if TYPE_CHECKING:
     from core.bypass.handlers.tls_handler import TLSHandler
@@ -634,8 +636,6 @@ class AttackResult:
             return len(self.segments) > 0
         return False
 
-    
-
     def get_segment_count(self) -> int:
         """
         Get the number of segments in this result.
@@ -969,6 +969,8 @@ class BaseAttack(ABC):
     - core/fast_bypass/techniques/
     - core/zapret_fooling.py
     - All BypassTechniques from fast_bypass.py
+
+    Enhanced with standardized metadata properties for @register_attack decorator.
     """
 
     def __init__(self):
@@ -982,6 +984,84 @@ class BaseAttack(ABC):
             "total_latency": 0.0,
         }
 
+    def __init_subclass__(cls, **kwargs):
+        """Validate metadata completeness when subclassing."""
+        super().__init_subclass__(**kwargs)
+        
+        # Skip validation for abstract base classes
+        # Check both __abstractmethods__ and if any required property is abstract
+        if getattr(cls, '__abstractmethods__', None):
+            return
+        
+        # Validate that required abstract metadata properties are implemented
+        required_properties = ['name', 'category', 'required_params', 'optional_params']
+        missing_properties = []
+        has_abstract_properties = False
+        
+        for prop in required_properties:
+            # Check if property is properly implemented (not abstract)
+            if hasattr(cls, prop):
+                prop_obj = getattr(cls, prop)
+                # Check if it's still abstract (has __isabstractmethod__ = True)
+                if getattr(prop_obj, '__isabstractmethod__', False):
+                    missing_properties.append(prop)
+                    has_abstract_properties = True
+            else:
+                missing_properties.append(prop)
+        
+        # If any properties are abstract, this is an abstract base class - skip validation
+        if has_abstract_properties:
+            return
+        
+        if missing_properties:
+            raise TypeError(
+                f"Attack class {cls.__name__} must implement all required abstract properties: "
+                f"{missing_properties}. These properties are required for proper attack registration "
+                f"and metadata handling."
+            )
+        
+        # Validate that properties return correct types
+        try:
+            # Instantiate to check property values (only for concrete classes)
+            if not missing_properties:
+                # Create a temporary instance to validate property types
+                temp_instance = object.__new__(cls)
+                temp_instance.__dict__.update({'logger': None, '_stats': {}})
+                
+                # Validate name property
+                name_val = cls.name.fget(temp_instance) if hasattr(cls.name, 'fget') else getattr(temp_instance, 'name', None)
+                if not isinstance(name_val, str) or not name_val.strip():
+                    raise TypeError(f"Attack class {cls.__name__}.name must return a non-empty string")
+                
+                # Validate category property
+                category_val = cls.category.fget(temp_instance) if hasattr(cls.category, 'fget') else getattr(temp_instance, 'category', None)
+                if not isinstance(category_val, str) or not category_val.strip():
+                    raise TypeError(f"Attack class {cls.__name__}.category must return a non-empty string")
+                
+                # Import AttackCategories and validate category value
+                from .metadata import AttackCategories
+                if category_val not in AttackCategories.ALL:
+                    raise ValueError(f"Attack class {cls.__name__}.category '{category_val}' must be one of: {AttackCategories.ALL}")
+                
+                # Validate required_params property
+                req_params = cls.required_params.fget(temp_instance) if hasattr(cls.required_params, 'fget') else getattr(temp_instance, 'required_params', None)
+                if not isinstance(req_params, list):
+                    raise TypeError(f"Attack class {cls.__name__}.required_params must return a list")
+                
+                # Validate optional_params property
+                opt_params = cls.optional_params.fget(temp_instance) if hasattr(cls.optional_params, 'fget') else getattr(temp_instance, 'optional_params', None)
+                if not isinstance(opt_params, dict):
+                    raise TypeError(f"Attack class {cls.__name__}.optional_params must return a dict")
+                    
+        except (TypeError, ValueError) as e:
+            # Re-raise validation errors
+            raise e
+        except Exception as e:
+            # If we can't validate due to complex initialization, just warn
+            import logging
+            logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
+            logger.warning(f"Could not validate metadata types for {cls.__name__}: {e}")
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -994,9 +1074,27 @@ class BaseAttack(ABC):
         return f"{self.name} attack"
 
     @property
+    @abstractmethod
     def category(self) -> str:
-        """Attack category (tcp, ip, tls, http, payload, tunneling, combo)."""
-        return "unknown"
+        """Attack category from AttackCategories."""
+        pass
+
+    @property
+    @abstractmethod
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        pass
+
+    @property
+    @abstractmethod
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        pass
+
+    @property
+    def aliases(self) -> List[str]:
+        """List of alternative names for this attack."""
+        return []
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -1017,6 +1115,29 @@ class BaseAttack(ABC):
         Sync execute interface. If you need async, wrap in execute_with_network_validation.
         """
         pass
+
+    def get_metadata(self) -> "AttackMetadata":
+        """
+        Get complete metadata for this attack.
+        
+        Returns:
+            AttackMetadata object with all attack information
+        """
+        from .metadata import AttackMetadata, AttackCategories
+        
+        # Validate category
+        category = self.category
+        if category not in AttackCategories.ALL:
+            category = AttackCategories.CUSTOM
+        
+        return AttackMetadata(
+            name=self.description,
+            description=self.__doc__.strip() if self.__doc__ else f"Attack: {self.name}",
+            required_params=self.required_params,
+            optional_params=self.optional_params,
+            aliases=self.aliases,
+            category=category,
+        )
 
     def validate_context(self, context: AttackContext) -> bool:
         """
@@ -1154,8 +1275,27 @@ class SegmentationAttack(BaseAttack):
     """
 
     @property
+    def name(self) -> str:
+        return "segmentation_base"
+
+    @property
     def category(self) -> str:
         return "tcp"
+
+    @property
+    def required_params(self) -> List[str]:
+        return ["positions"]
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"ttl": 3, "fooling_methods": ["badsum"]}
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Base implementation - should be overridden by concrete classes."""
+        return AttackResult(
+            status=AttackStatus.ERROR,
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+        )
 
     def create_segments(self, payload: bytes, positions: List[int]) -> List[tuple]:
         """
@@ -1192,8 +1332,27 @@ class TimingAttack(BaseAttack):
     """
 
     @property
+    def name(self) -> str:
+        return "timing_base"
+
+    @property
     def category(self) -> str:
-        return "tcp"
+        return "timing"
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"delay_ms": 100, "burst_size": 3}
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Base implementation - should be overridden by concrete classes."""
+        return AttackResult(
+            status=AttackStatus.ERROR,
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+        )
 
     def apply_delay(self, delay_ms: float):
         """Apply timing delay."""
@@ -1211,8 +1370,27 @@ class ManipulationAttack(BaseAttack):
     """
 
     @property
+    def name(self) -> str:
+        return "manipulation_base"
+
+    @property
     def category(self) -> str:
         return "tcp"
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"ttl": None, "bad_checksum": False}
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Base implementation - should be overridden by concrete classes."""
+        return AttackResult(
+            status=AttackStatus.ERROR,
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+        )
 
 
 class PayloadAttack(BaseAttack):
@@ -1224,14 +1402,33 @@ class PayloadAttack(BaseAttack):
     """
 
     @property
+    def name(self) -> str:
+        return "payload_base"
+
+    @property
     def category(self) -> str:
         return "payload"
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"encryption_key": None, "obfuscation_shift": 13}
 
     def xor_encrypt(self, data: bytes, key: bytes) -> bytes:
         """Simple XOR encryption."""
         if not key:
             return data
         return bytes([data[i] ^ key[i % len(key)] for i in range(len(data))])
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Base implementation - should be overridden by concrete classes."""
+        return AttackResult(
+            status=AttackStatus.ERROR,
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+        )
 
     def obfuscate_bytes(self, data: bytes, shift: int = 13) -> bytes:
         """Simple byte obfuscation using rotation."""
@@ -1247,12 +1444,31 @@ class TunnelingAttack(BaseAttack):
     """
 
     @property
+    def name(self) -> str:
+        return "tunneling_base"
+
+    @property
     def category(self) -> str:
         return "tunneling"
 
     @property
+    def required_params(self) -> List[str]:
+        return ["tunnel_protocol"]
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"tunnel_port": 53, "tunnel_host": "8.8.8.8"}
+
+    @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Base implementation - should be overridden by concrete classes."""
+        return AttackResult(
+            status=AttackStatus.ERROR,
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+        )
 
 
 class ComboAttack(BaseAttack):
@@ -1265,12 +1481,24 @@ class ComboAttack(BaseAttack):
     """
 
     @property
+    def name(self) -> str:
+        return "combo_base"
+
+    @property
     def category(self) -> str:
         return "combo"
 
-    def __init__(self, attacks: List[BaseAttack]):
+    @property
+    def required_params(self) -> List[str]:
+        return ["attacks"]
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"execution_order": "sequential", "stop_on_success": True}
+
+    def __init__(self, attacks: List[BaseAttack] = None):
         super().__init__()
-        self.attacks = attacks
+        self.attacks = attacks or []
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -1279,6 +1507,13 @@ class ComboAttack(BaseAttack):
         for attack in self.attacks:
             protocols.update(attack.supported_protocols)
         return list(protocols)
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Base implementation - should be overridden by concrete classes."""
+        return AttackResult(
+            status=AttackStatus.ERROR,
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+        )
 
 
 class SegmentOrchestrationHelper:

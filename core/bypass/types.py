@@ -18,6 +18,7 @@ SegmentTuple = Tuple[bytes, int, Dict[str, Any]]
 
 # --- Перечисления (Enums) ---
 
+
 class TechniqueType(Enum):
     FAKEDDISORDER = "fakeddisorder"
     MULTISPLIT = "multisplit"
@@ -28,7 +29,9 @@ class TechniqueType(Enum):
     TLSREC_SPLIT = "tlsrec_split"
     WSSIZE_LIMIT = "wssize_limit"
 
+
 TechniqueParams = Dict[str, Any]
+
 
 class EngineStatus(Enum):
     STOPPED = "stopped"
@@ -55,6 +58,7 @@ class BlockType(Enum):
     """
     Типы блокировок, обнаруженные при тестировании. Единый источник истины.
     """
+
     # Успешные / нейтральные
     NONE = "none"
     # По поведению сети

@@ -127,11 +127,11 @@ class RealEffectivenessTester:
 
             # Calculate TTL distance
             ttl_distance = abs(normal_ttl - rst_ttl)
-            
+
             self.logger.debug(
                 f"RST TTL distance for {domain}: normal_ttl={normal_ttl}, rst_ttl={rst_ttl}, distance={ttl_distance}"
             )
-            
+
             # TTL distance > 5 often indicates DPI injection
             return ttl_distance if ttl_distance > 0 else None
 
@@ -143,10 +143,12 @@ class RealEffectivenessTester:
         """Stub for RST TTL capture (not implemented yet)."""
         return None
 
-    async def _get_normal_response_ttl(self, server_ip: str, port: int) -> Optional[int]:
+    async def _get_normal_response_ttl(
+        self, server_ip: str, port: int
+    ) -> Optional[int]:
         """Stub for normal TTL estimation (not implemented yet)."""
         return None
-    
+
     async def _check_sni_consistency(
         self, domain: str, port: int = 443
     ) -> Optional[bool]:
@@ -181,40 +183,46 @@ class RealEffectivenessTester:
             self.logger.debug(f"Failed to check SNI consistency for {domain}: {e}")
             return None
 
-    async def _test_sni_variant(self, domain: str, sni_hostname: str, port: int) -> bool:
+    async def _test_sni_variant(
+        self, domain: str, sni_hostname: str, port: int
+    ) -> bool:
         """
         Test connection with specific SNI hostname.
-        
+
         Args:
             domain: Target domain (for IP resolution)
             sni_hostname: SNI hostname to use in TLS handshake
             port: Target port
-            
+
         Returns:
             True if connection succeeds, False otherwise
         """
         try:
             import ssl
             import socket
-            
+
             # Resolve domain to IP
             server_ip = socket.gethostbyname(domain)
-            
+
             # Create SSL context
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
-            
+
             # Connect with specific SNI
-            with socket.create_connection((server_ip, port), timeout=self.timeout) as sock:
+            with socket.create_connection(
+                (server_ip, port), timeout=self.timeout
+            ) as sock:
                 with ctx.wrap_socket(sock, server_hostname=sni_hostname) as ssl_sock:
                     # Connection successful
                     return True
-                    
+
         except Exception as e:
-            self.logger.debug(f"SNI test failed for {domain} with SNI {sni_hostname}: {e}")
+            self.logger.debug(
+                f"SNI test failed for {domain} with SNI {sni_hostname}: {e}"
+            )
             return False
-    
+
     async def _detect_http2_support(
         self, domain: str, port: int = 443
     ) -> Tuple[Optional[bool], Dict[str, Any]]:
@@ -273,7 +281,7 @@ class RealEffectivenessTester:
         except Exception as e:
             self.logger.debug(f"Failed to detect HTTP/2 support for {domain}: {e}")
             return None, {}
-    
+
     async def _detect_quic_support(
         self, domain: str, port: int = 443
     ) -> Tuple[Optional[bool], Dict[str, Any]]:
@@ -369,7 +377,7 @@ class RealEffectivenessTester:
         except Exception as e:
             self.logger.debug(f"Failed to detect ECH support for {domain}: {e}")
             return None, {}
-    
+
     async def _collect_timing_patterns(
         self, domain: str, port: int, num_samples: int = 3
     ) -> Dict[str, List[float]]:
@@ -433,7 +441,7 @@ class RealEffectivenessTester:
             self.logger.debug(f"Failed to collect timing patterns for {domain}: {e}")
 
         return timing_patterns
-    
+
     async def collect_extended_metrics(
         self, domain: str, port: int = 443
     ) -> Dict[str, Any]:
@@ -545,7 +553,7 @@ class RealEffectivenessTester:
             metrics["collection_error"] = str(e)
 
         return metrics
-    
+
     def set_pinned_ip(self, domain: str, ip: str):
         """Привязывает домен к конкретному IP для всех последующих запросов."""
         self._pinned_dns[domain] = ip
@@ -648,7 +656,9 @@ class RealEffectivenessTester:
         self.set_pinned_dns_map(domain_to_ip)
         engine = None
         try:
-            engine = create_best_engine(engine_override=self.engine_override, config=self.engine_config)
+            engine = create_best_engine(
+                engine_override=self.engine_override, config=self.engine_config
+            )
             if not engine.start_with_segments_recipe(all_ips, attack_result.segments):
                 raise RuntimeError(
                     "Failed to start the bypass engine in recipe mode for group test."
@@ -843,7 +853,9 @@ class RealEffectivenessTester:
         url = f"{protocol}://{domain}/"
         engine = None
         try:
-            engine = create_best_engine(engine_override=self.engine_override, config=self.engine_config)
+            engine = create_best_engine(
+                engine_override=self.engine_override, config=self.engine_config
+            )
             if not engine.start_with_segments_recipe(
                 {target_ip}, attack_result.segments
             ):
@@ -1038,17 +1050,31 @@ class RealEffectivenessTester:
             if task:
                 task.setdefault("target_port", port)
                 return task
-            return {"type": "custom_string", "command": strategy, "target_port": port, "no_fallbacks": True, "forced": True}
+            return {
+                "type": "custom_string",
+                "command": strategy,
+                "target_port": port,
+                "no_fallbacks": True,
+                "forced": True,
+            }
         elif isinstance(strategy, AttackResult):
             return {
                 "type": strategy.technique_used or "from_result",
                 "params": strategy.metadata,
                 "target_port": port,
                 "from_attack_result": True,
-                "no_fallbacks": True, "forced": True}
+                "no_fallbacks": True,
+                "forced": True,
+            }
         else:
             self.logger.warning(f"Unknown strategy type: {type(strategy)}")
-            return {"type": "unknown", "target_port": port, "raw": strategy, "no_fallbacks": True, "forced": True}
+            return {
+                "type": "unknown",
+                "target_port": port,
+                "raw": strategy,
+                "no_fallbacks": True,
+                "forced": True,
+            }
 
     def _analyze_response(
         self,
@@ -1072,7 +1098,9 @@ class RealEffectivenessTester:
     def _classify_error(self, error: Exception) -> BlockType:
         error_str = str(error).lower()
         # Сначала явные протокольные признаки
-        if "tls alert" in error_str or ("ssl" in error_str and "handshake" in error_str):
+        if "tls alert" in error_str or (
+            "ssl" in error_str and "handshake" in error_str
+        ):
             return BlockType.TLS_ALERT
         if "icmp" in error_str or "unreach" in error_str:
             return BlockType.ICMP_UNREACH

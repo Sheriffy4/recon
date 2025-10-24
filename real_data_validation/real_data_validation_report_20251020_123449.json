@@ -1,0 +1,899 @@
+{
+  "validation_summary": {
+    "timestamp": "2025-10-20T12:34:49.107305",
+    "total_execution_time": 0.016037940979003906,
+    "total_tests": 26,
+    "successful_tests": 22,
+    "failed_tests": 4,
+    "overall_success_rate": 0.8461538461538461,
+    "real_strategies_tested": 39,
+    "baseline_files_tested": 5
+  },
+  "suite_summaries": {
+    "Strategy Parsing": {
+      "total_tests": 10,
+      "successful_tests": 10,
+      "failed_tests": 0,
+      "success_rate": 1.0,
+      "avg_execution_time": 0.00010485649108886719
+    },
+    "Attack Dispatch": {
+      "total_tests": 2,
+      "successful_tests": 1,
+      "failed_tests": 1,
+      "success_rate": 0.5,
+      "avg_execution_time": 0.0
+    },
+    "Baseline Compatibility": {
+      "total_tests": 5,
+      "successful_tests": 2,
+      "failed_tests": 3,
+      "success_rate": 0.4,
+      "avg_execution_time": 0.0
+    },
+    "Parameter Handling": {
+      "total_tests": 5,
+      "successful_tests": 5,
+      "failed_tests": 0,
+      "success_rate": 1.0,
+      "avg_execution_time": 0.0
+    },
+    "End-to-End Flow": {
+      "total_tests": 4,
+      "successful_tests": 4,
+      "failed_tests": 0,
+      "success_rate": 1.0,
+      "avg_execution_time": 0.0
+    }
+  },
+  "detailed_results": [
+    {
+      "test_name": "parse_strategy_*.twimg.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0010485649108886719,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "split_count": 7,
+        "overlap_size": 30,
+        "repeats": 3,
+        "fooling": [
+          "badsum"
+        ],
+        "positions": [
+          1,
+          7,
+          13,
+          19,
+          25,
+          31,
+          37
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "*.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "ttl": 4,
+            "split_count": 7,
+            "overlap_size": 30,
+            "repeats": 3,
+            "fooling": [
+              "badsum"
+            ],
+            "positions": [
+              1,
+              7,
+              13,
+              19,
+              25,
+              31,
+              37
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_abs.twimg.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "split_count": 7,
+        "overlap_size": 30,
+        "repeats": 3,
+        "fooling": [
+          "badsum"
+        ],
+        "positions": [
+          1,
+          7,
+          13,
+          19,
+          25,
+          31,
+          37
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "abs.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "ttl": 4,
+            "split_count": 7,
+            "overlap_size": 30,
+            "repeats": 3,
+            "fooling": [
+              "badsum"
+            ],
+            "positions": [
+              1,
+              7,
+              13,
+              19,
+              25,
+              31,
+              37
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_abs-0.twimg.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "split_count": 7,
+        "overlap_size": 30,
+        "repeats": 3,
+        "fooling": [
+          "badsum"
+        ],
+        "positions": [
+          1,
+          7,
+          13,
+          19,
+          25,
+          31,
+          37
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "abs-0.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "ttl": 4,
+            "split_count": 7,
+            "overlap_size": 30,
+            "repeats": 3,
+            "fooling": [
+              "badsum"
+            ],
+            "positions": [
+              1,
+              7,
+              13,
+              19,
+              25,
+              31,
+              37
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_pbs.twimg.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "split_count": 7,
+        "overlap_size": 30,
+        "repeats": 3,
+        "fooling": [
+          "badsum"
+        ],
+        "positions": [
+          1,
+          7,
+          13,
+          19,
+          25,
+          31,
+          37
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "pbs.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "ttl": 4,
+            "split_count": 7,
+            "overlap_size": 30,
+            "repeats": 3,
+            "fooling": [
+              "badsum"
+            ],
+            "positions": [
+              1,
+              7,
+              13,
+              19,
+              25,
+              31,
+              37
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_video.twimg.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "split_count": 7,
+        "overlap_size": 30,
+        "repeats": 3,
+        "fooling": [
+          "badsum"
+        ],
+        "positions": [
+          1,
+          7,
+          13,
+          19,
+          25,
+          31,
+          37
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "video.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "ttl": 4,
+            "split_count": 7,
+            "overlap_size": 30,
+            "repeats": 3,
+            "fooling": [
+              "badsum"
+            ],
+            "positions": [
+              1,
+              7,
+              13,
+              19,
+              25,
+              31,
+              37
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_ton.twimg.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "split_count": 7,
+        "overlap_size": 30,
+        "repeats": 3,
+        "fooling": [
+          "badsum"
+        ],
+        "positions": [
+          1,
+          7,
+          13,
+          19,
+          25,
+          31,
+          37
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "ton.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "ttl": 4,
+            "split_count": 7,
+            "overlap_size": 30,
+            "repeats": 3,
+            "fooling": [
+              "badsum"
+            ],
+            "positions": [
+              1,
+              7,
+              13,
+              19,
+              25,
+              31,
+              37
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_x.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "split_count": 5,
+        "overlap_size": 20,
+        "repeats": 2,
+        "fooling": [
+          "badseq"
+        ],
+        "positions": [
+          1,
+          7,
+          13,
+          19,
+          25
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "x.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "ttl": 4,
+            "split_count": 5,
+            "overlap_size": 20,
+            "repeats": 2,
+            "fooling": [
+              "badseq"
+            ],
+            "positions": [
+              1,
+              7,
+              13,
+              19,
+              25
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_instagram.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "fakeddisorder",
+      "parameters": {
+        "split_pos": 1,
+        "ttl": 2,
+        "repeats": 2,
+        "fooling": [
+          "badseq"
+        ],
+        "fake_sni": null,
+        "fake_data": null
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "instagram.com",
+        "original_cmd": "--dpi-desync=fake,disorder --dpi-desync-split-pos=1 --dpi-desync-ttl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-split-http-req=method --dpi-desync-split-tls=sni",
+        "parsed_strategy": {
+          "type": "fakeddisorder",
+          "params": {
+            "split_pos": 1,
+            "ttl": 2,
+            "repeats": 2,
+            "fooling": [
+              "badseq"
+            ],
+            "fake_sni": null,
+            "fake_data": null
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=fake,disorder --dpi-desync-split-pos=1 --dpi-desync-ttl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-split-http-req=method --dpi-desync-split-tls=sni",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_facebook.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 1,
+        "split_count": 8,
+        "fooling": [
+          "badsum"
+        ],
+        "fake_tls": "0x16030100",
+        "repeats": 1,
+        "positions": [
+          1,
+          7,
+          13,
+          19,
+          25,
+          31,
+          37,
+          43
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "facebook.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-fake-tls=0x16030100 --dpi-desync-ttl6=1",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "ttl": 1,
+            "split_count": 8,
+            "fooling": [
+              "badsum"
+            ],
+            "fake_tls": "0x16030100",
+            "repeats": 1,
+            "positions": [
+              1,
+              7,
+              13,
+              19,
+              25,
+              31,
+              37,
+              43
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-fake-tls=0x16030100 --dpi-desync-ttl6=1",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "parse_strategy_rutracker.org",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "split_pos": 2,
+        "ttl": 3,
+        "split_count": 5,
+        "fooling": [
+          "badseq"
+        ],
+        "repeats": 1,
+        "positions": [
+          2,
+          8,
+          14,
+          20,
+          26
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "rutracker.org",
+        "original_cmd": "--dpi-desync=fake,multisplit --dpi-desync-split-count=5 --dpi-desync-split-pos=2 --dpi-desync-ttl=3 --dpi-desync-fooling=badseq --dpi-desync-fake-unknown=0x00000000 --dpi-desync-cutoff=n2",
+        "parsed_strategy": {
+          "type": "multisplit",
+          "params": {
+            "split_pos": 2,
+            "ttl": 3,
+            "split_count": 5,
+            "fooling": [
+              "badseq"
+            ],
+            "repeats": 1,
+            "positions": [
+              2,
+              8,
+              14,
+              20,
+              26
+            ]
+          },
+          "no_fallbacks": true,
+          "forced": true,
+          "raw_string": "--dpi-desync=fake,multisplit --dpi-desync-split-count=5 --dpi-desync-split-pos=2 --dpi-desync-ttl=3 --dpi-desync-fooling=badseq --dpi-desync-fake-unknown=0x00000000 --dpi-desync-cutoff=n2",
+          "source_format": "zapret"
+        }
+      }
+    },
+    {
+      "test_name": "dispatch_multisplit",
+      "success": false,
+      "error_message": "Invalid parameters for attack 'multisplit': Missing required parameter 'positions' for attack 'multisplit'",
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "fooling": [
+          "badsum"
+        ],
+        "split_count": 7,
+        "overlap_size": 30
+      },
+      "packets_generated": 0,
+      "validation_details": null
+    },
+    {
+      "test_name": "dispatch_fake",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "fake",
+      "parameters": {
+        "split_pos": 1,
+        "ttl": 2,
+        "fooling": [
+          "badseq"
+        ]
+      },
+      "packets_generated": 2,
+      "validation_details": {
+        "recipe_length": 2,
+        "recipe_preview": [
+          [
+            "16030100c4010000c0030300000000000000000000000000000000000000000000000000000000000000000000021301010000950000000f000d00000a796f75747562652e636f6d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            0,
+            {
+              "is_fake": true,
+              "ttl": 2,
+              "tcp_flags": 24,
+              "corrupt_tcp_checksum": false,
+              "add_md5sig_option": false,
+              "delay_ms_after": 5
+            }
+          ],
+          [
+            "16030100c4010000c0030300000000000000000000000000000000000000000000000000000000000000000000021301010000950000000f000d00000a796f75747562652e636f6d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            0,
+            {
+              "is_fake": false,
+              "tcp_flags": 24
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "test_name": "baseline_baseline_v1",
+      "success": false,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "total_attacks": 0,
+        "successful_attacks": 0,
+        "success_rate": 0,
+        "baseline_name": "baseline_v1"
+      }
+    },
+    {
+      "test_name": "baseline_current_baseline",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "total_attacks": 5,
+        "successful_attacks": 5,
+        "success_rate": 1.0,
+        "baseline_name": "current_baseline"
+      }
+    },
+    {
+      "test_name": "baseline_my_baseline_v1",
+      "success": false,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "total_attacks": 0,
+        "successful_attacks": 0,
+        "success_rate": 0,
+        "baseline_name": "my_baseline_v1"
+      }
+    },
+    {
+      "test_name": "baseline_tcp_tls_baseline",
+      "success": false,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "total_attacks": 0,
+        "successful_attacks": 0,
+        "success_rate": 0,
+        "baseline_name": "tcp_tls_baseline"
+      }
+    },
+    {
+      "test_name": "baseline_x_com_with_fingerprint",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "total_attacks": 5,
+        "successful_attacks": 5,
+        "success_rate": 1.0,
+        "baseline_name": "x_com_with_fingerprint"
+      }
+    },
+    {
+      "test_name": "params_youtube_multisplit",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "split_count": 10,
+        "fooling": [
+          "badsum"
+        ],
+        "ttl": 2,
+        "positions": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "validation_result": "ValidationResult(is_valid=True, error_message=None, warnings=[])",
+        "test_case": "youtube_multisplit"
+      }
+    },
+    {
+      "test_name": "params_x_com_seqovl",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "seqovl",
+      "parameters": {
+        "split_pos": 76,
+        "overlap_size": 20,
+        "fooling": [
+          "badseq"
+        ],
+        "ttl": 4
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "validation_result": "ValidationResult(is_valid=True, error_message=None, warnings=[])",
+        "test_case": "x_com_seqovl"
+      }
+    },
+    {
+      "test_name": "params_instagram_fakeddisorder",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "fakeddisorder",
+      "parameters": {
+        "split_pos": 1,
+        "ttl": 2,
+        "fooling": [
+          "badseq"
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "validation_result": "ValidationResult(is_valid=True, error_message=None, warnings=[])",
+        "test_case": "instagram_fakeddisorder"
+      }
+    },
+    {
+      "test_name": "params_facebook_multisplit",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "multisplit",
+      "parameters": {
+        "split_count": 8,
+        "ttl": 1,
+        "fooling": [
+          "badsum"
+        ],
+        "positions": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "validation_result": "ValidationResult(is_valid=True, error_message=None, warnings=[])",
+        "test_case": "facebook_multisplit"
+      }
+    },
+    {
+      "test_name": "params_special_split_positions",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "fakeddisorder",
+      "parameters": {
+        "split_pos": "sni",
+        "ttl": 3,
+        "fooling": [
+          "badsum"
+        ]
+      },
+      "packets_generated": 0,
+      "validation_details": {
+        "validation_result": "ValidationResult(is_valid=True, error_message=None, warnings=[])",
+        "test_case": "special_split_positions"
+      }
+    },
+    {
+      "test_name": "e2e_youtube.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "youtube.com",
+        "strategy_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+        "simulation": true
+      }
+    },
+    {
+      "test_name": "e2e_x.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "x.com",
+        "strategy_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4",
+        "simulation": true
+      }
+    },
+    {
+      "test_name": "e2e_instagram.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "instagram.com",
+        "strategy_cmd": "--dpi-desync=fake,disorder --dpi-desync-split-pos=1 --dpi-desync-ttl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-split-http-req=method --dpi-desync-split-tls=sni",
+        "simulation": true
+      }
+    },
+    {
+      "test_name": "e2e_facebook.com",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "facebook.com",
+        "strategy_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-fake-tls=0x16030100 --dpi-desync-ttl6=1",
+        "simulation": true
+      }
+    }
+  ],
+  "data_sources": {
+    "real_strategies_count": 39,
+    "baseline_files_count": 5,
+    "strategy_sample": {
+      "*.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+      "abs.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4",
+      "abs-0.twimg.com": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4"
+    },
+    "baseline_sample": [
+      "baseline_v1",
+      "current_baseline",
+      "my_baseline_v1"
+    ]
+  }
+}

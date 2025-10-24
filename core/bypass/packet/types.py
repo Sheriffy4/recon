@@ -3,10 +3,11 @@
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 
+
 @dataclass
 class TCPSegmentSpec:
     """Specification for a TCP segment to be built and sent"""
-    
+
     rel_seq: int  # Relative sequence offset from base
     payload: bytes  # Segment payload
     flags: int  # TCP flags (e.g., 0x18 for PSH+ACK)

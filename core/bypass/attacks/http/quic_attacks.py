@@ -12,16 +12,18 @@ import time
 import struct
 import random
 import secrets
+from abc import abstractmethod
 from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass
 from enum import IntEnum
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import AttackRegistry, register_attack
 
 
 class QUICPacketType(IntEnum):
@@ -153,7 +155,34 @@ class QUICPacket:
 
 
 class BaseQUICAttack(BaseAttack):
-    """Base class for QUIC attacks with common functionality."""
+    """
+    Base class for QUIC attacks with common functionality.
+    
+    This is an abstract base class and should not be instantiated directly.
+    Subclasses must implement the name and category properties.
+    """
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Attack name - must be implemented by subclasses."""
+        pass
+
+    @property
+    @abstractmethod
+    def category(self) -> str:
+        """Attack category - must be implemented by subclasses."""
+        pass
+
+    @property
+    def required_params(self) -> List[str]:
+        """Default required params for QUIC attacks."""
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        """Default optional params for QUIC attacks."""
+        return {}
 
     def _is_quic_traffic(self, payload: bytes) -> bool:
         """Check if payload contains QUIC traffic."""

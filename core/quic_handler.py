@@ -82,7 +82,7 @@ class QuicHandler:
                 segs: List[Tuple[bytes, int]] = []
                 # заголовок отдельным сегментом
                 segs.append((payload[:header_len], 0))
-                for (start, end, _ftype) in frames:
+                for start, end, _ftype in frames:
                     segs.append((payload[start:end], start))
                 return segs
             # Иначе — fallback к старой логике с positions

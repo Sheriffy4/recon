@@ -175,7 +175,9 @@ class FixedFakeDisorderAttack(BaseAttack):
             return result
             
         except Exception as e:
+            import traceback
             self.logger.error(f"❌ ИСПРАВЛЕННАЯ fakeddisorder failed: {e}")
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=str(e),
@@ -201,11 +203,31 @@ class FixedFakeDisorderAttack(BaseAttack):
         fake_payload = await self._generate_zapret_fake_payload(payload, context)
         
         # Шаг 2: Разделяем реальный payload
-        if len(payload) < self.config.split_pos:
-            split_byte_pos = len(payload) // 2
-            self.logger.warning(f"⚠️  Payload короткий ({len(payload)}b), split_pos={split_byte_pos}")
+        # Обработка специальных позиций (sni, cipher, midsld)
+        if isinstance(self.config.split_pos, str):
+            if self.config.split_pos == "sni":
+                # Для SNI используем позицию 43 (типичная позиция SNI в TLS)
+                split_byte_pos = min(43, len(payload) // 2) if len(payload) > 43 else len(payload) // 2
+                self.logger.info(f"🔍 SNI split position: {split_byte_pos}")
+            elif self.config.split_pos == "cipher":
+                # Для cipher используем позицию 11 (после TLS header)
+                split_byte_pos = min(11, len(payload) // 2) if len(payload) > 11 else len(payload) // 2
+                self.logger.info(f"🔍 Cipher split position: {split_byte_pos}")
+            elif self.config.split_pos == "midsld":
+                # Для midsld используем середину payload
+                split_byte_pos = len(payload) // 2
+                self.logger.info(f"🔍 Mid-SLD split position: {split_byte_pos}")
+            else:
+                # Неизвестная специальная позиция, используем середину
+                split_byte_pos = len(payload) // 2
+                self.logger.warning(f"⚠️  Неизвестная специальная позиция '{self.config.split_pos}', используем середину: {split_byte_pos}")
         else:
-            split_byte_pos = self.config.split_pos
+            # Обычная числовая позиция
+            if len(payload) < self.config.split_pos:
+                split_byte_pos = len(payload) // 2
+                self.logger.warning(f"⚠️  Payload короткий ({len(payload)}b), split_pos={split_byte_pos}")
+            else:
+                split_byte_pos = self.config.split_pos
         
         part1 = payload[:split_byte_pos]
         part2 = payload[split_byte_pos:]
@@ -213,13 +235,21 @@ class FixedFakeDisorderAttack(BaseAttack):
         self.logger.info(f"✂️  Разделение: part1={len(part1)}b, part2={len(part2)}b на позиции {split_byte_pos}")
         
         # Шаг 3: ИСПРАВЛЕННАЯ sequence overlap логика
-        if self.config.split_seqovl > 0 and len(part1) > 0 and len(part2) > 0:
-            # Zapret использует overlap в начале part2
-            actual_overlap = min(self.config.split_seqovl, len(part1), len(part2))
-            overlap_start_seq = split_byte_pos - actual_overlap
+        try:
+            # Убеждаемся что split_seqovl это число
+            seqovl = int(self.config.split_seqovl) if isinstance(self.config.split_seqovl, str) else self.config.split_seqovl
             
-            self.logger.info(f"🔄 Zapret sequence overlap: размер={actual_overlap}, начало={overlap_start_seq}")
-        else:
+            if seqovl > 0 and len(part1) > 0 and len(part2) > 0:
+                # Zapret использует overlap в начале part2
+                actual_overlap = min(seqovl, len(part1), len(part2))
+                overlap_start_seq = split_byte_pos - actual_overlap
+                
+                self.logger.info(f"🔄 Zapret sequence overlap: размер={actual_overlap}, начало={overlap_start_seq}")
+            else:
+                actual_overlap = 0
+                overlap_start_seq = split_byte_pos
+        except (ValueError, TypeError) as e:
+            self.logger.warning(f"⚠️ Invalid split_seqovl value: {self.config.split_seqovl}, using 0. Error: {e}")
             actual_overlap = 0
             overlap_start_seq = split_byte_pos
         

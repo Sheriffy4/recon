@@ -4,8 +4,4 @@ from .types import TCPSegmentSpec
 from .builder import PacketBuilder
 from .sender import PacketSender
 
-__all__ = [
-    'TCPSegmentSpec',
-    'PacketBuilder',
-    'PacketSender'
-]
+__all__ = ["TCPSegmentSpec", "PacketBuilder", "PacketSender"]

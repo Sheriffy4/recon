@@ -154,6 +154,7 @@ class QUICPacket(Packet):
         """Create a copy of the QUIC packet"""
         return QUICPacket(header=self.header, payload=self.payload)
 
+
 # --- helpers ---
 def _decode_varint(buf: bytes, pos: int) -> Tuple[int, int]:
     if pos >= len(buf):
@@ -167,6 +168,7 @@ def _decode_varint(buf: bytes, pos: int) -> Tuple[int, int]:
     for i in range(1, length):
         value = (value << 8) | buf[pos + i]
     return value, length
+
 
 def _encode_varint(value: int) -> bytes:
     if value < 0x40:

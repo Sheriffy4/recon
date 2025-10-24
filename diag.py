@@ -29,7 +29,6 @@ specific offset defined in the attack "recipe". This script will demonstrate
 the difference and provide the code fix.
 """
 
-import os
 
 # --- Analysis Configuration ---
 # Define paths to relevant files for context in the analysis.
@@ -53,8 +52,8 @@ def analyze_logs():
     print("=" * 80)
     print(
         "Analysis of the provided log files (`pcap_second_pass_*.json`, `advanced_report.json`) reveals:\n"
-        f"- Test Status: A 100% failure rate ('NO_SITES_WORKING') for all tested strategies.\n"
-        f"- Telemetry Data: A high count of RST (Reset) packets relative to SH (ServerHello) packets.\n"
+        "- Test Status: A 100% failure rate ('NO_SITES_WORKING') for all tested strategies.\n"
+        "- Telemetry Data: A high count of RST (Reset) packets relative to SH (ServerHello) packets.\n"
     )
     print(
         "Conclusion: This pattern strongly indicates that the DPI is successfully detecting\n"

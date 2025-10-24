@@ -309,21 +309,21 @@ class QUICAttackIntegration(AdvancedAttack):
                 "cid_length": 8,
                 "rotation_frequency": 3,
                 "coalesce_count": 0,
-                "padding_ratio": 0.0
+                "padding_ratio": 0.0,
             },
             "packet_coalescing": {
                 "coalescing_strategy": "size_based",
                 "max_datagram_size": 1200,
                 "min_packets_per_datagram": 2,
                 "coalesce_count": 2,
-                "padding_ratio": 0.1
+                "padding_ratio": 0.1,
             },
             "migration": {
                 "migration_type": "cid_change",
                 "validation_enabled": True,
                 "migration_frequency": 5,
                 "coalesce_count": 0,
-                "padding_ratio": 0.0
+                "padding_ratio": 0.0,
             },
         }
         return base_params.get(attack_type, {})

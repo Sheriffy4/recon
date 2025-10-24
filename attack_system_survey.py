@@ -8,8 +8,6 @@ This script catalogs attack types, capabilities, and provides a testing framewor
 
 import os
 import sys
-import asyncio
-import importlib
 from typing import Dict, List, Any
 from dataclasses import dataclass
 
@@ -566,7 +564,7 @@ class AttackSurvey:
                     protocols = ", ".join(attack.supported_protocols)
                     print(f"     • {attack.name} ({protocols})")
 
-        print(f"\n🎯 Total Protocol Coverage:")
+        print("\n🎯 Total Protocol Coverage:")
         all_protocols = set()
         for attack in self.attacks.values():
             all_protocols.update(attack.supported_protocols)
@@ -575,8 +573,8 @@ class AttackSurvey:
         print(f"   Supported Protocols: {', '.join(protocol_coverage)}")
         print(f"   Protocol Count: {len(protocol_coverage)}")
 
-        print(f"\n✅ Test Status: 175 tests passing (verified)")
-        print(f"🔬 Ready for PCAP validation testing")
+        print("\n✅ Test Status: 175 tests passing (verified)")
+        print("🔬 Ready for PCAP validation testing")
 
 
 def main():

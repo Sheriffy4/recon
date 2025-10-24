@@ -270,19 +270,21 @@ class AdvancedStrategyGenerator:
                             "reason": "weak_tls_parser",
                         }
                     )
-            
+
             # FIXED: Check fragmentation vulnerability from fingerprint
-            fragmentation_handling = getattr(self.fp_object, "fragmentation_handling", "unknown")
+            fragmentation_handling = getattr(
+                self.fp_object, "fragmentation_handling", "unknown"
+            )
             if fragmentation_handling == "vulnerable":
                 LOG.info(
                     "DPI fingerprint suggests fragmentation vulnerability. Prioritizing fragmentation attacks."
                 )
                 fragmentation_techniques = [
-                    "tcp_multisplit", 
-                    "tcp_multidisorder", 
+                    "tcp_multisplit",
+                    "tcp_multidisorder",
                     "ip_basic_fragmentation",
                     "ip_advanced_fragmentation",
-                    "tcp_fragmentation"
+                    "tcp_fragmentation",
                 ]
                 for tech in fragmentation_techniques:
                     params = self._generate_task_parameters(tech, use_parameter_ranges)
@@ -301,9 +303,9 @@ class AdvancedStrategyGenerator:
                 # Prioritize non-fragmentation techniques
                 non_frag_techniques = [
                     "tcp_fakeddisorder",
-                    "payload_obfuscation", 
+                    "payload_obfuscation",
                     "timing_manipulation",
-                    "client_hello_split"
+                    "client_hello_split",
                 ]
                 for tech in non_frag_techniques:
                     params = self._generate_task_parameters(tech, use_parameter_ranges)

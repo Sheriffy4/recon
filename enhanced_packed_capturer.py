@@ -5,12 +5,19 @@ from pathlib import Path
 
 try:
     from scapy.all import TCP, Raw, rdpcap
+
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
 
+
 class EnhancedPacketCapturer:
-    def __init__(self, pcap_file: str = "", bpf: Optional[str] = None, interface: Optional[str] = None):
+    def __init__(
+        self,
+        pcap_file: str = "",
+        bpf: Optional[str] = None,
+        interface: Optional[str] = None,
+    ):
         self.pcap_file = pcap_file
         self.bpf = bpf
         self.interface = interface
@@ -22,13 +29,13 @@ class EnhancedPacketCapturer:
 
     def mark_strategy_start(self, strategy_id: str):
         timestamp = time.time()
-        self.strategy_markers[timestamp] = ('start', strategy_id)
+        self.strategy_markers[timestamp] = ("start", strategy_id)
         self.current_strategy = strategy_id
         self._windows.append([timestamp, None, strategy_id])
 
     def mark_strategy_end(self, strategy_id: str):
         timestamp = time.time()
-        self.strategy_markers[timestamp] = ('end', strategy_id)
+        self.strategy_markers[timestamp] = ("end", strategy_id)
         self.current_strategy = None
         for w in reversed(self._windows):
             if w[2] == strategy_id and (w[1] is None):
@@ -38,10 +45,14 @@ class EnhancedPacketCapturer:
     def analyze_all_strategies(self) -> Dict[str, Dict[str, Any]]:
         analysis = {}
         for strategy_id in self.strategy_packets.keys():
-            analysis[strategy_id] = {"total_packets": len(self.strategy_packets[strategy_id])}
+            analysis[strategy_id] = {
+                "total_packets": len(self.strategy_packets[strategy_id])
+            }
         return analysis
 
-    def analyze_all_strategies_offline(self, pcap_file: str, window_slack: float = 0.5) -> Dict[str, Dict[str, Any]]:
+    def analyze_all_strategies_offline(
+        self, pcap_file: str, window_slack: float = 0.5
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Offline-анализ PCAP по временным окнам стратегий (между mark_strategy_start/end).
         Считывает готовый PCAP и считает CH/SH/RST в окнах. Возвращает словарь по стратегиям.
@@ -57,20 +68,29 @@ class EnhancedPacketCapturer:
             start_ts = float(w[0])
             end_ts = float(w[1] if w[1] else now_ts)
             sid = w[2]
-            norm_windows.append((max(0.0, start_ts - window_slack), end_ts + window_slack, sid))
+            norm_windows.append(
+                (max(0.0, start_ts - window_slack), end_ts + window_slack, sid)
+            )
         if not norm_windows:
             return {}
         try:
             packets = rdpcap(str(pcap_path))
         except Exception:
             return {}
-        result: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
-            "total_packets": 0, "tls_clienthellos": 0, "tls_serverhellos": 0, "rst_packets": 0,
-            "data_packets": 0, "total_bytes": 0, "success_score": 0.0
-        })
+        result: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {
+                "total_packets": 0,
+                "tls_clienthellos": 0,
+                "tls_serverhellos": 0,
+                "rst_packets": 0,
+                "data_packets": 0,
+                "total_bytes": 0,
+                "success_score": 0.0,
+            }
+        )
         for pkt in packets:
-            ts = float(getattr(pkt, 'time', time.time()))
-            for (ws, we, sid) in norm_windows:
+            ts = float(getattr(pkt, "time", time.time()))
+            for ws, we, sid in norm_windows:
                 if ws <= ts <= we:
                     res = result[sid]
                     res["total_packets"] += 1
@@ -92,5 +112,11 @@ class EnhancedPacketCapturer:
         for sid, res in result.items():
             ch = max(1, res["tls_clienthellos"])
             res["success_score"] = res["tls_serverhellos"] / float(ch)
-        result_sorted = dict(sorted(result.items(), key=lambda kv: kv[1].get("success_score", 0.0), reverse=True))
+        result_sorted = dict(
+            sorted(
+                result.items(),
+                key=lambda kv: kv[1].get("success_score", 0.0),
+                reverse=True,
+            )
+        )
         return result_sorted

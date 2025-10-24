@@ -6,7 +6,7 @@ Provides common functionality for all timing attack implementations.
 import time
 import random
 import logging
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from enum import Enum
@@ -125,13 +125,37 @@ class TimingResult:
         }
 
 
-class TimingAttackBase(BaseAttack):
+class TimingAttackBase(BaseAttack, ABC):
     """
     Base class for all timing-based DPI bypass attacks.
 
     Provides common functionality for timing manipulation, pattern generation,
     and precision control.
     """
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Attack name - must be implemented by subclasses."""
+        pass
+
+    @property
+    @abstractmethod
+    def category(self) -> str:
+        """Attack category - must be implemented by subclasses."""
+        pass
+
+    @property
+    @abstractmethod
+    def required_params(self) -> list:
+        """Required parameters - must be implemented by subclasses."""
+        pass
+
+    @property
+    @abstractmethod
+    def optional_params(self) -> dict:
+        """Optional parameters - must be implemented by subclasses."""
+        pass
 
     def __init__(self, config: Optional[TimingConfiguration] = None):
         """

@@ -7,7 +7,7 @@ mutually exclusive execution modes for better performance.
 
 import logging
 import time
-from typing import Dict, Any, Optional, List, Tuple, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 from core.fingerprint.models import EnhancedFingerprint

@@ -14,7 +14,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 from core.integration.attack_adapter import AttackAdapter
 
 LOG = logging.getLogger("DynamicComboAttack")
@@ -29,7 +29,7 @@ class DynamicComboAttack(BaseAttack):
     В реальной реализации она должна выполнять последовательность других атак.
     """
 
-    def __init__(self, attack_adapter: AttackAdapter):
+    def __init__(self, attack_adapter: AttackAdapter = None):
         super().__init__()
         self.attack_adapter = attack_adapter
 
@@ -52,6 +52,33 @@ class DynamicComboAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         """List of supported protocols."""
         return ["tcp", "udp", "http", "https"]
+
+    @property
+    def required_params(self) -> List[str]:
+        """Required parameters for this attack."""
+        return ["stages"]
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Optional parameters for this attack."""
+        return {
+            "execution_mode": "sequential",
+            "stop_on_failure": False,
+            "propagate_context": True
+        }
+
+    def execute(self, context: AttackContext, **kwargs) -> AttackResult:
+        """
+        Синхронная версия execute для совместимости с BaseAttack.
+        Запускает асинхронную логику в новом event loop.
+        """
+        try:
+            return asyncio.run(self._async_execute(context, **kwargs))
+        except RuntimeError as e:
+            if "cannot run loop while another loop is running" in str(e):
+                LOG.error("DynamicComboAttack.execute cannot be called from within an existing event loop.")
+                return AttackResult(status=AttackStatus.ERROR, error_message=str(e))
+            raise
 
     def _extract_combo_config(
         self, kwargs: Dict[str, Any]
@@ -129,7 +156,7 @@ class DynamicComboAttack(BaseAttack):
                 propagate_context = bool(src["propagate_context"])
         return (stages, execution_mode, stop_on_failure, propagate_context)
 
-    async def execute(self, context: AttackContext, **kwargs) -> AttackResult:
+    async def _async_execute(self, context: AttackContext, **kwargs) -> AttackResult:
         """
         Выполняет последовательность атак (стадий).
         Поддерживает параметры, переданные как:
@@ -176,6 +203,17 @@ class DynamicComboAttack(BaseAttack):
                 f"  Stage {idx + 1}/{len(stages)}: '{stage_name}' -> params: { {k: v for k, v in stage_params.items() if k != '_combo'}}"
             )
             try:
+                if self.attack_adapter is None:
+                    # If no adapter is provided, return a placeholder result
+                    return (
+                        AttackResult(
+                            status=AttackStatus.ERROR,
+                            error_message="No attack adapter available for dynamic combo",
+                            latency_ms=0.0,
+                        ),
+                        stage_name,
+                    )
+
                 res = await self.attack_adapter.execute_attack_by_name(
                     attack_name=stage_name,
                     context=stage_ctx,

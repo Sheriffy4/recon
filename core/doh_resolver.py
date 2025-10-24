@@ -66,6 +66,17 @@ class DoHResolver:
             await self.session.close()
             self.session = None
 
+    def __del__(self):
+        """Ensure cleanup on garbage collection."""
+        if hasattr(self, "session") and self.session and not self.session.closed:
+            # Schedule cleanup if event loop is running
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._cleanup())
+            except RuntimeError:
+                # No event loop running, can't cleanup async resources
+                pass
+
     def _get_next_servers(self) -> List[str]:
         """Gets next servers to try based on health and preferences."""
         servers = []
@@ -113,7 +124,7 @@ class DoHResolver:
                     except json.JSONDecodeError:
                         LOG.warning(f"Failed to parse DoH response from {server}")
                         return None
-                    
+
                     if data.get("Answer"):
                         # Use random answer if multiple are returned
                         answer = random.choice(data["Answer"])
@@ -152,15 +163,18 @@ class DoHResolver:
                 ip = await self._query_doh(server, hostname)
                 if ip:
                     ips.add(ip)
-                    if provider: self._update_provider_health(provider, True)
+                    if provider:
+                        self._update_provider_health(provider, True)
                     if len(ips) >= 2:
                         break
                 else:
                     errors += 1
-                    if provider: self._update_provider_health(provider, False)
+                    if provider:
+                        self._update_provider_health(provider, False)
             except Exception as e:
                 errors += 1
-                if provider: self._update_provider_health(provider, False)
+                if provider:
+                    self._update_provider_health(provider, False)
                 LOG.debug(f"DoH query failed for {hostname} via {server}: {e}")
 
             # Early fallback after several errors
@@ -202,7 +216,7 @@ class DoHResolver:
         """Resolves one IP for a hostname using DoH."""
         ips = await self.resolve_all(hostname)
         return random.choice(list(ips)) if ips else None
-    
+
     async def resolve(self, hostname: str) -> Optional[str]:
         """Resolves one IP for a hostname using DoH (compatibility method)."""
         return await self.resolve_one(hostname)

@@ -28,15 +28,8 @@ from core.bypass.attacks.base import (
     AttackStatus,
     SegmentTuple,
 )
-from core.bypass.attacks.attack_definition import (
-    AttackDefinition,
-    AttackCategory,
-    AttackComplexity,
-    AttackStability,
-    CompatibilityMode,
-    TestCase,
-)
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 
 LOG = logging.getLogger("HTTPManipulationAttacks")
 
@@ -61,6 +54,29 @@ class HTTPManipulationConfig:
 
 class BaseHTTPManipulationAttack(BaseAttack):
     """Base class for all HTTP manipulation attacks."""
+
+    @property
+    def name(self) -> str:
+        return "http_manipulation_base"
+
+    @property
+    def category(self) -> str:
+        return AttackCategories.HTTP
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
+    def execute(self, context: AttackContext) -> AttackResult:
+        """Base implementation - should be overridden by concrete classes."""
+        return AttackResult(
+            status=AttackStatus.ERROR,
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+        )
 
     def __init__(self):
         super().__init__()
@@ -391,7 +407,20 @@ class BaseHTTPManipulationAttack(BaseAttack):
         return segments
 
 
-@register_attack("header_modification")
+@register_attack(
+    name="header_modification",
+    category=AttackCategories.HTTP,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "custom_headers": {},
+        "case_modification": True,
+        "order_randomization": False,
+        "space_manipulation": False
+    },
+    aliases=["http_header_mod", "header_manip"],
+    description="HTTP header modification for DPI evasion"
+)
 class HeaderModificationAttack(BaseHTTPManipulationAttack):
     """
     HTTP header modification attack.
@@ -471,7 +500,15 @@ class HeaderModificationAttack(BaseHTTPManipulationAttack):
             )
 
 
-@register_attack("method_manipulation")
+@register_attack(
+    name="method_manipulation",
+    category=AttackCategories.HTTP,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={"method": "POST", "original_method": "GET"},
+    aliases=["http_method", "method_override"],
+    description="HTTP method manipulation for DPI evasion"
+)
 class MethodManipulationAttack(BaseHTTPManipulationAttack):
     """
     HTTP method manipulation attack.
@@ -547,7 +584,15 @@ class MethodManipulationAttack(BaseHTTPManipulationAttack):
             )
 
 
-@register_attack("chunked_encoding")
+@register_attack(
+    name="chunked_encoding",
+    category=AttackCategories.HTTP,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={"chunk_size": 8, "random_chunks": True},
+    aliases=["http_chunked", "chunked_transfer"],
+    description="HTTP chunked transfer encoding for DPI evasion"
+)
 class ChunkedEncodingAttack(BaseHTTPManipulationAttack):
     """
     HTTP chunked encoding attack.
@@ -614,7 +659,11 @@ class ChunkedEncodingAttack(BaseHTTPManipulationAttack):
             )
 
 
-@register_attack("pipeline_manipulation")
+@register_attack(
+    name="pipeline_manipulation",
+    aliases=["http-pipeline"],
+    description="HTTP pipeline manipulation for DPI evasion"
+)
 class PipelineManipulationAttack(BaseHTTPManipulationAttack):
     """
     HTTP pipeline manipulation attack.
@@ -844,358 +893,7 @@ class CaseManipulationAttack(BaseHTTPManipulationAttack):
             )
 
 
-# Register attack definitions with the modern registry
-def register_http_manipulation_attacks():
-    """Register all HTTP manipulation attacks with their definitions."""
-    try:
-        from core.bypass.attacks.modern_registry import get_modern_registry
+# HTTP manipulation attacks are auto-registered via decorators
+# All orphaned code removed
 
-        registry = get_modern_registry()
-    except ImportError as e:
-        print(f"Failed to auto-register HTTP manipulation attacks: {e}")
-        return 0
-
-    # Header Modification Attack
-    header_modification_def = AttackDefinition(
-        id="header_modification",
-        name="HTTP Header Modification",
-        description="Modify HTTP headers to evade DPI detection",
-        category=AttackCategory.HTTP_MANIPULATION,
-        complexity=AttackComplexity.SIMPLE,
-        stability=AttackStability.STABLE,
-        compatibility=[
-            CompatibilityMode.NATIVE,
-            CompatibilityMode.ZAPRET,
-            CompatibilityMode.GOODBYEDPI,
-        ],
-        supported_protocols=["tcp"],
-        supported_ports=[80, 443],
-        parameters={
-            "custom_headers": {
-                "type": "dict",
-                "default": {},
-                "description": "Custom headers to add/modify",
-            },
-            "case_modification": {
-                "type": "bool",
-                "default": True,
-                "description": "Modify header name case",
-            },
-            "order_randomization": {
-                "type": "bool",
-                "default": False,
-                "description": "Randomize header order",
-            },
-            "space_manipulation": {
-                "type": "bool",
-                "default": False,
-                "description": "Add extra spaces around colons",
-            },
-        },
-        default_parameters={
-            "custom_headers": {},
-            "case_modification": True,
-            "order_randomization": False,
-        },
-        external_tool_mappings={
-            "zapret": "--dpi-desync=fake --dpi-desync-fake-http=0x11,0x22",
-            "goodbyedpi": "--fake-from-hex 474554202F20485454502F312E310D0A486F73743A20",
-        },
-        tags={"http", "headers", "modification", "stable"},
-        test_cases=[
-            TestCase(
-                id="header_modification_basic",
-                name="Basic header modification test",
-                description="Test header modification with default parameters",
-                target_domain="httpbin.org",
-                expected_success=True,
-                test_parameters={"case_modification": True},
-            ),
-            TestCase(
-                id="header_modification_custom",
-                name="Custom headers test",
-                description="Test with custom headers",
-                target_domain="httpbin.org",
-                expected_success=True,
-                test_parameters={
-                    "custom_headers": {"X-Test": "bypass", "X-Custom": "header"},
-                    "case_modification": True,
-                    "order_randomization": True,
-                },
-            ),
-        ],
-    )
-
-    # Method Manipulation Attack
-    method_manipulation_def = AttackDefinition(
-        id="method_manipulation",
-        name="HTTP Method Manipulation",
-        description="Change HTTP method to evade method-based DPI filtering",
-        category=AttackCategory.HTTP_MANIPULATION,
-        complexity=AttackComplexity.SIMPLE,
-        stability=AttackStability.STABLE,
-        compatibility=[CompatibilityMode.NATIVE, CompatibilityMode.ZAPRET],
-        supported_protocols=["tcp"],
-        supported_ports=[80, 443],
-        parameters={
-            "target_method": {
-                "type": "str",
-                "default": "POST",
-                "description": "Target HTTP method",
-            },
-            "add_override_header": {
-                "type": "bool",
-                "default": True,
-                "description": "Add method override header",
-            },
-            "fake_headers": {
-                "type": "dict",
-                "default": {},
-                "description": "Additional fake headers",
-            },
-        },
-        default_parameters={"target_method": "POST", "add_override_header": True},
-        external_tool_mappings={
-            "zapret": "--dpi-desync=fake --dpi-desync-fake-http=method"
-        },
-        tags={"http", "method", "manipulation", "stable"},
-        test_cases=[
-            TestCase(
-                id="method_manipulation_basic",
-                name="Basic method manipulation test",
-                description="Test method change from GET to POST",
-                target_domain="httpbin.org",
-                expected_success=True,
-                test_parameters={"target_method": "POST"},
-            )
-        ],
-    )
-
-    # Chunked Encoding Attack
-    chunked_encoding_def = AttackDefinition(
-        id="chunked_encoding",
-        name="HTTP Chunked Encoding",
-        description="Use chunked transfer encoding to fragment HTTP body",
-        category=AttackCategory.HTTP_MANIPULATION,
-        complexity=AttackComplexity.MODERATE,
-        stability=AttackStability.STABLE,
-        compatibility=[CompatibilityMode.NATIVE, CompatibilityMode.ZAPRET],
-        supported_protocols=["tcp"],
-        supported_ports=[80, 443],
-        parameters={
-            "chunk_sizes": {
-                "type": "list",
-                "default": [4, 8, 16, 32],
-                "description": "List of chunk sizes",
-            },
-            "randomize_sizes": {
-                "type": "bool",
-                "default": True,
-                "description": "Randomize chunk sizes",
-            },
-            "add_fake_chunks": {
-                "type": "bool",
-                "default": False,
-                "description": "Add fake chunks",
-            },
-        },
-        default_parameters={"chunk_sizes": [4, 8, 16, 32], "randomize_sizes": True},
-        external_tool_mappings={
-            "zapret": "--dpi-desync=split --dpi-desync-split-http-req=method,host"
-        },
-        tags={"http", "chunked", "encoding", "fragmentation"},
-        test_cases=[
-            TestCase(
-                id="chunked_encoding_basic",
-                name="Basic chunked encoding test",
-                description="Test chunked encoding with default parameters",
-                target_domain="httpbin.org",
-                expected_success=True,
-                test_parameters={"chunk_sizes": [8, 16]},
-            )
-        ],
-    )
-
-    # Pipeline Manipulation Attack
-    pipeline_manipulation_def = AttackDefinition(
-        id="pipeline_manipulation",
-        name="HTTP Pipeline Manipulation",
-        description="Send multiple HTTP requests in a pipeline to confuse DPI",
-        category=AttackCategory.HTTP_MANIPULATION,
-        complexity=AttackComplexity.MODERATE,
-        stability=AttackStability.MOSTLY_STABLE,
-        compatibility=[CompatibilityMode.NATIVE],
-        supported_protocols=["tcp"],
-        supported_ports=[80, 443],
-        parameters={
-            "pipeline_count": {
-                "type": "int",
-                "default": 3,
-                "min": 2,
-                "max": 10,
-                "description": "Number of pipelined requests",
-            },
-            "delay_between_requests": {
-                "type": "float",
-                "default": 5.0,
-                "min": 0.1,
-                "max": 50.0,
-                "description": "Delay between requests (ms)",
-            },
-            "randomize_headers": {
-                "type": "bool",
-                "default": True,
-                "description": "Randomize headers in each request",
-            },
-        },
-        default_parameters={"pipeline_count": 3, "delay_between_requests": 5.0},
-        tags={"http", "pipeline", "multiple", "advanced"},
-        test_cases=[
-            TestCase(
-                id="pipeline_manipulation_basic",
-                name="Basic pipeline manipulation test",
-                description="Test HTTP pipelining with 3 requests",
-                target_domain="httpbin.org",
-                expected_success=True,
-                test_parameters={"pipeline_count": 3},
-            )
-        ],
-    )
-
-    # Header Splitting Attack
-    header_splitting_def = AttackDefinition(
-        id="header_splitting",
-        name="HTTP Header Splitting",
-        description="Split HTTP headers across multiple TCP segments",
-        category=AttackCategory.HTTP_MANIPULATION,
-        complexity=AttackComplexity.ADVANCED,
-        stability=AttackStability.STABLE,
-        compatibility=[CompatibilityMode.NATIVE],
-        supported_protocols=["tcp"],
-        supported_ports=[80, 443],
-        parameters={
-            "headers_per_segment": {
-                "type": "int",
-                "default": 2,
-                "min": 1,
-                "max": 5,
-                "description": "Headers per segment",
-            },
-            "delay_between_segments": {
-                "type": "float",
-                "default": 1.0,
-                "min": 0.1,
-                "max": 10.0,
-                "description": "Delay between segments (ms)",
-            },
-            "randomize_order": {
-                "type": "bool",
-                "default": True,
-                "description": "Randomize header order",
-            },
-        },
-        default_parameters={"headers_per_segment": 2, "delay_between_segments": 1.0},
-        tags={"http", "headers", "splitting", "segmentation"},
-        test_cases=[
-            TestCase(
-                id="header_splitting_basic",
-                name="Basic header splitting test",
-                description="Test header splitting across segments",
-                target_domain="httpbin.org",
-                expected_success=True,
-                test_parameters={"headers_per_segment": 2},
-            )
-        ],
-    )
-
-    # Case Manipulation Attack
-    case_manipulation_def = AttackDefinition(
-        id="case_manipulation",
-        name="HTTP Case Manipulation",
-        description="Modify case of HTTP headers and method to evade case-sensitive DPI",
-        category=AttackCategory.HTTP_MANIPULATION,
-        complexity=AttackComplexity.SIMPLE,
-        stability=AttackStability.STABLE,
-        compatibility=[CompatibilityMode.NATIVE, CompatibilityMode.ZAPRET],
-        supported_protocols=["tcp"],
-        supported_ports=[80, 443],
-        parameters={
-            "method_case": {
-                "type": "str",
-                "default": "mixed",
-                "choices": ["upper", "lower", "mixed"],
-                "description": "Method case modification",
-            },
-            "header_case": {
-                "type": "str",
-                "default": "mixed",
-                "choices": ["upper", "lower", "mixed"],
-                "description": "Header case modification",
-            },
-            "randomize_each_header": {
-                "type": "bool",
-                "default": True,
-                "description": "Randomize case for each header",
-            },
-        },
-        default_parameters={"method_case": "mixed", "header_case": "mixed"},
-        tags={"http", "case", "manipulation", "evasion"},
-        test_cases=[
-            TestCase(
-                id="case_manipulation_basic",
-                name="Basic case manipulation test",
-                description="Test case manipulation with mixed case",
-                target_domain="httpbin.org",
-                expected_success=True,
-                test_parameters={"method_case": "mixed", "header_case": "mixed"},
-            )
-        ],
-    )
-
-    # Register all definitions
-    definitions = [
-        header_modification_def,
-        method_manipulation_def,
-        chunked_encoding_def,
-        pipeline_manipulation_def,
-        header_splitting_def,
-        case_manipulation_def,
-    ]
-
-    registered_count = 0
-    for definition in definitions:
-        try:
-            # Get attack class from registry
-            attack_class = None
-            if definition.id == "header_modification":
-                attack_class = HeaderModificationAttack
-            elif definition.id == "method_manipulation":
-                attack_class = MethodManipulationAttack
-            elif definition.id == "chunked_encoding":
-                attack_class = ChunkedEncodingAttack
-            elif definition.id == "pipeline_manipulation":
-                attack_class = PipelineManipulationAttack
-            elif definition.id == "header_splitting":
-                attack_class = HeaderSplittingAttack
-            elif definition.id == "case_manipulation":
-                attack_class = CaseManipulationAttack
-
-            if attack_class and registry.register_attack(definition, attack_class):
-                registered_count += 1
-                print(f"Registered HTTP attack: {definition.id}")
-            else:
-                print(f"Failed to register HTTP attack: {definition.id}")
-
-        except Exception as e:
-            print(f"Error registering HTTP attack {definition.id}: {e}")
-
-    print(f"Successfully registered {registered_count} HTTP manipulation attacks")
-    return registered_count
-
-
-# Auto-register attacks when module is imported
-if __name__ != "__main__":
-    try:
-        register_http_manipulation_attacks()
-    except Exception as e:
-        LOG.error(f"Failed to auto-register HTTP manipulation attacks: {e}")
+# HTTP manipulation attacks are auto-registered via decorators

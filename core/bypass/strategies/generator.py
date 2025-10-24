@@ -1,12 +1,9 @@
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 from core.fingerprint.advanced_models import DPIFingerprint
-
-# TODO: from core.learning.cache import AdaptiveLearningCache
-from core.bypass.attacks.modern_registry import (
-    ModernAttackRegistry,
-    get_modern_registry,
+from core.bypass.attacks.attack_registry import (
+    AttackRegistry,
 )
 
 LOG = logging.getLogger(__name__)
@@ -19,7 +16,7 @@ class StrategyGenerator:
     """
 
     def __init__(
-        self, attack_registry: ModernAttackRegistry, learning_cache=None
+        self, attack_registry: AttackRegistry, learning_cache=None
     ):  # Optional[AdaptiveLearningCache]
         self.attack_registry = attack_registry
         self.learning_cache = learning_cache

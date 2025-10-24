@@ -1,2 +1,143 @@
---dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum,badseq --dpi-desync-ttl=3
---dpi-desync=multidisorder --dpi-desync-split-pos=1,5,10 --dpi-desync-fooling=badseq
+# ==============================================================================
+# Comprehensive DPI Bypass Strategies for Recon v111+
+# ==============================================================================
+# This file contains an expanded set of strategies based on all available
+# attacks in the modernized core/bypass/attacks/ module.
+#
+# Format: All strategies use the explicit zapret-compatible command-line format.
+#
+# Usage:
+# python cli.py -d sites.txt --strategies-file strategies.txt --no-generate --parallel 15 --fingerprint
+# ==============================================================================
+--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=15
+--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum
+
+# ==============================================================================
+# SECTION 1: CORE TCP/IP STRATEGIES (Refined & Expanded)
+# ==============================================================================
+# These are foundational attacks targeting TCP stream reassembly and state.
+
+# --- 1.1: Simple Splitting ---
+# Splits the initial data packet at a specific position.
+--dpi-desync split --dpi-desync-split-pos 1
+--dpi-desync split --dpi-desync-split-pos 2
+--dpi-desync split --dpi-desync-split-pos 3
+--dpi-desync split --dpi-desync-split-pos 10
+--dpi-desync split --dpi-desync-split-pos sni
+--dpi-desync split --dpi-desync-split-pos cipher
+
+# --- 1.2: Simple Disorder ---
+# Splits the packet and sends the second part before the first.
+--dpi-desync disorder --dpi-desync-split-pos 2
+--dpi-desync disorder --dpi-desync-split-pos 5
+--dpi-desync disorder --dpi-desync-split-pos sni
+
+# --- 1.3: Fake Packet Race ---
+# Sends a fake packet before the real one to poison the DPI state.
+--dpi-desync fake --dpi-desync-ttl 1
+--dpi-desync fake --dpi-desync-ttl 3
+--dpi-desync fake --dpi-desync-ttl 5
+
+# --- 1.4: Fake + Disorder (fakeddisorder) ---
+# The classic and highly effective combination of a fake packet and disordered segments.
+--dpi-desync fake,disorder --dpi-desync-split-pos 1 --dpi-desync-ttl 1
+--dpi-desync fake,disorder --dpi-desync-split-pos 3 --dpi-desync-ttl 2
+--dpi-desync fake,disorder --dpi-desync-split-pos 10 --dpi-desync-ttl 3
+--dpi-desync fake,disorder --dpi-desync-split-pos sni --dpi-desync-ttl 1
+--dpi-desync fake,disorder --dpi-desync-split-pos cipher --dpi-desync-ttl 2
+--dpi-desync fake,disorder --dpi-desync-split-pos midsld --dpi-desync-ttl 4
+
+# --- 1.5: Sequence Overlap (seqovl) ---
+# Creates ambiguity by sending overlapping TCP sequence numbers.
+--dpi-desync fake,disorder --dpi-desync-split-pos 3 --dpi-desync-split-seqovl 5 --dpi-desync-ttl 1
+--dpi-desync fake,disorder --dpi-desync-split-pos 10 --dpi-desync-split-seqovl 10 --dpi-desync-ttl 2
+--dpi-desync fake,disorder --dpi-desync-split-pos sni --dpi-desync-split-seqovl 15 --dpi-desync-ttl 1
+--dpi-desync fake,disorder --dpi-desync-split-pos 40 --dpi-desync-split-seqovl 20 --dpi-desync-ttl 3
+
+# --- 1.6: Multi-Split & Multi-Disorder ---
+# Splits the payload into multiple segments.
+--dpi-desync multisplit --dpi-desync-split-count 3
+--dpi-desync multisplit --dpi-desync-split-count 5 --dpi-desync-split-seqovl 10
+--dpi-desync multidisorder --dpi-desync-split-count 4
+
+
+# ==============================================================================
+# SECTION 2: FOOLING & HEADER MANIPULATION STRATEGIES
+# ==============================================================================
+# These attacks modify packet headers to evade signature-based detection.
+
+# --- 2.1: Fooling Methods ---
+# Corrupts checksums or adds fake signatures to evade validation.
+--dpi-desync fake --dpi-desync-fooling badsum
+--dpi-desync fake --dpi-desync-fooling badseq
+--dpi-desync fake --dpi-desync-fooling md5sig
+
+# --- 2.2: Combined Fooling ---
+--dpi-desync fake,disorder --dpi-desync-split-pos 3 --dpi-desync-ttl 1 --dpi-desync-fooling badsum
+--dpi-desync fake,disorder --dpi-desync-split-pos sni --dpi-desync-ttl 2 --dpi-desync-fooling badseq,md5sig
+--dpi-desync multisplit --dpi-desync-split-count 3 --dpi-desync-fooling badsum
+
+# --- 2.3: IP-Level Manipulation ---
+# Targets the IP header itself.
+--dpi-desync ipfrag2 --dpi-desync-split-pos 8
+--dpi-desync ipfrag2 --dpi-desync-split-pos 16
+
+# --- 2.4: TCP Window & Options Manipulation ---
+--dpi-desync wssize
+--dpi-desync wssize --dpi-desync-split-pos 2
+
+
+# ==============================================================================
+# SECTION 3: PROTOCOL-SPECIFIC STRATEGIES (TLS, HTTP, QUIC)
+# ==============================================================================
+# Attacks tailored for specific application-layer protocols.
+
+# --- 3.1: TLS-Specific Attacks ---
+# Manipulates TLS records and handshake details.
+--dpi-desync tlsrec --dpi-desync-split-pos 5
+--dpi-desync tlsrec --dpi-desync-split-pos 10
+--dpi-desync fake --dpi-desync-fake-sni google.com
+--dpi-desync fake --dpi-desync-fake-sni microsoft.com
+--dpi-desync fake,disorder --dpi-desync-split-pos sni --dpi-desync-fake-sni amazon.com
+
+# --- 3.2: QUIC & UDP Evasion ---
+# Strategies to force traffic over TCP or fragment UDP packets.
+--filter-udp 443
+--filter-udp 443 --dpi-desync fake,disorder --dpi-desync-split-pos sni
+--filter-udp 443 --dpi-desync split --dpi-desync-split-pos 1200
+--filter-udp 443 --dpi-desync split --dpi-desync-split-pos 500
+
+
+# ==============================================================================
+# SECTION 4: ADVANCED & EXPERIMENTAL COMBINATIONS
+# ==============================================================================
+# Complex strategies combining multiple parameters for maximum evasion potential.
+
+# --- 4.1: Aggressive Multi-Parameter Strategies ---
+--dpi-desync fake,disorder,split --dpi-desync-split-pos 3 --dpi-desync-ttl 1 --dpi-desync-fooling badsum
+--dpi-desync multisplit,fake --dpi-desync-split-count 4 --dpi-desync-split-seqovl 5 --dpi-desync-ttl 2 --dpi-desync-fooling badseq
+--dpi-desync fake,disorder,ipfrag2 --dpi-desync-split-pos sni --dpi-desync-ttl 1 --dpi-desync-fooling badsum,md5sig
+
+# --- 4.2: Low-Level Parameter Variations ---
+--dpi-desync fake,disorder --dpi-desync-split-pos 1 --dpi-desync-ttl 1 --dpi-desync-fooling badsum
+--dpi-desync fake,disorder --dpi-desync-split-pos 2 --dpi-desync-ttl 2 --dpi-desync-fooling badseq
+--dpi-desync fake,disorder --dpi-desync-split-pos 4 --dpi-desync-ttl 4 --dpi-desync-fooling badsum
+--dpi-desync fake,disorder --dpi-desync-split-pos 8 --dpi-desync-ttl 8 --dpi-desync-fooling badsum
+
+# --- 4.3: Large Overlap & Split Variations ---
+--dpi-desync fake,disorder --dpi-desync-split-pos 20 --dpi-desync-split-seqovl 40 --dpi-desync-ttl 2
+--dpi-desync fake,disorder --dpi-desync-split-pos 50 --dpi-desync-split-seqovl 25 --dpi-desync-ttl 1
+--dpi-desync multisplit --dpi-desync-split-count 8 --dpi-desync-split-seqovl 15
+
+# --- 4.4: Host Header Manipulation (for HTTP) ---
+--hostcase
+--hostdot
+--hosttab
+--hostspell gogle.com
+--hostspell go-ogle.com
+
+# --- 4.5: HTTP Method & URL Manipulation ---
+--http-method-case
+--http-url-path-case
+--http-url-path-dot
+--http-pipeline 3

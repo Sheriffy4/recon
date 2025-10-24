@@ -6,13 +6,11 @@ End-to-end system validation, performance optimization, and production readiness
 
 import asyncio
 import time
-import statistics
 import json
 import sys
 import os
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
-from pathlib import Path
 
 # Add the recon directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
@@ -23,14 +21,16 @@ try:
     from core.fingerprint.config import AdvancedFingerprintingConfig, get_config_manager
     from core.fingerprint.diagnostics import get_diagnostic_system
     from ml.zapret_strategy_generator import ZapretStrategyGenerator
+
     # ✅ FIX: Lazy import to avoid circular dependency
     # from core.hybrid_engine import HybridEngine
 except ImportError:
     from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter
     from core.fingerprint.advanced_models import DPIFingerprint, DPIType
-    from core.fingerprint.config import AdvancedFingerprintingConfig, get_config_manager
+    from core.fingerprint.config import get_config_manager
     from core.fingerprint.diagnostics import get_diagnostic_system
     from ml.zapret_strategy_generator import ZapretStrategyGenerator
+
     # ✅ FIX: Lazy import to avoid circular dependency
     # from core.hybrid_engine import HybridEngine
 
@@ -154,7 +154,7 @@ class FinalIntegrationTester:
             fingerprinter = AdvancedFingerprinter(config=self.config)
 
             # Mock analyzer responses for testing
-            from unittest.mock import patch, AsyncMock
+            from unittest.mock import patch
 
             with patch(
                 "core.fingerprint.tcp_analyzer.TCPAnalyzer.analyze_tcp_behavior"
@@ -891,12 +891,12 @@ async def run_final_integration_tests():
 
     # Recommendations
     if report.optimization_recommendations:
-        print(f"\n📋 Optimization Recommendations:")
+        print("\n📋 Optimization Recommendations:")
         for i, rec in enumerate(report.optimization_recommendations, 1):
             print(f"  {i}. {rec}")
 
     # Production readiness details
-    print(f"\n🚀 Production Readiness Assessment:")
+    print("\n🚀 Production Readiness Assessment:")
     for component, ready in report.production_readiness.items():
         if component != "overall_ready":
             status = "✅" if ready else "❌"
@@ -932,10 +932,10 @@ if __name__ == "__main__":
 
         # Exit with appropriate code
         if report.production_readiness.get("overall_ready", False):
-            print(f"\n🎉 System is ready for production deployment!")
+            print("\n🎉 System is ready for production deployment!")
             sys.exit(0)
         else:
-            print(f"\n⚠️  System needs attention before production deployment")
+            print("\n⚠️  System needs attention before production deployment")
             sys.exit(1)
 
     asyncio.run(main())

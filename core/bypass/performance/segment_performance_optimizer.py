@@ -7,18 +7,15 @@ attack execution, including profiling, caching, memory optimization, and
 performance monitoring.
 """
 
-import asyncio
 import logging
 import time
 import threading
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Tuple, Callable, Union
+from typing import Dict, Any, List, Optional, Tuple, Callable
 from concurrent.futures import ThreadPoolExecutor
-import weakref
 import gc
 
-from core.bypass.attacks.base import AttackResult, AttackContext
 
 # Optional import to avoid circular dependencies
 try:

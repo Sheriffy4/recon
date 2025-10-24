@@ -80,7 +80,7 @@ class DynamicParameterOptimizer:
         if attack_name in self._parameter_ranges:
             return self._parameter_ranges[attack_name].copy()
         try:
-            from core.bypass.attacks.registry import AttackRegistry
+            from core.bypass.attacks.attack_registry import AttackRegistry
 
             attack_class = AttackRegistry.get(attack_name)
             if attack_class:
@@ -229,7 +229,7 @@ class DynamicParameterOptimizer:
             Effectiveness score (0.0 - 1.0)
         """
         try:
-            from core.bypass.attacks.registry import AttackRegistry
+            from core.bypass.attacks.attack_registry import AttackRegistry
             from core.bypass.attacks.base import AttackContext, AttackStatus
 
             attack = AttackRegistry.create(attack_name)

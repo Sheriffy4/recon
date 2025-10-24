@@ -1,0 +1,124 @@
+# DPI Bypass Strategies - Zapret Style Format
+# Test with: python cli.py -d sites.txt --strategies-file strategies_zapret.txt --no-generate --parallel 15 --fingerprint --pcap out2.pcap --analysis-level full --enable-enhanced-tracking --telemetry-full
+
+# ===== BASIC ATTACKS =====
+
+# 1. Simple Split Attacks
+--dpi-desync=split --dpi-desync-split-pos=3
+--dpi-desync=split --dpi-desync-split-pos=10
+--dpi-desync=split --dpi-desync-split-pos=sni
+--dpi-desync=split --dpi-desync-split-pos=cipher
+
+# 2. Disorder Attacks  
+--dpi-desync=disorder --dpi-desync-split-pos=3
+--dpi-desync=disorder --dpi-desync-split-pos=10
+--dpi-desync=disorder --dpi-desync-split-pos=sni
+
+# 3. Fake Packet Attacks
+--dpi-desync=fake --dpi-desync-ttl=1
+--dpi-desync=fake --dpi-desync-ttl=3
+--dpi-desync=fake --dpi-desync-ttl=5
+
+# ===== ADVANCED ATTACKS =====
+
+# 4. FakeDisorder (Zapret-compatible)
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=10 --dpi-desync-ttl=3
+--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=cipher --dpi-desync-ttl=3
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=10 --dpi-desync-ttl=3 --dpi-desync-fooling=badseq
+--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig
+
+# 5. Sequence Overlap (seqovl)
+--dpi-desync=seqovl --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=5 --dpi-desync-ttl=1
+--dpi-desync=seqovl --dpi-desync-split-pos=10 --dpi-desync-split-seqovl=10 --dpi-desync-ttl=3
+--dpi-desync=seqovl --dpi-desync-split-pos=sni --dpi-desync-split-seqovl=15 --dpi-desync-ttl=1
+--dpi-desync=seqovl --dpi-desync-split-pos=cipher --dpi-desync-split-seqovl=20 --dpi-desync-ttl=3
+
+# 6. Multi-Split Attacks
+--dpi-desync=multisplit --dpi-desync-split-pos=3,10,20
+--dpi-desync=multisplit --dpi-desync-split-pos=5,15,25
+--dpi-desync=multisplit --dpi-desync-split-count=3
+--dpi-desync=multisplit --dpi-desync-split-count=5
+--dpi-desync=multisplit --dpi-desync-split-pos=sni
+--dpi-desync=multisplit --dpi-desync-split-pos=cipher
+
+# 7. Multi-Disorder Attacks
+--dpi-desync=multidisorder --dpi-desync-split-pos=3,10
+--dpi-desync=multidisorder --dpi-desync-split-pos=5,15
+--dpi-desync=multidisorder --dpi-desync-split-count=3
+--dpi-desync=multidisorder --dpi-desync-split-pos=sni,cipher
+
+# ===== COMBINED STRATEGIES =====
+
+# 8. Split + Fooling Combinations
+--dpi-desync=split --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum
+--dpi-desync=split --dpi-desync-split-pos=10 --dpi-desync-fooling=badseq
+--dpi-desync=split --dpi-desync-split-pos=sni --dpi-desync-fooling=md5sig
+--dpi-desync=disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum
+--dpi-desync=disorder --dpi-desync-split-pos=10 --dpi-desync-fooling=badseq
+
+# 9. TTL Variations
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=2 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=10 --dpi-desync-ttl=1 --dpi-desync-fooling=badseq
+--dpi-desync=fake,disorder --dpi-desync-split-pos=10 --dpi-desync-ttl=2 --dpi-desync-fooling=badseq
+--dpi-desync=fake,disorder --dpi-desync-split-pos=10 --dpi-desync-ttl=3 --dpi-desync-fooling=badseq
+
+# 10. Position Variations
+--dpi-desync=fake,disorder --dpi-desync-split-pos=1 --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=2 --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=5 --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=15 --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=25 --dpi-desync-ttl=1
+
+# 11. Overlap Variations
+--dpi-desync=seqovl --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=1 --dpi-desync-ttl=1
+--dpi-desync=seqovl --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=3 --dpi-desync-ttl=1
+--dpi-desync=seqovl --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=7 --dpi-desync-ttl=1
+--dpi-desync=seqovl --dpi-desync-split-pos=10 --dpi-desync-split-seqovl=5 --dpi-desync-ttl=3
+--dpi-desync=seqovl --dpi-desync-split-pos=10 --dpi-desync-split-seqovl=10 --dpi-desync-ttl=3
+
+# ===== EXPERIMENTAL STRATEGIES =====
+
+# 12. Large Split Positions
+--dpi-desync=split --dpi-desync-split-pos=50
+--dpi-desync=split --dpi-desync-split-pos=100
+--dpi-desync=disorder --dpi-desync-split-pos=50
+--dpi-desync=disorder --dpi-desync-split-pos=100
+--dpi-desync=fake,disorder --dpi-desync-split-pos=50 --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=100 --dpi-desync-ttl=3
+
+# 13. Large Overlap Sizes
+--dpi-desync=seqovl --dpi-desync-split-pos=10 --dpi-desync-split-seqovl=30 --dpi-desync-ttl=1
+--dpi-desync=seqovl --dpi-desync-split-pos=20 --dpi-desync-split-seqovl=50 --dpi-desync-ttl=3
+
+# 14. Multiple Positions
+--dpi-desync=multisplit --dpi-desync-split-pos=1,5,10,15,20
+--dpi-desync=multisplit --dpi-desync-split-pos=3,7,11,17,23
+--dpi-desync=multidisorder --dpi-desync-split-pos=2,6,12,18
+--dpi-desync=multidisorder --dpi-desync-split-pos=4,8,14,22
+
+# ===== EDGE CASES =====
+
+# 15. Minimal Attacks
+--dpi-desync=split --dpi-desync-split-pos=1
+--dpi-desync=disorder --dpi-desync-split-pos=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=1 --dpi-desync-ttl=1
+--dpi-desync=seqovl --dpi-desync-split-pos=1 --dpi-desync-split-seqovl=1 --dpi-desync-ttl=1
+
+# ===== PERFORMANCE TESTS =====
+
+# 16. Simple Performance Baselines
+--dpi-desync=split --dpi-desync-split-pos=3
+--dpi-desync=split --dpi-desync-split-pos=10
+--dpi-desync=disorder --dpi-desync-split-pos=3
+--dpi-desync=disorder --dpi-desync-split-pos=10
+--dpi-desync=fake --dpi-desync-ttl=1
+
+# 17. Complex Performance Tests
+--dpi-desync=multisplit --dpi-desync-split-pos=3,10,20,30,40
+--dpi-desync=multidisorder --dpi-desync-split-pos=5,15,25,35
+--dpi-desync=seqovl --dpi-desync-split-pos=10 --dpi-desync-split-seqovl=20 --dpi-desync-ttl=1

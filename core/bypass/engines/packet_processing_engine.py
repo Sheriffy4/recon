@@ -551,26 +551,28 @@ class PacketProcessingEngine(BaseBypassEngine):
 
         for i, segment_info in enumerate(segments):
             data, seq_offset, delay_ms, options = self._parse_segment_info(segment_info)
-            
+
             if delay_ms > 0:
                 time.sleep(delay_ms / 1000.0)
 
             # --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
             # Вычисляем новый Sequence Number для КАЖДОГО сегмента
             # на основе его смещения (seq_offset) из "рецепта"
-            new_sequence_number = (base_seq + seq_offset) & 0xFFFFFFFF # & 0xFFFFFFFF для обработки переполнения
+            new_sequence_number = (
+                base_seq + seq_offset
+            ) & 0xFFFFFFFF  # & 0xFFFFFFFF для обработки переполнения
 
             packet_params = {
                 "new_payload": data,
-                "new_seq": new_sequence_number, # <--- ИСПОЛЬЗУЕМ ВЫЧИСЛЕННЫЙ SEQ
+                "new_seq": new_sequence_number,  # <--- ИСПОЛЬЗУЕМ ВЫЧИСЛЕННЫЙ SEQ
                 "new_flags": "A" if i < len(segments) - 1 else "PA",
             }
             packet_params.update(options)
-            
+
             new_packet_raw = EnhancedPacketBuilder.assemble_tcp_packet(
                 bytes(original_packet.raw), **packet_params
             )
-            
+
             if self._send_raw_packet(w, new_packet_raw, original_packet):
                 packets_sent += 1
                 # ... (остальная часть метода для валидации остается без изменений) ...

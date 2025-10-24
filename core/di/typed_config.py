@@ -252,12 +252,14 @@ if PYDANTIC_AVAILABLE:
                 setattr(self.effectiveness_tester, "engine_override", override)
                 try:
                     import platform
+
                     if override == "native" and platform.system().lower() != "windows":
                         LOG.warning(
                             "Selected --engine=native on non-Windows platform; this engine may be unavailable. Auto-detection is recommended."
                         )
                 except Exception:
                     pass
+
 else:
     # Fallback to dataclasses when Pydantic is not available
     @dataclass

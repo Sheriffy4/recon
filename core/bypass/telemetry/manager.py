@@ -4,13 +4,14 @@ import time
 import threading
 import copy
 from collections import defaultdict
-from typing import Dict, Any, Optional, Set
+from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 
 
 @dataclass
 class TelemetryData:
     """Container for telemetry data."""
+
     start_ts: float = field(default_factory=time.time)
     strategy_key: Optional[str] = None
 
@@ -55,27 +56,26 @@ class TelemetryManager:
                 "segments_sent": 0,
                 "fake_packets_sent": 0,
                 "modified_packets_sent": 0,
-                "quic_segments_sent": 0
+                "quic_segments_sent": 0,
             },
-            "ttls": {
-                "fake": defaultdict(int),
-                "real": defaultdict(int)
-            },
+            "ttls": {"fake": defaultdict(int), "real": defaultdict(int)},
             "seq_offsets": defaultdict(int),
             "overlaps": defaultdict(int),
             "clienthellos": 0,
             "serverhellos": 0,
             "rst_count": 0,
-            "per_target": defaultdict(lambda: {
-                "segments_sent": 0,
-                "fake_packets_sent": 0,
-                "seq_offsets": defaultdict(int),
-                "ttls_fake": defaultdict(int),
-                "ttls_real": defaultdict(int),
-                "overlaps": defaultdict(int),
-                "last_outcome": None,
-                "last_outcome_ts": None
-            })
+            "per_target": defaultdict(
+                lambda: {
+                    "segments_sent": 0,
+                    "fake_packets_sent": 0,
+                    "seq_offsets": defaultdict(int),
+                    "ttls_fake": defaultdict(int),
+                    "ttls_real": defaultdict(int),
+                    "overlaps": defaultdict(int),
+                    "last_outcome": None,
+                    "last_outcome_ts": None,
+                }
+            ),
         }
 
     def reset(self):
@@ -83,8 +83,13 @@ class TelemetryManager:
         with self._lock:
             self._data = self._init_data()
 
-    def record_segment_sent(self, target_ip: str, seq_offset: int = 0,
-                           ttl: Optional[int] = None, is_fake: bool = False):
+    def record_segment_sent(
+        self,
+        target_ip: str,
+        seq_offset: int = 0,
+        ttl: Optional[int] = None,
+        is_fake: bool = False,
+    ):
         """Record a sent segment."""
         with self._lock:
             self._data["aggregate"]["segments_sent"] += 1
@@ -186,7 +191,7 @@ class TelemetryManager:
                 "seq_offsets": dict(metrics.get("seq_offsets", {})),
                 "ttls_fake": dict(metrics.get("ttls_fake", {})),
                 "ttls_real": dict(metrics.get("ttls_real", {})),
-                "overlaps": dict(metrics.get("overlaps", {}))
+                "overlaps": dict(metrics.get("overlaps", {})),
             }
             for target, metrics in snapshot["per_target"].items()
         }
@@ -200,10 +205,10 @@ class TelemetryManager:
             sorted_targets = sorted(
                 self._data["per_target"].items(),
                 key=lambda x: x[1].get("last_outcome_ts") or time.time(),
-                reverse=True
+                reverse=True,
             )
 
             # Clear the existing defaultdict and update it with the newest items
             per_target_dict = self._data["per_target"]
             per_target_dict.clear()
-            per_target_dict.update(dict(sorted_targets[:self.max_targets]))
+            per_target_dict.update(dict(sorted_targets[: self.max_targets]))

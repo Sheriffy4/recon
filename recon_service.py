@@ -8,8 +8,10 @@ import signal
 from pathlib import Path
 from typing import Dict, Set, Optional
 from urllib.parse import urlparse
+
 # <<< НАЧАЛО ИЗМЕНЕНИЙ: Новые импорты >>>
 import argparse
+
 # Импортируем необходимые классы из cli.py.
 # В идеале их стоит вынести в отдельный утилитный модуль, но для простоты сделаем так.
 try:
@@ -85,7 +87,7 @@ class DPIBypassService:
         FIX: Унифицировано для загрузки ТОЛЬКО из domain_strategies.json.
         """
         strategies_loaded = 0
-        self.domain_strategies = {} # Очищаем перед загрузкой
+        self.domain_strategies = {}  # Очищаем перед загрузкой
 
         # --- START OF FIX: Use domain_strategies.json as the single source of truth ---
         domain_strategies_file = Path("domain_strategies.json")
@@ -97,11 +99,26 @@ class DPIBypassService:
                 # Загружаем стратегии для конкретных доменов
                 domain_strategies = data.get("domain_strategies", {})
                 for domain, strategy_data in domain_strategies.items():
-                    strategy = strategy_data.get("strategy", "")
+                    # Поддерживаем два формата:
+                    # 1. {"domain": "strategy_string"} - прямая строка
+                    # 2. {"domain": {"strategy": "strategy_string"}} - вложенный объект
+                    if isinstance(strategy_data, str):
+                        # Формат 1: прямая строка стратегии
+                        strategy = strategy_data
+                    elif isinstance(strategy_data, dict):
+                        # Формат 2: вложенный объект со стратегией
+                        strategy = strategy_data.get("strategy", "")
+                    else:
+                        # Неизвестный формат, пропускаем
+                        self.logger.warning(
+                            f"⚠️ Unknown strategy format for {domain}: {type(strategy_data)}"
+                        )
+                        continue
+
                     if strategy:
                         self.domain_strategies[domain] = strategy
                         strategies_loaded += 1
-                
+
                 # Загружаем стратегию по умолчанию, если она есть
                 default_strategy = data.get("default_strategy")
                 if isinstance(default_strategy, dict):
@@ -109,13 +126,13 @@ class DPIBypassService:
 
                 if default_strategy and isinstance(default_strategy, str):
                     self.domain_strategies["default"] = default_strategy
-                    self.logger.info(f"✅ Loaded default strategy.")
+                    self.logger.info("✅ Loaded default strategy.")
 
                 if strategies_loaded > 0:
                     self.logger.info(
                         f"✅ Loaded {strategies_loaded} domain-specific strategies from {domain_strategies_file}"
                     )
-                
+
                 if self.domain_strategies:
                     return True
 
@@ -123,9 +140,11 @@ class DPIBypassService:
                 self.logger.error(f"❌ Failed to load {domain_strategies_file}: {e}")
                 return False
         # --- END OF FIX ---
-        
+
         # Если основной файл не найден или пуст, сообщаем об ошибке.
-        self.logger.error(f"❌ Strategy file '{domain_strategies_file}' not found or is empty.")
+        self.logger.error(
+            f"❌ Strategy file '{domain_strategies_file}' not found or is empty."
+        )
         self.logger.error("   Please run strategy discovery first to generate it.")
         return False
 
@@ -192,7 +211,11 @@ class DPIBypassService:
         """Запускает движок обхода DPI."""
         try:
             # Import unified components for consistent behavior
-            from core import UnifiedBypassEngine, UnifiedEngineConfig, UnifiedStrategyLoader
+            from core import (
+                UnifiedBypassEngine,
+                UnifiedEngineConfig,
+                UnifiedStrategyLoader,
+            )
 
             # Create unified engine configuration with forced override
             engine_config = UnifiedEngineConfig(
@@ -200,31 +223,32 @@ class DPIBypassService:
                 force_override=True,  # CRITICAL: Always use forced override
                 enable_diagnostics=True,
                 log_all_strategies=True,
-                track_forced_override=True
+                track_forced_override=True,
             )
 
             # Create unified bypass engine (replaces old BypassEngine)
             self.bypass_engine = UnifiedBypassEngine(config=engine_config)
-            
+
             # Create unified strategy loader for consistent strategy processing
             self.strategy_loader = UnifiedStrategyLoader(debug=True)
 
             # UNIFIED STRATEGY LOADING: Use UnifiedStrategyLoader for all strategies
             # This replaces the old StrategyInterpreter approach with unified loading
-            
+
             strategy_map = {}
             target_ips = set()
             ip_to_domain = {}  # Маппинг IP -> домен для правильного выбора стратегии
 
             # Резолвим домены в IP адреса
             import socket
+
             for domain in self.monitored_domains:
                 try:
                     # Резолвим домен в IP адреса
                     ip_addresses = socket.getaddrinfo(domain, None)
                     for addr_info in ip_addresses:
                         ip = addr_info[4][0]
-                        if ':' not in ip:  # Только IPv4
+                        if ":" not in ip:  # Только IPv4
                             target_ips.add(ip)
                             # Сохраняем маппинг IP -> домен (первый домен для IP)
                             if ip not in ip_to_domain:
@@ -238,84 +262,141 @@ class DPIBypassService:
                 self.logger.error("Cannot start bypass without target IPs")
                 return False
 
-            self.logger.info(f"✅ Resolved {len(target_ips)} unique IP addresses from {len(self.monitored_domains)} domains")
+            self.logger.info(
+                f"✅ Resolved {len(target_ips)} unique IP addresses from {len(self.monitored_domains)} domains"
+            )
 
             # <<< НАЧАЛО ИЗМЕНЕНИЙ: Запуск захвата трафика >>>
-            if self.pcap_file and SCAPY_AVAILABLE and PacketCapturer and build_bpf_from_ips:
+            if (
+                self.pcap_file
+                and SCAPY_AVAILABLE
+                and PacketCapturer
+                and build_bpf_from_ips
+            ):
                 try:
                     bpf_filter = build_bpf_from_ips(target_ips, port=443)
-                    self.capturer = PacketCapturer(filename=self.pcap_file, bpf=bpf_filter)
+                    self.capturer = PacketCapturer(
+                        filename=self.pcap_file, bpf=bpf_filter
+                    )
                     self.capturer.start()
-                    self.logger.info(f"🔴 PCAP capture started to '{self.pcap_file}' with filter: {bpf_filter}")
+                    self.logger.info(
+                        f"🔴 PCAP capture started to '{self.pcap_file}' with filter: {bpf_filter}"
+                    )
                 except Exception as e:
                     self.logger.error(f"❌ Failed to start PCAP capture: {e}")
             elif self.pcap_file:
-                self.logger.warning("⚠️ PCAP capture requested, but Scapy or helpers are not available.")
+                self.logger.warning(
+                    "⚠️ PCAP capture requested, but Scapy or helpers are not available."
+                )
             # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
             # UNIFIED STRATEGY PROCESSING: Create forced overrides for all domains
             # This ensures identical behavior to testing mode
-            
+
             self.logger.info("=" * 70)
             self.logger.info("UNIFIED STRATEGY LOADING WITH FORCED OVERRIDES")
             self.logger.info("=" * 70)
-            
+
             mapped_count = 0
             for ip in sorted(target_ips):  # Sort for consistent logging
                 domain = ip_to_domain.get(ip)
                 if domain:
                     # Check if x.com domain has explicit strategy BEFORE getting strategy
-                    if 'x.com' in domain.lower():
+                    if "x.com" in domain.lower():
                         # Check for explicit strategy (not default)
                         domain_lower = domain.lower()
                         has_explicit_strategy = False
-                        
+
                         # Check exact match
                         if domain_lower in self.domain_strategies:
                             has_explicit_strategy = True
                         else:
                             # Check subdomain match
                             for strategy_domain in self.domain_strategies:
-                                if strategy_domain != "default" and domain_lower.endswith("." + strategy_domain):
+                                if (
+                                    strategy_domain != "default"
+                                    and domain_lower.endswith("." + strategy_domain)
+                                ):
                                     has_explicit_strategy = True
                                     break
-                        
+
                         if not has_explicit_strategy:
-                            self.logger.error(f"❌ CRITICAL: x.com domain '{domain}' has NO explicit strategy!")
-                            self.logger.error(f"❌ IP {ip} for {domain} would fall back to default strategy")
-                            self.logger.error(f"❌ x.com MUST have explicit strategy - cannot use default")
-                            raise ValueError(f"x.com domain '{domain}' (IP {ip}) has no explicit strategy configured")
-                    
+                            self.logger.error(
+                                f"❌ CRITICAL: x.com domain '{domain}' has NO explicit strategy!"
+                            )
+                            self.logger.error(
+                                f"❌ IP {ip} for {domain} would fall back to default strategy"
+                            )
+                            self.logger.error(
+                                "❌ x.com MUST have explicit strategy - cannot use default"
+                            )
+                            raise ValueError(
+                                f"x.com domain '{domain}' (IP {ip}) has no explicit strategy configured"
+                            )
+
                     strategy_str = self.get_strategy_for_domain(domain)
                     if strategy_str:
                         try:
-                            # UNIFIED LOADING: Use UnifiedStrategyLoader instead of StrategyInterpreter
-                            normalized_strategy = self.strategy_loader.load_strategy(strategy_str)
-                            
+                            # UNIFIED LOADING: Use UnifiedStrategyLoader instead of old parse_strategy_config
+                            # This ensures fake,disorder -> fakeddisorder (not fake!)
+                            normalized_strategy = self.strategy_loader.load_strategy(
+                                strategy_str
+                            )
+
                             # FORCED OVERRIDE: Create forced override for this strategy
-                            forced_config = self.strategy_loader.create_forced_override(normalized_strategy)
-                            
+                            forced_config = self.strategy_loader.create_forced_override(
+                                normalized_strategy
+                            )
+
                             # Map by IP address (not domain!)
                             strategy_map[ip] = forced_config
                             mapped_count += 1
-                            
+
                             # Log each IP -> domain -> strategy mapping with forced override
-                            self.logger.info(f"✅ Mapped IP {ip} ({domain}) -> {normalized_strategy.type} (FORCED OVERRIDE)")
-                            self.logger.info(f"   no_fallbacks: {forced_config.get('no_fallbacks', False)}")
-                            self.logger.info(f"   forced: {forced_config.get('forced', False)}")
-                            
+                            self.logger.info(
+                                f"✅ Mapped IP {ip} ({domain}) -> {normalized_strategy.type} (FORCED OVERRIDE)"
+                            )
+                            self.logger.info(f"   Raw strategy: {strategy_str}")
+                            self.logger.info(
+                                f"   Parsed type: {normalized_strategy.type}"
+                            )
+                            self.logger.info(
+                                f"   no_fallbacks: {forced_config.get('no_fallbacks', False)}"
+                            )
+                            self.logger.info(
+                                f"   forced: {forced_config.get('forced', False)}"
+                            )
+
+                            # CRITICAL: Verify fake,disorder -> fakeddisorder conversion
+                            if "fake" in strategy_str and "disorder" in strategy_str:
+                                if normalized_strategy.type != "fakeddisorder":
+                                    self.logger.error(
+                                        f"❌ CRITICAL: fake,disorder should parse to fakeddisorder, got {normalized_strategy.type}"
+                                    )
+                                    raise ValueError(
+                                        f"Strategy parsing error: fake,disorder -> {normalized_strategy.type} (expected fakeddisorder)"
+                                    )
+                                else:
+                                    self.logger.info(
+                                        "✅ VERIFIED: fake,disorder correctly parsed to fakeddisorder"
+                                    )
+
                         except Exception as e:
-                            self.logger.error(f"❌ Failed to load strategy for {domain} ({ip}): {e}")
+                            self.logger.error(
+                                f"❌ Failed to load strategy for {domain} ({ip}): {e}"
+                            )
                             # Continue with other strategies
                             continue
-            
+
             # Log total count of mapped IPs
             self.logger.info("=" * 70)
-            self.logger.info(f"✅ Total IP mappings with FORCED OVERRIDES: {mapped_count}")
+            self.logger.info(
+                f"✅ Total IP mappings with FORCED OVERRIDES: {mapped_count}"
+            )
             self.logger.info("=" * 70)
-            
+
             # Verify no fallback to default for x.com
-            x_com_domains = [d for d in self.monitored_domains if 'x.com' in d.lower()]
+            x_com_domains = [d for d in self.monitored_domains if "x.com" in d.lower()]
             if x_com_domains:
                 self.logger.info("Verifying x.com strategy mappings...")
                 for domain in x_com_domains:
@@ -324,40 +405,66 @@ class DPIBypassService:
                     for ip in domain_ips:
                         if ip in strategy_map:
                             strategy = strategy_map[ip]
-                            self.logger.info(f"✅ x.com IP {ip} has explicit FORCED OVERRIDE strategy: {strategy['type']}")
+                            self.logger.info(
+                                f"✅ x.com IP {ip} has explicit FORCED OVERRIDE strategy: {strategy['type']}"
+                            )
                         else:
                             # CRITICAL: x.com IP missing explicit strategy!
-                            self.logger.error(f"❌ CRITICAL: x.com IP {ip} has NO explicit strategy!")
-                            self.logger.error(f"❌ This IP would fall back to default strategy!")
-                            self.logger.error(f"❌ This is a configuration error - x.com must have explicit strategy")
-                            raise ValueError(f"x.com IP {ip} missing explicit strategy - cannot use default for x.com")
+                            self.logger.error(
+                                f"❌ CRITICAL: x.com IP {ip} has NO explicit strategy!"
+                            )
+                            self.logger.error(
+                                "❌ This IP would fall back to default strategy!"
+                            )
+                            self.logger.error(
+                                "❌ This is a configuration error - x.com must have explicit strategy"
+                            )
+                            raise ValueError(
+                                f"x.com IP {ip} missing explicit strategy - cannot use default for x.com"
+                            )
 
             # UNIFIED DEFAULT STRATEGY: Process default strategy with forced override
             if self.domain_strategies.get("default"):
                 try:
                     # Load default strategy using UnifiedStrategyLoader
-                    default_normalized = self.strategy_loader.load_strategy(self.domain_strategies["default"])
-                    
+                    default_normalized = self.strategy_loader.load_strategy(
+                        self.domain_strategies["default"]
+                    )
+
                     # Create forced override for default strategy
-                    default_forced = self.strategy_loader.create_forced_override(default_normalized)
-                    
+                    default_forced = self.strategy_loader.create_forced_override(
+                        default_normalized
+                    )
+
                     strategy_map["default"] = default_forced
-                    self.logger.info(f"✅ Default strategy with FORCED OVERRIDE: {default_normalized.type}")
-                    self.logger.info(f"   no_fallbacks: {default_forced.get('no_fallbacks', False)}")
-                    self.logger.info(f"   forced: {default_forced.get('forced', False)}")
-                    
+                    self.logger.info(
+                        f"✅ Default strategy with FORCED OVERRIDE: {default_normalized.type}"
+                    )
+                    self.logger.info(
+                        f"   no_fallbacks: {default_forced.get('no_fallbacks', False)}"
+                    )
+                    self.logger.info(
+                        f"   forced: {default_forced.get('forced', False)}"
+                    )
+
                     # Log warning if default strategy would be used for any IP
                     unmapped_ips = target_ips - set(strategy_map.keys())
                     if unmapped_ips:
-                        self.logger.warning(f"⚠️ {len(unmapped_ips)} IPs will use default FORCED OVERRIDE strategy:")
+                        self.logger.warning(
+                            f"⚠️ {len(unmapped_ips)} IPs will use default FORCED OVERRIDE strategy:"
+                        )
                         for ip in sorted(unmapped_ips):
                             domain = ip_to_domain.get(ip, "unknown")
                             self.logger.warning(f"   - {ip} ({domain})")
                             # Special check for x.com
-                            if 'x.com' in domain.lower():
-                                self.logger.error(f"❌ CRITICAL: x.com IP using default strategy!")
-                                raise ValueError(f"x.com IP {ip} would use default strategy - this is not allowed")
-                                
+                            if "x.com" in domain.lower():
+                                self.logger.error(
+                                    "❌ CRITICAL: x.com IP using default strategy!"
+                                )
+                                raise ValueError(
+                                    f"x.com IP {ip} would use default strategy - this is not allowed"
+                                )
+
                 except Exception as e:
                     self.logger.error(f"❌ Failed to process default strategy: {e}")
                     # Continue without default strategy
@@ -414,17 +521,21 @@ class DPIBypassService:
                     ["netsh", "int", "tcp", "set", "global", "congestionprovider=ctcp"],
                     capture_output=True,
                 )
-                self.logger.info("✅ Network parameters optimized for FORCED OVERRIDE bypass")
+                self.logger.info(
+                    "✅ Network parameters optimized for FORCED OVERRIDE bypass"
+                )
             except Exception as e:
                 self.logger.warning(f"⚠️ Could not optimize network parameters: {e}")
 
             # UNIFIED ENGINE START: Start with forced strategies and no_fallbacks=True
             # This matches testing mode behavior exactly
-            self.logger.info("🚀 Starting UnifiedBypassEngine with FORCED OVERRIDE strategies")
-            
+            self.logger.info(
+                "🚀 Starting UnifiedBypassEngine with FORCED OVERRIDE strategies"
+            )
+
             # Start the unified engine with all forced override strategies
             engine_thread = self.bypass_engine.start(target_ips, strategy_map)
-            
+
             # Verify engine started successfully
             # Note: UnifiedBypassEngine doesn't have a 'running' attribute like the old engine
             # Instead, we check if the thread was created successfully
@@ -432,9 +543,15 @@ class DPIBypassService:
                 self.logger.error("❌ UnifiedBypassEngine failed to start!")
                 return False
 
-            self.logger.info("✅ UnifiedBypassEngine started successfully with FORCED OVERRIDE")
-            self.logger.info(f"   All strategies use no_fallbacks=True (matches testing mode)")
-            self.logger.info(f"   All strategies use forced=True (matches testing mode)")
+            self.logger.info(
+                "✅ UnifiedBypassEngine started successfully with FORCED OVERRIDE"
+            )
+            self.logger.info(
+                "   All strategies use no_fallbacks=True (matches testing mode)"
+            )
+            self.logger.info(
+                "   All strategies use forced=True (matches testing mode)"
+            )
             self.logger.info(
                 f"🛡️ Protecting {len(self.monitored_domains)} domains with FORCED OVERRIDE bypass"
             )
@@ -442,45 +559,61 @@ class DPIBypassService:
             # Test bypass functionality using unified engine
             test_domain = next(iter(self.monitored_domains))
             test_ip = None
-            
+
             # Find IP for test domain
             for ip, domain in ip_to_domain.items():
                 if domain == test_domain:
                     test_ip = ip
                     break
-            
+
             if test_ip:
                 try:
                     # Test strategy application like testing mode
                     test_strategy = self.get_strategy_for_domain(test_domain)
                     if test_strategy:
-                        self.logger.info(f"🧪 Testing FORCED OVERRIDE strategy for {test_domain} ({test_ip})")
-                        
-                        # Use unified engine's testing mode compatibility
-                        test_result = self.bypass_engine.test_strategy_like_testing_mode(
-                            test_ip, test_strategy, test_domain, timeout=5.0
+                        self.logger.info(
+                            f"🧪 Testing FORCED OVERRIDE strategy for {test_domain} ({test_ip})"
                         )
-                        
-                        if test_result.get('success', False):
-                            self.logger.info(f"✅ FORCED OVERRIDE test successful for {test_domain}")
+
+                        # Use unified engine's testing mode compatibility
+                        test_result = (
+                            self.bypass_engine.test_strategy_like_testing_mode(
+                                test_ip, test_strategy, test_domain, timeout=5.0
+                            )
+                        )
+
+                        if test_result.get("success", False):
+                            self.logger.info(
+                                f"✅ FORCED OVERRIDE test successful for {test_domain}"
+                            )
                         else:
-                            self.logger.warning(f"⚠️ FORCED OVERRIDE test failed for {test_domain}: {test_result.get('error', 'Unknown error')}")
-                            self.logger.info("This may be normal if the site is blocked. Bypass will still work.")
+                            self.logger.warning(
+                                f"⚠️ FORCED OVERRIDE test failed for {test_domain}: {test_result.get('error', 'Unknown error')}"
+                            )
+                            self.logger.info(
+                                "This may be normal if the site is blocked. Bypass will still work."
+                            )
                     else:
-                        self.logger.warning(f"⚠️ No strategy found for test domain {test_domain}")
-                        
+                        self.logger.warning(
+                            f"⚠️ No strategy found for test domain {test_domain}"
+                        )
+
                 except Exception as e:
                     self.logger.warning(f"⚠️ FORCED OVERRIDE test failed: {e}")
-                    self.logger.info("This may be normal if the site is blocked. Bypass will still work.")
+                    self.logger.info(
+                        "This may be normal if the site is blocked. Bypass will still work."
+                    )
                 # <<< НАЧАЛО ИЗМЕНЕНИЙ: Добавьте блок finally >>>
                 finally:
                     # КРИТИЧЕСКИ ВАЖНО: Очищаем глобальный override после теста,
                     # чтобы он не влиял на реальный трафик.
-                    if hasattr(self.bypass_engine, 'clear_strategy_override'):
+                    if hasattr(self.bypass_engine, "clear_strategy_override"):
                         self.bypass_engine.clear_strategy_override()
                 # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
             else:
-                self.logger.warning(f"⚠️ Could not find IP for test domain {test_domain}")
+                self.logger.warning(
+                    f"⚠️ Could not find IP for test domain {test_domain}"
+                )
 
             return True
 
@@ -493,6 +626,7 @@ class DPIBypassService:
             # This ensures x.com without explicit strategy fails fast
             self.logger.error(f"❌ Failed to start bypass engine: {e}")
             import traceback
+
             self.logger.error(traceback.format_exc())
             raise  # Re-raise ValueError to prevent service from starting
         except Exception as e:
@@ -502,162 +636,14 @@ class DPIBypassService:
             self.logger.error(traceback.format_exc())
             return False
 
-    def parse_strategy_config(self, strategy: str) -> dict:
-        """Парсит строку стратегии в конфигурацию для BypassEngine."""
-        config = {
-            "desync_method": "fake",
-            "ttl": 3,
-            "split_pos": 3,
-            "fooling": "badsum",
-        }
-
-        try:
-            # Парсим параметры из строки стратегии
-            parts = strategy.split()
-
-            for i, part in enumerate(parts):
-                if part.startswith("--dpi-desync="):
-                    methods = part.split("=")[1]
-                    config["desync_method"] = methods.split(",")[
-                        0
-                    ]  # Берем первый метод
-
-                elif part.startswith("--dpi-desync-ttl="):
-                    config["ttl"] = int(part.split("=")[1])
-
-                elif part.startswith("--dpi-desync-split-pos="):
-                    pos_value = part.split("=")[1]
-                    if pos_value.isdigit():
-                        config["split_pos"] = int(pos_value)
-                    elif "," in pos_value:
-                        # Берем первую позицию из списка
-                        first_pos = pos_value.split(",")[0]
-                        # Поддержка специальных значений
-                        if first_pos in ['cipher', 'midsld', 'sni']:
-                            config["split_pos"] = first_pos
-                        else:
-                            try:
-                                config["split_pos"] = int(first_pos)
-                            except ValueError:
-                                # Если не удается преобразовать, сохраняем как строку
-                                config["split_pos"] = first_pos
-                    else:
-                        # Одиночное значение - может быть числом или специальным значением
-                        if pos_value in ['cipher', 'midsld', 'sni']:
-                            config["split_pos"] = pos_value
-                        else:
-                            try:
-                                config["split_pos"] = int(pos_value)
-                            except ValueError:
-                                # Если не удается преобразовать, сохраняем как строку
-                                config["split_pos"] = pos_value
-
-                elif part.startswith("--dpi-desync-fooling="):
-                    fooling = part.split("=")[1]
-                    config["fooling"] = fooling.split(",")[0]  # Берем первый метод
-
-                elif part.startswith("--dpi-desync-split-count="):
-                    config["split_count"] = int(part.split("=")[1])
-
-                elif part.startswith("--dpi-desync-split-seqovl="):
-                    config["overlap_size"] = int(part.split("=")[1])
-
-            self.logger.info(f"Parsed strategy config: {config}")
-            return config
-
-        except Exception as e:
-            self.logger.warning(f"Failed to parse strategy config: {e}, using defaults")
-            return config
-
-    def _config_to_strategy_task(self, config: dict) -> dict:
-        """Конвертирует конфигурацию в стратегию для BypassEngine."""
-        desync_method = config.get("desync_method", "fake")
-        fooling = config.get("fooling", "none")
-        ttl = config.get("ttl", 3)
-        split_pos = config.get("split_pos", 3)
-        
-        if desync_method == "multisplit":
-            positions = []
-            split_count = config.get("split_count", 3)
-            overlap = config.get("overlap_size", 20)
-            if split_count > 0:
-                if split_count <= 3:
-                    positions = [6, 12, 18][:split_count]
-                else:
-                    positions = []
-                    base_offset = 6
-                    gaps = [8, 12, 16, 20, 24]
-                    last_pos = base_offset
-                    for i in range(split_count):
-                        positions.append(last_pos)
-                        gap = gaps[i] if i < len(gaps) else gaps[-1]
-                        last_pos += gap
-            return {
-                "type": "multisplit",
-                "params": {
-                    "ttl": ttl,
-                    "split_pos": split_pos,
-                    "positions": positions,
-                    "overlap_size": overlap,
-                    "fooling": [fooling] if fooling else [],  # Передаём как список
-                    "window_div": 2,
-                    "tcp_flags": {"psh": True, "ack": True, "no_fallbacks": True, "forced": True},
-                    "ipid_step": 2048,
-                    "delay_ms": 5,
-                },
-            }
-        elif desync_method in ("fake", "fakeddisorder", "seqovl", "split", "disorder"):
-            base_params = {
-                "ttl": ttl,
-                "split_pos": split_pos,
-                "window_div": 8,
-                "tcp_flags": {"psh": True, "ack": True},
-                "ipid_step": 2048,
-            }
-            
-            # Для fakeddisorder всегда используем fakeddisorder стратегию
-            if desync_method == "fakeddisorder":
-                task_type = "fakeddisorder"
-                base_params["overlap_size"] = config.get("overlap_size", 336)
-                # Передаём fooling как список для base_engine
-                base_params["fooling"] = [fooling] if fooling else []
-            elif fooling == "badsum":
-                task_type = "badsum_race"
-                base_params["extra_ttl"] = ttl + 1
-                base_params["delay_ms"] = 5
-            elif fooling == "md5sig":
-                task_type = "md5sig_race"
-                base_params["extra_ttl"] = ttl + 2
-                base_params["delay_ms"] = 7
-            elif desync_method == "seqovl":
-                task_type = "seqovl"
-                base_params["overlap_size"] = config.get("overlap_size", 20)
-            elif desync_method == "split":
-                task_type = "split"
-                # Простое разделение без overlap
-                base_params["fooling"] = [fooling] if fooling else []
-            elif desync_method == "disorder":
-                task_type = "disorder"
-                base_params["overlap_size"] = config.get("overlap_size", 0)
-                base_params["fooling"] = [fooling] if fooling else []
-            else:
-                # fake,disorder -> fakeddisorder (с двумя 'd'!)
-                task_type = "fakeddisorder"
-                base_params["overlap_size"] = config.get("overlap_size", 2)
-                # Передаём fooling как список
-                base_params["fooling"] = [fooling] if fooling else []
-            return {"type": task_type, "params": base_params, "no_fallbacks": True, "forced": True}
-        
-        return {
-            "type": "fakeddisorder",
-            "params": {
-                "ttl": ttl,
-                "split_pos": split_pos,
-                "window_div": 8,
-                "tcp_flags": {"psh": True, "ack": True, "no_fallbacks": True, "forced": True},
-                "ipid_step": 2048,
-            },
-        }
+    # REMOVED: Old parse_strategy_config and _config_to_strategy_task methods
+    # These have been replaced with UnifiedStrategyLoader for consistent parsing
+    # across testing mode and service mode. The old methods had bugs like:
+    # - Taking only first method from "fake,disorder" (should be "fakeddisorder")
+    # - Inconsistent parameter handling
+    # - Different behavior from testing mode
+    #
+    # All strategy parsing now goes through UnifiedStrategyLoader.load_strategy()
 
     def stop_bypass_engine(self):
         """Останавливает движок обхода DPI."""
@@ -665,7 +651,9 @@ class DPIBypassService:
         if self.capturer:
             try:
                 self.capturer.stop()
-                self.logger.info(f"🔴 PCAP capture stopped. File saved to '{self.pcap_file}'")
+                self.logger.info(
+                    f"🔴 PCAP capture stopped. File saved to '{self.pcap_file}'"
+                )
             except Exception as e:
                 self.logger.error(f"❌ Error stopping PCAP capture: {e}")
         # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
@@ -673,9 +661,9 @@ class DPIBypassService:
         if self.bypass_engine:
             try:
                 # Log diagnostics before stopping
-                if hasattr(self.bypass_engine, 'log_diagnostics_summary'):
+                if hasattr(self.bypass_engine, "log_diagnostics_summary"):
                     self.bypass_engine.log_diagnostics_summary()
-                
+
                 self.bypass_engine.stop()
                 self.logger.info("🛑 UnifiedBypassEngine stopped")
             except Exception as e:
@@ -775,7 +763,9 @@ def main():
     """Точка входа в службу."""
     # <<< НАЧАЛО ИЗМЕНЕНИЙ: Парсинг аргументов командной строки >>>
     parser = argparse.ArgumentParser(description="Recon DPI Bypass Service")
-    parser.add_argument("--pcap", type=str, help="Enable traffic capture to the specified PCAP file.")
+    parser.add_argument(
+        "--pcap", type=str, help="Enable traffic capture to the specified PCAP file."
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
     args = parser.parse_args()
 

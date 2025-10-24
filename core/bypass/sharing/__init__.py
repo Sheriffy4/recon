@@ -9,15 +9,32 @@ from core.bypass.sharing.sharing_manager import SharingManager
 from core.bypass.sharing.strategy_validator import StrategyValidator
 from core.bypass.sharing.community_database import CommunityDatabase
 from core.bypass.sharing.update_manager import UpdateManager
-from core.bypass.sharing.sharing_models import *
+from core.bypass.sharing.sharing_models import (
+    ShareLevel,
+    ValidationStatus,
+    TrustLevel,
+    SharedStrategy,
+    StrategyPackage,
+    TrustedSource,
+    ValidationResult,
+    SharingConfig,
+    StrategyFeedback,
+    SyncResult,
+)
 
 __all__ = [
     "SharingManager",
     "StrategyValidator",
     "CommunityDatabase",
     "UpdateManager",
+    "ShareLevel",
+    "ValidationStatus",
+    "TrustLevel",
     "SharedStrategy",
     "StrategyPackage",
     "TrustedSource",
     "ValidationResult",
+    "SharingConfig",
+    "StrategyFeedback",
+    "SyncResult",
 ]

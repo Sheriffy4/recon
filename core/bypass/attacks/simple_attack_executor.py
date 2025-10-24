@@ -14,6 +14,7 @@ class SimpleAttackExecutor:
     """
     Простой исполнитель атак, который готовит "рецепты" для движков.
     """
+
     def __init__(self):
         self.logger = LOG
 
@@ -38,7 +39,7 @@ class SimpleAttackExecutor:
                     status=AttackStatus.SUCCESS,
                     technique_used=attack_type,
                     packets_sent=len(segs),
-                    metadata={"note": "generic passthrough"}
+                    metadata={"note": "generic passthrough"},
                 )
                 result.segments = segs
                 return result
@@ -51,8 +52,16 @@ class SimpleAttackExecutor:
             )
 
     # ---------- helpers ----------
-    def _mk_opts(self, ttl: int = None, fooling=None, is_fake=False,
-                 corrupt_seq=False, seq_offset=0, tcp_flags=0x18, delay_ms=None):
+    def _mk_opts(
+        self,
+        ttl: int = None,
+        fooling=None,
+        is_fake=False,
+        corrupt_seq=False,
+        seq_offset=0,
+        tcp_flags=0x18,
+        delay_ms=None,
+    ):
         """
         Build opts dict compatible with recipe engines (и BypassEngine._send_attack_segments).
         """
@@ -63,11 +72,11 @@ class SimpleAttackExecutor:
         if is_fake:
             opts["is_fake"] = True
         if "badsum" in fooling:
-            opts["corrupt_tcp_checksum"] = True
+            opts["bad_checksum"] = True
         if "md5sig" in fooling:
             opts["add_md5sig_option"] = True
         if corrupt_seq or ("badseq" in fooling):
-            opts["corrupt_sequence"] = True
+            opts["bad_sequence"] = True
             # Запрет-стиль badseq: смещение SEQ назад
             if "seq_offset" not in opts:
                 opts["seq_offset"] = -10000
@@ -100,11 +109,22 @@ class SimpleAttackExecutor:
         segs = []
         # fake first (как в zapret race)
         fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-        segs.append(self._mk_segment(fake_payload, 0, self._mk_opts(ttl=ttl, fooling=fooling, is_fake=True)))
+        segs.append(
+            self._mk_segment(
+                fake_payload, 0, self._mk_opts(ttl=ttl, fooling=fooling, is_fake=True)
+            )
+        )
         # real parts in disorder/overlap style
         segs.append(self._mk_segment(p2, split_pos, self._mk_opts(ttl=None)))
-        segs.append(self._mk_segment(p1, max(split_pos - overlap, 0), self._mk_opts(ttl=None)))
-        meta = {"fooling": fooling, "ttl": ttl, "split_pos": split_pos, "overlap_size": overlap}
+        segs.append(
+            self._mk_segment(p1, max(split_pos - overlap, 0), self._mk_opts(ttl=None))
+        )
+        meta = {
+            "fooling": fooling,
+            "ttl": ttl,
+            "split_pos": split_pos,
+            "overlap_size": overlap,
+        }
         result = AttackResult(
             status=AttackStatus.SUCCESS,
             technique_used="fake_split",
@@ -146,9 +166,16 @@ class SimpleAttackExecutor:
         ttl = params.get("ttl")
         fooling = params.get("fooling", []) or []
         fake_payload = b"GET / HTTP/1.1\r\nHost: example.org\r\n\r\n"
+        
+        # FIX: The real packet should have a different sequence number or be sent after a delay
+        # to create a race condition. Here we add a small delay.
         segs = [
-            self._mk_segment(fake_payload, 0, self._mk_opts(ttl=ttl, fooling=fooling, is_fake=True, tcp_flags=0x18)),
-            self._mk_segment(context.payload or b"", 0, self._mk_opts(tcp_flags=0x18)),
+            self._mk_segment(
+                fake_payload,
+                0,
+                self._mk_opts(ttl=ttl, fooling=fooling, is_fake=True, tcp_flags=0x18, delay_ms=1),
+            ),
+            self._mk_segment(context.payload or b"", 0, self._mk_opts(tcp_flags=0x18, delay_ms=5)),
         ]
         meta = {"fooling": fooling, "ttl": ttl}
         result = AttackResult(

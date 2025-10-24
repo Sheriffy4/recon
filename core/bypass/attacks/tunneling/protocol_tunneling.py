@@ -8,15 +8,14 @@ import time
 import struct
 import random
 import base64
-from typing import List
+from typing import List, Dict, Any
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
-
+from core.bypass.attacks.attack_registry import register_attack
 
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
@@ -55,6 +54,15 @@ class HTTPTunnelingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'method': 'POST', 'path': '/', 'headers': {}}
+
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP tunneling attack."""
@@ -166,6 +174,15 @@ class WebSocketTunnelingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'path': '/ws', 'protocol': 'chat'}
+
+
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute WebSocket tunneling attack."""
         start_time = time.time()
@@ -259,6 +276,15 @@ class SSHTunnelingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'port': 22, 'username': 'user'}
+
+
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute SSH tunneling attack."""
         start_time = time.time()
@@ -345,6 +371,15 @@ class VPNTunnelingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'protocol': 'openvpn', 'port': 1194}
+
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute VPN tunneling attack."""

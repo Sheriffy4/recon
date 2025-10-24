@@ -1,15 +1,20 @@
 # pcap_inspect.py
-import json, struct
+import json
+import struct
 import logging
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional, Any
-from scapy.all import rdpcap, IP, TCP, Raw, PcapReader, wrpcap, Scapy_Exception, IPv6
+from scapy.all import IP, Raw, TCP, rdpcap
+
 
 def is_tls_clienthello(payload: bytes) -> bool:
     try:
-        return payload and len(payload) > 6 and payload[0] == 0x16 and payload[5] == 0x01
+        return (
+            payload and len(payload) > 6 and payload[0] == 0x16 and payload[5] == 0x01
+        )
     except Exception:
         return False
+
 
 def parse_sni(payload: bytes) -> Optional[str]:
     try:
@@ -17,43 +22,56 @@ def parse_sni(payload: bytes) -> Optional[str]:
             return None
         pos = 9
         pos += 2 + 32
-        if pos + 1 > len(payload): return None
-        sid_len = payload[pos]; pos += 1 + sid_len
-        if pos + 2 > len(payload): return None
-        cs_len = int.from_bytes(payload[pos:pos+2], "big"); pos += 2 + cs_len
-        if pos + 1 > len(payload): return None
-        comp_len = payload[pos]; pos += 1 + comp_len
-        if pos + 2 > len(payload): return None
-        ext_len = int.from_bytes(payload[pos:pos+2], "big")
-        ext_start = pos + 2; ext_end = min(len(payload), ext_start + ext_len)
+        if pos + 1 > len(payload):
+            return None
+        sid_len = payload[pos]
+        pos += 1 + sid_len
+        if pos + 2 > len(payload):
+            return None
+        cs_len = int.from_bytes(payload[pos : pos + 2], "big")
+        pos += 2 + cs_len
+        if pos + 1 > len(payload):
+            return None
+        comp_len = payload[pos]
+        pos += 1 + comp_len
+        if pos + 2 > len(payload):
+            return None
+        ext_len = int.from_bytes(payload[pos : pos + 2], "big")
+        ext_start = pos + 2
+        ext_end = min(len(payload), ext_start + ext_len)
         s = ext_start
         while s + 4 <= ext_end:
-            etype = int.from_bytes(payload[s:s+2], "big")
-            elen = int.from_bytes(payload[s+2:s+4], "big")
+            etype = int.from_bytes(payload[s : s + 2], "big")
+            elen = int.from_bytes(payload[s + 2 : s + 4], "big")
             epos = s + 4
-            if epos + elen > ext_end: break
+            if epos + elen > ext_end:
+                break
             if etype == 0 and elen >= 5:
-                list_len = int.from_bytes(payload[epos:epos+2], "big")
+                list_len = int.from_bytes(payload[epos : epos + 2], "big")
                 npos = epos + 2
                 if npos + list_len <= epos + elen and npos + 3 <= len(payload):
                     ntype = payload[npos]
-                    nlen = int.from_bytes(payload[npos+1:npos+3], "big")
+                    nlen = int.from_bytes(payload[npos + 1 : npos + 3], "big")
                     nstart = npos + 3
                     if ntype == 0 and nstart + nlen <= len(payload):
-                        return payload[nstart:nstart+nlen].decode("idna", errors="strict")
+                        return payload[nstart : nstart + nlen].decode(
+                            "idna", errors="strict"
+                        )
             s = epos + elen
         return None
     except Exception:
         return None
+
 
 def ones_complement_sum(data: bytes) -> int:
     if len(data) % 2:
         data += b"\x00"
     s = 0
     for i in range(0, len(data), 2):
-        s += (data[i] << 8) + data[i+1]
+        s += (data[i] << 8) + data[i + 1]
         s = (s & 0xFFFF) + (s >> 16)
     return s
+
 
 def tcp_checksum(ip_hdr: bytes, tcp_hdr: bytes, payload: bytes) -> int:
     src = ip_hdr[12:16]
@@ -66,6 +84,7 @@ def tcp_checksum(ip_hdr: bytes, tcp_hdr: bytes, payload: bytes) -> int:
     s = ones_complement_sum(pseudo + bytes(tcp_wo) + payload)
     return (~s) & 0xFFFF
 
+
 def tcp_checksum_ok(ip_pkt_bytes: bytes) -> bool:
     try:
         ip_hl = (ip_pkt_bytes[0] & 0x0F) * 4
@@ -76,21 +95,30 @@ def tcp_checksum_ok(ip_pkt_bytes: bytes) -> bool:
         if tcp_hl < 20:
             tcp_hl = 20
         tcp_end = tcp_start + tcp_hl
-        hdr_csum = struct.unpack("!H", ip_pkt_bytes[tcp_start+16:tcp_start+18])[0]
-        calc = tcp_checksum(ip_pkt_bytes[:ip_hl], ip_pkt_bytes[tcp_start:tcp_end], ip_pkt_bytes[tcp_end:])
+        hdr_csum = struct.unpack("!H", ip_pkt_bytes[tcp_start + 16 : tcp_start + 18])[0]
+        calc = tcp_checksum(
+            ip_pkt_bytes[:ip_hl],
+            ip_pkt_bytes[tcp_start:tcp_end],
+            ip_pkt_bytes[tcp_end:],
+        )
         return hdr_csum == calc
     except Exception:
         return False
 
+
 def extract_pktinfo(pkt):
-    ip = pkt[IP]; tcp = pkt[TCP]
+    ip = pkt[IP]
+    tcp = pkt[TCP]
     rawb = bytes(ip)
     payload = bytes(pkt[Raw].load) if Raw in pkt else b""
     return {
         "time": float(pkt.time),
-        "src": ip.src, "dst": ip.dst,
-        "sport": int(tcp.sport), "dport": int(tcp.dport),
-        "seq": int(tcp.seq), "ack": int(tcp.ack),
+        "src": ip.src,
+        "dst": ip.dst,
+        "sport": int(tcp.sport),
+        "dport": int(tcp.dport),
+        "seq": int(tcp.seq),
+        "ack": int(tcp.ack),
         "ttl": int(ip.ttl),
         "flags": int(tcp.flags),
         "len": len(payload),
@@ -100,6 +128,7 @@ def extract_pktinfo(pkt):
         "sni": parse_sni(payload) if is_tls_clienthello(payload) else None,
         "csum_ok": tcp_checksum_ok(rawb),
     }
+
 
 def load_flows(pcap_path: str):
     packets = rdpcap(pcap_path)
@@ -116,6 +145,7 @@ def load_flows(pcap_path: str):
         flows[k].sort(key=lambda x: x["time"])
     return flows
 
+
 def detect_injection_pair(flow_packets: List[Dict]) -> Optional[Tuple[Dict, Dict]]:
     """
     Ищем две подряд идущие посылки с CH-полезной нагрузкой/продолжением (Raw),
@@ -126,8 +156,8 @@ def detect_injection_pair(flow_packets: List[Dict]) -> Optional[Tuple[Dict, Dict
         if p["len"] > 0:  # есть payload
             cand.append(p)
     best = None
-    for i in range(len(cand)-1):
-        p1, p2 = cand[i], cand[i+1]
+    for i in range(len(cand) - 1):
+        p1, p2 = cand[i], cand[i + 1]
         if (p2["time"] - p1["time"]) > 0.05:  # 50 мс окно
             continue
         # один «фейковый» признак: TTL низкий или checksum испорчен
@@ -139,19 +169,22 @@ def detect_injection_pair(flow_packets: List[Dict]) -> Optional[Tuple[Dict, Dict
         break
     return best
 
+
 def analyze_flow_pair(p1: Dict, p2: Dict) -> Dict:
     # кто fake/real
-    def is_fake(p): return (p["ttl"] <= 8) or (not p["csum_ok"])
+    def is_fake(p):
+        return (p["ttl"] <= 8) or (not p["csum_ok"])
+
     fake, real = (p1, p2) if is_fake(p1) else (p2, p1)
     order_ok = fake["time"] <= real["time"]
     ttl_ok = fake["ttl"] <= 8 and real["ttl"] >= 32
-    csum_fake_bad = (not fake["csum_ok"])
+    csum_fake_bad = not fake["csum_ok"]
     flags_real_psh = bool(real["flags"] & 0x08)
     flags_fake_no_psh = not bool(fake["flags"] & 0x08)
     # SEQ
     seq_delta = (real["seq"] - fake["seq"]) & 0xFFFFFFFF
     # простая метрика: fake.seq <= real.seq (с учётом wrap мы считаем нормальным небольшую разницу)
-    seq_order_ok = ((real["seq"] - fake["seq"]) >= 0) or (seq_delta < 1<<20)
+    seq_order_ok = ((real["seq"] - fake["seq"]) >= 0) or (seq_delta < 1 << 20)
     return {
         "fake_first": order_ok,
         "ttl_order_ok": ttl_ok,
@@ -159,11 +192,24 @@ def analyze_flow_pair(p1: Dict, p2: Dict) -> Dict:
         "flags_real_psh": flags_real_psh,
         "flags_fake_no_psh": flags_fake_no_psh,
         "seq_order_ok": seq_order_ok,
-        "fake": {"ttl": fake["ttl"], "flags": fake["flags"], "csum_ok": fake["csum_ok"], "seq": fake["seq"], "len": fake["len"]},
-        "real": {"ttl": real["ttl"], "flags": real["flags"], "csum_ok": real["csum_ok"], "seq": real["seq"], "len": real["len"]},
+        "fake": {
+            "ttl": fake["ttl"],
+            "flags": fake["flags"],
+            "csum_ok": fake["csum_ok"],
+            "seq": fake["seq"],
+            "len": fake["len"],
+        },
+        "real": {
+            "ttl": real["ttl"],
+            "flags": real["flags"],
+            "csum_ok": real["csum_ok"],
+            "seq": real["seq"],
+            "len": real["len"],
+        },
         "pair_dt_ms": (real["time"] - fake["time"]) * 1000.0,
-        "sni": p1.get("sni") or p2.get("sni")
+        "sni": p1.get("sni") or p2.get("sni"),
     }
+
 
 def inspect_pcap(pcap_path: str) -> Dict:
     flows = load_flows(pcap_path)
@@ -174,19 +220,23 @@ def inspect_pcap(pcap_path: str) -> Dict:
             continue
         p1, p2 = pair
         analysis = analyze_flow_pair(p1, p2)
-        report["flows"].append({
-            "flow": f"{key[0]}:{key[1]} -> {key[2]}:{key[3]}",
-            "dst": key[2],
-            "sni": analysis["sni"],
-            "metrics": analysis
-        })
+        report["flows"].append(
+            {
+                "flow": f"{key[0]}:{key[1]} -> {key[2]}:{key[3]}",
+                "dst": key[2],
+                "sni": analysis["sni"],
+                "metrics": analysis,
+            }
+        )
     return report
+
 
 class AttackValidator:
     """
     Валидирует инциденты, обнаруженные в pcap_inspect,
     проверяя корректность применения техник атаки (fake/real).
     """
+
     def __init__(self, pcap_inspect_report: Dict[str, Any]):
         self.report = pcap_inspect_report or {}
         # Для быстрого доступа индексируем потоки по их ключу
@@ -204,7 +254,7 @@ class AttackValidator:
             parts = stream_label.replace(" -> ", "-").split("-")
             src = parts[0]
             dst = parts[1]
-            
+
             # pcap_inspect использует формат "src:port -> dst:port"
             return f"{src} -> {dst}"
         except Exception:
@@ -222,48 +272,59 @@ class AttackValidator:
         flow_data = self.flows_by_key.get(flow_key)
 
         if not flow_data:
-            return {"detected": False, "confidence": 0.1, "issues": ["Flow not found in pcap_inspect report."]}
+            return {
+                "detected": False,
+                "confidence": 0.1,
+                "issues": ["Flow not found in pcap_inspect report."],
+            }
 
         packets = flow_data.get("packets", [])
         if not packets:
-            return {"detected": False, "confidence": 0.1, "issues": ["No packets found for this flow."]}
+            return {
+                "detected": False,
+                "confidence": 0.1,
+                "issues": ["No packets found for this flow."],
+            }
 
         # --- Основная логика валидации ---
         issues = []
         fixes = []
-        
+
         # 1. Проверяем, был ли первый пакет фейковым, как и ожидалось
         first_pkt = packets[0]
         if not first_pkt.get("is_fake_candidate"):
             issues.append("No fake packet detected for fakeddisorder-style attack.")
-            fixes.append("Ensure fake packet is sent first with low TTL or bad checksum.")
+            fixes.append(
+                "Ensure fake packet is sent first with low TTL or bad checksum."
+            )
 
         # 2. Проверяем, что "реальные" пакеты не помечены как фейковые
         real_packets_with_bad_checksum = []
-        for i, pkt in enumerate(packets[1:]): # Пропускаем первый (предположительно фейковый)
+        for i, pkt in enumerate(
+            packets[1:]
+        ):  # Пропускаем первый (предположительно фейковый)
             if not pkt.get("tcp_checksum_valid"):
                 real_packets_with_bad_checksum.append(i + 1)
-        
+
         if real_packets_with_bad_checksum:
-            issues.append(f"Real segments have invalid TCP checksums (packets: {real_packets_with_bad_checksum}).")
+            issues.append(
+                f"Real segments have invalid TCP checksums (packets: {real_packets_with_bad_checksum})."
+            )
             fixes.append("Ensure TCP checksum is valid for all real segments.")
 
         if not issues:
-            return {
-                "detected": True,
-                "confidence": 0.95,
-                "issues": [],
-                "fixes": []
-            }
+            return {"detected": True, "confidence": 0.95, "issues": [], "fixes": []}
         else:
             return {
                 "detected": False,
                 "confidence": 0.8,
                 "issues": issues,
-                "fixes": fixes
+                "fixes": fixes,
             }
 
+
 # --- START OF FIX: Restored functions from the old version ---
+
 
 def _has_md5sig(pkt):
     """Checks for the TCP MD5 Signature option (kind=19)."""
@@ -282,14 +343,19 @@ def _has_md5sig(pkt):
         return False
     return False
 
+
 def _classify_window(segments):
     """
     Restored classification logic from the old, working version.
     This logic is more flexible and correctly identifies complex attack patterns.
     """
     segs = sorted(segments, key=lambda x: x["idx"])
-    fake = [s for s in segs if (s["ttl"] is not None and s["ttl"] <= 4) or (not s["tcp_ok"]) or s["md5"]]
-    
+    fake = [
+        s
+        for s in segs
+        if (s["ttl"] is not None and s["ttl"] <= 4) or (not s["tcp_ok"]) or s["md5"]
+    ]
+
     rels = [s["rel_seq"] for s in segs]
     ttls = [s["ttl"] for s in segs]
     has_md5 = any(s["md5"] for s in segs)
@@ -323,16 +389,18 @@ def _classify_window(segments):
 
     # seqovl heuristic
     if count >= 2 and segs[1]["rel_seq"] > 0 and segs[1]["rel_seq"] < segs[0]["paylen"]:
-        overlap = segs[0]['paylen'] - segs[1]['rel_seq']
+        overlap = segs[0]["paylen"] - segs[1]["rel_seq"]
         label = f"seqovl_ovl{overlap}"
         return label, {"type": "seqovl", "overlap": overlap}
 
     return "unknown", {"type": "unknown"}
 
+
 # --- END OF FIX ---
 
 if __name__ == "__main__":
     import argparse
+
     ap = argparse.ArgumentParser()
     ap.add_argument("pcap", help="Path to pcap to inspect")
     ap.add_argument("-o", "--out", default="pcap_report.json")

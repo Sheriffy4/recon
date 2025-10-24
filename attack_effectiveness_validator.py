@@ -13,7 +13,7 @@ import time
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import List, Optional
 from dataclasses import dataclass, asdict
 
 # Add project root to path
@@ -106,7 +106,7 @@ class AttackValidator:
 
             await self._test_category(category)
 
-        LOG.info(f"\n🏁 Attack Validation Completed")
+        LOG.info("\n🏁 Attack Validation Completed")
         await self._save_results()
         await self._print_summary()
 
@@ -457,7 +457,7 @@ class AttackValidator:
             if result.success:
                 categories[category]["success"] += 1
 
-        LOG.info(f"\nResults by Category:")
+        LOG.info("\nResults by Category:")
         for category, stats in categories.items():
             success_rate = stats["success"] / stats["total"] * 100
             LOG.info(
@@ -468,7 +468,7 @@ class AttackValidator:
         execution_times = [r.execution_time_ms for r in self.results if r.success]
         if execution_times:
             avg_time = sum(execution_times) / len(execution_times)
-            LOG.info(f"\nPerformance:")
+            LOG.info("\nPerformance:")
             LOG.info(f"  ⚡ Average execution time: {avg_time:.1f}ms")
             LOG.info(
                 f"  📦 Total packets sent: {sum(r.packets_sent for r in self.results)}"

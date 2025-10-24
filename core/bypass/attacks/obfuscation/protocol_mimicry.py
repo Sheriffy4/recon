@@ -11,14 +11,14 @@ import random
 import base64
 import struct
 import hashlib
-from typing import List
+from typing import List, Dict, Any
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 
 
 @register_attack
@@ -36,7 +36,7 @@ class HTTPProtocolMimicryAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -45,6 +45,15 @@ class HTTPProtocolMimicryAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP protocol mimicry attack."""
@@ -394,7 +403,7 @@ class TLSProtocolMimicryAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -403,6 +412,15 @@ class TLSProtocolMimicryAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS protocol mimicry attack."""
@@ -733,7 +751,7 @@ class SMTPProtocolMimicryAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -742,6 +760,15 @@ class SMTPProtocolMimicryAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute SMTP protocol mimicry attack."""
@@ -895,7 +922,7 @@ class FTPProtocolMimicryAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -904,6 +931,15 @@ class FTPProtocolMimicryAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute FTP protocol mimicry attack."""

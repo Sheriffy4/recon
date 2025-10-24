@@ -8,7 +8,7 @@ import socket
 import ssl
 import random
 import time
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import logging
@@ -19,7 +19,12 @@ import dns.query
 import dns.rdatatype
 
 try:
-    from core.bypass.attacks.base import BaseAttack, AttackResult, AttackStatus
+    from core.bypass.attacks.base import (
+        BaseAttack,
+        AttackResult,
+        AttackStatus,
+        AttackContext,
+    )
     from core.bypass.attacks.attack_definition import (
         AttackDefinition,
         AttackCategory,
@@ -134,6 +139,18 @@ class DNSServer:
 
 class DNSTunnelingAttack(BaseAttack):
     """Base class for DNS tunneling attacks."""
+
+    # Required abstract properties
+    name = "DNS Tunneling"
+    category = "dns"
+    required_params = []
+    optional_params = {
+        "dns_server": "cloudflare",
+        "query_type": "A",
+        "timeout": 10,
+        "use_doh": False,
+        "use_dot": False,
+    }
 
     def __init__(self):
         super().__init__()
@@ -735,9 +752,9 @@ class DNSCachePoisoningPrevention(DNSTunnelingAttack):
 def register_dns_attacks():
     """Register all DNS attacks with their definitions."""
     try:
-        from core.bypass.attacks.modern_registry import get_modern_registry
+        from core.bypass.attacks.attack_registry import get_attack_registry
 
-        registry = get_modern_registry()
+        registry = get_attack_registry()
     except ImportError as e:
         print(f"Failed to auto-register DNS attacks: {e}")
         return 0
@@ -751,11 +768,44 @@ def register_dns_attacks():
     registered_count = 0
     for definition in definitions:
         attack_class = attack_classes.get(definition.id)
-        if attack_class and registry.register_attack(definition, attack_class):
-            registered_count += 1
-            LOG.info(f"Registered DNS attack: {definition.id}")
+        if attack_class:
+            try:
+                # Create metadata from definition
+                from core.bypass.attacks.metadata import (
+                    AttackMetadata,
+                    AttackCategories,
+                )
+
+                metadata = AttackMetadata(
+                    name=definition.name,
+                    description=definition.description,
+                    category=AttackCategories.DNS,
+                    required_params=definition.required_parameters,
+                    optional_params=definition.default_parameters,
+                    aliases=[definition.id],
+                )
+
+                # Create handler function
+                def create_handler(attack_cls):
+                    def handler(
+                        context: AttackContext,
+                    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+                        instance = attack_cls()
+                        return instance.execute(context.payload, **context.params)
+
+                    return handler
+
+                registry.register_attack(
+                    definition.id, create_handler(attack_class), metadata
+                )
+                registered_count += 1
+                LOG.info(f"Registered DNS attack: {definition.id}")
+            except Exception as e:
+                LOG.error(f"Failed to register DNS attack {definition.id}: {e}")
         else:
-            LOG.error(f"Failed to register DNS attack: {definition.id}")
+            LOG.error(
+                f"Failed to register DNS attack: {definition.id} - no attack class"
+            )
     LOG.info(f"Successfully registered {registered_count} DNS attacks")
     return registered_count
 

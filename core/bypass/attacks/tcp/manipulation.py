@@ -17,7 +17,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 @register_attack
@@ -28,6 +28,15 @@ class TCPWindowScalingAttack(ManipulationAttack):
     Migrated from:
     - apply_tcp_window_scaling (fast_bypass.py)
     """
+
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {}
 
     @property
     def name(self) -> str:
@@ -492,6 +501,18 @@ class TCPMultiSplitAttack(ManipulationAttack):
         try:
             payload = context.payload
             params = context.params
+
+            # Check if positions are specified
+            positions = params.get("positions")
+            if positions:
+                return self._execute_with_positions(context, positions)
+
+            # Check if split_pos is specified (single position)
+            split_pos = params.get("split_pos")
+            if split_pos is not None:
+                return self._execute_with_positions(context, [split_pos])
+
+            # Default behavior with split_count
             split_count = int(params.get("dpi-desync-split-count", 3))
             overlap_size = int(params.get("dpi-desync-split-seqovl", 0))
             fooling_methods = params.get("dpi-desync-fooling", "").split(",")
@@ -552,6 +573,64 @@ class TCPMultiSplitAttack(ManipulationAttack):
                 error_message=str(e),
                 latency_ms=(time.time() - start_time) * 1000,
             )
+
+    def _execute_with_positions(
+        self, context: AttackContext, positions: list
+    ) -> AttackResult:
+        """Execute multisplit with specific positions."""
+        start_time = time.time()
+        payload = context.payload
+        params = context.params
+        fooling_methods = params.get("fooling", [])
+
+        # Sort positions and add 0 and end if not present
+        # Преобразуем все позиции в int, игнорируя специальные значения
+        int_positions = []
+        for pos in positions:
+            if isinstance(pos, str):
+                # Пропускаем специальные позиции типа 'sni', 'cipher'
+                if pos.lower() in ("sni", "cipher", "midsld"):
+                    continue
+                try:
+                    int_positions.append(int(pos))
+                except ValueError:
+                    continue
+            elif isinstance(pos, int):
+                int_positions.append(pos)
+
+        positions = sorted(set([0] + int_positions + [len(payload)]))
+        segments = []
+
+        for i in range(len(positions) - 1):
+            start_pos = positions[i]
+            end_pos = positions[i + 1]
+
+            if start_pos >= len(payload):
+                break
+
+            segment_data = payload[start_pos:end_pos]
+            if not segment_data:
+                continue
+
+            options = {}
+            if "badsum" in fooling_methods:
+                options["corrupt_checksum"] = True
+            if i > 0:  # Add delay for non-first segments
+                options["delay_ms"] = 5 + (i * 5)  # Progressive delay
+
+            segments.append((segment_data, start_pos, options))
+
+        return AttackResult(
+            status=AttackStatus.SUCCESS,
+            latency_ms=(time.time() - start_time) * 1000,
+            connection_established=True,
+            data_transmitted=True,
+            metadata={
+                "positions": positions,
+                "segment_count": len(segments),
+                "segments": segments,
+            },
+        )
 
 
 @register_attack

@@ -16,12 +16,12 @@ except ImportError:
     AIOHTTP_AVAILABLE = False
     aiohttp = None
 try:
-    from recon.bypass.attacks.modern_registry import ModernAttackRegistry
-    from recon.bypass.strategies.pool_management import (
+    from core.bypass.attacks.attack_registry import get_attack_registry
+    from core.bypass.strategies.pool_management import (
         StrategyPoolManager,
         BypassStrategy,
     )
-    from recon.bypass.validation.reliability_validator import ReliabilityValidator
+    from core.bypass.validation.reliability_validator import ReliabilityValidator
 
     MODERN_BYPASS_MONITORING_AVAILABLE = True
 except ImportError:
@@ -211,10 +211,12 @@ class MonitoringSystem:
         )
         if self.modern_bypass_enabled:
             try:
-                self.attack_registry = ModernAttackRegistry()
+                self.attack_registry = get_attack_registry()
                 self.pool_manager = StrategyPoolManager()
                 self.reliability_validator = ReliabilityValidator()
-                self.logger.info("Modern FORCED OVERRIDE bypass monitoring components initialized")
+                self.logger.info(
+                    "Modern FORCED OVERRIDE bypass monitoring components initialized"
+                )
             except Exception as e:
                 self.logger.error(f"Failed to initialize modern bypass monitoring: {e}")
                 self.modern_bypass_enabled = False

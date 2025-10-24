@@ -17,24 +17,17 @@ try:
     # Test if aiohttp is available
     try:
         import aiohttp
-
         print("✅ aiohttp available")
     except ImportError:
         print("❌ aiohttp not available - web interface will not work")
         sys.exit(1)
 
     # Test core components
-    from core.bypass.strategies.pool_management import (
-        StrategyPoolManager,
-        BypassStrategy,
-    )
-    from core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.strategies.pool_management import BypassStrategy
 
     print("✅ Core bypass components imported")
 
     # Test web components
-    from web.bypass_api import BypassEngineAPI
-    from web.bypass_dashboard import BypassDashboard
     from web.bypass_integration import BypassWebIntegration, create_bypass_integration
 
     print("✅ Web integration components imported")
@@ -55,9 +48,9 @@ def test_integration_creation():
 
         # Test component access
         pool_manager = integration.get_pool_manager()
-        attack_registry = integration.get_attack_registry()
+        _ = integration.get_attack_registry()  # Test access but don't use
         api = integration.get_api()
-        dashboard = integration.get_dashboard()
+        _ = integration.get_dashboard()  # Test access but don't use
 
         print("✅ All components accessible")
 

@@ -1,0 +1,215 @@
+{
+  "validation_summary": {
+    "timestamp": "2025-10-20T12:28:56.604833",
+    "total_execution_time": 0.23335981369018555,
+    "total_tests": 26,
+    "successful_tests": 10,
+    "failed_tests": 16,
+    "overall_success_rate": 0.38461538461538464,
+    "real_strategies_tested": 39,
+    "baseline_files_tested": 5
+  },
+  "suite_summaries": {
+    "Strategy Parsing": {
+      "total_tests": 10,
+      "successful_tests": 0,
+      "failed_tests": 10,
+      "success_rate": 0.0,
+      "avg_execution_time": 0.0
+    },
+    "Attack Dispatch": {
+      "total_tests": 2,
+      "successful_tests": 1,
+      "failed_tests": 1,
+      "success_rate": 0.5,
+      "avg_execution_time": 0.000723719596862793
+    },
+    "Baseline Compatibility": {
+      "total_tests": 5,
+      "successful_tests": 2,
+      "failed_tests": 3,
+      "success_rate": 0.4,
+      "avg_execution_time": 0.0
+    },
+    "Parameter Handling": {
+      "total_tests": 5,
+      "successful_tests": 3,
+      "failed_tests": 2,
+      "success_rate": 0.6,
+      "avg_execution_time": 0.0
+    },
+    "End-to-End Flow": {
+      "total_tests": 4,
+      "successful_tests": 4,
+      "failed_tests": 0,
+      "success_rate": 1.0,
+      "avg_execution_time": 0.0
+    }
+  },
+  "detailed_results": [
+    {
+      "test_name": "parse_strategy_*.twimg.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "*.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4"
+      }
+    },
+    {
+      "test_name": "parse_strategy_abs.twimg.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "abs.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4"
+      }
+    },
+    {
+      "test_name": "parse_strategy_abs-0.twimg.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "abs-0.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4"
+      }
+    },
+    {
+      "test_name": "parse_strategy_pbs.twimg.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "pbs.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4"
+      }
+    },
+    {
+      "test_name": "parse_strategy_video.twimg.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "video.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4"
+      }
+    },
+    {
+      "test_name": "parse_strategy_ton.twimg.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "ton.twimg.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=30 --dpi-desync-fooling=badsum --dpi-desync-repeats=3 --dpi-desync-ttl=4"
+      }
+    },
+    {
+      "test_name": "parse_strategy_x.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "x.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=20 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-ttl=4"
+      }
+    },
+    {
+      "test_name": "parse_strategy_instagram.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "instagram.com",
+        "original_cmd": "--dpi-desync=fake,disorder --dpi-desync-split-pos=1 --dpi-desync-ttl=2 --dpi-desync-fooling=badseq --dpi-desync-repeats=2 --dpi-desync-split-http-req=method --dpi-desync-split-tls=sni"
+      }
+    },
+    {
+      "test_name": "parse_strategy_facebook.com",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "facebook.com",
+        "original_cmd": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-fake-tls=0x16030100 --dpi-desync-ttl6=1"
+      }
+    },
+    {
+      "test_name": "parse_strategy_rutracker.org",
+      "success": false,
+      "error_message": "'UnifiedStrategyLoader' object has no attribute 'parse_zapret_strategy'",
+      "execution_time": 0.0,
+      "attack_type": null,
+      "parameters": null,
+      "packets_generated": 0,
+      "validation_details": {
+        "domain": "rutracker.org",
+        "original_cmd": "--dpi-desync=fake,multisplit --dpi-desync-split-count=5 --dpi-desync-split-pos=2 --dpi-desync-ttl=3 --dpi-desync-fooling=badseq --dpi-desync-fake-unknown=0x00000000 --dpi-desync-cutoff=n2"
+      }
+    },
+    {
+      "test_name": "dispatch_multisplit",
+      "success": false,
+      "error_message": "Invalid parameters for attack 'multisplit': Missing required parameter 'positions' for attack 'multisplit'",
+      "execution_time": 0.001447439193725586,
+      "attack_type": "multisplit",
+      "parameters": {
+        "ttl": 4,
+        "fooling": [
+          "badsum"
+        ],
+        "split_count": 7,
+        "overlap_size": 30
+      },
+      "packets_generated": 0,
+      "validation_details": null
+    },
+    {
+      "test_name": "dispatch_fake",
+      "success": true,
+      "error_message": null,
+      "execution_time": 0.0,
+      "attack_type": "fake",
+      "parameters": {
+        "split_pos": 1,
+        "ttl": 2,
+        "fooling": [
+          "badseq"
+        ]
+      },
+      "packets_generated": 2,
+      "validation_details": {
+        "recipe_length": 2,
+        "recipe_preview": [
+          [
+            

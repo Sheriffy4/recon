@@ -1,16 +1,15 @@
 import time
 import random
 import struct
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 from core.protocols.tls import TLSParser
-
+from core.bypass.attacks.attack_registry import register_attack
 
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
@@ -51,6 +50,23 @@ class SNIManipulationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        return {
+            "manipulation_type": "case_change",
+            "target_domain": "example.com",
+            "subdomain_prefix": "www",
+            "fake_tld": "local",
+            "obfuscation_method": "mixed",
+            "fake_domain": "example.com"
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute SNI manipulation attack."""
@@ -280,6 +296,20 @@ class ALPNManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        return {
+            "manipulation_type": "protocol_add",
+            "fake_protocols": ["h2", "http/1.1"],
+            "protocol_order": "random"
+        }
+
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ALPN manipulation attack."""
         start_time = time.time()
@@ -353,6 +383,18 @@ class GREASEAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        return {
+            "grease_count": 3
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute GREASE attack."""

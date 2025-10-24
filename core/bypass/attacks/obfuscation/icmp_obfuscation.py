@@ -16,7 +16,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 @register_attack
@@ -34,7 +34,7 @@ class ICMPDataTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -43,6 +43,18 @@ class ICMPDataTunnelingObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "packet_size": 64,
+            "use_replies": True,
+            "randomize_id": True,
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP data tunneling attack."""
@@ -173,7 +185,7 @@ class ICMPTimestampTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -182,6 +194,16 @@ class ICMPTimestampTunnelingObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "use_replies": True,
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP timestamp tunneling attack."""
@@ -305,7 +327,7 @@ class ICMPRedirectTunnelingObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -314,6 +336,17 @@ class ICMPRedirectTunnelingObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "gateway_ip": "192.168.1.1",
+            "redirect_code": 1,
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP redirect tunneling attack."""
@@ -453,7 +486,7 @@ class ICMPCovertChannelObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "tunneling"
 
     @property
     def description(self) -> str:
@@ -462,6 +495,17 @@ class ICMPCovertChannelObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "channel_type": "timing",
+            "base_interval": 1000,
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP covert channel attack."""

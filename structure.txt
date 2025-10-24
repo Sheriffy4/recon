@@ -325,7 +325,7 @@ class TCPSession:
 # recon/core/bypass/engines/system/pydivert_engine.py
 from ..base import BaseEngine, EngineCapabilities, EngineConfig
 from ...network.packet_interceptor import PyDivertInterceptor
-from ...attacks.registry import attack_registry
+from ...attacks.attack_registry import attack_registry
 from ...strategies.parser import StrategyParser
 import logging
 

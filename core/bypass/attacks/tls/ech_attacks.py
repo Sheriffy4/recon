@@ -10,9 +10,8 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 from core.protocols.tls import TLSParser
-
+from core.bypass.attacks.attack_registry import register_attack
 ECH_EXTENSION_TYPE = 65037
 
 
@@ -54,6 +53,18 @@ class ECHFragmentationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "fragment_size": 32,
+            "max_fragments": 8,
+            "ech_config": None
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ECH fragmentation attack."""
@@ -269,6 +280,18 @@ class ECHGreaseAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "grease_intensity": "medium",
+            "include_fake_ech": True,
+            "grease_count": 3
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ECH GREASE attack."""
@@ -503,6 +526,18 @@ class ECHDecoyAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "decoy_count": 5,
+            "real_ech_position": "random",
+            "vary_sizes": True
+        }
+
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ECH decoy attack."""
         start_time = time.time()
@@ -633,6 +668,18 @@ class ECHAdvancedGreaseAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "grease_strategy": "adaptive_grease",
+            "grease_density": "high",
+            "include_malformed": True
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced ECH GREASE attack."""
@@ -1074,6 +1121,18 @@ class ECHOuterSNIManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "manipulation_strategy": "public_suffix",
+            "fake_sni": None,
+            "preserve_length": True
+        }
+
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ECH outer SNI manipulation attack."""
         start_time = time.time()
@@ -1274,6 +1333,18 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "fragmentation_strategy": "nested_extensions",
+            "fragment_size_variation": "random",
+            "max_fragments": 16
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced ECH fragmentation attack."""

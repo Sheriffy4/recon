@@ -243,14 +243,14 @@ class NativePydivertEngine(BaseBypassEngine):
                         return
                 self._active_count += 1
                 self.windivert_handle = self._global_handle
-        
+
             self.logger.debug("Starting packet interception loop")
             while not self.stop_event.is_set():
                 try:
                     packet = self.windivert_handle.recv()
                     if not packet:
                         continue
-                    
+
                     self.stats.packets_processed += 1
 
                     # ### START OF CRITICAL FIX ###
@@ -258,7 +258,7 @@ class NativePydivertEngine(BaseBypassEngine):
                     if self._should_process_packet(packet):
                         # This packet is a candidate for bypass. We will handle it.
                         # The original packet will NOT be sent.
-                        
+
                         # Determine if we are in recipe mode or attack mode.
                         if self.recipe_mode:
                             if not self._recipe_consumed:
@@ -268,7 +268,7 @@ class NativePydivertEngine(BaseBypassEngine):
                             # to prevent retransmissions from interfering.
                         else:
                             self._process_packet_with_attack(packet)
-                    
+
                     else:
                         # This packet is not a bypass candidate (e.g., not a ClientHello),
                         # so we send it along unmodified.

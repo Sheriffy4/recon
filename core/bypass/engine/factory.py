@@ -3,11 +3,19 @@
 import platform
 import logging
 from typing import Optional, Type
-from .base_engine import IBypassEngine, EngineConfig, WindowsBypassEngine, FallbackBypassEngine
+from .base_engine import (
+    IBypassEngine,
+    EngineConfig,
+    WindowsBypassEngine,
+    FallbackBypassEngine,
+)
+
 
 class BypassEngineFactory:
     @staticmethod
-    def create_engine(config: EngineConfig, force_engine: Optional[str] = None) -> Optional[IBypassEngine]:
+    def create_engine(
+        config: EngineConfig, force_engine: Optional[str] = None
+    ) -> Optional[IBypassEngine]:
         """
         Create a platform-specific bypass engine.
 
@@ -28,7 +36,9 @@ class BypassEngineFactory:
                 # The correct class is now in base_engine
                 engine_class = WindowsBypassEngine
             except ImportError:
-                logger.error("Failed to import WindowsBypassEngine. Check pydivert installation.")
+                logger.error(
+                    "Failed to import WindowsBypassEngine. Check pydivert installation."
+                )
                 return None
         else:
             # For Linux, macOS, or if Windows fails, use the fallback.
@@ -42,7 +52,9 @@ class BypassEngineFactory:
                 logger.error(f"Failed to instantiate {engine_class.__name__}: {e}")
                 # On Windows, if instantiation fails (e.g., driver issue), fallback is better than nothing.
                 if system == "Windows":
-                    logger.warning(f"Falling back to {FallbackBypassEngine.__name__} due to instantiation error.")
+                    logger.warning(
+                        f"Falling back to {FallbackBypassEngine.__name__} due to instantiation error."
+                    )
                     return FallbackBypassEngine(config)
                 return None
 

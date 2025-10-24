@@ -7,15 +7,14 @@ Attacks that use DNS protocol for tunneling data to evade DPI.
 import time
 import base64
 import random
-from typing import List
+from typing import List, Dict, Any
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
-
+from core.bypass.attacks.attack_registry import register_attack
 
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
@@ -54,6 +53,15 @@ class DNSSubdomainTunnelingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'domain': 'example.com', 'encoding': 'base32'}
+
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS subdomain tunneling attack."""
@@ -167,6 +175,15 @@ class DNSTXTTunnelingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["udp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'domain': 'example.com', 'chunk_size': 255}
+
+
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS TXT tunneling attack."""
         start_time = time.time()
@@ -256,6 +273,15 @@ class DNSCachePoisoningAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'target_domain': 'example.com', 'fake_ip': '1.2.3.4'}
+
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS cache poisoning attack."""
@@ -353,6 +379,15 @@ class DNSAmplificationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'amplification_factor': 10}
+
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS amplification attack."""

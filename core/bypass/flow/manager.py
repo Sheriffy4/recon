@@ -9,6 +9,7 @@ from dataclasses import dataclass
 @dataclass
 class FlowInfo:
     """Information about a network flow."""
+
     start_ts: float
     key: str  # Domain or IP
     strategy: Dict[str, Any]
@@ -39,7 +40,9 @@ class FlowManager:
         self._cleanup_timer = None
         self._start_cleanup_timer()
 
-    def register_flow(self, flow_id: FlowId, key: str, strategy: Dict[str, Any]) -> bool:
+    def register_flow(
+        self, flow_id: FlowId, key: str, strategy: Dict[str, Any]
+    ) -> bool:
         """
         Register a new flow.
 
@@ -56,17 +59,12 @@ class FlowManager:
                 return False
 
             self._flows[flow_id] = FlowInfo(
-                start_ts=time.time(),
-                key=key,
-                strategy=strategy
+                start_ts=time.time(), key=key, strategy=strategy
             )
             self._active_flows.add(flow_id)
 
             # Schedule individual cleanup
-            threading.Timer(
-                self.ttl_sec,
-                lambda: self._cleanup_flow(flow_id)
-            ).start()
+            threading.Timer(self.ttl_sec, lambda: self._cleanup_flow(flow_id)).start()
 
             return True
 
@@ -130,7 +128,8 @@ class FlowManager:
         current_time = time.time()
         with self._lock:
             old_flows = [
-                fid for fid, info in self._flows.items()
+                fid
+                for fid, info in self._flows.items()
                 if current_time - info.start_ts > max_age_sec
             ]
             for fid in old_flows:
@@ -152,8 +151,7 @@ class FlowManager:
         """Start periodic cleanup timer."""
         self.cleanup_old_flows()
         self._cleanup_timer = threading.Timer(
-            30.0,  # Cleanup every 30 seconds
-            self._start_cleanup_timer
+            30.0, self._start_cleanup_timer  # Cleanup every 30 seconds
         )
         self._cleanup_timer.daemon = True
         self._cleanup_timer.start()

@@ -7,20 +7,37 @@ import random
 import logging
 from typing import List
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from core.bypass.attacks.advanced_base import AdvancedAttack, AdvancedAttackConfig
-from core.integration.advanced_attack_registry import get_advanced_attack_registry
+from core.bypass.attacks.base import BaseAttack
+from core.bypass.attacks.metadata import AttackMetadata, AttackCategories
+from core.bypass.attacks.attack_registry import register_attack
 
 LOG = logging.getLogger(__name__)
 
 
-class PacingAttack(AdvancedAttack):
+class PacingAttack(BaseAttack):
     """
     Slows down data transmission by splitting the payload into small chunks
     and sending them with variable delays (jitter) to mimic an unstable
     connection and evade simple DPIs that timeout or have resource limits.
     """
 
-    async def execute(self, context: AttackContext) -> AttackResult:
+    @property
+    def name(self) -> str:
+        return "pacing_attack"
+
+    @property
+    def category(self) -> str:
+        return AttackCategories.TIMING
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"chunk_size": 10, "base_delay_ms": 50, "jitter_ms": 20}
+
+    def execute(self, context: AttackContext) -> AttackResult:
         start_time = time.time()
         try:
             payload = context.payload
@@ -29,7 +46,7 @@ class PacingAttack(AdvancedAttack):
                     status=AttackStatus.INVALID_PARAMS,
                     error_message="Payload is empty.",
                 )
-            params = {**self.config.default_params, **context.params}
+            params = context.params
             chunk_size = params.get("chunk_size", 10)
             base_delay_ms = params.get("base_delay_ms", 50)
             jitter_ms = params.get("jitter_ms", 20)
@@ -78,23 +95,5 @@ class PacingAttack(AdvancedAttack):
             )
 
 
-pacing_attack_config = AdvancedAttackConfig(
-    name="pacing_attack",
-    priority=40,
-    complexity="Medium",
-    target_protocols=["tcp", "tls"],
-    dpi_signatures=[
-        "resource_limited_dpi",
-        "stateful_timeout_dpi",
-        "generic_stateful_inspector",
-    ],
-    description="Slows down data transmission with variable delays (jitter) to mimic an unstable connection.",
-    default_params={"chunk_size": 10, "base_delay_ms": 50, "jitter_ms": 20},
-    learning_enabled=True,
-)
-try:
-    registry = get_advanced_attack_registry()
-    registry.register_attack(PacingAttack, pacing_attack_config)
-    LOG.info("Successfully registered PacingAttack with AdvancedAttackRegistry.")
-except Exception as e:
-    LOG.error(f"Failed to register PacingAttack with AdvancedAttackRegistry: {e}")
+# Note: Attack registration is handled by the @register_attack decorator
+# These classes can be imported and used directly or registered via decorator

@@ -8,6 +8,7 @@ import asyncio
 import time
 import struct
 import random
+import secrets
 from typing import List, Tuple
 from core.bypass.attacks.base import (
     BaseAttack,
@@ -15,7 +16,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 class HTTP2Frame:
@@ -118,6 +119,17 @@ class H2FrameSplittingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "split_strategy": "headers",
+            "max_frame_size": 16384
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/2 frame splitting attack."""
@@ -305,6 +317,16 @@ class H2HPACKManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "manipulation_type": "literal_headers"
+        }
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HPACK manipulation attack."""
         start_time = time.time()
@@ -440,6 +462,16 @@ class H2PriorityManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "priority_strategy": "random"
+        }
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/2 priority manipulation attack."""
         start_time = time.time()
@@ -556,6 +588,16 @@ class H2ClearTextUpgradeAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "upgrade_method": "prior_knowledge"
+        }
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute h2c upgrade attack."""
         start_time = time.time()
@@ -654,6 +696,17 @@ class H2HPACKBombAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "compression_ratio": 10,
+            "header_count": 100
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HPACK bomb attack."""
@@ -754,6 +807,17 @@ class H2HPACKIndexManipulationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "manipulation_type": "table_poisoning",
+            "index_confusion": True
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HPACK index manipulation attack."""
@@ -991,6 +1055,17 @@ class H2SmugglingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "smuggling_type": "h2c_upgrade",
+            "hidden_request": b"GET /admin HTTP/1.1\r\nHost: internal\r\n\r\n"
+        }
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/2 smuggling attack."""
         start_time = time.time()
@@ -1141,6 +1216,18 @@ class H2StreamMultiplexingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "stream_count": 5,
+            "interleave_frames": True,
+            "use_priorities": True
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP/2 stream multiplexing attack."""
@@ -1310,6 +1397,18 @@ class H2CSmugglingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "smuggling_method": "content_length",
+            "use_chunked": False,
+            "add_te_header": True
+        }
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute h2c smuggling attack."""
         start_time = time.time()
@@ -1465,6 +1564,19 @@ class H2HPACKAdvancedManipulationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "technique": "dynamic_table",
+            "compression_level": "high",
+            "use_huffman": True,
+            "table_size_update": True
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced HPACK manipulation attack."""

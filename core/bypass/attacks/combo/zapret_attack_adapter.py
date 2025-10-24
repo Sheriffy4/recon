@@ -21,7 +21,6 @@ from core.bypass.attacks.base import (
 from core.bypass.attacks.combo.zapret_strategy import (
     ZapretStrategy,
     ZapretConfig,
-    create_zapret_strategy,
 )
 from core.bypass.attacks.combo.zapret_integration import (
     ZapretIntegration,
@@ -143,7 +142,6 @@ class ZapretAttackAdapter(BaseAttack):
             if loop.is_running():
                 # If we're already in an async context, use run_coroutine_threadsafe
                 import concurrent.futures
-                import threading
 
                 def run_in_thread():
                     new_loop = asyncio.new_event_loop()

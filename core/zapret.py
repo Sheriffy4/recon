@@ -1,6 +1,6 @@
 # core/zapret.py
 from typing import Dict, Any, List, Tuple
-from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.attack_registry import AttackRegistry
 
 
 def synth(task: Dict[str, Any]) -> str:

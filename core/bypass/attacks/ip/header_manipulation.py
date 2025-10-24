@@ -14,7 +14,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 @register_attack
@@ -40,6 +40,14 @@ class IPTTLManipulationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"ttl_values": [1, 2, 64]}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP TTL manipulation attack."""
@@ -95,6 +103,14 @@ class IPIDManipulationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"id_strategy": "random", "base_id": 1000, "custom_id": 12345}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP ID manipulation attack."""
@@ -157,6 +173,14 @@ class IPTOSManipulationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"tos_value": 16}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP TOS manipulation attack."""

@@ -5,10 +5,11 @@ import time
 import socket
 import random
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 
 try:
     from scapy.all import IP, TCP, Raw, sr1, send, conf
+
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
@@ -16,6 +17,7 @@ except ImportError:
 from .unified_models import NetworkAnalysisError, TCPAnalysisResult
 
 LOG = logging.getLogger(__name__)
+
 
 class TCPAnalyzer:
     """TCP-specific DPI behavior analyzer."""
@@ -46,10 +48,15 @@ class TCPAnalyzer:
                 self._probe_fragmentation(result, target_ip, port),
             ]
             await asyncio.gather(*probes)
-            self.logger.info(f"TCP analysis for {target}:{port} completed. RST detected: {result.rst_injection_detected}")
+            self.logger.info(
+                f"TCP analysis for {target}:{port} completed. RST detected: {result.rst_injection_detected}"
+            )
             return result.to_dict()
         except Exception as e:
-            self.logger.error(f"FATAL error in analyze_tcp_behavior for {target}:{port}: {e}", exc_info=True)
+            self.logger.error(
+                f"FATAL error in analyze_tcp_behavior for {target}:{port}: {e}",
+                exc_info=True,
+            )
             return {}
 
     async def _resolve_target(self, target: str) -> str:
@@ -77,7 +84,7 @@ class TCPAnalyzer:
         A more robust async send/receive function that avoids problematic parts of scapy.
         """
         loop = asyncio.get_event_loop()
-        
+
         def send_and_sniff():
             try:
                 # Use a simple sniff with a filter to capture the response
@@ -101,8 +108,7 @@ class TCPAnalyzer:
     ):
         """Analyzes RST injection."""
         response = await self._async_send_recv(
-            IP(dst=target_ip) / TCP(dport=port, flags="S"),
-            timeout=self.timeout
+            IP(dst=target_ip) / TCP(dport=port, flags="S"), timeout=self.timeout
         )
         if response and response.haslayer(TCP) and response.getlayer(TCP).flags & 4:
             result.rst_injection_detected = True
@@ -125,8 +131,10 @@ class TCPAnalyzer:
         start_time = time.perf_counter()
         response = await self._async_send_recv(syn_packet, timeout=self.timeout)
         end_time = time.perf_counter()
-        
-        if response and response.haslayer(TCP) and response.getlayer(TCP).flags & 18: # SYN-ACK
+
+        if (
+            response and response.haslayer(TCP) and response.getlayer(TCP).flags & 18
+        ):  # SYN-ACK
             result.syn_ack_to_client_hello_delta = (end_time - start_time) * 1000
             tcp_layer = response[TCP]
             result.window_size = tcp_layer.window
@@ -149,33 +157,41 @@ class TCPAnalyzer:
             # This probe doesn't use Scapy for network I/O, so it's safer.
             test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             test_socket.settimeout(2.0)
-            
+
             connection_possible = False
             connection_blocked = False
-            
+
             try:
                 test_socket.connect((target_ip, port))
                 connection_possible = True
                 test_socket.close()
-                self.logger.debug(f"Fragmentation probe: Direct connection successful to {target_ip}:{port}")
+                self.logger.debug(
+                    f"Fragmentation probe: Direct connection successful to {target_ip}:{port}"
+                )
             except socket.timeout:
                 connection_blocked = True
-                self.logger.debug(f"Fragmentation probe: Connection timeout to {target_ip}:{port}")
+                self.logger.debug(
+                    f"Fragmentation probe: Connection timeout to {target_ip}:{port}"
+                )
             except (ConnectionRefusedError, OSError) as e:
                 connection_blocked = True
-                self.logger.debug(f"Fragmentation probe: Connection refused to {target_ip}:{port}: {e}")
+                self.logger.debug(
+                    f"Fragmentation probe: Connection refused to {target_ip}:{port}: {e}"
+                )
             except Exception as e:
-                self.logger.debug(f"Fragmentation probe: Connection failed to {target_ip}:{port}: {e}")
+                self.logger.debug(
+                    f"Fragmentation probe: Connection failed to {target_ip}:{port}: {e}"
+                )
                 result.fragmentation_handling = "unknown"
                 return
-            
+
             if connection_possible:
                 result.fragmentation_handling = "not_needed"
             elif connection_blocked:
                 result.fragmentation_handling = "vulnerable"
             else:
                 result.fragmentation_handling = "unknown"
-                
+
         except Exception as e:
             self.logger.debug(f"Fragmentation probe failed: {e}")
             result.fragmentation_handling = "vulnerable"

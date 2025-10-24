@@ -1,13 +1,10 @@
 import logging
-import copy
 from typing import List, Dict, Any, Optional
 from recon import config
 from recon.core.storage import Storage
 from recon.ml.strategy_predictor import StrategyPredictor
-from recon.core.bypass.attacks.registry import AttackRegistry
+from recon.core.bypass.attacks.attack_registry import AttackRegistry
 from recon.core.integration.attack_adapter import AttackAdapter
-from typing import TYPE_CHECKING
-from typing_extensions import Protocol
 
 LOG = logging.getLogger("AdaptivePlanner")
 
@@ -186,7 +183,6 @@ class AdaptivePlanner:
         """
         Генерирует максимально эффективные многоступенчатые атаки на основе анализа.
         """
-        from recon.core.fingerprint import Fingerprint
 
         combos = []
         session_failures = getattr(fp, "session_history", {})
@@ -333,7 +329,6 @@ class AdaptivePlanner:
         """
         Генерирует план для определенного уровня иерархии или для полного сканирования.
         """
-        from recon.core.fingerprint import Fingerprint
 
         if full_scan:
             plan = []

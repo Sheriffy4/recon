@@ -6,15 +6,14 @@ Migrated and unified from:
 """
 
 import time
-from typing import List
+from typing import List, Dict, Any
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
-
+from core.bypass.attacks.attack_registry import register_attack
 
 @register_attack
 class ProtocolConfusionAttack(BaseAttack):
@@ -40,6 +39,17 @@ class ProtocolConfusionAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "fake_protocol": "smtp",
+            "custom_header": b"HELLO\r\n"
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute protocol confusion attack."""
@@ -107,6 +117,16 @@ class TLSVersionConfusionAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "fake_version": b"\x03\x00"
+        }
+
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS version confusion attack."""
         start_time = time.time()
@@ -166,6 +186,16 @@ class TLSContentTypeConfusionAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "fake_content_type": 23
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS content type confusion attack."""

@@ -1,0 +1,105 @@
+{
+  "metadata": {
+    "generated_at": "2025-10-22T11:45:58.362934",
+    "test_environment": "refactored",
+    "system_info": {
+      "cpu_count": 4,
+      "memory_total_gb": 7.794059753417969,
+      "python_version": "3.12.9",
+      "platform": "win32"
+    },
+    "test_iterations_per_attack": 50
+  },
+  "execution_times": {
+    "fakeddisorder": {
+      "avg_time_ms": 0.6258019991219044,
+      "std_dev_ms": 0.35243619496739026,
+      "min_time_ms": 0.33999999868683517,
+      "max_time_ms": 1.8159000028390437,
+      "iterations": 50
+    },
+    "seqovl": {
+      "avg_time_ms": 3.5218700009863824,
+      "std_dev_ms": 13.191329816611551,
+      "min_time_ms": 0.3436999977566302,
+      "max_time_ms": 90.37859999807552,
+      "iterations": 50
+    },
+    "multidisorder": {
+      "avg_time_ms": 0.8750640007201582,
+      "std_dev_ms": 0.4652009018464098,
+      "min_time_ms": 0.48550000065006316,
+      "max_time_ms": 2.2255000076256692,
+      "iterations": 50
+    },
+    "disorder": {
+      "avg_time_ms": 0.1009239989798516,
+      "std_dev_ms": 0.03297207143800577,
+      "min_time_ms": 0.062000006437301636,
+      "max_time_ms": 0.21410000044852495,
+      "iterations": 50
+    },
+    "multisplit": {
+      "avg_time_ms": 0.12356599909253418,
+      "std_dev_ms": 0.07834707259659054,
+      "min_time_ms": 0.06729998858645558,
+      "max_time_ms": 0.4338000144343823,
+      "iterations": 50
+    }
+  },
+  "memory_usage": {
+    "baseline_mb": 223.20703125,
+    "after_100_dispatches_mb": 223.20703125,
+    "memory_increase_mb": 0.0,
+    "memory_per_dispatch_kb": 0.0
+  },
+  "throughput_metrics": {
+    "dispatches_per_second": 1313.0734852657392,
+    "total_time_50_dispatches": 0.0380785999877844,
+    "successful_dispatches": 50,
+    "total_dispatches": 50
+  },
+  "success_rates": {
+    "fakeddisorder": {
+      "success_rate": 1.0,
+      "total_tests": 50,
+      "successful_tests": 50,
+      "failed_tests": 0
+    },
+    "seqovl": {
+      "success_rate": 1.0,
+      "total_tests": 50,
+      "successful_tests": 50,
+      "failed_tests": 0
+    },
+    "multidisorder": {
+      "success_rate": 1.0,
+      "total_tests": 50,
+      "successful_tests": 50,
+      "failed_tests": 0
+    },
+    "disorder": {
+      "success_rate": 1.0,
+      "total_tests": 50,
+      "successful_tests": 50,
+      "failed_tests": 0
+    },
+    "multisplit": {
+      "success_rate": 1.0,
+      "total_tests": 50,
+      "successful_tests": 50,
+      "failed_tests": 0
+    }
+  },
+  "payload_sizes": {
+    "small_bytes": 34,
+    "medium_bytes": 640,
+    "large_bytes": 1066
+  },
+  "performance_summary": {
+    "fastest_attack": "disorder",
+    "slowest_attack": "seqovl",
+    "total_attacks_tested": 5,
+    "average_execution_time_ms": 1.0494451997801661
+  }
+}

@@ -12,6 +12,7 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.packet_builder import EnhancedPacketBuilder
+from core.bypass.attacks.attack_registry import register_attack
 
 LOG = logging.getLogger("ZapretStrategy")
 
@@ -33,7 +34,7 @@ class ZapretConfig:
     inter_packet_delay_ms: float = 0.05
     burst_delay_ms: float = 1.0
 
-
+@register_attack
 class ZapretStrategy(BaseAttack):
 
     @property
@@ -48,6 +49,15 @@ class ZapretStrategy(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp", "http", "https", "tls"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        # Return parameters from the config as a dictionary
+        return asdict(self.config)
+    
     def __init__(self, config: Optional[ZapretConfig] = None):
         super().__init__()
         self.config = config or ZapretConfig()
@@ -425,7 +435,7 @@ def create_zapret_strategy(
 
 
 try:
-    from core.bypass.attacks.registry import register_attack
+    from core.bypass.attacks.attack_registry import AttackRegistry
 
     register_attack(ZapretStrategy)
     LOG.info("ZapretStrategy registered successfully")

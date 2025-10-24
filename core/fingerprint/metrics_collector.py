@@ -456,7 +456,9 @@ class ProtocolMetricsCollector(BaseMetricsCollector):
             ),
         }
 
-    async def _collect_https_metrics(self, target: str, port: int, **kwargs) -> Dict[str, Any]:
+    async def _collect_https_metrics(
+        self, target: str, port: int, **kwargs
+    ) -> Dict[str, Any]:
         target_ip = kwargs.get("target_ip") or target
         server_name = kwargs.get("host_header") or target
 
@@ -466,6 +468,7 @@ class ProtocolMetricsCollector(BaseMetricsCollector):
         last_error = None
         try:
             import ssl
+
             for retry in range(max_retries):
                 try:
                     context = ssl.create_default_context()
@@ -888,11 +891,15 @@ class MetricsCollector:
             aggregated.timing.jitter_ms = statistics.mean(all_jitters)
         aggregated.timing.packet_timing = all_packet_timings
 
-        packet_loss_rates = [m.network.packet_loss_rate for m in metrics_list if m.network.packet_loss_rate >= 0]
+        packet_loss_rates = [
+            m.network.packet_loss_rate
+            for m in metrics_list
+            if m.network.packet_loss_rate >= 0
+        ]
         if packet_loss_rates:
             aggregated.network.packet_loss_rate = max(packet_loss_rates)
 
-        from collections import defaultdict
+
         protocol_aggregates = defaultdict(list)
         for m in metrics_list:
             for protocol, proto_metrics in m.protocols.items():

@@ -18,7 +18,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 @register_attack
@@ -29,6 +29,15 @@ class BadSumFoolingAttack(ManipulationAttack):
     Migrated from:
     - apply_badsum_fooling (fast_bypass.py)
     """
+
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {}
 
     @property
     def name(self) -> str:

@@ -14,10 +14,15 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 
-
-@register_attack
+@register_attack(
+    name="http_method_case",
+    category=AttackCategories.HTTP,
+    aliases=["http-method-case"],
+    description="Changes case of HTTP method to evade DPI"
+)
 class HTTPMethodCaseAttack(BaseAttack):
     """
     HTTP Method Case Attack - changes case of HTTP method.
@@ -38,6 +43,16 @@ class HTTPMethodCaseAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "case_strategy": "lower"
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP method case attack."""
@@ -142,6 +157,16 @@ class HTTPMethodSubstitutionAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "substitute_method": "POST"
+        }
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP method substitution attack."""
         start_time = time.time()
@@ -213,6 +238,16 @@ class HTTPVersionManipulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "new_version": "HTTP/1.0"
+        }
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP version manipulation attack."""
         start_time = time.time()
@@ -264,7 +299,12 @@ class HTTPVersionManipulationAttack(BaseAttack):
             )
 
 
-@register_attack
+@register_attack(
+    name="http_path_obfuscation",
+    category=AttackCategories.HTTP,
+    aliases=["http-url-path-case", "http-url-path-dot"],
+    description="Obfuscates HTTP request path using URL encoding"
+)
 class HTTPPathObfuscationAttack(BaseAttack):
     """
     HTTP Path Obfuscation Attack - obfuscates request path.
@@ -285,6 +325,16 @@ class HTTPPathObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "obfuscation_type": "url_encode"
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP path obfuscation attack."""

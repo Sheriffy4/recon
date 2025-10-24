@@ -16,7 +16,16 @@ from typing import Callable, Optional, Dict, Any, List, Set, Union
 from datetime import datetime
 
 try:
-    from scapy.all import *
+    from scapy.layers.inet import IP, TCP, UDP, ICMP
+    from scapy.layers.inet6 import (
+        IPv6,
+        ICMPv6EchoRequest,
+        IPv6ExtHdrDestOpt,
+        IPv6ExtHdrRouting,
+    )
+    from scapy.packet import Raw
+    from scapy.sendrecv import sr1, send
+    from scapy.utils import fragment
     from scapy.layers.tls.handshake import TLSClientHello
 
     SCAPY_AVAILABLE = True

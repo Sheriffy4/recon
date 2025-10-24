@@ -6,10 +6,9 @@ Raw packet engine - замена Scapy на побайтовую обработ�
 import struct
 import socket
 import logging
-from typing import Optional, Dict, Any, List, Tuple, Union
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 from enum import Enum
-import ipaddress
 
 
 class ProtocolType(Enum):
@@ -442,7 +441,9 @@ class RawPacketEngine:
             self.logger.error(f"Error parsing packet: {e}")
             raise
 
-    def _fragment_packet_internal(self, packet: RawPacket, fragment_size: int) -> List[RawPacket]:
+    def _fragment_packet_internal(
+        self, packet: RawPacket, fragment_size: int
+    ) -> List[RawPacket]:
         """Фрагментирует пакет на части."""
         try:
             if len(packet.data) <= fragment_size:
@@ -561,13 +562,21 @@ class RawPacketEngine:
         """Создает TCP пакет (async версия для совместимости)."""
         try:
             raw_packet = self.create_tcp_packet(
-                source_ip, dest_ip, source_port, dest_port,
-                seq_num, ack_num, flags, payload, ttl, window_size
+                source_ip,
+                dest_ip,
+                source_port,
+                dest_port,
+                seq_num,
+                ack_num,
+                flags,
+                payload,
+                ttl,
+                window_size,
             )
-            
+
             # Импортируем TCPPacket локально
             from .packet_models import TCPPacket
-            
+
             # Создаем объект TCPPacket для совместимости
             tcp_packet = TCPPacket(
                 source_ip=source_ip,
@@ -578,11 +587,11 @@ class RawPacketEngine:
                 ack_num=ack_num,
                 flags=flags,
                 payload=payload,
-                raw_data=raw_packet.data
+                raw_data=raw_packet.data,
             )
-            
+
             return tcp_packet
-            
+
         except Exception as e:
             self.logger.error(f"Error building TCP packet: {e}")
             raise
@@ -591,23 +600,30 @@ class RawPacketEngine:
         """Парсит пакет из байтов (async версия)."""
         try:
             raw_packet = self._parse_packet_internal(packet_data)
-            
+
             # Импортируем ParsedPacket локально чтобы избежать циклических импортов
-            from .packet_models import ParsedPacket, LayerInfo, ProtocolType as ModelProtocolType
-            
+            from .packet_models import (
+                ParsedPacket,
+                ProtocolType as ModelProtocolType,
+            )
+
             # Создаем объект ParsedPacket для совместимости
             parsed = ParsedPacket(
-                protocol_type=ModelProtocolType.TCP if raw_packet.protocol == ProtocolType.TCP else ModelProtocolType.IP,
+                protocol_type=(
+                    ModelProtocolType.TCP
+                    if raw_packet.protocol == ProtocolType.TCP
+                    else ModelProtocolType.IP
+                ),
                 source_ip=raw_packet.src_ip,
                 dest_ip=raw_packet.dst_ip,
                 source_port=raw_packet.src_port or 0,
                 dest_port=raw_packet.dst_port or 0,
                 payload=raw_packet.payload or b"",
-                raw_data=raw_packet.data
+                raw_data=raw_packet.data,
             )
-            
+
             return parsed
-            
+
         except Exception as e:
             self.logger.error(f"Error parsing packet: {e}")
             return None
@@ -622,19 +638,19 @@ class RawPacketEngine:
         try:
             # Создаем временный RawPacket для фрагментации
             temp_packet = RawPacket(
-                data=packet_data,
-                src_ip="0.0.0.0",
-                dst_ip="0.0.0.0"
+                data=packet_data, src_ip="0.0.0.0", dst_ip="0.0.0.0"
             )
-            
+
             fragments = self.fragment_packet_sync(temp_packet, mtu)
             return [frag.data for frag in fragments]
-            
+
         except Exception as e:
             self.logger.error(f"Error fragmenting packet: {e}")
             return [packet_data]
 
-    def fragment_packet_sync(self, packet: RawPacket, fragment_size: int) -> List[RawPacket]:
+    def fragment_packet_sync(
+        self, packet: RawPacket, fragment_size: int
+    ) -> List[RawPacket]:
         """Синхронная версия fragment_packet."""
         return self._fragment_packet_internal(packet, fragment_size)
 
@@ -726,6 +742,7 @@ def fragment_tcp_packet(packet: RawPacket, fragment_size: int) -> List[RawPacket
 @dataclass
 class TCPPacket:
     """TCP пакет для совместимости с тестами."""
+
     source_ip: str
     dest_ip: str
     source_port: int
@@ -744,6 +761,7 @@ class TCPPacket:
 @dataclass
 class ParsedPacket:
     """Распарсенный пакет для совместимости с тестами."""
+
     protocol: int
     source_ip: str
     destination_ip: str

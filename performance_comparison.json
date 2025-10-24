@@ -1,0 +1,71 @@
+{
+  "timestamp": "2025-10-22T11:50:15.762172",
+  "overall_status": "\ud83d\ude80 NET PERFORMANCE IMPROVEMENT",
+  "execution_times": {
+    "improvements": 5,
+    "regressions": 0,
+    "similar": 0,
+    "critical_regressions": 0
+  },
+  "memory": {
+    "baseline_memory_delta_mb": -1.07421875,
+    "per_dispatch_delta_kb": -2.52,
+    "status": "\ud83d\ude80 IMPROVED"
+  },
+  "throughput": {
+    "baseline_dps": 747.0234848816002,
+    "refactored_dps": 1313.0734852657392,
+    "delta_percent": 75.7740568857558,
+    "status": "\ud83d\ude80 IMPROVED"
+  },
+  "success_rates": {
+    "improved": [],
+    "degraded": [],
+    "similar": [
+      "disorder",
+      "fakeddisorder",
+      "multidisorder",
+      "multisplit",
+      "seqovl"
+    ],
+    "missing": []
+  },
+  "detailed_execution_comparison": {
+    "improvements": [
+      {
+        "attack": "disorder",
+        "baseline_ms": 1.7511799989733845,
+        "refactored_ms": 0.1009239989798516,
+        "delta_percent": -94.23680038379736
+      },
+      {
+        "attack": "fakeddisorder",
+        "baseline_ms": 13.573576001217589,
+        "refactored_ms": 0.6258019991219044,
+        "delta_percent": -95.38955689299733
+      },
+      {
+        "attack": "multidisorder",
+        "baseline_ms": 8.077846002706792,
+        "refactored_ms": 0.8750640007201582,
+        "delta_percent": -89.16711211841704
+      },
+      {
+        "attack": "multisplit",
+        "baseline_ms": 2.2333760000765324,
+        "refactored_ms": 0.12356599909253418,
+        "delta_percent": -94.46729977002082
+      },
+      {
+        "attack": "seqovl",
+        "baseline_ms": 11.402423999097664,
+        "refactored_ms": 3.5218700009863824,
+        "delta_percent": -69.11297105540815
+      }
+    ],
+    "regressions": [],
+    "similar": [],
+    "missing_attacks": [],
+    "new_attacks": []
+  }
+}

@@ -1,12 +1,14 @@
 # core/calibration/calibrator.py
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Any, Optional, Callable
+from typing import List, Optional, Callable
 import time
+
 
 @dataclass
 class CalibCandidate:
     split_pos: int
     overlap_size: int
+
 
 class Calibrator:
     @staticmethod
@@ -28,9 +30,15 @@ class Calibrator:
         return min(336, part1_len, part2_len, split_pos)
 
     @staticmethod
-    def prepare_candidates(payload: bytes, initial_split_pos: Optional[int] = None) -> List[CalibCandidate]:
+    def prepare_candidates(
+        payload: bytes, initial_split_pos: Optional[int] = None
+    ) -> List[CalibCandidate]:
         # Сформировать маленькую сетку: (sp±8) x overlap {64, 160, 336} (+ защита по длинам)
-        est_sp = initial_split_pos if initial_split_pos else Calibrator.estimate_split_pos_from_ch(payload)
+        est_sp = (
+            initial_split_pos
+            if initial_split_pos
+            else Calibrator.estimate_split_pos_from_ch(payload)
+        )
         sps = [max(16, est_sp - 8), est_sp, est_sp + 8]
         candidates: List[CalibCandidate] = []
         for sp in sps:
@@ -59,7 +67,7 @@ class Calibrator:
         delays: List[int],
         send_func: Callable[[CalibCandidate, int, int], None],
         wait_func: Callable[..., Optional[str]],
-        time_budget_ms: Optional[int] = None
+        time_budget_ms: Optional[int] = None,
     ) -> Optional[CalibCandidate]:
         if not candidates:
             return None

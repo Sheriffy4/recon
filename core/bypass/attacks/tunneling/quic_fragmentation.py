@@ -16,8 +16,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
-
+from core.bypass.attacks.attack_registry import register_attack
 
 def encode_variable_length(value: int) -> bytes:
     """Encode integer in QUIC variable-length format."""
@@ -52,6 +51,15 @@ class QUICFragmentationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {'fragment_size': 1200, 'fragment_count': 3}
+
 
     def to_zapret_command(self, params: Optional[Dict[str, Any]] = None) -> str:
         params = params or {}

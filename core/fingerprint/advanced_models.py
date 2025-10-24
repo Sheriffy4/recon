@@ -277,7 +277,14 @@ class DPIFingerprint:
         # FIXED LOGIC: Properly interpret fragmentation vulnerability
         if self.fragmentation_handling == "vulnerable":
             # DPI is vulnerable to fragmentation attacks - recommend fragmentation-based evasion
-            strategies.extend(["multisplit_attack", "multidisorder_attack", "tcp_fragmentation", "aggressive_fragmentation"])
+            strategies.extend(
+                [
+                    "multisplit_attack",
+                    "multidisorder_attack",
+                    "tcp_fragmentation",
+                    "aggressive_fragmentation",
+                ]
+            )
         elif self.fragmentation_handling == "filtered":
             # DPI filters fragmented packets - avoid fragmentation, use other techniques
             strategies.extend(["large_packet_avoidance", "single_packet_evasion"])

@@ -8,11 +8,11 @@ import struct
 import logging
 import random
 import time
-from typing import Optional, Dict, Any, List, Union, Tuple, Callable
+from typing import Optional, Dict, Any, List, Union, Callable
 from dataclasses import dataclass
 
 from .raw_packet_engine import RawPacketEngine, RawPacket, TCPHeader, ProtocolType
-from .packet_models import LayerInfo, ParsedPacket
+from .packet_models import LayerInfo
 
 
 class ScapyCompatibilityError(Exception):
@@ -23,32 +23,32 @@ class ScapyCompatibilityError(Exception):
 
 class ScapyCompatibilityLayer:
     """Слой совместимости со Scapy API."""
-    
+
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
         self.logger = logging.getLogger(__name__)
-    
-    def IP(self, **kwargs) -> 'IP':
+
+    def IP(self, **kwargs) -> "IP":
         """Создает IP пакет в стиле Scapy."""
         return IP(**kwargs)
-    
-    def TCP(self, **kwargs) -> 'TCP':
+
+    def TCP(self, **kwargs) -> "TCP":
         """Создает TCP пакет в стиле Scapy."""
         return TCP(**kwargs)
-    
-    def UDP(self, **kwargs) -> 'UDP':
+
+    def UDP(self, **kwargs) -> "UDP":
         """Создает UDP пакет в стиле Scapy."""
         return UDP(**kwargs)
-    
+
     def send(self, packet, verbose: bool = False) -> int:
         """Отправляет пакет."""
         return send(packet, verbose)
-    
+
     def sr1(self, packet, timeout: float = 2, verbose: bool = False) -> Optional[bytes]:
         """Отправляет пакет и ждет ответ."""
         return sr1(packet, timeout, verbose)
-    
-    def parse_packet(self, data: bytes) -> 'Packet':
+
+    def parse_packet(self, data: bytes) -> "Packet":
         """Парсит пакет из байтов."""
         return Packet(data)
 
@@ -202,10 +202,12 @@ class UDP(PacketLayer):
     def __bytes__(self) -> bytes:
         """Конвертирует в байты."""
         # UDP заголовок: src_port(2) + dst_port(2) + length(2) + checksum(2)
-        length = self.len if self.len is not None else 8  # Минимальная длина UDP заголовка
+        length = (
+            self.len if self.len is not None else 8
+        )  # Минимальная длина UDP заголовка
         checksum = self.chksum if self.chksum is not None else 0
-        
-        return struct.pack('!HHHH', self.sport, self.dport, length, checksum)
+
+        return struct.pack("!HHHH", self.sport, self.dport, length, checksum)
 
 
 class Raw(PacketLayer):
@@ -236,7 +238,7 @@ class IPTCPPacket:
         self.tcp = tcp_layer
         self.payload = payload
         self._raw_packet = None
-        
+
         # Создаем список слоев для совместимости с тестами
         self.layers = []
         self.layers.append(LayerInfo("IP", ip_layer))
@@ -288,7 +290,7 @@ class IPTCPPacket:
         print(f"  src       = {self.ip.src}")
         print(f"  dst       = {self.ip.dst}")
         print(f"  ttl       = {self.ip.ttl}")
-        print(f"  proto     = tcp")
+        print("  proto     = tcp")
         print("###[ TCP ]###")
         print(f"  sport     = {self.tcp.sport}")
         print(f"  dport     = {self.tcp.dport}")
@@ -310,7 +312,7 @@ class IPUDPPacket:
         self.udp = udp_layer
         self.payload = payload
         self._raw_packet = None
-        
+
         # Создаем список слоев для совместимости с тестами
         self.layers = []
         self.layers.append(LayerInfo("IP", ip_layer))
@@ -337,7 +339,8 @@ class IPUDPPacket:
         payload_data = self.payload.load if self.payload else b""
 
         # Для UDP создаем базовый IP пакет с UDP заголовком
-        ip_header = struct.pack('!BBHHHBBH4s4s',
+        ip_header = struct.pack(
+            "!BBHHHBBH4s4s",
             (4 << 4) + 5,  # Version + IHL
             0,  # ToS
             20 + 8 + len(payload_data),  # Total Length
@@ -347,16 +350,17 @@ class IPUDPPacket:
             17,  # Protocol (UDP)
             0,  # Checksum (будет вычислена позже)
             socket.inet_aton(self.ip.src),  # Source IP
-            socket.inet_aton(self.ip.dst)   # Dest IP
+            socket.inet_aton(self.ip.dst),  # Dest IP
         )
-        
-        udp_header = struct.pack('!HHHH',
+
+        udp_header = struct.pack(
+            "!HHHH",
             self.udp.sport,  # Source Port
             self.udp.dport,  # Dest Port
             8 + len(payload_data),  # Length
-            0  # Checksum
+            0,  # Checksum
         )
-        
+
         packet_data = ip_header + udp_header + payload_data
         self._raw_packet = RawPacket(packet_data, ProtocolType.UDP)
 

@@ -28,9 +28,4 @@ except ImportError:
     engines = None
 
 # Make commonly used components available
-__all__ = [
-    'attacks',
-    'strategies', 
-    'engine',
-    'engines'
-]
+__all__ = ["attacks", "strategies", "engine", "engines"]

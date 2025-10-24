@@ -10,14 +10,14 @@ import asyncio
 import time
 import random
 import struct
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 
 
 @register_attack
@@ -35,7 +35,7 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -44,6 +44,15 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute QUIC fragmentation obfuscation attack."""

@@ -21,7 +21,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 TLS_VERSION_1_3 = b"\x03\x04"
 TLS_VERSION_1_2 = b"\x03\x03"
@@ -329,6 +329,19 @@ class TLS13EarlyDataTunnelingAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "domain": None,
+            "session_ticket": b"",
+            "psk": b"",
+            "early_data_size": 1024
+        }
+
     def execute(self, context: AttackContext) -> AttackResult:
         """
         Выполняет атаку TLS 1.3 0-RTT Tunneling.
@@ -414,6 +427,19 @@ class TLSEarlyDataAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "domain": None,
+            "session_ticket": b"",
+            "psk": b"",
+            "early_data_size": 1024
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         full_attack = TLS13EarlyDataTunnelingAttack()

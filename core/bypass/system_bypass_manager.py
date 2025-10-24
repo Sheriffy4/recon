@@ -2,6 +2,8 @@
 SystemBypassManager для управления внешними инструментами обхода DPI.
 Адаптирован из apply_bypass.py и app_level_tester.py для централизованного управления.
 """
+
+
 def apply_forced_override(original_func, *args, **kwargs):
     """
     Обертка для принудительного применения стратегий.
@@ -11,13 +13,12 @@ def apply_forced_override(original_func, *args, **kwargs):
     if len(args) > 1 and isinstance(args[1], dict):
         # Второй аргумент - стратегия
         strategy = args[1].copy()
-        strategy['no_fallbacks'] = True
-        strategy['forced'] = True
+        strategy["no_fallbacks"] = True
+        strategy["forced"] = True
         args = (args[0], strategy) + args[2:]
         print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
-    
-    return original_func(*args, **kwargs)
 
+    return original_func(*args, **kwargs)
 
 
 import asyncio

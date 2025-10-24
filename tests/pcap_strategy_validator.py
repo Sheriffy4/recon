@@ -1,618 +1,308 @@
-#!/usr/bin/env python3
 """
 PCAP Strategy Validator
 
-This module provides specialized PCAP analysis for validating DPI strategy effectiveness.
-It analyzes packet captures to verify that DPI strategies are being applied correctly.
+This module provides the PCAPStrategyValidator class, which is responsible for
+analyzing PCAP files to validate whether specific DPI bypass strategies were
+correctly applied. It checks for patterns like packet splitting, bad checksums,
+and SNI manipulation.
+
+This validator is a key component of the integrated analysis and validation
+system, providing concrete evidence of strategy execution from network traffic.
 
 Requirements: 5.3, 5.4, 5.5
 """
 
-import sys
-import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
-from collections import defaultdict, Counter
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any, Tuple
 
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
+# Import scapy with graceful failure handling
 try:
-    from scapy.all import rdpcap, TCP, IP, Raw, DNS
+    from scapy.all import rdpcap, TCP, IP, Raw
+    from scapy.packet import Packet
     SCAPY_AVAILABLE = True
 except ImportError:
-    print("Warning: Scapy not available. PCAP analysis will be limited.")
     SCAPY_AVAILABLE = False
+    Packet = object  # Dummy for type hinting
 
+# Setup logger
+logger = logging.getLogger(__name__)
+
+
+# --- Data Classes for Results ---
 
 @dataclass
 class StrategyValidationResult:
-    """Results from strategy validation analysis."""
+    """Result of validating a single DPI bypass strategy against a PCAP."""
     strategy_name: str
-    expected_behavior: str
-    observed_behavior: str
     validation_passed: bool
-    confidence_score: float
-    evidence: List[str]
-    issues: List[str]
+    confidence_score: float = 0.0
+    expected_behavior: str = ""
+    observed_behavior: str = ""
+    evidence: List[str] = field(default_factory=list)
+    issues: List[str] = field(default_factory=list)
 
 
 @dataclass
-class PCAPAnalysisResult:
-    """Complete PCAP analysis results."""
-    file_path: str
-    total_packets: int
-    tcp_packets: int
-    tls_packets: int
-    strategy_validations: List[StrategyValidationResult]
-    packet_size_distribution: Dict[int, int]
-    checksum_analysis: Dict[str, Any]
-    split_position_analysis: Dict[str, Any]
-    sni_analysis: Dict[str, Any]
-    performance_metrics: Dict[str, float]
-    summary: Dict[str, Any]
+class PCAPValidationResult:
+    """Overall result of validating a PCAP file against multiple strategies."""
+    pcap_file: str
+    strategy_validations: List[StrategyValidationResult] = field(default_factory=list)
+    checksum_analysis: Dict[str, int] = field(default_factory=dict)
+    packet_size_distribution: Dict[str, int] = field(default_factory=dict)
+    total_packets: int = 0
+    tcp_packets: int = 0
 
+
+# --- Main Validator Class ---
 
 class PCAPStrategyValidator:
     """
-    Specialized validator for analyzing PCAP files to verify DPI strategy effectiveness.
-    
-    This class provides detailed analysis of packet captures to validate that
-    DPI bypass strategies are being applied correctly and effectively.
-    
-    Requirements: 5.3, 5.4, 5.5
+    Validates PCAP files to confirm that DPI bypass strategies were applied correctly.
+
+    This class analyzes packet captures to detect patterns characteristic of specific
+    bypass strategies, such as packet splitting, bad checksums, and SNI manipulation.
     """
-    
+
     def __init__(self):
-        """Initialize the PCAP strategy validator."""
-        self.logger = logging.getLogger(__name__)
-        
-    def validate_pcap_file(self, pcap_file: str, expected_strategies: List[str]) -> PCAPAnalysisResult:
-        """
-        Validate a PCAP file against expected DPI strategies.
-        
-        Args:
-            pcap_file: Path to PCAP file to analyze
-            expected_strategies: List of expected strategies (e.g., ['split_3', 'badsum'])
-            
-        Returns:
-            Complete analysis results
-            
-        Requirements: 5.3, 5.4, 5.5
-        """
+        """Initialize the validator and strategy mapping."""
         if not SCAPY_AVAILABLE:
-            return self._create_mock_analysis_result(pcap_file, expected_strategies)
-            
+            raise ImportError("Scapy is required for PCAPStrategyValidator. Please install it.")
+
+        self.logger = logger
+        self.validators = {
+            "split_3": self._validate_split_3,
+            "split_10": self._validate_split_10,
+            "split_sni": self._validate_split_sni,
+            "badsum": self._validate_badsum,
+        }
+
+    def validate_pcap_file(self, pcap_file: str, expected_strategies: List[str]) -> PCAPValidationResult:
+        """
+        Validate a PCAP file against a list of expected strategies.
+
+        Args:
+            pcap_file: Path to the PCAP file.
+            expected_strategies: A list of strategy names to validate.
+
+        Returns:
+            A PCAPValidationResult object with detailed analysis.
+        """
+        self.logger.info(f"Validating PCAP file '{pcap_file}' for strategies: {expected_strategies}")
+
         try:
             packets = rdpcap(pcap_file)
-            self.logger.info(f"Loaded {len(packets)} packets from {pcap_file}")
-            
-            # Perform comprehensive analysis
-            analysis_result = PCAPAnalysisResult(
-                file_path=pcap_file,
-                total_packets=len(packets),
-                tcp_packets=0,
-                tls_packets=0,
-                strategy_validations=[],
-                packet_size_distribution={},
-                checksum_analysis={},
-                split_position_analysis={},
-                sni_analysis={},
-                performance_metrics={},
-                summary={}
-            )
-            
-            # Analyze packets
-            self._analyze_packets(packets, analysis_result)
-            
-            # Validate strategies
-            self._validate_strategies(packets, expected_strategies, analysis_result)
-            
-            # Generate summary
-            self._generate_summary(analysis_result)
-            
-            return analysis_result
-            
         except Exception as e:
-            self.logger.error(f"PCAP analysis failed: {e}")
-            return self._create_error_result(pcap_file, str(e))
-            
-    def _analyze_packets(self, packets: List, analysis_result: PCAPAnalysisResult) -> None:
-        """Analyze packets for basic statistics and patterns."""
-        packet_sizes = []
-        tcp_checksums = []
-        tls_client_hellos = []
-        
-        for packet in packets:
-            if packet.haslayer(TCP):
-                analysis_result.tcp_packets += 1
-                
-                # Collect packet sizes
-                if packet.haslayer(Raw):
-                    size = len(packet[Raw].load)
-                    packet_sizes.append(size)
-                    
-                # Collect TCP checksums
-                tcp_checksums.append(packet[TCP].chksum)
-                
-                # Detect TLS Client Hello
-                if self._is_tls_client_hello(packet):
-                    analysis_result.tls_packets += 1
-                    tls_client_hellos.append(packet)
-        
-        # Analyze packet size distribution
-        analysis_result.packet_size_distribution = dict(Counter(packet_sizes))
-        
-        # Analyze checksums
-        analysis_result.checksum_analysis = self._analyze_checksums(tcp_checksums)
-        
-        # Analyze split positions
-        analysis_result.split_position_analysis = self._analyze_split_positions(packet_sizes)
-        
-        # Analyze SNI
-        analysis_result.sni_analysis = self._analyze_sni_patterns(tls_client_hellos)
-        
-    def _validate_strategies(self, packets: List, expected_strategies: List[str], 
-                           analysis_result: PCAPAnalysisResult) -> None:
-        """Validate that expected strategies are present in the PCAP."""
-        validations = []
-        
-        for strategy in expected_strategies:
-            if strategy == "split_3":
-                validation = self._validate_split_position_3(packets)
-            elif strategy == "split_10":
-                validation = self._validate_split_position_10(packets)
-            elif strategy == "split_sni":
-                validation = self._validate_sni_split(packets)
-            elif strategy == "badsum":
-                validation = self._validate_badsum_strategy(packets)
+            self.logger.error(f"Failed to read PCAP file '{pcap_file}': {e}")
+            return PCAPValidationResult(pcap_file=pcap_file)
+
+        overall_result = PCAPValidationResult(pcap_file=pcap_file, total_packets=len(packets))
+
+        # Filter for relevant TCP packets (e.g., outbound to port 443)
+        tcp_packets = [p for p in packets if p.haslayer(TCP) and p.haslayer(IP) and p[TCP].dport == 443]
+        overall_result.tcp_packets = len(tcp_packets)
+
+        # Perform general analysis
+        overall_result.checksum_analysis = self._analyze_checksums(tcp_packets)
+        overall_result.packet_size_distribution = self._analyze_packet_sizes(tcp_packets)
+
+        # Validate each expected strategy
+        for strategy_name in expected_strategies:
+            validator_func = self.validators.get(strategy_name)
+            if validator_func:
+                self.logger.debug(f"Running validator for strategy: {strategy_name}")
+                strategy_result = validator_func(tcp_packets)
+                overall_result.strategy_validations.append(strategy_result)
             else:
-                validation = StrategyValidationResult(
-                    strategy_name=strategy,
-                    expected_behavior=f"Unknown strategy: {strategy}",
-                    observed_behavior="No validation available",
-                    validation_passed=False,
-                    confidence_score=0.0,
-                    evidence=[],
-                    issues=[f"Unknown strategy type: {strategy}"]
+                self.logger.warning(f"No validator found for strategy: {strategy_name}")
+                overall_result.strategy_validations.append(
+                    StrategyValidationResult(
+                        strategy_name=strategy_name,
+                        validation_passed=False,
+                        confidence_score=0.0,
+                        issues=[f"Validator for '{strategy_name}' is not implemented."]
+                    )
                 )
-                
-            validations.append(validation)
-            
-        analysis_result.strategy_validations = validations   
-     
-    def _validate_split_position_3(self, packets: List) -> StrategyValidationResult:
-        """Validate split at position 3 strategy."""
-        evidence = []
-        issues = []
-        
-        # Look for packets with exactly 3 bytes of payload
-        small_packets = []
-        for packet in packets:
-            if packet.haslayer(TCP) and packet.haslayer(Raw):
-                payload_size = len(packet[Raw].load)
-                if payload_size == 3:
-                    small_packets.append(packet)
-                    evidence.append(f"Found packet with 3-byte payload: seq={packet[TCP].seq}")
-        
-        # Check for corresponding continuation packets
-        continuation_packets = 0
-        for small_packet in small_packets:
-            expected_seq = small_packet[TCP].seq + 3
-            for packet in packets:
-                if (packet.haslayer(TCP) and 
-                    packet[TCP].seq == expected_seq and
-                    packet[IP].src == small_packet[IP].src and
-                    packet[IP].dst == small_packet[IP].dst):
-                    continuation_packets += 1
-                    evidence.append(f"Found continuation packet: seq={expected_seq}")
-                    break
-        
-        validation_passed = len(small_packets) > 0 and continuation_packets > 0
-        confidence_score = min(1.0, (len(small_packets) + continuation_packets) / 4.0)
-        
-        if not small_packets:
-            issues.append("No packets with 3-byte payload found")
-        if continuation_packets < len(small_packets):
-            issues.append("Not all split packets have corresponding continuation packets")
-            
-        return StrategyValidationResult(
-            strategy_name="split_3",
-            expected_behavior="Packets split at position 3 with 3-byte first part",
-            observed_behavior=f"Found {len(small_packets)} 3-byte packets, {continuation_packets} continuations",
-            validation_passed=validation_passed,
-            confidence_score=confidence_score,
-            evidence=evidence,
-            issues=issues
+
+        return overall_result
+
+    # --- General Analysis Methods ---
+
+    def _analyze_checksums(self, packets: List[Packet]) -> Dict[str, int]:
+        """Analyze TCP checksums for all packets."""
+        analysis = {"valid": 0, "invalid": 0, "zero": 0, "total_tcp": len(packets)}
+        for pkt in packets:
+            if self._is_checksum_valid(pkt):
+                analysis["valid"] += 1
+            else:
+                analysis["invalid"] += 1
+                if pkt[TCP].chksum == 0:
+                    analysis["zero"] += 1
+        return analysis
+
+    def _analyze_packet_sizes(self, packets: List[Packet]) -> Dict[str, int]:
+        """Analyze distribution of packet payload sizes."""
+        distribution = {"small": 0, "medium": 0, "large": 0, "empty": 0}
+        for pkt in packets:
+            payload_size = len(pkt[TCP].payload)
+            if payload_size == 0:
+                distribution["empty"] += 1
+            elif payload_size <= 64:
+                distribution["small"] += 1
+            elif payload_size <= 1000:
+                distribution["medium"] += 1
+            else:
+                distribution["large"] += 1
+        return distribution
+
+    # --- Specific Strategy Validators ---
+
+    def _validate_split_3(self, packets: List[Packet]) -> StrategyValidationResult:
+        """Validator for 'split_3' strategy."""
+        return self._validate_split_position(packets, 3, "split_3")
+
+    def _validate_split_10(self, packets: List[Packet]) -> StrategyValidationResult:
+        """Validator for 'split_10' strategy."""
+        return self._validate_split_position(packets, 10, "split_10")
+
+    def _validate_split_position(self, packets: List[Packet], expected_pos: int, strategy_name: str) -> StrategyValidationResult:
+        """Generic validator for split position strategies."""
+        result = StrategyValidationResult(
+            strategy_name=strategy_name,
+            validation_passed=False,
+            expected_behavior=f"First data packet payload size should be {expected_pos} bytes."
         )
-        
-    def _validate_split_position_10(self, packets: List) -> StrategyValidationResult:
-        """Validate split at position 10 strategy."""
-        evidence = []
-        issues = []
-        
-        # Look for packets with exactly 10 bytes of payload
-        small_packets = []
-        for packet in packets:
-            if packet.haslayer(TCP) and packet.haslayer(Raw):
-                payload_size = len(packet[Raw].load)
-                if payload_size == 10:
-                    small_packets.append(packet)
-                    evidence.append(f"Found packet with 10-byte payload: seq={packet[TCP].seq}")
-        
-        # Check for corresponding continuation packets
-        continuation_packets = 0
-        for small_packet in small_packets:
-            expected_seq = small_packet[TCP].seq + 10
-            for packet in packets:
-                if (packet.haslayer(TCP) and 
-                    packet[TCP].seq == expected_seq and
-                    packet[IP].src == small_packet[IP].src and
-                    packet[IP].dst == small_packet[IP].dst):
-                    continuation_packets += 1
-                    evidence.append(f"Found continuation packet: seq={expected_seq}")
-                    break
-        
-        validation_passed = len(small_packets) > 0 and continuation_packets > 0
-        confidence_score = min(1.0, (len(small_packets) + continuation_packets) / 4.0)
-        
-        if not small_packets:
-            issues.append("No packets with 10-byte payload found")
-        if continuation_packets < len(small_packets):
-            issues.append("Not all split packets have corresponding continuation packets")
-            
-        return StrategyValidationResult(
-            strategy_name="split_10",
-            expected_behavior="Packets split at position 10 with 10-byte first part",
-            observed_behavior=f"Found {len(small_packets)} 10-byte packets, {continuation_packets} continuations",
-            validation_passed=validation_passed,
-            confidence_score=confidence_score,
-            evidence=evidence,
-            issues=issues
-        )
-        
-    def _validate_sni_split(self, packets: List) -> StrategyValidationResult:
-        """Validate SNI split strategy."""
-        evidence = []
-        issues = []
-        
-        # Look for TLS Client Hello packets and analyze their structure
-        tls_packets = []
-        sni_splits_detected = 0
-        
-        for packet in packets:
-            if self._is_tls_client_hello(packet):
-                tls_packets.append(packet)
-                
-                # Check if this looks like a split at SNI position
-                if packet.haslayer(Raw):
-                    payload = packet[Raw].load
-                    # Look for partial TLS handshake that ends around SNI position
-                    if len(payload) > 40 and len(payload) < 100:
-                        # This could be a split at SNI position
-                        sni_splits_detected += 1
-                        evidence.append(f"Potential SNI split: payload size {len(payload)}")
-        
-        validation_passed = sni_splits_detected > 0
-        confidence_score = min(1.0, sni_splits_detected / 2.0)
-        
-        if not tls_packets:
-            issues.append("No TLS Client Hello packets found")
-        if sni_splits_detected == 0:
-            issues.append("No SNI split patterns detected")
-            
-        return StrategyValidationResult(
+
+        flows = self._group_packets_by_flow(packets)
+        found_evidence = False
+
+        for flow_key, flow_packets in flows.items():
+            data_packets = [p for p in flow_packets if p.haslayer(Raw) and len(p[Raw].load) > 0]
+            if not data_packets:
+                continue
+
+            first_data_pkt = data_packets[0]
+            payload_size = len(first_data_pkt[Raw].load)
+
+            if payload_size == expected_pos:
+                result.validation_passed = True
+                result.confidence_score = 0.9
+                result.observed_behavior = f"Detected first data packet with payload size {payload_size}."
+                result.evidence.append(f"Flow {flow_key}: Packet with index in original pcap (approx) #{packets.index(first_data_pkt)} has payload size {payload_size}.")
+                found_evidence = True
+                break  # Found it in one flow, that's enough
+
+        if not found_evidence:
+            result.issues.append(f"No flow found with a first data packet of size {expected_pos}.")
+            result.observed_behavior = "No packets matching the split position were found."
+            result.confidence_score = 0.1
+
+        return result
+
+    def _validate_split_sni(self, packets: List[Packet]) -> StrategyValidationResult:
+        """Validator for 'split_sni' strategy."""
+        result = StrategyValidationResult(
             strategy_name="split_sni",
-            expected_behavior="TLS Client Hello packets split at SNI extension position",
-            observed_behavior=f"Found {len(tls_packets)} TLS packets, {sni_splits_detected} potential SNI splits",
-            validation_passed=validation_passed,
-            confidence_score=confidence_score,
-            evidence=evidence,
-            issues=issues
+            validation_passed=False,
+            expected_behavior="A small packet split before or at the SNI position in ClientHello."
         )
-        
-    def _validate_badsum_strategy(self, packets: List) -> StrategyValidationResult:
-        """Validate badsum (invalid checksum) strategy."""
-        evidence = []
-        issues = []
-        
-        invalid_checksums = 0
-        total_tcp_packets = 0
-        
-        for packet in packets:
-            if packet.haslayer(TCP):
-                total_tcp_packets += 1
-                checksum = packet[TCP].chksum
-                
-                # Check for obviously invalid checksums
-                if checksum == 0xFFFF or checksum == 0x0000:
-                    invalid_checksums += 1
-                    evidence.append(f"Invalid checksum detected: 0x{checksum:04X}")
-                # Could also check if checksum doesn't match calculated value
-                # but this requires more complex validation
-        
-        validation_passed = invalid_checksums > 0
-        confidence_score = min(1.0, invalid_checksums / max(total_tcp_packets * 0.1, 1))
-        
-        if total_tcp_packets == 0:
-            issues.append("No TCP packets found")
-        if invalid_checksums == 0:
-            issues.append("No invalid checksums detected")
-        else:
-            evidence.append(f"Found {invalid_checksums}/{total_tcp_packets} packets with invalid checksums")
-            
-        return StrategyValidationResult(
+
+        flows = self._group_packets_by_flow(packets)
+        found_evidence = False
+
+        for flow_key, flow_packets in flows.items():
+            # Look for a ClientHello split across two packets
+            for i in range(len(flow_packets) - 1):
+                p1 = flow_packets[i]
+                p2 = flow_packets[i+1]
+
+                # Check for two consecutive data packets in the same flow
+                if not (p1.haslayer(Raw) and p2.haslayer(Raw)):
+                    continue
+
+                # Heuristic: first packet is small, second follows closely
+                if 20 < len(p1[Raw].load) < 100 and p2[TCP].seq == p1[TCP].seq + len(p1[Raw].load):
+                    # Try to parse SNI from the reassembled payload
+                    reassembled_payload = p1[Raw].load + p2[Raw].load
+                    if self._is_tls_clienthello(reassembled_payload):
+                        result.validation_passed = True
+                        result.confidence_score = 0.75
+                        result.observed_behavior = f"Detected a likely ClientHello split at size {len(p1[Raw].load)}."
+                        result.evidence.append(f"Flow {flow_key}: Packets (approx indices #{packets.index(p1)}, #{packets.index(p2)}) form a ClientHello.")
+                        found_evidence = True
+                        break
+            if found_evidence:
+                break
+
+        if not found_evidence:
+            result.issues.append("No clear evidence of SNI splitting found.")
+            result.observed_behavior = "No split ClientHello packets detected."
+            result.confidence_score = 0.2
+
+        return result
+
+    def _validate_badsum(self, packets: List[Packet]) -> StrategyValidationResult:
+        """Validator for 'badsum' strategy."""
+        result = StrategyValidationResult(
             strategy_name="badsum",
-            expected_behavior="TCP packets with intentionally invalid checksums",
-            observed_behavior=f"Found {invalid_checksums} invalid checksums out of {total_tcp_packets} TCP packets",
-            validation_passed=validation_passed,
-            confidence_score=confidence_score,
-            evidence=evidence,
-            issues=issues
+            validation_passed=False,
+            expected_behavior="At least one TCP packet with an invalid checksum."
         )
-        
-    def _is_tls_client_hello(self, packet) -> bool:
-        """Check if packet is a TLS Client Hello."""
-        if not packet.haslayer(Raw):
-            return False
-            
-        payload = packet[Raw].load
-        if len(payload) < 6:
-            return False
-            
-        # Check for TLS record header (0x16 = Handshake)
-        if payload[0] != 0x16:
-            return False
-            
-        # Check for Client Hello (0x01)
-        if len(payload) > 5 and payload[5] != 0x01:
-            return False
-            
-        return True
-        
-    def _analyze_checksums(self, checksums: List[int]) -> Dict[str, Any]:
-        """Analyze TCP checksum patterns."""
-        if not checksums:
-            return {'error': 'No checksums to analyze'}
-            
-        checksum_counts = Counter(checksums)
-        invalid_checksums = sum(1 for cs in checksums if cs in [0x0000, 0xFFFF])
-        
-        return {
-            'total_checksums': len(checksums),
-            'unique_checksums': len(checksum_counts),
-            'invalid_checksums': invalid_checksums,
-            'invalid_percentage': (invalid_checksums / len(checksums)) * 100,
-            'most_common_checksums': checksum_counts.most_common(5),
-            'zero_checksums': checksums.count(0x0000),
-            'ffff_checksums': checksums.count(0xFFFF)
-        }
-        
-    def _analyze_split_positions(self, packet_sizes: List[int]) -> Dict[str, Any]:
-        """Analyze packet size patterns to detect splits."""
-        if not packet_sizes:
-            return {'error': 'No packet sizes to analyze'}
-            
-        size_counts = Counter(packet_sizes)
-        
-        # Look for common split patterns
-        split_indicators = {
-            'position_3_splits': size_counts.get(3, 0),
-            'position_10_splits': size_counts.get(10, 0),
-            'small_packets': sum(1 for size in packet_sizes if size < 50),
-            'large_packets': sum(1 for size in packet_sizes if size > 1000),
-            'average_size': sum(packet_sizes) / len(packet_sizes),
-            'size_distribution': dict(size_counts.most_common(10))
-        }
-        
-        return split_indicators
-        
-    def _analyze_sni_patterns(self, tls_packets: List) -> Dict[str, Any]:
-        """Analyze SNI patterns in TLS packets."""
-        if not tls_packets:
-            return {'no_tls_packets': True}
-            
-        sni_analysis = {
-            'total_tls_packets': len(tls_packets),
-            'potential_sni_splits': 0,
-            'sni_domains': [],
-            'packet_size_distribution': []
-        }
-        
-        for packet in tls_packets:
-            if packet.haslayer(Raw):
-                payload_size = len(packet[Raw].load)
-                sni_analysis['packet_size_distribution'].append(payload_size)
-                
-                # Look for potential SNI split patterns
-                if 40 < payload_size < 100:
-                    sni_analysis['potential_sni_splits'] += 1
-                    
-        return sni_analysis
-        
-    def _generate_summary(self, analysis_result: PCAPAnalysisResult) -> None:
-        """Generate summary of analysis results."""
-        passed_validations = sum(1 for v in analysis_result.strategy_validations if v.validation_passed)
-        total_validations = len(analysis_result.strategy_validations)
-        
-        analysis_result.summary = {
-            'validation_success_rate': passed_validations / max(total_validations, 1),
-            'passed_validations': passed_validations,
-            'total_validations': total_validations,
-            'tcp_packet_percentage': (analysis_result.tcp_packets / max(analysis_result.total_packets, 1)) * 100,
-            'tls_packet_percentage': (analysis_result.tls_packets / max(analysis_result.tcp_packets, 1)) * 100,
-            'average_confidence': sum(v.confidence_score for v in analysis_result.strategy_validations) / max(total_validations, 1),
-            'total_issues': sum(len(v.issues) for v in analysis_result.strategy_validations),
-            'total_evidence': sum(len(v.evidence) for v in analysis_result.strategy_validations)
-        }
-        
-    def _create_mock_analysis_result(self, pcap_file: str, expected_strategies: List[str]) -> PCAPAnalysisResult:
-        """Create mock analysis result when Scapy is not available."""
-        mock_validations = []
-        
-        for strategy in expected_strategies:
-            mock_validations.append(StrategyValidationResult(
-                strategy_name=strategy,
-                expected_behavior=f"Mock validation for {strategy}",
-                observed_behavior="Mock data - Scapy not available",
-                validation_passed=True,  # Assume success for mock
-                confidence_score=0.8,
-                evidence=[f"Mock evidence for {strategy}"],
-                issues=["Using mock data - Scapy not available"]
-            ))
-            
-        return PCAPAnalysisResult(
-            file_path=pcap_file,
-            total_packets=10,
-            tcp_packets=8,
-            tls_packets=4,
-            strategy_validations=mock_validations,
-            packet_size_distribution={3: 2, 10: 2, 1460: 4},
-            checksum_analysis={'mock': True, 'invalid_checksums': 2},
-            split_position_analysis={'mock': True, 'position_3_splits': 2},
-            sni_analysis={'mock': True, 'potential_sni_splits': 1},
-            performance_metrics={'analysis_time': 0.1},
-            summary={'mock_data': True, 'validation_success_rate': 1.0}
+
+        invalid_packets = []
+        for i, pkt in enumerate(packets):
+            if not self._is_checksum_valid(pkt):
+                invalid_packets.append(i)
+
+        if invalid_packets:
+            result.validation_passed = True
+            result.confidence_score = 0.95
+            result.observed_behavior = f"Found {len(invalid_packets)} packet(s) with invalid checksums."
+            result.evidence.append(f"Packet indices (within filtered TCP list) with bad checksums: {invalid_packets[:5]}")
+        else:
+            result.issues.append("No packets with invalid TCP checksums were found.")
+            result.observed_behavior = "All TCP checksums appear to be valid."
+            result.confidence_score = 0.05
+
+        return result
+
+    # --- Helper Methods ---
+
+    def _group_packets_by_flow(self, packets: List[Packet]) -> Dict[str, List[Packet]]:
+        """Group packets into TCP flows."""
+        flows = {}
+        for pkt in packets:
+            if IP in pkt and TCP in pkt:
+                flow_key = f"{pkt[IP].src}:{pkt[TCP].sport}-{pkt[IP].dst}:{pkt[TCP].dport}"
+                if flow_key not in flows:
+                    flows[flow_key] = []
+                flows[flow_key].append(pkt)
+        return flows
+
+    def _is_checksum_valid(self, pkt: Packet) -> bool:
+        """Verify the TCP checksum of a Scapy packet."""
+        if not pkt.haslayer(TCP) or not pkt.haslayer(IP):
+            return True  # Not a TCP/IP packet, can't validate
+
+        original_chksum = pkt[TCP].chksum
+        del pkt[TCP].chksum  # Scapy will recalculate it on the fly
+
+        # Create a copy to avoid modifying the original packet list
+        pkt_copy = pkt.copy()
+        recalculated_chksum = pkt_copy[TCP].chksum
+
+        # Restore original checksum to the packet in the list
+        pkt[TCP].chksum = original_chksum
+
+        return original_chksum == recalculated_chksum
+
+    def _is_tls_clienthello(self, payload: bytes) -> bool:
+        """Check if a payload is a TLS ClientHello message."""
+        # Basic checks: Handshake type (22), version, ClientHello type (1)
+        return (
+            len(payload) > 9 and
+            payload[0] == 0x16 and  # Content Type: Handshake
+            payload[1] == 0x03 and  # Version major
+            payload[5] == 0x01      # Handshake Type: ClientHello
         )
-        
-    def _create_error_result(self, pcap_file: str, error_message: str) -> PCAPAnalysisResult:
-        """Create error result when analysis fails."""
-        return PCAPAnalysisResult(
-            file_path=pcap_file,
-            total_packets=0,
-            tcp_packets=0,
-            tls_packets=0,
-            strategy_validations=[],
-            packet_size_distribution={},
-            checksum_analysis={'error': error_message},
-            split_position_analysis={'error': error_message},
-            sni_analysis={'error': error_message},
-            performance_metrics={},
-            summary={'error': error_message, 'validation_success_rate': 0.0}
-        )
-        
-    def generate_validation_report(self, analysis_result: PCAPAnalysisResult) -> str:
-        """Generate a human-readable validation report."""
-        report_lines = []
-        
-        report_lines.append("=" * 80)
-        report_lines.append("DPI STRATEGY VALIDATION REPORT")
-        report_lines.append("=" * 80)
-        report_lines.append(f"PCAP File: {analysis_result.file_path}")
-        report_lines.append(f"Total Packets: {analysis_result.total_packets}")
-        report_lines.append(f"TCP Packets: {analysis_result.tcp_packets}")
-        report_lines.append(f"TLS Packets: {analysis_result.tls_packets}")
-        report_lines.append("")
-        
-        # Strategy validation results
-        report_lines.append("STRATEGY VALIDATION RESULTS")
-        report_lines.append("-" * 40)
-        
-        for validation in analysis_result.strategy_validations:
-            status = "✅ PASSED" if validation.validation_passed else "❌ FAILED"
-            report_lines.append(f"{validation.strategy_name}: {status} (confidence: {validation.confidence_score:.2f})")
-            report_lines.append(f"  Expected: {validation.expected_behavior}")
-            report_lines.append(f"  Observed: {validation.observed_behavior}")
-            
-            if validation.evidence:
-                report_lines.append("  Evidence:")
-                for evidence in validation.evidence[:3]:  # Show first 3 pieces of evidence
-                    report_lines.append(f"    - {evidence}")
-                if len(validation.evidence) > 3:
-                    report_lines.append(f"    ... and {len(validation.evidence) - 3} more")
-                    
-            if validation.issues:
-                report_lines.append("  Issues:")
-                for issue in validation.issues:
-                    report_lines.append(f"    - {issue}")
-            report_lines.append("")
-        
-        # Summary
-        summary = analysis_result.summary
-        report_lines.append("SUMMARY")
-        report_lines.append("-" * 40)
-        report_lines.append(f"Validation Success Rate: {summary.get('validation_success_rate', 0):.1%}")
-        report_lines.append(f"Passed Validations: {summary.get('passed_validations', 0)}/{summary.get('total_validations', 0)}")
-        report_lines.append(f"Average Confidence: {summary.get('average_confidence', 0):.2f}")
-        report_lines.append(f"Total Issues: {summary.get('total_issues', 0)}")
-        report_lines.append(f"Total Evidence: {summary.get('total_evidence', 0)}")
-        
-        return "\n".join(report_lines)
-
-
-def main():
-    """Main function for command-line usage."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Validate DPI strategies in PCAP files")
-    parser.add_argument("pcap_file", help="PCAP file to analyze")
-    parser.add_argument("--strategies", nargs="+", default=["split_3", "split_10", "split_sni", "badsum"],
-                       help="Expected strategies to validate")
-    parser.add_argument("--output", help="Output file for JSON results")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
-    
-    args = parser.parse_args()
-    
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
-    
-    # Create validator and analyze PCAP
-    validator = PCAPStrategyValidator()
-    
-    print(f"🔍 Analyzing PCAP file: {args.pcap_file}")
-    print(f"📋 Expected strategies: {', '.join(args.strategies)}")
-    print()
-    
-    try:
-        result = validator.validate_pcap_file(args.pcap_file, args.strategies)
-        
-        # Generate and print report
-        report = validator.generate_validation_report(result)
-        print(report)
-        
-        # Save JSON results if requested
-        if args.output:
-            # Convert result to dict for JSON serialization
-            result_dict = {
-                'file_path': result.file_path,
-                'total_packets': result.total_packets,
-                'tcp_packets': result.tcp_packets,
-                'tls_packets': result.tls_packets,
-                'strategy_validations': [
-                    {
-                        'strategy_name': v.strategy_name,
-                        'expected_behavior': v.expected_behavior,
-                        'observed_behavior': v.observed_behavior,
-                        'validation_passed': v.validation_passed,
-                        'confidence_score': v.confidence_score,
-                        'evidence': v.evidence,
-                        'issues': v.issues
-                    }
-                    for v in result.strategy_validations
-                ],
-                'packet_size_distribution': result.packet_size_distribution,
-                'checksum_analysis': result.checksum_analysis,
-                'split_position_analysis': result.split_position_analysis,
-                'sni_analysis': result.sni_analysis,
-                'performance_metrics': result.performance_metrics,
-                'summary': result.summary
-            }
-            
-            with open(args.output, 'w') as f:
-                json.dump(result_dict, f, indent=2)
-            print(f"\n💾 Results saved to {args.output}")
-        
-    except Exception as e:
-        print(f"❌ Analysis failed: {e}")
-        return 1
-        
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

@@ -748,37 +748,7 @@ async def main():
 
 
 if __name__ == '__main__':
-    asyncio.run(main()strategy_add(args)
-            elif args.strategy_command == 'remove':
-                await cli.cmd_strategy_remove(args)
-            elif args.strategy_command == 'list':
-                await cli.cmd_strategy_list(args)
-            elif args.strategy_command == 'test':
-                await cli.cmd_strategy_test(args)
-            elif args.strategy_command == 'benchmark':
-                await cli.cmd_strategy_benchmark(args)
-            else:
-                parser.print_help()
-        
-        elif args.command == 'pcap':
-            if args.pcap_command == 'analyze':
-                await cli.cmd_pcap_analyze(args)
-            elif args.pcap_command == 'monitor':
-                await cli.cmd_pcap_monitor(args)
-            else:
-                parser.print_help()
-        
-        elif args.command == 'twitter-optimize':
-            await cli.cmd_twitter_optimize(args)
-        
-        elif args.command == 'help':
-            if args.help_command == 'wildcards':
-                await cli.cmd_help_wildcards(args)
-            else:
-                parser.print_help()
-        
-        else:
-            parser.print_help()
+    asyncio.run(main())
     
     except Exception as e:
         console.print(f"[red]✗[/red] Command failed: {e}")

@@ -16,12 +16,14 @@ from core.interfaces import (
     IEvolutionarySearcher,
 )
 from ml.strategy_generator import AdvancedStrategyGenerator
-from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.attack_registry import AttackRegistry
 from core.domain_specific_strategies import DomainSpecificStrategies
 from ml.strategy_predictor import StrategyPredictor
 from core.optimization.dynamic_parameter_optimizer import DynamicParameterOptimizer
 from core.bypass.engines.packet_processing_engine import PacketProcessingEngine
-from core.bypass.strategies.native_generator_adapter import NativeStrategyGeneratorAdapter
+from core.bypass.strategies.native_generator_adapter import (
+    NativeStrategyGeneratorAdapter,
+)
 
 LOG = logging.getLogger("CLIIntegration")
 
@@ -181,7 +183,9 @@ class CLIIntegration:
             raise
 
     async def create_strategy_generator_for_fingerprint(
-        self, fingerprint_dict: Dict[str, Any], telemetry_hint: Optional[Dict[str, Any]] = None
+        self,
+        fingerprint_dict: Dict[str, Any],
+        telemetry_hint: Optional[Dict[str, Any]] = None,
     ) -> IStrategyGenerator:
         """
         Create strategy generator configured for specific fingerprint.

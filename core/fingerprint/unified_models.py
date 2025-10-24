@@ -11,11 +11,13 @@ from typing import Dict, List, Optional, Any, Tuple
 # Enums and Basic Types
 # ==============================================================================
 
+
 class AnalysisStatus(Enum):
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     FAILED = "failed"
+
 
 class DPIType(Enum):
     UNKNOWN = "unknown"
@@ -24,6 +26,7 @@ class DPIType(Enum):
     COMMERCIAL_DPI = "commercial_dpi"
     FIREWALL_BASED = "firewall_based"
     ISP_TRANSPARENT_PROXY = "isp_transparent_proxy"
+
 
 class HTTPBlockingMethod(Enum):
     NONE = "none"
@@ -34,6 +37,7 @@ class HTTPBlockingMethod(Enum):
     HEADER_FILTERING = "header_filtering"
     STATUS_CODE_INJECTION = "status_code_injection"
 
+
 @dataclass
 class ProbeResult:
     name: str
@@ -42,12 +46,22 @@ class ProbeResult:
     confidence: float
     details: Dict[str, Any] = field(default_factory=dict)
 
+
 @dataclass
 class StrategyRecommendation:
     strategy_name: str
     predicted_effectiveness: float
     confidence: float
     reasoning: List[str]
+
+
+@dataclass
+class AnalyzerError:
+    """Error from analyzer"""
+
+    analyzer_name: str
+    message: str
+    details: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -70,9 +84,11 @@ class TCPAnalysisResult:
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
+
 @dataclass
 class HTTPRequest:
     """Data structure for tracking HTTP requests"""
+
     timestamp: float
     url: str
     method: str
@@ -91,6 +107,7 @@ class HTTPRequest:
     redirect_url: Optional[str] = None
     content_modified: bool = False
 
+
 @dataclass
 class HTTPAnalysisResult:
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
@@ -103,7 +120,7 @@ class HTTPAnalysisResult:
     error_message: Optional[str] = None
     http_requests: List[HTTPRequest] = field(default_factory=list)
     analysis_errors: List[str] = field(default_factory=list)
-    
+
     # Добавляем недостающие атрибуты
     http_header_filtering: bool = False
     filtered_headers: List[str] = field(default_factory=list)
@@ -141,6 +158,7 @@ class HTTPAnalysisResult:
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
+
 @dataclass
 class TLSAnalysisResult:
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
@@ -151,6 +169,7 @@ class TLSAnalysisResult:
     probe_results: List[ProbeResult] = field(default_factory=list)
     error_message: Optional[str] = None
 
+
 @dataclass
 class DNSAnalysisResult:
     status: AnalysisStatus = AnalysisStatus.NOT_STARTED
@@ -160,6 +179,7 @@ class DNSAnalysisResult:
     response_manipulation: bool = False
     probe_results: List[ProbeResult] = field(default_factory=list)
     error_message: Optional[str] = None
+
 
 @dataclass
 class MLClassificationResult:
@@ -173,6 +193,7 @@ class MLClassificationResult:
 
 
 # Advanced Probe Results - Task 23 Implementation (moved before UnifiedFingerprint)
+
 
 @dataclass
 class AdvancedTCPProbeResult:
@@ -189,6 +210,7 @@ class AdvancedTCPProbeResult:
     dpi_distance_hops: Optional[int] = None
     ttl_manipulation_detected: bool = False
     error_message: Optional[str] = None
+
 
 @dataclass
 class AdvancedTLSProbeResult:
@@ -209,6 +231,7 @@ class AdvancedTLSProbeResult:
     dirty_http_tolerance: Dict[str, str] = field(default_factory=dict)
     http_header_filtering: List[str] = field(default_factory=list)
     error_message: Optional[str] = None
+
 
 @dataclass
 class BehavioralProbeResult:
@@ -247,12 +270,20 @@ class UnifiedFingerprint:
     http_analysis: HTTPAnalysisResult = field(default_factory=HTTPAnalysisResult)
     tls_analysis: TLSAnalysisResult = field(default_factory=TLSAnalysisResult)
     dns_analysis: DNSAnalysisResult = field(default_factory=DNSAnalysisResult)
-    ml_classification: MLClassificationResult = field(default_factory=MLClassificationResult)
-    advanced_tcp_probes: AdvancedTCPProbeResult = field(default_factory=AdvancedTCPProbeResult)
-    advanced_tls_probes: AdvancedTLSProbeResult = field(default_factory=AdvancedTLSProbeResult)
-    behavioral_probes: BehavioralProbeResult = field(default_factory=BehavioralProbeResult)
+    ml_classification: MLClassificationResult = field(
+        default_factory=MLClassificationResult
+    )
+    advanced_tcp_probes: AdvancedTCPProbeResult = field(
+        default_factory=AdvancedTCPProbeResult
+    )
+    advanced_tls_probes: AdvancedTLSProbeResult = field(
+        default_factory=AdvancedTLSProbeResult
+    )
+    behavioral_probes: BehavioralProbeResult = field(
+        default_factory=BehavioralProbeResult
+    )
     recommended_strategies: List[StrategyRecommendation] = field(default_factory=list)
-    errors: List['AnalyzerError'] = field(default_factory=list)
+    errors: List["AnalyzerError"] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
@@ -266,7 +297,7 @@ class UnifiedFingerprint:
             return float(self.ml_classification.confidence)
         except Exception:
             return 0.0
-    
+
     def get_cache_key(self, strategy: str = "domain") -> str:
         """Generate cache key based on strategy"""
         if strategy == "domain":
@@ -275,62 +306,75 @@ class UnifiedFingerprint:
             return self.calculate_dpi_hash()
         else:
             return f"fingerprint:{self.target}:{self.port}"
-    
+
     def calculate_dpi_hash(self) -> str:
         """Calculate hash based on DPI characteristics"""
         characteristics = {
-            "dpi_type": self.dpi_type.value if isinstance(self.dpi_type, Enum) else self.dpi_type,
+            "dpi_type": (
+                self.dpi_type.value
+                if isinstance(self.dpi_type, Enum)
+                else self.dpi_type
+            ),
             "tcp_rst_injection": self.tcp_analysis.rst_injection_detected,
             "tcp_window_manipulation": self.tcp_analysis.tcp_window_manipulation,
             "sni_blocking": self.tls_analysis.sni_blocking_detected,
             "http_blocking": self.http_analysis.http_blocking_detected,
             "dns_blocking": self.dns_analysis.dns_blocking_detected,
         }
-        
+
         data = json.dumps(characteristics, sort_keys=True)
         return hashlib.md5(data.encode()).hexdigest()[:16]
-    
+
     def calculate_reliability_score(self) -> float:
         """Calculate overall reliability score"""
         scores = []
         weights = []
-        
+
         # TCP analysis weight
         if self.tcp_analysis.status == AnalysisStatus.COMPLETED:
-            tcp_score = len([r for r in self.tcp_analysis.probe_results if r.success]) / max(1, len(self.tcp_analysis.probe_results))
+            tcp_score = len(
+                [r for r in self.tcp_analysis.probe_results if r.success]
+            ) / max(1, len(self.tcp_analysis.probe_results))
             scores.append(tcp_score)
             weights.append(0.3)
-        
+
         # HTTP analysis weight
         if self.http_analysis.status == AnalysisStatus.COMPLETED:
-            http_score = len([r for r in self.http_analysis.probe_results if r.success]) / max(1, len(self.http_analysis.probe_results))
+            http_score = len(
+                [r for r in self.http_analysis.probe_results if r.success]
+            ) / max(1, len(self.http_analysis.probe_results))
             scores.append(http_score)
             weights.append(0.2)
-        
+
         # TLS analysis weight
         if self.tls_analysis.status == AnalysisStatus.COMPLETED:
-            tls_score = len([r for r in self.tls_analysis.probe_results if r.success]) / max(1, len(self.tls_analysis.probe_results))
+            tls_score = len(
+                [r for r in self.tls_analysis.probe_results if r.success]
+            ) / max(1, len(self.tls_analysis.probe_results))
             scores.append(tls_score)
             weights.append(0.3)
-        
+
         # ML classification weight
         if self.ml_classification.status == AnalysisStatus.COMPLETED:
             scores.append(self.ml_classification.confidence)
             weights.append(0.15)
-        
+
         # Advanced probes weights - Task 23
         if self.advanced_tcp_probes.status == AnalysisStatus.COMPLETED:
             # Score based on successful probe detection
             tcp_probe_score = 0.0
             if self.advanced_tcp_probes.packet_reordering_tolerance:
                 tcp_probe_score += 0.3
-            if self.advanced_tcp_probes.ip_fragmentation_overlap_handling == "vulnerable":
+            if (
+                self.advanced_tcp_probes.ip_fragmentation_overlap_handling
+                == "vulnerable"
+            ):
                 tcp_probe_score += 0.4
             if self.advanced_tcp_probes.dpi_distance_hops:
                 tcp_probe_score += 0.3
             scores.append(tcp_probe_score)
             weights.append(0.1)
-        
+
         if self.advanced_tls_probes.status == AnalysisStatus.COMPLETED:
             # Score based on TLS probe results
             tls_probe_score = 0.0
@@ -342,7 +386,7 @@ class UnifiedFingerprint:
                 tls_probe_score += 0.5
             scores.append(tls_probe_score)
             weights.append(0.1)
-        
+
         if self.behavioral_probes.status == AnalysisStatus.COMPLETED:
             # Score based on behavioral detection
             behavioral_score = 0.0
@@ -354,25 +398,30 @@ class UnifiedFingerprint:
                 behavioral_score += 0.3
             scores.append(behavioral_score)
             weights.append(0.05)
-        
+
         if not scores:
             return 0.0
-        
+
         # Weighted average
         total_weight = sum(weights)
         weighted_sum = sum(score * weight for score, weight in zip(scores, weights))
         return weighted_sum / total_weight
-    
+
     def get_analysis_summary(self) -> Dict[str, Any]:
         """Get summary of analysis results"""
         return {
             "target": f"{self.target}:{self.port}",
-            "dpi_type": self.dpi_type.value if isinstance(self.dpi_type, Enum) else self.dpi_type,
+            "dpi_type": (
+                self.dpi_type.value
+                if isinstance(self.dpi_type, Enum)
+                else self.dpi_type
+            ),
             "confidence": self.ml_classification.confidence,
             "reliability_score": self.reliability_score,
             "analysis_duration": self.analysis_duration,
             "components_completed": [
-                name for name, result in [
+                name
+                for name, result in [
                     ("tcp", self.tcp_analysis),
                     ("http", self.http_analysis),
                     ("tls", self.tls_analysis),
@@ -380,40 +429,49 @@ class UnifiedFingerprint:
                     ("ml", self.ml_classification),
                     ("advanced_tcp", self.advanced_tcp_probes),
                     ("advanced_tls", self.advanced_tls_probes),
-                    ("behavioral", self.behavioral_probes)
-                ] if result.status == AnalysisStatus.COMPLETED
+                    ("behavioral", self.behavioral_probes),
+                ]
+                if result.status == AnalysisStatus.COMPLETED
             ],
-            "recommended_strategies": [r.strategy_name for r in self.recommended_strategies],
-            "cache_key": self.get_cache_key()
+            "recommended_strategies": [
+                r.strategy_name for r in self.recommended_strategies
+            ],
+            "cache_key": self.get_cache_key(),
         }
 
 
 # Exception hierarchy for unified error handling
 class FingerprintingError(Exception):
     """Base exception for fingerprinting system"""
+
     pass
 
 
 class NetworkAnalysisError(FingerprintingError):
     """Network analysis related errors"""
+
     pass
 
 
 class MLClassificationError(FingerprintingError):
     """ML classification related errors"""
+
     pass
 
 
 class CacheError(FingerprintingError):
     """Cache system related errors"""
+
     pass
 
 
 class AnalyzerError(FingerprintingError):
     """Analyzer component related errors"""
+
     pass
 
 
 class ValidationError(FingerprintingError):
     """Data validation related errors"""
+
     pass

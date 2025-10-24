@@ -1,6 +1,7 @@
 import time
 from typing import Optional, Dict, Any
 
+
 class FallbackManager:
     """
     CDN/ASN-aware Fallback:
@@ -8,7 +9,8 @@ class FallbackManager:
       - should_fallback(domain_fail, cdn_fail, asn_fail) -> bool
       - get_fallback_strategy(domain, cdn) -> engine_task (dict)
     """
-    def __init__(self, debug: bool=False):
+
+    def __init__(self, debug: bool = False):
         self.debug = debug
         self.fail_threshold_domain = 3
         self.fail_threshold_cdn = 5
@@ -16,7 +18,9 @@ class FallbackManager:
         self.last_failure: Dict[str, float] = {}
         self.error_history: Dict[str, list] = {}
 
-    def should_fallback(self, domain: str, domain_fails: int, cdn_fails: int, asn_fails: int) -> bool:
+    def should_fallback(
+        self, domain: str, domain_fails: int, cdn_fails: int, asn_fails: int
+    ) -> bool:
         if domain_fails >= self.fail_threshold_domain:
             return True
         if cdn_fails >= self.fail_threshold_cdn:
@@ -35,7 +39,9 @@ class FallbackManager:
     def record_success(self, domain: str):
         self.last_failure.pop(domain, None)
 
-    def get_fallback_strategy(self, domain: str, cdn: Optional[str], error_history: Optional[list] = None) -> Optional[Dict[str, Any]]:
+    def get_fallback_strategy(
+        self, domain: str, cdn: Optional[str], error_history: Optional[list] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Контекстный выбор fallback по истории ошибок:
         - rst_injection -> fakeddisorder + badsum (ttl=1..2)
@@ -45,6 +51,7 @@ class FallbackManager:
         cdn = (cdn or "").lower()
         hist = error_history or self.error_history.get(domain, [])
         last = hist[-5:] if hist else []
+
         def has(kind: str) -> bool:
             return any(kind in (e or "").lower() for e in last)
 
@@ -56,36 +63,26 @@ class FallbackManager:
                     "split_pos": 76,
                     "overlap_size": 160,
                     "ttl": 1,
-                    "fooling": ["badsum"]
-                }
+                    "fooling": ["badsum"],
+                },
             }
         # 2) TIMEOUT
         if has("timeout"):
             return {
                 "type": "multisplit",
-                "params": {
-                    "ttl": 2,
-                    "positions": [2, 7, 15],
-                    "fooling": []
-                }
+                "params": {"ttl": 2, "positions": [2, 7, 15], "fooling": []},
             }
         # 3) TLS/HTTP error
         if has("tls") or has("http_error") or has("content"):
-            return {
-                "type": "tlsrec_split",
-                "params": {
-                    "split_pos": 15
-                }
-            }
+            return {"type": "tlsrec_split", "params": {"split_pos": 15}}
         # CDN‑хинт (если нет истории)
         if "cloudflare" in cdn or "akamai" in cdn:
             return {
                 "type": "multisplit",
-                "params": {
-                    "ttl": 3,
-                    "positions": [1, 5, 10],
-                    "fooling": ["badsum"]
-                }
+                "params": {"ttl": 3, "positions": [1, 5, 10], "fooling": ["badsum"]},
             }
         # generic
-        return {"type": "seqovl", "params": {"split_pos": 3, "overlap_size": 10, "ttl": 3}}
+        return {
+            "type": "seqovl",
+            "params": {"split_pos": 3, "overlap_size": 10, "ttl": 3},
+        }

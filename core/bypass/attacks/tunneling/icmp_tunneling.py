@@ -7,14 +7,14 @@ Attacks that use ICMP protocol for tunneling data to evade DPI.
 import time
 import struct
 import random
-from typing import List
+from typing import List, Dict, Any
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 
 
 @register_attack
@@ -38,6 +38,18 @@ class ICMPDataTunnelingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "icmp_type": 8,
+            "icmp_code": 0,
+            "packet_size": 64,
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP data tunneling attack."""
@@ -134,6 +146,14 @@ class ICMPTimestampTunnelingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP timestamp tunneling attack."""
@@ -232,6 +252,16 @@ class ICMPRedirectTunnelingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "gateway_ip": "192.168.1.1",
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP redirect tunneling attack."""
@@ -332,6 +362,16 @@ class ICMPCovertChannelAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "channel_type": "timing",
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ICMP covert channel attack."""

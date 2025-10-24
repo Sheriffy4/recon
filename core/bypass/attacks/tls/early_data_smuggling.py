@@ -3,16 +3,15 @@ TLS 1.3 Early Data Smuggling Attack
 """
 
 import time
-from typing import List
+from typing import List, Dict, Any
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 import config
-
+from core.bypass.attacks.attack_registry import register_attack
 
 @register_attack
 class EarlyDataSmugglingAttack(BaseAttack):
@@ -35,6 +34,17 @@ class EarlyDataSmugglingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "smuggled_data": None,
+            "tls_version": b"\x03\x04"
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute the Early Data Smuggling attack."""

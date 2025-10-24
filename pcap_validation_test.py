@@ -21,7 +21,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
-from core.bypass.attacks.registry import AttackRegistry
 from core.bypass.pcap.capture_engine import PCAPCaptureEngine
 from core.bypass.pcap.analysis_engine import PCAPAnalysisEngine
 
@@ -165,7 +164,7 @@ class PCAPValidationTester:
                 # Small delay between tests
                 await asyncio.sleep(1.0)
 
-        LOG.info(f"\n🏁 PCAP Validation Testing Completed")
+        LOG.info("\n🏁 PCAP Validation Testing Completed")
         await self._save_results()
         await self._print_summary()
 
@@ -389,7 +388,7 @@ class PCAPValidationTester:
             if result.success:
                 categories[category]["success"] += 1
 
-        LOG.info(f"\nResults by Category:")
+        LOG.info("\nResults by Category:")
         for category, stats in categories.items():
             success_rate = stats["success"] / stats["total"] * 100
             LOG.info(
@@ -406,7 +405,7 @@ class PCAPValidationTester:
             if result.success:
                 domains[domain]["success"] += 1
 
-        LOG.info(f"\nResults by Target:")
+        LOG.info("\nResults by Target:")
         for domain, stats in domains.items():
             success_rate = stats["success"] / stats["total"] * 100
             LOG.info(

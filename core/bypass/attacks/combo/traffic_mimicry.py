@@ -19,7 +19,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 LOG = logging.getLogger(__name__)
 
@@ -164,6 +164,16 @@ class TrafficMimicryAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        # Этот класс выбирает профиль сам, поэтому явных параметров нет
+        return {}
+    
 
     def register_profile(self, profile: TrafficProfile):
         """

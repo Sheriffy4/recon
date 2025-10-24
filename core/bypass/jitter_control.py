@@ -5,13 +5,15 @@
 import random
 import time
 import threading
-from typing import Optional, Dict, Any
+from typing import Optional
 from dataclasses import dataclass
 from collections import deque
+
 
 @dataclass
 class InjectionTiming:
     """Параметры тайминга для инъекций"""
+
     base_delay_ms: float = 2.0
     jitter_percent: float = 0.2
     min_delay_ms: float = 0.5
@@ -22,6 +24,7 @@ class InjectionTiming:
         jitter_range = self.base_delay_ms * self.jitter_percent
         jittered = self.base_delay_ms + random.uniform(-jitter_range, jitter_range)
         return max(self.min_delay_ms, min(jittered, self.max_delay_ms))
+
 
 class RateController:
     """Контроллер скорости инъекций для предотвращения перегрузки"""
@@ -56,21 +59,22 @@ class RateController:
         with self.lock:
             self.current_injections = max(0, self.current_injections - 1)
 
+
 class JitterController:
     """Управление jitter для различных типов пакетов"""
 
     def __init__(self):
         self.timing_profiles = {
-            'aggressive': InjectionTiming(1.0, 0.3, 0.3, 5.0),
-            'balanced': InjectionTiming(2.0, 0.2, 0.5, 10.0),
-            'stealthy': InjectionTiming(5.0, 0.4, 1.0, 20.0),
+            "aggressive": InjectionTiming(1.0, 0.3, 0.3, 5.0),
+            "balanced": InjectionTiming(2.0, 0.2, 0.5, 10.0),
+            "stealthy": InjectionTiming(5.0, 0.4, 1.0, 20.0),
         }
         self.cdn_timings = {
-            'cloudflare': InjectionTiming(1.5, 0.15, 0.5, 5.0),
-            'fastly': InjectionTiming(2.5, 0.25, 1.0, 8.0),
-            'default': InjectionTiming(2.0, 0.2, 0.5, 10.0),
+            "cloudflare": InjectionTiming(1.5, 0.15, 0.5, 5.0),
+            "fastly": InjectionTiming(2.5, 0.25, 1.0, 8.0),
+            "default": InjectionTiming(2.0, 0.2, 0.5, 10.0),
         }
 
     def get_timing_for_cdn(self, cdn: Optional[str]) -> InjectionTiming:
         """Возвращает тайминг для конкретного CDN"""
-        return self.cdn_timings.get(cdn, self.cdn_timings['default'])
+        return self.cdn_timings.get(cdn, self.cdn_timings["default"])

@@ -1,373 +1,171 @@
 {
-  "strategy_id": "e56cde85606d",
-  "strategy": "--dpi-desync=fake,disorder2 --dpi-desync-split-pos=1 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+  "strategy_id": "3b1a43f34b50",
+  "strategy": "--dpi-desync fake,disorder --dpi-desync-split-pos 3 --dpi-desync-ttl 2",
   "result_status": "PARTIAL_SUCCESS",
-  "successful_sites": 14,
+  "successful_sites": 15,
   "total_sites": 25,
-  "success_rate": 0.56,
-  "avg_latency_ms": 1171.1839096886772,
-  "fingerprint_used": true,
-  "dpi_type": "unknown",
-  "dpi_confidence": 0.3,
+  "success_rate": 0.6,
+  "avg_latency_ms": 1805.5921077728271,
+  "fingerprint_used": false,
+  "dpi_type": null,
+  "dpi_confidence": null,
   "engine_telemetry": {
     "segments_sent": 0,
     "fake_packets_sent": 0,
-    "CH": 216,
-    "SH": 66,
-    "RST": 0
+    "CH": 948,
+    "SH": 85,
+    "RST": 32
   },
   "site_results": {
     "https://x.com": [
       "WORKING",
       "162.159.140.229",
-      1335.7658386230469,
+      1516.7436599731445,
       400
     ],
     "https://instagram.com": [
-      "TIMEOUT",
-      "57.144.222.34",
-      9871.708393096924,
-      0
+      "WORKING",
+      "157.240.245.174",
+      3855.430841445923,
+      200
     ],
     "https://nnmclub.to": [
       "WORKING",
-      "188.114.96.1",
-      1137.4602317810059,
+      "188.114.97.1",
+      1616.6386604309082,
       200
     ],
     "https://rutracker.org": [
       "WORKING",
       "172.67.182.196",
-      1392.6351070404053,
+      1920.7477569580078,
       200
     ],
     "https://youtube.com": [
       "TIMEOUT",
-      "216.58.207.206",
-      9867.390155792236,
+      "64.233.161.136",
+      10396.24571800232,
       0
     ],
     "https://facebook.com": [
       "WORKING",
-      "31.13.72.36",
-      2404.801845550537,
-      400
+      "157.240.253.35",
+      3070.765733718872,
+      200
     ],
     "https://www.x.com": [
       "WORKING",
       "172.66.0.227",
-      2382.3869228363037,
+      2908.8122844696045,
       400
     ],
     "https://api.x.com": [
       "ERROR",
       "172.66.0.227",
-      1324.4540691375732,
+      1602.1826267242432,
       0
     ],
     "https://mobile.x.com": [
       "WORKING",
       "172.66.0.227",
-      1358.6301803588867,
+      1525.7980823516846,
       400
     ],
     "https://pbs.twimg.com": [
       "ERROR",
-      "199.232.172.159",
-      1356.5261363983154,
+      "172.64.150.129",
+      1914.5772457122803,
       0
     ],
     "https://abs.twimg.com": [
       "ERROR",
       "199.232.172.159",
-      551.1338710784912,
+      1226.0611057281494,
       0
     ],
     "https://abs-0.twimg.com": [
       "TIMEOUT",
       "104.244.43.131",
-      8509.12356376648,
+      8856.604099273682,
       0
     ],
     "https://video.twimg.com": [
       "ERROR",
       "199.232.172.158",
-      1026.275396347046,
+      1280.747652053833,
       0
     ],
     "https://ton.twimg.com": [
       "ERROR",
       "199.232.172.159",
-      967.003345489502,
+      1277.1453857421875,
       0
     ],
     "https://static.cdninstagram.com": [
       "WORKING",
       "31.13.72.53",
-      1006.502628326416,
+      2265.460729598999,
       404
     ],
     "https://scontent-arn2-1.cdninstagram.com": [
       "ERROR",
       "31.13.72.53",
-      938.1077289581299,
+      2226.508617401123,
       0
     ],
     "https://edge-chat.instagram.com": [
       "WORKING",
       "31.13.72.53",
-      895.3509330749512,
+      985.459566116333,
       404
     ],
     "https://static.xx.fbcdn.net": [
       "WORKING",
       "31.13.72.12",
-      994.6825504302979,
-      400
+      2185.444116592407,
+      200
     ],
     "https://external.xx.fbcdn.net": [
       "ERROR",
-      "57.144.222.128",
-      788.2561683654785,
+      "31.13.72.12",
+      1108.5007190704346,
       0
     ],
     "https://youtubei.googleapis.com": [
       "WORKING",
       "216.239.34.223",
-      890.1758193969727,
+      1143.798828125,
       405
     ],
     "https://i.ytimg.com": [
       "WORKING",
-      "216.58.207.246",
-      748.2216358184814,
+      "142.250.74.182",
+      1114.7303581237793,
       404
     ],
     "https://i1.ytimg.com": [
       "WORKING",
-      "142.250.74.174",
-      750.9956359863281,
+      "142.251.38.110",
+      1008.4109306335449,
       404
     ],
     "https://i2.ytimg.com": [
       "WORKING",
       "216.239.38.60",
-      767.7950859069824,
+      954.4756412506104,
       404
     ],
     "https://www.youtube.com": [
       "TIMEOUT",
       "N/A",
-      8292.696475982666,
+      8373.542070388794,
       0
     ],
     "https://www.facebook.com": [
       "WORKING",
       "31.13.72.36",
-      331.17032051086426,
-      400
+      1011.1644268035889,
+      200
     ]
-  },
-  "engine_telemetry_full": {
-    "start_ts": 1760950203.345978,
-    "strategy_key": null,
-    "aggregate": {
-      "segments_sent": 0,
-      "fake_packets_sent": 0,
-      "modified_packets_sent": 0,
-      "quic_segments_sent": 0
-    },
-    "ttls": {
-      "fake": {},
-      "real": {}
-    },
-    "seq_offsets": {},
-    "overlaps": {},
-    "clienthellos": 216,
-    "serverhellos": 66,
-    "rst_count": 0,
-    "per_target": {
-      "162.159.140.229": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950328.315021
-      },
-      "172.66.0.227": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950330.2794068
-      },
-      "188.114.96.1": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950328.981091
-      },
-      "216.58.207.206": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950328.1387963
-      },
-      "31.13.72.36": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950332.463982
-      },
-      "172.67.182.196": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950330.263234
-      },
-      "57.144.222.34": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950328.9762986
-      },
-      "199.232.172.159": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950330.077046
-      },
-      "199.232.172.158": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950329.6135018
-      },
-      "31.13.72.53": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950330.9687865
-      },
-      "216.239.34.223": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950331.6524868
-      },
-      "31.13.72.12": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950331.5747163
-      },
-      "216.58.207.246": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950331.7970548
-      },
-      "57.144.222.128": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950331.4407983
-      },
-      "142.250.74.174": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950332.0318491
-      },
-      "216.239.38.60": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950332.209616
-      },
-      "104.244.43.131": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950358.2125096
-      },
-      "8.8.4.4": {
-        "segments_sent": 0,
-        "fake_packets_sent": 0,
-        "seq_offsets": {},
-        "ttls_fake": {},
-        "ttls_real": {},
-        "overlaps": {},
-        "last_outcome": "ok",
-        "last_outcome_ts": 1760950311.424006
-      }
-    },
-    "duration_sec": 219.8663980960846
   }
 }

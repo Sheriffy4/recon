@@ -1,16 +1,23 @@
 # bruteforce_runner.py
-import asyncio, json, itertools, time
-from typing import List, Dict, Any, Set, Tuple, Optional
-from core.unified_bypass_engine import UnifiedBypassEngine  # поправьте путь под ваш проект
+import asyncio
+import itertools
+import json
+from typing import Any, Dict, List, Set
+from core.unified_bypass_engine import (
+    UnifiedBypassEngine,
+)  # поправьте путь под ваш проект
 
 # Набор комбинаций: порядок, fooling, ttl, overlap, badseq_delta
 ORDERS = ["fake_first", "real_first"]
-FOOLINGS = [["badsum"], ["badsum","badseq"], ["md5sig"], []]
+FOOLINGS = [["badsum"], ["badsum", "badseq"], ["md5sig"], []]
 TTLS = [1, 2, 3]
 OV_FACTORS = [0.25, 0.5, 1.0]  # ov = min(split_pos, int(split_pos * factor))
 BADSEQ = [0, -1]  # при наличии badseq
 
-def make_strategy(split_pos: int, ov: int, ttl: int, fool: List[str], order: str, badseq_delta: int) -> Dict[str, Any]:
+
+def make_strategy(
+    split_pos: int, ov: int, ttl: int, fool: List[str], order: str, badseq_delta: int
+) -> Dict[str, Any]:
     params = {
         "split_pos": split_pos,
         "overlap_size": ov,
@@ -24,6 +31,7 @@ def make_strategy(split_pos: int, ov: int, ttl: int, fool: List[str], order: str
         "delay_ms": 1,
     }
     return {"type": "fakeddisorder", "params": params}
+
 
 async def main():
     # Настройте цели
@@ -59,13 +67,15 @@ async def main():
         "https://cdnjs.cloudflare.com",
         "https://www.fastly.com",
         "https://api.fastly.com",
-        ]
+    ]
     # DNS-кэш и IP-цели возьмите из своей системы разрешения
     # здесь оставим пусто: движок в режиме сервиса должен ловить по CDN-префиксам
     ips: Set[str] = set()
     dns_cache: Dict[str, str] = {}
 
-    he = UnifiedBypassEngine(debug=True, enable_advanced_fingerprinting=False, enable_modern_bypass=False)
+    he = UnifiedBypassEngine(
+        debug=True, enable_advanced_fingerprinting=False, enable_modern_bypass=False
+    )
 
     split_pos = 76
     strategies = []
@@ -87,15 +97,21 @@ async def main():
             dns_cache=dns_cache,
             return_details=False,
             prefer_retry_on_timeout=True,
-            warmup_ms=1500
+            warmup_ms=1500,
         )
-        results.append({
-            "strategy": strat,
-            "status": status,
-            "ok": ok, "total": total, "rate": (ok/total if total else 0.0),
-            "avg_ms": avg
-        })
-        print(f"[{i}/{len(strategies)}] {status}: {ok}/{total} avg {avg:.1f}ms params={strat['params']}")
+        results.append(
+            {
+                "strategy": strat,
+                "status": status,
+                "ok": ok,
+                "total": total,
+                "rate": (ok / total if total else 0.0),
+                "avg_ms": avg,
+            }
+        )
+        print(
+            f"[{i}/{len(strategies)}] {status}: {ok}/{total} avg {avg:.1f}ms params={strat['params']}"
+        )
         # короткая пауза между прогоном — чтобы распараллеленный DPI не «залип»
         await asyncio.sleep(0.3)
 
@@ -105,7 +121,10 @@ async def main():
     print("Saved bruteforce_results.json")
     # Выведем топ-10
     for r in results[:10]:
-        print(f"TOP: {r['ok']}/{r['total']} ({r['rate']:.0%}) avg={r['avg_ms']:.1f}ms params={r['strategy']['params']}")
+        print(
+            f"TOP: {r['ok']}/{r['total']} ({r['rate']:.0%}) avg={r['avg_ms']:.1f}ms params={r['strategy']['params']}"
+        )
+
 
 if __name__ == "__main__":
     asyncio.run(main())

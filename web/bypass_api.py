@@ -24,7 +24,7 @@ from core.bypass.strategies.pool_management import (
     BypassStrategy,
     PoolPriority,
 )
-from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.attacks.attack_registry import AttackRegistry
 from core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
 from core.bypass.validation.reliability_validator import ReliabilityValidator
 
@@ -35,7 +35,7 @@ class BypassEngineAPI:
     def __init__(
         self,
         pool_manager: StrategyPoolManager,
-        attack_registry: ModernAttackRegistry,
+        attack_registry: AttackRegistry,
         test_runner: ComprehensiveTestSuite = None,
         reliability_validator: ReliabilityValidator = None,
     ):
@@ -473,7 +473,9 @@ class BypassEngineAPI:
                     "type": "subdomain_strategy_set",
                     "pool_id": pool_id,
                     "subdomain": subdomain,
-                , "no_fallbacks": True, "forced": True}
+                    "no_fallbacks": True, 
+                    "forced": True
+                }
             )
 
             return web.json_response(
@@ -507,7 +509,9 @@ class BypassEngineAPI:
                         "type": "subdomain_strategy_removed",
                         "pool_id": pool_id,
                         "subdomain": subdomain,
-                    , "no_fallbacks": True, "forced": True}
+                        "no_fallbacks": True, 
+                        "forced": True
+                    }
                 )
 
                 return web.json_response(
@@ -638,7 +642,9 @@ class BypassEngineAPI:
                         "attack_id": attack_id,
                         "success": test_result.success,
                         "execution_time": test_result.execution_time_ms,
-                    , "no_fallbacks": True, "forced": True}
+                        "no_fallbacks": True, 
+                        "forced": True
+                    }
                 )
 
                 return web.json_response(
@@ -707,7 +713,9 @@ class BypassEngineAPI:
                 "status": "running",
                 "started_at": datetime.now(),
                 "results": [],
-            , "no_fallbacks": True, "forced": True}
+                "no_fallbacks": True, 
+                "forced": True
+            }
 
             # Run tests asynchronously
             asyncio.create_task(self._run_all_attacks_test(test_session_id, attack_ids))
@@ -764,7 +772,9 @@ class BypassEngineAPI:
                             "completed": test_data["completed_attacks"],
                             "total": test_data["total_attacks"],
                             "latest_result": test_data["results"][-1],
-                        , "no_fallbacks": True, "forced": True}
+                            "no_fallbacks": True, 
+                            "forced": True
+                        }
                     )
 
                     # Small delay between tests
@@ -800,7 +810,9 @@ class BypassEngineAPI:
                         if test_data["total_attacks"] > 0
                         else 0
                     ),
-                , "no_fallbacks": True, "forced": True}
+                    "no_fallbacks": True, 
+                    "forced": True
+                }
             )
 
         except Exception as e:
@@ -849,7 +861,9 @@ class BypassEngineAPI:
                         "type": "attack_disabled",
                         "attack_id": attack_id,
                         "reason": reason,
-                    , "no_fallbacks": True, "forced": True}
+                        "no_fallbacks": True, 
+                        "forced": True
+                    }
                 )
 
                 return web.json_response(
@@ -985,7 +999,9 @@ class BypassEngineAPI:
                     {
                         "type": "config_imported",
                         "imported_pools": result["imported_pools"],
-                    , "no_fallbacks": True, "forced": True}
+                        "no_fallbacks": True, 
+                        "forced": True
+                    }
                 )
 
             return web.json_response(result)
@@ -1331,7 +1347,9 @@ class BypassEngineAPI:
                     "test_id": test_id,
                     "domain": domain,
                     "results": test_data["results"],
-                , "no_fallbacks": True, "forced": True}
+                    "no_fallbacks": True, 
+                    "forced": True
+                }
             )
 
         except Exception as e:

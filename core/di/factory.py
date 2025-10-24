@@ -54,7 +54,7 @@ class ServiceFactory:
                 PacketProcessingEngine,
             )
             from core.bypass.engines.base import EngineConfig
-            from core.bypass.attacks.registry import AttackRegistry
+            from core.bypass.attacks.attack_registry import AttackRegistry
             from core.domain_specific_strategies import DomainSpecificStrategies
             from ml.strategy_predictor import StrategyPredictor, SKLEARN_AVAILABLE
             from ml.evolutionary_search import EvolutionarySearcher
@@ -101,8 +101,11 @@ class ServiceFactory:
                     timeout=config.effectiveness_tester.timeout,
                     max_retries=config.effectiveness_tester.max_retries,
                     engine_config=EngineConfig(debug=config.debug_enabled),
-                    engine_override=getattr(config.effectiveness_tester, "engine_override", None),
+                    engine_override=getattr(
+                        config.effectiveness_tester, "engine_override", None
+                    ),
                 )
+
             container.register_singleton(
                 IEffectivenessTester, factory=create_effectiveness_tester_factory
             )
@@ -142,8 +145,11 @@ class ServiceFactory:
                     timeout=config.effectiveness_tester.timeout,
                     max_retries=config.effectiveness_tester.max_retries,
                     engine_config=EngineConfig(debug=config.debug_enabled),
-                    engine_override=getattr(config.effectiveness_tester, "engine_override", None),
+                    engine_override=getattr(
+                        config.effectiveness_tester, "engine_override", None
+                    ),
                 )
+
             container.register_singleton(
                 IEffectivenessTester, factory=create_effectiveness_tester_factory
             )

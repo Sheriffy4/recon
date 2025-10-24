@@ -3,94 +3,93 @@ Help system for PCAP analysis CLI.
 Provides detailed help and examples for users.
 """
 
-from typing import Dict, List
 
 
 class HelpSystem:
     """Comprehensive help system for CLI commands."""
-    
+
     def __init__(self):
         self.commands = {
-            'compare': {
-                'description': 'Compare two PCAP files to identify differences',
-                'usage': 'pcap_analysis_cli.py compare <recon_pcap> <zapret_pcap> [options]',
-                'examples': [
-                    'pcap_analysis_cli.py compare recon_x.pcap zapret_x.pcap',
-                    'pcap_analysis_cli.py compare recon_x.pcap zapret_x.pcap --interactive',
-                    'pcap_analysis_cli.py compare recon_x.pcap zapret_x.pcap --auto-apply --output-dir ./results',
-                    'pcap_analysis_cli.py compare recon_x.pcap zapret_x.pcap --strategy-params strategy.json'
+            "compare": {
+                "description": "Compare two PCAP files to identify differences",
+                "usage": "pcap_analysis_cli.py compare <recon_pcap> <zapret_pcap> [options]",
+                "examples": [
+                    "pcap_analysis_cli.py compare recon_x.pcap zapret_x.pcap",
+                    "pcap_analysis_cli.py compare recon_x.pcap zapret_x.pcap --interactive",
+                    "pcap_analysis_cli.py compare recon_x.pcap zapret_x.pcap --auto-apply --output-dir ./results",
+                    "pcap_analysis_cli.py compare recon_x.pcap zapret_x.pcap --strategy-params strategy.json",
                 ],
-                'options': {
-                    '--interactive, -i': 'Enable interactive mode for reviewing differences and fixes',
-                    '--auto-apply, -a': 'Automatically apply low-risk fixes without confirmation',
-                    '--strategy-params': 'JSON file containing strategy parameters for analysis',
-                    '--report-only': 'Generate analysis report without applying any fixes',
-                    '--output-dir, -o': 'Directory to save analysis results and reports'
-                }
+                "options": {
+                    "--interactive, -i": "Enable interactive mode for reviewing differences and fixes",
+                    "--auto-apply, -a": "Automatically apply low-risk fixes without confirmation",
+                    "--strategy-params": "JSON file containing strategy parameters for analysis",
+                    "--report-only": "Generate analysis report without applying any fixes",
+                    "--output-dir, -o": "Directory to save analysis results and reports",
+                },
             },
-            'batch': {
-                'description': 'Process multiple PCAP comparisons in batch mode',
-                'usage': 'pcap_analysis_cli.py batch <config_file> [options]',
-                'examples': [
-                    'pcap_analysis_cli.py batch batch_config.json',
-                    'pcap_analysis_cli.py batch batch_config.json --parallel 4',
-                    'pcap_analysis_cli.py batch batch_config.json --output-dir ./batch_results'
+            "batch": {
+                "description": "Process multiple PCAP comparisons in batch mode",
+                "usage": "pcap_analysis_cli.py batch <config_file> [options]",
+                "examples": [
+                    "pcap_analysis_cli.py batch batch_config.json",
+                    "pcap_analysis_cli.py batch batch_config.json --parallel 4",
+                    "pcap_analysis_cli.py batch batch_config.json --output-dir ./batch_results",
                 ],
-                'options': {
-                    '--parallel, -p': 'Number of parallel processes for batch processing',
-                    '--output-dir, -o': 'Base directory for batch processing results'
-                }
+                "options": {
+                    "--parallel, -p": "Number of parallel processes for batch processing",
+                    "--output-dir, -o": "Base directory for batch processing results",
+                },
             },
-            'analyze': {
-                'description': 'Analyze PCAP files for patterns and anomalies',
-                'usage': 'pcap_analysis_cli.py analyze <pcap_files...> [options]',
-                'examples': [
-                    'pcap_analysis_cli.py analyze recon_x.pcap zapret_x.pcap',
-                    'pcap_analysis_cli.py analyze *.pcap --report-only',
-                    'pcap_analysis_cli.py analyze traffic.pcap --output-dir ./analysis'
+            "analyze": {
+                "description": "Analyze PCAP files for patterns and anomalies",
+                "usage": "pcap_analysis_cli.py analyze <pcap_files...> [options]",
+                "examples": [
+                    "pcap_analysis_cli.py analyze recon_x.pcap zapret_x.pcap",
+                    "pcap_analysis_cli.py analyze *.pcap --report-only",
+                    "pcap_analysis_cli.py analyze traffic.pcap --output-dir ./analysis",
                 ],
-                'options': {
-                    '--report-only': 'Generate analysis report without comparison',
-                    '--output-dir, -o': 'Directory to save analysis results'
-                }
+                "options": {
+                    "--report-only": "Generate analysis report without comparison",
+                    "--output-dir, -o": "Directory to save analysis results",
+                },
             },
-            'validate': {
-                'description': 'Validate generated fixes against test domains',
-                'usage': 'pcap_analysis_cli.py validate <fixes_file> [options]',
-                'examples': [
-                    'pcap_analysis_cli.py validate fixes.json',
-                    'pcap_analysis_cli.py validate fixes.json --test-domains x.com youtube.com',
-                    'pcap_analysis_cli.py validate fixes.json --output-dir ./validation'
+            "validate": {
+                "description": "Validate generated fixes against test domains",
+                "usage": "pcap_analysis_cli.py validate <fixes_file> [options]",
+                "examples": [
+                    "pcap_analysis_cli.py validate fixes.json",
+                    "pcap_analysis_cli.py validate fixes.json --test-domains x.com youtube.com",
+                    "pcap_analysis_cli.py validate fixes.json --output-dir ./validation",
                 ],
-                'options': {
-                    '--test-domains': 'List of domains to test fixes against',
-                    '--output-dir, -o': 'Directory to save validation results'
-                }
-            }
+                "options": {
+                    "--test-domains": "List of domains to test fixes against",
+                    "--output-dir, -o": "Directory to save validation results",
+                },
+            },
         }
-        
+
         self.global_options = {
-            '--verbose, -v': 'Increase verbosity (use -vv for debug level)',
-            '--quiet, -q': 'Suppress progress output and non-essential messages',
-            '--config, -c': 'Path to configuration file',
-            '--output-dir, -o': 'Output directory for results (overrides config)',
-            '--help, -h': 'Show help message and exit'
+            "--verbose, -v": "Increase verbosity (use -vv for debug level)",
+            "--quiet, -q": "Suppress progress output and non-essential messages",
+            "--config, -c": "Path to configuration file",
+            "--output-dir, -o": "Output directory for results (overrides config)",
+            "--help, -h": "Show help message and exit",
         }
-        
+
         self.config_help = {
-            'description': 'Configuration file format and options',
-            'format': 'JSON format with nested sections',
-            'sections': {
-                'log_level': 'Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL',
-                'quiet_mode': 'Default quiet mode setting',
-                'default_output_dir': 'Default directory for output files',
-                'analysis.confidence_threshold': 'Minimum confidence for differences (0.0-1.0)',
-                'analysis.impact_level_filter': 'Impact levels to include: [CRITICAL, HIGH, MEDIUM, LOW]',
-                'analysis.enable_fix_generation': 'Enable automatic fix generation',
-                'analysis.test_domains': 'Default domains for validation testing',
-                'max_parallel_jobs': 'Maximum parallel jobs for batch processing'
+            "description": "Configuration file format and options",
+            "format": "JSON format with nested sections",
+            "sections": {
+                "log_level": "Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL",
+                "quiet_mode": "Default quiet mode setting",
+                "default_output_dir": "Default directory for output files",
+                "analysis.confidence_threshold": "Minimum confidence for differences (0.0-1.0)",
+                "analysis.impact_level_filter": "Impact levels to include: [CRITICAL, HIGH, MEDIUM, LOW]",
+                "analysis.enable_fix_generation": "Enable automatic fix generation",
+                "analysis.test_domains": "Default domains for validation testing",
+                "max_parallel_jobs": "Maximum parallel jobs for batch processing",
             },
-            'example': '''
+            "example": """
 {
   "log_level": "INFO",
   "quiet_mode": False,
@@ -104,13 +103,13 @@ class HelpSystem:
   },
   "max_parallel_jobs": 3
 }
-            '''
+            """,
         }
-        
+
         self.batch_config_help = {
-            'description': 'Batch configuration file format',
-            'format': 'JSON format with comparisons array',
-            'example': '''
+            "description": "Batch configuration file format",
+            "format": "JSON format with comparisons array",
+            "example": """
 {
   "auto_apply_fixes": False,
   "parallel_processing": True,
@@ -130,12 +129,13 @@ class HelpSystem:
     }
   ]
 }
-            '''
+            """,
         }
-    
+
     def show_general_help(self):
         """Show general help information."""
-        print("""
+        print(
+            """
 PCAP Analysis CLI - Compare and analyze PCAP files for DPI bypass effectiveness
 
 USAGE:
@@ -172,74 +172,78 @@ For detailed help on a specific command, use:
 
 For configuration help, use:
     pcap_analysis_cli.py --help config
-        """)
-    
+        """
+        )
+
     def show_command_help(self, command: str):
         """Show help for a specific command."""
         if command not in self.commands:
             print(f"Unknown command: {command}")
             print("Available commands: " + ", ".join(self.commands.keys()))
             return
-        
+
         cmd_info = self.commands[command]
-        
+
         print(f"\n{command.upper()} COMMAND")
         print("=" * (len(command) + 8))
-        print(f"\nDESCRIPTION:")
+        print("\nDESCRIPTION:")
         print(f"    {cmd_info['description']}")
-        
-        print(f"\nUSAGE:")
+
+        print("\nUSAGE:")
         print(f"    {cmd_info['usage']}")
-        
-        if 'options' in cmd_info:
-            print(f"\nOPTIONS:")
-            for option, description in cmd_info['options'].items():
+
+        if "options" in cmd_info:
+            print("\nOPTIONS:")
+            for option, description in cmd_info["options"].items():
                 print(f"    {option:<20} {description}")
-        
-        print(f"\nGLOBAL OPTIONS:")
+
+        print("\nGLOBAL OPTIONS:")
         for option, description in self.global_options.items():
             print(f"    {option:<20} {description}")
-        
-        print(f"\nEXAMPLES:")
-        for example in cmd_info['examples']:
+
+        print("\nEXAMPLES:")
+        for example in cmd_info["examples"]:
             print(f"    {example}")
-    
+
     def show_config_help(self):
         """Show configuration help."""
         print("\nCONFIGURATION FILE HELP")
         print("=" * 23)
-        print(f"\nDESCRIPTION:")
+        print("\nDESCRIPTION:")
         print(f"    {self.config_help['description']}")
-        
-        print(f"\nFORMAT:")
+
+        print("\nFORMAT:")
         print(f"    {self.config_help['format']}")
-        
-        print(f"\nCONFIGURATION OPTIONS:")
-        for option, description in self.config_help['sections'].items():
+
+        print("\nCONFIGURATION OPTIONS:")
+        for option, description in self.config_help["sections"].items():
             print(f"    {option:<30} {description}")
-        
-        print(f"\nEXAMPLE CONFIGURATION:")
-        print(self.config_help['example'])
-        
-        print(f"\nTo create a default configuration file:")
-        print(f"    python -c \"from core.pcap_analysis.cli_config import create_default_config_file; create_default_config_file('./config.json')\"")
-    
+
+        print("\nEXAMPLE CONFIGURATION:")
+        print(self.config_help["example"])
+
+        print("\nTo create a default configuration file:")
+        print(
+            "    python -c \"from core.pcap_analysis.cli_config import create_default_config_file; create_default_config_file('./config.json')\""
+        )
+
     def show_batch_config_help(self):
         """Show batch configuration help."""
         print("\nBATCH CONFIGURATION HELP")
         print("=" * 24)
-        print(f"\nDESCRIPTION:")
+        print("\nDESCRIPTION:")
         print(f"    {self.batch_config_help['description']}")
-        
-        print(f"\nFORMAT:")
+
+        print("\nFORMAT:")
         print(f"    {self.batch_config_help['format']}")
-        
-        print(f"\nEXAMPLE BATCH CONFIGURATION:")
-        print(self.batch_config_help['example'])
-    
+
+        print("\nEXAMPLE BATCH CONFIGURATION:")
+        print(self.batch_config_help["example"])
+
     def show_interactive_help(self):
         """Show help for interactive mode."""
-        print("""
+        print(
+            """
 INTERACTIVE MODE HELP
 ====================
 
@@ -273,11 +277,13 @@ TIPS:
     - Low-risk fixes are generally safe to approve
     - Critical differences should be carefully reviewed
     - You can quit at any time and still get results for reviewed items
-        """)
-    
+        """
+        )
+
     def show_troubleshooting_help(self):
         """Show troubleshooting help."""
-        print("""
+        print(
+            """
 TROUBLESHOOTING GUIDE
 ====================
 
@@ -318,24 +324,25 @@ GETTING HELP:
     - Use --help with any command for specific help
     - Check the configuration file format
     - Review example configurations and batch files
-        """)
+        """
+        )
 
 
 def show_help(topic: str = None):
     """Show help for a specific topic or general help."""
     help_system = HelpSystem()
-    
+
     if topic is None:
         help_system.show_general_help()
     elif topic in help_system.commands:
         help_system.show_command_help(topic)
-    elif topic == 'config':
+    elif topic == "config":
         help_system.show_config_help()
-    elif topic == 'batch':
+    elif topic == "batch":
         help_system.show_batch_config_help()
-    elif topic == 'interactive':
+    elif topic == "interactive":
         help_system.show_interactive_help()
-    elif topic == 'troubleshooting':
+    elif topic == "troubleshooting":
         help_system.show_troubleshooting_help()
     else:
         print(f"Unknown help topic: {topic}")

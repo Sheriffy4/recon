@@ -80,15 +80,21 @@ class SegmentPacketBuilder:
             tcp_seq = context.tcp_seq + seq_offset
             tcp_ack = context.tcp_ack
             # Совместимость ключей флагов
-            tcp_flags = options.get("tcp_flags", options.get("flags", context.tcp_flags))
+            tcp_flags = options.get(
+                "tcp_flags", options.get("flags", context.tcp_flags)
+            )
             tcp_window = options.get("window_size", context.tcp_window_size)
             ttl = options.get("ttl", 64)
             # Синонимы badsum
-            bad_checksum = options.get("bad_checksum", options.get("corrupt_tcp_checksum", False))
+            bad_checksum = options.get(
+                "bad_checksum", options.get("corrupt_tcp_checksum", False)
+            )
             src_ip = context.src_ip or self._get_source_ip(context.dst_ip)
             src_port = context.src_port or self._get_source_port()
             # seq_extra для badseq
-            seq_extra = int(options.get("seq_extra", -1 if options.get("corrupt_sequence") else 0))
+            seq_extra = int(
+                options.get("seq_extra", -1 if options.get("corrupt_sequence") else 0)
+            )
             packet_bytes = self._build_raw_tcp_packet(
                 src_ip=src_ip,
                 dst_ip=context.dst_ip,
@@ -166,7 +172,7 @@ class SegmentPacketBuilder:
         raw = bytearray(raw_packet) if raw_packet else bytearray(ip_hl)
         if not raw_packet:
             raw[0] = (4 << 4) | 5
-            raw[9] = 6 # TCP
+            raw[9] = 6  # TCP
             raw[12:16] = socket.inet_aton(src_ip)
             raw[16:20] = socket.inet_aton(dst_ip)
 
@@ -185,17 +191,19 @@ class SegmentPacketBuilder:
         tcp_start = ip_hl
         tcp_end = ip_hl + len(tcp_hdr)
         # Zero CSUM field before calculation
-        seg_raw[tcp_start+16:tcp_start+18] = b"\x00\x00"
+        seg_raw[tcp_start + 16 : tcp_start + 18] = b"\x00\x00"
         good_csum = self.builder.build_tcp_checksum(
-            socket.inet_aton(src_ip), socket.inet_aton(dst_ip),
-            seg_raw[tcp_start:tcp_end], seg_raw[tcp_end:]
+            socket.inet_aton(src_ip),
+            socket.inet_aton(dst_ip),
+            seg_raw[tcp_start:tcp_end],
+            seg_raw[tcp_end:],
         )
 
         if corrupt_checksum:
             bad_csum = 0xBEEF if b"\x13\x12" in tcp_options else 0xDEAD
-            seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", bad_csum)
+            seg_raw[tcp_start + 16 : tcp_start + 18] = struct.pack("!H", bad_csum)
         else:
-            seg_raw[tcp_start+16:tcp_start+18] = struct.pack("!H", good_csum)
+            seg_raw[tcp_start + 16 : tcp_start + 18] = struct.pack("!H", good_csum)
             self.logger.debug(f"✅ TCP checksum set: 0x{good_csum:04X}")
 
         return bytes(seg_raw)
@@ -257,8 +265,9 @@ class SegmentPacketBuilder:
                 out += b"\x01" * (4 - len(out) % 4)  # NOP padding
         return out
 
-    def _build_ip_header(self, raw: bytearray, ip_hl: int, total_len: int,
-                           ttl: int, ip_id: Optional[int]) -> bytearray:
+    def _build_ip_header(
+        self, raw: bytearray, ip_hl: int, total_len: int, ttl: int, ip_id: Optional[int]
+    ) -> bytearray:
         """
         Builds a new IPv4 header from scratch, preserving key fields
         from the original header.
@@ -281,8 +290,8 @@ class SegmentPacketBuilder:
         dst = raw[16:20]
 
         ip_hdr = bytearray(ihl * 4)
-        ip_hdr[0] = (4 << 4) | ihl            # Version/IHL
-        ip_hdr[1] = tos                       # DSCP/ECN
+        ip_hdr[0] = (4 << 4) | ihl  # Version/IHL
+        ip_hdr[1] = tos  # DSCP/ECN
         ip_hdr[2:4] = struct.pack("!H", total_len)
         ip_hdr[4:6] = struct.pack("!H", ip_id_val)
         ip_hdr[6:8] = struct.pack("!H", flags_frag)
@@ -294,7 +303,7 @@ class SegmentPacketBuilder:
 
         # Copy IP options if they exist
         if ihl > 5:
-            ip_hdr[20:ihl*4] = raw[20:ihl*4]
+            ip_hdr[20 : ihl * 4] = raw[20 : ihl * 4]
 
         return ip_hdr
 

@@ -1,6 +1,8 @@
 # core/fingerprint/http_analyzer.py
 
 import asyncio
+import contextlib
+from contextlib import asynccontextmanager
 import aiohttp
 import time
 import inspect
@@ -8,20 +10,18 @@ import logging
 import ssl
 import socket
 import sys
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 from urllib.parse import urljoin, urlsplit
 
 from .unified_models import (
-    NetworkAnalysisError,
     HTTPAnalysisResult,
     HTTPRequest,
-    HTTPBlockingMethod
+    HTTPBlockingMethod,
 )
-from enum import Enum
-from dataclasses import dataclass, field
 
 try:
     from core.doh_resolver import DoHResolver
+
     DOH_AVAILABLE = True
 except ImportError:
     DOH_AVAILABLE = False
@@ -38,10 +38,26 @@ class _StaticResolver(aiohttp_abc.AbstractResolver):
     async def resolve(self, host: str, port: int = 0, family: int = socket.AF_INET):
         ip = self._map.get(host)
         if not ip:
-            return [{"hostname": host, "host": host, "port": port,
-                     "family": family, "proto": 0, "flags": 0}]
-        return [{"hostname": host, "host": ip, "port": port,
-                 "family": family, "proto": 0, "flags": 0}]
+            return [
+                {
+                    "hostname": host,
+                    "host": host,
+                    "port": port,
+                    "family": family,
+                    "proto": 0,
+                    "flags": 0,
+                }
+            ]
+        return [
+            {
+                "hostname": host,
+                "host": ip,
+                "port": port,
+                "family": family,
+                "proto": 0,
+                "flags": 0,
+            }
+        ]
 
     async def close(self) -> None:
         pass
@@ -53,8 +69,8 @@ class HTTPAnalyzer:
         timeout: float = 10.0,
         max_attempts: int = 10,
         force_ipv4: bool = True,
-        use_system_proxy: bool = True,
-        enable_doh_fallback: bool = True
+        use_system_proxy: bool = False,  # Default to False for fingerprinting accuracy
+        enable_doh_fallback: bool = True,
     ):
         self.timeout = timeout
         self.max_attempts = max_attempts
@@ -62,27 +78,53 @@ class HTTPAnalyzer:
         self.use_system_proxy = use_system_proxy
         self.enable_doh_fallback = enable_doh_fallback
         self.logger = logging.getLogger(__name__)
-        
+        self._active_sessions = set()  # Track active sessions for cleanup
+
         self.test_headers = [
-            ("Via", "1.1 google"), ("X-Forwarded-For", "127.0.0.1"),
-            ("X-Real-IP", "127.0.0.1"), ("Pragma", "no-cache"),
-            ("Cache-Control", "no-cache"), ("X-Custom-Test-Header", "Bypass-Test")
+            ("Via", "1.1 google"),
+            ("X-Forwarded-For", "127.0.0.1"),
+            ("X-Real-IP", "127.0.0.1"),
+            ("Pragma", "no-cache"),
+            ("Cache-Control", "no-cache"),
+            ("X-Custom-Test-Header", "Bypass-Test"),
         ]
         self.test_user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:107.0) Gecko/20100101 Firefox/107.0",
-            "Googlebot/2.1 (+http://www.google.com/bot.html)", "curl/7.64.1",
-            "sqlmap/1.5.1#stable (http://sqlmap.org)"
+            "Googlebot/2.1 (+http://www.google.com/bot.html)",
+            "curl/7.64.1",
+            "sqlmap/1.5.1#stable (http://sqlmap.org)",
         ]
-        self.test_methods = ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE", "PATCH"]
+        self.test_methods = [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "HEAD",
+            "OPTIONS",
+            "CONNECT",
+            "TRACE",
+            "PATCH",
+        ]
         self.test_content_types = [
-            "application/json", "application/xml", "application/x-www-form-urlencoded",
-            "multipart/form-data", "application/octet-stream"
+            "application/json",
+            "application/xml",
+            "application/x-www-form-urlencoded",
+            "multipart/form-data",
+            "application/octet-stream",
         ]
-        self.test_content_keywords = ["vpn", "proxy", "blocked", "forbidden", "censored"]
+        self.test_content_keywords = [
+            "vpn",
+            "proxy",
+            "blocked",
+            "forbidden",
+            "censored",
+        ]
 
-        self.doh_resolver = DoHResolver() if (DOH_AVAILABLE and enable_doh_fallback) else None
-        
+        self.doh_resolver = (
+            DoHResolver() if (DOH_AVAILABLE and enable_doh_fallback) else None
+        )
+
         if sys.platform.startswith("win") and sys.version_info >= (3, 12):
             try:
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -90,63 +132,80 @@ class HTTPAnalyzer:
             except Exception as e:
                 self.logger.warning(f"Failed to set event loop policy: {e}")
 
-    
     def _create_ssl_context(self) -> ssl.SSLContext:
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
         try:
-            if hasattr(ssl, 'TLSVersion'):
+            if hasattr(ssl, "TLSVersion"):
                 ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-        except Exception: pass
+        except Exception:
+            pass
         try:
             ssl_context.options |= ssl.OP_NO_TICKET
-        except Exception: pass
+        except Exception:
+            pass
         return ssl_context
-    
+
     def _create_connector(
         self,
         ssl_context: Optional[ssl.SSLContext] = None,
-        pinned_ip: Optional[str] = None
+        pinned_ip: Optional[str] = None,
     ) -> aiohttp.TCPConnector:
         connector_kwargs = {
-            'ssl': ssl_context or self._create_ssl_context(),
-            'ttl_dns_cache': 300, 'enable_cleanup_closed': True,
-            'force_close': False, 'limit': 100, 'limit_per_host': 10
+            "ssl": ssl_context or self._create_ssl_context(),
+            "ttl_dns_cache": 300,
+            "enable_cleanup_closed": True,
+            "force_close": True,  # <-- было False
+            "limit": 100,
+            "limit_per_host": 10,
         }
         if self.force_ipv4:
-            connector_kwargs['family'] = socket.AF_INET
-            self.logger.debug("Forcing IPv4 (AF_INET)")
+            connector_kwargs["family"] = socket.AF_INET
         return aiohttp.TCPConnector(**connector_kwargs)
-    
+
     async def _create_session(
-        self,
-        pinned_ip: Optional[str] = None
+        self, pinned_ip: Optional[str] = None
     ) -> aiohttp.ClientSession:
         connector = self._create_connector(pinned_ip=pinned_ip)
         timeout = aiohttp.ClientTimeout(
-            total=self.timeout, connect=min(5.0, self.timeout / 2),
-            sock_read=self.timeout, sock_connect=min(3.0, self.timeout / 3)
+            total=self.timeout,
+            connect=min(5.0, self.timeout / 2),
+            sock_read=self.timeout,
+            sock_connect=min(3.0, self.timeout / 3),
         )
         # <<< ИСПРАВЛЕНИЕ: Увеличиваем размер буфера для заголовков >>>
-        return aiohttp.ClientSession(
-            timeout=timeout, connector=connector, trust_env=self.use_system_proxy,
-            auto_decompress=True, read_bufsize=64 * 1024  # 64KB buffer for headers
+        session = aiohttp.ClientSession(
+            timeout=timeout,
+            connector=connector,
+            trust_env=self.use_system_proxy,
+            auto_decompress=True,
+            read_bufsize=64 * 1024,  # 64KB buffer for headers
         )
-    
+        self._active_sessions.add(session)
+        return session
+
     def _format_exc(self, e: BaseException) -> str:
         try:
             info = f"{type(e).__name__}: {repr(e)}"
-            cause = f"cause={repr(e.__cause__)}" if getattr(e, "__cause__", None) else None
-            ctx = f"context={repr(e.__context__)}" if getattr(e, "__context__", None) else None
+            cause = (
+                f"cause={repr(e.__cause__)}" if getattr(e, "__cause__", None) else None
+            )
+            ctx = (
+                f"context={repr(e.__context__)}"
+                if getattr(e, "__context__", None)
+                else None
+            )
             return " | ".join(x for x in (info, cause, ctx) if x)
         except Exception:
             return str(e)
-    
+
     def _host_for_url(self, url: str, headers: Dict[str, str]) -> str:
         return (headers or {}).get("Host") or (urlsplit(url).hostname or "")
-    
-    async def _open_session(self, host: str, pinned_ip: Optional[str] = None) -> aiohttp.ClientSession:
+
+    async def _open_session(
+        self, host: str, pinned_ip: Optional[str] = None
+    ) -> aiohttp.ClientSession:
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
@@ -154,10 +213,10 @@ class HTTPAnalyzer:
         connector_kwargs = dict(
             ssl=ssl_context,
             family=socket.AF_INET if self.force_ipv4 else socket.AF_UNSPEC,
-            enable_cleanup_closed=True
+            enable_cleanup_closed=True,
         )
         if pinned_ip:
-            connector_kwargs['resolver'] = _StaticResolver({host: pinned_ip})
+            connector_kwargs["resolver"] = _StaticResolver({host: pinned_ip})
 
         connector = aiohttp.TCPConnector(**connector_kwargs)
 
@@ -165,25 +224,34 @@ class HTTPAnalyzer:
             timeout=aiohttp.ClientTimeout(total=self.timeout),
             connector=connector,
             trust_env=self.use_system_proxy,  # <-- respect your flag
-            read_bufsize=64 * 1024
+            read_bufsize=64 * 1024,
         )
-    
+
     async def _coerce_text(self, v) -> str:
         try:
-            if inspect.isawaitable(v): v = await v
-        except Exception: return ""
-        if v is None: return ""
-        try: return str(v)
-        except Exception: return ""
+            if inspect.isawaitable(v):
+                v = await v
+        except Exception:
+            return ""
+        if v is None:
+            return ""
+        try:
+            return str(v)
+        except Exception:
+            return ""
 
     async def _coerce_headers(self, v) -> Dict[str, str]:
         try:
-            if inspect.isawaitable(v): v = await v
-        except Exception: return {}
+            if inspect.isawaitable(v):
+                v = await v
+        except Exception:
+            return {}
         try:
-            if isinstance(v, dict): return v
+            if isinstance(v, dict):
+                return v
             return dict(v or {})
-        except Exception: return {}
+        except Exception:
+            return {}
 
     async def _await_if_needed(self, maybe_awaitable):
         for _ in range(3):
@@ -197,15 +265,29 @@ class HTTPAnalyzer:
         res = await session.request(method, url, **kwargs)
         return await self._await_if_needed(res)
 
+    @asynccontextmanager
+    async def _session_ctx(self, host: str, pinned_ip: Optional[str] = None):
+        session = await self._open_session(host, pinned_ip=pinned_ip)
+        self._active_sessions.add(session)
+        try:
+            yield session
+        finally:
+            with contextlib.suppress(Exception):
+                if not session.closed:
+                    await session.close()
+            self._active_sessions.discard(session)
+
     def _format_exception_details(self, e: Exception) -> str:
         parts = [f"{type(e).__name__}: {str(e)}"]
-        if hasattr(e, '__cause__') and e.__cause__:
+        if hasattr(e, "__cause__") and e.__cause__:
             parts.append(f"Cause: {type(e.__cause__).__name__}: {str(e.__cause__)}")
-        if hasattr(e, '__context__') and e.__context__:
-            parts.append(f"Context: {type(e.__context__).__name__}: {str(e.__context__)}")
+        if hasattr(e, "__context__") and e.__context__:
+            parts.append(
+                f"Context: {type(e.__context__).__name__}: {str(e.__context__)}"
+            )
         if isinstance(e, aiohttp.ClientConnectorError):
             parts.append(f"OS Error: {e.os_error}")
-            if hasattr(e, 'host'):
+            if hasattr(e, "host"):
                 parts.append(f"Host: {e.host}")
         elif isinstance(e, aiohttp.ClientResponseError):
             parts.append(f"Status: {e.status}, Message: {e.message}")
@@ -214,28 +296,38 @@ class HTTPAnalyzer:
         elif isinstance(e, socket.gaierror):
             parts.append(f"DNS resolution failed: errno={e.errno}")
         return " | ".join(parts)
-    
+
     # ... (остальные методы остаются без изменений)
     async def analyze_http_behavior(
-        self,
-        target: str,
-        port: int = 443
+        self, target: str, port: int = 443
     ) -> Dict[str, Any]:
-        """Main HTTP analysis method"""
+        """Main HTTP analysis method with fail-fast gate"""
         self.logger.info(f"Starting HTTP analysis for {target}:{port}")
-        
+
         result = HTTPAnalysisResult()
         protocol = "https" if port == 443 else "http"
-        base_url = f"{protocol}://{target}:{port}" if port not in [80, 443] else f"{protocol}://{target}"
-        
-        # Test basic connectivity with fallback strategies
+        base_url = (
+            f"{protocol}://{target}:{port}"
+            if port not in [80, 443]
+            else f"{protocol}://{target}"
+        )
+
+        # FAIL-FAST GATE: Test basic connectivity with fallback strategies
         success = await self._test_basic_connectivity(result, base_url, target)
-        
+
         if not success:
-            self.logger.warning(f"Basic connectivity failed for {target}")
-            # Don't abort - continue with limited analysis
-        
-        # Run remaining tests
+            # Fast exit: transport/TLS path is blocked — skip heuristics that require a working HTTP path
+            result.http_blocking_detected = True
+            result.analysis_errors.append(
+                "BASELINE_FAILED: Skipping advanced HTTP tests"
+            )
+            self.logger.warning(
+                f"Baseline failed for {target} — advanced HTTP tests skipped"
+            )
+            result.reliability_score = self._calculate_reliability_score(result)
+            return result.to_dict()
+
+        # Only if baseline worked, run the advanced suite
         try:
             await self._analyze_header_filtering(result, base_url)
             await self._analyze_user_agent_filtering(result, base_url)
@@ -247,29 +339,29 @@ class HTTPAnalyzer:
             await self._analyze_response_modification(result, base_url)
             await self._analyze_connection_behavior(result, base_url)
             await self._analyze_encoding_handling(result, base_url)
-            
+
             result.reliability_score = self._calculate_reliability_score(result)
-            
+
             self.logger.info(
                 f"HTTP analysis complete for {target}:{port} "
                 f"(reliability: {result.reliability_score:.2f})"
             )
+        except asyncio.CancelledError:
+            # Don't swallow cancellations to avoid "coroutine ignored GeneratorExit"
+            raise
         except Exception as e:
             error_msg = f"HTTP analysis failed: {self._format_exception_details(e)}"
             self.logger.error(error_msg)
             result.analysis_errors.append(error_msg)
-        
+
         return result.to_dict()
 
     async def _test_basic_connectivity(
-        self,
-        result: HTTPAnalysisResult,
-        base_url: str,
-        target: str
+        self, result: HTTPAnalysisResult, base_url: str, target: str
     ) -> bool:
         """Test basic connectivity with multiple fallback strategies"""
         self.logger.debug(f"Testing basic connectivity to {base_url}")
-        
+
         # Strategy 1: Full HTTPS with standard headers
         success = await self._try_connection(
             base_url,
@@ -279,15 +371,15 @@ class HTTPAnalyzer:
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.5",
                 "Accept-Encoding": "gzip, deflate",
-                "Connection": "keep-alive"
+                "Connection": "keep-alive",
             },
             result=result,
-            strategy_name="full_https"
+            strategy_name="full_https",
         )
-        
+
         if success:
             return True
-        
+
         # Strategy 2: Minimal headers (some DPI blocks rich headers)
         self.logger.info("Full HTTPS failed, trying minimal headers")
         success = await self._try_connection(
@@ -295,35 +387,35 @@ class HTTPAnalyzer:
             method="GET",
             headers={"User-Agent": "curl/7.68.0"},
             result=result,
-            strategy_name="minimal_https"
+            strategy_name="minimal_https",
         )
-        
+
         if success:
             result.analysis_errors.append(
                 "Full HTTPS blocked, minimal headers work - header filtering detected"
             )
             return True
-        
+
         # Strategy 3: HTTP fallback (HTTPS-only blocking detection)
         if base_url.startswith("https://"):
             http_url = base_url.replace("https://", "http://").replace(":443", ":80")
             self.logger.info(f"HTTPS failed, trying HTTP: {http_url}")
-            
+
             success = await self._try_connection(
                 http_url,
                 method="HEAD",
                 headers={"User-Agent": "Mozilla/5.0"},
                 result=result,
-                strategy_name="http_fallback"
+                strategy_name="http_fallback",
             )
-            
+
             if success:
                 result.analysis_errors.append(
                     "HTTPS blocked but HTTP works - HTTPS-specific blocking"
                 )
                 result.http_blocking_detected = True
                 return True
-        
+
         # Strategy 4: Alternative User-Agent
         self.logger.info("Trying alternative User-Agent")
         success = await self._try_connection(
@@ -331,16 +423,16 @@ class HTTPAnalyzer:
             method="GET",
             headers={"User-Agent": "python-requests/2.31.0"},
             result=result,
-            strategy_name="alt_useragent"
+            strategy_name="alt_useragent",
         )
-        
+
         if success:
             result.user_agent_filtering = True
             result.analysis_errors.append(
                 "Browser UA blocked, python-requests works - UA filtering"
             )
             return True
-        
+
         # Strategy 5: DoH fallback (DNS issues)
         if self.doh_resolver:
             self.logger.info("Trying DoH fallback for DNS resolution")
@@ -355,13 +447,13 @@ class HTTPAnalyzer:
                     #     return True
             except Exception as e:
                 self.logger.debug(f"DoH fallback failed: {e}")
-        
+
         # All strategies failed
         error_msg = f"All connectivity strategies failed for {base_url}"
         result.analysis_errors.append(error_msg)
         result.analysis_errors.append("NETWORK_CONNECTIVITY_ISSUE=True")
         self.logger.error(error_msg)
-        
+
         return False
 
     async def _try_connection(
@@ -371,7 +463,7 @@ class HTTPAnalyzer:
         headers: Dict[str, str],
         result: HTTPAnalysisResult,
         strategy_name: str,
-        allow_redirects: bool = True
+        allow_redirects: bool = True,
     ) -> bool:
         """Try single connection with detailed error reporting"""
         request = HTTPRequest(
@@ -379,31 +471,28 @@ class HTTPAnalyzer:
             url=url,
             method=method,
             headers=headers.copy(),
-            user_agent=headers.get("User-Agent", "")
+            user_agent=headers.get("User-Agent", ""),
         )
-        
+
         session = None
         try:
             session = await self._create_session()
             start_time = time.perf_counter()
-            
+
             async with session.request(
-                method,
-                url,
-                headers=headers,
-                allow_redirects=allow_redirects
+                method, url, headers=headers, allow_redirects=allow_redirects
             ) as response:
                 request.response_time_ms = (time.perf_counter() - start_time) * 1000
                 request.status_code = response.status
                 request.response_headers = dict(response.headers)
-                
+
                 try:
-                    body = await response.text(encoding='utf-8', errors='ignore')
+                    body = await response.text(encoding="utf-8", errors="ignore")
                     request.response_body = body[:10000]  # Limit to 10KB
                 except Exception as body_error:
                     self.logger.debug(f"Failed to read body: {body_error}")
                     request.response_body = ""
-                
+
                 request.success = True
                 self.logger.info(
                     f"✅ Strategy '{strategy_name}' succeeded: "
@@ -411,10 +500,10 @@ class HTTPAnalyzer:
                 )
                 result.http_requests.append(request)
                 return True
-        
+
         except aiohttp.ClientConnectorError as e:
             request.error_message = self._format_exception_details(e)
-            
+
             # Classify error
             msg_lower = request.error_message.lower()
             if "dns" in msg_lower or "getaddrinfo" in msg_lower:
@@ -431,32 +520,46 @@ class HTTPAnalyzer:
                 self.logger.warning(f"❌ Connection reset for {url} - DPI likely")
             else:
                 request.blocking_method = HTTPBlockingMethod.TIMEOUT
-                self.logger.warning(f"❌ Connection error for {url}: {request.error_message}")
-        
+                self.logger.warning(
+                    f"❌ Connection error for {url}: {request.error_message}"
+                )
+
         except asyncio.TimeoutError as e:
             request.error_message = self._format_exception_details(e)
             request.blocking_method = HTTPBlockingMethod.TIMEOUT
             result.analysis_errors.append("TIMEOUT: Traffic filtering")
             self.logger.warning(f"⏱️ Timeout for {url} after {self.timeout}s")
-        
+
+        except GeneratorExit:
+            # Handle graceful shutdown
+            request.error_message = "Connection cancelled during shutdown"
+            self.logger.debug(f"Connection to {url} cancelled during shutdown")
+            raise  # Re-raise to allow proper cleanup
+
         except aiohttp.ClientError as e:
             request.error_message = self._format_exception_details(e)
             self.logger.warning(f"❌ Client error for {url}: {request.error_message}")
-        
+
+        except asyncio.CancelledError:
+            # Don't swallow cancellations to avoid "coroutine ignored GeneratorExit"
+            raise
         except Exception as e:
             request.error_message = self._format_exception_details(e)
             self.logger.error(
-                f"❌ Unexpected error for {url}: {request.error_message}",
-                exc_info=True
+                f"❌ Unexpected error for {url}: {request.error_message}", exc_info=True
             )
-        
+
         finally:
             if session and not session.closed:
-                await session.close()
-        
+                try:
+                    await session.close()
+                    self._active_sessions.discard(session)
+                except Exception as e:
+                    self.logger.debug(f"Error closing session: {e}")
+
         result.http_requests.append(request)
         return False
-    
+
     async def _analyze_header_filtering(
         self, result: HTTPAnalysisResult, base_url: str
     ):
@@ -468,14 +571,18 @@ class HTTPAnalyzer:
             "Accept-Language": "en-US,en;q=0.5",
             "Accept-Encoding": "gzip, deflate",
         }
-        
-        baseline_request = await self._make_request(base_url, "GET", baseline_headers.copy())
+
+        baseline_request = await self._make_request(
+            base_url, "GET", baseline_headers.copy()
+        )
         result.http_requests.append(baseline_request)
-        
+
         if not baseline_request.success:
-            self.logger.warning("Baseline request failed, skipping header filtering analysis")
+            self.logger.warning(
+                "Baseline request failed, skipping header filtering analysis"
+            )
             return
-        
+
         baseline_body = await self._coerce_text(baseline_request.response_body)
         baseline_status = baseline_request.status_code
 
@@ -487,28 +594,40 @@ class HTTPAnalyzer:
 
             if baseline_request.success:
                 strong_indicators = (
-                    not request.success or
-                    request.blocking_method == HTTPBlockingMethod.CONNECTION_RESET
+                    not request.success
+                    or request.blocking_method == HTTPBlockingMethod.CONNECTION_RESET
                 )
-                
+
                 request_body = await self._coerce_text(request.response_body)
 
                 weak_indicators = (
                     (
-                        request.success and
-                        baseline_status is not None and baseline_status < 400 and
-                        request.status_code is not None and request.status_code >= 400
-                    ) or
-                    (
-                        request.success and
-                        request.redirect_url and not baseline_request.redirect_url and
-                        any(p in request.redirect_url.lower() for p in ["block", "warn", "restrict", "forbidden"])
-                    ) or
-                    (
-                        request.success and
-                        request_body and
-                        not any(p in baseline_body.lower() for p in ["blocked", "forbidden", "restricted"]) and
-                        any(p in request_body.lower() for p in ["blocked", "forbidden", "restricted"])
+                        request.success
+                        and baseline_status is not None
+                        and baseline_status < 400
+                        and request.status_code is not None
+                        and request.status_code >= 400
+                    )
+                    or (
+                        request.success
+                        and request.redirect_url
+                        and not baseline_request.redirect_url
+                        and any(
+                            p in request.redirect_url.lower()
+                            for p in ["block", "warn", "restrict", "forbidden"]
+                        )
+                    )
+                    or (
+                        request.success
+                        and request_body
+                        and not any(
+                            p in baseline_body.lower()
+                            for p in ["blocked", "forbidden", "restricted"]
+                        )
+                        and any(
+                            p in request_body.lower()
+                            for p in ["blocked", "forbidden", "restricted"]
+                        )
                     )
                 )
 
@@ -523,7 +642,7 @@ class HTTPAnalyzer:
                         f"Header filtering detected for: {header_name} (strong: {strong_indicators}, weak: {weak_indicators})"
                     )
             await asyncio.sleep(0.1)
-        
+
         await self._test_header_case_sensitivity(result, base_url)
         await self._test_custom_header_blocking(result, base_url)
 
@@ -589,6 +708,11 @@ class HTTPAnalyzer:
         self, result: HTTPAnalysisResult, base_url: str
     ):
         """Analyze user agent filtering behavior"""
+        # Guard: Skip if baseline not successful
+        if not any(r.success for r in result.http_requests):
+            self.logger.debug("Skipping UA filtering: baseline not successful")
+            return
+
         self.logger.debug("Analyzing user agent filtering")
         successful_agents = []
         blocked_agents = []
@@ -672,6 +796,9 @@ class HTTPAnalyzer:
             if not mismatch_request.success:
                 result.sni_host_mismatch_blocking = True
                 self.logger.info("SNI-Host mismatch blocking detected")
+        except asyncio.CancelledError:
+            # Don't swallow cancellations to avoid "coroutine ignored GeneratorExit"
+            raise
         except Exception as e:
             self.logger.debug(f"SNI-Host mismatch test failed: {e}")
 
@@ -816,32 +943,39 @@ class HTTPAnalyzer:
     async def _test_keyword_filtering(self, result: HTTPAnalysisResult, base_url: str):
         """Test keyword-based content filtering"""
         blocked_keywords = []
-        for keyword in self.test_content_keywords:
-            test_contents = [
-                keyword,
-                f"This content contains {keyword} word",
-                f"{keyword} at the beginning",
-                f"At the end {keyword}",
-            ]
-            for content in test_contents:
-                request = await self._make_request(
-                    base_url,
-                    "POST",
-                    {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                        "Content-Type": "text/plain",
-                    },
-                    data=content,
-                )
-                result.http_requests.append(request)
-                if not request.success:
-                    if keyword not in blocked_keywords:
-                        blocked_keywords.append(keyword)
-                    result.content_based_blocking = True
-                    self.logger.info(f"Keyword filtering detected: {keyword}")
-                    break
-                await asyncio.sleep(0.05)
-        result.keyword_filtering = blocked_keywords
+        try:
+            for keyword in self.test_content_keywords:
+                test_contents = [
+                    keyword,
+                    f"This content contains {keyword} word",
+                    f"{keyword} at the beginning",
+                    f"At the end {keyword}",
+                ]
+                for content in test_contents:
+                    request = await self._make_request(
+                        base_url,
+                        "POST",
+                        {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                            "Content-Type": "text/plain",
+                        },
+                        data=content,
+                    )
+                    result.http_requests.append(request)
+                    if not request.success:
+                        if keyword not in blocked_keywords:
+                            blocked_keywords.append(keyword)
+                        result.content_based_blocking = True
+                        self.logger.info(f"Keyword filtering detected: {keyword}")
+                        break
+                    await asyncio.sleep(0.05)
+        except asyncio.CancelledError:
+            # Don't swallow cancellations to avoid "coroutine ignored GeneratorExit"
+            raise
+        except Exception as e:
+            self.logger.debug(f"Keyword filtering test failed: {e}")
+        finally:
+            result.keyword_filtering = blocked_keywords
 
     async def _analyze_redirect_injection(
         self, result: HTTPAnalysisResult, base_url: str
@@ -1013,6 +1147,9 @@ class HTTPAnalyzer:
                 if success_count < 3:
                     result.persistent_connection_blocking = True
                     self.logger.info("Persistent connection blocking detected")
+        except asyncio.CancelledError:
+            # Don't swallow cancellations to avoid "coroutine ignored GeneratorExit"
+            raise
         except Exception as e:
             self.logger.debug(f"Persistent connection test failed: {e}")
 
@@ -1115,13 +1252,22 @@ class HTTPAnalyzer:
             await asyncio.sleep(0.1)
 
     async def _make_request(
-        self, url: str, method: str, headers: Dict[str, str],
-        data: Optional[str] = None, allow_redirects: bool = True
+        self,
+        url: str,
+        method: str,
+        headers: Dict[str, str],
+        data: Optional[str] = None,
+        allow_redirects: bool = True,
     ) -> HTTPRequest:
         request = HTTPRequest(
-            timestamp=time.time(), url=url, method=method, headers=headers.copy(),
-            user_agent=headers.get("User-Agent", ""), host_header=headers.get("Host", ""),
-            content_type=headers.get("Content-Type", ""), body=data,
+            timestamp=time.time(),
+            url=url,
+            method=method,
+            headers=headers.copy(),
+            user_agent=headers.get("User-Agent", ""),
+            host_header=headers.get("Host", ""),
+            content_type=headers.get("Content-Type", ""),
+            body=data,
         )
 
         host = self._host_for_url(url, headers)
@@ -1129,17 +1275,26 @@ class HTTPAnalyzer:
 
         try:
             # 1) normal session
-            async with self._open_session(host) as session:
+            session = await self._open_session(host)
+            try:
                 start_time = time.perf_counter()
                 async with session.request(
-                    method, url, headers=headers, data=data, allow_redirects=allow_redirects
+                    method,
+                    url,
+                    headers=headers,
+                    data=data,
+                    allow_redirects=allow_redirects,
                 ) as resp:
                     await self._process_response(request, resp, start_time)
+            finally:
+                await session.close()
             return request
 
         except (aiohttp.ClientConnectorError, socket.gaierror) as e:
             err_details = self._format_exc(e)
-            is_dns_issue = any(w in err_details.lower() for w in ("dns", "getaddrinfo", "no data"))
+            is_dns_issue = any(
+                w in err_details.lower() for w in ("dns", "getaddrinfo", "no data")
+            )
 
             if not (DOH_AVAILABLE and is_dns_issue):
                 request.error_message = err_details
@@ -1158,10 +1313,27 @@ class HTTPAnalyzer:
                     request.error_message = f"DoH fallback failed for {host}"
                     return request
 
-                async with self._open_session(host, pinned_ip=ip) as session:
+                session = await self._open_session(host, pinned_ip=ip)
+                try:
                     start_time = time.perf_counter()
                     async with session.request(
-                        method, url, headers=headers, data=data, allow_redirects=allow_redirects
+                        method,
+                        url,
+                        headers=headers,
+                        data=data,
+                        allow_redirects=allow_redirects,
+                    ) as resp:
+                        await self._process_response(request, resp, start_time)
+                finally:
+                    with contextlib.suppress(Exception):
+                        await session.close()
+                    start_time = time.perf_counter()
+                    async with session.request(
+                        method,
+                        url,
+                        headers=headers,
+                        data=data,
+                        allow_redirects=allow_redirects,
                     ) as resp:
                         await self._process_response(request, resp, start_time)
                 return request
@@ -1193,8 +1365,12 @@ class HTTPAnalyzer:
     ):
         """Process HTTP response and update request object"""
         request.response_time_ms = (time.perf_counter() - start_time) * 1000
-        request.status_code = int(getattr(response, "status", 0)) if hasattr(response, "status") else None
-        request.response_headers = await self._coerce_headers(getattr(response, "headers", {}))
+        request.status_code = (
+            int(getattr(response, "status", 0)) if hasattr(response, "status") else None
+        )
+        request.response_headers = await self._coerce_headers(
+            getattr(response, "headers", {})
+        )
         try:
             txt = await response.text()
         except Exception:
@@ -1202,11 +1378,17 @@ class HTTPAnalyzer:
         request.response_body = await self._coerce_text(txt)
         request.success = True
         if request.status_code in [301, 302, 303, 307, 308]:
-            request.redirect_url = (getattr(response, "headers", {}) or {}).get("location")
+            request.redirect_url = (getattr(response, "headers", {}) or {}).get(
+                "location"
+            )
         if request.response_body:
             modification_indicators = [
-                "blocked", "forbidden", "restricted", "access denied",
-                "this site is blocked", "content filtered",
+                "blocked",
+                "forbidden",
+                "restricted",
+                "access denied",
+                "this site is blocked",
+                "content filtered",
             ]
             response_lower = request.response_body.lower()
             for indicator in modification_indicators:
@@ -1219,53 +1401,53 @@ class HTTPAnalyzer:
         total_tests = len(result.http_requests)
         if total_tests == 0:
             return 0.0
-        
+
         successful_tests = sum(1 for r in result.http_requests if r.success)
         useful_responses = sum(
-            1 for r in result.http_requests
-            if r.success and (
-                r.status_code is not None or
-                r.blocking_method != HTTPBlockingMethod.NONE or
-                r.response_headers or
-                r.redirect_url or
-                r.content_modified
+            1
+            for r in result.http_requests
+            if r.success
+            and (
+                r.status_code is not None
+                or r.blocking_method != HTTPBlockingMethod.NONE
+                or r.response_headers
+                or r.redirect_url
+                or r.content_modified
             )
         )
-        
+
         base_score = (
-            successful_tests / total_tests * 0.5 +
-            useful_responses / total_tests * 0.5
+            successful_tests / total_tests * 0.5 + useful_responses / total_tests * 0.5
         )
-        
+
         analysis_factors = []
-        
+
         if any(r.success or r.status_code for r in result.http_requests):
             analysis_factors.append(1.0)
-        
+
         if result.http_header_filtering or result.filtered_headers:
             analysis_factors.append(1.0)
-        
+
         if result.user_agent_filtering or result.blocked_user_agents:
             analysis_factors.append(1.0)
-        
+
         if result.content_based_blocking or result.keyword_filtering:
             analysis_factors.append(1.0)
-        
+
         if result.redirect_injection or result.http_response_modification:
             analysis_factors.append(0.5)
-        
+
         if result.method_based_blocking or result.http_method_restrictions:
             analysis_factors.append(0.5)
-        
+
         completeness_score = (
-            sum(analysis_factors) / len(analysis_factors)
-            if analysis_factors else 0.0
+            sum(analysis_factors) / len(analysis_factors) if analysis_factors else 0.0
         )
-        
+
         error_penalty = min(0.2, len(result.analysis_errors) * 0.05)
-        
+
         final_score = base_score * 0.7 + completeness_score * 0.3 - error_penalty
-        
+
         return max(0.0, min(1.0, final_score))
 
     async def analyze_packet_stream(
@@ -1388,3 +1570,19 @@ class HTTPAnalyzer:
                     result["reassembly_successful"] = bool(assembled)
                     result["fragmentation_handled"] = True
         return result
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
+
+    async def close(self):
+        # Закрываем все активные сессии под живым лупом
+        sessions = list(getattr(self, "_active_sessions", []))
+        for s in sessions:
+            with contextlib.suppress(Exception):
+                if not s.closed:
+                    await s.close()
+            self._active_sessions.discard(s)
+        self.logger.debug("HTTPAnalyzer cleanup completed")

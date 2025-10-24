@@ -15,7 +15,7 @@ except ImportError:
 from web.bypass_api import BypassEngineAPI
 from web.bypass_dashboard import BypassDashboard
 from core.bypass.strategies.pool_management import StrategyPoolManager
-from core.bypass.attacks.modern_registry import ModernAttackRegistry
+from core.bypass.attacks.attack_registry import AttackRegistry
 from core.bypass.testing.attack_test_suite import ComprehensiveTestSuite
 from core.bypass.validation.reliability_validator import ReliabilityValidator
 
@@ -29,7 +29,7 @@ class BypassWebIntegration:
     def __init__(
         self,
         pool_manager: Optional[StrategyPoolManager] = None,
-        attack_registry: Optional[ModernAttackRegistry] = None,
+        attack_registry: Optional[AttackRegistry] = None,
         test_runner: Optional[ComprehensiveTestSuite] = None,
         reliability_validator: Optional[ReliabilityValidator] = None,
     ):
@@ -48,7 +48,7 @@ class BypassWebIntegration:
             )
         self.logger = logging.getLogger(__name__)
         self.pool_manager = pool_manager or StrategyPoolManager()
-        self.attack_registry = attack_registry or ModernAttackRegistry()
+        self.attack_registry = attack_registry or AttackRegistry()
         self.test_runner = test_runner
         self.reliability_validator = reliability_validator
         self.api = BypassEngineAPI(
@@ -79,7 +79,7 @@ class BypassWebIntegration:
         """Get the pool manager instance."""
         return self.pool_manager
 
-    def get_attack_registry(self) -> ModernAttackRegistry:
+    def get_attack_registry(self) -> AttackRegistry:
         """Get the attack registry instance."""
         return self.attack_registry
 
@@ -110,7 +110,7 @@ def create_bypass_integration(
         from pathlib import Path
 
         registry_path = Path(attack_registry_path) if attack_registry_path else None
-        attack_registry = ModernAttackRegistry(storage_path=registry_path)
+        attack_registry = AttackRegistry(storage_path=registry_path)
         test_runner = None
         reliability_validator = None
         try:
@@ -213,7 +213,7 @@ if __name__ == "__main__":
             print(
                 f"✅ API initialized with {len(api.websockets)} WebSocket connections"
             )
-            dashboard = integration.get_dashboard()
+            _ = integration.get_dashboard()  # Test dashboard access
             print("✅ Dashboard initialized")
             pool_stats = pool_manager.get_pool_statistics()
             attack_stats = attack_registry.get_stats()

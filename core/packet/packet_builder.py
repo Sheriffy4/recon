@@ -6,7 +6,7 @@ Replaces Scapy packet construction functionality.
 import struct
 import socket
 import random
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 from .packet_models import (
     EthernetHeader,
     IPv4Header,

@@ -9,13 +9,13 @@ import time
 import random
 import asyncio
 from typing import List, Dict, Any, Tuple
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 
 
 @register_attack
@@ -33,7 +33,7 @@ class TrafficPatternObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -42,6 +42,15 @@ class TrafficPatternObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute traffic pattern obfuscation attack."""
@@ -373,7 +382,7 @@ class PacketSizeObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -382,6 +391,15 @@ class PacketSizeObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute packet size obfuscation attack."""
@@ -592,7 +610,7 @@ class TimingObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -601,6 +619,15 @@ class TimingObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute timing obfuscation attack."""
@@ -785,7 +812,7 @@ class FlowObfuscationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "protocol_obfuscation"
+        return "payload"
 
     @property
     def description(self) -> str:
@@ -796,6 +823,15 @@ class FlowObfuscationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
+
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute flow obfuscation attack."""

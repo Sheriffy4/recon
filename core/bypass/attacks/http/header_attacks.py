@@ -14,10 +14,19 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 
 
-@register_attack
+@register_attack(
+    name="http_header_case",
+    category="http",
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={"case_strategy": "random", "headers": ["Host", "User-Agent", "Accept"]},
+    aliases=["hostcase"],
+    description="Changes case of HTTP headers to evade DPI"
+)
 class HTTPHeaderCaseAttack(BaseAttack):
     """
     HTTP Header Case Attack - changes case of HTTP headers.
@@ -34,6 +43,17 @@ class HTTPHeaderCaseAttack(BaseAttack):
     @property
     def description(self) -> str:
         return "Changes case of HTTP headers to evade DPI"
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "case_strategy": "random",  # "upper", "lower", "random", "mixed"
+            "headers": ["Host", "User-Agent", "Accept"],  # Headers to modify
+        }
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -137,6 +157,17 @@ class HTTPHeaderOrderAttack(BaseAttack):
         return "Randomizes order of HTTP headers"
 
     @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "randomize_all": True,  # Whether to randomize all headers or just specific ones
+            "preserve_first": True,  # Whether to preserve the first line (request line)
+        }
+
+    @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
@@ -211,6 +242,17 @@ class HTTPHeaderInjectionAttack(BaseAttack):
         return "Injects fake HTTP headers to confuse DPI"
 
     @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "fake_headers": ["X-Forwarded-For: 127.0.0.1", "X-Real-IP: 127.0.0.1"],
+            "injection_position": "before",  # "before" or "after" real headers
+        }
+
+    @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
@@ -269,8 +311,15 @@ class HTTPHeaderInjectionAttack(BaseAttack):
                 latency_ms=(time.time() - start_time) * 1000,
             )
 
-
-@register_attack
+@register_attack(
+    name="http_host_header",
+    category="http",
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={"manipulation_type": "case_change", "fake_host": "example.com"},
+    aliases=["hostdot", "hosttab", "hostspell"],
+    description="Manipulates HTTP Host header to evade DPI"
+)
 class HTTPHostHeaderAttack(BaseAttack):
     """
     HTTP Host Header Attack - manipulates Host header.
@@ -287,6 +336,17 @@ class HTTPHostHeaderAttack(BaseAttack):
     @property
     def description(self) -> str:
         return "Manipulates HTTP Host header to evade DPI"
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "manipulation_type": "case_change",  # "case_change", "duplicate", "fake"
+            "fake_host": "example.com",
+        }
 
     @property
     def supported_protocols(self) -> List[str]:

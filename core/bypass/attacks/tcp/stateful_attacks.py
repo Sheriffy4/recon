@@ -21,13 +21,13 @@ try:
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 
 
 @dataclass
@@ -61,24 +61,30 @@ class FakeDisorderAttack(BaseAttack):
     3. Relying on the target to reassemble correctly while DPI gets confused
     """
 
-    def __init__(self, config: Optional[StatefulAttackConfig] = None):
-        super().__init__()
-        self.config = config or StatefulAttackConfig()
-        self._name = "tcp_fakeddisorder"
-        self._category = "tcp"
-        self._description = "Fake packets + disorder to confuse stateful DPI"
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {}
 
     @property
     def name(self) -> str:
-        return self._name
+        return "tcp_fakeddisorder"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Fake packets + disorder to confuse stateful DPI"
+
+    def __init__(self, config: Optional[StatefulAttackConfig] = None):
+        super().__init__()
+        self.config = config or StatefulAttackConfig()
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute fake disorder attack."""
@@ -218,24 +224,33 @@ class MultiDisorderAttack(BaseAttack):
     stateful DPI systems that have limited connection tracking capacity.
     """
 
-    def __init__(self, config: Optional[StatefulAttackConfig] = None):
-        super().__init__()
-        self.config = config or StatefulAttackConfig()
-        self._name = "tcp_multidisorder"
-        self._category = "tcp"
-        self._description = "Multiple disordered streams to overwhelm stateful DPI"
-
     @property
     def name(self) -> str:
-        return self._name
+        return "tcp_multidisorder"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Multiple disordered streams to overwhelm stateful DPI"
+
+    def __init__(self, config: Optional[StatefulAttackConfig] = None):
+        super().__init__()
+        self.config = config or StatefulAttackConfig()
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "disorder_level": 3,
+            "state_confusion": True,
+            "stream_count": 5
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute multi-disorder attack."""
@@ -358,24 +373,32 @@ class SequenceOverlapAttack(BaseAttack):
     in the TCP stream, confusing stateful DPI systems about the actual content.
     """
 
-    def __init__(self, config: Optional[StatefulAttackConfig] = None):
-        super().__init__()
-        self.config = config or StatefulAttackConfig()
-        self._name = "tcp_seqovl"
-        self._category = "tcp"
-        self._description = "Sequence overlap for TCP stream ambiguity"
-
     @property
     def name(self) -> str:
-        return self._name
+        return "tcp_seqovl"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Sequence overlap for TCP stream ambiguity"
+
+    def __init__(self, config: Optional[StatefulAttackConfig] = None):
+        super().__init__()
+        self.config = config or StatefulAttackConfig()
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "overlap_size": 10,
+            "overlap_method": "aggressive"
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute sequence overlap attack."""
@@ -491,24 +514,33 @@ class TimingManipulationAttack(BaseAttack):
     systems that rely on timing analysis for detection.
     """
 
-    def __init__(self, config: Optional[StatefulAttackConfig] = None):
-        super().__init__()
-        self.config = config or StatefulAttackConfig()
-        self._name = "tcp_timing_manipulation"
-        self._category = "tcp"
-        self._description = "Non-standard timing patterns to confuse stateful DPI"
-
     @property
     def name(self) -> str:
-        return self._name
+        return "tcp_timing_manipulation"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Non-standard timing patterns to confuse stateful DPI"
+
+    def __init__(self, config: Optional[StatefulAttackConfig] = None):
+        super().__init__()
+        self.config = config or StatefulAttackConfig()
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {
+            "timing_jitter": True,
+            "max_jitter_ms": 100,
+            "delay_pattern": "random"
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute timing manipulation attack."""

@@ -6,9 +6,11 @@ import struct
 from typing import Optional, List
 from dataclasses import dataclass
 
+
 @dataclass
 class TlsStructure:
     """Структура TLS ClientHello"""
+
     record_header_end: int = 5
     handshake_header_end: int = 9
     version_end: int = 11
@@ -34,6 +36,7 @@ class TlsStructure:
             positions.append((self.sni_start + self.sni_end) // 2)
         return sorted(set(positions))
 
+
 class TlsAnalyzer:
     """Анализатор TLS пакетов"""
 
@@ -50,7 +53,7 @@ class TlsAnalyzer:
                 pos += 1 + session_id_len
                 structure.session_id_end = pos
             if pos + 2 <= len(payload):
-                cipher_suites_len = struct.unpack('>H', payload[pos:pos+2])[0]
+                cipher_suites_len = struct.unpack(">H", payload[pos : pos + 2])[0]
                 pos += 2 + cipher_suites_len
                 structure.cipher_suites_end = pos
             if pos < len(payload):

@@ -21,7 +21,7 @@ try:
         BypassStrategy,
         DomainRule,
     )
-    from core.bypass.attacks.modern_registry import ModernAttackRegistry
+    from core.bypass.attacks.attack_registry import AttackRegistry
 except ImportError:
     import sys
     import os
@@ -31,10 +31,10 @@ except ImportError:
     from pool_management import StrategyPool, StrategyPoolManager, BypassStrategy
 
     try:
-        from modern_registry import ModernAttackRegistry
+        from attack_registry import AttackRegistry
     except ImportError:
 
-        class ModernAttackRegistry:
+        class AttackRegistry:
 
             def get_attack_definition(self, attack_id):
                 return None
@@ -130,7 +130,7 @@ class EnhancedStrategySelector:
     def __init__(
         self,
         pool_manager: StrategyPoolManager,
-        attack_registry: ModernAttackRegistry,
+        attack_registry: AttackRegistry,
         user_preferences_path: str = "recon/best_strategy.json",
     ):
         self.pool_manager = pool_manager

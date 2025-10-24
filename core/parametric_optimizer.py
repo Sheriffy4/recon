@@ -1,6 +1,6 @@
 import random
-import asyncio
 from typing import List, Dict, Any, Optional
+
 
 class ParametricOptimizer:
     """
@@ -72,7 +72,7 @@ class ParametricOptimizer:
             dns_cache=self.dns_cache,
             port=self.port,
             domain=next(iter(self.dns_cache.keys())),
-            strategy_evaluation_mode=True # Signal to engine to return raw score
+            strategy_evaluation_mode=True,  # Signal to engine to return raw score
         )
         if not results:
             return 0.0
@@ -86,7 +86,9 @@ class ParametricOptimizer:
             return await self._random_search()
         elif self.optimization_strategy == "bayesian":
             # Placeholder for a more advanced optimization method
-            print("Bayesian optimization is not yet implemented. Falling back to random search.")
+            print(
+                "Bayesian optimization is not yet implemented. Falling back to random search."
+            )
             return await self._random_search()
         else:
             print(f"Unknown optimization strategy: {self.optimization_strategy}")

@@ -14,14 +14,14 @@ import logging
 import threading
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.combo.advanced_traffic_profiler import (
     AdvancedTrafficProfiler,
     TrafficSignature,
@@ -108,6 +108,19 @@ class MultiFlowCorrelationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "background_flows_count": 3,
+            "background_duration_range": (30.0, 120.0),
+            "pre_attack_delay": 5.0,
+            "post_attack_delay": 10.0,
+        }
+    
     async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute multi-flow correlation attack.
@@ -333,7 +346,6 @@ class MultiFlowCorrelationAttack(BaseAttack):
             IP address (or domain if resolution fails)
         """
         try:
-            import socket
 
             loop = asyncio.get_event_loop()
             return (await loop.getaddrinfo(domain, None))[0][4][0]
@@ -645,6 +657,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
     def _register_default_profiles(self):
         """Register default traffic profiles."""
         from core.bypass.attacks.combo.traffic_profiles import (
+
             ZoomTrafficProfile,
             TelegramTrafficProfile,
             WhatsAppTrafficProfile,

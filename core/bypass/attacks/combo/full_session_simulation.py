@@ -25,7 +25,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 from core.dns.robust_dns_handler import RobustDNSHandler
 
 LOG = logging.getLogger(__name__)
@@ -131,6 +131,21 @@ class FullSessionSimulationAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "simulate_dns": True,
+            "simulate_tcp_handshake": True,
+            "simulate_tls_handshake": True,
+            "simulate_keep_alive": True,
+            "simulate_teardown": True,
+            "browser_type": "chrome",
+        }
+    
     async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute full session simulation attack with maximum realism.

@@ -67,7 +67,7 @@ class BypassStrategy:
             "type": self.attacks[0] if self.attacks else "fakeddisorder",
             "params": self.parameters.copy(),
             "no_fallbacks": True,
-            "forced": True
+            "forced": True,
         }
         return native_format
 

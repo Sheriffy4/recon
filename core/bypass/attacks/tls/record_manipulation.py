@@ -8,15 +8,15 @@ Migrated and unified from:
 
 import time
 import struct
-from typing import List
+from typing import List, Dict, Any
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
-
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
@@ -34,7 +34,15 @@ def _safe_create_result(status_name: str, **kwargs):
             return None
 
 
-@register_attack
+@register_attack(
+    name="tlsrec_split",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={"split_pos": 5},
+    aliases=["tlsrec"],
+    description="Splits one TLS record into two separate records"
+)
 class TLSRecordSplitAttack(BaseAttack):
     """
     TLS Record Split Attack - splits one TLS record into two.
@@ -59,6 +67,18 @@ class TLSRecordSplitAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        return {
+            "split_pos": 5
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS record split attack."""
@@ -128,6 +148,18 @@ class TLSRecordPaddingAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        return {
+            "padding_size": 16
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS record padding attack."""

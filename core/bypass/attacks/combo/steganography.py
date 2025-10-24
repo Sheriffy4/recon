@@ -15,7 +15,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 @register_attack
@@ -36,6 +36,14 @@ class ImageSteganographyAttack(BaseAttack):
     def description(self) -> str:
         return "Hides data within fake image file headers"
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"image_format": "png", "steganography_method": "lsb"}
+    
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
@@ -249,6 +257,14 @@ class TCPTimestampSteganographyAttack(BaseAttack):
         return "Hides data in TCP timestamp option fields"
 
     @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"encoding_method": "sequential", "timestamp_base": int(time.time())}
+    
+    @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
@@ -426,6 +442,14 @@ class IPIDSteganographyAttack(BaseAttack):
     def description(self) -> str:
         return "Hides data in IP identification header fields"
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"encoding_method": "sequential", "base_id": random.randint(1000, 60000)}
+    
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
@@ -609,6 +633,14 @@ class CombinedFieldSteganographyAttack(BaseAttack):
         return "Combines TCP timestamp, IP ID, and other fields for steganography"
 
     @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"fields": ["ip_id", "tcp_timestamp", "tcp_seq"], "redundancy": False}
+    
+    @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
 
@@ -787,6 +819,14 @@ class NetworkProtocolSteganographyAttack(BaseAttack):
     def description(self) -> str:
         return "Hides data in network protocol header fields"
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"protocol": "tcp", "steganography_fields": ["id", "flags"]}
+    
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
@@ -1023,6 +1063,14 @@ class TimingChannelSteganographyAttack(BaseAttack):
         return "Encodes data using timing patterns between packets"
 
     @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"encoding_method": "binary", "base_delay": 100, "bit_delay": 50}
+    
+    @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
 
@@ -1208,6 +1256,17 @@ class CovertChannelComboAttack(BaseAttack):
     def description(self) -> str:
         return "Combines multiple covert channel techniques for data hiding"
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "channels": ["timing", "protocol_fields", "payload_lsb"],
+            "redundancy_level": 1,
+        }
+    
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
@@ -1521,6 +1580,18 @@ class AdvancedImageSteganographyAttack(BaseAttack):
         return "Advanced image steganography with real LSB pixel manipulation"
 
     @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "image_format": "png",
+            "steganography_method": "lsb",
+            "image_size": (100, 100),
+        }
+    
+    @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "http"]
 
@@ -1726,6 +1797,14 @@ class AdvancedProtocolFieldSteganographyAttack(BaseAttack):
     def description(self) -> str:
         return "Advanced protocol field steganography with real field manipulation"
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"protocol": "tcp", "fields": ["id", "seq", "timestamp"], "encoding": "direct"}
+    
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp", "ip"]
@@ -1997,6 +2076,19 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
         return "Advanced timing channel steganography with precise timing control"
 
     @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "encoding_method": "binary",
+            "base_delay": 100,
+            "bit_delay": 50,
+            "precision": "high",
+        }
+    
+    @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
 
@@ -2181,4 +2273,4 @@ class AdvancedTimingChannelSteganographyAttack(BaseAttack):
         """Generate zapret command for timing channel steganography."""
         method = params.get("encoding_method", "binary") if params else "binary"
         base_delay = params.get("base_delay", 100) if params else 100
-        return f"# Timing channel steganography (method: {method}):\n# Use custom timing with base delay {base_delay}ms\n# zapret --delay {base_delay} --timing-variation\n# Requires precise timing control not available in zapret"
+        return f"# Timing channel steganography (method: {method}):\n# Use custom packet timing with base delay {base_delay}ms\n# zapret --delay {base_delay} --timing-variation\n# Requires precise timing control not available in zapret"

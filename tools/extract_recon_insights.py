@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from typing import Dict, Any
 from datetime import datetime
 
 try:
     from scapy.all import rdpcap, TCP, Raw, IP
+
     SCAPY_AVAILABLE = True
 except Exception:
     SCAPY_AVAILABLE = False
+
 
 def analyze_pcap(pcap_path: str) -> Dict[str, Any]:
     if not SCAPY_AVAILABLE:
@@ -27,12 +29,15 @@ def analyze_pcap(pcap_path: str) -> Dict[str, Any]:
     }
     for p in pkts:
         try:
-            if not p.haslayer(TCP): continue
+            if not p.haslayer(TCP):
+                continue
             tcp = p[TCP]
             ip = p[IP] if p.haslayer(IP) else None
             dst_ip = ip.dst if ip else None
-            if dst_ip: stats["top_dst_ips"][dst_ip] += 1
-            if ip and hasattr(ip, "ttl"): stats["ttl_histogram"][ip.ttl] += 1
+            if dst_ip:
+                stats["top_dst_ips"][dst_ip] += 1
+            if ip and hasattr(ip, "ttl"):
+                stats["ttl_histogram"][ip.ttl] += 1
             if tcp.flags & 0x02 and not (tcp.flags & 0x10):  # SYN w/o ACK
                 stats["syn_packets"] += 1
             if tcp.dport == 443 or tcp.sport == 443:
@@ -53,6 +58,7 @@ def analyze_pcap(pcap_path: str) -> Dict[str, Any]:
     stats["ttl_histogram"] = dict(stats["ttl_histogram"].most_common())
     return stats
 
+
 def analyze_json(report_path: str) -> Dict[str, Any]:
     try:
         with open(report_path, "r", encoding="utf-8") as f:
@@ -70,13 +76,18 @@ def analyze_json(report_path: str) -> Dict[str, Any]:
     out["domains"] = data.get("domains", {})
     # Extract top strategies by success
     all_results = data.get("all_results", [])
-    top = sorted(all_results, key=lambda x: (x.get("success_rate", 0), -x.get("avg_latency_ms", 0)), reverse=True)[:10]
+    top = sorted(
+        all_results,
+        key=lambda x: (x.get("success_rate", 0), -x.get("avg_latency_ms", 0)),
+        reverse=True,
+    )[:10]
     out["top_strategies"] = [
         {
             "strategy": r.get("strategy"),
             "success_rate": r.get("success_rate"),
-            "avg_latency_ms": r.get("avg_latency_ms")
-        } for r in top
+            "avg_latency_ms": r.get("avg_latency_ms"),
+        }
+        for r in top
     ]
     # Basic fingerprint summary if present
     fps = data.get("fingerprints", {})
@@ -96,8 +107,11 @@ def analyze_json(report_path: str) -> Dict[str, Any]:
     out["fingerprints"] = fp_summary
     return out
 
+
 def main():
-    ap = argparse.ArgumentParser(description="Extract key insights from PCAP and recon JSON report")
+    ap = argparse.ArgumentParser(
+        description="Extract key insights from PCAP and recon JSON report"
+    )
     ap.add_argument("--pcap", required=False, help="Path to PCAP file")
     ap.add_argument("--report", required=True, help="Path to recon JSON report")
     ap.add_argument("--out", required=False, help="Save insights JSON to file")
@@ -114,6 +128,7 @@ def main():
         print(f"Insights saved to {args.out}")
     else:
         print(json.dumps(insights, indent=2, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     main()

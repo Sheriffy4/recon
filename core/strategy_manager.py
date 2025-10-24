@@ -141,7 +141,12 @@ class StrategyManager:
             self.logger.error(f"Failed to save legacy format: {e}")
 
     def add_strategy(
-        self, domain: str, strategy: str, success_rate: float, avg_latency_ms: float, **kwargs
+        self,
+        domain: str,
+        strategy: str,
+        success_rate: float,
+        avg_latency_ms: float,
+        **kwargs,
     ):
         """Добавляет или обновляет стратегию для домена, включая микропараметры."""
         domain = domain.lower().strip()
@@ -157,7 +162,9 @@ class StrategyManager:
             # Update micro-parameters
             existing.split_pos = kwargs.get("split_pos", existing.split_pos)
             existing.overlap_size = kwargs.get("overlap_size", existing.overlap_size)
-            existing.fake_ttl_source = kwargs.get("fake_ttl_source", existing.fake_ttl_source)
+            existing.fake_ttl_source = kwargs.get(
+                "fake_ttl_source", existing.fake_ttl_source
+            )
             existing.fooling_modes = kwargs.get("fooling_modes", existing.fooling_modes)
         else:
             # Создаем новую стратегию
@@ -174,7 +181,9 @@ class StrategyManager:
                 fooling_modes=kwargs.get("fooling_modes"),
             )
 
-        self.logger.info(f"Added/updated strategy for {domain}: {strategy} with params {kwargs}")
+        self.logger.info(
+            f"Added/updated strategy for {domain}: {strategy} with params {kwargs}"
+        )
 
     def get_strategy(self, domain: str) -> Optional[DomainStrategy]:
         """Получает стратегию для домена."""

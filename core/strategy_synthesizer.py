@@ -11,7 +11,8 @@ except Exception:
     TLSParser = None
 
 try:
-    from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
+    # Placeholder for future CDN ASN knowledge base import
+    CdnAsnKnowledgeBase = None
 except Exception:
     CdnAsnKnowledgeBase = None
 
@@ -40,7 +41,9 @@ class StrategySynthesizer:
 
     def __init__(self):
         self.kb = CdnAsnKnowledgeBase() if (CdnAsnKnowledgeBase is not None) else None
-        self.fooling_selector = FoolingSelector() if (FoolingSelector is not None) else None
+        self.fooling_selector = (
+            FoolingSelector() if (FoolingSelector is not None) else None
+        )
 
     def _auto_split_pos(self, ch: Optional[bytes]) -> Optional[int]:
         if not ch or TLSParser is None:
@@ -61,7 +64,10 @@ class StrategySynthesizer:
                 return None
             best = ctx.kb_profile.get("best_fakeddisorder")
             if best and all(k in best for k in ("split_pos", "overlap_size")):
-                return {"split_pos": int(best["split_pos"]), "overlap_size": int(best["overlap_size"])}
+                return {
+                    "split_pos": int(best["split_pos"]),
+                    "overlap_size": int(best["overlap_size"]),
+                }
         except Exception:
             pass
         return None
@@ -101,8 +107,8 @@ class StrategySynthesizer:
                     "ttl": ttl,
                     "split_pos": "midsld",  # пусть движок сам вычислит позицию
                     "fooling": fool,
-                    "delay_ms": 3
-                }
+                    "delay_ms": 3,
+                },
             }
 
         # 2) База: fakeddisorder с auto/midsld
@@ -142,17 +148,13 @@ class StrategySynthesizer:
                 "overlap_size": overlap,
                 "ttl": 2 if profile == "robust" else 1,
                 "fooling": fooling_list,
-            }
+            },
         }
 
         # Для некоторых CDN отдаём multisplit в speedy
         if profile == "speedy" and cdn in ("cloudflare", "akamai"):
             task = {
                 "type": "multisplit",
-                "params": {
-                    "positions": [2, 7, 15],
-                    "ttl": 2,
-                    "fooling": fooling_list
-                }
+                "params": {"positions": [2, 7, 15], "ttl": 2, "fooling": fooling_list},
             }
         return task

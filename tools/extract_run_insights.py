@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 import json
-import sys
 import os
 import argparse
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime
 
 try:
     from scapy.all import rdpcap, TCP, Raw
+
     SCAPY = True
 except Exception:
     SCAPY = False
+
 
 def analyze_pcap(pcap_path: str) -> dict:
     out = {
@@ -21,7 +22,7 @@ def analyze_pcap(pcap_path: str) -> dict:
         "tcp_rst": 0,
         "ttl_histogram": {},
         "top_dst_ips": [],
-        "syn_packets": 0
+        "syn_packets": 0,
     }
     if not SCAPY or not os.path.exists(pcap_path):
         return out
@@ -38,15 +39,15 @@ def analyze_pcap(pcap_path: str) -> dict:
     for p in pkts:
         total += 1
         try:
-            ttl = int(p.ttl) if hasattr(p, 'ttl') else None
+            ttl = int(p.ttl) if hasattr(p, "ttl") else None
             if ttl is not None:
                 ttl_counter[ttl] += 1
         except Exception:
             pass
         try:
-            daddr = getattr(p, 'dst', None)
-            dport = int(getattr(p, 'dport', 0))
-            sport = int(getattr(p, 'sport', 0))
+            daddr = getattr(p, "dst", None)
+            dport = int(getattr(p, "dport", 0))
+            sport = int(getattr(p, "sport", 0))
             if daddr:
                 dst_counter[daddr] += 1
             if TCP in p and dport == 443:
@@ -75,6 +76,7 @@ def analyze_pcap(pcap_path: str) -> dict:
     out["top_dst_ips"] = dst_counter.most_common(10)
     return out
 
+
 def analyze_report(report_path: str) -> dict:
     if not os.path.exists(report_path):
         return {}
@@ -92,14 +94,22 @@ def analyze_report(report_path: str) -> dict:
     }
     # Соберем top стратегий из all_results
     results = data.get("all_results", [])
-    results_sorted = sorted(results, key=lambda r: (r.get("success_rate", 0), -r.get("avg_latency_ms", 0)), reverse=True)
-    out["top_strategies"] = [{
-        "strategy": r.get("strategy"),
-        "success_rate": r.get("success_rate"),
-        "avg_latency_ms": r.get("avg_latency_ms"),
-        "status": r.get("result_status")
-    } for r in results_sorted[:10]]
+    results_sorted = sorted(
+        results,
+        key=lambda r: (r.get("success_rate", 0), -r.get("avg_latency_ms", 0)),
+        reverse=True,
+    )
+    out["top_strategies"] = [
+        {
+            "strategy": r.get("strategy"),
+            "success_rate": r.get("success_rate"),
+            "avg_latency_ms": r.get("avg_latency_ms"),
+            "status": r.get("result_status"),
+        }
+        for r in results_sorted[:10]
+    ]
     return out
+
 
 def main():
     ap = argparse.ArgumentParser("extract_run_insights")
@@ -121,6 +131,7 @@ def main():
         with open(args.save, "w", encoding="utf-8") as f:
             json.dump(merged, f, indent=2, ensure_ascii=False)
         print(f"[OK] saved to {args.save}")
+
 
 if __name__ == "__main__":
     main()

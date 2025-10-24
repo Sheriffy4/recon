@@ -9,7 +9,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 try:
     from scapy.all import IP, TCP, Raw, send, sr1
@@ -29,24 +29,30 @@ class DripFeedAttack(BaseAttack):
     or that timeout on slow connections.
     """
 
+
+    @property
+    def required_params(self) -> list:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {}
+
     def __init__(self, config: Optional[RaceAttackConfig] = None):
         super().__init__()
         self.config = config or RaceAttackConfig()
-        self._name = "drip_feed"
-        self._category = "tcp"
-        self._description = "Gradual data transmission to bypass rate-based DPI"
 
     @property
     def name(self) -> str:
-        return self._name
+        return "drip_feed"
 
     @property
     def category(self) -> str:
-        return self._category
+        return "tcp"
 
     @property
     def description(self) -> str:
-        return self._description
+        return "Gradual data transmission to bypass rate-based DPI"
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute drip feed attack."""

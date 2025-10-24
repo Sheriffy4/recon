@@ -7,49 +7,49 @@
 import json
 import sys
 import subprocess
-import time
 from pathlib import Path
 
 
 class StrategyApplier:
     """Применяет улучшенные стратегии обхода."""
-    
+
     def __init__(self):
         self.improved_strategies_file = "improved_strategies.json"
         self.current_strategies_file = "strategies.json"
         self.backup_file = "strategies_backup.json"
-        
+
     def load_improved_strategies(self):
         """Загружает улучшенные стратегии."""
         try:
-            with open(self.improved_strategies_file, 'r', encoding='utf-8') as f:
+            with open(self.improved_strategies_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             print(f"❌ Ошибка загрузки улучшенных стратегий: {e}")
             return None
-    
+
     def backup_current_strategies(self):
         """Создает резервную копию текущих стратегий."""
         try:
             if Path(self.current_strategies_file).exists():
                 import shutil
+
                 shutil.copy2(self.current_strategies_file, self.backup_file)
                 print(f"✅ Резервная копия создана: {self.backup_file}")
                 return True
         except Exception as e:
             print(f"❌ Ошибка создания резервной копии: {e}")
         return False
-    
+
     def convert_to_zapret_format(self, improved_strategies):
         """Конвертирует улучшенные стратегии в формат zapret."""
         zapret_strategies = {}
-        
-        strategies = improved_strategies.get('strategies', {})
-        
+
+        strategies = improved_strategies.get("strategies", {})
+
         for domain, config in strategies.items():
-            primary = config.get('primary')
-            params = config.get('params', {})
-            
+            primary = config.get("primary")
+            params = config.get("params", {})
+
             # Конвертируем в строку zapret
             if primary == "aggressive_multisplit":
                 strategy_str = (
@@ -61,7 +61,7 @@ class StrategyApplier:
                     f"--dpi-desync-repeats={params.get('repeats', 3)} "
                     f"{params.get('extra_options', '')}"
                 )
-            
+
             elif primary == "fake_disorder_combo":
                 strategy_str = (
                     f"--dpi-desync=fake,disorder "
@@ -71,7 +71,7 @@ class StrategyApplier:
                     f"--dpi-desync-repeats={params.get('repeats', 2)} "
                     f"{params.get('extra_options', '')}"
                 )
-            
+
             elif primary == "ip_fragmentation":
                 strategy_str = (
                     f"--dpi-desync=multisplit "
@@ -80,7 +80,7 @@ class StrategyApplier:
                     f"--dpi-desync-fooling={params.get('fooling', 'badsum')} "
                     f"{params.get('extra_options', '')}"
                 )
-            
+
             elif primary == "stealth_bypass":
                 strategy_str = (
                     f"--dpi-desync=fake,multisplit "
@@ -90,7 +90,7 @@ class StrategyApplier:
                     f"--dpi-desync-fooling={params.get('fooling', 'badseq')} "
                     f"{params.get('extra_options', '')}"
                 )
-            
+
             elif primary == "ultra_aggressive":
                 strategy_str = (
                     f"--dpi-desync=fake,multisplit,disorder "
@@ -101,163 +101,177 @@ class StrategyApplier:
                     f"--dpi-desync-repeats={params.get('repeats', 4)} "
                     f"{params.get('extra_options', '')}"
                 )
-            
+
             else:
                 # Fallback к базовой стратегии
                 strategy_str = (
-                    f"--dpi-desync=multisplit "
-                    f"--dpi-desync-split-count=10 "
-                    f"--dpi-desync-fooling=badsum "
-                    f"--dpi-desync-ttl=2"
+                    "--dpi-desync=multisplit "
+                    "--dpi-desync-split-count=10 "
+                    "--dpi-desync-fooling=badsum "
+                    "--dpi-desync-ttl=2"
                 )
-            
+
             # Очищаем лишние пробелы
-            strategy_str = ' '.join(strategy_str.split())
+            strategy_str = " ".join(strategy_str.split())
             zapret_strategies[domain] = strategy_str
-        
+
         return zapret_strategies
-    
+
     def save_zapret_strategies(self, zapret_strategies):
         """Сохраняет стратегии в формате zapret."""
         try:
-            with open(self.current_strategies_file, 'w', encoding='utf-8') as f:
+            with open(self.current_strategies_file, "w", encoding="utf-8") as f:
                 json.dump(zapret_strategies, f, indent=2, ensure_ascii=False)
             print(f"✅ Стратегии сохранены в {self.current_strategies_file}")
             return True
         except Exception as e:
             print(f"❌ Ошибка сохранения стратегий: {e}")
             return False
-    
+
     def show_strategy_comparison(self, old_strategies, new_strategies):
         """Показывает сравнение старых и новых стратегий."""
-        print(f"\n📊 === Сравнение стратегий ===")
-        
+        print("\n📊 === Сравнение стратегий ===")
+
         all_domains = set(old_strategies.keys()) | set(new_strategies.keys())
-        
+
         for domain in sorted(all_domains):
             print(f"\n🌐 {domain}:")
-            
+
             if domain in old_strategies:
-                old_strategy = old_strategies[domain][:80] + "..." if len(old_strategies[domain]) > 80 else old_strategies[domain]
+                old_strategy = (
+                    old_strategies[domain][:80] + "..."
+                    if len(old_strategies[domain]) > 80
+                    else old_strategies[domain]
+                )
                 print(f"  📜 Старая: {old_strategy}")
             else:
-                print(f"  📜 Старая: Не настроена")
-            
+                print("  📜 Старая: Не настроена")
+
             if domain in new_strategies:
-                new_strategy = new_strategies[domain][:80] + "..." if len(new_strategies[domain]) > 80 else new_strategies[domain]
+                new_strategy = (
+                    new_strategies[domain][:80] + "..."
+                    if len(new_strategies[domain]) > 80
+                    else new_strategies[domain]
+                )
                 print(f"  🆕 Новая:  {new_strategy}")
             else:
-                print(f"  🆕 Новая:  Не настроена")
-    
+                print("  🆕 Новая:  Не настроена")
+
     def test_strategies(self, domains):
         """Тестирует новые стратегии."""
-        print(f"\n🧪 === Тестирование новых стратегий ===")
-        
+        print("\n🧪 === Тестирование новых стратегий ===")
+
         for domain in domains[:3]:  # Тестируем первые 3 домена
             print(f"\n🔍 Тестирование {domain}...")
-            
+
             try:
                 # Используем простой CLI для тестирования
-                result = subprocess.run([
-                    sys.executable, "simple_cli.py", "check", domain
-                ], capture_output=True, text=True, timeout=10)
-                
+                result = subprocess.run(
+                    [sys.executable, "simple_cli.py", "check", domain],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+
                 if result.returncode == 0:
-                    print(f"  ✅ Тест пройден")
+                    print("  ✅ Тест пройден")
                 else:
-                    print(f"  ⚠️  Тест с предупреждениями")
-                    
+                    print("  ⚠️  Тест с предупреждениями")
+
             except subprocess.TimeoutExpired:
-                print(f"  ⏱️ Таймаут теста")
+                print("  ⏱️ Таймаут теста")
             except Exception as e:
                 print(f"  ❌ Ошибка теста: {e}")
-    
+
     def apply_strategies(self):
         """Применяет улучшенные стратегии."""
-        print(f"🚀 === Применение улучшенных стратегий ===")
-        print(f"На основе анализа notwork.pcap\n")
-        
+        print("🚀 === Применение улучшенных стратегий ===")
+        print("На основе анализа notwork.pcap\n")
+
         # 1. Загружаем улучшенные стратегии
         improved = self.load_improved_strategies()
         if not improved:
             return False
-        
-        print(f"✅ Загружены улучшенные стратегии (версия {improved.get('version', 'unknown')})")
-        
+
+        print(
+            f"✅ Загружены улучшенные стратегии (версия {improved.get('version', 'unknown')})"
+        )
+
         # 2. Создаем резервную копию
         if not self.backup_current_strategies():
-            print(f"⚠️  Продолжаем без резервной копии")
-        
+            print("⚠️  Продолжаем без резервной копии")
+
         # 3. Загружаем текущие стратегии для сравнения
         old_strategies = {}
         try:
             if Path(self.current_strategies_file).exists():
-                with open(self.current_strategies_file, 'r', encoding='utf-8') as f:
+                with open(self.current_strategies_file, "r", encoding="utf-8") as f:
                     old_strategies = json.load(f)
         except:
             pass
-        
+
         # 4. Конвертируем в формат zapret
         new_strategies = self.convert_to_zapret_format(improved)
-        
+
         # 5. Показываем сравнение
         self.show_strategy_comparison(old_strategies, new_strategies)
-        
+
         # 6. Спрашиваем подтверждение
-        print(f"\n❓ Применить новые стратегии? (y/N): ", end='')
+        print("\n❓ Применить новые стратегии? (y/N): ", end="")
         try:
             response = input().strip().lower()
-            if response not in ['y', 'yes', 'да']:
-                print(f"❌ Применение отменено")
+            if response not in ["y", "yes", "да"]:
+                print("❌ Применение отменено")
                 return False
         except KeyboardInterrupt:
-            print(f"\n❌ Прервано пользователем")
+            print("\n❌ Прервано пользователем")
             return False
-        
+
         # 7. Сохраняем новые стратегии
         if not self.save_zapret_strategies(new_strategies):
             return False
-        
+
         # 8. Тестируем стратегии
-        test_domains = improved.get('testing_domains', ['x.com', 'instagram.com'])
+        test_domains = improved.get("testing_domains", ["x.com", "instagram.com"])
         self.test_strategies(test_domains)
-        
-        print(f"\n✅ Улучшенные стратегии применены успешно!")
-        print(f"\n🔄 Для применения изменений:")
-        print(f"  1. Перезапустите службу обхода")
-        print(f"  2. Протестируйте доступ к сайтам")
-        print(f"  3. Захватите новый PCAP для анализа")
-        
+
+        print("\n✅ Улучшенные стратегии применены успешно!")
+        print("\n🔄 Для применения изменений:")
+        print("  1. Перезапустите службу обхода")
+        print("  2. Протестируйте доступ к сайтам")
+        print("  3. Захватите новый PCAP для анализа")
+
         return True
-    
+
     def restore_backup(self):
         """Восстанавливает стратегии из резервной копии."""
         try:
             if Path(self.backup_file).exists():
                 import shutil
+
                 shutil.copy2(self.backup_file, self.current_strategies_file)
-                print(f"✅ Стратегии восстановлены из резервной копии")
+                print("✅ Стратегии восстановлены из резервной копии")
                 return True
             else:
-                print(f"❌ Резервная копия не найдена")
+                print("❌ Резервная копия не найдена")
                 return False
         except Exception as e:
             print(f"❌ Ошибка восстановления: {e}")
             return False
-    
+
     def show_current_strategies(self):
         """Показывает текущие стратегии."""
         try:
             if Path(self.current_strategies_file).exists():
-                with open(self.current_strategies_file, 'r', encoding='utf-8') as f:
+                with open(self.current_strategies_file, "r", encoding="utf-8") as f:
                     strategies = json.load(f)
-                
-                print(f"\n📋 === Текущие стратегии ===")
+
+                print("\n📋 === Текущие стратегии ===")
                 for domain, strategy in strategies.items():
                     print(f"🌐 {domain}:")
                     print(f"  {strategy}")
             else:
-                print(f"❌ Файл стратегий не найден")
+                print("❌ Файл стратегий не найден")
         except Exception as e:
             print(f"❌ Ошибка чтения стратегий: {e}")
 
@@ -265,47 +279,47 @@ class StrategyApplier:
 def main():
     """Главная функция."""
     applier = StrategyApplier()
-    
+
     if len(sys.argv) > 1:
         command = sys.argv[1].lower()
-        
-        if command == 'apply':
+
+        if command == "apply":
             applier.apply_strategies()
-        elif command == 'restore':
+        elif command == "restore":
             applier.restore_backup()
-        elif command == 'show':
+        elif command == "show":
             applier.show_current_strategies()
         else:
             print(f"❌ Неизвестная команда: {command}")
-            print(f"Доступные команды: apply, restore, show")
+            print("Доступные команды: apply, restore, show")
     else:
         # Интерактивный режим
-        print(f"🛠️ Менеджер стратегий обхода")
-        print(f"На основе анализа notwork.pcap\n")
-        
-        print(f"Выберите действие:")
-        print(f"1. Применить улучшенные стратегии")
-        print(f"2. Показать текущие стратегии")
-        print(f"3. Восстановить из резервной копии")
-        print(f"4. Выход")
-        
+        print("🛠️ Менеджер стратегий обхода")
+        print("На основе анализа notwork.pcap\n")
+
+        print("Выберите действие:")
+        print("1. Применить улучшенные стратегии")
+        print("2. Показать текущие стратегии")
+        print("3. Восстановить из резервной копии")
+        print("4. Выход")
+
         try:
-            choice = input(f"\nВведите номер (1-4): ").strip()
-            
-            if choice == '1':
+            choice = input("\nВведите номер (1-4): ").strip()
+
+            if choice == "1":
                 applier.apply_strategies()
-            elif choice == '2':
+            elif choice == "2":
                 applier.show_current_strategies()
-            elif choice == '3':
+            elif choice == "3":
                 applier.restore_backup()
-            elif choice == '4':
-                print(f"Выход")
+            elif choice == "4":
+                print("Выход")
             else:
-                print(f"❌ Неверный выбор")
-        
+                print("❌ Неверный выбор")
+
         except KeyboardInterrupt:
-            print(f"\n❌ Прервано пользователем")
+            print("\n❌ Прервано пользователем")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

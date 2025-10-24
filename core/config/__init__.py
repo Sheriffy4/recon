@@ -13,13 +13,13 @@ from .strategy_config_manager import (
     StrategyConfiguration,
     StrategyRule,
     StrategyMetadata,
-    ConfigurationError
+    ConfigurationError,
 )
 
 __all__ = [
-    'StrategyConfigManager',
-    'StrategyConfiguration', 
-    'StrategyRule',
-    'StrategyMetadata',
-    'ConfigurationError'
+    "StrategyConfigManager",
+    "StrategyConfiguration",
+    "StrategyRule",
+    "StrategyMetadata",
+    "ConfigurationError",
 ]

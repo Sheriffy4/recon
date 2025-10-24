@@ -1,3 +1,5 @@
+# core/bypass/attacks/combo/adaptive_combo.py
+
 """
 Adaptive Combo Attacks
 
@@ -8,6 +10,7 @@ Now uses real effectiveness testing instead of simulations.
 import time
 import random
 import hashlib
+from core.bypass.attacks.attack_registry import register_attack
 from typing import List, Dict, Any, Optional
 from core.bypass.attacks.base import (
     BaseAttack,
@@ -15,7 +18,6 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 from core.bypass.attacks.real_effectiveness_tester import (
     RealEffectivenessTester,
     EffectivenessResult,
@@ -43,6 +45,17 @@ class DPIResponseAdaptiveAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {
+            "max_iterations": 3,
+            "detection_threshold": 0.7,
+        }
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute DPI response adaptive attack with real effectiveness testing."""
@@ -186,14 +199,20 @@ class DPIResponseAdaptiveAttack(BaseAttack):
             ]
         elif detection_score > 0.5:
             strategies = [
-                {"name": "obfuscation", "params": {"type": "xor", "no_fallbacks": True, "forced": True}},
+                {
+                    "name": "obfuscation",
+                    "params": {"type": "xor", "no_fallbacks": True, "forced": True},
+                },
                 {"name": "segmentation", "params": {"size": 32}},
                 {"name": "timing_variation", "params": {"max_delay": 100}},
             ]
         else:
             strategies = [
                 {"name": "segmentation", "params": {"size": 64}},
-                {"name": "case_manipulation", "params": {"type": "random", "no_fallbacks": True, "forced": True}},
+                {
+                    "name": "case_manipulation",
+                    "params": {"type": "random", "no_fallbacks": True, "forced": True},
+                },
             ]
         available_strategies = [
             s for s in strategies if s["name"] not in state["techniques_tried"]
@@ -326,6 +345,14 @@ class NetworkConditionAdaptiveAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute network condition adaptive attack with real network measurement."""
@@ -577,6 +604,14 @@ class LearningAdaptiveAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        return {"learning_rate": 0.1}
+
     def __init__(self):
         super().__init__()
         from core.bypass.attacks.learning_memory import LearningMemory
@@ -800,6 +835,7 @@ class LearningAdaptiveAttack(BaseAttack):
             )
             if strategy.get("confidence", 0.5) > 0.7:
                 from core.bypass.attacks.learning_memory import AdaptationRecord
+                
                 from datetime import datetime
 
                 adaptation_record = AdaptationRecord(

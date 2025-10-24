@@ -2,12 +2,14 @@
 Классификатор атак на основе их механизма и целей
 """
 
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 
+
 class AttackCategory(Enum):
     """Категории атак по механизму"""
+
     FRAGMENTATION = "fragmentation"
     TIMING = "timing"
     OBFUSCATION = "obfuscation"
@@ -17,8 +19,10 @@ class AttackCategory(Enum):
     FOOLING = "fooling"
     MIMICRY = "mimicry"
 
+
 class AttackLevel(Enum):
     """Уровни протоколов"""
+
     IP = "ip"
     TCP = "tcp"
     TLS = "tls"
@@ -26,15 +30,18 @@ class AttackLevel(Enum):
     DNS = "dns"
     APPLICATION = "application"
 
+
 @dataclass
 class AttackProfile:
     """Профиль атаки"""
+
     name: str
     category: AttackCategory
     level: AttackLevel
     effectiveness_vs_dpi: Dict[str, float]  # DPI type -> effectiveness
     complexity: int  # 1-10
     stealth: int  # 1-10
+
 
 class AttackClassifier:
     """Классификатор атак для автоматического выбора"""
@@ -53,10 +60,10 @@ class AttackClassifier:
                 effectiveness_vs_dpi={
                     "ROSKOMNADZOR_TSPU": 0.9,
                     "COMMERCIAL_DPI": 0.7,
-                    "FIREWALL_BASED": 0.5
+                    "FIREWALL_BASED": 0.5,
                 },
                 complexity=3,
-                stealth=7
+                stealth=7,
             ),
             "multisplit": AttackProfile(
                 name="multisplit",
@@ -65,10 +72,10 @@ class AttackClassifier:
                 effectiveness_vs_dpi={
                     "ROSKOMNADZOR_DPI": 0.8,
                     "COMMERCIAL_DPI": 0.9,
-                    "ISP_TRANSPARENT_PROXY": 0.6
+                    "ISP_TRANSPARENT_PROXY": 0.6,
                 },
                 complexity=4,
-                stealth=6
+                stealth=6,
             ),
             "seqovl": AttackProfile(
                 name="seqovl",
@@ -77,22 +84,19 @@ class AttackClassifier:
                 effectiveness_vs_dpi={
                     "ROSKOMNADZOR_TSPU": 0.8,
                     "COMMERCIAL_DPI": 0.8,
-                    "FIREWALL_BASED": 0.4
+                    "FIREWALL_BASED": 0.4,
                 },
                 complexity=5,
-                stealth=5
+                stealth=5,
             ),
             # Fooling атаки
             "badsum_race": AttackProfile(
                 name="badsum_race",
                 category=AttackCategory.FOOLING,
                 level=AttackLevel.TCP,
-                effectiveness_vs_dpi={
-                    "ROSKOMNADZOR_TSPU": 0.7,
-                    "FIREWALL_BASED": 0.9
-                },
+                effectiveness_vs_dpi={"ROSKOMNADZOR_TSPU": 0.7, "FIREWALL_BASED": 0.9},
                 complexity=2,
-                stealth=8
+                stealth=8,
             ),
             "md5sig_race": AttackProfile(
                 name="md5sig_race",
@@ -100,22 +104,19 @@ class AttackClassifier:
                 level=AttackLevel.TCP,
                 effectiveness_vs_dpi={
                     "ROSKOMNADZOR_DPI": 0.6,
-                    "ISP_TRANSPARENT_PROXY": 0.8
+                    "ISP_TRANSPARENT_PROXY": 0.8,
                 },
                 complexity=3,
-                stealth=7
+                stealth=7,
             ),
             # TLS атаки
             "tlsrec_split": AttackProfile(
                 name="tlsrec_split",
                 category=AttackCategory.FRAGMENTATION,
                 level=AttackLevel.TLS,
-                effectiveness_vs_dpi={
-                    "COMMERCIAL_DPI": 0.7,
-                    "FIREWALL_BASED": 0.3
-                },
+                effectiveness_vs_dpi={"COMMERCIAL_DPI": 0.7, "FIREWALL_BASED": 0.3},
                 complexity=4,
-                stealth=8
+                stealth=8,
             ),
             # Комбинированные атаки
             "adaptive_combo": AttackProfile(
@@ -126,10 +127,10 @@ class AttackClassifier:
                     "ROSKOMNADZOR_TSPU": 0.95,
                     "COMMERCIAL_DPI": 0.9,
                     "FIREWALL_BASED": 0.8,
-                    "ISP_TRANSPARENT_PROXY": 0.85
+                    "ISP_TRANSPARENT_PROXY": 0.85,
                 },
                 complexity=8,
-                stealth=6
+                stealth=6,
             ),
             "traffic_mimicry": AttackProfile(
                 name="traffic_mimicry",
@@ -137,10 +138,10 @@ class AttackClassifier:
                 level=AttackLevel.APPLICATION,
                 effectiveness_vs_dpi={
                     "COMMERCIAL_DPI": 0.95,
-                    "ISP_TRANSPARENT_PROXY": 0.9
+                    "ISP_TRANSPARENT_PROXY": 0.9,
                 },
                 complexity=7,
-                stealth=10
+                stealth=10,
             ),
         }
 
@@ -172,7 +173,9 @@ class AttackClassifier:
             return self.profiles[attack_type].category.value
         return None
 
-    def recommend_attacks_for_dpi(self, dpi_type: str, max_complexity: int = 10) -> List[str]:
+    def recommend_attacks_for_dpi(
+        self, dpi_type: str, max_complexity: int = 10
+    ) -> List[str]:
         """Рекомендует атаки для конкретного типа DPI"""
         recommendations = []
 
@@ -191,7 +194,9 @@ class AttackClassifier:
         stealthy = []
 
         for name, profile in self.profiles.items():
-            avg_effectiveness = sum(profile.effectiveness_vs_dpi.values()) / len(profile.effectiveness_vs_dpi)
+            avg_effectiveness = sum(profile.effectiveness_vs_dpi.values()) / len(
+                profile.effectiveness_vs_dpi
+            )
             if avg_effectiveness >= min_effectiveness:
                 stealthy.append((name, profile.stealth))
 

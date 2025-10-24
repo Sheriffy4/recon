@@ -22,10 +22,11 @@ try:
 except ImportError as e:
     FINGERPRINT_AVAILABLE = False
     logging.warning(f"Advanced fingerprinting not available: {e}")
-    
+
     # Создаем заглушку для DPIBehaviorProfile если импорт не удался
     class DPIBehaviorProfile:
         pass
+
 
 LOG = logging.getLogger("fingerprint_integration")
 

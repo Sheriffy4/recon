@@ -11,7 +11,7 @@ import inspect
 from typing import Dict, List, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
-from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.attack_registry import AttackRegistry
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
 from core.async_utils import ensure_attack_execution_context
 from core.integration.strategy_mapper import StrategyMapper

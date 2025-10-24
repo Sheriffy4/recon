@@ -1,6 +1,6 @@
 # core/zapret.py
 from typing import Dict, Any, List, Tuple
-from core.bypass.attacks.registry import AttackRegistry
+from core.bypass.attacks.attack_registry import get_attack_registry
 
 
 def synth(task: Dict[str, Any]) -> str:
@@ -22,7 +22,8 @@ def synth(task: Dict[str, Any]) -> str:
         for stage in stages:
             stage_name = stage.get("name") or stage.get("type")
             stage_params = stage.get("params", {})
-            attack_class = AttackRegistry.get(stage_name)
+            registry = get_attack_registry()
+            attack_class = registry.get_attack_handler(stage_name)
             if attack_class:
                 # --- ИЗМЕНЕНИЕ: Добавляем try-except ---
                 try:
@@ -43,7 +44,8 @@ def synth(task: Dict[str, Any]) -> str:
         return " ".join(unique_params)
 
     # Для одиночной атаки
-    attack_class = AttackRegistry.get(attack_name)
+    registry = get_attack_registry()
+    attack_class = registry.get_attack_handler(attack_name)
     if not attack_class:
         return f"# Technique '{attack_name}' succeeded, but its class was not found in the registry."
 
@@ -58,7 +60,7 @@ def _synth_adaptive_multi_layer(params: Dict[str, Any]) -> str:
     """Generate zapret command for adaptive_multi_layer attack."""
     layer1 = params.get("layer1", "")
     layer2 = params.get("layer2", "")
-    adaptation_level = params.get("adaptation_level", "medium")
+    _ = params.get("adaptation_level", "medium")  # Reserved for future use
 
     # Map layer techniques to zapret commands
     layer_commands = []

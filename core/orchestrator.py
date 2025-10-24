@@ -1,7 +1,6 @@
 # core/orchestrator.py
-import asyncio
 import logging
-from typing import Optional, Dict, Any, List, Set
+from typing import Optional, Dict, Any, Set
 from dataclasses import dataclass
 
 LOG = logging.getLogger("AutonomousOrchestrator")
@@ -18,7 +17,10 @@ except Exception:
     AttackContext = None
 
 try:
-    from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+    from core.fingerprint.advanced_fingerprinter import (
+        AdvancedFingerprinter,
+        FingerprintingConfig,
+    )
     from core.fingerprint.advanced_models import DPIFingerprint
 except Exception:
     AdvancedFingerprinter = None
@@ -31,7 +33,7 @@ except Exception:
     create_enhanced_capturer = None
 
 try:
-    from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
+    from core.knowledge.cdn_asn_knowledge_base import CdnAsnKnowledgeBase
 except Exception:
     CdnAsnKnowledgeBase = None
 
@@ -56,13 +58,15 @@ class AutonomousStrategyOrchestrator:
         self.fp = None
         if AdvancedFingerprinter and FingerprintingConfig:
             fcfg = FingerprintingConfig(
-                analysis_level='balanced',
+                analysis_level="balanced",
                 max_parallel_targets=self.cfg.parallel,
-                enable_fail_fast=True
+                enable_fail_fast=True,
             )
             self.fp = AdvancedFingerprinter(config=fcfg)
 
-    async def find_best_strategy_for_domain(self, domain: str, dns_cache: Dict[str, str], port: int = 443) -> Optional[Dict[str, Any]]:
+    async def find_best_strategy_for_domain(
+        self, domain: str, dns_cache: Dict[str, str], port: int = 443
+    ) -> Optional[Dict[str, Any]]:
         if not (self.engine and self.synth):
             LOG.error("Required components are not available")
             return None
@@ -101,7 +105,7 @@ class AutonomousStrategyOrchestrator:
             tls_clienthello=None,
             cdn=cdn,
             asn=asn,
-            kb_profile=kb_profile
+            kb_profile=kb_profile,
         )
         engine_task = self.synth.synthesize(ctx, profile=self.cfg.profile)
 
@@ -120,8 +124,10 @@ class AutonomousStrategyOrchestrator:
         try:
             # В HybridEngine ожидается либо zapret-строка, либо dict engine_task
             # Используем dict напрямую
-            res_status, succ, total, avg_lat = await self.engine.execute_strategy_real_world(
-                engine_task, test_sites, ips, dns_cache, port
+            res_status, succ, total, avg_lat = (
+                await self.engine.execute_strategy_real_world(
+                    engine_task, test_sites, ips, dns_cache, port
+                )
             )
             LOG.info(f"Exec result for {domain}: {succ}/{total}, avg={avg_lat:.1f}ms")
         except Exception as e:

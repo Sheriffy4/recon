@@ -2,7 +2,6 @@
 База знаний по CDN/ASN с накоплением опыта
 """
 
-import json
 import ipaddress
 import pickle
 from pathlib import Path
@@ -10,9 +9,11 @@ from typing import Dict, Optional, List, Set, Tuple, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
+
 @dataclass
 class AsnProfile:
     """Профиль AS (Autonomous System)"""
+
     asn: int
     name: str
     country: str = ""
@@ -23,9 +24,11 @@ class AsnProfile:
     test_count: int = 0
     block_reasons: Dict[str, int] = field(default_factory=dict)
 
+
 @dataclass
 class CdnProfile:
     """Профиль CDN провайдера"""
+
     name: str
     ip_ranges: List[str] = field(default_factory=list)
     successful_strategies: Dict[str, float] = field(default_factory=dict)
@@ -37,6 +40,7 @@ class CdnProfile:
     broken_fooling: List[str] = field(default_factory=list)
     last_updated: str = field(default_factory=lambda: datetime.now().isoformat())
     block_reasons: Dict[str, int] = field(default_factory=dict)
+
 
 class CdnAsnKnowledgeBase:
     """База знаний CDN/ASN"""
@@ -57,17 +61,17 @@ class CdnAsnKnowledgeBase:
     def _init_known_cdns(self):
         """Инициализирует известные CDN с их IP диапазонами"""
         known_cdns = {
-            'cloudflare': {
-                'ranges': ['104.16.0.0/12', '172.64.0.0/13', '162.158.0.0/15'],
-                'optimal_split_pos': 76,
-                'optimal_overlap_size': 336,
-                'working_fooling': ['badsum'],
+            "cloudflare": {
+                "ranges": ["104.16.0.0/12", "172.64.0.0/13", "162.158.0.0/15"],
+                "optimal_split_pos": 76,
+                "optimal_overlap_size": 336,
+                "working_fooling": ["badsum"],
             },
-            'fastly': {
-                'ranges': ['151.101.0.0/16', '199.232.0.0/16'],
-                'optimal_split_pos': 64,
-                'optimal_overlap_size': 256,
-                'working_fooling': ['badsum', 'badseq'],
+            "fastly": {
+                "ranges": ["151.101.0.0/16", "199.232.0.0/16"],
+                "optimal_split_pos": 64,
+                "optimal_overlap_size": 256,
+                "working_fooling": ["badsum", "badseq"],
             },
         }
 
@@ -75,10 +79,10 @@ class CdnAsnKnowledgeBase:
             if cdn_name not in self.cdn_profiles:
                 profile = CdnProfile(
                     name=cdn_name,
-                    ip_ranges=config['ranges'],
-                    optimal_split_pos=config.get('optimal_split_pos'),
-                    optimal_overlap_size=config.get('optimal_overlap_size'),
-                    working_fooling=config.get('working_fooling', [])
+                    ip_ranges=config["ranges"],
+                    optimal_split_pos=config.get("optimal_split_pos"),
+                    optimal_overlap_size=config.get("optimal_overlap_size"),
+                    working_fooling=config.get("working_fooling", []),
                 )
                 self.cdn_profiles[cdn_name] = profile
 
@@ -100,37 +104,37 @@ class CdnAsnKnowledgeBase:
     def get_recommendations(self, ip: str) -> Dict[str, any]:
         """Получает рекомендации для IP"""
         recommendations = {
-            'cdn': None,
-            'split_pos': 76,
-            'overlap_size': 336,
-            'fooling_methods': ['badsum'],
+            "cdn": None,
+            "split_pos": 76,
+            "overlap_size": 336,
+            "fooling_methods": ["badsum"],
         }
         cdn = self.identify_cdn(ip)
         if cdn and cdn in self.cdn_profiles:
             profile = self.cdn_profiles[cdn]
-            recommendations['cdn'] = cdn
+            recommendations["cdn"] = cdn
             if profile.optimal_split_pos:
-                recommendations['split_pos'] = profile.optimal_split_pos
+                recommendations["split_pos"] = profile.optimal_split_pos
             if profile.optimal_overlap_size:
-                recommendations['overlap_size'] = profile.optimal_overlap_size
+                recommendations["overlap_size"] = profile.optimal_overlap_size
             if profile.working_fooling:
-                recommendations['fooling_methods'] = profile.working_fooling
+                recommendations["fooling_methods"] = profile.working_fooling
             if profile.optimal_fragment_size:
-                recommendations['optimal_fragment_size'] = profile.optimal_fragment_size
+                recommendations["optimal_fragment_size"] = profile.optimal_fragment_size
         return recommendations
 
     def save(self):
         """Сохраняет базу знаний"""
         try:
             data = {
-                'cdn_profiles': self.cdn_profiles,
-                'asn_profiles': self.asn_profiles,
-                'ip_to_cdn': self.ip_to_cdn,
-                'ip_to_asn': self.ip_to_asn,
-                'domain_block_reasons': self.domain_block_reasons,
-                'domain_quic_scores': self.domain_quic_scores,
+                "cdn_profiles": self.cdn_profiles,
+                "asn_profiles": self.asn_profiles,
+                "ip_to_cdn": self.ip_to_cdn,
+                "ip_to_asn": self.ip_to_asn,
+                "domain_block_reasons": self.domain_block_reasons,
+                "domain_quic_scores": self.domain_quic_scores,
             }
-            with open(self.DB_FILE, 'wb') as f:
+            with open(self.DB_FILE, "wb") as f:
                 pickle.dump(data, f)
         except Exception as e:
             print(f"Failed to save knowledge base: {e}")
@@ -139,31 +143,41 @@ class CdnAsnKnowledgeBase:
         """Загружает базу знаний"""
         try:
             if Path(self.DB_FILE).exists():
-                with open(self.DB_FILE, 'rb') as f:
+                with open(self.DB_FILE, "rb") as f:
                     data = pickle.load(f)
-                self.cdn_profiles.update(data.get('cdn_profiles', {}))
-                self.asn_profiles.update(data.get('asn_profiles', {}))
-                self.ip_to_cdn.update(data.get('ip_to_cdn', {}))
-                self.ip_to_asn.update(data.get('ip_to_asn', {}))
-                self.domain_block_reasons.update(data.get('domain_block_reasons', {}))
-                self.domain_quic_scores.update(data.get('domain_quic_scores', {}))
+                self.cdn_profiles.update(data.get("cdn_profiles", {}))
+                self.asn_profiles.update(data.get("asn_profiles", {}))
+                self.ip_to_cdn.update(data.get("ip_to_cdn", {}))
+                self.ip_to_asn.update(data.get("ip_to_asn", {}))
+                self.domain_block_reasons.update(data.get("domain_block_reasons", {}))
+                self.domain_quic_scores.update(data.get("domain_quic_scores", {}))
         except Exception as e:
             print(f"Failed to load knowledge base: {e}")
 
-    # ===== New: Update methods for iteration 1 ===== 
-    def update_with_result(self, domain: str, ip: str, strategy: dict | str, 
-                           success: bool, block_type: str | Any = "", 
-                           latency_ms: float = 0.0, asn: int = 0, cdn: str = ""):
+    # ===== New: Update methods for iteration 1 =====
+    def update_with_result(
+        self,
+        domain: str,
+        ip: str,
+        strategy: dict | str,
+        success: bool,
+        block_type: str | Any = "",
+        latency_ms: float = 0.0,
+        asn: int = 0,
+        cdn: str = "",
+    ):
         """
         Универсальное обновление KB после теста.
         strategy: dict {'type': 'fakeddisorder', 'params': {...}} или str/raw
         """
         try:
             # Определяем CDN/ASN
-            cdn_name = (cdn or self.identify_cdn(ip) or "generic")
+            cdn_name = cdn or self.identify_cdn(ip) or "generic"
             asn_id = asn or self.ip_to_asn.get(ip, 0)
             cprof = self.cdn_profiles.setdefault(cdn_name, CdnProfile(name=cdn_name))
-            aprof = self.asn_profiles.setdefault(asn_id, AsnProfile(asn=asn_id, name=f"AS{asn_id}"))
+            aprof = self.asn_profiles.setdefault(
+                asn_id, AsnProfile(asn=asn_id, name=f"AS{asn_id}")
+            )
 
             # Нормализуем стратегию
             if isinstance(strategy, str):
@@ -182,11 +196,15 @@ class CdnAsnKnowledgeBase:
             alpha = 0.2
             # CDN profile
             old = cprof.successful_strategies.get(strat_key, 0.5)
-            cprof.successful_strategies[strat_key] = (1 - alpha) * old + alpha * (1.0 if success else 0.0)
+            cprof.successful_strategies[strat_key] = (1 - alpha) * old + alpha * (
+                1.0 if success else 0.0
+            )
             cprof.last_updated = datetime.now().isoformat()
             # ASN profile
             old_asn = aprof.successful_strategies.get(strat_key, 0.5)
-            aprof.successful_strategies[strat_key] = (1 - alpha) * old_asn + alpha * (1.0 if success else 0.0)
+            aprof.successful_strategies[strat_key] = (1 - alpha) * old_asn + alpha * (
+                1.0 if success else 0.0
+            )
             aprof.test_count += 1
             aprof.last_updated = datetime.now().isoformat()
 
@@ -222,7 +240,11 @@ class CdnAsnKnowledgeBase:
                     self.ip_to_asn[ip] = asn_id
             # Учтём причины блокировки по CDN/ASN и по домену
             try:
-                bt_key = getattr(block_type, "value", str(block_type)) if block_type else "unknown"
+                bt_key = (
+                    getattr(block_type, "value", str(block_type))
+                    if block_type
+                    else "unknown"
+                )
                 if not success and bt_key:
                     # по CDN
                     cprof.block_reasons[bt_key] = cprof.block_reasons.get(bt_key, 0) + 1
@@ -240,18 +262,39 @@ class CdnAsnKnowledgeBase:
         """Обновляет QUIC-метрики (ServerHello/ClientHello ratio) для домена."""
         try:
             d = (domain or "").lower()
-            if not d: return
+            if not d:
+                return
             alpha = 0.3
             old = self.domain_quic_scores.get(d, 0.0)
-            self.domain_quic_scores[d] = (1 - alpha) * old + alpha * float(success_score or 0.0)
+            self.domain_quic_scores[d] = (1 - alpha) * old + alpha * float(
+                success_score or 0.0
+            )
         except Exception as e:
             print(f"KB update_quic_metrics failed: {e}")
-    
-    def update_with_success(self, domain: str, ip: str, strategy: dict | str, 
-                            latency_ms: float = 0.0, asn: int = 0, cdn: str = ""):
-        self.update_with_result(domain, ip, strategy, True, "none", latency_ms, asn, cdn)
 
-    def update_with_failure(self, domain: str, ip: str, strategy: dict | str, 
-                            block_type: str | Any = "", latency_ms: float = 0.0, 
-                            asn: int = 0, cdn: str = ""):
-        self.update_with_result(domain, ip, strategy, False, block_type, latency_ms, asn, cdn)
+    def update_with_success(
+        self,
+        domain: str,
+        ip: str,
+        strategy: dict | str,
+        latency_ms: float = 0.0,
+        asn: int = 0,
+        cdn: str = "",
+    ):
+        self.update_with_result(
+            domain, ip, strategy, True, "none", latency_ms, asn, cdn
+        )
+
+    def update_with_failure(
+        self,
+        domain: str,
+        ip: str,
+        strategy: dict | str,
+        block_type: str | Any = "",
+        latency_ms: float = 0.0,
+        asn: int = 0,
+        cdn: str = "",
+    ):
+        self.update_with_result(
+            domain, ip, strategy, False, block_type, latency_ms, asn, cdn
+        )

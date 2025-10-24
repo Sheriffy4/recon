@@ -1,19 +1,18 @@
 import time
 import hashlib
-from typing import List, Dict, Optional
+from typing import Optional, Dict, Any, List
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
 from core.protocols.tls import TLSParser
 from core.fingerprint.profiles import (
     CoherentProfile,
     get_profile as get_coherent_profile,
 )
-
+from core.bypass.attacks.attack_registry import register_attack
 try:
     from scapy.layers.tls.all import (
         TLS,
@@ -58,6 +57,18 @@ class JA3FingerprintMimicryAttack(BaseAttack):
     @property
     def category(self) -> str:
         return "tls"
+
+    @property
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        return {
+            "profile": "chrome_110_windows"
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute JA3 fingerprint mimicry attack using Scapy and coherent profiles."""
@@ -182,6 +193,16 @@ class JA4FingerprintMimicryAttack(BaseAttack):
     @property
     def category(self) -> str:
         return "tls"
+
+    @property
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        return {}
 
     def execute(self, context: AttackContext) -> AttackResult:
         return AttackResult(

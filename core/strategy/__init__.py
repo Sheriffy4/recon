@@ -15,10 +15,11 @@ try:
         Rule,
         RuleCondition,
         RuleEvaluationResult,
-        create_default_rule_engine
+        create_default_rule_engine,
     )
+
     RULE_ENGINE_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     # Fallback definitions
     StrategyRuleEngine = None
     Rule = None
@@ -33,10 +34,11 @@ try:
         IntelligentStrategyRecommendation,
         StrategyEffectivenessData,
         PCAPAnalysisData,
-        create_intelligent_strategy_generator
+        create_intelligent_strategy_generator,
     )
+
     INTELLIGENT_GENERATOR_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     # Fallback definitions
     IntelligentStrategyGenerator = None
     IntelligentStrategyRecommendation = None
@@ -50,10 +52,11 @@ try:
         EnhancedRSTAnalyzer,
         SecondPassStrategy,
         SecondPassResult,
-        enhance_rst_analysis
+        enhance_rst_analysis,
     )
+
     ENHANCED_RST_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     # Fallback definitions
     EnhancedRSTAnalyzer = None
     SecondPassStrategy = None
@@ -65,37 +68,45 @@ except ImportError as e:
 __all__ = []
 
 if RULE_ENGINE_AVAILABLE:
-    __all__.extend([
-        'StrategyRuleEngine',
-        'Rule', 
-        'RuleCondition',
-        'RuleEvaluationResult',
-        'create_default_rule_engine'
-    ])
+    __all__.extend(
+        [
+            "StrategyRuleEngine",
+            "Rule",
+            "RuleCondition",
+            "RuleEvaluationResult",
+            "create_default_rule_engine",
+        ]
+    )
 
 if INTELLIGENT_GENERATOR_AVAILABLE:
-    __all__.extend([
-        'IntelligentStrategyGenerator',
-        'IntelligentStrategyRecommendation',
-        'StrategyEffectivenessData',
-        'PCAPAnalysisData',
-        'create_intelligent_strategy_generator'
-    ])
+    __all__.extend(
+        [
+            "IntelligentStrategyGenerator",
+            "IntelligentStrategyRecommendation",
+            "StrategyEffectivenessData",
+            "PCAPAnalysisData",
+            "create_intelligent_strategy_generator",
+        ]
+    )
 
 if ENHANCED_RST_AVAILABLE:
-    __all__.extend([
-        'EnhancedRSTAnalyzer',
-        'SecondPassStrategy',
-        'SecondPassResult',
-        'enhance_rst_analysis'
-    ])
+    __all__.extend(
+        [
+            "EnhancedRSTAnalyzer",
+            "SecondPassStrategy",
+            "SecondPassResult",
+            "enhance_rst_analysis",
+        ]
+    )
 
 # Add availability flags
-__all__.extend([
-    'RULE_ENGINE_AVAILABLE',
-    'INTELLIGENT_GENERATOR_AVAILABLE', 
-    'ENHANCED_RST_AVAILABLE'
-])
+__all__.extend(
+    [
+        "RULE_ENGINE_AVAILABLE",
+        "INTELLIGENT_GENERATOR_AVAILABLE",
+        "ENHANCED_RST_AVAILABLE",
+    ]
+)
 
 # Version info
 __version__ = "1.0.0"

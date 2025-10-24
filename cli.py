@@ -1,28 +1,58 @@
-# recon/cli.py
-# Windows asyncio: подавим Proactor-спам и улучшим совместимость
-import sys
-import os
+#!/usr/bin/env python3
+"""
+Командная строка для системы обхода DPI (Deep Packet Inspection).
 
-# --- Настройка путей для импортов ---
+Основные функции:
+- Тестирование доступности заблокированных сайтов
+- Автоматический подбор эффективных стратегий обхода
+- Запуск в режиме службы для постоянной работы
+- Генерация конфигураций для zapret и других инструментов
+- Мониторинг и диагностика работы системы
+
+Поддерживаемые режимы:
+1. test - Тестирование конкретного сайта с заданной стратегией
+2. auto - Автоматический подбор лучшей стратегии
+3. service - Запуск в режиме службы (постоянная работа)
+4. generate - Генерация конфигураций для внешних инструментов
+5. monitor - Мониторинг состояния системы
+
+Архитектура:
+- Использует WindowsBypassEngine для выполнения атак
+- Интегрируется с AttackDispatcher для правильной диспетчеризации
+- Поддерживает все типы атак из AttackRegistry
+- Совместим с zapret параметрами и форматами
+
+Платформы:
+- Windows: Полная поддержка через WinDivert
+- Linux/macOS: Ограниченная поддержка (без перехвата пакетов)
+"""
+
+# Standard library imports
+import argparse
+import asyncio
+import inspect
+import json
+import logging
+import os
+import platform
+import signal
+import socket
+import statistics
+import sys
+import threading
+import time
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set, Tuple
+from urllib.parse import urlparse
+from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
+# --- Настройка окружения для Windows ---
+# Исправляем проблемы с asyncio Proactor policy на Windows
 # Добавляем текущую директорию в sys.path для корректного импорта модулей
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
-import argparse
-import socket
-import logging
-import time
-import json
-import asyncio
-import inspect
-import threading
-import statistics
-import platform
-from typing import Dict, Any, Optional, Tuple, Set, List
-from urllib.parse import urlparse
-from datetime import datetime
-from collections import defaultdict
-from dataclasses import dataclass
 
 # Windows asyncio policy - ПОСЛЕ импортов
 if sys.platform == "win32":
@@ -73,6 +103,7 @@ except ImportError:
 
     class Console:
         """Fallback Console without rich."""
+
         def __init__(self, *args, **kwargs):
             pass
 
@@ -80,11 +111,13 @@ except ImportError:
             # Убираем rich markup если есть
             if isinstance(text, str):
                 import re
-                text = re.sub(r'\[.*?\]', '', text)
+
+                text = re.sub(r"\[.*?\]", "", text)
             print(text)
 
     class Panel:
         """Fallback Panel without rich."""
+
         def __init__(self, text, **kwargs):
             self.text = text
 
@@ -93,6 +126,7 @@ except ImportError:
 
     class Progress:
         """Fallback Progress without rich."""
+
         def __init__(self, *args, **kwargs):
             pass
 
@@ -110,23 +144,26 @@ except ImportError:
 
     class Prompt:
         """Fallback Prompt without rich."""
+
         @staticmethod
         def ask(text, *args, **kwargs):
             return input(text + ": ")
 
     class Confirm:
         """Fallback Confirm without rich."""
+
         @staticmethod
         def ask(text, *args, **kwargs):
-            default = kwargs.get('default', False)
-            default_str = 'Y/n' if default else 'y/N'
+            default = kwargs.get("default", False)
+            default_str = "Y/n" if default else "y/N"
             response = input(f"{text} ({default_str}): ").lower()
             if not response:
                 return default
-            return response in ('y', 'yes', 'да')
+            return response in ("y", "yes", "да")
 
     class Table:
         """Fallback Table without rich."""
+
         def __init__(self, *args, **kwargs):
             self.title = kwargs.get("title", "")
             self._headers = []
@@ -142,16 +179,28 @@ except ImportError:
             lines = []
             if self.title:
                 lines.append(f"\n--- {self.title} ---")
-            
+
             if self._headers:
                 lines.append("\t".join(map(str, self._headers)))
-            
+
             for row in self._rows:
                 lines.append("\t".join(map(str, row)))
-            
+
             return "\n".join(lines)
 
+try:
+    from core.reporting.advanced_reporting_integration import AdvancedReportingIntegration
+    REPORTER_AVAILABLE = True
+except ImportError:
+    REPORTER_AVAILABLE = False
 
+try:
+    from core.fingerprint.unified_fingerprinter import UnifiedFingerprinter, UnifiedFPConfig
+    FINGERPRINTER_AVAILABLE = True
+except ImportError:
+    FINGERPRINTER_AVAILABLE = False
+    class UnifiedFingerprinter: pass # Dummy class
+    class UnifiedFPConfig: pass # Dummy class
 # --- Scapy (для захвата/pcap-парсинга) ---
 try:
     from scapy.all import sniff, PcapWriter, Raw, IP, IPv6, TCP, UDP
@@ -176,10 +225,6 @@ except (ImportError, PermissionError) as e:
 
 # --- Advanced Fingerprinter + Traffic Profiler ---
 try:
-    from core.fingerprint.advanced_fingerprinter import (
-        AdvancedFingerprinter,
-        FingerprintingConfig,
-    )
 
     ADV_FPR_AVAILABLE = True
 except Exception:
@@ -188,8 +233,9 @@ except Exception:
 try:
     from core.bypass.attacks.combo.advanced_traffic_profiler import (
         AdvancedTrafficProfiler,
-        UnifiedFingerprint
+        UnifiedFingerprint,
     )
+
     # Создаем явный алиас для обратной совместимости
     DPIFingerprint = UnifiedFingerprint
     PROFILER_AVAILABLE = True
@@ -202,6 +248,7 @@ except Exception:
 # Packet pattern validator (optional)
 try:
     import packet_pattern_validator as pktval
+
     PKTVAL_AVAILABLE = True
 except Exception:
     PKTVAL_AVAILABLE = False
@@ -222,35 +269,40 @@ logging.basicConfig(
 
 # Определяем LOG сразу после настройки логирования
 import builtins
+
 if not hasattr(builtins, "LOG"):
     LOG = logging.getLogger("recon")
     LOG.setLevel(logging.getLogger().level)
     builtins.LOG = LOG
+
+
 # Создание console с проверкой платформы
 def _create_console():
     """Create console with platform-specific settings."""
     if RICH_AVAILABLE:
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             return Console(
                 highlight=False,
                 legacy_windows=False,
                 force_terminal=True,
                 emoji=False,
-                markup=True
+                markup=True,
             )
         else:
             return Console(highlight=False)
     else:
         return Console()
 
+
 console = _create_console()
 
 # <<< FIX 1: Correct the import path for AdvancedReportingIntegration >>>
 try:
-    from core.fingerprint.unified_fingerprinter import UnifiedFingerprinter, FingerprintingConfig as UnifiedFPConfig
-    from core.fingerprint.unified_models import UnifiedFingerprint
     # The original path was core.integration, the correct path is core.reporting
-    from core.reporting.advanced_reporting_integration import AdvancedReportingIntegration
+    from core.reporting.advanced_reporting_integration import (
+        AdvancedReportingIntegration,
+    )
+
     UNIFIED_COMPONENTS_AVAILABLE = True
 except ImportError as e:
     print(f"[WARNING] Unified fingerprinting components not available: {e}")
@@ -262,15 +314,15 @@ STRATEGY_FILE = "best_strategy.json"
 # --- Потоковый захват PCAP ---
 try:
     # Корреляционный захватчик и фабрика (enhanced tracking)
-    from core.pcap.enhanced_packet_capturer import EnhancedPacketCapturer, create_enhanced_packet_capturer
+
     enhanced_packet_capturer_AVAILABLE = True
 except Exception:
     enhanced_packet_capturer_AVAILABLE = False
 
-import threading
 
 
 import logging
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)-7s] %(name)s: %(message)s",
@@ -278,6 +330,7 @@ logging.basicConfig(
 )
 
 # Fallback для модулей, которые используют LOG напрямую - уже определен выше
+
 
 class PacketCapturer:
     """
@@ -370,6 +423,8 @@ def build_bpf_from_ips(
         return f"{default_proto} port {port}"
     clauses = [f"(host {ip} and port {port})" for ip in ip_list if ip]
     return " or ".join(clauses) if clauses else f"{default_proto} port {port}"
+
+
 # <<< END FIX >>>
 
 
@@ -422,9 +477,9 @@ async def resolve_all_ips(domain: str) -> Set[str]:
             doh_servers = [
                 "https://1.1.1.1/dns-query",
                 "https://8.8.8.8/resolve",
-                "https://9.9.9.9/dns-query"
+                "https://9.9.9.9/dns-query",
             ]
-            
+
             for doh in doh_servers:
                 for rrtype in ("A", "AAAA"):
                     try:
@@ -432,7 +487,10 @@ async def resolve_all_ips(domain: str) -> Set[str]:
                         headers = {"accept": "application/dns-json"}
 
                         async with session.get(
-                            doh, params=params, headers=headers, timeout=aiohttp.ClientTimeout(total=3)
+                            doh,
+                            params=params,
+                            headers=headers,
+                            timeout=aiohttp.ClientTimeout(total=3),
                         ) as response:
                             if response.status == 200:
                                 try:
@@ -455,6 +513,8 @@ async def resolve_all_ips(domain: str) -> Set[str]:
             console.print(f"[dim]DoH resolution error: {e}[/dim]")
 
     return {ip for ip in ips if _is_ip(ip)}
+
+
 # <<< END FIX >>>
 
 
@@ -501,9 +561,9 @@ class EvolutionaryChromosome:
                 "repeats": [1, 2, 3, 4, 5],
                 "delay": [5, 10, 15, 20, 25, 30],
                 "window_size": [512, 1024, 2048, 4096, 8192],
-                "fooling": ["badsum", "badseq", "md5sig", "hopbyhop"]
+                "fooling": ["badsum", "badseq", "md5sig", "hopbyhop"],
             }
-            
+
             # Mutate existing parameters
             for param_name, current_value in self.genes.items():
                 if param_name in mutation_ranges:
@@ -513,27 +573,41 @@ class EvolutionaryChromosome:
                             self.genes[param_name] = not current_value
                     else:
                         # Numeric/string parameters
-                        self.genes[param_name] = random.choice(mutation_ranges[param_name])
-            
+                        self.genes[param_name] = random.choice(
+                            mutation_ranges[param_name]
+                        )
+
             # Occasionally change attack type to explore different strategies
             if random.random() < 0.05:  # 5% chance to change attack type
                 from core.attack_mapping import get_attack_mapping
+
                 attack_mapping = get_attack_mapping()
-                
+
                 # Get attacks from same category or similar attacks
                 current_type = self.genes.get("type", "fake_disorder")
                 current_attack_info = attack_mapping.get_attack_info(current_type)
-                
+
                 if current_attack_info:
                     # Try to find similar attacks in the same category
-                    similar_attacks = attack_mapping.get_attacks_by_category(current_attack_info.category)
+                    similar_attacks = attack_mapping.get_attacks_by_category(
+                        current_attack_info.category
+                    )
                     if similar_attacks and len(similar_attacks) > 1:
-                        new_type = random.choice([name for name in similar_attacks.keys() if name != current_type])
+                        new_type = random.choice(
+                            [
+                                name
+                                for name in similar_attacks.keys()
+                                if name != current_type
+                            ]
+                        )
                         new_attack_info = similar_attacks[new_type]
-                        
+
                         # Update genes with new attack type and its default parameters
                         self.genes["type"] = new_type
-                        for param_name, default_value in new_attack_info.default_params.items():
+                        for (
+                            param_name,
+                            default_value,
+                        ) in new_attack_info.default_params.items():
                             if param_name not in self.genes:
                                 self.genes[param_name] = default_value
 
@@ -574,6 +648,7 @@ class SimpleEvolutionarySearcher:
         if domain:
             try:
                 from core.strategy_manager import StrategyManager
+
                 sm = StrategyManager()
                 ds = sm.get_strategy(domain)
                 if ds:
@@ -584,155 +659,245 @@ class SimpleEvolutionarySearcher:
                 pass
         # Import comprehensive attack mapping
         from core.attack_mapping import get_attack_mapping
+
         attack_mapping = get_attack_mapping()
-        
+
         # Get all supported attacks and create base strategies
         all_attacks = attack_mapping.get_all_attacks()
         base_strategies = []
-        
+
         # Priority attacks (most effective)
         priority_attacks = [
-            "fake_disorder", "multisplit", "sequence_overlap", "badsum_race", 
-            "md5sig_race", "ip_fragmentation_advanced", "force_tcp", "tcp_multidisorder",
-            "tcp_multisplit", "simple_fragment", "window_manipulation"
+            "fake_disorder",
+            "multisplit",
+            "sequence_overlap",
+            "badsum_race",
+            "md5sig_race",
+            "ip_fragmentation_advanced",
+            "force_tcp",
+            "tcp_multidisorder",
+            "tcp_multisplit",
+            "simple_fragment",
+            "window_manipulation",
         ]
-        
+
         # Add priority attacks first
         for attack_name in priority_attacks:
             if attack_name in all_attacks:
                 attack_info = all_attacks[attack_name]
-                base_strategies.append({
-                    "type": attack_name,
-                    **attack_info.default_params
-                , "no_fallbacks": True, "forced": True})
-        
+                base_strategies.append(
+                    {
+                        "type": attack_name,
+                        **attack_info.default_params,
+                        "no_fallbacks": True,
+                        "forced": True,
+                    }
+                )
+
         # Add other TCP and IP attacks
         tcp_ip_categories = ["tcp", "ip", "fragmentation", "race"]
         for category in tcp_ip_categories:
             category_attacks = attack_mapping.get_attacks_by_category(category)
             for attack_name, attack_info in category_attacks.items():
                 if attack_name not in [s["type"] for s in base_strategies]:
-                    base_strategies.append({
-                        "type": attack_name,
-                        **attack_info.default_params
-                    , "no_fallbacks": True, "forced": True})
-        
+                    base_strategies.append(
+                        {
+                            "type": attack_name,
+                            **attack_info.default_params,
+                            "no_fallbacks": True,
+                            "forced": True,
+                        }
+                    )
+
         # Fallback to original if no attacks found
         if not base_strategies:
             base_strategies = [
-                {"type": "fake_disorder", "ttl": 3, "split_pos": 3, "no_fallbacks": True, "forced": True},
-                {"type": "multisplit", "ttl": 5, "split_pos": 5, "split_seqovl": 10, "no_fallbacks": True, "forced": True},
-                {"type": "sequence_overlap", "ttl": 2, "split_pos": 3, "split_seqovl": 20, "no_fallbacks": True, "forced": True},
+                {
+                    "type": "fake_disorder",
+                    "ttl": 3,
+                    "split_pos": 3,
+                    "no_fallbacks": True,
+                    "forced": True,
+                },
+                {
+                    "type": "multisplit",
+                    "ttl": 5,
+                    "split_pos": 5,
+                    "split_seqovl": 10,
+                    "no_fallbacks": True,
+                    "forced": True,
+                },
+                {
+                    "type": "sequence_overlap",
+                    "ttl": 2,
+                    "split_pos": 3,
+                    "split_seqovl": 20,
+                    "no_fallbacks": True,
+                    "forced": True,
+                },
                 {"type": "badsum_race", "ttl": 4, "no_fallbacks": True, "forced": True},
                 {"type": "md5sig_race", "ttl": 6, "no_fallbacks": True, "forced": True},
             ]
         learned_strategies = []
         if learning_cache and domain:
             from core.attack_mapping import get_attack_mapping
+
             attack_mapping = get_attack_mapping()
-            
+
             domain_recs = learning_cache.get_domain_recommendations(domain, 10)
             if dpi_hash:
                 dpi_recs = learning_cache.get_dpi_recommendations(dpi_hash, 10)
                 all_recs = domain_recs + dpi_recs
             else:
                 all_recs = domain_recs
-                
+
             for strategy_type, success_rate in all_recs:
                 if success_rate > 0.3:
                     # Get attack info from comprehensive mapping
                     attack_info = attack_mapping.get_attack_info(strategy_type)
                     if attack_info:
                         # Create learned strategy with randomized parameters
-                        learned_strategy = {"type": strategy_type, "no_fallbacks": True, "forced": True}
-                        
+                        learned_strategy = {
+                            "type": strategy_type,
+                            "no_fallbacks": True,
+                            "forced": True,
+                        }
+
                         # Add randomized parameters based on attack info
-                        for param_name, default_value in attack_info.default_params.items():
+                        for (
+                            param_name,
+                            default_value,
+                        ) in attack_info.default_params.items():
                             if param_name == "ttl":
-                                learned_strategy[param_name] = random.choice([2, 3, 4, 5, 6])
+                                learned_strategy[param_name] = random.choice(
+                                    [2, 3, 4, 5, 6]
+                                )
                             elif param_name == "split_pos":
-                                learned_strategy[param_name] = random.choice([2, 3, 4, 5, 6])
+                                learned_strategy[param_name] = random.choice(
+                                    [2, 3, 4, 5, 6]
+                                )
                             elif param_name == "split_count":
-                                learned_strategy[param_name] = random.choice([3, 4, 5, 6, 7])
+                                learned_strategy[param_name] = random.choice(
+                                    [3, 4, 5, 6, 7]
+                                )
                             elif param_name == "split_seqovl":
-                                learned_strategy[param_name] = random.choice([10, 15, 20, 25, 30])
+                                learned_strategy[param_name] = random.choice(
+                                    [10, 15, 20, 25, 30]
+                                )
                             elif param_name == "fragment_size":
-                                learned_strategy[param_name] = random.choice([8, 16, 24, 32])
+                                learned_strategy[param_name] = random.choice(
+                                    [8, 16, 24, 32]
+                                )
                             elif param_name == "fooling":
-                                learned_strategy[param_name] = random.choice(["badsum", "badseq", "md5sig"])
+                                learned_strategy[param_name] = random.choice(
+                                    ["badsum", "badseq", "md5sig"]
+                                )
                             elif param_name == "repeats":
                                 learned_strategy[param_name] = random.choice([1, 2, 3])
                             else:
                                 learned_strategy[param_name] = default_value
-                        
+
                         learned_strategies.append(learned_strategy)
                     else:
                         # Fallback for unknown strategy types
-                        if strategy_type in ["fake_disorder", "fakedisorder", "tcp_fakeddisorder"]:
-                            learned_strategies.append({
-                                "type": "fake_disorder",
-                                "ttl": random.choice([2, 3, 4]),
-                                "split_pos": random.choice([2, 3, 4]),
-                                "no_fallbacks": True, "forced": True})
+                        if strategy_type in [
+                            "fake_disorder",
+                            "fakedisorder",
+                            "tcp_fakeddisorder",
+                        ]:
+                            learned_strategies.append(
+                                {
+                                    "type": "fake_disorder",
+                                    "ttl": random.choice([2, 3, 4]),
+                                    "split_pos": random.choice([2, 3, 4]),
+                                    "no_fallbacks": True,
+                                    "forced": True,
+                                }
+                            )
                         elif strategy_type in ["multisplit", "tcp_multisplit"]:
-                            learned_strategies.append({
-                                "type": "multisplit",
-                                "ttl": random.choice([4, 5, 6]),
-                                "split_count": random.choice([4, 5, 6]),
-                                "split_seqovl": random.choice([8, 10, 12]),
-                                "no_fallbacks": True, "forced": True})
-                        elif strategy_type in ["sequence_overlap", "seqovl", "tcp_seqovl"]:
-                            learned_strategies.append({
-                                "type": "sequence_overlap",
-                                "ttl": random.choice([2, 3, 4]),
-                                "split_pos": random.choice([2, 3, 4]),
-                                "split_seqovl": random.choice([15, 20, 25]),
-                                "no_fallbacks": True, "forced": True})
+                            learned_strategies.append(
+                                {
+                                    "type": "multisplit",
+                                    "ttl": random.choice([4, 5, 6]),
+                                    "split_count": random.choice([4, 5, 6]),
+                                    "split_seqovl": random.choice([8, 10, 12]),
+                                    "no_fallbacks": True,
+                                    "forced": True,
+                                }
+                            )
+                        elif strategy_type in [
+                            "sequence_overlap",
+                            "seqovl",
+                            "tcp_seqovl",
+                        ]:
+                            learned_strategies.append(
+                                {
+                                    "type": "sequence_overlap",
+                                    "ttl": random.choice([2, 3, 4]),
+                                    "split_pos": random.choice([2, 3, 4]),
+                                    "split_seqovl": random.choice([15, 20, 25]),
+                                    "no_fallbacks": True,
+                                    "forced": True,
+                                }
+                            )
         all_base_strategies = base_strategies + learned_strategies
         for i in range(self.population_size):
             if i < len(all_base_strategies):
                 genes = all_base_strategies[i].copy()
             else:
                 from core.attack_mapping import get_attack_mapping
+
                 attack_mapping = get_attack_mapping()
-                
+
                 # Get all available attacks and select randomly
                 all_attacks = attack_mapping.get_all_attacks()
-                
+
                 # Prefer TCP and IP attacks for better compatibility
                 preferred_categories = ["tcp", "ip", "fragmentation", "race", "unknown"]
                 preferred_attacks = []
-                
+
                 for category in preferred_categories:
                     category_attacks = attack_mapping.get_attacks_by_category(category)
                     preferred_attacks.extend(category_attacks.keys())
-                
+
                 # Add some specific high-success attacks
                 high_success_attacks = [
-                    "fake_disorder", "multisplit", "tcp_multisplit", "sequence_overlap",
-                    "badsum_race", "md5sig_race", "simple_fragment", "tcp_fragmentation",
-                    "multidisorder", "tcp_multidisorder", "ip_fragmentation_advanced"
+                    "fake_disorder",
+                    "multisplit",
+                    "tcp_multisplit",
+                    "sequence_overlap",
+                    "badsum_race",
+                    "md5sig_race",
+                    "simple_fragment",
+                    "tcp_fragmentation",
+                    "multidisorder",
+                    "tcp_multidisorder",
+                    "ip_fragmentation_advanced",
                 ]
-                
+
                 # Combine and deduplicate
                 available_attacks = list(set(preferred_attacks + high_success_attacks))
-                
+
                 # Filter to only include attacks that exist
-                available_attacks = [attack for attack in available_attacks if attack in all_attacks]
-                
+                available_attacks = [
+                    attack for attack in available_attacks if attack in all_attacks
+                ]
+
                 if not available_attacks:
                     # Fallback to any available attack
                     available_attacks = list(all_attacks.keys())
-                
+
                 # Select random attack type
                 attack_type = random.choice(available_attacks)
                 attack_info = all_attacks[attack_type]
-                
+
                 # Start with attack type and default parameters
                 genes = {
                     "type": attack_type,
-                    **attack_info.default_params
-                , "no_fallbacks": True, "forced": True}
+                    **attack_info.default_params,
+                    "no_fallbacks": True,
+                    "forced": True,
+                }
                 # Инъекция микропараметров, если применимо
                 if sm_split is not None:
                     genes["split_pos"] = sm_split
@@ -740,7 +905,7 @@ class SimpleEvolutionarySearcher:
                     genes["overlap_size"] = sm_overlap
                 if sm_fooling and "fooling" not in genes:
                     genes["fooling"] = sm_fooling
-                
+
                 # Add some randomization to parameters
                 if "ttl" in genes:
                     genes["ttl"] = random.choice([1, 2, 3, 4, 5, 6, 7, 8])
@@ -760,17 +925,17 @@ class SimpleEvolutionarySearcher:
     def genes_to_zapret_strategy(self, genes: Dict[str, Any]) -> str:
         """
         Convert genes to zapret strategy command.
-        
+
         This function has been updated to properly support all attack types
         registered in the AttackRegistry and generate appropriate zapret commands.
         """
         from core.bypass.attacks.attack_registry import get_attack_registry
         from core.attack_mapping import get_attack_mapping
-        
+
         strategy_type = genes.get("type", "fakeddisorder")
         registry = get_attack_registry()
         attack_mapping = get_attack_mapping()
-        
+
         # Validate that this is a known attack type
         try:
             # Try to get the attack handler to verify it exists
@@ -779,12 +944,12 @@ class SimpleEvolutionarySearcher:
                 logger.warning(f"Unknown attack type '{strategy_type}', using fallback")
         except Exception as e:
             logger.warning(f"Error validating attack type '{strategy_type}': {e}")
-        
+
         # Try to generate command using comprehensive mapping first
         zapret_cmd = attack_mapping.get_zapret_command(strategy_type, genes)
         if zapret_cmd:
             return zapret_cmd
-        
+
         # Fallback to legacy mapping for backward compatibility
         strategy_parts = []
         ttl = genes.get("ttl", 3)
@@ -793,11 +958,11 @@ class SimpleEvolutionarySearcher:
         fragment_size = genes.get("fragment_size", 8)
         disable_quic = genes.get("disable_quic", False)
         reorder_distance = genes.get("reorder_distance", 3)
-        
+
         # Updated legacy mappings with correct zapret commands for all attack types
         legacy_mappings = {
             "fakedisorder": "--dpi-desync=fake,disorder",
-            "fake_disorder": "--dpi-desync=fake,disorder", 
+            "fake_disorder": "--dpi-desync=fake,disorder",
             "fakeddisorder": "--dpi-desync=fake,disorder",
             "tcp_fakeddisorder": "--dpi-desync=fake,disorder",
             "multisplit": "--dpi-desync=multisplit",
@@ -823,53 +988,82 @@ class SimpleEvolutionarySearcher:
             "wssize_limit": "--dpi-desync=wssize",
             "tlsrec_split": "--dpi-desync=tlsrec",
         }
-        
+
         if strategy_type in legacy_mappings:
             strategy_parts.append(legacy_mappings[strategy_type])
-            
+
             # Handle parameters based on attack type
             if "multisplit" in strategy_type:
                 # Handle positions parameter for multisplit
                 positions = genes.get("positions", [1, 5, 10])
-                split_count = genes.get("split_count", len(positions) if positions else 3)
+                split_count = genes.get(
+                    "split_count", len(positions) if positions else 3
+                )
                 strategy_parts.append(f"--dpi-desync-split-count={split_count}")
-                
+
                 # Add split_seqovl for multisplit
-                multisplit_seqovl = genes.get("split_seqovl", genes.get("overlap_size", 0))
+                multisplit_seqovl = genes.get(
+                    "split_seqovl", genes.get("overlap_size", 0)
+                )
                 strategy_parts.append(f"--dpi-desync-split-seqovl={multisplit_seqovl}")
-                    
+
             elif strategy_type in ["seqovl", "sequence_overlap", "tcp_seqovl"]:
                 # seqovl attacks need both split_pos and split_seqovl
                 strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
-                seqovl_value = genes.get("split_seqovl", genes.get("overlap_size", split_seqovl))
+                seqovl_value = genes.get(
+                    "split_seqovl", genes.get("overlap_size", split_seqovl)
+                )
                 strategy_parts.append(f"--dpi-desync-split-seqovl={seqovl_value}")
-                    
-            elif strategy_type in ["disorder", "disorder2", "split", "simple_fragment", "tcp_fragmentation"] or \
-                 ("split" in strategy_type and "multisplit" not in strategy_type) or \
-                 ("disorder" in strategy_type and "multidisorder" not in strategy_type):
+
+            elif (
+                strategy_type
+                in [
+                    "disorder",
+                    "disorder2",
+                    "split",
+                    "simple_fragment",
+                    "tcp_fragmentation",
+                ]
+                or ("split" in strategy_type and "multisplit" not in strategy_type)
+                or (
+                    "disorder" in strategy_type and "multidisorder" not in strategy_type
+                )
+            ):
                 # For disorder and split attacks, add split_pos
                 strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
-                
+
             elif "fragmentation" in strategy_type:
                 strategy_parts.append(f"--dpi-desync-split-pos={fragment_size}")
-            
+
             # Handle TTL for appropriate attacks
             if strategy_type not in ["disorder", "split"] or "fake" in strategy_type:
                 # For attacks that need TTL or are fake-based attacks
                 if "ttl" in genes or "fake" in strategy_type:
                     strategy_parts.append(f"--dpi-desync-ttl={ttl}")
-            
+
             # Handle fooling methods
-            fooling_already_added = any("--dpi-desync-fooling=" in part for part in strategy_parts)
+            fooling_already_added = any(
+                "--dpi-desync-fooling=" in part for part in strategy_parts
+            )
             if not fooling_already_added:
                 # Add fooling for attacks that typically need it
-                fooling_attacks = ["fake", "fakeddisorder", "fake_disorder", "fakeddisorder", 
-                                 "tcp_fakeddisorder", "badsum_race", "md5sig_race", "badseq_fooling"]
+                fooling_attacks = [
+                    "fake",
+                    "fakeddisorder",
+                    "fake_disorder",
+                    "fakeddisorder",
+                    "tcp_fakeddisorder",
+                    "badsum_race",
+                    "md5sig_race",
+                    "badseq_fooling",
+                ]
                 if strategy_type in fooling_attacks or "race" in strategy_type:
                     fooling = genes.get("fooling", "badsum")
                     # Ensure fooling is a string or list
                     if isinstance(fooling, list):
-                        fooling_str = ",".join(fooling) if len(fooling) > 1 else fooling[0]
+                        fooling_str = (
+                            ",".join(fooling) if len(fooling) > 1 else fooling[0]
+                        )
                     else:
                         fooling_str = str(fooling)
                     strategy_parts.append(f"--dpi-desync-fooling={fooling_str}")
@@ -879,7 +1073,7 @@ class SimpleEvolutionarySearcher:
             strategy_parts.append(f"--dpi-desync-split-pos={split_pos}")
             strategy_parts.append(f"--dpi-desync-ttl={ttl}")
             strategy_parts.append("--dpi-desync-fooling=badsum")
-        
+
         return " ".join(strategy_parts)
 
     async def evaluate_fitness(
@@ -896,7 +1090,12 @@ class SimpleEvolutionarySearcher:
             strategy = self.genes_to_zapret_strategy(chromosome.genes)
             result_status, successful_count, total_count, avg_latency = (
                 await hybrid_engine.execute_strategy_real_world(
-                    strategy, blocked_sites, all_target_ips, dns_cache, port, engine_override=engine_override
+                    strategy,
+                    blocked_sites,
+                    all_target_ips,
+                    dns_cache,
+                    port,
+                    engine_override=engine_override,
                 )
             )
             if successful_count == 0:
@@ -932,13 +1131,15 @@ class SimpleEvolutionarySearcher:
         learning_cache=None,
         domain: str = None,
         dpi_hash: str = None,
-        engine_override: Optional[str] = None
+        engine_override: Optional[str] = None,
     ) -> "EvolutionaryChromosome":
-        console.print("[bold magenta][DNA] Starting evolutionary search...[/bold magenta]")
+        console.print(
+            "[bold magenta][DNA] Starting evolutionary search...[/bold magenta]"
+        )
         console.print(
             f"Population: {self.population_size}, Generations: {self.generations}"
         )
-        
+
         # Create initial population with fingerprint-informed strategies
         self.population = self.create_initial_population(
             learning_cache=learning_cache, domain=domain, dpi_hash=dpi_hash
@@ -1002,137 +1203,148 @@ class SimpleEvolutionarySearcher:
         )
         return best_chromosome
 
-    def _validate_attack_parameters(self, attack_type: str, genes: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_attack_parameters(
+        self, attack_type: str, genes: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Validate and normalize parameters for a specific attack type using AttackRegistry."""
         try:
             # Use AttackRegistry for comprehensive validation
             from core.bypass.attacks.attack_registry import get_attack_registry
-            
+
             registry = get_attack_registry()
-            
+
             # Normalize attack type - remove tcp_ prefix and other prefixes for registry lookup
             normalized_type = self._normalize_attack_type_for_registry(attack_type)
-            
+
             # First, apply parameter correction using legacy validation
             # This ensures parameters are in valid ranges
-            corrected_genes = self._legacy_validate_attack_parameters(attack_type, genes)
-            
+            corrected_genes = self._legacy_validate_attack_parameters(
+                attack_type, genes
+            )
+
             # Then validate the corrected parameters using the registry
-            validation_result = registry.validate_parameters(normalized_type, corrected_genes)
-            
+            validation_result = registry.validate_parameters(
+                normalized_type, corrected_genes
+            )
+
             if not validation_result.is_valid:
                 # Log validation error but return the corrected parameters anyway
-                LOG.warning(f"AttackRegistry validation failed for {attack_type} even after correction: {validation_result.error_message}")
-            
+                LOG.warning(
+                    f"AttackRegistry validation failed for {attack_type} even after correction: {validation_result.error_message}"
+                )
+
             # Return the corrected parameters
             validated = corrected_genes
-            
+
             # Get attack metadata to add any missing default parameters
             metadata = registry.get_attack_metadata(attack_type)
             if metadata:
                 for param_name, default_value in metadata.optional_params.items():
                     if param_name not in validated:
                         validated[param_name] = default_value
-            
+
             # Special handling for positions parameter in multisplit
-            if attack_type in ["multisplit", "tcp_multisplit"] and "positions" in validated:
+            if (
+                attack_type in ["multisplit", "tcp_multisplit"]
+                and "positions" in validated
+            ):
                 positions = validated["positions"]
                 if isinstance(positions, list) and len(positions) > 0:
                     # Ensure split_count matches positions length
                     validated["split_count"] = len(positions)
-            
+
             return validated
-            
+
         except Exception as e:
-            LOG.warning(f"Failed to use AttackRegistry validation for {attack_type}: {e}")
+            LOG.warning(
+                f"Failed to use AttackRegistry validation for {attack_type}: {e}"
+            )
             # Fall back to legacy validation
             return self._legacy_validate_attack_parameters(attack_type, genes)
-    
+
     def _normalize_attack_type_for_registry(self, attack_type: str) -> str:
         """Normalize attack type for AttackRegistry lookup by removing prefixes."""
         # Remove common prefixes
         prefixes_to_remove = ["tcp_", "udp_", "http_", "tls_"]
-        
+
         normalized = attack_type
         for prefix in prefixes_to_remove:
             if normalized.startswith(prefix):
-                normalized = normalized[len(prefix):]
+                normalized = normalized[len(prefix) :]
                 break
-        
+
         # Handle special cases
         type_mappings = {
             "badsum_race": "fake",
-            "md5sig_race": "fake", 
+            "md5sig_race": "fake",
             "ip_fragmentation": "split",
             "ip_fragmentation_advanced": "split",
             "force_tcp": "fakeddisorder",  # Map to closest equivalent
             "tcp_reorder": "disorder",
             "simple_fragment": "split",
-            "tcp_fragmentation": "split"
+            "tcp_fragmentation": "split",
         }
-        
+
         return type_mappings.get(normalized, normalized)
-    
-    def _legacy_validate_attack_parameters(self, attack_type: str, genes: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _legacy_validate_attack_parameters(
+        self, attack_type: str, genes: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Legacy parameter validation for backward compatibility."""
         validated = genes.copy()
-        
+
         # Parameter validation rules for each attack type
         validation_rules = {
             "multisplit": {
                 "positions": {"type": list, "default": [1, 5, 10]},
                 "split_count": {"type": int, "min": 2, "max": 10, "default": 3},
                 "split_seqovl": {"type": int, "min": 0, "max": 100, "default": 0},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
             },
             "tcp_multisplit": {
                 "positions": {"type": list, "default": [1, 5, 10]},
                 "split_count": {"type": int, "min": 2, "max": 10, "default": 3},
                 "split_seqovl": {"type": int, "min": 0, "max": 100, "default": 20},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
             },
             "seqovl": {
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
                 "split_seqovl": {"type": int, "min": 5, "max": 100, "default": 20},
                 "overlap_size": {"type": int, "min": 5, "max": 100, "default": 20},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 3}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 3},
             },
             "sequence_overlap": {
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
                 "split_seqovl": {"type": int, "min": 5, "max": 100, "default": 20},
                 "overlap_size": {"type": int, "min": 5, "max": 100, "default": 20},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 3}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 3},
             },
             "tcp_seqovl": {
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
                 "split_seqovl": {"type": int, "min": 5, "max": 100, "default": 20},
                 "overlap_size": {"type": int, "min": 5, "max": 100, "default": 20},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 3}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 3},
             },
             "fake_disorder": {
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
             },
             "fakeddisorder": {
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
             },
             "multidisorder": {
                 "positions": {"type": list, "default": [1, 5, 10]},
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
             },
             "tcp_multidisorder": {
                 "positions": {"type": list, "default": [1, 5, 10]},
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 3},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
             },
-            "disorder": {
-                "split_pos": {"type": int, "min": 1, "max": 50, "default": 3}
-            },
-            "split": {
-                "split_pos": {"type": int, "min": 1, "max": 50, "default": 5}
-            },
+            "disorder": {"split_pos": {"type": int, "min": 1, "max": 50, "default": 3}},
+            "split": {"split_pos": {"type": int, "min": 1, "max": 50, "default": 5}},
             "simple_fragment": {
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 5}
             },
@@ -1142,26 +1354,34 @@ class SimpleEvolutionarySearcher:
             "ip_fragmentation": {
                 "split_pos": {"type": int, "min": 1, "max": 50, "default": 8},
                 "fragment_size": {"type": int, "min": 8, "max": 64, "default": 8},
-                "ttl": {"type": int, "min": 1, "max": 255, "default": 4}
+                "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
             },
             "badsum_race": {
                 "ttl": {"type": int, "min": 1, "max": 255, "default": 4},
-                "fooling": {"type": list, "values": ["badsum", "badseq", "badack"], "default": ["badsum"]}
+                "fooling": {
+                    "type": list,
+                    "values": ["badsum", "badseq", "badack"],
+                    "default": ["badsum"],
+                },
             },
             "md5sig_race": {
                 "ttl": {"type": int, "min": 1, "max": 255, "default": 6},
-                "fooling": {"type": list, "values": ["badsum", "badseq", "badack"], "default": ["badseq"]}
-            }
+                "fooling": {
+                    "type": list,
+                    "values": ["badsum", "badseq", "badack"],
+                    "default": ["badseq"],
+                },
+            },
         }
-        
+
         # Apply validation rules if they exist for this attack type
         if attack_type in validation_rules:
             rules = validation_rules[attack_type]
-            
+
             for param_name, rule in rules.items():
                 if param_name in validated:
                     value = validated[param_name]
-                    
+
                     # Type validation
                     if rule["type"] == int:
                         try:
@@ -1174,12 +1394,14 @@ class SimpleEvolutionarySearcher:
                             validated[param_name] = value
                         except (ValueError, TypeError):
                             validated[param_name] = rule.get("default", 3)
-                    
+
                     elif rule["type"] == str:
                         # String validation
                         if "values" in rule and value not in rule["values"]:
-                            validated[param_name] = rule.get("default", rule["values"][0])
-                    
+                            validated[param_name] = rule.get(
+                                "default", rule["values"][0]
+                            )
+
                     elif rule["type"] == list:
                         # List validation
                         if not isinstance(value, list):
@@ -1194,13 +1416,15 @@ class SimpleEvolutionarySearcher:
                         else:
                             # Validate list elements if values are specified
                             if "values" in rule:
-                                validated_list = [item for item in value if item in rule["values"]]
+                                validated_list = [
+                                    item for item in value if item in rule["values"]
+                                ]
                                 if not validated_list:
                                     validated_list = rule.get("default", [])
                                 validated[param_name] = validated_list
                             else:
                                 validated[param_name] = value
-                
+
                 else:
                     # Add default value if parameter is missing
                     if "default" in rule:
@@ -1219,17 +1443,21 @@ class SimpleEvolutionarySearcher:
                         validated["ttl"] = ttl_value
                 except (ValueError, TypeError):
                     validated["ttl"] = 3
-            
+
             if "split_pos" in validated:
                 try:
                     split_pos = validated["split_pos"]
-                    if isinstance(split_pos, str) and split_pos not in ["cipher", "sni", "midsld"]:
+                    if isinstance(split_pos, str) and split_pos not in [
+                        "cipher",
+                        "sni",
+                        "midsld",
+                    ]:
                         validated["split_pos"] = int(split_pos)
                     elif isinstance(split_pos, int) and split_pos < 1:
                         validated["split_pos"] = 1
                 except (ValueError, TypeError):
                     validated["split_pos"] = 3
-            
+
             if "overlap_size" in validated:
                 try:
                     overlap_size = int(validated["overlap_size"])
@@ -1239,14 +1467,14 @@ class SimpleEvolutionarySearcher:
                         validated["overlap_size"] = overlap_size
                 except (ValueError, TypeError):
                     validated["overlap_size"] = 10
-        
+
         # Special handling for positions parameter in multisplit
         if attack_type in ["multisplit", "tcp_multisplit"] and "positions" in validated:
             positions = validated["positions"]
             if isinstance(positions, list) and len(positions) > 0:
                 # Ensure split_count matches positions length
                 validated["split_count"] = len(positions)
-        
+
         return validated
 
 
@@ -1304,101 +1532,120 @@ class AdaptiveLearningCache:
     def _extract_strategy_type(self, strategy: str) -> str:
         """
         Извлекает тип стратегии из полной строки с поддержкой всех атак.
-        
+
         Args:
             strategy: Строка стратегии zapret для анализа
-            
+
         Returns:
             str: Имя типа атаки или 'unknown' если не найден
-            
+
         Raises:
             ValueError: Если strategy не является строкой или пустой
         """
         # Parameter validation
         if not isinstance(strategy, str):
             raise ValueError(f"Strategy must be a string, got {type(strategy)}")
-        
+
         if not strategy or not strategy.strip():
             raise ValueError("Strategy cannot be empty or whitespace-only")
-        
+
         from core.bypass.attacks.attack_registry import get_attack_registry
         from core.attack_mapping import get_attack_mapping
         import re
-        
+
         # Use comprehensive attack mapping for extraction
         attack_mapping = get_attack_mapping()
         extracted_type = attack_mapping.extract_strategy_type(strategy)
-        
+
         if extracted_type != "unknown":
             return extracted_type
-        
+
         # Also try direct registry lookup for known attack types
         registry = get_attack_registry()
         known_attacks = registry.list_attacks()
-        
+
         # Normalize strategy for pattern matching
         strategy_lower = strategy.lower().strip()
-        
+
         # Check if any known attack type is directly mentioned in the strategy
         for attack_type in known_attacks:
             if attack_type in strategy_lower:
                 # Ensure it's a word boundary match to avoid false positives
-                if re.search(rf'\b{re.escape(attack_type)}\b', strategy_lower):
+                if re.search(rf"\b{re.escape(attack_type)}\b", strategy_lower):
                     return attack_type
-        
+
         # Enhanced pattern matching with FIXED priorities
         # Order is CRITICAL - most specific patterns MUST come first
         priority_patterns = [
             # Priority 1: Very specific multi-component patterns (highest priority)
-            ("fake_fakeddisorder", [r"fake,fakeddisorder", r"fakeddisorder.*fake", r"fake.*fakeddisorder"]),
-            ("tcp_multisplit", [r"tcp.*multisplit", r"multisplit.*tcp", r"tcp_multisplit"]),
-            ("tcp_multidisorder", [r"tcp.*multidisorder", r"multidisorder.*tcp", r"tcp_multidisorder"]),
+            (
+                "fake_fakeddisorder",
+                [r"fake,fakeddisorder", r"fakeddisorder.*fake", r"fake.*fakeddisorder"],
+            ),
+            (
+                "tcp_multisplit",
+                [r"tcp.*multisplit", r"multisplit.*tcp", r"tcp_multisplit"],
+            ),
+            (
+                "tcp_multidisorder",
+                [r"tcp.*multidisorder", r"multidisorder.*tcp", r"tcp_multidisorder"],
+            ),
             ("tcp_seqovl", [r"tcp.*seqovl", r"seqovl.*tcp", r"tcp_seqovl"]),
-            
             # Priority 2: Specific zapret command patterns (very specific)
             ("ip_fragmentation_advanced", [r"\bipfrag2\b"]),
-            ("timing_based_evasion", [r"dpi-desync-delay", r"delay=\d+", r"timing.*evasion"]),
+            (
+                "timing_based_evasion",
+                [r"dpi-desync-delay", r"delay=\d+", r"timing.*evasion"],
+            ),
             ("force_tcp", [r"filter-udp=443"]),
             ("badsum_race", [r"dpi-desync-fooling=badsum", r"fooling.*badsum"]),
             ("md5sig_race", [r"dpi-desync-fooling=md5sig", r"fooling.*md5sig"]),
             ("badseq_fooling", [r"dpi-desync-fooling=badseq", r"fooling.*badseq"]),
-            
             # Priority 3: Fake disorder patterns (must come before generic disorder)
             ("fake_disorder", [r"fake.*disorder", r"disorder.*fake", r"fake,disorder"]),
-            
             # Priority 4: Multi-attack patterns (must come before single variants)
             ("multisplit", [r"\bmultisplit\b"]),
             ("multidisorder", [r"\bmultidisorder\b"]),
-            ("sequence_overlap", [r"\bseqovl\b", r"sequence_overlap"]),
             
+            (
+                "sequence_overlap",
+                [r"\bseqovl\b", r"sequence_overlap", r"split-seqovl"],
+            ),
             # Priority 5: TLS/HTTP specific patterns
             ("tls_record_fragmentation", [r"tls.*record.*split", r"tls-record-split"]),
             ("http_header_case", [r"http.*header.*case", r"http-header-case"]),
             ("h2_frame_splitting", [r"h2.*frame.*split", r"http2.*frame"]),
             ("sni_manipulation", [r"sni.*manip", r"host.*header"]),
-            
             # Priority 6: QUIC patterns
             ("quic_fragmentation", [r"quic.*frag", r"udp.*443.*frag"]),
             ("quic_bypass", [r"quic.*bypass", r"disable.*quic"]),
-            
             # Priority 7: Window and TCP options patterns
             ("window_manipulation", [r"tcp.*window", r"window.*scale"]),
             ("tcp_options_modification", [r"tcp.*options", r"tcp-options-modify"]),
-            
             # Priority 8: Basic fragmentation patterns (lower priority)
             ("simple_fragment", [r"\bsplit\b(?!.*multi)"]),  # split but not multisplit
-            ("tcp_fragmentation", [r"tcp.*split(?!.*multi)"]),  # tcp split but not multisplit
+            (
+                "tcp_fragmentation",
+                [r"tcp.*split(?!.*multi)"],
+            ),  # tcp split but not multisplit
             ("ip_fragmentation", [r"ip.*frag(?!2)"]),  # ip frag but not ipfrag2
-            
             # Priority 9: Timing patterns (generic, lower priority)
             ("timing_based", [r"\bdelay\b", r"timing"]),
-            
             # Priority 10: Generic patterns (lowest priority)
-            ("disorder", [r"\bdisorder\b(?!.*multi)(?!.*fake)"]),  # disorder but not multidisorder or fake disorder
-            ("fake", [r"\bfake\b(?!.*disorder)"]),  # fake but not fake disorder
-            ("split", [r"\bsplit\b(?!.*multi)(?!.*seq)"]),  # split but not multisplit or seqovl
+            (
+                "disorder",
+                [r"\bdisorder\b(?!.*multi)(?!.*fake)", r"dpi-desync=disorder"],
+            ),  # disorder but not multidisorder or fake disorder
+            (
+                "fake",
+                [r"\bfake\b(?!.*disorder)", r"dpi-desync=fake", r"dpi-desync-fake-sni"],
+            ),  #  # fake but not fake disorder
+            (
+                "split",
+                [r"\bsplit\b(?!.*multi)(?!.*seq)"],
+            ),  # split but not multisplit or seqovl
         ]
-        
+
         # Apply patterns in priority order
         for attack_type, patterns in priority_patterns:
             for pattern in patterns:
@@ -1408,40 +1655,47 @@ class AdaptiveLearningCache:
                 except re.error as e:
                     # Log regex errors but continue processing
                     import logging
-                    logging.warning(f"Invalid regex pattern '{pattern}' for attack '{attack_type}': {e}")
+
+                    logging.warning(
+                        f"Invalid regex pattern '{pattern}' for attack '{attack_type}': {e}"
+                    )
                     continue
-        
+
         # Fallback: Check for any registered attack names in the strategy
         # This provides comprehensive coverage for all registered attacks
         all_attacks = attack_mapping.get_all_attacks()
-        
+
         # Sort attacks by name length (longest first) to prioritize more specific matches
-        sorted_attacks = sorted(all_attacks.items(), key=lambda x: len(x[0]), reverse=True)
-        
+        sorted_attacks = sorted(
+            all_attacks.items(), key=lambda x: len(x[0]), reverse=True
+        )
+
         for attack_name, attack_info in sorted_attacks:
             # Check exact attack name match
             attack_name_lower = attack_name.lower()
             if attack_name_lower in strategy_lower:
                 # Ensure it's a word boundary match to avoid false positives
-                if re.search(rf'\b{re.escape(attack_name_lower)}\b', strategy_lower):
+                if re.search(rf"\b{re.escape(attack_name_lower)}\b", strategy_lower):
                     return attack_name
-            
+
             # Check aliases (also sorted by length)
             sorted_aliases = sorted(attack_info.aliases, key=len, reverse=True)
             for alias in sorted_aliases:
                 alias_lower = alias.lower()
                 if alias_lower in strategy_lower:
-                    if re.search(rf'\b{re.escape(alias_lower)}\b', strategy_lower):
+                    if re.search(rf"\b{re.escape(alias_lower)}\b", strategy_lower):
                         return attack_name
-        
+
         # Final fallback: partial matching for compound attack names
         for attack_name, attack_info in sorted_attacks:
-            attack_parts = attack_name.lower().split('_')
+            attack_parts = attack_name.lower().split("_")
             if len(attack_parts) > 1:
                 # Check if all parts of the attack name are present
-                if all(part in strategy_lower for part in attack_parts if len(part) > 2):
+                if all(
+                    part in strategy_lower for part in attack_parts if len(part) > 2
+                ):
                     return attack_name
-        
+
         return "unknown"
 
     def record_strategy_performance(
@@ -1738,7 +1992,7 @@ class SimpleFingerprinter:
                             response = await resp
                         else:
                             response = resp
-                        
+
                         # <<< FIX: Consume response body to avoid resource warnings >>>
                         try:
                             await response.read()
@@ -1834,12 +2088,12 @@ class SimpleReporter:
                         fps_serialized[k] = getattr(v, "__dict__", str(v))
                 else:
                     fps_serialized[k] = getattr(v, "__dict__", str(v))
-        
+
         # Extract domain-specific strategy mappings
         domain_strategies = {}
         if test_results and "domain_strategy_map" in test_results[0]:
             domain_strategies = test_results[0]["domain_strategy_map"]
-        
+
         # Create domain-specific results
         domain_results = {}
         for domain, strategy_info in domain_strategies.items():
@@ -1849,9 +2103,9 @@ class SimpleReporter:
                 "avg_latency_ms": strategy_info["avg_latency_ms"],
                 "fingerprint_used": strategy_info["fingerprint_used"],
                 "dpi_type": strategy_info["dpi_type"],
-                "dpi_confidence": strategy_info["dpi_confidence"]
+                "dpi_confidence": strategy_info["dpi_confidence"],
             }
-        
+
         report = {
             "timestamp": datetime.now().isoformat(),
             "target": args.target,
@@ -1898,31 +2152,42 @@ class SimpleReporter:
     def print_summary(self, report: dict):
         console.print("\n[bold underline][STATS] Test Summary Report[/bold underline]")
         console.print(f"Target: [cyan]{report.get('target', 'N/A')}[/cyan]")
-        
-        metadata = report.get('metadata', {})
-        key_metrics = report.get('key_metrics', {})
-        strategy_effectiveness = report.get('strategy_effectiveness', {})
-        
-        console.print(f"Strategies tested: {metadata.get('total_strategies_tested', report.get('total_strategies_tested', 0))}")
+
+        metadata = report.get("metadata", {})
+        key_metrics = report.get("key_metrics", {})
+        strategy_effectiveness = report.get("strategy_effectiveness", {})
+
+        console.print(
+            f"Strategies tested: {metadata.get('total_strategies_tested', report.get('total_strategies_tested', 0))}"
+        )
         console.print(
             f"Working strategies: [green]{metadata.get('working_strategies_found', report.get('working_strategies_found', 0))}[/green]"
         )
-        
-        success_rate_percent = key_metrics.get('overall_success_rate', report.get('success_rate', 0) * 100)
-        console.print(f"Success rate: [yellow]{success_rate_percent / 100.0:.1%}[/yellow]")
-        
+
+        success_rate_percent = key_metrics.get(
+            "overall_success_rate", report.get("success_rate", 0) * 100
+        )
+        console.print(
+            f"Success rate: [yellow]{success_rate_percent / 100.0:.1%}[/yellow]"
+        )
+
         console.print(f"Execution time: {report.get('execution_time_seconds', 0):.1f}s")
-        
-        top_working = strategy_effectiveness.get('top_working', [])
-        best_strategy_from_report = report.get('best_strategy')
-        
+
+        top_working = strategy_effectiveness.get("top_working", [])
+        best_strategy_from_report = report.get("best_strategy")
+
         if top_working:
             best = top_working[0]
             console.print(f"Best strategy: [cyan]{best.get('strategy', 'N/A')}[/cyan]")
             console.print(f"Best latency: {best.get('avg_latency_ms', 0):.1f}ms")
         elif best_strategy_from_report:
-            console.print(f"Best strategy: [cyan]{best_strategy_from_report.get('strategy', 'N/A')}[/cyan]")
-            console.print(f"Best latency: {best_strategy_from_report.get('avg_latency_ms', 0):.1f}ms")
+            console.print(
+                f"Best strategy: [cyan]{best_strategy_from_report.get('strategy', 'N/A')}[/cyan]"
+            )
+            console.print(
+                f"Best latency: {best_strategy_from_report.get('avg_latency_ms', 0):.1f}ms"
+            )
+
 
 # --- Advanced DNS resolution helper ---
 async def run_advanced_dns_resolution(
@@ -2016,7 +2281,7 @@ async def run_hybrid_mode(args):
     # Исправляем логику загрузки доменов
     if args.domains_file:
         # Теперь используется правильный путь к файлу
-        domains_file = args.target 
+        domains_file = args.target
         default_domains = []
     else:
         domains_file = None
@@ -2041,11 +2306,12 @@ async def run_hybrid_mode(args):
 
     doh_resolver = DoHResolver()
     from core.unified_bypass_engine import UnifiedEngineConfig
+
     engine_config = UnifiedEngineConfig(debug=args.debug)
     hybrid_engine = UnifiedBypassEngine(engine_config)
 
     reporter = SimpleReporter(debug=args.debug)
-    
+
     # <<< FIX 2: Add conditional check and a fallback for the reporter >>>
     advanced_reporter = None
     if UNIFIED_COMPONENTS_AVAILABLE:
@@ -2054,29 +2320,38 @@ async def run_hybrid_mode(args):
     else:
         # Create a dummy reporter if the real one is not available
         class DummyAdvancedReporter:
-            async def initialize(self): pass
-            async def generate_system_performance_report(self, *args, **kwargs): return None
+            async def initialize(self):
+                pass
+
+            async def generate_system_performance_report(self, *args, **kwargs):
+                return None
+
         advanced_reporter = DummyAdvancedReporter()
     # <<< END FIX 2 >>>
 
     learning_cache = AdaptiveLearningCache()
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
-    
+
     # <<< FIX: Keep a reference to the unified fingerprinter for refinement >>>
     unified_fingerprinter = None
     refiner = None
     # <<< END FIX >>>
-    
+
     # Background PCAP insights worker (enhanced tracking)
     pcap_worker_task = None
     if args.enable_enhanced_tracking:
         try:
             from core.pcap.pcap_insights_worker import PcapInsightsWorker
+
             pcap_worker = PcapInsightsWorker()
             pcap_worker_task = asyncio.create_task(pcap_worker.run(interval=15.0))
-            console.print("[dim][AI] Enhanced tracking enabled: PCAP insights worker started[/dim]")
+            console.print(
+                "[dim][AI] Enhanced tracking enabled: PCAP insights worker started[/dim]"
+            )
         except Exception as e:
-            console.print(f"[yellow][!] Could not start PCAP insights worker: {e}[/yellow]")
+            console.print(
+                f"[yellow][!] Could not start PCAP insights worker: {e}[/yellow]"
+            )
 
     # Шаг 1: DNS резолвинг
     if args.advanced_dns:
@@ -2138,16 +2413,23 @@ async def run_hybrid_mode(args):
     # Корреляционный захват по меткам (offline-анализ по итоговому PCAP)
     if args.enable_enhanced_tracking and args.pcap:
         try:
-            from core.pcap.enhanced_packet_capturer import create_enhanced_packet_capturer
+            from core.pcap.enhanced_packet_capturer import (
+                create_enhanced_packet_capturer,
+            )
+
             corr_capturer = create_enhanced_packet_capturer(
                 pcap_file=args.pcap,
                 target_ips=all_target_ips,
                 port=args.port,
-                interface=args.capture_iface
+                interface=args.capture_iface,
             )
-            console.print("[LINK] Enhanced tracking enabled: correlation capturer ready")
+            console.print(
+                "[LINK] Enhanced tracking enabled: correlation capturer ready"
+            )
         except Exception as e:
-            console.print(f"[yellow][!] Could not init correlation capturer: {e}[/yellow]")
+            console.print(
+                f"[yellow][!] Could not init correlation capturer: {e}[/yellow]"
+            )
 
     # Шаг 2: Базовая доступность
     console.print("\n[yellow]Step 2: Testing baseline connectivity...[/yellow]")
@@ -2183,7 +2465,9 @@ async def run_hybrid_mode(args):
     try:
         import pydivert
 
-        console.print("[dim][OK] PyDivert available - system-level bypass enabled[/dim]")
+        console.print(
+            "[dim][OK] PyDivert available - system-level bypass enabled[/dim]"
+        )
     except ImportError:
         console.print(
             "[yellow][!]  PyDivert not available - using fallback mode[/yellow]"
@@ -2195,35 +2479,44 @@ async def run_hybrid_mode(args):
     if args.fingerprint:
         console.print("\n[yellow]Step 2.5: DPI Fingerprinting...[/yellow]")
 
-        if UNIFIED_COMPONENTS_AVAILABLE:
-            # <<< FIX: Use aliased config name >>>
+        if FINGERPRINTER_AVAILABLE: 
+            
             cfg = UnifiedFPConfig(
                 timeout=args.connect_timeout + args.tls_timeout,
                 enable_cache=False,
                 analysis_level=args.analysis_level,
                 connect_timeout=5.0,
-                tls_timeout=10.0 
+                tls_timeout=10.0,
             )
-            # <<< FIX: Store reference to the fingerprinter for later refinement >>>
-            unified_fingerprinter = UnifiedFingerprinter(config=cfg)
-            refiner = unified_fingerprinter
             
-            targets_to_probe = [(urlparse(site).hostname or site, args.port) for site in blocked_sites]
-            
-            console.print(f"[dim][*] Using UnifiedFingerprinter with concurrency: {args.parallel}[/dim]")
+            async with UnifiedFingerprinter(config=cfg) as unified_fingerprinter:
+                refiner = unified_fingerprinter
 
-            fingerprint_results = await unified_fingerprinter.fingerprint_batch(
-                targets=targets_to_probe,
-                force_refresh=True,
-                max_concurrent=args.parallel
-            )
+                targets_to_probe = [
+                    (urlparse(site).hostname or site, args.port)
+                    for site in blocked_sites
+                ]
+
+                console.print(
+                    f"[dim][*] Using UnifiedFingerprinter with concurrency: {args.parallel}[/dim]"
+                )
+
+                fingerprint_results = await unified_fingerprinter.fingerprint_batch(
+                    targets=targets_to_probe,
+                    force_refresh=True,
+                    max_concurrent=args.parallel,
+                )
 
             for fp in fingerprint_results:
                 if fp:
                     fingerprints[fp.target] = fp
-                    console.print(f"  - {fp.target}: [cyan]{fp.dpi_type.value}[/cyan] (reliability: {fp.reliability_score:.2f})")
+                    console.print(
+                        f"  - {fp.target}: [cyan]{fp.dpi_type.value}[/cyan] (reliability: {fp.reliability_score:.2f})"
+                    )
         else:
-            console.print("[yellow]UnifiedFingerprinter not available, using fallback simple fingerprinting[/yellow]")
+            console.print(
+                "[yellow]UnifiedFingerprinter not available, using fallback simple fingerprinting[/yellow]"
+            )
             with Progress(console=console, transient=True) as progress:
                 task = progress.add_task(
                     "[cyan]Fingerprinting (simple)...", total=len(blocked_sites)
@@ -2252,22 +2545,30 @@ async def run_hybrid_mode(args):
     strategies = []
     # 1. Приоритет: файл стратегий
     if args.strategies_file and os.path.exists(args.strategies_file):
-        console.print(f"[cyan]Loading strategies from file: {args.strategies_file}[/cyan]")
+        console.print(
+            f"[cyan]Loading strategies from file: {args.strategies_file}[/cyan]"
+        )
         try:
             with open(args.strategies_file, "r", encoding="utf-8") as f:
                 for line in f:
                     s = line.strip()
                     if s and not s.startswith("#"):
                         strategies.append(s)
-            strategies = list(dict.fromkeys(strategies))  # Удаляем дубликаты, сохраняя порядок
+            strategies = list(
+                dict.fromkeys(strategies)
+            )  # Удаляем дубликаты, сохраняя порядок
             if not strategies:
-                console.print("[yellow]Warning: strategies file is empty after filtering.[/yellow]")
+                console.print(
+                    "[yellow]Warning: strategies file is empty after filtering.[/yellow]"
+                )
         except Exception as e:
             console.print(f"[red]Error reading strategies file: {e}[/red]")
 
     # 2. Если файл есть и указан флаг --no-generate, больше ничего не делаем
     if strategies and args.no_generate:
-        console.print(f"Using {len(strategies)} strategies from file (auto-generation disabled).")
+        console.print(
+            f"Using {len(strategies)} strategies from file (auto-generation disabled)."
+        )
     # 3. Иначе, если указана одна стратегия через --strategy
     elif args.strategy:
         strategies = [args.strategy]
@@ -2276,83 +2577,111 @@ async def run_hybrid_mode(args):
     else:
         if not args.no_generate:
             generator = ZapretStrategyGenerator()
-            fingerprint_for_strategy = next(iter(fingerprints.values()), None) if fingerprints else None
+            fingerprint_for_strategy = (
+                next(iter(fingerprints.values()), None) if fingerprints else None
+            )
             try:
-                more_strategies = generator.generate_strategies(fingerprint_for_strategy, count=args.count)
+                more_strategies = generator.generate_strategies(
+                    fingerprint_for_strategy, count=args.count
+                )
                 # Добавляем только уникальные
                 for s in more_strategies:
                     if s not in strategies:
                         strategies.append(s)
-                console.print(f"Generated {len(more_strategies)} strategies (total unique: {len(strategies)}).")
+                console.print(
+                    f"Generated {len(more_strategies)} strategies (total unique: {len(strategies)})."
+                )
             except Exception as e:
                 console.print(f"[red]✗ Error generating strategies: {e}[/red]")
-                if not strategies: # Если совсем ничего нет, добавляем фоллбэк
-                    strategies.extend([
-                        "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum",
-                        "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq",
-                    ])
-        
+                if not strategies:  # Если совсем ничего нет, добавляем фоллбэк
+                    strategies.extend(
+                        [
+                            "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum",
+                            "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq",
+                        ]
+                    )
+
         # Validate strategies if --validate flag is enabled
         if args.validate and strategies:
             try:
                 from core.cli_validation_orchestrator import CLIValidationOrchestrator
-                
-                console.print("\n[bold][VALIDATION] Validating generated strategies...[/bold]")
+
+                console.print(
+                    "\n[bold][VALIDATION] Validating generated strategies...[/bold]"
+                )
                 orchestrator = CLIValidationOrchestrator()
-                
+
                 valid_strategies = []
                 validation_errors = []
                 validation_warnings = []
-                
+
                 for strategy_str in strategies:
                     # Parse strategy to dict format for validation
                     try:
                         # Use the unified loader for parsing, not the old interpreter
-                        parsed = hybrid_engine.strategy_loader.load_strategy(strategy_str).to_engine_format()
-                        
+                        parsed = hybrid_engine.strategy_loader.load_strategy(
+                            strategy_str
+                        ).to_engine_format()
+
                         if parsed:
                             # Validate the parsed strategy
                             validation_result = orchestrator.validate_strategy(
-                                parsed,
-                                check_attack_availability=True
+                                parsed, check_attack_availability=True
                             )
-                            
+
                             if validation_result.passed:
                                 valid_strategies.append(strategy_str)
                             else:
                                 validation_errors.extend(validation_result.errors)
-                                console.print(f"[yellow]⚠ Strategy validation failed: {parsed.get('type', 'unknown')}[/yellow]")
+                                console.print(
+                                    f"[yellow]⚠ Strategy validation failed: {parsed.get('type', 'unknown')}[/yellow]"
+                                )
                                 for err in validation_result.errors:
                                     console.print(f"  [red]- {err}[/red]")
-                            
+
                             validation_warnings.extend(validation_result.warnings)
                     except Exception as e:
-                        console.print(f"[yellow]Warning: Could not validate strategy '{strategy_str}': {e}[/yellow]")
+                        console.print(
+                            f"[yellow]Warning: Could not validate strategy '{strategy_str}': {e}[/yellow]"
+                        )
                         # Keep the strategy if validation fails
                         valid_strategies.append(strategy_str)
-                
+
                 # Display validation summary
-                console.print(f"\n[bold]Strategy Validation Summary:[/bold]")
+                console.print("\n[bold]Strategy Validation Summary:[/bold]")
                 console.print(f"  Total strategies: {len(strategies)}")
-                console.print(f"  Valid strategies: [green]{len(valid_strategies)}[/green]")
-                console.print(f"  Validation errors: [red]{len(validation_errors)}[/red]")
-                console.print(f"  Validation warnings: [yellow]{len(validation_warnings)}[/yellow]")
-                
+                console.print(
+                    f"  Valid strategies: [green]{len(valid_strategies)}[/green]"
+                )
+                console.print(
+                    f"  Validation errors: [red]{len(validation_errors)}[/red]"
+                )
+                console.print(
+                    f"  Validation warnings: [yellow]{len(validation_warnings)}[/yellow]"
+                )
+
                 # Use only valid strategies
                 if valid_strategies:
                     strategies = valid_strategies
-                    console.print(f"[green]✓ Proceeding with {len(strategies)} validated strategies[/green]")
+                    console.print(
+                        f"[green]✓ Proceeding with {len(strategies)} validated strategies[/green]"
+                    )
                 else:
-                    console.print("[yellow]⚠ No valid strategies found, proceeding with all strategies anyway[/yellow]")
-                
+                    console.print(
+                        "[yellow]⚠ No valid strategies found, proceeding with all strategies anyway[/yellow]"
+                    )
+
             except ImportError as e:
-                console.print(f"[yellow][!] Strategy validation skipped: Required modules not available ({e})[/yellow]")
+                console.print(
+                    f"[yellow][!] Strategy validation skipped: Required modules not available ({e})[/yellow]"
+                )
             except Exception as e:
                 console.print(f"[yellow][!] Strategy validation failed: {e}[/yellow]")
                 if args.debug:
                     import traceback
+
                     traceback.print_exc()
-        
+
         if strategies and dns_cache:
             first_domain = list(dns_cache.keys())[0]
             first_ip = dns_cache[first_domain]
@@ -2393,10 +2722,10 @@ async def run_hybrid_mode(args):
 
     # Шаг 4: Гибридное тестирование
     console.print("\n[yellow]Step 4: Hybrid testing with forced DNS...[/yellow]")
-    
+
     primary_domain = list(dns_cache.keys())[0] if dns_cache else None
     fingerprint_to_use = fingerprints.get(primary_domain)
-    
+
     test_results = await hybrid_engine.test_strategies_hybrid(
         strategies=structured_strategies,
         test_sites=blocked_sites,
@@ -2410,7 +2739,7 @@ async def run_hybrid_mode(args):
         telemetry_full=args.telemetry_full,
         engine_override=args.engine,
         capturer=corr_capturer,
-        fingerprint=fingerprint_to_use
+        fingerprint=fingerprint_to_use,
     )
 
     # <<< FIX: Robust fingerprint refinement logic >>>
@@ -2428,19 +2757,29 @@ async def run_hybrid_mode(args):
         }
         for domain, fp in fingerprints.items():
             try:
-                if refiner and hasattr(refiner, "refine_fingerprint") and isinstance(fp, (UnifiedFingerprint, DPIFingerprint)):
+                if (
+                    refiner
+                    and hasattr(refiner, "refine_fingerprint")
+                    and isinstance(fp, (UnifiedFingerprint, DPIFingerprint))
+                ):
                     refined_fp = await refiner.refine_fingerprint(fp, feedback_data)
                 elif isinstance(fp, SimpleFingerprint):
-                    refined_fp = await simple_fingerprinter.refine_fingerprint(fp, feedback_data)
+                    refined_fp = await simple_fingerprinter.refine_fingerprint(
+                        fp, feedback_data
+                    )
                 else:
                     refined_fp = fp  # Skip refinement if no suitable refiner is found
-                
+
                 fingerprints[domain] = refined_fp
                 new_type = getattr(refined_fp, "dpi_type", None)
                 new_type_str = getattr(new_type, "value", str(new_type))
-                console.print(f"  - Fingerprint for {domain} refined. New type: {new_type_str}")
+                console.print(
+                    f"  - Fingerprint for {domain} refined. New type: {new_type_str}"
+                )
             except Exception as e:
-                console.print(f"[yellow]  - Fingerprint refine failed for {domain}: {e}[/yellow]")
+                console.print(
+                    f"[yellow]  - Fingerprint refine failed for {domain}: {e}[/yellow]"
+                )
     # <<< END FIX >>>
 
     # Шаг 4.5: Сохранение результатов в кэш обучения
@@ -2451,16 +2790,15 @@ async def run_hybrid_mode(args):
         avg_latency = result["avg_latency_ms"]
 
         # --- START OF FIX: Process detailed site_results to build per-domain map ---
-        if 'site_results' in result:
-            for site_url, site_result_tuple in result['site_results'].items():
+        if "site_results" in result:
+            for site_url, site_result_tuple in result["site_results"].items():
                 # site_result_tuple is (status, ip, latency, http_code)
                 status, _, latency, _ = site_result_tuple
-                if status == 'WORKING':
+                if status == "WORKING":
                     hostname = urlparse(site_url).hostname or site_url
-                    domain_strategy_map[hostname].append({
-                        "strategy": strategy,
-                        "latency_ms": latency
-                    })
+                    domain_strategy_map[hostname].append(
+                        {"strategy": strategy, "latency_ms": latency}
+                    )
         # --- END OF FIX ---
 
         for domain, ip in dns_cache.items():
@@ -2490,72 +2828,97 @@ async def run_hybrid_mode(args):
             capturer.stop()
         except Exception:
             pass
-    
+
     # PCAP validation if --validate flag is enabled
     pcap_validation_result = None
     if args.validate and args.pcap and os.path.exists(args.pcap):
         try:
             from core.cli_validation_orchestrator import CLIValidationOrchestrator
             from pathlib import Path
-            
-            console.print("\n[bold][VALIDATION] Validating captured PCAP file...[/bold]")
-            
+
+            console.print(
+                "\n[bold][VALIDATION] Validating captured PCAP file...[/bold]"
+            )
+
             orchestrator = CLIValidationOrchestrator()
             pcap_path = Path(args.pcap)
-            
+
             # Validate PCAP with basic attack spec
             attack_spec = {
-                'validate_sequence': True,
-                'validate_flag_combinations': True
+                "validate_sequence": True,
+                "validate_flag_combinations": True,
             }
-            
+
             pcap_validation_result = orchestrator.validate_pcap(pcap_path, attack_spec)
-            
+
             # Display validation summary
             if pcap_validation_result.passed:
-                console.print(f"[green]✓ PCAP validation PASSED[/green]")
+                console.print("[green]✓ PCAP validation PASSED[/green]")
                 console.print(f"  Packets: {pcap_validation_result.packet_count}")
                 console.print(f"  Issues: {len(pcap_validation_result.issues)}")
                 console.print(f"  Warnings: {len(pcap_validation_result.warnings)}")
             else:
-                console.print(f"[yellow]⚠ PCAP validation FAILED[/yellow]")
+                console.print("[yellow]⚠ PCAP validation FAILED[/yellow]")
                 console.print(f"  Packets: {pcap_validation_result.packet_count}")
-                console.print(f"  Errors: {len([i for i in pcap_validation_result.issues if i.severity == 'error'])}")
-                console.print(f"  Warnings: {len([i for i in pcap_validation_result.issues if i.severity == 'warning'])}")
-                
+                console.print(
+                    f"  Errors: {len([i for i in pcap_validation_result.issues if i.severity == 'error'])}"
+                )
+                console.print(
+                    f"  Warnings: {len([i for i in pcap_validation_result.issues if i.severity == 'warning'])}"
+                )
+
                 # Show first few errors
-                errors = [i for i in pcap_validation_result.issues if i.severity == 'error']
+                errors = [
+                    i for i in pcap_validation_result.issues if i.severity == "error"
+                ]
                 if errors:
                     console.print("\n  Top errors:")
                     for err in errors[:3]:
                         console.print(f"    - {err.description}")
-            
+
             # Save detailed validation report
-            report_file = orchestrator.output_dir / f"pcap_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            report = orchestrator.create_validation_report(pcap_validation=pcap_validation_result)
+            report_file = (
+                orchestrator.output_dir
+                / f"pcap_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            report = orchestrator.create_validation_report(
+                pcap_validation=pcap_validation_result
+            )
             report.save_to_file(report_file)
             console.print(f"  [dim]Detailed report: {report_file}[/dim]")
-            
+
         except ImportError as e:
-            console.print(f"[yellow][!] PCAP validation skipped: Required modules not available ({e})[/yellow]")
+            console.print(
+                f"[yellow][!] PCAP validation skipped: Required modules not available ({e})[/yellow]"
+            )
         except Exception as e:
             console.print(f"[yellow][!] PCAP validation failed: {e}[/yellow]")
             if args.debug:
                 import traceback
+
                 traceback.print_exc()
-    
+
     # Offline анализ корреляции стратегий по PCAP
-    if args.enable_enhanced_tracking and corr_capturer and args.pcap and os.path.exists(args.pcap):
+    if (
+        args.enable_enhanced_tracking
+        and corr_capturer
+        and args.pcap
+        and os.path.exists(args.pcap)
+    ):
         try:
             analysis = corr_capturer.analyze_all_strategies_offline(
                 pcap_file=args.pcap, window_slack=0.6
             )
             if analysis:
-                console.print("\n[bold][ANALYZE] Enhanced tracking summary (PCAP -> strategies)[/bold]")
+                console.print(
+                    "\n[bold][ANALYZE] Enhanced tracking summary (PCAP -> strategies)[/bold]"
+                )
                 # Выведем топ-5
                 shown = 0
                 for sid, info in analysis.items():
-                    console.print(f"  * {sid}: score={info.get('success_score',0):.2f}, SH/CH={info.get('tls_serverhellos',0)}/{info.get('tls_clienthellos',0)}, RST={info.get('rst_packets',0)}")
+                    console.print(
+                        f"  * {sid}: score={info.get('success_score',0):.2f}, SH/CH={info.get('tls_serverhellos',0)}/{info.get('tls_clienthellos',0)}, RST={info.get('rst_packets',0)}"
+                    )
                     shown += 1
                     if shown >= 5:
                         break
@@ -2565,12 +2928,22 @@ async def run_hybrid_mode(args):
     # Сравнение паттернов zapret vs recon при наличии PCAPов в корне (zapret.pcap/recon.pcap)
     # <<< FIX: Initialize validator to None to prevent NameError >>>
     validator = None
-    if PKTVAL_AVAILABLE and Path("zapret.pcap").exists() and Path("recon.pcap").exists():
-        console.print("\n[yellow]Step 5.1: Packet pattern validation (zapret vs recon)...[/yellow]")
+    if (
+        PKTVAL_AVAILABLE
+        and Path("zapret.pcap").exists()
+        and Path("recon.pcap").exists()
+    ):
+        console.print(
+            "\n[yellow]Step 5.1: Packet pattern validation (zapret vs recon)...[/yellow]"
+        )
         try:
             validator = pktval.PacketPatternValidator(output_dir="packet_validation")
-            comp = validator.compare_packet_patterns("recon.pcap", "zapret.pcap", validator.critical_strategy)
-            console.print(f"  Pattern match score: {comp.pattern_match_score:.2f} (passed={comp.validation_passed})")
+            comp = validator.compare_packet_patterns(
+                "recon.pcap", "zapret.pcap", validator.critical_strategy
+            )
+            console.print(
+                f"  Pattern match score: {comp.pattern_match_score:.2f} (passed={comp.validation_passed})"
+            )
             if comp.critical_differences:
                 console.print("  Critical differences:")
                 for d in comp.critical_differences[:5]:
@@ -2579,8 +2952,10 @@ async def run_hybrid_mode(args):
             console.print(f"[yellow][!] Packet pattern validation failed: {e}[/yellow]")
         finally:
             if validator:
-                try: validator.close_logging()
-                except Exception: pass
+                try:
+                    validator.close_logging()
+                except Exception:
+                    pass
     # <<< END FIX >>>
 
     # Если есть PCAP и доступен профилировщик -- проанализируем и добавим в отчет
@@ -2612,14 +2987,22 @@ async def run_hybrid_mode(args):
         # Авто-PCAP захват на фейле (если не включен вручную)
         try:
             if SCAPY_AVAILABLE and not args.pcap:
-                console.print("[dim][CAPTURE] Auto-capture: starting short PCAP (8s) for failure profiling...[/dim]")
-                auto_pcap = f"recon_autofail_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap"
+                console.print(
+                    "[dim][CAPTURE] Auto-capture: starting short PCAP (8s) for failure profiling...[/dim]"
+                )
+                auto_pcap = (
+                    f"recon_autofail_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap"
+                )
                 bpf = build_bpf_from_ips(set(dns_cache.values()), args.port)
-                cap = PacketCapturer(auto_pcap, bpf=bpf, iface=args.capture_iface, max_seconds=8)
+                cap = PacketCapturer(
+                    auto_pcap, bpf=bpf, iface=args.capture_iface, max_seconds=8
+                )
                 cap.start()
                 # Запустим ещё один baseline для генерации ClientHello во время захвата
                 try:
-                    await hybrid_engine.test_baseline_connectivity(dm.domains, dns_cache)
+                    await hybrid_engine.test_baseline_connectivity(
+                        dm.domains, dns_cache
+                    )
                 except Exception:
                     pass
                 cap.stop()
@@ -2629,7 +3012,9 @@ async def run_hybrid_mode(args):
                         profiler = AdvancedTrafficProfiler()
                         res = profiler.analyze_pcap_file(auto_pcap)
                         if res and res.success:
-                            console.print("[bold][TEST] Auto PCAP profiling summary[/bold]")
+                            console.print(
+                                "[bold][TEST] Auto PCAP profiling summary[/bold]"
+                            )
                             apps = ", ".join(res.detected_applications) or "none"
                             ctx = res.metadata.get("context", {})
                             console.print(f"  Apps: [cyan]{apps}[/cyan]")
@@ -2637,7 +3022,9 @@ async def run_hybrid_mode(args):
                                 f"  TLS ClientHello: {ctx.get('tls_client_hello',0)}, Alerts: {ctx.get('tls_alert_count',0)}, QUIC: {ctx.get('quic_initial_count',0)}"
                             )
                     except Exception as e:
-                        console.print(f"[yellow][!] Auto profiling failed: {e}[/yellow]")
+                        console.print(
+                            f"[yellow][!] Auto profiling failed: {e}[/yellow]"
+                        )
         except Exception:
             pass
     else:
@@ -2658,16 +3045,18 @@ async def run_hybrid_mode(args):
         console.print(
             f"\n[bold green][TROPHY] Best Overall Strategy:[/bold green] [cyan]{best_strategy}[/cyan]"
         )
-        
+
         # --- START OF FIX: Display per-domain optimal strategies ---
         if domain_strategy_map:
-            console.print("\n[bold underline]Per-Domain Optimal Strategy Report[/bold underline]")
+            console.print(
+                "\n[bold underline]Per-Domain Optimal Strategy Report[/bold underline]"
+            )
             domain_best_strategies = {}
-            
+
             # Find the best strategy for each domain
             for domain, results in domain_strategy_map.items():
                 # Sort by latency (lower is better)
-                best_result = sorted(results, key=lambda x: x['latency_ms'])[0]
+                best_result = sorted(results, key=lambda x: x["latency_ms"])[0]
                 domain_best_strategies[domain] = best_result
 
             # Create and print the results table
@@ -2675,10 +3064,10 @@ async def run_hybrid_mode(args):
             table.add_column("Domain", style="cyan", no_wrap=True)
             table.add_column("Best Strategy", style="green")
             table.add_column("Latency (ms)", justify="right", style="magenta")
-            
+
             for domain, best in sorted(domain_best_strategies.items()):
-                table.add_row(domain, best['strategy'], f"{best['latency_ms']:.1f}")
-            
+                table.add_row(domain, best["strategy"], f"{best['latency_ms']:.1f}")
+
             console.print(table)
         # --- END OF FIX ---
 
@@ -2689,12 +3078,12 @@ async def run_hybrid_mode(args):
             # --- START OF FIX: Save the BEST strategy for EACH domain ---
             if domain_strategy_map:
                 for domain, results in domain_strategy_map.items():
-                    best_result = sorted(results, key=lambda x: x['latency_ms'])[0]
+                    best_result = sorted(results, key=lambda x: x["latency_ms"])[0]
                     strategy_manager.add_strategy(
                         domain,
-                        best_result['strategy'],
+                        best_result["strategy"],
                         1.0,  # Success rate is 100% for this specific domain
-                        best_result['latency_ms']
+                        best_result["latency_ms"],
                     )
             # --- END OF FIX ---
             strategy_manager.save_strategies()
@@ -2703,7 +3092,9 @@ async def run_hybrid_mode(args):
             )
             with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
                 json.dump(best_strategy_result, f, indent=2, ensure_ascii=False)
-            console.print(f"[green][SAVE] Best overall strategy saved to '{STRATEGY_FILE}'[/green]")
+            console.print(
+                f"[green][SAVE] Best overall strategy saved to '{STRATEGY_FILE}'[/green]"
+            )
         except Exception as e:
             console.print(f"[red]Error saving strategies: {e}[/red]")
 
@@ -2725,12 +3116,17 @@ async def run_hybrid_mode(args):
     console.print("\n[yellow]Step 6: Generating Comprehensive Report...[/yellow]")
 
     def _fp_to_dict(v):
-        try: return v.to_dict()
+        try:
+            return v.to_dict()
         except Exception:
-            try: return v.__dict__
-            except Exception: return str(v)
+            try:
+                return v.__dict__
+            except Exception:
+                return str(v)
 
-    system_report = await advanced_reporter.generate_system_performance_report(period_hours=24)
+    system_report = await advanced_reporter.generate_system_performance_report(
+        period_hours=24
+    )
 
     # --- START OF FIX: Add domain_strategy_map to the final report ---
     final_report_data = {
@@ -2738,36 +3134,51 @@ async def run_hybrid_mode(args):
         "execution_time_seconds": time.time() - reporter.start_time,
         "total_strategies_tested": len(test_results),
         "working_strategies_found": len(working_strategies),
-        "success_rate": (len(working_strategies) / len(test_results) if test_results else 0),
+        "success_rate": (
+            len(working_strategies) / len(test_results) if test_results else 0
+        ),
         "best_overall_strategy": working_strategies[0] if working_strategies else None,
         "domain_specific_results": {
-            domain: sorted(results, key=lambda x: x['latency_ms'])[0]
+            domain: sorted(results, key=lambda x: x["latency_ms"])[0]
             for domain, results in domain_strategy_map.items()
         },
         "report_summary": {
             "generated_at": datetime.now().isoformat(),
-            "period": system_report.report_period if system_report else "N/A"
+            "period": system_report.report_period if system_report else "N/A",
         },
-    # --- END OF FIX ---
+        # --- END OF FIX ---
         "key_metrics": {
-            "overall_success_rate": (len(working_strategies) / len(test_results) * 100) if test_results else 0,
+            "overall_success_rate": (
+                (len(working_strategies) / len(test_results) * 100)
+                if test_results
+                else 0
+            ),
             "total_domains_tested": len(dm.domains),
             "blocked_domains_count": len(blocked_sites),
-            "total_attacks_24h": system_report.total_attacks if system_report else len(test_results),
-            "average_effectiveness_24h": system_report.average_effectiveness if system_report else 0
+            "total_attacks_24h": (
+                system_report.total_attacks if system_report else len(test_results)
+            ),
+            "average_effectiveness_24h": (
+                system_report.average_effectiveness if system_report else 0
+            ),
         },
         "metadata": {
             "working_strategies_found": len(working_strategies),
-            "total_strategies_tested": len(test_results)
+            "total_strategies_tested": len(test_results),
         },
         "fingerprints": {k: _fp_to_dict(v) for k, v in fingerprints.items()},
         "strategy_effectiveness": {
-            "top_working": sorted(working_strategies, key=lambda x: x.get('success_rate', 0), reverse=True)[:5],
-            "top_failing": sorted([r for r in test_results if r.get('success_rate', 0) <= 0.5], key=lambda x: x.get('success_rate', 0))[:5]
+            "top_working": sorted(
+                working_strategies, key=lambda x: x.get("success_rate", 0), reverse=True
+            )[:5],
+            "top_failing": sorted(
+                [r for r in test_results if r.get("success_rate", 0) <= 0.5],
+                key=lambda x: x.get("success_rate", 0),
+            )[:5],
         },
-        "all_results": test_results
+        "all_results": test_results,
     }
-    
+
     # Add PCAP validation results to report if validation was performed
     if pcap_validation_result:
         final_report_data["pcap_validation"] = {
@@ -2777,19 +3188,23 @@ async def run_hybrid_mode(args):
             "packet_count": pcap_validation_result.packet_count,
             "issues_count": len(pcap_validation_result.issues),
             "warnings_count": len(pcap_validation_result.warnings),
-            "errors_count": len([i for i in pcap_validation_result.issues if i.severity == 'error']),
-            "details": pcap_validation_result.details
+            "errors_count": len(
+                [i for i in pcap_validation_result.issues if i.severity == "error"]
+            ),
+            "details": pcap_validation_result.details,
         }
     else:
-        final_report_data["pcap_validation"] = {
-            "enabled": False
-        }
+        final_report_data["pcap_validation"] = {"enabled": False}
 
     reporter.print_summary(final_report_data)
 
-    report_filename = reporter.save_report(final_report_data, filename="recon_summary.json")
+    report_filename = reporter.save_report(
+        final_report_data, filename="recon_summary.json"
+    )
     if report_filename:
-        console.print(f"[green][FILE] Detailed report saved to: {report_filename}[/green]")
+        console.print(
+            f"[green][FILE] Detailed report saved to: {report_filename}[/green]"
+        )
     # <<< END FIX >>>
 
     # Baseline comparison and saving (if validation enabled)
@@ -2797,45 +3212,48 @@ async def run_hybrid_mode(args):
         try:
             from core.cli_validation_orchestrator import CLIValidationOrchestrator
             from pathlib import Path
-            
+
             orchestrator = CLIValidationOrchestrator()
-            
+
             # Convert test results to baseline format
             baseline_results = []
             for result in test_results:
                 # Handle strategy field - it can be string or dict
-                strategy = result.get('strategy', {})
+                strategy = result.get("strategy", {})
                 if isinstance(strategy, str):
                     attack_name = strategy
                 elif isinstance(strategy, dict):
-                    attack_name = strategy.get('type', 'unknown')
+                    attack_name = strategy.get("type", "unknown")
                 else:
-                    attack_name = 'unknown'
-                
-                baseline_results.append({
-                    'attack_name': attack_name,
-                    'passed': result.get('success', False),
-                    'packet_count': result.get('packet_count', 0),
-                    'validation_passed': result.get('validation_passed', True),
-                    'validation_issues': result.get('validation_issues', []),
-                    'execution_time': result.get('execution_time', 0.0),
-                    'metadata': {
-                        'domain': result.get('domain', 'unknown'),
-                        'success_rate': result.get('success_rate', 0.0),
-                        'strategy': result.get('strategy', {})
+                    attack_name = "unknown"
+
+                baseline_results.append(
+                    {
+                        "attack_name": attack_name,
+                        "passed": result.get("success", False),
+                        "packet_count": result.get("packet_count", 0),
+                        "validation_passed": result.get("validation_passed", True),
+                        "validation_issues": result.get("validation_issues", []),
+                        "execution_time": result.get("execution_time", 0.0),
+                        "metadata": {
+                            "domain": result.get("domain", "unknown"),
+                            "success_rate": result.get("success_rate", 0.0),
+                            "strategy": result.get("strategy", {}),
+                        },
                     }
-                })
-            
+                )
+
             # Compare with baseline if requested
             if args.validate_baseline:
-                console.print(f"\n[bold][VALIDATION] Comparing with baseline: {args.validate_baseline}[/bold]")
-                
+                console.print(
+                    f"\n[bold][VALIDATION] Comparing with baseline: {args.validate_baseline}[/bold]"
+                )
+
                 try:
                     comparison = orchestrator.compare_with_baseline(
-                        baseline_results,
-                        baseline_name=args.validate_baseline
+                        baseline_results, baseline_name=args.validate_baseline
                     )
-                    
+
                     # Display comparison results
                     console.print("\n" + "=" * 70)
                     console.print("[bold]BASELINE COMPARISON RESULTS[/bold]")
@@ -2847,12 +3265,16 @@ async def run_hybrid_mode(args):
                     console.print(f"Regressions: {len(comparison.regressions)}")
                     console.print(f"Improvements: {len(comparison.improvements)}")
                     console.print(f"Unchanged: {comparison.unchanged}")
-                    
+
                     # Display regressions prominently
                     if comparison.regressions:
                         console.print("\n[bold red]⚠ REGRESSIONS DETECTED:[/bold red]")
                         for reg in comparison.regressions:
-                            severity_color = "red" if reg.severity.value in ["critical", "high"] else "yellow"
+                            severity_color = (
+                                "red"
+                                if reg.severity.value in ["critical", "high"]
+                                else "yellow"
+                            )
                             console.print(
                                 f"  [{severity_color}][{reg.severity.value.upper()}][/{severity_color}] "
                                 f"{reg.attack_name}: {reg.description}"
@@ -2861,59 +3283,72 @@ async def run_hybrid_mode(args):
                                 console.print(f"    Details: {reg.details}")
                     else:
                         console.print("\n[green]✓ No regressions detected[/green]")
-                    
+
                     # Display improvements
                     if comparison.improvements:
                         console.print("\n[bold green]✓ IMPROVEMENTS:[/bold green]")
                         for imp in comparison.improvements:
-                            console.print(f"  [green][IMPROVEMENT][/green] {imp.attack_name}: {imp.description}")
-                    
+                            console.print(
+                                f"  [green][IMPROVEMENT][/green] {imp.attack_name}: {imp.description}"
+                            )
+
                     console.print("=" * 70)
-                    
+
                     # Add comparison to final report
                     final_report_data["baseline_comparison"] = comparison.to_dict()
-                    
+
                 except Exception as e:
-                    console.print(f"[bold red]Error comparing with baseline: {e}[/bold red]")
+                    console.print(
+                        f"[bold red]Error comparing with baseline: {e}[/bold red]"
+                    )
                     if args.debug:
                         import traceback
+
                         traceback.print_exc()
-            
+
             # Save new baseline if requested
             if args.save_baseline:
-                console.print(f"\n[bold][VALIDATION] Saving baseline: {args.save_baseline}[/bold]")
-                
+                console.print(
+                    f"\n[bold][VALIDATION] Saving baseline: {args.save_baseline}[/bold]"
+                )
+
                 try:
                     baseline_file = orchestrator.save_baseline(
-                        baseline_results,
-                        name=args.save_baseline
+                        baseline_results, name=args.save_baseline
                     )
-                    console.print(f"[green]✓ Baseline saved to: {baseline_file}[/green]")
-                    
+                    console.print(
+                        f"[green]✓ Baseline saved to: {baseline_file}[/green]"
+                    )
+
                     # Add to final report
                     final_report_data["baseline_saved"] = str(baseline_file)
-                    
+
                 except Exception as e:
                     console.print(f"[bold red]Error saving baseline: {e}[/bold red]")
                     if args.debug:
                         import traceback
+
                         traceback.print_exc()
-        
+
         except ImportError as e:
-            console.print(f"[yellow]Warning: Baseline functionality not available: {e}[/yellow]")
+            console.print(
+                f"[yellow]Warning: Baseline functionality not available: {e}[/yellow]"
+            )
         except Exception as e:
             console.print(f"[yellow]Warning: Baseline operation failed: {e}[/yellow]")
             if args.debug:
                 import traceback
+
                 traceback.print_exc()
 
     # KB summary: причины блокировок по CDN и доменам
     try:
-        from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
         kb = CdnAsnKnowledgeBase()
         # По CDN
         if kb.cdn_profiles:
-            console.print("\n[bold underline][AI] KB Blocking Reasons Summary (by CDN)[/bold underline]")
+            console.print(
+                "\n[bold underline][AI] KB Blocking Reasons Summary (by CDN)[/bold underline]"
+            )
             for cdn, prof in kb.cdn_profiles.items():
                 br = getattr(prof, "block_reasons", {}) or {}
                 if br:
@@ -2922,10 +3357,23 @@ async def run_hybrid_mode(args):
                     console.print(f"  * {cdn}: {s}")
         # По доменам (только топ-10)
         if kb.domain_block_reasons:
-            console.print("\n[bold underline][AI] KB Blocking Reasons Summary (by domain)[/bold underline]")
-            items = sorted(kb.domain_block_reasons.items(), key=lambda kv: sum(kv[1].values()), reverse=True)[:10]
+            console.print(
+                "\n[bold underline][AI] KB Blocking Reasons Summary (by domain)[/bold underline]"
+            )
+            items = sorted(
+                kb.domain_block_reasons.items(),
+                key=lambda kv: sum(kv[1].values()),
+                reverse=True,
+            )[:10]
             for domain, brmap in items:
-                s = ", ".join([f"{k}:{v}" for k, v in sorted(brmap.items(), key=lambda x: x[1], reverse=True)[:3]])
+                s = ", ".join(
+                    [
+                        f"{k}:{v}"
+                        for k, v in sorted(
+                            brmap.items(), key=lambda x: x[1], reverse=True
+                        )[:3]
+                    ]
+                )
                 console.print(f"  * {domain}: {s}")
     except Exception as e:
         console.print(f"[yellow]KB summary unavailable: {e}[/yellow]")
@@ -2935,23 +3383,62 @@ async def run_hybrid_mode(args):
         console.print("\n[yellow][REFRESH] Starting monitoring mode...[/yellow]")
         await start_monitoring_mode(args, blocked_sites, learning_cache)
 
-    hybrid_engine.cleanup()
-    # <<< FIX: Await cancelled PCAP worker task >>>
-    if pcap_worker_task:
+    # Cleanup section - ensure all resources are properly closed
+    try:
+        hybrid_engine.cleanup()
+    except Exception as e:
+        console.print(f"[yellow]Warning: Engine cleanup error: {e}[/yellow]")
+
+    # Cancel and await PCAP worker task
+    if pcap_worker_task and not pcap_worker_task.done():
         pcap_worker_task.cancel()
         try:
-            await pcap_worker_task
-        except asyncio.CancelledError:
-            pass # Expected
-    # <<< END FIX >>>
-    
-    # <<< FIX: Cleanup refiner if it was created >>>
-    if refiner and hasattr(refiner, 'close'):
+            await asyncio.wait_for(pcap_worker_task, timeout=5.0)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            pass  # Expected
+        except Exception as e:
+            console.print(f"[yellow]Warning: PCAP worker cleanup error: {e}[/yellow]")
+
+    # Cleanup refiner if it was created
+    if refiner and hasattr(refiner, "close"):
         try:
             await refiner.close()
-        except Exception:
-            pass
-    # <<< END FIX >>>
+        except Exception as e:
+            console.print(f"[yellow]Warning: Refiner cleanup error: {e}[/yellow]")
+
+    # Cleanup unified fingerprinter if it was created
+    if unified_fingerprinter and hasattr(unified_fingerprinter, "close"):
+        try:
+            await unified_fingerprinter.close()
+        except Exception as e:
+            console.print(
+                f"[yellow]Warning: Unified fingerprinter cleanup error: {e}[/yellow]"
+            )
+
+    # Cleanup advanced reporter
+    if advanced_reporter and hasattr(advanced_reporter, "close"):
+        try:
+            await advanced_reporter.close()
+        except Exception as e:
+            console.print(
+                f"[yellow]Warning: Advanced reporter cleanup error: {e}[/yellow]"
+            )
+
+    # Stop packet capturer
+    if capturer:
+        try:
+            capturer.stop()
+        except Exception as e:
+            console.print(f"[yellow]Warning: Capturer stop error: {e}[/yellow]")
+
+    # Cleanup correlation capturer
+    if corr_capturer and hasattr(corr_capturer, "close"):
+        try:
+            await corr_capturer.close()
+        except Exception as e:
+            console.print(
+                f"[yellow]Warning: Correlation capturer cleanup error: {e}[/yellow]"
+            )
 
 
 async def run_single_strategy_mode(args):
@@ -3007,6 +3494,7 @@ async def run_evolutionary_mode(args):
     console.print(f"Loaded {len(dm.domains)} domain(s) for evolutionary search.")
     doh_resolver = DoHResolver()
     from core.unified_bypass_engine import UnifiedEngineConfig
+
     config = UnifiedEngineConfig(debug=args.debug)
     hybrid_engine = UnifiedBypassEngine(config)
     learning_cache = AdaptiveLearningCache()
@@ -3040,23 +3528,27 @@ async def run_evolutionary_mode(args):
         )
         return
     console.print(f"Found {len(blocked_sites)} blocked sites for evolution.")
-    
+
     # Step 2.5: DPI Fingerprinting for better evolution
     fingerprints = {}
     console.print("\n[yellow]Step 2.5: DPI Fingerprinting for Evolution...[/yellow]")
     advanced_fingerprinter = None
     if ADV_FPR_AVAILABLE:
         try:
-            from core.fingerprint.advanced_fingerprinter import AdvancedFingerprinter, FingerprintingConfig
+            from core.fingerprint.advanced_fingerprinter import (
+                AdvancedFingerprinter,
+                FingerprintingConfig,
+            )
+
             cfg = FingerprintingConfig(
-                analysis_level='balanced',
+                analysis_level="balanced",
                 max_parallel_targets=min(3, len(blocked_sites)),
                 enable_fail_fast=True,
                 connect_timeout=5.0,
-                tls_timeout=10.0
+                tls_timeout=10.0,
             )
             advanced_fingerprinter = AdvancedFingerprinter(config=cfg)
-            
+
             with Progress(console=console, transient=True) as progress:
                 task = progress.add_task(
                     "[cyan]Fingerprinting for evolution...", total=len(blocked_sites)
@@ -3093,9 +3585,11 @@ async def run_evolutionary_mode(args):
                     progress.update(task, advance=1)
             await advanced_fingerprinter.close()
         except Exception as e:
-            console.print(f"[yellow]Advanced fingerprinting failed: {e}, using simple mode[/yellow]")
+            console.print(
+                f"[yellow]Advanced fingerprinting failed: {e}, using simple mode[/yellow]"
+            )
             advanced_fingerprinter = None
-    
+
     if not fingerprints:
         console.print("[yellow]Using simple fingerprinting fallback...[/yellow]")
         with Progress(console=console, transient=True) as progress:
@@ -3122,33 +3616,43 @@ async def run_evolutionary_mode(args):
     console.print(
         f"\n[bold magenta][DNA] Starting Evolution with {args.population} individuals, {args.generations} generations[/bold magenta]"
     )
-    
+
     # Prepare fingerprint-informed evolution
     first_domain = list(dns_cache.keys())[0] if dns_cache else None
     dpi_hash = ""
     if fingerprints and first_domain and first_domain in fingerprints:
         try:
             fp = fingerprints[first_domain]
-            if hasattr(fp, 'short_hash'):
+            if hasattr(fp, "short_hash"):
                 dpi_hash = fp.short_hash()
             else:
                 # Fallback hash generation for simple fingerprints
                 dpi_hash = f"{fp.dpi_type}_{fp.blocking_method}"
-            console.print(f"[dim][AI] Using fingerprint data for evolution (DPI hash: {dpi_hash[:8]}...)[/dim]")
+            console.print(
+                f"[dim][AI] Using fingerprint data for evolution (DPI hash: {dpi_hash[:8]}...)[/dim]"
+            )
         except Exception as e:
             console.print(f"[yellow]Warning: Could not extract DPI hash: {e}[/yellow]")
             dpi_hash = ""
-    
+
     start_time = time.time()
     best_chromosome = await searcher.evolve(
-        hybrid_engine, blocked_sites, all_target_ips, dns_cache, args.port,
-        learning_cache=learning_cache, domain=first_domain, dpi_hash=dpi_hash,
-        engine_override=args.engine
+        hybrid_engine,
+        blocked_sites,
+        all_target_ips,
+        dns_cache,
+        args.port,
+        learning_cache=learning_cache,
+        domain=first_domain,
+        dpi_hash=dpi_hash,
+        engine_override=args.engine,
     )
     evolution_time = time.time() - start_time
     best_strategy = searcher.genes_to_zapret_strategy(best_chromosome.genes)
     console.print("\n" + "=" * 60)
-    console.print("[bold green][PARTY] Evolutionary Search Complete! [PARTY][/bold green]")
+    console.print(
+        "[bold green][PARTY] Evolutionary Search Complete! [PARTY][/bold green]"
+    )
     console.print(f"Evolution time: {evolution_time:.1f}s")
     console.print(f"Best fitness: [green]{best_chromosome.fitness:.3f}[/green]")
     console.print(f"Best strategy: [cyan]{best_strategy}[/cyan]")
@@ -3172,7 +3676,9 @@ async def run_evolutionary_mode(args):
     try:
         with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
             json.dump(evolution_result, f, indent=2, ensure_ascii=False)
-        console.print(f"[green][SAVE] Evolution result saved to '{STRATEGY_FILE}'[/green]")
+        console.print(
+            f"[green][SAVE] Evolution result saved to '{STRATEGY_FILE}'[/green]"
+        )
     except Exception as e:
         console.print(f"[red]Error saving evolution result: {e}[/red]")
     if searcher.best_fitness_history:
@@ -3189,7 +3695,7 @@ async def run_evolutionary_mode(args):
         if fingerprints and domain in fingerprints:
             try:
                 fp = fingerprints[domain]
-                if hasattr(fp, 'short_hash'):
+                if hasattr(fp, "short_hash"):
                     fingerprint_hash = fp.short_hash()
                 else:
                     fingerprint_hash = f"{fp.dpi_type}_{fp.blocking_method}"
@@ -3197,7 +3703,7 @@ async def run_evolutionary_mode(args):
                 fingerprint_hash = dpi_hash if dpi_hash else ""
         else:
             fingerprint_hash = dpi_hash if dpi_hash else ""
-            
+
         learning_cache.record_strategy_performance(
             strategy=best_strategy,
             domain=domain,
@@ -3220,10 +3726,12 @@ async def run_evolutionary_mode(args):
     hybrid_engine.cleanup()
 
 
-async def handle_baseline_operations(args, test_results: List[Dict[str, Any]], final_report_data: Dict[str, Any]):
+async def handle_baseline_operations(
+    args, test_results: List[Dict[str, Any]], final_report_data: Dict[str, Any]
+):
     """
     Handle baseline comparison and saving operations.
-    
+
     Args:
         args: Command line arguments
         test_results: List of test results
@@ -3231,40 +3739,43 @@ async def handle_baseline_operations(args, test_results: List[Dict[str, Any]], f
     """
     if not args.validate:
         return
-    
+
     try:
         from core.cli_validation_orchestrator import CLIValidationOrchestrator
         from pathlib import Path
-        
+
         orchestrator = CLIValidationOrchestrator()
-        
+
         # Convert test results to baseline format
         baseline_results = []
         for result in test_results:
-            baseline_results.append({
-                'attack_name': result.get('strategy', {}).get('type', 'unknown'),
-                'passed': result.get('success', False),
-                'packet_count': result.get('packet_count', 0),
-                'validation_passed': result.get('validation_passed', True),
-                'validation_issues': result.get('validation_issues', []),
-                'execution_time': result.get('execution_time', 0.0),
-                'metadata': {
-                    'domain': result.get('domain', 'unknown'),
-                    'success_rate': result.get('success_rate', 0.0),
-                    'strategy': result.get('strategy', {})
+            baseline_results.append(
+                {
+                    "attack_name": result.get("strategy", {}).get("type", "unknown"),
+                    "passed": result.get("success", False),
+                    "packet_count": result.get("packet_count", 0),
+                    "validation_passed": result.get("validation_passed", True),
+                    "validation_issues": result.get("validation_issues", []),
+                    "execution_time": result.get("execution_time", 0.0),
+                    "metadata": {
+                        "domain": result.get("domain", "unknown"),
+                        "success_rate": result.get("success_rate", 0.0),
+                        "strategy": result.get("strategy", {}),
+                    },
                 }
-            })
-        
+            )
+
         # Compare with baseline if requested
         if args.validate_baseline:
-            console.print(f"\n[bold][VALIDATION] Comparing with baseline: {args.validate_baseline}[/bold]")
-            
+            console.print(
+                f"\n[bold][VALIDATION] Comparing with baseline: {args.validate_baseline}[/bold]"
+            )
+
             try:
                 comparison = orchestrator.compare_with_baseline(
-                    baseline_results,
-                    baseline_name=args.validate_baseline
+                    baseline_results, baseline_name=args.validate_baseline
                 )
-                
+
                 # Display comparison results
                 console.print("\n" + "=" * 70)
                 console.print("[bold]BASELINE COMPARISON RESULTS[/bold]")
@@ -3276,12 +3787,16 @@ async def handle_baseline_operations(args, test_results: List[Dict[str, Any]], f
                 console.print(f"Regressions: {len(comparison.regressions)}")
                 console.print(f"Improvements: {len(comparison.improvements)}")
                 console.print(f"Unchanged: {comparison.unchanged}")
-                
+
                 # Display regressions prominently
                 if comparison.regressions:
                     console.print("\n[bold red]⚠ REGRESSIONS DETECTED:[/bold red]")
                     for reg in comparison.regressions:
-                        severity_color = "red" if reg.severity.value in ["critical", "high"] else "yellow"
+                        severity_color = (
+                            "red"
+                            if reg.severity.value in ["critical", "high"]
+                            else "yellow"
+                        )
                         console.print(
                             f"  [{severity_color}][{reg.severity.value.upper()}][/{severity_color}] "
                             f"{reg.attack_name}: {reg.description}"
@@ -3290,50 +3805,60 @@ async def handle_baseline_operations(args, test_results: List[Dict[str, Any]], f
                             console.print(f"    Details: {reg.details}")
                 else:
                     console.print("\n[green]✓ No regressions detected[/green]")
-                
+
                 # Display improvements
                 if comparison.improvements:
                     console.print("\n[bold green]✓ IMPROVEMENTS:[/bold green]")
                     for imp in comparison.improvements:
-                        console.print(f"  [green][IMPROVEMENT][/green] {imp.attack_name}: {imp.description}")
-                
+                        console.print(
+                            f"  [green][IMPROVEMENT][/green] {imp.attack_name}: {imp.description}"
+                        )
+
                 console.print("=" * 70)
-                
+
                 # Add comparison to final report
                 final_report_data["baseline_comparison"] = comparison.to_dict()
-                
+
             except Exception as e:
-                console.print(f"[bold red]Error comparing with baseline: {e}[/bold red]")
+                console.print(
+                    f"[bold red]Error comparing with baseline: {e}[/bold red]"
+                )
                 if args.debug:
                     import traceback
+
                     traceback.print_exc()
-        
+
         # Save new baseline if requested
         if args.save_baseline:
-            console.print(f"\n[bold][VALIDATION] Saving baseline: {args.save_baseline}[/bold]")
-            
+            console.print(
+                f"\n[bold][VALIDATION] Saving baseline: {args.save_baseline}[/bold]"
+            )
+
             try:
                 baseline_file = orchestrator.save_baseline(
-                    baseline_results,
-                    name=args.save_baseline
+                    baseline_results, name=args.save_baseline
                 )
                 console.print(f"[green]✓ Baseline saved to: {baseline_file}[/green]")
-                
+
                 # Add to final report
                 final_report_data["baseline_saved"] = str(baseline_file)
-                
+
             except Exception as e:
                 console.print(f"[bold red]Error saving baseline: {e}[/bold red]")
                 if args.debug:
                     import traceback
+
                     traceback.print_exc()
-    
+
     except ImportError as e:
-        console.print(f"[yellow]Warning: Baseline functionality not available: {e}[/yellow]")
+        console.print(
+            f"[yellow]Warning: Baseline functionality not available: {e}[/yellow]"
+        )
     except Exception as e:
         console.print(f"[yellow]Warning: Baseline operation failed: {e}[/yellow]")
         if args.debug:
             import traceback
+
             traceback.print_exc()
 
 
@@ -3426,6 +3951,7 @@ async def run_per_domain_mode(args):
     )
     doh_resolver = DoHResolver()
     from core.unified_bypass_engine import UnifiedEngineConfig
+
     config = UnifiedEngineConfig(debug=args.debug)
     hybrid_engine = UnifiedBypassEngine(config)
     try:
@@ -3460,14 +3986,16 @@ async def run_per_domain_mode(args):
             [site], dns_cache
         )
         if baseline_results[site][0] == "WORKING":
-            console.print(f"[green][OK] {hostname} is accessible without bypass[/green]")
+            console.print(
+                f"[green][OK] {hostname} is accessible without bypass[/green]"
+            )
             continue
         console.print(
             f"[yellow][SEARCH] {hostname} needs bypass, finding optimal strategy...[/yellow]"
         )
         generator = ZapretStrategyGenerator()
         strategies = generator.generate_strategies(None, count=args.count)
-        
+
         # REFACTOR: The new UnifiedBypassEngine handles strategy parsing internally.
         # We can pass the raw strategy strings directly.
         structured_strategies = strategies
@@ -3533,7 +4061,9 @@ async def run_per_domain_mode(args):
         f"Successfully optimized: [green]{len(successful_domains)}/{len(all_results)}[/green] domains"
     )
     if successful_domains:
-        console.print("\n[bold green][OK] Domains with optimal strategies:[/bold green]")
+        console.print(
+            "\n[bold green][OK] Domains with optimal strategies:[/bold green]"
+        )
         for domain in successful_domains:
             result = all_results[domain]
             console.print(
@@ -3552,7 +4082,9 @@ async def run_per_domain_mode(args):
         console.print(
             f"Best performing domain: [green]{stats['best_domain']}[/green] ({stats['best_success_rate']:.1%})"
         )
-    console.print("\n[green][SAVE] All strategies saved to domain_strategies.json[/green]")
+    console.print(
+        "\n[green][SAVE] All strategies saved to domain_strategies.json[/green]"
+    )
     console.print(
         "[dim]Use 'python recon_service.py' to start the bypass service[/dim]"
     )
@@ -3568,11 +4100,11 @@ def apply_forced_override(original_func, *args, **kwargs):
     if len(args) > 1 and isinstance(args[1], dict):
         # Второй аргумент - стратегия
         strategy = args[1].copy()
-        strategy['no_fallbacks'] = True
-        strategy['forced'] = True
+        strategy["no_fallbacks"] = True
+        strategy["forced"] = True
         args = (args[0], strategy) + args[2:]
         print(f"🔥 FORCED OVERRIDE: Applied to {args[0] if args else 'unknown'}")
-    
+
     return original_func(*args, **kwargs)
 
 
@@ -3593,19 +4125,162 @@ def load_all_attacks():
     # Путь к пакету с атаками
     package = core.bypass.attacks
 
-    # Рекурсивно обходим все подмодули
+    # Рекурсивно обходим все подмодули, исключая проблемные директории
     for _, module_name, _ in pkgutil.walk_packages(
         package.__path__, package.__name__ + "."
     ):
         try:
+            # Пропускаем проблемные модули и директории
+            if any(
+                skip in module_name
+                for skip in [
+                    "demo_",
+                    "test_",
+                    "__main__",
+                ]
+            ):
+                continue
+
             importlib.import_module(module_name)
-        except ImportError as e:
+        except (ImportError, SyntaxError, IndentationError) as e:
             # Игнорируем демо-файлы и тесты, которые могут вызывать ошибки
             if "demo_" in module_name or "test_" in module_name:
                 continue
-            print(
-                f"[yellow]Warning: Could not import attack module {module_name}: {e}[/yellow]"
+            try:
+                console.print(
+                    f"[yellow]Warning: Could not import attack module {module_name}: {e}[/yellow]"
+                )
+            except Exception:
+                print(f"Warning: Could not import attack module {module_name}: {e}")
+
+
+async def run_hybrid_mode_with_cleanup(args):
+    """Wrapper for run_hybrid_mode with proper async cleanup."""
+    try:
+        await run_hybrid_mode(args)
+    finally:
+        # Cleanup any remaining aiohttp sessions
+        await cleanup_aiohttp_sessions()
+
+
+async def run_single_strategy_mode_with_cleanup(args):
+    """Wrapper for run_single_strategy_mode with proper async cleanup."""
+    try:
+        await run_single_strategy_mode(args)
+    finally:
+        await cleanup_aiohttp_sessions()
+
+
+async def run_evolutionary_mode_with_cleanup(args):
+    """Wrapper for run_evolutionary_mode with proper async cleanup."""
+    try:
+        await run_evolutionary_mode(args)
+    finally:
+        await cleanup_aiohttp_sessions()
+
+
+async def run_closed_loop_mode_with_cleanup(args):
+    """Wrapper for run_closed_loop_mode with proper async cleanup."""
+    try:
+        await run_closed_loop_mode(args)
+    finally:
+        await cleanup_aiohttp_sessions()
+
+
+async def run_per_domain_mode_with_cleanup(args):
+    """Wrapper for run_per_domain_mode with proper async cleanup."""
+    try:
+        await run_per_domain_mode(args)
+    finally:
+        await cleanup_aiohttp_sessions()
+
+
+async def cleanup_aiohttp_sessions():
+    """Clean up any remaining aiohttp sessions and pending tasks."""
+    try:
+        # Get current task to exclude it from cleanup
+        current_task = asyncio.current_task()
+
+        # Get all pending tasks except the current cleanup task
+        pending_tasks = [
+            task
+            for task in asyncio.all_tasks()
+            if not task.done() and task != current_task
+        ]
+
+        if pending_tasks:
+            console.print(
+                f"[dim]Cleaning up {len(pending_tasks)} pending tasks...[/dim]"
             )
+
+            # Cancel all pending tasks (except current)
+            for task in pending_tasks:
+                if not task.done() and task != current_task:
+                    try:
+                        task.cancel()
+                    except Exception:
+                        pass  # Ignore cancel errors
+
+            # Wait for tasks to complete with timeout
+            if pending_tasks:
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(*pending_tasks, return_exceptions=True),
+                        timeout=3.0,  # Reduced timeout
+                    )
+                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    console.print(
+                        "[yellow]Warning: Some tasks didn't complete within timeout[/yellow]"
+                    )
+
+        # Close global HTTP client pool if it exists
+        try:
+            from core.optimization.http_client_pool import _global_pool
+
+            if _global_pool:
+                await _global_pool.close()
+        except Exception:
+            pass
+
+        # Close DoH resolvers
+        try:
+            from core.doh_resolver import DoHResolver
+
+            for obj in gc.get_objects():
+                if isinstance(obj, DoHResolver):
+                    try:
+                        await obj._cleanup()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        # Close any remaining aiohttp sessions and connectors
+        try:
+            import aiohttp
+
+            # Force close all open sessions
+            for obj in gc.get_objects():
+                if isinstance(obj, aiohttp.ClientSession) and not obj.closed:
+                    try:
+                        await obj.close()
+                    except Exception:
+                        pass
+                elif isinstance(obj, aiohttp.TCPConnector) and not obj.closed:
+                    try:
+                        await obj.close()
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        # Force garbage collection to trigger __del__ methods
+        import gc
+
+        gc.collect()
+
+    except Exception as e:
+        console.print(f"[yellow]Warning: Cleanup error: {e}[/yellow]")
 
 
 def main():
@@ -3642,21 +4317,21 @@ Examples:
     parser.add_argument(
         "--enable-enhanced-tracking",
         action="store_true",
-        help="Enable enhanced strategy-result correlation tracking"
+        help="Enable enhanced strategy-result correlation tracking",
     )
 
     parser.add_argument(
         "--enable-optimization",
         action="store_true",
-        help="Enable real-time strategy optimization based on test results"
+        help="Enable real-time strategy optimization based on test results",
     )
 
     parser.add_argument(
         "--optimize-for-cdn",
         action="store_true",
-        help="Optimize strategies specifically for CDN endpoints"
+        help="Optimize strategies specifically for CDN endpoints",
     )
-    
+
     parser.add_argument(
         "-p", "--port", type=int, default=443, help="Target port (default: 443)."
     )
@@ -3687,7 +4362,9 @@ Examples:
         "--debug", action="store_true", help="Enable detailed debug logging."
     )
     parser.add_argument(
-        "--quiet", action="store_true", help="Reduce log noise (set WARNING on noisy modules)."
+        "--quiet",
+        action="store_true",
+        help="Reduce log noise (set WARNING on noisy modules).",
     )
     # Mode arguments
     parser.add_argument(
@@ -3755,18 +4432,23 @@ Examples:
         help="Disable fail-fast optimization (skips heavy probes on obviously blocked domains).",
     )
     parser.add_argument(
-        '--strategies-file', '-S', type=str,
-        help='Path to a file with strategies (one per line). Lines with # are ignored.'
+        "--strategies-file",
+        "-S",
+        type=str,
+        help="Path to a file with strategies (one per line). Lines with # are ignored.",
     )
     parser.add_argument(
-        '--no-generate', action='store_true',
-        help='Do not auto-generate strategies (use only those from --strategies-file or --strategy).'
+        "--no-generate",
+        action="store_true",
+        help="Do not auto-generate strategies (use only those from --strategies-file or --strategy).",
     )
     parser.add_argument(
-        '--strategy-repeats', type=int, default=1,
-        help='Repeat each strategy N times for stability testing (default: 1).'
+        "--strategy-repeats",
+        type=int,
+        default=1,
+        help="Repeat each strategy N times for stability testing (default: 1).",
     )
-    
+
     parser.add_argument(
         "--enable-scapy",
         action="store_true",
@@ -3919,9 +4601,9 @@ Examples:
     parser.add_argument(
         "--telemetry-full",
         action="store_true",
-        help="Include full per-strategy engine telemetry snapshots in the report."
+        help="Include full per-strategy engine telemetry snapshots in the report.",
     )
-    
+
     # Validation arguments
     parser.add_argument(
         "--validate-pcap",
@@ -3951,6 +4633,7 @@ Examples:
     dpi_integration = None
     try:
         from core.cli import integrate_dpi_with_existing_cli
+
         dpi_integration = integrate_dpi_with_existing_cli(parser)
         LOG.info("DPI strategy parameters integrated into CLI")
     except ImportError as e:
@@ -3966,11 +4649,16 @@ Examples:
         try:
             dpi_config = dpi_integration.parse_and_create_config(args)
             if dpi_config.enabled:
-                LOG.info(f"DPI strategy enabled: {dpi_config.desync_mode} mode with positions {dpi_config.split_positions}")
-                
+                LOG.info(
+                    f"DPI strategy enabled: {dpi_config.desync_mode} mode with positions {dpi_config.split_positions}"
+                )
+
                 # Integrate DPI with UnifiedBypassEngine if available
                 try:
-                    from core.bypass.integration import patch_unified_bypass_engine_for_dpi
+                    from core.bypass.integration import (
+                        patch_unified_bypass_engine_for_dpi,
+                    )
+
                     patch_unified_bypass_engine_for_dpi(UnifiedBypassEngine)
                     LOG.info("UnifiedBypassEngine patched with DPI support")
                 except ImportError as e:
@@ -3989,60 +4677,81 @@ Examples:
             "[bold yellow]Debug mode enabled. Output will be verbose.[/bold yellow]"
         )
     if args.quiet:
-        for noisy in ("core.fingerprint.advanced_fingerprinter", "core.fingerprint.http_analyzer",
-                      "core.fingerprint.dns_analyzer", "core.fingerprint.tcp_analyzer",
-                      "hybrid_engine", "core.hybrid_engine"):
-            try: logging.getLogger(noisy).setLevel(logging.WARNING)
-            except Exception: pass
+        for noisy in (
+            "core.fingerprint.advanced_fingerprinter",
+            "core.fingerprint.http_analyzer",
+            "core.fingerprint.dns_analyzer",
+            "core.fingerprint.tcp_analyzer",
+            "hybrid_engine",
+            "core.hybrid_engine",
+        ):
+            try:
+                logging.getLogger(noisy).setLevel(logging.WARNING)
+            except Exception:
+                pass
 
     # Оффлайн анализ PCAP и выход
     if args.profile_pcap:
         asyncio.run(run_profiling_mode(args))
         return
-    
+
     # PCAP validation mode - validate and exit
     if args.validate_pcap:
         from core.cli_validation_orchestrator import CLIValidationOrchestrator
         from pathlib import Path
-        
+
         console.print("\n[bold][VALIDATION] PCAP Validation Mode[/bold]")
         console.print(f"[dim]Validating PCAP file: {args.validate_pcap}[/dim]\n")
-        
+
         try:
             orchestrator = CLIValidationOrchestrator()
             pcap_path = Path(args.validate_pcap)
-            
+
             if not pcap_path.exists():
-                console.print(f"[bold red]Error: PCAP file not found: {args.validate_pcap}[/bold red]")
+                console.print(
+                    f"[bold red]Error: PCAP file not found: {args.validate_pcap}[/bold red]"
+                )
                 return
-            
+
             # Validate PCAP
             validation_result = orchestrator.validate_pcap(pcap_path)
-            
+
             # Create validation report
             report = orchestrator.create_validation_report(
                 pcap_validation=validation_result
             )
-            
+
             # Display formatted output
-            output = orchestrator.format_validation_output(report, use_colors=RICH_AVAILABLE)
+            output = orchestrator.format_validation_output(
+                report, use_colors=RICH_AVAILABLE
+            )
             console.print(output)
-            
+
             # Save detailed report
-            report_file = orchestrator.output_dir / f"pcap_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            report_file = (
+                orchestrator.output_dir
+                / f"pcap_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
             report.save_to_file(report_file)
-            console.print(f"\n[green]✓ Detailed validation report saved to: {report_file}[/green]")
-            
+            console.print(
+                f"\n[green]✓ Detailed validation report saved to: {report_file}[/green]"
+            )
+
             # Exit with appropriate code
             sys.exit(0 if validation_result.passed else 1)
-            
+
         except ImportError as e:
-            console.print(f"[bold red]Error: Required validation modules not available: {e}[/bold red]")
-            console.print("[yellow]Please ensure Scapy is installed: pip install scapy[/yellow]")
+            console.print(
+                f"[bold red]Error: Required validation modules not available: {e}[/bold red]"
+            )
+            console.print(
+                "[yellow]Please ensure Scapy is installed: pip install scapy[/yellow]"
+            )
             sys.exit(1)
         except Exception as e:
             console.print(f"[bold red]Error during PCAP validation: {e}[/bold red]")
             import traceback
+
             if args.debug:
                 traceback.print_exc()
             sys.exit(1)
@@ -4051,7 +4760,9 @@ Examples:
     if args.cache_stats:
         learning_cache = AdaptiveLearningCache()
         stats = learning_cache.get_cache_stats()
-        console.print("\n[bold underline][AI] Learning Cache Statistics[/bold underline]")
+        console.print(
+            "\n[bold underline][AI] Learning Cache Statistics[/bold underline]"
+        )
         console.print(f"Strategy records: {stats['total_strategy_records']}")
         console.print(f"Total tests: {stats['total_tests_performed']}")
         console.print(f"Domains learned: {stats['domains_learned']}")
@@ -4082,16 +4793,37 @@ Examples:
     console.print(f"[dim]Execution mode: {execution_mode}[/dim]")
 
     try:
+        # Set up signal handlers for graceful shutdown
+        def signal_handler(signum, frame):
+            console.print(
+                f"\n[yellow]Received signal {signum}, shutting down gracefully...[/yellow]"
+            )
+            # Cancel all running tasks
+            loop = None
+            try:
+                loop = asyncio.get_running_loop()
+                for task in asyncio.all_tasks(loop):
+                    task.cancel()
+            except RuntimeError:
+                pass  # No running loop
+
+        # Register signal handlers
+        if hasattr(signal, "SIGINT"):
+            signal.signal(signal.SIGINT, signal_handler)
+        if hasattr(signal, "SIGTERM"):
+            signal.signal(signal.SIGTERM, signal_handler)
+
+        # Run the appropriate mode with graceful shutdown support
         if execution_mode == "single_strategy":
-            asyncio.run(run_single_strategy_mode(args))
+            asyncio.run(run_single_strategy_mode_with_cleanup(args))
         elif execution_mode == "evolutionary":
-            asyncio.run(run_evolutionary_mode(args))
+            asyncio.run(run_evolutionary_mode_with_cleanup(args))
         elif execution_mode == "closed_loop":
-            asyncio.run(run_closed_loop_mode(args))
+            asyncio.run(run_closed_loop_mode_with_cleanup(args))
         elif execution_mode == "per_domain":
-            asyncio.run(run_per_domain_mode(args))
+            asyncio.run(run_per_domain_mode_with_cleanup(args))
         else:
-            asyncio.run(run_hybrid_mode(args))
+            asyncio.run(run_hybrid_mode_with_cleanup(args))
     except (ImportError, OSError) as e:
         if "pydivert" in str(e) or "WinDivert" in str(e):
             console.print(
@@ -4119,103 +4851,128 @@ if __name__ == "__main__":
 class SimpleEvolutionarySearcher:
     """
     Simple evolutionary searcher for CLI integration testing.
-    
+
     This class provides the CLI functionality needed for attack dispatch integration,
     including strategy generation and parameter validation.
     """
-    
+
     def __init__(self, population_size: int = 20, generations: int = 5):
         self.population_size = population_size
         self.generations = generations
         self.logger = logging.getLogger("SimpleEvolutionarySearcher")
-        
+
         # Initialize attack registry for parameter validation
         try:
             from core.bypass.attacks.attack_registry import get_attack_registry
+
             self.attack_registry = get_attack_registry()
         except ImportError:
-            self.logger.warning("Attack registry not available, using fallback validation")
+            self.logger.warning(
+                "Attack registry not available, using fallback validation"
+            )
             self.attack_registry = None
-    
+
     def genes_to_zapret_strategy(self, genes: Dict[str, Any]) -> str:
         """
         Convert attack genes to zapret command line strategy.
-        
+
         Args:
             genes: Dictionary containing attack type and parameters
-            
+
         Returns:
             String containing zapret command line arguments
         """
         attack_type = genes.get("type", "")
         strategy_parts = ["--dpi-desync"]
-        
+
         try:
             if attack_type == "fakeddisorder":
                 strategy_parts.extend(["--dpi-desync-fake", "--dpi-desync-disorder"])
                 if "split_pos" in genes:
                     if isinstance(genes["split_pos"], int):
-                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                        strategy_parts.append(
+                            f"--dpi-desync-split-pos={genes['split_pos']}"
+                        )
                     elif genes["split_pos"] in ["cipher", "sni", "midsld"]:
-                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                        strategy_parts.append(
+                            f"--dpi-desync-split-pos={genes['split_pos']}"
+                        )
                 if "ttl" in genes:
                     strategy_parts.append(f"--dpi-desync-ttl={genes['ttl']}")
                 if "fake_sni" in genes:
                     strategy_parts.append(f"--dpi-desync-fake-sni={genes['fake_sni']}")
-                    
+
             elif attack_type == "seqovl":
                 strategy_parts.append("--dpi-desync-split-seqovl")
                 if "split_pos" in genes:
                     if isinstance(genes["split_pos"], int):
-                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                        strategy_parts.append(
+                            f"--dpi-desync-split-pos={genes['split_pos']}"
+                        )
                     elif genes["split_pos"] in ["cipher", "sni", "midsld"]:
-                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                        strategy_parts.append(
+                            f"--dpi-desync-split-pos={genes['split_pos']}"
+                        )
                 if "overlap_size" in genes:
-                    strategy_parts.append(f"--dpi-desync-split-seqovl={genes['overlap_size']}")
+                    strategy_parts.append(
+                        f"--dpi-desync-split-seqovl={genes['overlap_size']}"
+                    )
                 if "fake_ttl" in genes:
                     strategy_parts.append(f"--dpi-desync-ttl={genes['fake_ttl']}")
-                    
+
             elif attack_type == "multidisorder":
                 strategy_parts.append("--dpi-desync-multidisorder")
                 if "positions" in genes:
                     if isinstance(genes["positions"], list):
                         positions_str = ",".join(map(str, genes["positions"]))
-                        strategy_parts.append(f"--dpi-desync-multidisorder={positions_str}")
+                        strategy_parts.append(
+                            f"--dpi-desync-multidisorder={positions_str}"
+                        )
                 if "fooling" in genes:
                     if isinstance(genes["fooling"], list):
                         fooling_str = ",".join(genes["fooling"])
                         strategy_parts.append(f"--dpi-desync-fooling={fooling_str}")
-                    
+
             elif attack_type == "disorder":
                 strategy_parts.append("--dpi-desync-disorder")
                 if "split_pos" in genes:
                     if isinstance(genes["split_pos"], int):
-                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                        strategy_parts.append(
+                            f"--dpi-desync-split-pos={genes['split_pos']}"
+                        )
                     elif genes["split_pos"] in ["cipher", "sni", "midsld"]:
-                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
-                        
+                        strategy_parts.append(
+                            f"--dpi-desync-split-pos={genes['split_pos']}"
+                        )
+
             elif attack_type == "disorder2":
                 strategy_parts.append("--dpi-desync-disorder")
                 if "split_pos" in genes:
                     if isinstance(genes["split_pos"], int):
-                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
+                        strategy_parts.append(
+                            f"--dpi-desync-split-pos={genes['split_pos']}"
+                        )
                 if "ack_first" in genes and genes["ack_first"]:
                     strategy_parts.append("--dpi-desync-ack-first")
-                    
+
             elif attack_type == "multisplit":
                 strategy_parts.append("--dpi-desync-multisplit")
                 if "split_count" in genes:
-                    strategy_parts.append(f"--dpi-desync-split-count={genes['split_count']}")
+                    strategy_parts.append(
+                        f"--dpi-desync-split-count={genes['split_count']}"
+                    )
                 if "positions" in genes and isinstance(genes["positions"], list):
                     positions_str = ",".join(map(str, genes["positions"]))
                     strategy_parts.append(f"--dpi-desync-positions={positions_str}")
-                    
+
             elif attack_type == "split":
                 strategy_parts.append("--dpi-desync-split")
                 if "split_pos" in genes:
                     if isinstance(genes["split_pos"], int):
-                        strategy_parts.append(f"--dpi-desync-split-pos={genes['split_pos']}")
-                        
+                        strategy_parts.append(
+                            f"--dpi-desync-split-pos={genes['split_pos']}"
+                        )
+
             elif attack_type == "fake":
                 strategy_parts.append("--dpi-desync-fake")
                 if "ttl" in genes:
@@ -4224,29 +4981,29 @@ class SimpleEvolutionarySearcher:
                     if isinstance(genes["fooling"], list):
                         fooling_str = ",".join(genes["fooling"])
                         strategy_parts.append(f"--dpi-desync-fooling={fooling_str}")
-            
+
             else:
                 self.logger.warning(f"Unknown attack type: {attack_type}")
                 return "--dpi-desync"
-                
+
         except Exception as e:
             self.logger.error(f"Error generating strategy for {attack_type}: {e}")
             return "--dpi-desync"
-        
+
         return " ".join(strategy_parts)
-    
+
     def _extract_strategy_type(self, strategy: str) -> str:
         """
         Extract attack type from zapret command line strategy.
-        
+
         Args:
             strategy: Zapret command line string
-            
+
         Returns:
             Extracted attack type
         """
         strategy = strategy.lower()
-        
+
         # Priority patterns - most specific first
         if "--dpi-desync-split-seqovl" in strategy:
             return "sequence_overlap"
@@ -4260,7 +5017,10 @@ class SimpleEvolutionarySearcher:
             return "multisplit"
         elif "--dpi-desync-disorder" in strategy:
             return "disorder"
-        elif "--dpi-desync-split" in strategy and "--dpi-desync-split-count" not in strategy:
+        elif (
+            "--dpi-desync-split" in strategy
+            and "--dpi-desync-split-count" not in strategy
+        ):
             return "simple_fragment"
         elif "--dpi-desync-fake" in strategy:
             if "badsum" in strategy:
@@ -4272,54 +5032,62 @@ class SimpleEvolutionarySearcher:
             return "force_tcp"
         else:
             return "unknown"
-    
-    def _validate_attack_parameters(self, attack_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _validate_attack_parameters(
+        self, attack_type: str, params: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """
         Validate and normalize attack parameters.
-        
+
         Args:
             attack_type: Type of attack
             params: Parameters to validate
-            
+
         Returns:
             Validated and normalized parameters
         """
         validated_params = params.copy()
-        
+
         # Ensure type is preserved
         validated_params["type"] = attack_type
-        
+
         # Use attack registry if available
         if self.attack_registry:
             try:
-                validation_result = self.attack_registry.validate_parameters(attack_type, params)
+                validation_result = self.attack_registry.validate_parameters(
+                    attack_type, params
+                )
                 if not validation_result.is_valid:
-                    self.logger.warning(f"Parameter validation failed for {attack_type}: {validation_result.error_message}")
+                    self.logger.warning(
+                        f"Parameter validation failed for {attack_type}: {validation_result.error_message}"
+                    )
                     # Return minimal valid parameters
                     validated_params = self._get_minimal_params(attack_type)
                     validated_params["type"] = attack_type
             except Exception as e:
-                self.logger.warning(f"Parameter validation error for {attack_type}: {e}")
-        
+                self.logger.warning(
+                    f"Parameter validation error for {attack_type}: {e}"
+                )
+
         # Basic parameter validation and normalization
         if attack_type in ["fakeddisorder", "seqovl", "disorder", "disorder2", "split"]:
             if "split_pos" not in validated_params:
                 validated_params["split_pos"] = 5  # Default split position
-        
+
         if attack_type in ["multidisorder", "multisplit"]:
             if "positions" not in validated_params:
                 validated_params["positions"] = [1, 5, 10]  # Default positions
-        
+
         if attack_type == "seqovl":
             if "overlap_size" not in validated_params:
                 validated_params["overlap_size"] = 10  # Default overlap size
-        
+
         if attack_type in ["fakeddisorder", "fake", "seqovl"]:
             if "ttl" not in validated_params:
                 validated_params["ttl"] = 3  # Default TTL
-        
+
         return validated_params
-    
+
     def _get_minimal_params(self, attack_type: str) -> Dict[str, Any]:
         """Get minimal valid parameters for an attack type."""
         minimal_params = {
@@ -4330,7 +5098,7 @@ class SimpleEvolutionarySearcher:
             "disorder2": {"split_pos": 5, "ack_first": True},
             "multisplit": {"positions": [1, 5], "split_count": 2},
             "split": {"split_pos": 5},
-            "fake": {"ttl": 3}
+            "fake": {"ttl": 3},
         }
         return minimal_params.get(attack_type, {"split_pos": 5}).copy()
 

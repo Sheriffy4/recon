@@ -48,21 +48,21 @@ class SimpleAttackExecutor:
     def _execute_fake_split(self, context: AttackContext) -> AttackResult:
         """Execute fake + split attack with all strategy params."""
         payload = context.payload
-        params = getattr(context, 'params', {}) or {}
+        params = getattr(context, "params", {}) or {}
         # Use actual split_pos from params, default to 3
-        split_pos = int(params.get('split_pos', 3))
+        split_pos = int(params.get("split_pos", 3))
         part1 = payload[:split_pos]
         part2 = payload[split_pos:]
         # Build fake packet
         fake_payload = b"GET / HTTP/1.1\r\nHost: www.example.com\r\n\r\n"
         # Apply fooling methods
-        fooling = params.get('fooling', [])
+        fooling = params.get("fooling", [])
         segments = [fake_payload, part1, part2]
         meta = {"segments": segments, "fooling": fooling}
         # Set TTL if specified
-        ttl = params.get('ttl')
+        ttl = params.get("ttl")
         if ttl is not None:
-            meta['ttl'] = ttl
+            meta["ttl"] = ttl
         return AttackResultHelper.create_success_result(
             technique_used="fake_split",
             metadata=meta,
@@ -72,16 +72,16 @@ class SimpleAttackExecutor:
     def _execute_disorder(self, context: AttackContext) -> AttackResult:
         """Execute disorder attack with all strategy params."""
         payload = context.payload
-        params = getattr(context, 'params', {}) or {}
-        split_pos = int(params.get('split_pos', 1))
+        params = getattr(context, "params", {}) or {}
+        split_pos = int(params.get("split_pos", 1))
         part1 = payload[:split_pos]
         part2 = payload[split_pos:]
-        fooling = params.get('fooling', [])
+        fooling = params.get("fooling", [])
         segments = [part2, part1]
         meta = {"segments": segments, "fooling": fooling}
-        ttl = params.get('ttl')
+        ttl = params.get("ttl")
         if ttl is not None:
-            meta['ttl'] = ttl
+            meta["ttl"] = ttl
         return AttackResultHelper.create_success_result(
             technique_used="disorder",
             metadata=meta,
@@ -90,13 +90,13 @@ class SimpleAttackExecutor:
 
     def _execute_fake(self, context: AttackContext) -> AttackResult:
         """Execute fake packet attack with all strategy params."""
-        params = getattr(context, 'params', {}) or {}
+        params = getattr(context, "params", {}) or {}
         fake_payload = b"GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n"
-        fooling = params.get('fooling', [])
+        fooling = params.get("fooling", [])
         meta = {"segments": [fake_payload, context.payload], "fooling": fooling}
-        ttl = params.get('ttl')
+        ttl = params.get("ttl")
         if ttl is not None:
-            meta['ttl'] = ttl
+            meta["ttl"] = ttl
         return AttackResultHelper.create_success_result(
             technique_used="fake",
             metadata=meta,

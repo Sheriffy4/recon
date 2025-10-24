@@ -18,7 +18,6 @@ from collections import defaultdict, deque
 
 # Import unified attack system components
 from core.integration.attack_adapter import AttackAdapter
-from core.bypass.attacks.registry import AttackRegistry
 from core.bypass.attacks.base import AttackResult, AttackStatus, AttackContext
 from core.effectiveness.production_effectiveness_tester import (
     ProductionEffectivenessTester,

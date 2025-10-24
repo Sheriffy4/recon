@@ -3,7 +3,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from enum import Enum
 import struct
 
@@ -451,19 +451,21 @@ class BypassTechnique:
 @dataclass
 class LayerInfo:
     """Информация о слое пакета."""
+
     protocol_type: ProtocolType
     data: bytes
     fields: Dict[str, Any] = field(default_factory=dict)
-    
+
     def __post_init__(self):
         """Пост-инициализация для валидации."""
         if not isinstance(self.data, bytes):
-            self.data = bytes(self.data) if self.data else b''
+            self.data = bytes(self.data) if self.data else b""
 
 
 @dataclass
 class ParsedPacket:
     """Распарсенный пакет для совместимости."""
+
     protocol_type: ProtocolType
     source_ip: str = "0.0.0.0"
     dest_ip: str = "0.0.0.0"
@@ -472,12 +474,12 @@ class ParsedPacket:
     payload: bytes = b""
     raw_data: bytes = b""
     layers: List[LayerInfo] = field(default_factory=list)
-    
+
     def to_bytes(self) -> bytes:
         """Конвертирует в байты."""
         if self.raw_data:
             return self.raw_data
-        
+
         # Простая сериализация для тестов
         result = b""
         for layer in self.layers:
@@ -488,6 +490,7 @@ class ParsedPacket:
 @dataclass
 class TCPPacket:
     """TCP пакет для совместимости."""
+
     source_ip: str = "0.0.0.0"
     dest_ip: str = "0.0.0.0"
     source_port: int = 0
@@ -497,7 +500,7 @@ class TCPPacket:
     flags: int = 0
     payload: bytes = b""
     raw_data: bytes = b""
-    
+
     def to_bytes(self) -> bytes:
         """Конвертирует в байты."""
         return self.raw_data if self.raw_data else b""

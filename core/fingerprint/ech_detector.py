@@ -1,9 +1,8 @@
 import asyncio
-import base64
 import re
 import socket
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 try:
     import dns.resolver
@@ -11,10 +10,12 @@ try:
 except ImportError:
     dns = None  # dnspython должен быть установлен в проекте (он уже используется)
 
+
 class ECHDetector:
     def __init__(self, dns_timeout: float = 1.0):
         self.dns_timeout = dns_timeout
         import logging
+
         self.logger = logging.getLogger("ECHDetector")
 
     async def detect_ech_dns(self, domain: str) -> Dict[str, Any]:
@@ -67,7 +68,9 @@ class ECHDetector:
 
         return result
 
-    async def probe_quic(self, domain: str, port: int = 443, timeout: float = 0.5) -> Dict[str, Any]:
+    async def probe_quic(
+        self, domain: str, port: int = 443, timeout: float = 0.5
+    ) -> Dict[str, Any]:
         """
         Быстрая проверка UDP/QUIC доступности: отправляем минимальный Initial и ждём любой ответ.
         Возвращает {"success": bool, "rtt_ms": Optional[float]}
@@ -81,18 +84,19 @@ class ECHDetector:
         # Построим минимальный Initial пакет (упрощённый, лишь как детектор)
         # Полноценный QUIC handshake через aioquic тут не используем из-за зависимости/сложности.
         initial = bytearray()
-        initial += b"\xc0"                     # Initial, Fixed-bit=1
-        initial += b"\x00\x00\x00\x01"         # Версия 1
-        initial += b"\x08" + bytes(8)          # DCID len + DCID
-        initial += b"\x08" + bytes(8)          # SCID len + SCID
-        initial += b"\x00"                      # Token length (0)
-        initial += b"\x00\x00"                  # Length (placeholder короткий)
-        initial += b"\x00"                      # CryptoFrame (placeholder)
+        initial += b"\xc0"  # Initial, Fixed-bit=1
+        initial += b"\x00\x00\x00\x01"  # Версия 1
+        initial += b"\x08" + bytes(8)  # DCID len + DCID
+        initial += b"\x08" + bytes(8)  # SCID len + SCID
+        initial += b"\x00"  # Token length (0)
+        initial += b"\x00\x00"  # Length (placeholder короткий)
+        initial += b"\x00"  # CryptoFrame (placeholder)
         # Дополним до ~1200 байт
         if len(initial) < 1200:
             initial += b"\x00" * (1200 - len(initial))
 
         loop = asyncio.get_running_loop()
+
         def _send_udp() -> bool:
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -112,25 +116,40 @@ class ECHDetector:
         rtt_ms = int((time.time() - started) * 1000)
         return {"success": ok, "rtt_ms": rtt_ms}
 
-    async def detect_ech_blockage(self, domain: str, port: int = 443, timeout: float = 1.5) -> Dict[str, Any]:
+    async def detect_ech_blockage(
+        self, domain: str, port: int = 443, timeout: float = 1.5
+    ) -> Dict[str, Any]:
         """
         Эвристика блокировки ECH:
         1) ech_present по DNS (HTTPS/SVCB)
         2) обычный TLS ClientHello -> сервер отвечает (TLS доступен)
         3) GREASE/ECH‑подобный ClientHello -> если ответ отсутствует/Reset/Alert -> считаем ech_blocked=True
         """
-        res = {"ech_present": False, "tls_ok": False, "ech_like_ok": False, "ech_blocked": False, "error": None}
+        res = {
+            "ech_present": False,
+            "tls_ok": False,
+            "ech_like_ok": False,
+            "ech_blocked": False,
+            "error": None,
+        }
         try:
             dns_info = await self.detect_ech_dns(domain)
             res["ech_present"] = bool(dns_info and dns_info.get("ech_present", False))
         except Exception as e:
             self.logger.debug(f"ECH DNS detect failed: {e}")
+
         # Быстрый тест обычного TLS (ssl)
         async def tls_connect_ok() -> bool:
-            import ssl, socket
+            import ssl
+            import socket
+
             try:
                 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                ctx.minimum_version = getattr(ssl, "TLSVersion", None).TLSv1_2 if hasattr(ssl, "TLSVersion") else ssl.PROTOCOL_TLSv1_2
+                ctx.minimum_version = (
+                    getattr(ssl, "TLSVersion", None).TLSv1_2
+                    if hasattr(ssl, "TLSVersion")
+                    else ssl.PROTOCOL_TLSv1_2
+                )
                 ctx.check_hostname = False
                 ctx.verify_mode = ssl.CERT_NONE
                 with socket.create_connection((domain, port), timeout=timeout) as sock:
@@ -155,14 +174,16 @@ class ECHDetector:
 
                 # ClientHello body
                 ch.extend(b"\x03\x03")  # client_version TLS 1.2
-                import time, random
+                import time
+                import random
+
                 ts = int(time.time()).to_bytes(4, "big")
                 rnd = bytes([random.randint(0, 255) for _ in range(28)])
                 ch.extend(ts + rnd)
                 ch.extend(b"\x00")  # session id length 0
 
                 # Cipher suites
-                suites = [0x1301, 0x1302, 0x1303, 0xc02f, 0xc030]
+                suites = [0x1301, 0x1302, 0x1303, 0xC02F, 0xC030]
                 ch.extend((len(suites) * 2).to_bytes(2, "big"))
                 for s in suites:
                     ch.extend(s.to_bytes(2, "big"))
@@ -188,7 +209,7 @@ class ECHDetector:
 
                 # Supported Versions (TLS1.3 + TLS1.2)
                 sv = b"\x02" + b"\x03\x04" + b"\x03\x03"
-                add_ext(0x002b, sv)
+                add_ext(0x002B, sv)
 
                 # ALPN (h2, http/1.1)
                 protos = [b"h2", b"http/1.1"]
@@ -197,7 +218,7 @@ class ECHDetector:
                 add_ext(0x0010, alpn)
 
                 # GREASE extension (example 0x1a1a) with random body
-                grease_type = 0x1a1a
+                grease_type = 0x1A1A
                 add_ext(grease_type, bytes([0x00, 0x00]))
 
                 # ECH-like extension 0xFE0D with dummy payload
@@ -210,11 +231,11 @@ class ECHDetector:
 
                 # fix lengths
                 ext_len = len(ch) - ext_len_off - 2
-                ch[ext_len_off:ext_len_off + 2] = ext_len.to_bytes(2, "big")
+                ch[ext_len_off : ext_len_off + 2] = ext_len.to_bytes(2, "big")
                 hs_len = len(ch) - (hs_len_off + 3)
-                ch[hs_len_off:hs_len_off + 3] = hs_len.to_bytes(3, "big")
+                ch[hs_len_off : hs_len_off + 3] = hs_len.to_bytes(3, "big")
                 rec_len = len(ch) - (rec_len_off + 2)
-                ch[rec_len_off + 1:rec_len_off + 3] = rec_len.to_bytes(2, "big")
+                ch[rec_len_off + 1 : rec_len_off + 3] = rec_len.to_bytes(2, "big")
                 return bytes(ch)
             except Exception as e:
                 self.logger.debug(f"Build GREASE/ECH ClientHello failed: {e}")
@@ -223,6 +244,7 @@ class ECHDetector:
         # Отправить и проверить ответ
         async def send_custom_ch(ch_bytes: bytes) -> bool:
             import socket
+
             try:
                 if not ch_bytes:
                     return False
@@ -250,7 +272,9 @@ class ECHDetector:
             res["ech_blocked"] = True
         return res
 
-    async def probe_http3(self, host: str, port: int = 443, timeout: float = 1.5) -> bool:
+    async def probe_http3(
+        self, host: str, port: int = 443, timeout: float = 1.5
+    ) -> bool:
         """
         Проверка поддержки HTTP/3:
         - Если установлен aioquic — выполняем короткий h3‑handshake
@@ -258,6 +282,7 @@ class ECHDetector:
         """
         try:
             import ssl
+
             try:
                 from aioquic.asyncio.client import connect
                 from aioquic.h3.connection import H3_ALPN
@@ -269,10 +294,14 @@ class ECHDetector:
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
+
             # Небольшой таймаут через asyncio.wait_for с connect
             async def _h3():
-                async with connect(host, port, alpn_protocols=H3_ALPN, server_name=host, ssl=ctx) as _client:
+                async with connect(
+                    host, port, alpn_protocols=H3_ALPN, server_name=host, ssl=ctx
+                ) as _client:
                     return True
+
             try:
                 return await asyncio.wait_for(_h3(), timeout=timeout)
             except Exception:

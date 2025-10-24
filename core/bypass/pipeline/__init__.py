@@ -10,13 +10,13 @@ from .dpi_packet_processor import (
     DPIPipelineIntegrator,
     PacketProcessingResult,
     create_dpi_packet_processor,
-    create_dpi_pipeline_integrator
+    create_dpi_pipeline_integrator,
 )
 
 __all__ = [
-    'DPIPacketProcessor',
-    'DPIPipelineIntegrator', 
-    'PacketProcessingResult',
-    'create_dpi_packet_processor',
-    'create_dpi_pipeline_integrator'
+    "DPIPacketProcessor",
+    "DPIPipelineIntegrator",
+    "PacketProcessingResult",
+    "create_dpi_packet_processor",
+    "create_dpi_pipeline_integrator",
 ]

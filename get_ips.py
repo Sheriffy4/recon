@@ -1,12 +1,13 @@
 import socket
 from urllib.parse import urlparse
 
+
 def get_ips_from_sites(filename="sites.txt"):
     ips = set()
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith('#'):
+            if line and not line.startswith("#"):
                 # Обрабатываем как URL, так и просто домены
                 hostname = urlparse(line).hostname or line
                 try:
@@ -15,11 +16,12 @@ def get_ips_from_sites(filename="sites.txt"):
                     for item in addr_info:
                         # item[4][0] - это IP-адрес
                         ip = item[4][0]
-                        if ':' not in ip: # Пропускаем IPv6 для простоты фильтра
-                           ips.add(ip)
+                        if ":" not in ip:  # Пропускаем IPv6 для простоты фильтра
+                            ips.add(ip)
                 except socket.gaierror:
                     print(f"Не удалось разрешить домен: {hostname}")
     return list(ips)
+
 
 if __name__ == "__main__":
     ip_list = get_ips_from_sites()

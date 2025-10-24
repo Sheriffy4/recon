@@ -1,0 +1,96 @@
+{
+  "parameter_tests": [
+    {
+      "params": {
+        "split_pos": 3,
+        "split_seqovl": 5,
+        "fake_ttl": 3,
+        "fooling": [
+          "badsum"
+        ]
+      },
+      "success": false,
+      "segments": 0,
+      "error": "Parameter validation failed for 'seqovl': Missing required parameter 'overlap_size' for attack 'seqovl'"
+    },
+    {
+      "params": {
+        "split_pos": 3,
+        "overlap_size": 5,
+        "fake_ttl": 3,
+        "fooling": [
+          "badsum"
+        ]
+      },
+      "success": false,
+      "segments": 0,
+      "error": "Parameter validation failed for 'seqovl': Missing required parameter 'overlap_size' for attack 'seqovl'"
+    },
+    {
+      "params": {
+        "split_pos": 3,
+        "overlap_size": 5,
+        "ttl": 3
+      },
+      "success": false,
+      "segments": 0,
+      "error": "Parameter validation failed for 'seqovl': Missing required parameter 'overlap_size' for attack 'seqovl'"
+    },
+    {
+      "params": {
+        "split_pos": 3,
+        "overlap_size": 5
+      },
+      "success": false,
+      "segments": 0,
+      "error": "Parameter validation failed for 'seqovl': Missing required parameter 'overlap_size' for attack 'seqovl'"
+    },
+    {
+      "params": {
+        "split_pos": 3,
+        "split_seqovl": 5,
+        "ttl": 3
+      },
+      "success": false,
+      "segments": 0,
+      "error": "Parameter validation failed for 'seqovl': Missing required parameter 'overlap_size' for attack 'seqovl'"
+    },
+    {
+      "params": {
+        "split_pos": 3,
+        "overlap_size": 5,
+        "split_seqovl": 5,
+        "fake_ttl": 3,
+        "ttl": 3,
+        "fooling": [
+          "badsum"
+        ]
+      },
+      "success": true,
+      "segments": 2,
+      "error": null
+    }
+  ],
+  "working_params": {
+    "split_pos": 3,
+    "overlap_size": 5,
+    "split_seqovl": 5,
+    "fake_ttl": 3,
+    "ttl": 3,
+    "fooling": [
+      "badsum"
+    ]
+  },
+  "registry_info": {
+    "registered": true,
+    "handler": "<function AttackRegistry._create_seqovl_handler.<locals>.handler at 0x000001AFD3E48AE0>",
+    "metadata": "AttackMetadata(name='Sequence Overlap', description='\u041e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u0442 \u0444\u0435\u0439\u043a\u043e\u0432\u044b\u0439 \u043f\u0430\u043a\u0435\u0442 \u0441 \u043f\u0435\u0440\u0435\u043a\u0440\u044b\u0442\u0438\u0435\u043c, \u0437\u0430\u0442\u0435\u043c \u043f\u043e\u043b\u043d\u044b\u0439 \u0440\u0435\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0430\u043a\u0435\u0442', required_params=['split_pos', 'overlap_size'], optional_params={'fake_ttl': 3, 'fooling_methods': ['badsum']}, aliases=['seq_overlap', 'overlap'], category='overlap')"
+  },
+  "direct_call_info": {
+    "has_method": true,
+    "direct_call_success": true,
+    "segments": 2,
+    "result_type": "<class 'list'>"
+  },
+  "fix_successful": false
+}

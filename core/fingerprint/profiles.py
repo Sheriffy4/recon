@@ -3,7 +3,7 @@
 Coherent mimicry profiles for fingerprinting.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional, Dict
 
 

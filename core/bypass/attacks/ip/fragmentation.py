@@ -17,7 +17,7 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack
 
 
 @register_attack
@@ -44,6 +44,14 @@ class IPFragmentationAdvancedAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"frag_size": 8, "overlap_bytes": 4}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute advanced IP fragmentation attack."""
@@ -120,6 +128,14 @@ class IPFragmentationDisorderAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
 
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"frag_size": 12}
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute IP fragmentation disorder attack."""
         start_time = time.time()
@@ -184,6 +200,14 @@ class IPFragmentationRandomAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        return []
+
+    @property
+    def optional_params(self) -> dict:
+        return {"min_frag_size": 4, "max_frag_size": 16}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute random IP fragmentation attack."""
