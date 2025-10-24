@@ -1,13 +1,12 @@
 """
 Dynamic Combo Attack - заглушка для совместимости.
-
 Эта атака представляет собой последовательность других атак,
 выполняемых в определенном порядке.
 """
 
 import logging
 import asyncio
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
@@ -24,7 +23,6 @@ LOG = logging.getLogger("DynamicComboAttack")
 class DynamicComboAttack(BaseAttack):
     """
     Dynamic Combo Attack - выполняет последовательность атак.
-
     Эта атака является заглушкой для совместимости с существующим кодом.
     В реальной реализации она должна выполнять последовательность других атак.
     """
@@ -64,33 +62,204 @@ class DynamicComboAttack(BaseAttack):
         return {
             "execution_mode": "sequential",
             "stop_on_failure": False,
-            "propagate_context": True
+            "propagate_context": True,
+            "stage_timeout_ms": None
         }
 
-    def execute(self, context: AttackContext, **kwargs) -> AttackResult:
+    async def execute(self, context: AttackContext, **kwargs) -> AttackResult:
         """
-        Синхронная версия execute для совместимости с BaseAttack.
-        Запускает асинхронную логику в новом event loop.
+        Выполняет последовательность атак (стадий).
+        Поддерживает параметры, переданные как:
+        - прямые kwargs: stages=..., params={'execution_mode': ...}
+        - вложенные: strategy_params={'stages': ..., 'execution_mode': ...}
+        - алиасы: steps/sequence/techniques
         """
         try:
-            return asyncio.run(self._async_execute(context, **kwargs))
-        except RuntimeError as e:
-            if "cannot run loop while another loop is running" in str(e):
-                LOG.error("DynamicComboAttack.execute cannot be called from within an existing event loop.")
-                return AttackResult(status=AttackStatus.ERROR, error_message=str(e))
-            raise
+            stages, execution_mode, stop_on_failure, propagate_context, stage_timeout_ms = self._extract_combo_config(kwargs)
+        except Exception as e:
+            self.logger.exception("Failed to parse dynamic combo params")
+            return AttackResult(
+                status=AttackStatus.INVALID_PARAMS,
+                error_message=f"Invalid combo params: {e}",
+            )
+        if not stages:
+            return AttackResult(
+                status=AttackStatus.INVALID_PARAMS,
+                error_message="No stages defined for dynamic combo attack",
+            )
+        stage_names = [s.get("name") for s in stages if isinstance(s.get("name"), str)]
+        self.logger.info(
+            f"Executing {len(stages)}-stage combo in {execution_mode} mode: {stage_names}"
+        )
+        try:
+            current_context = context.copy()
+        except Exception:
+            current_context = context
+        all_segments: List[Any] = []
+        total_latency: float = 0.0
+        total_packets_sent: int = 0
+        errors: List[str] = []
+        stage_results: List[Dict[str, Any]] = []
+
+        async def run_stage(
+            idx: int, stage_task: Dict[str, Any], stage_ctx: AttackContext
+        ):
+            stage_name = stage_task.get("name") or stage_task.get("type") or "unknown"
+            # stage_task may contain 'params' — merge shallowly for adapter
+            stage_params = dict(stage_task)
+            stage_params.update(stage_task.get("params") or {})
+            stage_params.setdefault("name", stage_name)
+            stage_params.setdefault("_combo", {"index": idx, "total": len(stages)})
+            self.logger.debug(
+                f" Stage {idx + 1}/{len(stages)}: '{stage_name}' -> params: { {k: v for k, v in stage_params.items() if k != '_combo'}}"
+            )
+            try:
+                if self.attack_adapter is None:
+                    # If no adapter is provided, return a placeholder result
+                    return (
+                        AttackResult(
+                            status=AttackStatus.ERROR,
+                            error_message="No attack adapter available for dynamic combo",
+                            latency_ms=0.0,
+                        ),
+                        stage_name,
+                    )
+
+                async def _exec():
+                    return await self.attack_adapter.execute_attack_by_name(
+                        attack_name=stage_name,
+                        context=stage_ctx,
+                        strategy_params=stage_params,
+                    )
+
+                if stage_timeout_ms and isinstance(stage_timeout_ms, (int, float)) and stage_timeout_ms > 0:
+                    res = await asyncio.wait_for(_exec(), timeout=stage_timeout_ms / 1000.0)
+                else:
+                    res = await _exec()
+                return (res, stage_name)
+            except asyncio.TimeoutError:
+                self.logger.warning(f"Stage {idx + 1} '{stage_name}' timed out ({stage_timeout_ms} ms)")
+                return (
+                    AttackResult(
+                        status=AttackStatus.ERROR, error_message="Stage timeout", latency_ms=float(stage_timeout_ms or 0)
+                    ),
+                    stage_name,
+                )
+            except Exception as e:
+                self.logger.exception(
+                    f"Stage {idx + 1} '{stage_name}' raised an exception"
+                )
+                return (
+                    AttackResult(
+                        status=AttackStatus.ERROR, error_message=str(e), latency_ms=0.0
+                    ),
+                    stage_name,
+                )
+
+        if execution_mode == "parallel":
+            ctx_list: List[AttackContext] = []
+            for _ in stages:
+                try:
+                    ctx_list.append(context.copy())
+                except Exception:
+                    ctx_list.append(context)
+            tasks = [run_stage(i, s, ctx_list[i]) for i, s in enumerate(stages)]
+            results = await asyncio.gather(*tasks, return_exceptions=False)
+            for i, item in enumerate(results):
+                stage_result, stage_name = item
+                total_latency += getattr(stage_result, "latency_ms", 0.0) or 0.0
+                ps = getattr(stage_result, "packets_sent", None)
+                if isinstance(ps, int) and ps >= 0:
+                    total_packets_sent += ps
+                else:
+                    segs = getattr(stage_result, "segments", None) or []
+                    total_packets_sent += len(segs)
+                if getattr(stage_result, "status", None) != AttackStatus.SUCCESS:
+                    emsg = (
+                        getattr(stage_result, "error_message", None)
+                        or f"Stage '{stage_name}' failed with status {getattr(stage_result, 'status', None)}"
+                    )
+                    errors.append(f"[{i + 1}:{stage_name}] {emsg}")
+                segs = getattr(stage_result, "segments", None) or []
+                if segs:
+                    all_segments.extend(segs)
+                stage_results.append({
+                    "index": i + 1,
+                    "name": stage_name,
+                    "status": getattr(stage_result, "status", None),
+                    "error": getattr(stage_result, "error_message", None),
+                    "packets_sent": getattr(stage_result, "packets_sent", None),
+                })
+        else:
+            for i, stage_task in enumerate(stages):
+                stage_result, stage_name = await run_stage(
+                    i, stage_task, current_context
+                )
+                total_latency += getattr(stage_result, "latency_ms", 0.0) or 0.0
+                ps = getattr(stage_result, "packets_sent", None)
+                if isinstance(ps, int) and ps >= 0:
+                    total_packets_sent += ps
+                else:
+                    segs_tmp = getattr(stage_result, "segments", None) or []
+                    total_packets_sent += len(segs_tmp)
+                if getattr(stage_result, "status", None) != AttackStatus.SUCCESS:
+                    emsg = (
+                        getattr(stage_result, "error_message", "")
+                        or f"Stage '{stage_name}' failed"
+                    )
+                    self.logger.warning(f"Stage {i + 1} '{stage_name}' failed: {emsg}")
+                    errors.append(f"[{i + 1}:{stage_name}] {emsg}")
+                    if stop_on_failure:
+                        break
+                segs_tmp = getattr(stage_result, "segments", None) or []
+                if segs_tmp:
+                    all_segments.extend(segs_tmp)
+                if propagate_context:
+                    next_ctx = getattr(stage_result, "context", None)
+                    if next_ctx is not None:
+                        current_context = next_ctx
+                stage_results.append({
+                    "index": i + 1,
+                    "name": stage_name,
+                    "status": getattr(stage_result, "status", None),
+                    "error": getattr(stage_result, "error_message", None),
+                    "packets_sent": getattr(stage_result, "packets_sent", None),
+                })
+        if not all_segments:
+            error_text = (
+                "; ".join(errors) if errors else "Combo attack produced no segments."
+            )
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=error_text,
+                latency_ms=total_latency,
+                packets_sent=total_packets_sent,
+                technique_used="dynamic_combo",
+                metadata={"errors": errors, "stage_results": stage_results},
+            )
+        technique_used = (
+            "dynamic_combo:" + ",".join(stage_names) if stage_names else "dynamic_combo"
+        )
+        return AttackResult(
+            status=AttackStatus.SUCCESS,
+            technique_used=technique_used,
+            segments=all_segments,
+            packets_sent=total_packets_sent,
+            latency_ms=total_latency,
+            metadata={"errors": errors, "stage_results": stage_results},
+        )
 
     def _extract_combo_config(
         self, kwargs: Dict[str, Any]
-    ) -> Tuple[List[Dict[str, Any]], str, bool, bool]:
+    ) -> Tuple[List[Dict[str, Any]], str, bool, bool, Optional[float]]:
         """
         Унифицировано извлекает конфигурацию комбо из разных форматов параметров.
-
         Возвращает:
             stages: нормализованный список стадий в виде [{ 'name': ..., ...}, ...]
             execution_mode: 'sequential' | 'parallel'
             stop_on_failure: True/False
             propagate_context: True/False
+            stage_timeout_ms: Optional[float]
         """
         sources: List[Any] = []
         sources.append(kwargs if isinstance(kwargs, dict) else {})
@@ -154,171 +323,27 @@ class DynamicComboAttack(BaseAttack):
         for src in sources:
             if isinstance(src, dict) and "propagate_context" in src:
                 propagate_context = bool(src["propagate_context"])
-        return (stages, execution_mode, stop_on_failure, propagate_context)
-
-    async def _async_execute(self, context: AttackContext, **kwargs) -> AttackResult:
-        """
-        Выполняет последовательность атак (стадий).
-        Поддерживает параметры, переданные как:
-        - прямые kwargs: stages=..., params={'execution_mode': ...}
-        - вложенные: strategy_params={'stages': ..., 'execution_mode': ...}
-        - алиасы: steps/sequence/techniques
-        """
-        try:
-            stages, execution_mode, stop_on_failure, propagate_context = (
-                self._extract_combo_config(kwargs)
-            )
-        except Exception as e:
-            self.logger.exception("Failed to parse dynamic combo params")
-            return AttackResult(
-                status=AttackStatus.INVALID_PARAMS,
-                error_message=f"Invalid combo params: {e}",
-            )
-        if not stages:
-            return AttackResult(
-                status=AttackStatus.INVALID_PARAMS,
-                error_message="No stages defined for dynamic combo attack",
-            )
-        stage_names = [s.get("name") for s in stages if isinstance(s.get("name"), str)]
-        self.logger.info(
-            f"Executing {len(stages)}-stage combo in {execution_mode} mode: {stage_names}"
-        )
-        try:
-            current_context = context.copy()
-        except Exception:
-            current_context = context
-        all_segments: List[Any] = []
-        total_latency: float = 0.0
-        total_packets_sent: int = 0
-        errors: List[str] = []
-
-        async def run_stage(
-            idx: int, stage_task: Dict[str, Any], stage_ctx: AttackContext
-        ):
-            stage_name = stage_task.get("name") or stage_task.get("type") or "unknown"
-            stage_params = dict(stage_task)
-            stage_params.setdefault("name", stage_name)
-            stage_params.setdefault("_combo", {"index": idx, "total": len(stages)})
-            self.logger.debug(
-                f"  Stage {idx + 1}/{len(stages)}: '{stage_name}' -> params: { {k: v for k, v in stage_params.items() if k != '_combo'}}"
-            )
-            try:
-                if self.attack_adapter is None:
-                    # If no adapter is provided, return a placeholder result
-                    return (
-                        AttackResult(
-                            status=AttackStatus.ERROR,
-                            error_message="No attack adapter available for dynamic combo",
-                            latency_ms=0.0,
-                        ),
-                        stage_name,
-                    )
-
-                res = await self.attack_adapter.execute_attack_by_name(
-                    attack_name=stage_name,
-                    context=stage_ctx,
-                    strategy_params=stage_params,
-                )
-                return (res, stage_name)
-            except Exception as e:
-                self.logger.exception(
-                    f"Stage {idx + 1} '{stage_name}' raised an exception"
-                )
-                return (
-                    AttackResult(
-                        status=AttackStatus.ERROR, error_message=str(e), latency_ms=0.0
-                    ),
-                    stage_name,
-                )
-
-        if execution_mode == "parallel":
-            ctx_list: List[AttackContext] = []
-            for _ in stages:
-                try:
-                    ctx_list.append(context.copy())
-                except Exception:
-                    ctx_list.append(context)
-            tasks = [run_stage(i, s, ctx_list[i]) for i, s in enumerate(stages)]
-            results = await asyncio.gather(*tasks, return_exceptions=False)
-            for i, item in enumerate(results):
-                stage_result, stage_name = item
-                total_latency += getattr(stage_result, "latency_ms", 0.0) or 0.0
-                ps = getattr(stage_result, "packets_sent", None)
-                if isinstance(ps, int) and ps >= 0:
-                    total_packets_sent += ps
-                else:
-                    segs = getattr(stage_result, "segments", None) or []
-                    total_packets_sent += len(segs)
-                if getattr(stage_result, "status", None) != AttackStatus.SUCCESS:
-                    emsg = (
-                        getattr(stage_result, "error_message", None)
-                        or f"Stage '{stage_name}' failed with status {getattr(stage_result, 'status', None)}"
-                    )
-                    errors.append(f"[{i + 1}:{stage_name}] {emsg}")
-                segs = getattr(stage_result, "segments", None) or []
-                if segs:
-                    all_segments.extend(segs)
-        else:
-            for i, stage_task in enumerate(stages):
-                stage_result, stage_name = await run_stage(
-                    i, stage_task, current_context
-                )
-                total_latency += getattr(stage_result, "latency_ms", 0.0) or 0.0
-                ps = getattr(stage_result, "packets_sent", None)
-                if isinstance(ps, int) and ps >= 0:
-                    total_packets_sent += ps
-                else:
-                    segs_tmp = getattr(stage_result, "segments", None) or []
-                    total_packets_sent += len(segs_tmp)
-                if getattr(stage_result, "status", None) != AttackStatus.SUCCESS:
-                    emsg = (
-                        getattr(stage_result, "error_message", "")
-                        or f"Stage '{stage_name}' failed"
-                    )
-                    self.logger.warning(f"Stage {i + 1} '{stage_name}' failed: {emsg}")
-                    errors.append(f"[{i + 1}:{stage_name}] {emsg}")
-                    if stop_on_failure:
-                        break
-                segs_tmp = getattr(stage_result, "segments", None) or []
-                if segs_tmp:
-                    all_segments.extend(segs_tmp)
-                if propagate_context:
-                    next_ctx = getattr(stage_result, "context", None)
-                    if next_ctx is not None:
-                        current_context = next_ctx
-        if not all_segments:
-            error_text = (
-                "; ".join(errors) if errors else "Combo attack produced no segments."
-            )
-            return AttackResult(
-                status=AttackStatus.ERROR,
-                error_message=error_text,
-                latency_ms=total_latency,
-                packets_sent=total_packets_sent,
-                technique_used="dynamic_combo",
-            )
-        technique_used = (
-            "dynamic_combo:" + ",".join(stage_names) if stage_names else "dynamic_combo"
-        )
-        return AttackResult(
-            status=AttackStatus.SUCCESS,
-            technique_used=technique_used,
-            segments=all_segments,
-            packets_sent=total_packets_sent,
-            latency_ms=total_latency,
-        )
+        # Timeout (ms)
+        timeout_ms: Optional[float] = None
+        for src in sources:
+            if isinstance(src, dict):
+                val = src.get("stage_timeout_ms")
+                if val is not None:
+                    try:
+                        timeout_ms = float(val)
+                    except Exception:
+                        pass
+        return (stages, execution_mode, stop_on_failure, propagate_context, timeout_ms)
 
     def validate_params(self, params: Dict[str, Any]) -> bool:
         """
         Валидирует параметры атаки.
-
         Args:
             params: Параметры для валидации. Поддерживаются старый и новый форматы:
                 - {"stages": [...]}
                 - {"params": {"stages": [...]}}
                 - {"strategy_params": {"stages": [...]}}
                 - а также алиасы steps/sequence/techniques и список строк.
-
         Returns:
             True если параметры валидны
         """
@@ -328,7 +353,7 @@ class DynamicComboAttack(BaseAttack):
             {"strategy_params": params} if not isinstance(params, dict) else params
         )
         try:
-            stages, _, _, _ = self._extract_combo_config(wrapped)
+            stages, _, _, _, _ = self._extract_combo_config(wrapped)
         except Exception:
             return False
         if not isinstance(stages, list) or not stages:
