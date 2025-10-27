@@ -603,13 +603,9 @@ class DPIBypassService:
                     self.logger.info(
                         "This may be normal if the site is blocked. Bypass will still work."
                     )
-                # <<< НАЧАЛО ИЗМЕНЕНИЙ: Добавьте блок finally >>>
                 finally:
-                    # КРИТИЧЕСКИ ВАЖНО: Очищаем глобальный override после теста,
-                    # чтобы он не влиял на реальный трафик.
                     if hasattr(self.bypass_engine, "clear_strategy_override"):
                         self.bypass_engine.clear_strategy_override()
-                # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
             else:
                 self.logger.warning(
                     f"⚠️ Could not find IP for test domain {test_domain}"
@@ -636,18 +632,8 @@ class DPIBypassService:
             self.logger.error(traceback.format_exc())
             return False
 
-    # REMOVED: Old parse_strategy_config and _config_to_strategy_task methods
-    # These have been replaced with UnifiedStrategyLoader for consistent parsing
-    # across testing mode and service mode. The old methods had bugs like:
-    # - Taking only first method from "fake,disorder" (should be "fakeddisorder")
-    # - Inconsistent parameter handling
-    # - Different behavior from testing mode
-    #
-    # All strategy parsing now goes through UnifiedStrategyLoader.load_strategy()
-
     def stop_bypass_engine(self):
         """Останавливает движок обхода DPI."""
-        # <<< НАЧАЛО ИЗМЕНЕНИЙ: Остановка захвата >>>
         if self.capturer:
             try:
                 self.capturer.stop()
@@ -656,7 +642,6 @@ class DPIBypassService:
                 )
             except Exception as e:
                 self.logger.error(f"❌ Error stopping PCAP capture: {e}")
-        # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
         if self.bypass_engine:
             try:
@@ -761,7 +746,6 @@ class DPIBypassService:
 
 def main():
     """Точка входа в службу."""
-    # <<< НАЧАЛО ИЗМЕНЕНИЙ: Парсинг аргументов командной строки >>>
     parser = argparse.ArgumentParser(description="Recon DPI Bypass Service")
     parser.add_argument(
         "--pcap", type=str, help="Enable traffic capture to the specified PCAP file."
@@ -772,7 +756,6 @@ def main():
     service = DPIBypassService(pcap_file=args.pcap)
     if args.debug:
         service.logger.setLevel(logging.DEBUG)
-    # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
     try:
         success = service.run()

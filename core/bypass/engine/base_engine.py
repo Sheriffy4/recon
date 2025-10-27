@@ -816,22 +816,43 @@ class WindowsBypassEngine(IBypassEngine):
         except Exception:
             return None
 
+    def _calculate_max_ips_for_filter(self, target_ips: Set[str]) -> int:
+        """Calculate maximum number of IPs that can fit in WinDivert filter without exceeding length limit."""
+        base_filter = "outbound and () and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)"
+        max_filter_length = 1024  # Conservative WinDivert filter length limit
+        
+        if not target_ips:
+            return 0
+            
+        # Calculate average IP string length
+        sample_ips = list(target_ips)[:5]
+        avg_ip_length = sum(len(f"ip.DstAddr == {ip}") for ip in sample_ips) / len(sample_ips)
+        avg_ip_length += 4  # Add space for " or " separator
+        
+        available_space = max_filter_length - len(base_filter)
+        max_ips = max(1, int(available_space / avg_ip_length))
+        
+        return min(max_ips, 15)  # Conservative limit of 15 IPs
+
     def _run_bypass_loop(self, target_ips: Set[str], strategy_map: Dict[str, Dict]):
         self.logger.info(
             f"🔍 BYPASS LOOP STARTED: target_ips={len(target_ips)}, strategies={len(strategy_map)}"
         )
 
         if target_ips:
-            ip_list = list(target_ips)[:50]
+            # Calculate optimal number of IPs for filter
+            max_ips = self._calculate_max_ips_for_filter(target_ips)
+            ip_list = list(target_ips)[:max_ips]
             ip_filter = " or ".join([f"ip.DstAddr == {ip}" for ip in ip_list])
             filter_str = f"outbound and ({ip_filter}) and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)"
-            self.logger.info(f"🔍 Фильтр pydivert с {len(ip_list)} целевыми IP")
+            self.logger.info(f"🔍 Фильтр pydivert с {len(ip_list)}/{len(target_ips)} целевыми IP (ограничено для избежания ошибок WinDivert)")
         else:
             filter_str = "outbound and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)"
             self.logger.info("🔍 Фильтр pydivert: перехват всех HTTPS/HTTP пакетов")
 
         self.logger.info(f"🔍 WinDivert filter: {filter_str}")
 
+        # Try with the constructed filter first
         try:
             with pydivert.WinDivert(filter_str, priority=1000) as w:
                 self.logger.info("✅ WinDivert запущен успешно.")
@@ -869,10 +890,58 @@ class WindowsBypassEngine(IBypassEngine):
                         w.send(packet)
         except Exception as e:
             if self.running:
-                self.logger.error(
-                    f"❌ Критическая ошибка в цикле WinDivert: {e}", exc_info=self.debug
-                )
-            self.running = False
+                # If filter is too long, try with a simpler filter
+                if "Параметр задан неверно" in str(e) or "Invalid parameter" in str(e):
+                    self.logger.warning(f"⚠️ WinDivert фильтр слишком длинный, пробуем упрощенный фильтр...")
+                    try:
+                        # Fallback to a simple filter without IP restrictions
+                        simple_filter = "outbound and (tcp.DstPort == 443 or udp.DstPort == 443 or tcp.DstPort == 80)"
+                        self.logger.info(f"🔍 Fallback WinDivert filter: {simple_filter}")
+                        
+                        with pydivert.WinDivert(simple_filter, priority=1000) as w:
+                            self.logger.info("✅ WinDivert запущен с упрощенным фильтром.")
+                            while self.running:
+                                packet = w.recv()
+                                if packet is None:
+                                    continue
+                                if getattr(packet, "mark", 0) == self._INJECT_MARK:
+                                    w.send(packet)
+                                    continue
+
+                                self.stats["packets_captured"] += 1
+                                if (
+                                    self._is_target_ip(packet.dst_addr, target_ips)
+                                    and packet.payload
+                                ):
+                                    if self._is_tls_clienthello(packet.payload):
+                                        with self._tlock:
+                                            self._telemetry["clienthellos"] += 1
+
+                                        strategy_task = (
+                                            self.strategy_override
+                                            or strategy_map.get(packet.dst_addr)
+                                            or strategy_map.get("default")
+                                        )
+
+                                        if strategy_task:
+                                            self.stats["tls_packets_bypassed"] += 1
+                                            self.apply_bypass(packet, w, strategy_task, forced=True)
+                                        else:
+                                            w.send(packet)
+                                    else:
+                                        w.send(packet)
+                                else:
+                                    w.send(packet)
+                    except Exception as fallback_e:
+                        self.logger.error(
+                            f"❌ Критическая ошибка даже с упрощенным фильтром: {fallback_e}", exc_info=self.debug
+                        )
+                        self.running = False
+                else:
+                    self.logger.error(
+                        f"❌ Критическая ошибка в цикле WinDivert: {e}", exc_info=self.debug
+                    )
+                    self.running = False
 
     def _proto(self, packet) -> int:
         p = getattr(packet, "protocol", None)

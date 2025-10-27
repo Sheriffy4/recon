@@ -1,112 +1,51 @@
 # recon/core/windivert_filter.py
 
-import ipaddress
 import logging
 from typing import List, Set, Tuple
 
 LOG = logging.getLogger("WinDivertFilterGenerator")
 
-# Устанавливаем константу на уровне модуля для доступа извне
-MAX_FILTER_LENGTH = 4000  # Реальный лимит около 4096, берем с запасом
-
-
 class WinDivertFilterGenerator:
     """
-    Генератор фильтров WinDivert с валидацией IP, ограничением длины и прогрессивным упрощением.
-    Это единственная и каноническая версия класса для всего проекта.
+    Генератор фильтров WinDivert, оптимизированный для SNI-фильтрации.
+    Создает общий фильтр для перехвата трафика, а не на основе IP.
     """
 
-    def __init__(self, max_length: int = MAX_FILTER_LENGTH) -> None:
-        self.max_length = max_length
-
-    def normalize_ip(self, ip_value: str) -> str:
-        """Нормализует IP-адрес."""
-        try:
-            return str(ipaddress.ip_address(ip_value))
-        except ValueError:
-            LOG.warning(f"Invalid IP address format for filter: {ip_value}")
-            raise
-
-    def _is_valid_length(self, filter_str: str) -> bool:
-        """Проверяет, не превышает ли фильтр максимальную длину."""
-        return len(filter_str) <= self.max_length
-
-    def generate(
+    def generate_sni_filter(
         self,
-        target_ips: Set[str],
-        target_ports: Set[int],
+        target_ports: Set[int] = {443},
         direction: str = "outbound",
         protocols: Tuple[str, ...] = ("tcp",),
     ) -> str:
-        """Генерирует фильтр на основе набора IP и портов."""
-        parts = [direction]
-
-        if protocols:
-            protocol_part = " or ".join(protocols)
-            parts.append(f"({protocol_part})")
-
-        if target_ports:
-            port_conditions = [f"tcp.DstPort == {p}" for p in target_ports]
-            parts.append(f"({' or '.join(port_conditions)})")
-
-        if target_ips:
-            try:
-                normalized_ips = {self.normalize_ip(ip) for ip in target_ips}
-                # Группируем IP по 15 штук, чтобы избежать слишком длинных "or" цепочек
-                ip_batches = [
-                    list(normalized_ips)[i : i + 15]
-                    for i in range(0, len(normalized_ips), 15)
-                ]
-
-                batch_conditions = []
-                for batch in ip_batches:
-                    ip_conditions = [f"ip.DstAddr == {ip}" for ip in batch]
-                    batch_conditions.append(f"({' or '.join(ip_conditions)})")
-
-                parts.append(f"ip and ({' or '.join(batch_conditions)})")
-
-            except ValueError:
-                # Если есть невалидный IP, не добавляем IP-фильтрацию вообще
-                LOG.warning("Skipping IP filtering due to invalid IP address.")
-
-        final_filter = " and ".join(parts)
-
-        # Если фильтр все еще слишком длинный, упрощаем его
-        if not self._is_valid_length(final_filter):
-            LOG.warning(
-                f"Generated filter is too long ({len(final_filter)} chars). Simplifying."
-            )
-            return self.progressive_candidates(
-                target_ips, target_ports, direction, protocols
-            )[1]
-
-        return final_filter
-
-    def progressive_candidates(
-        self,
-        target_ips: Set[str],
-        target_ports: Set[int],
-        direction: str = "outbound",
-        protocols: Tuple[str, ...] = ("tcp",),
-    ) -> List[str]:
         """
-        Создает список фильтров-кандидатов от самого точного к самому общему.
+        Генерирует фильтр для перехвата трафика по портам для последующего SNI-анализа.
+
+        Args:
+            target_ports: Набор портов для перехвата (по умолчанию {443} для HTTPS).
+            direction: Направление трафика ('outbound' или 'inbound').
+            protocols: Протоколы для перехвата (например, ('tcp',)).
+
+        Returns:
+            Строка фильтра для WinDivert.
         """
-        candidates = []
+        if not target_ports:
+            raise ValueError("Необходимо указать хотя бы один порт для фильтрации.")
 
-        # 1. Самый точный: все IP и все порты
-        full_filter = self.generate(target_ips, target_ports, direction, protocols)
-        candidates.append(full_filter)
+        proto_part = " or ".join(protocols)
+        
+        # Создаем часть фильтра для портов назначения
+        # Используем DstPort для outbound и SrcPort для inbound
+        port_field = "DstPort" if direction == "outbound" else "SrcPort"
+        port_part = " or ".join([f"{p_type}.{port_field} == {p}" for p_type in protocols for p in target_ports])
 
-        # 2. Упрощенный: только порты, без IP
-        ports_only_filter = self.generate(set(), target_ports, direction, protocols)
-        if ports_only_filter not in candidates:
-            candidates.append(ports_only_filter)
+        filter_str = f"{direction} and ({proto_part}) and ({port_part})"
+        
+        LOG.info(f"Сгенерирован эффективный SNI-фильтр: \"{filter_str}\"")
+        return filter_str
 
-        # 3. Самый общий fallback: только протокол и направление
-        base_filter = self.generate(set(), set(), direction, protocols)
-        if base_filter not in candidates:
-            candidates.append(base_filter)
-
-        # Гарантируем, что вернем только валидные по длине фильтры
-        return [f for f in candidates if self._is_valid_length(f)]
+    def generate_optimal_filter(self, *args, **kwargs) -> str:
+        """
+        Оставляем этот метод для обратной совместимости, но он будет вызывать новый.
+        """
+        ports = kwargs.get("target_ports", {443})
+        return self.generate_sni_filter(target_ports=ports)
