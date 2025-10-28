@@ -315,6 +315,7 @@ try:
     enhanced_packet_capturer_AVAILABLE = True
 except Exception:
     enhanced_packet_capturer_AVAILABLE = False
+from core.windivert_filter import WinDivertFilterGenerator
 
 
 
@@ -2321,36 +2322,22 @@ async def run_hybrid_mode(args):
         except Exception as e:
             console.print(f"[yellow][!] Could not start PCAP insights worker: {e}[/yellow]")
 
-    # <<< FIX: DNS Resolution and IP Grouping Logic >>>
-    console.print("\n[yellow]Step 1: Resolving all target domains and grouping by IP...[/yellow]")
-    domain_ip_pool = {}
-    ip_to_domains = defaultdict(list)
-    all_target_ips = set()
+    # --- НОВАЯ, УПРОЩЕННАЯ ЛОГИКА ---
+    console.print("\n[yellow]Step 1: Preparing for traffic interception...[/yellow]")
+    # Нам все еще нужны IP для подключения, но не для фильтра WinDivert
+    dns_cache, domain_ip_pool = await run_advanced_dns_resolution(dm.domains, args.port)
+    all_target_ips = set(dns_cache.values())
+    console.print(f"Resolved {len(dns_cache)} domains to {len(all_target_ips)} unique IPs for testing.")
 
-    with Progress(console=console, transient=True) as progress:
-        task = progress.add_task("[cyan]Resolving domains...", total=len(dm.domains))
-        for site in dm.domains:
-            hostname = urlparse(site).hostname or site
-            ips = await resolve_all_ips(hostname)
-            if ips:
-                domain_ip_pool[hostname] = ips
-                for ip in ips:
-                    ip_to_domains[ip].append(hostname)
-                    all_target_ips.add(ip)
-            else:
-                console.print(f"  [red]Warning:[/red] Could not resolve {hostname}")
-            progress.update(task, advance=1)
-
-    if not all_target_ips:
-        console.print("[bold red]Fatal Error:[/bold red] Could not resolve any of the target domains.")
-        return
-
-    console.print(f"Resolved {len(dm.domains)} domains to {len(all_target_ips)} unique IP addresses.")
-    
     # Select representative domains for testing: one per unique IP
     # Also, ensure we test all unique IPs for multi-IP domains
     unique_ips_to_test = set()
     representative_domains = {} # ip -> domain
+    ip_to_domains = defaultdict(list)
+    for domain, ips in domain_ip_pool.items():
+        for ip in ips:
+            ip_to_domains[ip].append(domain)
+
     for ip, domains in ip_to_domains.items():
         if ip not in representative_domains:
             representative_domains[ip] = domains[0] # Pick the first domain as representative
@@ -2358,16 +2345,21 @@ async def run_hybrid_mode(args):
 
     test_sites_urls = [f"https://{d}" for d in representative_domains.values()]
     console.print(f"Optimized testing: selected {len(test_sites_urls)} representative domains for {len(all_target_ips)} unique IPs.")
-    # <<< END FIX >>>
 
+    # --- ИЗМЕНЯЕМ ЛОГИКУ СОЗДАНИЯ ФИЛЬТРА ---
     capturer = None
-    corr_capturer = None
     if args.pcap and SCAPY_AVAILABLE:
         try:
-            if args.capture_bpf:
-                bpf = args.capture_bpf
-            else:
-                bpf = build_bpf_from_ips(all_target_ips, args.port)
+            # Используем новый генератор для создания общего фильтра
+            filter_generator = WinDivertFilterGenerator()
+            bpf = filter_generator.generate_sni_filter(target_ports={args.port, 80})
+
+            # Старый код для BPF на основе IP можно удалить или закомментировать
+            # if args.capture_bpf:
+            # bpf = args.capture_bpf
+            # else:
+            # bpf = build_bpf_from_ips(all_target_ips, args.port)
+
             max_sec = args.capture_max_seconds if args.capture_max_seconds > 0 else None
             max_pkts = args.capture_max_packets if args.capture_max_packets > 0 else None
             capturer = PacketCapturer(args.pcap, bpf=bpf, iface=args.capture_iface, max_packets=max_pkts, max_seconds=max_sec)

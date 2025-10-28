@@ -1,7 +1,6 @@
-# recon/core/windivert_filter.py
-
+# core/windivert_filter.py
 import logging
-from typing import List, Set, Tuple
+from typing import Set, Tuple
 
 LOG = logging.getLogger("WinDivertFilterGenerator")
 
@@ -13,7 +12,7 @@ class WinDivertFilterGenerator:
 
     def generate_sni_filter(
         self,
-        target_ports: Set[int] = {443},
+        target_ports: Set[int] = {443, 80},
         direction: str = "outbound",
         protocols: Tuple[str, ...] = ("tcp",),
     ) -> str:
@@ -21,7 +20,7 @@ class WinDivertFilterGenerator:
         Генерирует фильтр для перехвата трафика по портам для последующего SNI-анализа.
 
         Args:
-            target_ports: Набор портов для перехвата (по умолчанию {443} для HTTPS).
+            target_ports: Набор портов для перехвата (по умолчанию {443, 80} для HTTPS и HTTP).
             direction: Направление трафика ('outbound' или 'inbound').
             protocols: Протоколы для перехвата (например, ('tcp',)).
 
@@ -32,14 +31,12 @@ class WinDivertFilterGenerator:
             raise ValueError("Необходимо указать хотя бы один порт для фильтрации.")
 
         proto_part = " or ".join(protocols)
-        
-        # Создаем часть фильтра для портов назначения
-        # Используем DstPort для outbound и SrcPort для inbound
+
         port_field = "DstPort" if direction == "outbound" else "SrcPort"
         port_part = " or ".join([f"{p_type}.{port_field} == {p}" for p_type in protocols for p in target_ports])
 
         filter_str = f"{direction} and ({proto_part}) and ({port_part})"
-        
+
         LOG.info(f"Сгенерирован эффективный SNI-фильтр: \"{filter_str}\"")
         return filter_str
 
@@ -47,5 +44,5 @@ class WinDivertFilterGenerator:
         """
         Оставляем этот метод для обратной совместимости, но он будет вызывать новый.
         """
-        ports = kwargs.get("target_ports", {443})
+        ports = kwargs.get("target_ports", {443, 80})
         return self.generate_sni_filter(target_ports=ports)

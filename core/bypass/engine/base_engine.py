@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Core imports
+from core.bypass.strategies.sni_detector import SNIDetector
+from core.domain_watchlist import DomainWatchlist
 from core.bypass.engine.attack_dispatcher import AttackDispatcher
 from core.bypass.packet.builder import PacketBuilder
 from core.bypass.packet.sender import PacketSender
@@ -198,6 +200,11 @@ class WindowsBypassEngine(IBypassEngine):
         # Инициализируем диспетчер атак
         self._attack_dispatcher = AttackDispatcher(self.techniques)
         self.logger.info("AttackDispatcher initialized")
+
+        # Инициализируем компоненты для SNI-фильтрации
+        self._sni_detector = SNIDetector()
+        self._domain_watchlist = DomainWatchlist() # Можно передать путь к файлу, если нужно
+        self.logger.info("SNI Detector and Domain Watchlist initialized for in-flight filtering.")
 
     def attach_controller(
         self,
@@ -1092,45 +1099,32 @@ class WindowsBypassEngine(IBypassEngine):
         forced=True,
     ):
         """
-        Унифицированный метод применения обхода DPI с правильной диспетчеризацией атак.
-
-        КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Заменяет проблемный единый блок диспетчеризации
-        на правильную систему через AttackDispatcher. Теперь каждый тип атаки
-        выполняется своим специализированным методом.
-
-        Алгоритм выполнения:
-        1. Проверка дублирования потоков (предотвращение повторной обработки)
-        2. Извлечение параметров стратегии
-        3. Вычисление TTL (включая AutoTTL для продвинутых случаев)
-        4. Диспетчеризация через AttackDispatcher
-        5. Конвертация рецепта в спецификации TCP сегментов
-        6. Отправка последовательности пакетов через PacketSender
-
-        Ключевые особенности:
-        - Подавление оригинального пакета (критично для корректной работы)
-        - Семафор для ограничения одновременных инъекций
-        - Обработка специальных параметров (autottl, split_pos)
-        - Унифицированная логика для службы и тестирования
-        - Детальное логирование для диагностики
-
-        Поддерживаемые типы атак:
-        - fakeddisorder: Фейковый пакет + disorder реальных частей
-        - seqovl: Sequence overlap с перекрытием
-        - multidisorder: Множественное разделение с disorder
-        - multisplit: Множественное разделение пакетов
-        - disorder: Простое изменение порядка
-        - fake: Race condition атака
-
-        Args:
-            packet: Перехваченный TCP пакет от pydivert
-            w: WinDivert handle для отправки пакетов
-            strategy_task: Конфигурация атаки (type, params)
-            forced: Флаг принудительного применения (для совместимости)
-
-        Note:
-            Оригинальный пакет НЕ отправляется - он заменяется
-            последовательностью специально сформированных сегментов.
+        Унифицированный метод применения обхода DPI с SNI-фильтрацией "на лету".
         """
+        payload = bytes(packet.payload or b"")
+
+        # --- НОВАЯ ЛОГИКА ФИЛЬТРАЦИИ ---
+        # 1. Проверяем, является ли пакет TLS ClientHello
+        if self._sni_detector.is_client_hello(payload):
+            # 2. Извлекаем SNI
+            domain = self._sni_detector.extract_sni_value(payload)
+
+            # 3. Проверяем, нужен ли обход для этого домена
+            if domain and self._domain_watchlist.is_bypass_required(domain):
+                self.logger.debug(f"SNI '{domain}' in watchlist. Applying bypass.")
+                # Если домен в списке, продолжаем выполнение старой логики обхода
+            else:
+                # Если домена нет в списке, просто отправляем пакет без изменений
+                self.logger.debug(f"SNI '{domain or 'not found'}' not in watchlist. Forwarding original packet.")
+                w.send(packet)
+                return
+        else:
+            # Если это не ClientHello (например, HTTP или другой TCP-трафик),
+            # пока просто пропускаем. Можно добавить логику для HTTP Host.
+            w.send(packet)
+            return
+        # --- КОНЕЦ НОВОЙ ЛОГИКИ ---
+
         flow_key = (packet.src_addr, packet.src_port, packet.dst_addr, packet.dst_port)
         now = time.time()
 

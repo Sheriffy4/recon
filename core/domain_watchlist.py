@@ -1,7 +1,6 @@
-# blocked_domain_detector.py -> переосмыслен как DomainWatchlist
-
+# core/domain_watchlist.py
 import logging
-from typing import Set, List
+from typing import Set, Optional
 from pathlib import Path
 
 LOG = logging.getLogger("domain_watchlist")
@@ -11,7 +10,7 @@ class DomainWatchlist:
     Управляет списком доменов, для которых требуется обход DPI.
     Загружает домены из файла или использует предопределенный список.
     """
-    
+
     # Список по умолчанию, можно расширять
     DEFAULT_WATCHLIST = {
         'x.com', 'twitter.com', 'instagram.com', 'facebook.com',
@@ -37,7 +36,7 @@ class DomainWatchlist:
                         domain = line.strip().lower()
                         if domain and not domain.startswith('#'):
                             self.watchlist.add(domain)
-                LOG.info(f"Загружено {len(self.watchlist)} доменов в список наблюдения.")
+            LOG.info(f"Загружено {len(self.watchlist)} доменов в список наблюдения.")
         except Exception as e:
             LOG.error(f"Ошибка загрузки файла с доменами: {e}")
 
@@ -54,13 +53,13 @@ class DomainWatchlist:
         """
         if not domain:
             return False
-        
+
         domain = domain.lower()
-        
+
         # Прямая проверка
         if domain in self.watchlist:
             return True
-        
+
         # Проверка родительских доменов (например, для 'sub.domain.com' проверяем 'domain.com')
         parts = domain.split('.')
         if len(parts) > 2:
@@ -68,7 +67,7 @@ class DomainWatchlist:
                 parent_domain = '.'.join(parts[i:])
                 if parent_domain in self.watchlist:
                     return True
-                    
+
         return False
 
     def get_watchlist(self) -> Set[str]:
