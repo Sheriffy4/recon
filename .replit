@@ -5,3 +5,35 @@ expertMode = true
 [nix]
 channel = "stable-25_05"
 packages = ["cacert", "cargo", "imagemagickBig", "libiconv", "libxcrypt", "libyaml", "openssl", "pkg-config", "rustc", "sox", "tcpdump", "wireshark"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Web Dashboard"
+
+[[workflows.workflow]]
+name = "Web Dashboard"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python run_web_dashboard.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 46147
+externalPort = 3000
