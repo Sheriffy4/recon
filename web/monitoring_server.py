@@ -21,12 +21,13 @@ except ImportError:
 class MonitoringWebServer:
     """Веб-сервер для мониторинга системы обхода DPI."""
 
-    def __init__(self, monitoring_system, port: int = 8080):
+    def __init__(self, monitoring_system, host: str = 'localhost', port: int = 8080):
         if not AIOHTTP_AVAILABLE:
             raise ImportError(
                 "aiohttp is required for web interface. Install with: pip install aiohttp"
             )
         self.monitoring_system = monitoring_system
+        self.host = host
         self.port = port
         self.app: Optional[Application] = None
         self.runner: Optional[web.AppRunner] = None
@@ -191,9 +192,9 @@ class MonitoringWebServer:
         self.app = self.create_app()
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
-        self.site = web.TCPSite(self.runner, "localhost", self.port)
+        self.site = web.TCPSite(self.runner, self.host, self.port)
         await self.site.start()
-        self.logger.info(f"🌐 Web interface started at http://localhost:{self.port}")
+        self.logger.info(f"🌐 Web interface started at http://{self.host}:{self.port}")
         asyncio.create_task(self.update_broadcaster())
 
     async def stop(self):

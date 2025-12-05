@@ -27,10 +27,10 @@ async def main():
     hybrid_engine = MockHybridEngine()
 
     # Instantiate and start the web server
-    server = MonitoringWebServer(monitoring_system, hybrid_engine, port=8080)
+    server = MonitoringWebServer(monitoring_system, hybrid_engine, host='0.0.0.0', port=5000)
     await server.start()
 
-    print("Web server is running. Press Ctrl+C to stop.")
+    print("Web server is running on http://0.0.0.0:5000. Press Ctrl+C to stop.")
 
     try:
         # Keep the server running
