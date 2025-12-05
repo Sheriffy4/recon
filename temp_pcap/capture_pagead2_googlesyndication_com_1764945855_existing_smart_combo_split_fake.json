@@ -1,0 +1,9 @@
+{
+  "executed_attacks": "split,fake",
+  "strategy_name": "existing_smart_combo_split_fake",
+  "strategy_id": "0b20facd-4d11-4aa8-bb89-2c03b3e7d476",
+  "domain": "pagead2.googlesyndication.com",
+  "test_start_time": 1764945855.1253574,
+  "test_start_timestamp": 1764945855,
+  "pcap_file": "capture_pagead2_googlesyndication_com_1764945855.pcap"
+}

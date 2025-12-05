@@ -346,20 +346,17 @@ class PCAPAnalyzer:
                 self.logger.warning(f"⚠️ Нет пакетов в {pcap_file}")
                 return StrategyAnalysisResult(strategy_detected=False, packet_count=0)
             
-            # Filter packets by timestamp if test_start_time is provided
-            if test_start_time is not None:
-                filtered_packets = self._filter_packets_by_timestamp(packets, test_start_time)
-                
-                # If filtering removed ALL packets, this might be a shared PCAP
-                # where packets were captured during earlier tests
-                if not filtered_packets:
-                    self.logger.warning(f"⚠️ Timestamp filtering removed all packets (window: [{test_start_time-5:.3f}, {test_start_time+10:.3f}])")
-                    self.logger.info(f"ℹ️ This might be a shared PCAP with packets from earlier tests")
-                    self.logger.info(f"ℹ️ Using all {len(packets)} packets without timestamp filtering")
-                    # Don't filter, use all packets and rely on flow-based analysis
-                else:
-                    packets = filtered_packets
-                    self.logger.info(f"✅ Отфильтровано {len(packets)} пакетов для теста (start_time={test_start_time})")
+            # Use Flow-Based Isolation instead of unreliable timestamp filtering
+            # This is more robust and avoids analyzing packets from other tests
+            total_packets = len(packets)
+            target_packets = self._extract_best_flow(packets, test_start_time)
+            
+            if not target_packets:
+                self.logger.warning(f"⚠️ Не найден подходящий TLS поток среди {total_packets} пакетов")
+                return StrategyAnalysisResult(strategy_detected=False, packet_count=0)
+            
+            self.logger.info(f"✅ Выделен целевой поток: {len(target_packets)} пакетов из {total_packets}")
+            packets = target_packets
             
             self.logger.info(f"📦 Загружено {len(packets)} пакетов")
             
@@ -430,40 +427,110 @@ class PCAPAnalyzer:
         """
         Находит позиции split в захваченных пакетах.
         
+        IMPROVED: Now analyzes TCP sequence numbers and payload fragmentation,
+        focusing only on ClientHello sequence range to avoid counting retransmissions.
+        This matches analyze_raw_pcap.py logic.
+        
         Args:
             packets: Список RawPacket объектов
             
         Returns:
-            Список позиций split
+            Список позиций split (относительно начала потока)
             
         Requirements: 8.4, 8.7
         """
         split_positions: List[int] = []
         
         try:
+            from core.packet.raw_packet_engine import IPHeader, TCPHeader
+            
+            # Step 1: Find ClientHello packet to get sequence range
+            clienthello_seq = None
+            clienthello_len = None
+            
             for pkt in packets:
-                # Check if this is a TCP packet with payload
                 if pkt.protocol != ProtocolType.TCP or not pkt.payload:
                     continue
                 
-                payload = pkt.payload
-                
-                # Check if this is a TLS ClientHello
-                if not self.packet_engine.is_client_hello(payload):
+                # Check if this is ClientHello
+                if self.packet_engine.is_client_hello(pkt.payload):
+                    try:
+                        ip_header = IPHeader.unpack(pkt.data[:20])
+                        ip_header_size = ip_header.ihl * 4
+                        tcp_data = pkt.data[ip_header_size:]
+                        tcp_header = TCPHeader.unpack(tcp_data)
+                        
+                        clienthello_seq = tcp_header.seq_num
+                        clienthello_len = len(pkt.payload)
+                        break
+                    except Exception:
+                        continue
+            
+            if clienthello_seq is None:
+                self.logger.debug("⚠️ ClientHello не найден, пропускаем анализ split")
+                return []
+            
+            # Step 2: Filter for REAL TCP packets in ClientHello sequence range (TTL > 5)
+            clienthello_end_seq = clienthello_seq + clienthello_len
+            real_packets = []
+            
+            for pkt in packets:
+                if pkt.protocol != ProtocolType.TCP or not pkt.payload:
                     continue
                 
-                # Look for SNI and calculate split position
-                sni_pos = SNIManipulator.find_sni_position(payload)
-                if sni_pos:
-                    split_positions.append(sni_pos.sni_value_start)
+                try:
+                    # Check TTL - skip fake packets
+                    ip_header = IPHeader.unpack(pkt.data[:20])
+                    if ip_header.ttl <= 5:
+                        continue
                     
-                    # Also check for mid-SNI split
-                    mid_pos = sni_pos.sni_value_start + len(sni_pos.sni_value) // 2
-                    if mid_pos != sni_pos.sni_value_start:
-                        split_positions.append(mid_pos)
+                    # Extract TCP info
+                    ip_header_size = ip_header.ihl * 4
+                    tcp_data = pkt.data[ip_header_size:]
+                    if len(tcp_data) < 20:
+                        continue
+                    
+                    tcp_header = TCPHeader.unpack(tcp_data)
+                    tcp_header_size = tcp_header.data_offset * 4
+                    payload_len = len(tcp_data) - tcp_header_size
+                    
+                    if payload_len == 0:
+                        continue
+                    
+                    # Only include packets in ClientHello sequence range
+                    seq = tcp_header.seq_num
+                    if seq >= clienthello_seq and seq < clienthello_end_seq:
+                        real_packets.append({
+                            'seq': seq,
+                            'payload_len': payload_len,
+                            'pkt': pkt
+                        })
+                except Exception as e:
+                    self.logger.debug(f"⚠️ Ошибка парсинга пакета: {e}")
+                    continue
+            
+            if not real_packets:
+                return []
+            
+            # Sort by sequence number
+            real_packets.sort(key=lambda x: x['seq'])
+            
+            # Calculate split positions based on sequence numbers
+            base_seq = real_packets[0]['seq']
+            
+            # Each fragment end is a split position (except the last one)
+            for pkt_info in real_packets[:-1]:
+                seq = pkt_info['seq']
+                length = pkt_info['payload_len']
+                relative_end = (seq - base_seq) + length
+                if relative_end > 0:
+                    split_positions.append(relative_end)
             
             split_positions = sorted(set(split_positions))
-            self.logger.debug(f"🔍 Найдено {len(split_positions)} позиций split")
+            self.logger.debug(
+                f"🔍 Найдено {len(split_positions)} позиций split "
+                f"(из {len(real_packets)} реальных фрагментов в ClientHello range)"
+            )
             
         except Exception as e:
             self.logger.error(f"❌ Ошибка поиска split позиций: {e}")
@@ -799,6 +866,94 @@ class PCAPAnalyzer:
             return []
     
 
+    def _extract_best_flow(self, packets: List[RawPacket], test_start_time: Optional[float] = None) -> List[RawPacket]:
+        """
+        Выделяет наиболее вероятный целевой поток (TCP Flow) для анализа.
+        
+        Логика:
+        1. Группирует пакеты по 4-tuple (src_ip, src_port, dst_ip, dst_port)
+        2. Ищет потоки, содержащие ClientHello
+        3. Если есть test_start_time, выбирает поток, ближайший к этому времени
+        4. Если нет, выбирает поток с наибольшим количеством признаков обхода (фрагментация)
+        
+        Args:
+            packets: Список всех пакетов из PCAP
+            test_start_time: Unix timestamp начала теста (опционально)
+            
+        Returns:
+            Список пакетов целевого потока
+        """
+        from collections import defaultdict
+        
+        flows = defaultdict(list)
+        
+        # 1. Группировка по TCP flow
+        for pkt in packets:
+            if pkt.protocol != ProtocolType.TCP:
+                continue
+            
+            # Ключ потока: (src_ip, src_port, dst_ip, dst_port)
+            key = (pkt.src_ip, pkt.src_port, pkt.dst_ip, pkt.dst_port)
+            flows[key].append(pkt)
+        
+        # 2. Оценка потоков
+        candidates = []
+        
+        for key, flow_packets in flows.items():
+            has_client_hello = False
+            fragment_count = 0
+            first_timestamp = flow_packets[0].timestamp if hasattr(flow_packets[0], 'timestamp') and flow_packets[0].timestamp else 0
+            
+            for pkt in flow_packets:
+                # Проверка на ClientHello
+                if pkt.payload and self.packet_engine.is_client_hello(pkt.payload):
+                    has_client_hello = True
+                
+                # Проверка на фрагментацию (маленькие пакеты с данными)
+                if pkt.payload and len(pkt.payload) < 100:
+                    fragment_count += 1
+            
+            # ClientHello - ОБЯЗАТЕЛЬНОЕ условие для кандидата
+            if not has_client_hello:
+                continue  # Пропускаем потоки без ClientHello
+            
+            # Оценка релевантности (только для потоков с ClientHello)
+            score = 100  # Базовый score за наличие ClientHello
+            score += fragment_count * 10  # Фрагментация - признак стратегии
+            
+            # Фильтрация по времени (если задано), но мягкая
+            time_diff = float('inf')
+            if test_start_time and first_timestamp:
+                time_diff = abs(first_timestamp - test_start_time)
+                # Если поток начался сильно раньше теста (>10 сек) или сильно позже, штрафуем
+                if time_diff > 10.0:
+                    score -= 500
+            
+            # Добавляем только потоки с положительным score
+            if score > 0:
+                candidates.append({
+                    'key': key,
+                    'packets': flow_packets,
+                    'score': score,
+                    'time_diff': time_diff
+                })
+        
+        if not candidates:
+            return []
+        
+        # 3. Выбор лучшего кандидата
+        # Сортируем: сначала по score (ClientHello + фрагментация), потом по близости к времени
+        candidates.sort(key=lambda x: (-x['score'], x['time_diff']))
+        
+        best_flow = candidates[0]
+        self.logger.debug(
+            f"🌊 Выбран лучший поток: {best_flow['key'][0]}:{best_flow['key'][1]} -> "
+            f"{best_flow['key'][2]}:{best_flow['key'][3]} "
+            f"(Score: {best_flow['score']}, TimeDiff: {best_flow['time_diff']:.3f}s)"
+        )
+        
+        return best_flow['packets']
+    
     def _filter_packets_by_timestamp(self, packets: List[RawPacket], test_start_time: float, time_window: float = 5.0) -> List[RawPacket]:
         """
         Фильтрует пакеты по timestamp для изоляции пакетов конкретного теста.

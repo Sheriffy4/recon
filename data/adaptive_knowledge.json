@@ -2187,11 +2187,11 @@
           "split_pos": 3,
           "split_count": 2
         },
-        "success_count": 13,
+        "success_count": 14,
         "failure_count": 0,
-        "last_success_ts": 1764871151.5851097,
+        "last_success_ts": 1764938570.6770556,
         "last_failure_ts": null,
-        "avg_connect_ms": 17139.518132576577,
+        "avg_connect_ms": 28040.985379900252,
         "effective_against": [
           "none"
         ],
@@ -2206,11 +2206,11 @@
           "split_pos": 3,
           "split_count": 8
         },
-        "success_count": 10,
+        "success_count": 11,
         "failure_count": 0,
-        "last_success_ts": 1764936732.2307043,
+        "last_success_ts": 1764939829.0056689,
         "last_failure_ts": null,
-        "avg_connect_ms": 24372.494673728943,
+        "avg_connect_ms": 25277.110013094814,
         "effective_against": [
           "none"
         ],
@@ -2224,11 +2224,11 @@
           "split_count": 6,
           "disorder_method": "reverse"
         },
-        "success_count": 17,
+        "success_count": 19,
         "failure_count": 0,
-        "last_success_ts": 1764937533.4232554,
+        "last_success_ts": 1764945220.4200492,
         "last_failure_ts": null,
-        "avg_connect_ms": 9618.136504117181,
+        "avg_connect_ms": 10003.615053076493,
         "effective_against": [
           "none"
         ],
@@ -2261,11 +2261,11 @@
           "split_count": 6,
           "disorder_method": "reverse"
         },
-        "success_count": 2,
+        "success_count": 3,
         "failure_count": 0,
-        "last_success_ts": 1764928992.123917,
+        "last_success_ts": 1764942277.509435,
         "last_failure_ts": null,
-        "avg_connect_ms": 22599.202036857605,
+        "avg_connect_ms": 25747.613668441772,
         "effective_against": [
           "none"
         ],
