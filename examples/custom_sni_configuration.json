@@ -1,0 +1,90 @@
+{
+  "description": "Custom SNI configuration for enhanced evasion",
+  "subdomain_strategies": {
+    "www.youtube.com": {
+      "subdomain_type": "web_interface",
+      "platform": "youtube",
+      "strategy": {
+        "id": "youtube_web_custom_sni",
+        "name": "YouTube Web with Custom SNI",
+        "attacks": ["http_manipulation", "tls_evasion"],
+        "parameters": {
+          "split_pos": "midsld",
+          "ttl": 2,
+          "custom_sni": "www.google.com",
+          "fake_sni": true
+        }
+      },
+      "runtime_filtering": {
+        "domain_pattern": "www.youtube.com",
+        "enable_wildcards": false,
+        "custom_sni": true
+      }
+    },
+    "*.googlevideo.com": {
+      "subdomain_type": "media_content",
+      "platform": "youtube",
+      "strategy": {
+        "id": "youtube_video_custom_sni",
+        "name": "YouTube Video with Custom SNI",
+        "attacks": ["tcp_fragmentation", "tls_evasion"],
+        "parameters": {
+          "split_count": 5,
+          "ttl": 3,
+          "custom_sni": "video.google.com",
+          "fake_sni": true
+        }
+      },
+      "runtime_filtering": {
+        "domain_pattern": "*.googlevideo.com",
+        "enable_wildcards": true,
+        "custom_sni": true
+      }
+    },
+    "*.instagram.com": {
+      "subdomain_type": "web_interface",
+      "platform": "instagram",
+      "strategy": {
+        "id": "instagram_custom_sni",
+        "name": "Instagram with Custom SNI",
+        "attacks": ["http_manipulation", "tls_evasion"],
+        "parameters": {
+          "split_pos": "midsld",
+          "ttl": 2,
+          "custom_sni": "www.facebook.com",
+          "fake_sni": true
+        }
+      },
+      "runtime_filtering": {
+        "domain_pattern": "*.instagram.com",
+        "enable_wildcards": true,
+        "custom_sni": true
+      }
+    }
+  },
+  "runtime_filtering": {
+    "enabled": true,
+    "mode": "blacklist",
+    "cache_size": 1000,
+    "cache_ttl": 300,
+    "custom_sni": {
+      "enabled": true,
+      "validation": {
+        "validate_sni": true,
+        "allow_ip_sni": false,
+        "max_sni_length": 253,
+        "allowed_characters": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"
+      },
+      "fallback": {
+        "use_random_sni": true,
+        "random_sni_pool": [
+          "www.google.com",
+          "www.cloudflare.com",
+          "www.microsoft.com",
+          "www.amazon.com",
+          "www.apple.com"
+        ]
+      }
+    }
+  }
+}

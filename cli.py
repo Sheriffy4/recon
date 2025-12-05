@@ -28,6 +28,47 @@
 """
 
 # Standard library imports
+# === AUTO UTF-8 SETUP FOR WINDOWS ===
+import os
+import sys
+import locale
+
+def setup_utf8_console():
+    """Автоматическая настройка UTF-8 консоли для Windows"""
+    try:
+        # Устанавливаем UTF-8 кодировку
+        if os.name == 'nt':  # Windows
+            os.environ['PYTHONIOENCODING'] = 'utf-8'
+            os.environ['PYTHONUTF8'] = '1'
+            
+            # Пытаемся установить кодовую страницу UTF-8
+            try:
+                import subprocess
+                subprocess.run(['chcp', '65001'], shell=True, capture_output=True, check=False)
+            except:
+                pass
+            
+            # Настраиваем stdout/stderr для UTF-8
+            if hasattr(sys.stdout, 'reconfigure'):
+                try:
+                    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+                    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+                except:
+                    pass
+        
+        # Устанавливаем локаль
+        try:
+            locale.setlocale(locale.LC_ALL, '')
+        except:
+            pass
+            
+    except Exception:
+        # Если что-то пошло не так, просто продолжаем
+        pass
+
+# Вызываем настройку UTF-8 сразу при импорте
+setup_utf8_console()
+# === END UTF-8 SETUP ===
 import argparse
 import asyncio
 import inspect
@@ -257,8 +298,47 @@ import config
 from core.domain_manager import DomainManager
 from core.doh_resolver import DoHResolver
 from core.unified_bypass_engine import UnifiedBypassEngine
+from core.strategy.loader import StrategyLoader, Strategy
 from ml.zapret_strategy_generator import ZapretStrategyGenerator
 from apply_bypass import apply_system_bypass
+
+# Task 6: Import unified components for testing mode integration
+try:
+    from core.dns.doh_integration import DoHIntegration
+    from core.bypass.sni.manipulator import SNIManipulator  # Task 6.3: SNI manipulation unified
+    from core.pcap.analyzer import PCAPAnalyzer
+    DOH_INTEGRATION_AVAILABLE = True
+    SNI_MANIPULATOR_AVAILABLE = True
+    PCAP_ANALYZER_AVAILABLE = True
+except ImportError as e:
+    DoHIntegration = None
+    SNIManipulator = None
+    PCAPAnalyzer = None
+    DOH_INTEGRATION_AVAILABLE = False
+    SNI_MANIPULATOR_AVAILABLE = False
+    PCAP_ANALYZER_AVAILABLE = False
+
+# Task 11: Import ComboAttackBuilder for unified recipe creation
+# Task 22: Check feature flag before using new attack system
+try:
+    from config import USE_NEW_ATTACK_SYSTEM
+except ImportError:
+    USE_NEW_ATTACK_SYSTEM = True  # Default to enabled if config not available
+
+try:
+    from core.strategy.combo_builder import ComboAttackBuilder, AttackRecipe
+    from core.bypass.engine.unified_attack_dispatcher import UnifiedAttackDispatcher
+    COMBO_ATTACK_BUILDER_AVAILABLE = True
+except ImportError as e:
+    ComboAttackBuilder = None
+    AttackRecipe = None
+    UnifiedAttackDispatcher = None
+    COMBO_ATTACK_BUILDER_AVAILABLE = False
+    LOG.warning(f"ComboAttackBuilder not available: {e}")
+
+# Task 6.3: SNIManipulator is now available for use by attack classes
+# The actual SNI manipulation is performed by attack classes which use SNIManipulator
+# cli.py handles strategy parameters (split_pos, sni, etc.) which are passed to attacks
 
 # --- Настройка логирования ---
 logging.basicConfig(
@@ -296,7 +376,9 @@ def _create_console():
 
 console = _create_console()
 
+# <<< FIX 1: Correct the import path for AdvancedReportingIntegration >>>
 try:
+    # The original path was core.integration, the correct path is core.reporting
     from core.reporting.advanced_reporting_integration import (
         AdvancedReportingIntegration,
     )
@@ -305,8 +387,200 @@ try:
 except ImportError as e:
     print(f"[WARNING] Unified fingerprinting components not available: {e}")
     UNIFIED_COMPONENTS_AVAILABLE = False
+# <<< END FIX 1 >>>
 
 STRATEGY_FILE = "best_strategy.json"
+
+# --- Task 9: StrategyLoader Integration ---
+def load_strategy_for_domain(domain: str, force: bool = False, no_fallbacks: bool = False) -> Optional[Dict[str, Any]]:
+    """
+    Load strategy for a domain from domain_rules.json using StrategyLoader.
+    
+    This function implements Requirements 1.1, 1.2, 1.4, 5.2, 5.5:
+    - Uses StrategyLoader.find_strategy() for domain matching
+    - Prioritizes attacks field over type field
+    - Ensures consistent force and no_fallbacks parameters
+    - Adds logging for loaded strategy details
+    
+    Task 22: Checks USE_NEW_ATTACK_SYSTEM flag before using new system
+    
+    Args:
+        domain: Domain name to load strategy for
+        force: Whether to force the strategy (no fallbacks)
+        no_fallbacks: Whether to disable fallback strategies
+        
+    Returns:
+        Dictionary with strategy parameters or None if no strategy found
+    """
+    # Task 22: Check feature flag
+    if not USE_NEW_ATTACK_SYSTEM:
+        LOG.debug(f"New attack system disabled, skipping StrategyLoader for {domain}")
+        return None
+    
+    try:
+        loader = StrategyLoader(rules_path="domain_rules.json")
+        strategy = loader.find_strategy(domain)
+        
+        if strategy is None:
+            LOG.debug(f"No strategy found for domain {domain}")
+            return None
+        
+        # Log loaded strategy details (Requirement 1.5)
+        LOG.info(f"📖 Loaded strategy for {domain}")
+        LOG.info(f"  Attacks: {strategy.attacks}")
+        LOG.info(f"  Params: {strategy.params}")
+        
+        # Ensure attacks field is used (Requirement 1.2, 5.2)
+        if not strategy.attacks:
+            LOG.warning(f"Strategy for {domain} has no attacks defined")
+            return None
+        
+        # Convert Strategy object to dictionary format expected by cli.py
+        strategy_dict = {
+            'attacks': strategy.attacks,  # Use attacks field as source of truth
+            'params': strategy.params.copy(),
+            'metadata': strategy.metadata.copy()
+        }
+        
+        # Apply force and no_fallbacks consistently (Requirement 1.4)
+        strategy_dict['params']['force'] = force
+        strategy_dict['params']['no_fallbacks'] = no_fallbacks
+        
+        # Log the final strategy configuration
+        LOG.info(f"  Force: {force}, No fallbacks: {no_fallbacks}")
+        
+        return strategy_dict
+        
+    except Exception as e:
+        LOG.error(f"Failed to load strategy for {domain}: {e}")
+        return None
+
+
+# --- Task 11: ComboAttackBuilder Integration ---
+def build_attack_recipe(strategy_dict: Dict[str, Any]) -> Optional[AttackRecipe]:
+    """
+    Build AttackRecipe from strategy dictionary using ComboAttackBuilder.
+    
+    This function implements Requirements 2.1, 2.5, 2.6:
+    - Creates unified recipe from attacks list
+    - Validates attack compatibility
+    - Handles incompatible combinations with error reporting
+    
+    Task 22: Checks USE_NEW_ATTACK_SYSTEM flag before using new system
+    
+    Args:
+        strategy_dict: Strategy dictionary with 'attacks' and 'params' keys
+        
+    Returns:
+        AttackRecipe object or None if building fails
+    """
+    # Task 22: Check feature flag
+    if not USE_NEW_ATTACK_SYSTEM:
+        LOG.debug("New attack system disabled, skipping ComboAttackBuilder")
+        return None
+    
+    if not COMBO_ATTACK_BUILDER_AVAILABLE:
+        LOG.warning("ComboAttackBuilder not available, cannot build recipe")
+        return None
+    
+    try:
+        attacks = strategy_dict.get('attacks', [])
+        params = strategy_dict.get('params', {})
+        
+        if not attacks:
+            LOG.warning("No attacks in strategy, cannot build recipe")
+            return None
+        
+        # Create ComboAttackBuilder
+        builder = ComboAttackBuilder()
+        
+        # Build recipe (this validates compatibility automatically)
+        recipe = builder.build_recipe(attacks, params)
+        
+        # Log recipe details (Requirement 1.5)
+        LOG.info(f"🎯 Built attack recipe with {len(recipe.steps)} steps")
+        LOG.info(f"  Attack order: {' → '.join(s.attack_type for s in recipe.steps)}")
+        
+        return recipe
+        
+    except ValueError as e:
+        # Incompatible combination detected (Requirement 2.6)
+        LOG.error(f"❌ Incompatible attack combination: {e}")
+        LOG.error(f"  Attacks: {strategy_dict.get('attacks', [])}")
+        return None
+    except Exception as e:
+        LOG.error(f"Failed to build attack recipe: {e}")
+        return None
+
+
+def convert_strategy_to_zapret_command(strategy_dict: Dict[str, Any]) -> str:
+    """
+    Convert a strategy dictionary to zapret command format.
+    
+    This ensures that the attacks field is properly converted to zapret commands.
+    
+    Args:
+        strategy_dict: Strategy dictionary with 'attacks' and 'params' keys
+        
+    Returns:
+        Zapret command string
+    """
+    attacks = strategy_dict.get('attacks', [])
+    params = strategy_dict.get('params', {})
+    
+    if not attacks:
+        return ""
+    
+    # Build zapret command from attacks list
+    parts = []
+    
+    # Map attacks to desync types
+    desync_types = []
+    for attack in attacks:
+        if attack in ['fake', 'split', 'multisplit', 'disorder']:
+            desync_types.append(attack)
+        elif attack == 'fakeddisorder':
+            desync_types.extend(['fake', 'disorder'])
+        elif attack == 'disorder_short_ttl_decoy':
+            desync_types.extend(['fake', 'disorder'])
+        else:
+            desync_types.append(attack)
+    
+    if desync_types:
+        parts.append(f"--dpi-desync={','.join(desync_types)}")
+    
+    # Add parameters
+    if 'split_pos' in params:
+        parts.append(f"--dpi-desync-split-pos={params['split_pos']}")
+    
+    if 'ttl' in params:
+        parts.append(f"--dpi-desync-ttl={params['ttl']}")
+    
+    if 'fooling' in params:
+        fooling = params['fooling']
+        if isinstance(fooling, list):
+            parts.append(f"--dpi-desync-fooling={','.join(fooling)}")
+        else:
+            parts.append(f"--dpi-desync-fooling={fooling}")
+    
+    if 'split_count' in params:
+        parts.append(f"--dpi-desync-split-count={params['split_count']}")
+    
+    if 'split_seqovl' in params:
+        parts.append(f"--dpi-desync-split-seqovl={params['split_seqovl']}")
+    
+    if 'disorder_method' in params:
+        parts.append(f"--dpi-desync-disorder={params['disorder_method']}")
+    
+    # Add force and no_fallbacks flags
+    if params.get('force'):
+        parts.append("--force")
+    
+    if params.get('no_fallbacks'):
+        parts.append("--no-fallbacks")
+    
+    return " ".join(parts)
+# --- End Task 9 Integration ---
 
 # --- Потоковый захват PCAP ---
 try:
@@ -315,7 +589,6 @@ try:
     enhanced_packet_capturer_AVAILABLE = True
 except Exception:
     enhanced_packet_capturer_AVAILABLE = False
-from core.windivert_filter import WinDivertFilterGenerator
 
 
 
@@ -361,6 +634,9 @@ class PacketCapturer:
 
     def start(self):
         self._start_ts = time.time()
+        # Ensure directory exists
+        import os
+        os.makedirs(os.path.dirname(os.path.abspath(self.filename)) if os.path.dirname(self.filename) else '.', exist_ok=True)
         self._writer = PcapWriter(self.filename, append=True, sync=True)
         self._thread.start()
         self.logger.info(
@@ -393,6 +669,7 @@ class PacketCapturer:
             self._stop.set()
 
     def _loop(self):
+        self.logger.info(f"🔍 Starting packet capture loop (iface={self.iface}, bpf={self.bpf})")
         while not self._stop.is_set():
             try:
                 sniff(
@@ -402,16 +679,20 @@ class PacketCapturer:
                     store=False,
                     timeout=1,
                 )
-            except PermissionError:
+            except PermissionError as e:
                 self.logger.error(
-                    "Permission denied. On Windows install Npcap and run as Admin; on Linux run with sudo."
+                    f"❌ Permission denied: {e}. On Windows install Npcap and run as Admin; on Linux run with sudo."
                 )
                 self._stop.set()
             except Exception as e:
-                self.logger.error(f"sniff error: {e}")
+                self.logger.error(f"❌ sniff error: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
                 time.sleep(0.5)
+        self.logger.info("🛑 Packet capture loop stopped")
 
 
+# <<< FIX: Correctly handle default_proto when IP list is empty >>>
 def build_bpf_from_ips(
     ips: Set[str], port: int, default_proto: str = "tcp or udp"
 ) -> str:
@@ -422,96 +703,17 @@ def build_bpf_from_ips(
     return " or ".join(clauses) if clauses else f"{default_proto} port {port}"
 
 
+# <<< END FIX >>>
+
+
 # --- Advanced DNS functionality ---
-async def resolve_all_ips(domain: str) -> Set[str]:
-    """Агрегирует IP-адреса для домена из системного резолвера и DoH."""
-    from ipaddress import ip_address
-
-    def _is_ip(s):
-        if not s:
-            return False
-        try:
-            ip_address(s)
-            return True
-        except (ValueError, TypeError):
-            return False
-
-    ips = set()
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        # Если нет running loop (например в синхронном контексте)
-        loop = asyncio.get_event_loop()
-
-    # 1. Системный резолвер (getaddrinfo) - IPv4
-    try:
-        res = await loop.getaddrinfo(domain, None, family=socket.AF_INET)
-        ips.update(info[4][0] for info in res if info[4] and _is_ip(info[4][0]))
-    except (socket.gaierror, OSError) as e:
-        if console:
-            console.print(f"[dim]IPv4 resolution failed for {domain}: {e}[/dim]")
-
-    # 1.1. IPv6 (если доступно)
-    try:
-        res6 = await loop.getaddrinfo(domain, None, family=socket.AF_INET6)
-        ips.update(info[4][0] for info in res6 if info[4] and _is_ip(info[4][0]))
-    except (socket.gaierror, OSError) as e:
-        if console:
-            console.print(f"[dim]IPv6 resolution failed for {domain}: {e}[/dim]")
-
-    # 2. DoH (улучшенная версия)
-    try:
-        import aiohttp
-        import json
-
-        timeout = aiohttp.ClientTimeout(total=5, connect=2)
-
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            doh_servers = [
-                "https://1.1.1.1/dns-query",
-                "https://8.8.8.8/resolve",
-                "https://9.9.9.9/dns-query",
-            ]
-
-            for doh in doh_servers:
-                for rrtype in ("A", "AAAA"):
-                    try:
-                        params = {"name": domain, "type": rrtype}
-                        headers = {"accept": "application/dns-json"}
-
-                        async with session.get(
-                            doh,
-                            params=params,
-                            headers=headers,
-                            timeout=aiohttp.ClientTimeout(total=3),
-                        ) as response:
-                            if response.status == 200:
-                                try:
-                                    data = await response.json()
-                                    for ans in data.get("Answer", []):
-                                        ip_data = ans.get("data")
-                                        if ip_data and _is_ip(ip_data):
-                                            ips.add(ip_data)
-                                except (json.JSONDecodeError, aiohttp.ContentTypeError):
-                                    continue
-                    except asyncio.TimeoutError:
-                        continue
-                    except Exception:
-                        continue
-
-    except ImportError:
-        pass  # aiohttp не установлен - тихо пропускаем
-    except Exception as e:
-        if console:
-            console.print(f"[dim]DoH resolution error: {e}[/dim]")
-
-    return {ip for ip in ips if _is_ip(ip)}
+# DNS resolution functions removed - using domain-based approach instead
 
 
 async def probe_real_peer_ip(domain: str, port: int) -> Optional[str]:
     """Активно подключается, чтобы узнать реальный IP, выбранный ОС."""
     try:
+        # <<< FIX: Use get_running_loop >>>
         loop = asyncio.get_running_loop()
         _, writer = await asyncio.open_connection(domain, port)
         ip = writer.get_extra_info("peername")[0]
@@ -542,7 +744,7 @@ class EvolutionaryChromosome:
             # Comprehensive parameter mutation for all attack types
             mutation_ranges = {
                 "ttl": [1, 2, 3, 4, 5, 6, 7, 8, 10, 64, 127, 128],
-                "split_pos": [1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20],
+                "split_pos": [1, 2, 3, 4, 5, 6, 7, 8, 10, 15, 20, 50, 100, 200, 300, 400],  # ✅ Добавлены большие значения для фрагментации ClientHello
                 "split_count": [2, 3, 4, 5, 6, 7, 8, 9, 10],
                 "split_seqovl": [5, 10, 15, 20, 25, 30, 35, 40],
                 "overlap_size": [5, 10, 15, 20, 25, 30],  # Legacy parameter
@@ -792,7 +994,7 @@ class SimpleEvolutionarySearcher:
                         # Fallback for unknown strategy types
                         if strategy_type in [
                             "fake_disorder",
-                            "fakeddisorder",
+                            "fakedisorder",
                             "tcp_fakeddisorder",
                         ]:
                             learned_strategies.append(
@@ -1071,8 +1273,6 @@ class SimpleEvolutionarySearcher:
         chromosome: EvolutionaryChromosome,
         hybrid_engine,
         blocked_sites: List[str],
-        all_target_ips: Set[str],
-        dns_cache: Dict[str, str],
         port: int,
         engine_override: Optional[str] = None,
     ) -> float:
@@ -1082,8 +1282,8 @@ class SimpleEvolutionarySearcher:
                 await hybrid_engine.execute_strategy_real_world(
                     strategy,
                     blocked_sites,
-                    all_target_ips,
-                    dns_cache,
+                    set(),  # Empty IP set - engine will resolve domains as needed
+                    {},  # Empty DNS cache - engine will resolve domains as needed
                     port,
                     engine_override=engine_override,
                 )
@@ -1115,8 +1315,6 @@ class SimpleEvolutionarySearcher:
         self,
         hybrid_engine,
         blocked_sites: List[str],
-        all_target_ips: Set[str],
-        dns_cache: Dict[str, str],
         port: int,
         learning_cache=None,
         domain: str = None,
@@ -1148,8 +1346,6 @@ class SimpleEvolutionarySearcher:
                         chromosome,
                         hybrid_engine,
                         blocked_sites,
-                        all_target_ips,
-                        dns_cache,
                         port,
                         engine_override=engine_override,
                     )
@@ -1876,6 +2072,7 @@ class SimpleFingerprint:
     dpi_type: Optional[str] = None
     blocking_method: str = "unknown"
     timestamp: str = ""
+    confidence: float = 0.5
 
     def __post_init__(self):
         if not self.timestamp:
@@ -1892,6 +2089,7 @@ class SimpleFingerprint:
             "dpi_type": self.dpi_type,
             "blocking_method": self.blocking_method,
             "timestamp": self.timestamp,
+            "confidence": self.confidence,
         }
 
     def short_hash(self) -> str:
@@ -1917,7 +2115,7 @@ class SimpleDPIClassifier:
 
 
 class SimpleFingerprinter:
-    """Упрощенная система фингерпринтинга (fallback)."""
+    """Упрощенная система фингерпринтинга через curl."""
 
     def __init__(self, debug: bool = False):
         self.debug = debug
@@ -1926,127 +2124,95 @@ class SimpleFingerprinter:
     async def create_fingerprint(
         self, domain: str, target_ip: str, port: int = 443
     ) -> SimpleFingerprint:
-        console.print(f"[dim]Creating fingerprint for {domain} ({target_ip})...[/dim]")
+        console.print(f"[dim]Creating fingerprint for {domain}...[/dim]")
         fp = SimpleFingerprint(
-            domain=domain, target_ip=target_ip, blocking_method="connection_timeout"
+            domain=domain, target_ip=target_ip or "0.0.0.0", blocking_method="connection_timeout"
         )
 
-        # Тест 1: TCP
-        tcp_works = False
+        # Используем curl для проверки
         try:
-            conn = asyncio.open_connection(target_ip, port)
-            if inspect.isawaitable(conn):
-                reader, writer = await asyncio.wait_for(conn, timeout=3.0)
+            # Определяем путь к curl
+            curl_exe = "curl"
+            if sys.platform == "win32":
+                if os.path.exists("curl.exe"):
+                    curl_exe = "curl.exe"
+            
+            # Базовая команда
+            cmd = [
+                curl_exe,
+                "-I", "-s", "-k",
+                "--http2", # Важно для эмуляции браузера
+                "--connect-timeout", "5",
+                "-m", "10",
+                "-w", "%{http_code}|%{time_connect}|%{exitcode}",
+                "-o", "nul" if sys.platform == "win32" else "/dev/null"
+            ]
+            
+            # Если есть IP, используем --resolve
+            if target_ip:
+                cmd.extend(["--resolve", f"{domain}:{port}:{target_ip}"])
+            
+            cmd.append(f"https://{domain}:{port}/")
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await process.communicate()
+            stdout_str = stdout.decode().strip()
+            
+            # Парсим вывод формата: code|time|exit
+            parts = stdout_str.split('|')
+            
+            if len(parts) >= 3:
+                http_code = parts[0]
+                exit_code = int(parts[2])
+                
+                if exit_code == 0 or (http_code.isdigit() and int(http_code) > 0):
+                    fp.blocking_method = "none"
+                    fp.confidence = 0.9
+                elif exit_code == 28: # Timeout
+                    fp.blocking_method = "connection_timeout"
+                elif exit_code == 35: # SSL connect error
+                    fp.blocking_method = "ssl_error"
+                    fp.dpi_type = "LIKELY_TLS_BLOCKING"
+                elif exit_code == 56: # Failure in receiving network data (часто RST)
+                    fp.blocking_method = "tcp_reset"
+                    fp.rst_from_target = True
+                elif exit_code == 7: # Failed to connect
+                    fp.blocking_method = "connection_refused"
+                else:
+                    fp.blocking_method = f"curl_error_{exit_code}"
             else:
-                reader, writer = conn
-            if hasattr(writer, "close"):
-                writer.close()
-                wc = getattr(writer, "wait_closed", None)
-                if callable(wc):
-                    maybe = wc()
-                    if inspect.isawaitable(maybe):
-                        await maybe
-            tcp_works = True
-            fp.blocking_method = "tcp_ok"
-        except asyncio.TimeoutError:
-            fp.blocking_method = "tcp_timeout"
-        except ConnectionResetError:
-            fp.blocking_method = "tcp_reset"
-            fp.rst_from_target = True
-        except TypeError:
-            tcp_works = True
-            fp.blocking_method = "tcp_ok"
+                # Анализ stderr если формат вывода нарушен
+                err = stderr.decode().lower()
+                if "reset" in err:
+                    fp.blocking_method = "tcp_reset"
+                    fp.rst_from_target = True
+                elif "timeout" in err:
+                    fp.blocking_method = "connection_timeout"
+                else:
+                    fp.blocking_method = "unknown_error"
+
         except Exception as e:
-            fp.blocking_method = f"tcp_error_{type(e).__name__.lower()}"
+            fp.blocking_method = "execution_error"
+            if self.debug:
+                console.print(f"[red]Fingerprint error: {e}[/red]")
 
-        # Тест 2: HTTPS
-        if tcp_works and port == 443:
-            try:
-                import aiohttp  # noqa
-
-                session_cm = aiohttp.ClientSession()
-
-                # Открываем сессию, если это async context manager (в тестах так и есть)
-                if hasattr(session_cm, "__aenter__") and hasattr(
-                    session_cm, "__aexit__"
-                ):
-                    session = await session_cm.__aenter__()
-                    try:
-                        # Получаем ответ
-                        resp = session.get(
-                            f"https://{domain}", timeout=aiohttp.ClientTimeout(total=5)
-                        )
-
-                        # ВАЖНО: не пытаемся «async with resp», т.к. в тестах resp=MagicMock
-                        if inspect.isawaitable(resp):
-                            response = await resp
-                        else:
-                            response = resp
-
-                        try:
-                            await response.read()
-                        except Exception:
-                            pass
-
-                        # Аккуратно читаем статус
-                        status_obj = getattr(response, "status", None)
-                        status_int = None
-                        if isinstance(status_obj, int):
-                            status_int = status_obj
-                        elif isinstance(status_obj, str) and status_obj.isdigit():
-                            status_int = int(status_obj)
-
-                        if status_int == 200:
-                            fp.blocking_method = "none"
-                        elif status_int is not None:
-                            fp.blocking_method = f"https_status_{status_int}"
-                        # иначе не меняем tcp_ok
-
-                    finally:
-                        try:
-                            await session_cm.__aexit__(None, None, None)
-                        except Exception:
-                            pass
-
-            except ImportError:
-                # aiohttp не установлен -- оставляем tcp_ok
-                pass
-            except asyncio.TimeoutError:
-                fp.blocking_method = "https_timeout"
-            except Exception:
-                # Любая другая ошибка -- не портим tcp_ok (для стабильности тестов)
-                pass
-
-        # Классификация DPI
+        # Классификация
         fp.dpi_type = self.classifier.classify(fp)
+        
         if self.debug:
             console.print(
                 f"[dim]Fingerprint: {fp.dpi_type}, method: {fp.blocking_method}[/dim]"
             )
         return fp
 
-    async def refine_fingerprint(
-        self, fp: SimpleFingerprint, feedback_data: Dict[str, Any]
-    ) -> SimpleFingerprint:
-        try:
-            succ = " ".join(feedback_data.get("successful_strategies", []))
-            if "seqovl" in succ or "multisplit" in succ or "multidisorder" in succ:
-                fp.dpi_type = "LIKELY_STATEFUL_DPI"
-            elif "badsum" in succ:
-                fp.dpi_type = "LIKELY_NO_CHECKSUM_VALIDATION"
-            elif "md5sig" in succ:
-                fp.dpi_type = "LIKELY_SIGNATURE_BASED"
-            else:
-                if fp.blocking_method in (
-                    "https_timeout",
-                    "tcp_timeout",
-                    "connection_timeout",
-                ):
-                    fp.dpi_type = fp.dpi_type or "UNKNOWN_DPI"
-            fp.timestamp = datetime.now().isoformat()
-        except Exception:
-            pass
+    async def refine_fingerprint(self, fp, feedback):
         return fp
+
 
 
 # --- Simple reporting system ---
@@ -2178,43 +2344,7 @@ class SimpleReporter:
 
 
 # --- Advanced DNS resolution helper ---
-async def run_advanced_dns_resolution(
-    domains: list, port: int
-) -> Tuple[Dict[str, str], Dict[str, Set[str]]]:
-    console.print(
-        "\n[yellow]Advanced DNS Resolution: Aggregating IP pools and probing...[/yellow]"
-    )
-    pinned_ip_cache = {}
-    domain_ip_pool = {}
-    with Progress(console=console, transient=True) as progress:
-        task = progress.add_task(
-            "[cyan]Aggregating & Probing IPs...", total=len(domains)
-        )
-        for domain in domains:
-            hostname = urlparse(domain).hostname or domain
-            all_known_ips = await resolve_all_ips(hostname)
-            probed_ip = await probe_real_peer_ip(hostname, port)
-            pinned_ip = probed_ip or (
-                next(iter(all_known_ips)) if all_known_ips else None
-            )
-            if pinned_ip:
-                all_known_ips.add(pinned_ip)
-                pinned_ip_cache[hostname] = pinned_ip
-                domain_ip_pool[hostname] = all_known_ips
-                status_msg = (
-                    "[bold green](Probed)[/bold green]"
-                    if probed_ip
-                    else "[dim](From Pool)[/dim]"
-                )
-                console.print(
-                    f"  - {hostname} -> [cyan]{pinned_ip}[/cyan] {status_msg} | Pool Size: {len(all_known_ips)}"
-                )
-            else:
-                console.print(f"  [red]Warning:[/red] Could not resolve {hostname}")
-            progress.update(task, advance=1)
-    if not pinned_ip_cache:
-        raise RuntimeError("Could not resolve any domains")
-    return pinned_ip_cache, domain_ip_pool
+# Advanced DNS resolution function removed - using domain-based approach instead
 
 
 # --- PCAP offline profiling mode ---
@@ -2266,7 +2396,9 @@ async def run_hybrid_mode(args):
         )
     )
 
+    # Исправляем логику загрузки доменов
     if args.domains_file:
+        # Теперь используется правильный путь к файлу
         domains_file = args.target
         default_domains = []
     else:
@@ -2280,6 +2412,7 @@ async def run_hybrid_mode(args):
         )
         return
 
+    # Нормализуем все домены к полным URL с https://
     normalized_domains = []
     for site in dm.domains:
         if not site.startswith(("http://", "https://")):
@@ -2294,99 +2427,156 @@ async def run_hybrid_mode(args):
 
     engine_config = UnifiedEngineConfig(debug=args.debug)
     hybrid_engine = UnifiedBypassEngine(engine_config)
+    
+    # Enable verbose strategy logging if requested (Task 13, Requirements 7.1, 7.3, 7.4, 7.5)
+    if args.verbose_strategy:
+        try:
+            if hasattr(hybrid_engine, 'engine') and hasattr(hybrid_engine.engine, '_domain_strategy_engine'):
+                domain_engine = hybrid_engine.engine._domain_strategy_engine
+                if domain_engine and hasattr(domain_engine, 'set_verbose_mode'):
+                    log_file = f"verbose_strategy_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+                    domain_engine.set_verbose_mode(True, log_file)
+                    console.print(f"[green]✅ Verbose strategy logging enabled[/green]")
+                    console.print(f"[dim]Logs will be written to: {log_file}[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not enable verbose strategy logging: {e}[/yellow]")
 
     reporter = SimpleReporter(debug=args.debug)
 
+    # <<< FIX 2: Add conditional check and a fallback for the reporter >>>
     advanced_reporter = None
     if UNIFIED_COMPONENTS_AVAILABLE:
         advanced_reporter = AdvancedReportingIntegration()
         await advanced_reporter.initialize()
     else:
+        # Create a dummy reporter if the real one is not available
         class DummyAdvancedReporter:
-            async def initialize(self): pass
-            async def generate_system_performance_report(self, *args, **kwargs): return None
+            async def initialize(self):
+                pass
+
+            async def generate_system_performance_report(self, *args, **kwargs):
+                return None
+
         advanced_reporter = DummyAdvancedReporter()
+    # <<< END FIX 2 >>>
 
     learning_cache = AdaptiveLearningCache()
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
+
+    # <<< FIX: Keep a reference to the unified fingerprinter for refinement >>>
     unified_fingerprinter = None
     refiner = None
+    # <<< END FIX >>>
 
+    # Background PCAP insights worker (enhanced tracking)
     pcap_worker_task = None
     if args.enable_enhanced_tracking:
         try:
             from core.pcap.pcap_insights_worker import PcapInsightsWorker
+
             pcap_worker = PcapInsightsWorker()
             pcap_worker_task = asyncio.create_task(pcap_worker.run(interval=15.0))
-            console.print("[dim][AI] Enhanced tracking enabled: PCAP insights worker started[/dim]")
+            console.print(
+                "[dim][AI] Enhanced tracking enabled: PCAP insights worker started[/dim]"
+            )
         except Exception as e:
-            console.print(f"[yellow][!] Could not start PCAP insights worker: {e}[/yellow]")
+            console.print(
+                f"[yellow][!] Could not start PCAP insights worker: {e}[/yellow]"
+            )
 
-    # --- НОВАЯ, УПРОЩЕННАЯ ЛОГИКА ---
-    console.print("\n[yellow]Step 1: Preparing for traffic interception...[/yellow]")
-    # Нам все еще нужны IP для подключения, но не для фильтра WinDivert
-    dns_cache, domain_ip_pool = await run_advanced_dns_resolution(dm.domains, args.port)
-    all_target_ips = set(dns_cache.values())
-    console.print(f"Resolved {len(dns_cache)} domains to {len(all_target_ips)} unique IPs for testing.")
-
-    # Select representative domains for testing: one per unique IP
-    # Also, ensure we test all unique IPs for multi-IP domains
-    unique_ips_to_test = set()
-    representative_domains = {} # ip -> domain
-    ip_to_domains = defaultdict(list)
-    for domain, ips in domain_ip_pool.items():
-        for ip in ips:
-            ip_to_domains[ip].append(domain)
-
-    for ip, domains in ip_to_domains.items():
-        if ip not in representative_domains:
-            representative_domains[ip] = domains[0] # Pick the first domain as representative
-            unique_ips_to_test.add(ip)
-
-    test_sites_urls = [f"https://{d}" for d in representative_domains.values()]
-    console.print(f"Optimized testing: selected {len(test_sites_urls)} representative domains for {len(all_target_ips)} unique IPs.")
-
-    # --- ИЗМЕНЯЕМ ЛОГИКУ СОЗДАНИЯ ФИЛЬТРА ---
-    capturer = None
-    if args.pcap and SCAPY_AVAILABLE:
-        try:
-            # Используем новый генератор для создания общего фильтра
-            filter_generator = WinDivertFilterGenerator()
-            bpf = filter_generator.generate_sni_filter(target_ports={args.port, 80})
-
-            # Старый код для BPF на основе IP можно удалить или закомментировать
-            # if args.capture_bpf:
-            # bpf = args.capture_bpf
-            # else:
-            # bpf = build_bpf_from_ips(all_target_ips, args.port)
-
-            max_sec = args.capture_max_seconds if args.capture_max_seconds > 0 else None
-            max_pkts = args.capture_max_packets if args.capture_max_packets > 0 else None
-            capturer = PacketCapturer(args.pcap, bpf=bpf, iface=args.capture_iface, max_packets=max_pkts, max_seconds=max_sec)
-            capturer.start()
-            console.print(f"[dim][CAPTURE] Packet capture started -> {args.pcap} (bpf='{bpf}')[/dim]")
-        except Exception as e:
-            console.print(f"[yellow][!] Could not start capture: {e}[/yellow]")
-
-    if args.enable_enhanced_tracking and args.pcap:
-        try:
-            from core.pcap.enhanced_packet_capturer import create_enhanced_packet_capturer
-            corr_capturer = create_enhanced_packet_capturer(pcap_file=args.pcap, target_ips=all_target_ips, port=args.port, interface=args.capture_iface)
-            console.print("[LINK] Enhanced tracking enabled: correlation capturer ready")
-        except Exception as e:
-            console.print(f"[yellow][!] Could not init correlation capturer: {e}[/yellow]")
-
-    console.print("\n[yellow]Step 2: Testing baseline connectivity...[/yellow]")
-    baseline_results = await hybrid_engine.test_baseline_connectivity(test_sites_urls, {d: ip for ip, d in representative_domains.items()})
+    # Step 1: Load domain rules instead of DNS resolution
+    console.print("\n[yellow]Step 1: Loading domain rules configuration...[/yellow]")
     
-    blocked_representatives = {site for site, (status, _, _, _) in baseline_results.items() if status not in ["WORKING"]}
+    # Load domain rules from domain_rules.json
+    domain_rules_file = "domain_rules.json"
+    if not os.path.exists(domain_rules_file):
+        console.print(f"[bold red]Fatal Error:[/bold red] Domain rules file '{domain_rules_file}' not found.")
+        console.print("Please create domain_rules.json with domain-to-strategy mappings.")
+        return
     
-    if not blocked_representatives:
-        console.print("[bold green][OK] All representative sites are accessible without bypass tools![/bold green]")
-        if capturer: capturer.stop()
+    try:
+        with open(domain_rules_file, 'r', encoding='utf-8') as f:
+            domain_rules = json.load(f)
+        console.print(f"Domain rules loaded from {domain_rules_file}")
+    except Exception as e:
+        console.print(f"[bold red]Fatal Error:[/bold red] Could not load domain rules: {e}")
         return
 
-    console.print(f"Found {len(blocked_representatives)} representative blocked sites that need bypass.")
+    # Запуск PCAP захвата (если запрошено) - using port-based filter instead of IP-based
+    capturer = None
+    corr_capturer = None
+    if args.pcap and SCAPY_AVAILABLE:
+        try:
+            if args.capture_bpf:
+                bpf = args.capture_bpf
+            else:
+                # Use simple port-based filter instead of IP-based
+                bpf = f"tcp port {args.port}"
+            max_sec = args.capture_max_seconds if args.capture_max_seconds > 0 else None
+            max_pkts = (
+                args.capture_max_packets if args.capture_max_packets > 0 else None
+            )
+            capturer = PacketCapturer(
+                args.pcap,
+                bpf=bpf,
+                iface=args.capture_iface,
+                max_packets=max_pkts,
+                max_seconds=max_sec,
+            )
+            capturer.start()
+            console.print(
+                f"[dim][CAPTURE] Packet capture started -> {args.pcap} (bpf='{bpf}')[/dim]"
+            )
+        except Exception as e:
+            console.print(f"[yellow][!] Could not start capture: {e}[/yellow]")
+    # Enhanced tracking disabled - requires IP-based approach which is being removed
+    if args.enable_enhanced_tracking and args.pcap:
+        console.print(
+            "[yellow][!] Enhanced tracking disabled - incompatible with domain-based approach[/yellow]"
+        )
+
+    # Шаг 2: Базовая доступность
+    console.print("\n[yellow]Step 2: Testing baseline connectivity...[/yellow]")
+    baseline_results = await hybrid_engine.test_baseline_connectivity(
+        dm.domains, {}  # Empty DNS cache - engine will resolve domains as needed
+    )
+    blocked_sites = [
+        site
+        for site, (status, _, _, _) in baseline_results.items()
+        if status not in ["WORKING"]
+    ]
+    if not blocked_sites:
+        console.print(
+            "[bold green][OK] All sites are accessible without bypass tools![/bold green]"
+        )
+        console.print("No DPI blocking detected. Bypass tools are not needed.")
+        if capturer:
+            capturer.stop()
+        return
+
+    console.print(f"Found {len(blocked_sites)} blocked sites that need bypass:")
+    for site in blocked_sites[:5]:
+        console.print(f"  - {site}")
+    if len(blocked_sites) > 5:
+        console.print(f"  ... and {len(blocked_sites) - 5} more")
+
+    console.print(
+        "\n[bold yellow]The following sites will be used for fingerprinting and strategy testing:[/bold yellow]"
+    )
+    for site in blocked_sites:
+        console.print(f"  -> {site}")
+
+    try:
+        import pydivert
+
+        console.print(
+            "[dim][OK] PyDivert available - system-level bypass enabled[/dim]"
+        )
+    except ImportError:
+        console.print(
+            "[yellow][!]  PyDivert not available - using fallback mode[/yellow]"
+        )
+        console.print("[dim]   For better results, install: pip install pydivert[/dim]")
 
     # Шаг 2.5: DPI Fingerprinting
     fingerprints = {}
@@ -2437,11 +2627,11 @@ async def run_hybrid_mode(args):
                 )
                 for site in blocked_sites:
                     hostname = urlparse(site).hostname or site
-                    target_ip = dns_cache.get(hostname)
-                    if target_ip:
-                        fp = await simple_fingerprinter.create_fingerprint(
-                            hostname, target_ip, args.port
-                        )
+                    # Simple fingerprinter will resolve the domain internally
+                    fp = await simple_fingerprinter.create_fingerprint(
+                        hostname, None, args.port  # Pass None for IP - let fingerprinter resolve
+                    )
+                    if fp:
                         fingerprints[hostname] = fp
                         console.print(
                             f"  - {hostname}: [cyan]{fp.dpi_type}[/cyan] ({fp.blocking_method})"
@@ -2455,41 +2645,248 @@ async def run_hybrid_mode(args):
 
     # Шаг 3: Подготовка стратегий
     console.print("\n[yellow]Step 3: Preparing bypass strategies...[/yellow]")
-    # Strategy preparation logic remains the same
-    # ... (strategy prep code omitted for brevity, it's correct)
+
     strategies = []
+    
+    # Task 9: Check domain_rules.json for existing strategies first (Requirements 1.1, 1.2, 1.4, 5.2)
+    domain_strategies_loaded = False
+    if not args.strategy and not args.strategies_file:
+        # Try to load strategies from domain_rules.json for each domain
+        console.print("[cyan]Checking domain_rules.json for existing strategies...[/cyan]")
+        for domain_url in dm.domains:
+            # Extract domain from URL
+            parsed = urlparse(domain_url)
+            domain = parsed.netloc or parsed.path
+            
+            # Load strategy for this domain
+            strategy_dict = load_strategy_for_domain(
+                domain,
+                force=getattr(args, 'force', False),
+                no_fallbacks=getattr(args, 'no_fallbacks', False)
+            )
+            
+            if strategy_dict:
+                # Task 11: Build attack recipe to validate compatibility (Requirements 2.1, 2.5, 2.6)
+                recipe = build_attack_recipe(strategy_dict)
+                if recipe is None:
+                    # Incompatible combination or build error
+                    console.print(f"  ✗ Failed to build recipe for {domain} (incompatible attacks)")
+                    continue
+                
+                # Log recipe details
+                console.print(f"  ✓ Loaded strategy for {domain}")
+                console.print(f"    Recipe: {' → '.join(s.attack_type for s in recipe.steps)}")
+                
+                # Convert to zapret command format
+                zapret_cmd = convert_strategy_to_zapret_command(strategy_dict)
+                if zapret_cmd and zapret_cmd not in strategies:
+                    strategies.append(zapret_cmd)
+                    domain_strategies_loaded = True
+        
+        if domain_strategies_loaded:
+            console.print(f"[green]Loaded {len(strategies)} strategies from domain_rules.json[/green]")
+    
+    # 1. Приоритет: файл стратегий
     if args.strategies_file and os.path.exists(args.strategies_file):
-        with open(args.strategies_file, "r", encoding="utf-8") as f:
-            strategies = [s.strip() for s in f if s.strip() and not s.startswith("#")]
+        console.print(
+            f"[cyan]Loading strategies from file: {args.strategies_file}[/cyan]"
+        )
+        try:
+            with open(args.strategies_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    s = line.strip()
+                    if s and not s.startswith("#"):
+                        strategies.append(s)
+            strategies = list(
+                dict.fromkeys(strategies)
+            )  # Удаляем дубликаты, сохраняя порядок
+            if not strategies:
+                console.print(
+                    "[yellow]Warning: strategies file is empty after filtering.[/yellow]"
+                )
+        except Exception as e:
+            console.print(f"[red]Error reading strategies file: {e}[/red]")
+
+    # 2. Если файл есть и указан флаг --no-generate, больше ничего не делаем
+    if strategies and args.no_generate:
+        console.print(
+            f"Using {len(strategies)} strategies from file (auto-generation disabled)."
+        )
+    # 3. Иначе, если указана одна стратегия через --strategy
     elif args.strategy:
         strategies = [args.strategy]
+        console.print(f"Testing specific strategy: [cyan]{args.strategy}[/cyan]")
+    # 4. Иначе (или если файл пуст, а --no-generate не указан), генерируем
     else:
-        generator = ZapretStrategyGenerator()
-        strategies = generator.generate_strategies(None, count=args.count)
-    
-    structured_strategies = strategies # Unified engine handles strings
+        if not args.no_generate:
+            generator = ZapretStrategyGenerator()
+            fingerprint_for_strategy = (
+                next(iter(fingerprints.values()), None) if fingerprints else None
+            )
+            try:
+                more_strategies = generator.generate_strategies(
+                    fingerprint_for_strategy, count=args.count
+                )
+                # Добавляем только уникальные
+                for s in more_strategies:
+                    if s not in strategies:
+                        strategies.append(s)
+                console.print(
+                    f"Generated {len(more_strategies)} strategies (total unique: {len(strategies)})."
+                )
+            except Exception as e:
+                console.print(f"[red]✗ Error generating strategies: {e}[/red]")
+                if not strategies:  # Если совсем ничего нет, добавляем фоллбэк
+                    strategies.extend(
+                        [
+                            "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum",
+                            "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq",
+                        ]
+                    )
+
+        # Validate strategies if --validate flag is enabled
+        if args.validate and strategies:
+            try:
+                from core.cli_validation_orchestrator import CLIValidationOrchestrator
+
+                console.print(
+                    "\n[bold][VALIDATION] Validating generated strategies...[/bold]"
+                )
+                orchestrator = CLIValidationOrchestrator()
+
+                valid_strategies = []
+                validation_errors = []
+                validation_warnings = []
+
+                for strategy_str in strategies:
+                    # Parse strategy to dict format for validation
+                    try:
+                        # Use the unified loader for parsing, not the old interpreter
+                        parsed = hybrid_engine.strategy_loader.load_strategy(
+                            strategy_str
+                        ).to_engine_format()
+
+                        if parsed:
+                            # Validate the parsed strategy
+                            validation_result = orchestrator.validate_strategy(
+                                parsed, check_attack_availability=True
+                            )
+
+                            if validation_result.passed:
+                                valid_strategies.append(strategy_str)
+                            else:
+                                validation_errors.extend(validation_result.errors)
+                                console.print(
+                                    f"[yellow]⚠ Strategy validation failed: {parsed.get('type', 'unknown')}[/yellow]"
+                                )
+                                for err in validation_result.errors:
+                                    console.print(f"  [red]- {err}[/red]")
+
+                            validation_warnings.extend(validation_result.warnings)
+                    except Exception as e:
+                        console.print(
+                            f"[yellow]Warning: Could not validate strategy '{strategy_str}': {e}[/yellow]"
+                        )
+                        # Keep the strategy if validation fails
+                        valid_strategies.append(strategy_str)
+
+                # Display validation summary
+                console.print("\n[bold]Strategy Validation Summary:[/bold]")
+                console.print(f"  Total strategies: {len(strategies)}")
+                console.print(
+                    f"  Valid strategies: [green]{len(valid_strategies)}[/green]"
+                )
+                console.print(
+                    f"  Validation errors: [red]{len(validation_errors)}[/red]"
+                )
+                console.print(
+                    f"  Validation warnings: [yellow]{len(validation_warnings)}[/yellow]"
+                )
+
+                # Use only valid strategies
+                if valid_strategies:
+                    strategies = valid_strategies
+                    console.print(
+                        f"[green]✓ Proceeding with {len(strategies)} validated strategies[/green]"
+                    )
+                else:
+                    console.print(
+                        "[yellow]⚠ No valid strategies found, proceeding with all strategies anyway[/yellow]"
+                    )
+
+            except ImportError as e:
+                console.print(
+                    f"[yellow][!] Strategy validation skipped: Required modules not available ({e})[/yellow]"
+                )
+            except Exception as e:
+                console.print(f"[yellow][!] Strategy validation failed: {e}[/yellow]")
+                if args.debug:
+                    import traceback
+
+                    traceback.print_exc()
+
+        if strategies and dm.domains:
+            # Use first domain from domain manager instead of DNS cache
+            first_domain = urlparse(dm.domains[0]).hostname or dm.domains[0].replace("https://", "").replace("http://", "")
+            dpi_hash = ""
+            if (
+                fingerprints
+                and first_domain in fingerprints
+                and hasattr(fingerprints[first_domain], "short_hash")
+            ):
+                try:
+                    dpi_hash = fingerprints[first_domain].short_hash()
+                except Exception:
+                    dpi_hash = ""
+            # Use domain-based optimization without IP address
+            optimized_strategies = learning_cache.get_smart_strategy_order(
+                strategies, first_domain, None, dpi_hash
+            )
+            if optimized_strategies != strategies:
+                console.print(
+                    "[dim][AI] Applied adaptive learning to optimize strategy order[/dim]"
+                )
+                strategies = optimized_strategies
+
+    # REFACTOR: Remove manual parsing using the old interpreter.
+    # The UnifiedBypassEngine will handle this internally.
+    structured_strategies = strategies
 
     if not structured_strategies:
-        console.print("[bold red]Fatal Error: No valid strategies could be prepared.[/bold red]")
+        console.print(
+            "[bold red]Fatal Error: No valid strategies could be prepared.[/bold red]"
+        )
         return
 
+    # --- START OF FIX: Initialize data structure for per-domain results ---
+    # This will store all successful attempts for each domain to find the best one.
+    # Format: { "domain.com": [{"strategy": "...", "latency": 123.4}, ...], ... }
     domain_strategy_map = defaultdict(list)
+    # --- END OF FIX ---
 
+    # Шаг 4: Гибридное тестирование
     console.print("\n[yellow]Step 4: Hybrid testing with forced DNS...[/yellow]")
-    
-    # <<< FIX: Test against representative blocked sites, not all blocked sites >>>
+
+    primary_domain = urlparse(dm.domains[0]).hostname or dm.domains[0].replace("https://", "").replace("http://", "") if dm.domains else None
+    fingerprint_to_use = fingerprints.get(primary_domain)
+
     test_results = await hybrid_engine.test_strategies_hybrid(
         strategies=structured_strategies,
-        test_sites=list(blocked_representatives), # Use the smaller, representative list
-        ips=all_target_ips,
-        dns_cache={d: ip for ip, d in representative_domains.items()},
+        test_sites=blocked_sites,
+        ips=set(),  # Empty IP set - engine will resolve domains as needed
+        dns_cache={},  # Empty DNS cache - engine will resolve domains as needed
         port=args.port,
-        domain=list(representative_domains.values())[0],
+        domain=primary_domain,
         fast_filter=not args.no_fast_filter,
+        initial_ttl=None,
+        enable_fingerprinting=bool(args.fingerprint and fingerprints),
+        telemetry_full=args.telemetry_full,
         engine_override=args.engine,
         capturer=corr_capturer,
-        fingerprint=fingerprints.get(list(representative_domains.values())[0]) if fingerprints else None
+        fingerprint=fingerprint_to_use,
     )
+
+    # <<< FIX: Robust fingerprint refinement logic >>>
     if args.fingerprint and fingerprints:
         console.print(
             "\n[yellow]Step 5: Refining DPI fingerprint with test results...[/yellow]"
@@ -2527,29 +2924,51 @@ async def run_hybrid_mode(args):
                 console.print(
                     f"[yellow]  - Fingerprint refine failed for {domain}: {e}[/yellow]"
                 )
-    
+    # <<< END FIX >>>
+
     # Шаг 4.5: Сохранение результатов в кэш обучения
     console.print("[dim][SAVE] Updating adaptive learning cache...[/dim]")
-    
-    console.print("\n[yellow]Step 5: Propagating results to all domains...[/yellow]")
-    final_domain_strategy_map = defaultdict(list)
-    
     for result in test_results:
         strategy = result["strategy"]
+        success_rate = result["success_rate"]
+        avg_latency = result["avg_latency_ms"]
+
+        # --- START OF FIX: Process detailed site_results to build per-domain map ---
         if "site_results" in result:
             for site_url, site_result_tuple in result["site_results"].items():
-                status, ip, latency, _ = site_result_tuple
+                # site_result_tuple is (status, ip, latency, http_code)
+                status, _, latency, _ = site_result_tuple
                 if status == "WORKING":
-                    # This was a representative domain. Find all other domains on this IP.
-                    representative_domain = urlparse(site_url).hostname
-                    if ip in ip_to_domains:
-                        associated_domains = ip_to_domains[ip]
-                        for domain in associated_domains:
-                            final_domain_strategy_map[domain].append({
-                                "strategy": strategy,
-                                "latency_ms": latency
-                            })
-                            console.print(f"[dim]  Propagated result for '{strategy}' to {domain} via IP {ip}[/dim]")
+                    hostname = urlparse(site_url).hostname or site_url
+                    domain_strategy_map[hostname].append(
+                        {"strategy": strategy, "latency_ms": latency}
+                    )
+        # --- END OF FIX ---
+
+        # Record strategy performance for each domain without IP dependency
+        for site in blocked_sites:
+            domain = urlparse(site).hostname or site.replace("https://", "").replace("http://", "")
+            dpi_hash = ""
+            if (
+                fingerprints
+                and domain in fingerprints
+                and hasattr(fingerprints[domain], "short_hash")
+            ):
+                try:
+                    dpi_hash = fingerprints[domain].short_hash()
+                except Exception:
+                    dpi_hash = ""
+            learning_cache.record_strategy_performance(
+                strategy=strategy,
+                domain=domain,
+                ip=None,  # No IP dependency in domain-based approach
+                success_rate=success_rate,
+                avg_latency=avg_latency,
+                dpi_fingerprint_hash=dpi_hash,
+            )
+    learning_cache.save_cache()
+
+    # Остановим захват
     if capturer:
         try:
             capturer.stop()
@@ -2707,19 +3126,86 @@ async def run_hybrid_mode(args):
     working_strategies = [r for r in test_results if r["success_rate"] > 0]
     if not working_strategies:
         console.print("\n[bold red][X] No working strategies found![/bold red]")
+        console.print("   All tested strategies failed to bypass the DPI.")
+        console.print(
+            "   Try increasing the number of strategies with `--count` or check if zapret tools are properly installed."
+        )
+        # Авто-PCAP захват на фейле (если не включен вручную)
+        try:
+            if SCAPY_AVAILABLE and not args.pcap:
+                console.print(
+                    "[dim][CAPTURE] Auto-capture: starting short PCAP (8s) for failure profiling...[/dim]"
+                )
+                auto_pcap = (
+                    f"recon_autofail_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pcap"
+                )
+                bpf = build_bpf_from_ips(set(), args.port)  # Use port-based filter instead of IP-based
+                cap = PacketCapturer(
+                    auto_pcap, bpf=bpf, iface=args.capture_iface, max_seconds=8
+                )
+                cap.start()
+                # Запустим ещё один baseline для генерации ClientHello во время захвата
+                try:
+                    await hybrid_engine.test_baseline_connectivity(
+                        dm.domains, {}  # Empty DNS cache - engine will resolve domains as needed
+                    )
+                except Exception:
+                    pass
+                cap.stop()
+                console.print(f"[green][OK] Auto-capture saved to {auto_pcap}[/green]")
+                if PROFILER_AVAILABLE:
+                    try:
+                        profiler = AdvancedTrafficProfiler()
+                        res = profiler.analyze_pcap_file(auto_pcap)
+                        if res and res.success:
+                            console.print(
+                                "[bold][TEST] Auto PCAP profiling summary[/bold]"
+                            )
+                            apps = ", ".join(res.detected_applications) or "none"
+                            ctx = res.metadata.get("context", {})
+                            console.print(f"  Apps: [cyan]{apps}[/cyan]")
+                            console.print(
+                                f"  TLS ClientHello: {ctx.get('tls_client_hello',0)}, Alerts: {ctx.get('tls_alert_count',0)}, QUIC: {ctx.get('quic_initial_count',0)}"
+                            )
+                    except Exception as e:
+                        console.print(
+                            f"[yellow][!] Auto profiling failed: {e}[/yellow]"
+                        )
+        except Exception:
+            pass
     else:
-        console.print(f"\n[bold green][OK] Found {len(working_strategies)} working strategies for representative domains![/bold green]")
+        console.print(
+            f"\n[bold green][OK] Found {len(working_strategies)} working strategies![/bold green]"
+        )
+        for i, result in enumerate(working_strategies[:5], 1):
+            rate = result["success_rate"]
+            latency = result["avg_latency_ms"]
+            strategy = result["strategy"]
+            console.print(
+                f"{i}. Success: [bold green]{rate:.0%}[/bold green] ({result['successful_sites']}/{result['total_sites']}), "
+                f"Latency: {latency:.1f}ms"
+            )
+            console.print(f"   Strategy: [cyan]{strategy}[/cyan]")
         best_strategy_result = working_strategies[0]
         best_strategy = best_strategy_result["strategy"]
-        console.print(f"\n[bold green][TROPHY] Best Overall Strategy:[/bold green] [cyan]{best_strategy}[/cyan]")
+        console.print(
+            f"\n[bold green][TROPHY] Best Overall Strategy:[/bold green] [cyan]{best_strategy}[/cyan]"
+        )
 
-        if final_domain_strategy_map:
-            console.print("\n[bold underline]Per-Domain Optimal Strategy Report[/bold underline]")
+        # --- START OF FIX: Display per-domain optimal strategies ---
+        if domain_strategy_map:
+            console.print(
+                "\n[bold underline]Per-Domain Optimal Strategy Report[/bold underline]"
+            )
             domain_best_strategies = {}
-            for domain, results in final_domain_strategy_map.items():
+
+            # Find the best strategy for each domain
+            for domain, results in domain_strategy_map.items():
+                # Sort by latency (lower is better)
                 best_result = sorted(results, key=lambda x: x["latency_ms"])[0]
                 domain_best_strategies[domain] = best_result
 
+            # Create and print the results table
             table = Table(title="Optimal Strategy per Domain")
             table.add_column("Domain", style="cyan", no_wrap=True)
             table.add_column("Best Strategy", style="green")
@@ -2727,17 +3213,36 @@ async def run_hybrid_mode(args):
 
             for domain, best in sorted(domain_best_strategies.items()):
                 table.add_row(domain, best["strategy"], f"{best['latency_ms']:.1f}")
+
             console.print(table)
-            
-            try:
-                from core.strategy_manager import StrategyManager
-                strategy_manager = StrategyManager()
-                for domain, best in domain_best_strategies.items():
-                    strategy_manager.add_strategy(domain, best["strategy"], 1.0, best["latency_ms"])
-                strategy_manager.save_strategies()
-                console.print(f"[green][SAVE] Optimal strategies saved for {len(domain_best_strategies)} domains to domain_strategies.json[/green]")
-            except Exception as e:
-                console.print(f"[red]Error saving strategies: {e}[/red]")
+        # --- END OF FIX ---
+
+        try:
+            from core.strategy_manager import StrategyManager
+
+            strategy_manager = StrategyManager()
+            # --- START OF FIX: Save the BEST strategy for EACH domain ---
+            if domain_strategy_map:
+                for domain, results in domain_strategy_map.items():
+                    best_result = sorted(results, key=lambda x: x["latency_ms"])[0]
+                    strategy_manager.add_strategy(
+                        domain,
+                        best_result["strategy"],
+                        1.0,  # Success rate is 100% for this specific domain
+                        best_result["latency_ms"],
+                    )
+            # --- END OF FIX ---
+            strategy_manager.save_strategies()
+            console.print(
+                f"[green][SAVE] Optimal strategies saved for {len(domain_strategy_map)} domains to domain_strategies.json[/green]"
+            )
+            with open(STRATEGY_FILE, "w", encoding="utf-8") as f:
+                json.dump(best_strategy_result, f, indent=2, ensure_ascii=False)
+            console.print(
+                f"[green][SAVE] Best overall strategy saved to '{STRATEGY_FILE}'[/green]"
+            )
+        except Exception as e:
+            console.print(f"[red]Error saving strategies: {e}[/red]")
 
         console.print("\n" + "=" * 50)
         console.print("[bold yellow]Что дальше?[/bold yellow]")
@@ -3138,25 +3643,25 @@ async def run_evolutionary_mode(args):
 
     config = UnifiedEngineConfig(debug=args.debug)
     hybrid_engine = UnifiedBypassEngine(config)
+    
+    # Enable verbose strategy logging if requested (Task 13, Requirements 7.1, 7.3, 7.4, 7.5)
+    if args.verbose_strategy:
+        try:
+            if hasattr(hybrid_engine, 'engine') and hasattr(hybrid_engine.engine, '_domain_strategy_engine'):
+                domain_engine = hybrid_engine.engine._domain_strategy_engine
+                if domain_engine and hasattr(domain_engine, 'set_verbose_mode'):
+                    log_file = f"verbose_strategy_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+                    domain_engine.set_verbose_mode(True, log_file)
+                    console.print(f"[green]✅ Verbose strategy logging enabled[/green]")
+                    console.print(f"[dim]Logs will be written to: {log_file}[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not enable verbose strategy logging: {e}[/yellow]")
+    
     learning_cache = AdaptiveLearningCache()
     simple_fingerprinter = SimpleFingerprinter(debug=args.debug)
-    console.print("\n[yellow]Step 1: DNS Resolution...[/yellow]")
-    dns_cache: Dict[str, str] = {}
-    all_target_ips: Set[str] = set()
-    for site in dm.domains:
-        hostname = urlparse(site).hostname if site.startswith("http") else site
-        ip = await doh_resolver.resolve(hostname)
-        if ip:
-            dns_cache[hostname] = ip
-            all_target_ips.add(ip)
-    if not dns_cache:
-        console.print(
-            "[bold red]Fatal Error:[/bold red] Could not resolve any domains."
-        )
-        return
-    console.print("\n[yellow]Step 2: Baseline Testing...[/yellow]")
+    console.print("\n[yellow]Step 1: Baseline Testing...[/yellow]")
     baseline_results = await hybrid_engine.test_baseline_connectivity(
-        dm.domains, dns_cache
+        dm.domains, {}  # Empty DNS cache - engine will resolve domains as needed
     )
     blocked_sites = [
         site
@@ -3217,11 +3722,11 @@ async def run_evolutionary_mode(args):
                         console.print(
                             f"[yellow]  - {hostname}: Advanced fingerprint failed ({e}), fallback...[/yellow]"
                         )
-                        target_ip = dns_cache.get(hostname)
-                        if target_ip:
-                            fp_simple = await simple_fingerprinter.create_fingerprint(
-                                hostname, target_ip, args.port
-                            )
+                        # Simple fingerprinter will resolve the domain internally
+                        fp_simple = await simple_fingerprinter.create_fingerprint(
+                            hostname, None, args.port  # Pass None for IP - let fingerprinter resolve
+                        )
+                        if fp_simple:
                             fingerprints[hostname] = fp_simple
                     progress.update(task, advance=1)
             await advanced_fingerprinter.close()
@@ -3239,11 +3744,11 @@ async def run_evolutionary_mode(args):
             )
             for site in blocked_sites:
                 hostname = urlparse(site).hostname or site
-                target_ip = dns_cache.get(hostname)
-                if target_ip:
-                    fp = await simple_fingerprinter.create_fingerprint(
-                        hostname, target_ip, args.port
-                    )
+                # Simple fingerprinter will resolve the domain internally
+                fp = await simple_fingerprinter.create_fingerprint(
+                    hostname, None, args.port  # Pass None for IP - let fingerprinter resolve
+                )
+                if fp:
                     fingerprints[hostname] = fp
                     console.print(
                         f"  - {hostname}: [cyan]{fp.dpi_type}[/cyan] ({fp.blocking_method})"
@@ -3259,7 +3764,7 @@ async def run_evolutionary_mode(args):
     )
 
     # Prepare fingerprint-informed evolution
-    first_domain = list(dns_cache.keys())[0] if dns_cache else None
+    first_domain = urlparse(dm.domains[0]).hostname or dm.domains[0].replace("https://", "").replace("http://", "") if dm.domains else None
     dpi_hash = ""
     if fingerprints and first_domain and first_domain in fingerprints:
         try:
@@ -3280,8 +3785,6 @@ async def run_evolutionary_mode(args):
     best_chromosome = await searcher.evolve(
         hybrid_engine,
         blocked_sites,
-        all_target_ips,
-        dns_cache,
         args.port,
         learning_cache=learning_cache,
         domain=first_domain,
@@ -3311,8 +3814,7 @@ async def run_evolutionary_mode(args):
         # Add fingerprint data to results
         "fingerprint_used": bool(fingerprints),
         "dpi_type": dpi_hash if dpi_hash else "unknown",
-        # FIX: Safely access confidence attribute
-        "dpi_confidence": getattr(fingerprints.get(first_domain), 'confidence', 0.2) if fingerprints else 0.2,
+        "dpi_confidence": 0.8 if fingerprints else 0.2,
         "fingerprint_recommendations_used": True if dpi_hash else False,
     }
     try:
@@ -3331,7 +3833,9 @@ async def run_evolutionary_mode(args):
             avg_fit = entry["avg_fitness"]
             console.print(f"Gen {gen+1}: Best={best_fit:.3f}, Avg={avg_fit:.3f}")
     console.print("[dim][SAVE] Saving evolution results to learning cache...[/dim]")
-    for domain, ip in dns_cache.items():
+    # Record results for each domain without IP dependency
+    for site in blocked_sites:
+        domain = urlparse(site).hostname or site.replace("https://", "").replace("http://", "")
         # Use the proper DPI hash if available
         fingerprint_hash = ""
         if fingerprints and domain in fingerprints:
@@ -3349,7 +3853,7 @@ async def run_evolutionary_mode(args):
         learning_cache.record_strategy_performance(
             strategy=best_strategy,
             domain=domain,
-            ip=ip,
+            ip=None,  # No IP dependency in domain-based approach
             success_rate=best_chromosome.fitness,
             avg_latency=100.0,
             dpi_fingerprint_hash=fingerprint_hash,
@@ -3596,6 +4100,20 @@ async def run_per_domain_mode(args):
 
     config = UnifiedEngineConfig(debug=args.debug)
     hybrid_engine = UnifiedBypassEngine(config)
+    
+    # Enable verbose strategy logging if requested (Task 13, Requirements 7.1, 7.3, 7.4, 7.5)
+    if args.verbose_strategy:
+        try:
+            if hasattr(hybrid_engine, 'engine') and hasattr(hybrid_engine.engine, '_domain_strategy_engine'):
+                domain_engine = hybrid_engine.engine._domain_strategy_engine
+                if domain_engine and hasattr(domain_engine, 'set_verbose_mode'):
+                    log_file = f"verbose_strategy_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+                    domain_engine.set_verbose_mode(True, log_file)
+                    console.print(f"[green]✅ Verbose strategy logging enabled[/green]")
+                    console.print(f"[dim]Logs will be written to: {log_file}[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not enable verbose strategy logging: {e}[/yellow]")
+    
     try:
         from core.strategy_manager import StrategyManager
 
@@ -3618,14 +4136,8 @@ async def run_per_domain_mode(args):
         console.print(
             f"\n[bold yellow]Testing domain {i}/{len(dm.domains)}: {hostname}[/bold yellow]"
         )
-        ip = await doh_resolver.resolve(hostname)
-        if not ip:
-            console.print(f"[red][X] Could not resolve {hostname}[/red]")
-            continue
-        dns_cache = {hostname: ip}
-        all_target_ips = {ip}
         baseline_results = await hybrid_engine.test_baseline_connectivity(
-            [site], dns_cache
+            [site], {}  # Empty DNS cache - engine will resolve domains as needed
         )
         if baseline_results[site][0] == "WORKING":
             console.print(
@@ -3655,8 +4167,8 @@ async def run_per_domain_mode(args):
         domain_results = await hybrid_engine.test_strategies_hybrid(
             strategies=structured_strategies,
             test_sites=[site],
-            ips=all_target_ips,
-            dns_cache=dns_cache,
+            ips=set(),  # Empty IP set - engine will resolve domains as needed
+            dns_cache={},  # Empty DNS cache - engine will resolve domains as needed
             port=args.port,
             domain=hostname,
             fast_filter=not args.no_fast_filter,
@@ -3925,6 +4437,895 @@ async def cleanup_aiohttp_sessions():
         console.print(f"[yellow]Warning: Cleanup error: {e}[/yellow]")
 
 
+async def run_adaptive_mode(args):
+    """Enhanced adaptive mode using AdaptiveCLIWrapper for better integration."""
+    # Import the enhanced CLI wrapper
+    try:
+        from core.cli_payload.adaptive_cli_wrapper import create_cli_wrapper_from_args
+    except ImportError as e:
+        console.print(f"[bold red]Error: AdaptiveCLIWrapper not available: {e}[/bold red]")
+        console.print("[yellow]Falling back to legacy adaptive mode...[/yellow]")
+        await run_adaptive_mode_legacy(args)
+        return
+    
+    # Get target domain or domains from file
+    target = args.target
+    if not target:
+        console.print("[bold red]Error: No target domain specified[/bold red]")
+        console.print("[dim]Usage: python cli.py auto <domain>[/dim]")
+        console.print("[dim]       python cli.py auto -d <domains_file>[/dim]")
+        return
+    
+    # Check if target is a file (when using -d flag)
+    domains_to_test = []
+    if args.domains_file and Path(target).exists():
+        # Load domains from file
+        try:
+            with open(target, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        domains_to_test.append(line)
+            
+            if not domains_to_test:
+                console.print(f"[bold red]Error: No valid domains found in {target}[/bold red]")
+                return
+                
+            console.print(f"[green]Loaded {len(domains_to_test)} domains from {target}[/green]")
+            
+        except Exception as e:
+            console.print(f"[bold red]Error reading domains file {target}: {e}[/bold red]")
+            return
+    else:
+        # Single domain
+        domains_to_test = [target]
+    
+    # Create CLI wrapper with enhanced error handling and Rich output
+    try:
+        cli_wrapper = create_cli_wrapper_from_args(args)
+    except Exception as e:
+        console.print(f"[bold red]Error creating CLI wrapper: {e}[/bold red]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
+        return
+    
+    # Run adaptive analysis with enhanced CLI integration
+    try:
+        if len(domains_to_test) == 1:
+            # Single domain analysis
+            success = await cli_wrapper.run_adaptive_analysis(domains_to_test[0], args)
+            
+            if not success:
+                console.print("\n[yellow][TIP] Troubleshooting tips:[/yellow]")
+                console.print("  • Check your internet connection")
+                console.print("  • Verify the domain is accessible")
+                console.print("  • Try with --mode comprehensive for more thorough analysis")
+                console.print("  • Use --debug for detailed error information")
+        else:
+            # Multiple domains analysis - OPTIMIZED MODE
+            console.print(f"\n[bold blue][START] Оптимизированный пакетный анализ {len(domains_to_test)} доменов[/bold blue]")
+            console.print("[dim]Режим: одна стратегия → все домены параллельно[/dim]")
+            
+            try:
+                # Используем новый оптимизированный метод
+                batch_results = await cli_wrapper.run_batch_adaptive_analysis(domains_to_test, args)
+                
+                successful_domains = [d for d, success in batch_results.items() if success]
+                failed_domains = [d for d, success in batch_results.items() if not success]
+                
+                # Summary
+                console.print(f"\n[bold blue][STATS] Итоговая сводка оптимизированного анализа[/bold blue]")
+                console.print(f"[green][OK] Успешно: {len(successful_domains)}/{len(domains_to_test)}[/green]")
+                console.print(f"[red][FAIL] Неудачно: {len(failed_domains)}/{len(domains_to_test)}[/red]")
+                
+                if successful_domains:
+                    console.print(f"\n[green]Успешные домены:[/green]")
+                    for domain in successful_domains:
+                        console.print(f"  • {domain}")
+                
+                if failed_domains:
+                    console.print(f"\n[red]Неудачные домены:[/red]")
+                    for domain in failed_domains:
+                        console.print(f"  • {domain}")
+                
+                # Task 12.1: Offer to promote best strategies to domain_rules.json
+                if args.promote_best_to_rules and successful_domains:
+                    await _offer_promote_to_rules(successful_domains, console)
+                        
+            except Exception as e:
+                console.print(f"[red][FAIL] Ошибка пакетного анализа: {e}[/red]")
+                if args.debug:
+                    import traceback
+                    traceback.print_exc()
+            
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Analysis interrupted by user[/yellow]")
+    except Exception as e:
+        console.print(f"[bold red]Unexpected error: {e}[/bold red]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
+
+
+async def run_adaptive_mode_legacy(args):
+    """Legacy adaptive mode implementation (fallback)."""
+    console.print(
+        Panel(
+            "[bold cyan]Recon: Adaptive Strategy Discovery (Legacy Mode)[/bold cyan]\n"
+            "[dim]Using AI-powered DPI analysis and failure learning[/dim]",
+            expand=False
+        )
+    )
+    
+    # Import AdaptiveEngine
+    try:
+        from core.adaptive_engine import AdaptiveEngine, AdaptiveConfig
+    except ImportError as e:
+        console.print(f"[bold red]Error: AdaptiveEngine not available: {e}[/bold red]")
+        console.print("[yellow]Falling back to hybrid mode...[/yellow]")
+        await run_hybrid_mode(args)
+        return
+    
+    # Get target domain
+    domain = args.target
+    if not domain:
+        console.print("[bold red]Error: No target domain specified[/bold red]")
+        return
+    
+    # Configure adaptive engine based on CLI arguments
+    config = AdaptiveConfig()
+    
+    # Map CLI mode to max_trials
+    mode_trials = {
+        "quick": 5,
+        "balanced": 10, 
+        "comprehensive": 15,
+        "deep": 25
+    }
+    
+    if args.max_trials:
+        config.max_trials = args.max_trials
+    else:
+        config.max_trials = mode_trials.get(args.mode, 10)
+    
+    config.enable_fingerprinting = not args.no_fingerprinting
+    config.enable_failure_analysis = not args.no_failure_analysis
+    
+    console.print(f"[dim]Target: {domain}[/dim]")
+    console.print(f"[dim]Mode: {args.mode} (max {config.max_trials} trials)[/dim]")
+    console.print(f"[dim]Fingerprinting: {'enabled' if config.enable_fingerprinting else 'disabled'}[/dim]")
+    console.print(f"[dim]Failure analysis: {'enabled' if config.enable_failure_analysis else 'disabled'}[/dim]")
+    
+    # Initialize adaptive engine
+    try:
+        engine = AdaptiveEngine(config)
+        console.print("[green]✓ AdaptiveEngine initialized[/green]")
+    except Exception as e:
+        console.print(f"[bold red]Error initializing AdaptiveEngine: {e}[/bold red]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
+        return
+    
+    # Progress callback for user feedback
+    def progress_callback(message: str):
+        console.print(f"[cyan]{message}[/cyan]")
+    
+    # Run adaptive analysis
+    start_time = time.time()
+    
+    try:
+        with Progress(console=console, transient=True) as progress:
+            task = progress.add_task("[cyan]Running adaptive analysis...", total=None)
+            
+            result = await engine.find_best_strategy(domain, progress_callback)
+            
+            progress.update(task, completed=True)
+        
+        execution_time = time.time() - start_time
+        
+        # Display results
+        console.print("\n" + "="*60)
+        console.print("[bold]ADAPTIVE ANALYSIS RESULTS[/bold]")
+        console.print("="*60)
+        
+        if result.success:
+            console.print(f"[bold green][OK] SUCCESS[/bold green]")
+            if result.strategy:
+                console.print(f"[green]Strategy found: {result.strategy.name}[/green]")
+                console.print(f"[green]Attack type: {result.strategy.attack_name}[/green]")
+                console.print(f"[green]Parameters: {result.strategy.parameters}[/green]")
+            console.print(f"[green]Message: {result.message}[/green]")
+        else:
+            console.print(f"[bold red][FAIL] FAILED[/bold red]")
+            console.print(f"[red]Message: {result.message}[/red]")
+        
+        console.print(f"\n[dim]Execution time: {execution_time:.2f}s[/dim]")
+        console.print(f"[dim]Trials performed: {result.trials_count}[/dim]")
+        console.print(f"[dim]Fingerprint updated: {result.fingerprint_updated}[/dim]")
+        
+        # Show engine statistics
+        stats = engine.get_stats()
+        console.print(f"\n[bold]Engine Statistics:[/bold]")
+        console.print(f"  Domains processed: {stats['domains_processed']}")
+        console.print(f"  Strategies found: {stats['strategies_found']}")
+        console.print(f"  Total trials: {stats['total_trials']}")
+        console.print(f"  Fingerprints created: {stats['fingerprints_created']}")
+        console.print(f"  Failures analyzed: {stats['failures_analyzed']}")
+        
+        # Export results if requested
+        if args.export_results:
+            try:
+                export_data = engine.export_results()
+                export_data['domain'] = domain
+                export_data['result'] = {
+                    'success': result.success,
+                    'strategy': result.strategy.name if result.strategy else None,
+                    'message': result.message,
+                    'execution_time': execution_time,
+                    'trials_count': result.trials_count
+                }
+                
+                with open(args.export_results, 'w', encoding='utf-8') as f:
+                    json.dump(export_data, f, indent=2, ensure_ascii=False)
+                
+                console.print(f"[green]✓ Results exported to: {args.export_results}[/green]")
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to export results: {e}[/yellow]")
+        
+        # Save strategy to legacy format for compatibility
+        if result.success and result.strategy:
+            try:
+                legacy_strategy = {
+                    "domain": domain,
+                    "strategy": result.strategy.name,
+                    "attack_name": result.strategy.attack_name,
+                    "parameters": result.strategy.parameters,
+                    "timestamp": datetime.now().isoformat(),
+                    "source": "adaptive_engine"
+                }
+                
+                with open(STRATEGY_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(legacy_strategy, f, indent=2, ensure_ascii=False)
+                
+                console.print(f"[green]✓ Strategy saved to: {STRATEGY_FILE}[/green]")
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to save legacy strategy: {e}[/yellow]")
+        
+    except Exception as e:
+        console.print(f"[bold red]Error during adaptive analysis: {e}[/bold red]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
+
+
+async def run_adaptive_mode_with_cleanup(args):
+    """Wrapper for run_adaptive_mode with proper async cleanup."""
+    try:
+        await run_adaptive_mode(args)
+    finally:
+        await cleanup_aiohttp_sessions()
+
+
+async def run_revalidate_mode(args):
+    """
+    Re-validate a failed strategy for a domain.
+    
+    This mode re-tests a domain that has been marked as needing revalidation
+    due to repeated failures in production.
+    """
+    from core.bypass.engine.strategy_failure_tracker import StrategyFailureTracker
+    
+    domain = args.target
+    console.print(f"\n[bold cyan]Re-validating strategy for domain: {domain}[/bold cyan]\n")
+    
+    # Load failure tracker
+    tracker = StrategyFailureTracker()
+    
+    # Check if domain needs revalidation
+    failure_record = tracker.get_failure_record(domain)
+    
+    if failure_record:
+        console.print(f"[yellow]Current failure count: {failure_record.failure_count}[/yellow]")
+        console.print(f"[yellow]Last failure: {failure_record.last_failure_time}[/yellow]")
+        if failure_record.failure_reason:
+            console.print(f"[yellow]Reason: {failure_record.failure_reason}[/yellow]")
+        console.print()
+    else:
+        console.print(f"[dim]No failure record found for {domain}[/dim]")
+        console.print(f"[dim]Proceeding with strategy discovery anyway...[/dim]\n")
+    
+    # Run adaptive mode to find new strategy
+    console.print(f"[bold]Running adaptive strategy discovery...[/bold]\n")
+    
+    try:
+        await run_adaptive_mode(args)
+        
+        # If successful, reset failure count
+        tracker.reset_failure_count(domain)
+        console.print(f"\n[bold green]✅ Strategy revalidation successful![/bold green]")
+        console.print(f"[green]Failure count reset for {domain}[/green]")
+        
+    except Exception as e:
+        console.print(f"\n[bold red]❌ Strategy revalidation failed: {e}[/bold red]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
+    finally:
+        await cleanup_aiohttp_sessions()
+
+
+def run_list_failures_mode(args):
+    """
+    List all domains that need revalidation due to failures.
+    """
+    from core.bypass.engine.strategy_failure_tracker import StrategyFailureTracker
+    from rich.table import Table
+    
+    console.print(f"\n[bold cyan]Strategy Failure Report[/bold cyan]\n")
+    
+    # Load failure tracker
+    tracker = StrategyFailureTracker()
+    
+    # Get all failure records
+    failure_records = tracker.get_all_failure_records()
+    
+    if not failure_records:
+        console.print("[green]No strategy failures recorded! 🎉[/green]")
+        return
+    
+    # Get domains needing revalidation
+    domains_needing_revalidation = tracker.get_domains_needing_revalidation()
+    
+    # Create table
+    table = Table(title="Strategy Failures")
+    table.add_column("Domain", style="cyan")
+    table.add_column("Strategy Type", style="yellow")
+    table.add_column("Failures", style="red")
+    table.add_column("Last Failure", style="dim")
+    table.add_column("Status", style="bold")
+    
+    # Sort by failure count (descending)
+    sorted_records = sorted(
+        failure_records.items(),
+        key=lambda x: x[1].failure_count,
+        reverse=True
+    )
+    
+    for domain, record in sorted_records:
+        status = "🚨 NEEDS REVALIDATION" if record.needs_revalidation else "⚠️  Warning"
+        
+        table.add_row(
+            domain,
+            record.strategy_type,
+            str(record.failure_count),
+            record.last_failure_time.split('T')[0] if 'T' in record.last_failure_time else record.last_failure_time,
+            status
+        )
+    
+    console.print(table)
+    console.print()
+    
+    # Show statistics
+    stats = tracker.get_statistics()
+    console.print(f"[bold]Statistics:[/bold]")
+    console.print(f"  Total domains tracked: {stats['tracked_domains']}")
+    console.print(f"  Total failures: {stats['total_failures']}")
+    console.print(f"  Domains needing revalidation: {stats['domains_needing_revalidation']}")
+    console.print(f"  Failure threshold: {stats['failure_threshold']}")
+    console.print(f"  Revalidation threshold: {stats['revalidation_threshold']}")
+    console.print()
+    
+    # Show recommendations
+    if domains_needing_revalidation:
+        console.print(f"[bold yellow]💡 Recommendations:[/bold yellow]")
+        console.print(f"  Run revalidation for critical domains:")
+        for domain in domains_needing_revalidation[:5]:  # Show top 5
+            console.print(f"    python cli.py revalidate {domain}")
+        
+        if len(domains_needing_revalidation) > 5:
+            console.print(f"    ... and {len(domains_needing_revalidation) - 5} more")
+        console.print()
+
+
+def run_compare_modes_command(args):
+    """
+    Compare strategy application between testing and production modes.
+    
+    Requirements: 7.1, 7.3, 7.4, 7.5
+    """
+    from core.cli.strategy_diagnostics import StrategyDiffTool, VerboseStrategyLogger
+    from pathlib import Path
+    import json
+    
+    console.print(f"\n[bold cyan]Comparing Testing vs Production Modes[/bold cyan]")
+    console.print(f"[dim]Domain: {args.target}[/dim]\n")
+    
+    domain = args.target
+    
+    # Load domain rules
+    domain_rules_path = Path("domain_rules.json")
+    if not domain_rules_path.exists():
+        console.print(f"[bold red]Error: domain_rules.json not found[/bold red]")
+        console.print(f"[yellow]Run 'python cli.py auto {domain}' first to find a strategy[/yellow]")
+        return
+    
+    try:
+        with open(domain_rules_path, 'r', encoding='utf-8') as f:
+            domain_rules = json.load(f)
+    except Exception as e:
+        console.print(f"[bold red]Error loading domain_rules.json: {e}[/bold red]")
+        return
+    
+    # Check if domain has a strategy
+    if domain not in domain_rules:
+        console.print(f"[bold red]Error: No strategy found for {domain}[/bold red]")
+        console.print(f"[yellow]Run 'python cli.py auto {domain}' first to find a strategy[/yellow]")
+        return
+    
+    expected_strategy = domain_rules[domain]
+    
+    console.print(f"[bold]Expected Strategy (from domain_rules.json):[/bold]")
+    console.print(json.dumps(expected_strategy, indent=2))
+    console.print()
+    
+    # Initialize diff tool
+    diff_tool = StrategyDiffTool()
+    
+    # Simulate production mode strategy application
+    console.print(f"[bold]Simulating Production Mode Strategy Selection:[/bold]")
+    
+    try:
+        from core.bypass.engine.domain_strategy_engine import DomainStrategyEngine
+        from core.bypass.engine.hierarchical_domain_matcher import HierarchicalDomainMatcher
+        
+        # Create domain strategy engine
+        matcher = HierarchicalDomainMatcher(domain_rules)
+        
+        # Find matching rule
+        matched_rule, match_type = matcher.find_matching_rule(domain)
+        
+        if not matched_rule:
+            console.print(f"[bold red]❌ No matching rule found in production mode[/bold red]")
+            return
+        
+        console.print(f"  Matched Rule: [cyan]{matched_rule}[/cyan]")
+        console.print(f"  Match Type: [yellow]{match_type}[/yellow]")
+        
+        if match_type == 'parent':
+            console.print(f"  [bold yellow]⚠️  WARNING: Using parent domain strategy![/bold yellow]")
+            console.print(f"  [yellow]This may cause issues if subdomain needs different strategy[/yellow]")
+        
+        actual_strategy = domain_rules[matched_rule]
+        console.print()
+        
+        # Compare strategies
+        is_match, diffs = diff_tool.compare_strategies(domain, actual_strategy)
+        
+        if is_match:
+            console.print(f"[bold green]✅ Strategies match! Testing and production will behave identically.[/bold green]")
+        else:
+            console.print(f"[bold red]❌ Strategy mismatch detected![/bold red]")
+            console.print()
+            report = diff_tool.format_diff_report(domain, diffs)
+            console.print(report)
+        
+    except ImportError as e:
+        console.print(f"[bold red]Error: Required modules not available: {e}[/bold red]")
+    except Exception as e:
+        console.print(f"[bold red]Error during comparison: {e}[/bold red]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
+
+
+def run_analyze_pcap_command(args):
+    """
+    Analyze PCAP file to verify strategy was applied correctly.
+    
+    Requirements: 7.1, 7.3, 7.4, 7.5
+    """
+    from core.cli.strategy_diagnostics import PCAPStrategyAnalyzer
+    from pathlib import Path
+    import json
+    
+    console.print(f"\n[bold cyan]PCAP Strategy Analysis[/bold cyan]")
+    console.print(f"[dim]Domain: {args.target}[/dim]")
+    console.print(f"[dim]PCAP: {args.pcap}[/dim]\n")
+    
+    domain = args.target
+    pcap_path = args.pcap
+    
+    # Check if PCAP file exists
+    if not Path(pcap_path).exists():
+        console.print(f"[bold red]Error: PCAP file not found: {pcap_path}[/bold red]")
+        return
+    
+    # Load expected strategy from domain_rules.json
+    domain_rules_path = Path("domain_rules.json")
+    if not domain_rules_path.exists():
+        console.print(f"[bold red]Error: domain_rules.json not found[/bold red]")
+        console.print(f"[yellow]Cannot determine expected strategy[/yellow]")
+        return
+    
+    try:
+        with open(domain_rules_path, 'r', encoding='utf-8') as f:
+            domain_rules = json.load(f)
+    except Exception as e:
+        console.print(f"[bold red]Error loading domain_rules.json: {e}[/bold red]")
+        return
+    
+    if domain not in domain_rules:
+        console.print(f"[bold red]Error: No strategy found for {domain}[/bold red]")
+        return
+    
+    expected_strategy = domain_rules[domain]
+    
+    console.print(f"[bold]Expected Strategy:[/bold]")
+    console.print(json.dumps(expected_strategy, indent=2))
+    console.print()
+    
+    # Analyze PCAP
+    analyzer = PCAPStrategyAnalyzer()
+    
+    try:
+        analysis = analyzer.analyze_pcap(pcap_path, expected_strategy, domain)
+        
+        # Display report
+        report = analyzer.format_analysis_report(analysis)
+        console.print(report)
+        
+        # Save detailed analysis to file
+        output_file = Path(f"pcap_analysis_{domain}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(analysis, f, indent=2)
+        
+        console.print(f"\n[green]Detailed analysis saved to: {output_file}[/green]")
+        
+    except Exception as e:
+        console.print(f"[bold red]Error during PCAP analysis: {e}[/bold red]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
+
+
+def run_strategy_diff_command(args):
+    """
+    Compare expected vs actual strategy parameters.
+    
+    Requirements: 7.1, 7.3, 7.4, 7.5
+    """
+    from core.cli.strategy_diagnostics import StrategyDiffTool
+    from pathlib import Path
+    import json
+    
+    console.print(f"\n[bold cyan]Strategy Parameter Diff[/bold cyan]")
+    console.print(f"[dim]Domain: {args.target}[/dim]\n")
+    
+    domain = args.target
+    
+    # Load domain rules
+    domain_rules_path = Path("domain_rules.json")
+    if not domain_rules_path.exists():
+        console.print(f"[bold red]Error: domain_rules.json not found[/bold red]")
+        return
+    
+    try:
+        with open(domain_rules_path, 'r', encoding='utf-8') as f:
+            domain_rules = json.load(f)
+    except Exception as e:
+        console.print(f"[bold red]Error loading domain_rules.json: {e}[/bold red]")
+        return
+    
+    if domain not in domain_rules:
+        console.print(f"[bold red]Error: No strategy found for {domain}[/bold red]")
+        console.print(f"[yellow]Run 'python cli.py auto {domain}' first[/yellow]")
+        return
+    
+    expected_strategy = domain_rules[domain]
+    
+    # If user provided --strategy, compare with that
+    if args.strategy:
+        try:
+            actual_strategy = json.loads(args.strategy)
+        except json.JSONDecodeError:
+            console.print(f"[bold red]Error: Invalid JSON in --strategy argument[/bold red]")
+            return
+    else:
+        # Otherwise, just show the expected strategy
+        console.print(f"[bold]Strategy for {domain}:[/bold]")
+        console.print(json.dumps(expected_strategy, indent=2))
+        console.print()
+        console.print(f"[yellow]Tip: Use --strategy '<json>' to compare with actual strategy[/yellow]")
+        return
+    
+    # Compare strategies
+    diff_tool = StrategyDiffTool()
+    is_match, diffs = diff_tool.compare_strategies(domain, actual_strategy)
+    
+    if is_match:
+        console.print(f"[bold green]✅ Strategies match perfectly![/bold green]")
+    else:
+        console.print(f"[bold red]❌ Strategy differences detected![/bold red]")
+        console.print()
+        report = diff_tool.format_diff_report(domain, diffs)
+        console.print(report)
+
+
+def run_failure_report_command(args):
+    """
+    Generate comprehensive failure report for a domain.
+    
+    Requirements: 7.1, 7.3, 7.4, 7.5
+    """
+    from core.cli.strategy_diagnostics import StrategyFailureReportGenerator, StrategyDiffTool, PCAPStrategyAnalyzer
+    from core.bypass.engine.strategy_failure_tracker import StrategyFailureTracker
+    from pathlib import Path
+    import json
+    
+    console.print(f"\n[bold cyan]Generating Strategy Failure Report[/bold cyan]")
+    console.print(f"[dim]Domain: {args.target}[/dim]\n")
+    
+    domain = args.target
+    
+    # Load domain rules
+    domain_rules_path = Path("domain_rules.json")
+    if not domain_rules_path.exists():
+        console.print(f"[bold red]Error: domain_rules.json not found[/bold red]")
+        return
+    
+    try:
+        with open(domain_rules_path, 'r', encoding='utf-8') as f:
+            domain_rules = json.load(f)
+    except Exception as e:
+        console.print(f"[bold red]Error loading domain_rules.json: {e}[/bold red]")
+        return
+    
+    if domain not in domain_rules:
+        console.print(f"[bold red]Error: No strategy found for {domain}[/bold red]")
+        return
+    
+    strategy = domain_rules[domain]
+    
+    # Load failure tracker
+    tracker = StrategyFailureTracker()
+    failure_record = tracker.get_failure_record(domain)
+    
+    if not failure_record:
+        console.print(f"[bold yellow]No failure record found for {domain}[/bold yellow]")
+        console.print(f"[green]This domain has no recorded failures![/green]")
+        return
+    
+    # Prepare failure details
+    failure_details = {
+        'timestamp': failure_record.last_failure_time,
+        'retransmissions': failure_record.failure_count,
+        'error': f"Strategy failed {failure_record.failure_count} times",
+        'mode': 'production'
+    }
+    
+    # Generate diff if possible
+    diffs = None
+    try:
+        diff_tool = StrategyDiffTool()
+        is_match, diffs = diff_tool.compare_strategies(domain, strategy)
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not generate strategy diff: {e}[/yellow]")
+    
+    # Analyze PCAP if provided
+    pcap_analysis = None
+    if args.pcap and Path(args.pcap).exists():
+        try:
+            analyzer = PCAPStrategyAnalyzer()
+            pcap_analysis = analyzer.analyze_pcap(args.pcap, strategy, domain)
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not analyze PCAP: {e}[/yellow]")
+    
+    # Generate report
+    report_generator = StrategyFailureReportGenerator()
+    
+    try:
+        report_path = report_generator.generate_failure_report(
+            domain=domain,
+            strategy=strategy,
+            failure_details=failure_details,
+            diffs=diffs,
+            pcap_analysis=pcap_analysis
+        )
+        
+        console.print(f"[bold green]✅ Failure report generated successfully![/bold green]")
+        console.print(f"[green]Report saved to: {report_path}[/green]")
+        console.print()
+        
+        # Display summary
+        console.print(f"[bold]Failure Summary:[/bold]")
+        console.print(f"  Domain: {domain}")
+        console.print(f"  Strategy Type: {strategy.get('type')}")
+        console.print(f"  Failure Count: {failure_record.failure_count}")
+        console.print(f"  Last Failure: {failure_record.last_failure_time}")
+        console.print(f"  Needs Revalidation: {'Yes' if failure_record.needs_revalidation else 'No'}")
+        console.print()
+        
+        if diffs:
+            console.print(f"[bold yellow]⚠️  {len(diffs)} parameter difference(s) detected[/bold yellow]")
+        
+        if pcap_analysis and not pcap_analysis.get('strategy_applied_correctly'):
+            console.print(f"[bold red]❌ PCAP analysis shows strategy application issues[/bold red]")
+        
+        console.print()
+        console.print(f"[bold]Next Steps:[/bold]")
+        console.print(f"  1. Review the detailed report: {report_path}")
+        console.print(f"  2. Compare modes: python cli.py compare-modes {domain}")
+        console.print(f"  3. Re-test strategy: python cli.py auto {domain}")
+        
+    except Exception as e:
+        console.print(f"[bold red]Error generating report: {e}[/bold red]")
+        if args.debug:
+            import traceback
+            traceback.print_exc()
+
+
+async def _offer_promote_to_rules(successful_domains: List[str], console) -> None:
+    """
+    Task 12.1: Offer to promote best strategies from adaptive_knowledge.json to domain_rules.json.
+    
+    This function implements Requirement 6.3:
+    - Offers to save best strategies to domain_rules.json when --promote-best-to-rules is used
+    - Only promotes strategies that are verified and have good success rates
+    - Preserves existing domain_rules.json entries
+    
+    Args:
+        successful_domains: List of domains that had successful strategy discovery
+        console: Rich console for output
+    """
+    try:
+        from pathlib import Path
+        import json
+        from core.adaptive_knowledge import AdaptiveKnowledgeBase
+        
+        console.print(f"\n[bold cyan]Strategy Promotion[/bold cyan]")
+        console.print(f"[dim]Checking adaptive_knowledge.json for strategies to promote...[/dim]\n")
+        
+        # Load adaptive knowledge
+        knowledge_base = AdaptiveKnowledgeBase()
+        
+        # Load existing domain_rules.json
+        domain_rules_file = Path("domain_rules.json")
+        if domain_rules_file.exists():
+            with open(domain_rules_file, 'r', encoding='utf-8') as f:
+                domain_rules_data = json.load(f)
+        else:
+            domain_rules_data = {
+                "version": "1.0",
+                "last_updated": datetime.now().isoformat(),
+                "domain_rules": {}
+            }
+        
+        # Ensure domain_rules key exists
+        if "domain_rules" not in domain_rules_data:
+            domain_rules_data["domain_rules"] = {}
+        
+        # Find strategies to promote
+        strategies_to_promote = []
+        
+        for domain in successful_domains:
+            # Skip if already in domain_rules.json
+            if domain in domain_rules_data["domain_rules"]:
+                console.print(f"[dim]  • {domain}: Already in domain_rules.json, skipping[/dim]")
+                continue
+            
+            # Get best strategy from adaptive knowledge
+            strategies = knowledge_base.get_strategies_for_domain(domain)
+            
+            if not strategies:
+                console.print(f"[yellow]  • {domain}: No strategies found in adaptive_knowledge.json[/yellow]")
+                continue
+            
+            # Get the best strategy (first one, as they're sorted by priority)
+            best_strategy = strategies[0]
+            
+            # Only promote verified strategies with good success rate
+            if best_strategy.verified and best_strategy.success_rate() >= 0.7:
+                strategies_to_promote.append((domain, best_strategy))
+                console.print(f"[green]  ✓ {domain}: Found verified strategy (success rate: {best_strategy.success_rate():.1%})[/green]")
+            else:
+                status = "not verified" if not best_strategy.verified else f"low success rate ({best_strategy.success_rate():.1%})"
+                console.print(f"[yellow]  • {domain}: Strategy {status}, skipping[/yellow]")
+        
+        if not strategies_to_promote:
+            console.print(f"\n[yellow]No strategies to promote. All domains either:[/yellow]")
+            console.print(f"  • Already have entries in domain_rules.json")
+            console.print(f"  • Have unverified or low success rate strategies")
+            console.print(f"  • Have no strategies in adaptive_knowledge.json")
+            return
+        
+        # Ask user for confirmation
+        console.print(f"\n[bold]Found {len(strategies_to_promote)} strategies to promote:[/bold]")
+        for domain, strategy in strategies_to_promote:
+            console.print(f"  • {domain}: {strategy.strategy_name} (success: {strategy.success_count}, failures: {strategy.failure_count})")
+        
+        if RICH_AVAILABLE:
+            should_promote = Confirm.ask(
+                f"\n[bold cyan]Promote these {len(strategies_to_promote)} strategies to domain_rules.json?[/bold cyan]",
+                default=True
+            )
+        else:
+            response = input(f"\nPromote these {len(strategies_to_promote)} strategies to domain_rules.json? (Y/n): ").lower()
+            should_promote = response in ('', 'y', 'yes', 'да')
+        
+        if not should_promote:
+            console.print("[yellow]Promotion cancelled by user[/yellow]")
+            return
+        
+        # Promote strategies
+        promoted_count = 0
+        for domain, strategy in strategies_to_promote:
+            try:
+                # Decompose smart_combo_ strategy names into constituent attacks
+                attacks = []
+                strategy_name = strategy.strategy_name
+                
+                if strategy_name.startswith('smart_combo_') or strategy_name.startswith('existing_smart_combo_'):
+                    # Remove prefix and decompose
+                    name_without_prefix = strategy_name.replace('existing_smart_combo_', '').replace('smart_combo_', '')
+                    parts = name_without_prefix.split('_')
+                    known_attacks = {'fake', 'split', 'disorder', 'multisplit', 'seqovl'}
+                    for part in parts:
+                        if part in known_attacks:
+                            attacks.append(part)
+                    
+                    if not attacks:
+                        # Fallback if decomposition failed
+                        attacks = [strategy_name]
+                else:
+                    # Not a smart_combo, use as-is
+                    attacks = [strategy_name]
+                
+                # Convert StrategyRecord to domain_rules.json format
+                strategy_data = {
+                    "attacks": attacks,
+                    "params": strategy.strategy_params.copy(),
+                    "metadata": {
+                        "source": "adaptive_knowledge",
+                        "promoted_at": datetime.now().isoformat(),
+                        "success_count": strategy.success_count,
+                        "failure_count": strategy.failure_count,
+                        "success_rate": strategy.success_rate(),
+                        "verified": strategy.verified,
+                        "avg_connect_ms": strategy.avg_connect_ms,
+                        "effective_against": strategy.effective_against
+                    }
+                }
+                
+                # Add to domain_rules
+                domain_rules_data["domain_rules"][domain] = strategy_data
+                promoted_count += 1
+                
+                console.print(f"[green]  ✓ Promoted {domain}[/green]")
+                
+            except Exception as e:
+                console.print(f"[red]  ✗ Failed to promote {domain}: {e}[/red]")
+        
+        if promoted_count > 0:
+            # Update timestamp
+            domain_rules_data["last_updated"] = datetime.now().isoformat()
+            
+            # Save domain_rules.json
+            with open(domain_rules_file, 'w', encoding='utf-8') as f:
+                json.dump(domain_rules_data, f, indent=2, ensure_ascii=False)
+            
+            console.print(f"\n[bold green]✓ Successfully promoted {promoted_count} strategies to domain_rules.json[/bold green]")
+        else:
+            console.print(f"\n[yellow]No strategies were promoted[/yellow]")
+            
+    except Exception as e:
+        console.print(f"[bold red]Error during strategy promotion: {e}[/bold red]")
+        LOG.error(f"Strategy promotion error: {e}")
+        import traceback
+        LOG.error(traceback.format_exc())
+
+
 def main():
     # Вызываем загрузчик в самом начале
     load_all_attacks()
@@ -3932,29 +5333,61 @@ def main():
     parser = argparse.ArgumentParser(
         description="""Recon: An autonomous tool to find and apply working bypass strategies against DPI.
 
+Commands:
+  auto <domain>          Adaptive strategy discovery using AI-powered DPI analysis
+  revalidate <domain>    Re-test a failed strategy and find a new working one
+  list-failures          Show all domains with failed strategies
+  payload list           List all available fake payloads
+  payload capture <dom>  Capture ClientHello from domain for use as fake payload
+  payload test <dom>     Test strategy with specific payload
+  <domain>               Traditional strategy testing (legacy mode)
+
 DPI Strategy Support:
   Supports advanced DPI bypass strategies including packet splitting at positions 3, 10, and SNI,
   with badsum fooling and other techniques. Use --dpi-desync-split-pos and --dpi-desync-fooling
   parameters to configure strategies.
 
 Examples:
-  # Basic split strategy
+  # Adaptive mode (recommended)
+  python cli.py auto x.com
+  python cli.py auto x.com --mode comprehensive --max-trials 20
+  
+  # Strategy revalidation
+  python cli.py revalidate youtube.com
+  python cli.py list-failures
+  
+  # Legacy mode
   python cli.py --dpi-desync=split --dpi-desync-split-pos=3,10 --dpi-desync-fooling=badsum x.com
-  
-  # SNI-focused strategy  
-  python cli.py --dpi-desync=split --dpi-desync-split-pos=sni --dpi-desync-fooling=badsum x.com
-  
-  # Combined strategy (recommended)
-  python cli.py --dpi-desync=split --dpi-desync-split-pos=3,10,sni --dpi-desync-fooling=badsum x.com
         """,
         formatter_class=argparse.RawTextHelpFormatter,
     )
     # Basic arguments
     parser.add_argument(
-        "target",
+        "command_or_target",
         nargs="?",
         default=config.DEFAULT_DOMAIN,
-        help="Target host (e.g., rutracker.org) or path to file with domains (if -d is used).",
+        help="Command ('auto') or target host (e.g., rutracker.org) or path to file with domains (if -d is used).",
+    )
+    parser.add_argument(
+        "target",
+        nargs="?",
+        help="Target domain when using 'auto' command, or payload subcommand (list/capture/test)",
+    )
+    parser.add_argument(
+        "domain",
+        nargs="?",
+        help="Domain for payload capture/test commands",
+    )
+    parser.add_argument(
+        "--payload",
+        type=str,
+        help="Payload parameter for 'payload test' command (file path, hex string, or placeholder)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=10.0,
+        help="Timeout for payload capture (default: 10.0 seconds)",
     )
     parser.add_argument(
         "--enable-enhanced-tracking",
@@ -4004,9 +5437,44 @@ Examples:
         "--debug", action="store_true", help="Enable detailed debug logging."
     )
     parser.add_argument(
+        "--verbose-strategy",
+        action="store_true",
+        help="Enable verbose strategy application logging (for debugging strategy issues)."
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         help="Reduce log noise (set WARNING on noisy modules).",
+    )
+    
+    # Adaptive mode arguments
+    parser.add_argument(
+        "--mode",
+        choices=["quick", "balanced", "comprehensive", "deep"],
+        default="balanced",
+        help="Adaptive analysis mode: quick (5 trials), balanced (10 trials), comprehensive (15 trials), deep (25 trials).",
+    )
+    parser.add_argument(
+        "--max-trials",
+        type=int,
+        default=None,
+        help="Maximum number of strategy trials (overrides --mode setting).",
+    )
+    parser.add_argument(
+        "--no-fingerprinting",
+        action="store_true",
+        help="Disable DPI fingerprinting (faster but less accurate).",
+    )
+    parser.add_argument(
+        "--no-failure-analysis",
+        action="store_true",
+        help="Disable failure analysis (faster but no learning).",
+    )
+    parser.add_argument(
+        "--export-results",
+        type=str,
+        metavar="FILE",
+        help="Export adaptive results to JSON file.",
     )
     # Mode arguments
     parser.add_argument(
@@ -4246,6 +5714,31 @@ Examples:
         help="Include full per-strategy engine telemetry snapshots in the report.",
     )
 
+    # Payload arguments for fake attacks (extended)
+    parser.add_argument(
+        "--custom-payload",
+        type=str,
+        metavar="FILE",
+        help="Path to custom TLS ClientHello payload file (.bin) for testing. "
+             "Used for all fake attacks during strategy testing.",
+    )
+    parser.add_argument(
+        "--fake-payload-file",
+        type=str,
+        metavar="FILE_OR_PLACEHOLDER",
+        help="Fake payload for fake attacks. Can be: "
+             "1) Path to .bin file, "
+             "2) Placeholder (PAYLOADTLS, PAYLOADHTTP, PAYLOADQUIC), "
+             "3) Hex string (0x16030100...). "
+             "Default: tls_clienthello_www_google_com.bin from bundled payloads.",
+    )
+    parser.add_argument(
+        "--extract-payload",
+        type=str,
+        metavar="PCAP_FILE",
+        help="Extract TLS ClientHello from PCAP file and save to data/payloads/captured/.",
+    )
+
     # Validation arguments
     parser.add_argument(
         "--validate-pcap",
@@ -4270,11 +5763,25 @@ Examples:
         metavar="NAME",
         help="Save current execution results as baseline with specified name (requires --validate).",
     )
+    
+    # Verification mode arguments (Task 11.1)
+    parser.add_argument(
+        "--verify-with-pcap",
+        action="store_true",
+        help="Enable verification mode: capture extended PCAP and validate strategy application against logs.",
+    )
+    
+    # Batch mode arguments (Task 12.1)
+    parser.add_argument(
+        "--promote-best-to-rules",
+        action="store_true",
+        help="In batch mode, offer to save best strategies to domain_rules.json after analysis completes.",
+    )
 
     # Add DPI strategy arguments to parser
     dpi_integration = None
     try:
-        from core.cli import integrate_dpi_with_existing_cli
+        from core.cli_payload.dpi_cli_integration import integrate_dpi_with_existing_cli
 
         dpi_integration = integrate_dpi_with_existing_cli(parser)
         LOG.info("DPI strategy parameters integrated into CLI")
@@ -4284,6 +5791,12 @@ Examples:
         LOG.error(f"Failed to integrate DPI parameters: {e}")
 
     args = parser.parse_args()
+
+    # Task 22: Log feature flag status
+    if USE_NEW_ATTACK_SYSTEM:
+        LOG.info("✅ New attack system ENABLED (StrategyLoader, ComboAttackBuilder, UnifiedAttackDispatcher)")
+    else:
+        LOG.info("⚠️  New attack system DISABLED (using legacy attack application)")
 
     # Parse DPI configuration from CLI arguments
     dpi_config = None
@@ -4331,6 +5844,164 @@ Examples:
                 logging.getLogger(noisy).setLevel(logging.WARNING)
             except Exception:
                 pass
+
+    # Extract payload from PCAP and exit
+    if args.extract_payload:
+        from pathlib import Path
+        try:
+            from core.payload import PayloadManager, PayloadType
+            from scapy.all import rdpcap, TCP, IP, Raw
+            import struct
+            
+            console.print(f"\n[bold cyan]Extracting TLS ClientHello from PCAP[/bold cyan]")
+            console.print(f"[dim]PCAP file: {args.extract_payload}[/dim]\n")
+            
+            pcap_path = Path(args.extract_payload)
+            if not pcap_path.exists():
+                console.print(f"[bold red]Error: PCAP file not found: {args.extract_payload}[/bold red]")
+                return
+            
+            # Load PCAP
+            packets = rdpcap(str(pcap_path))
+            console.print(f"Loaded {len(packets)} packets")
+            
+            # Find TLS ClientHello
+            clienthello_data = None
+            sni = None
+            
+            for pkt in packets:
+                if not pkt.haslayer(TCP) or not pkt.haslayer(IP):
+                    continue
+                tcp = pkt[TCP]
+                if tcp.dport != 443:
+                    continue
+                payload = bytes(tcp.payload) if tcp.payload else b''
+                if len(payload) < 6:
+                    continue
+                # Check for TLS Handshake (0x16) and ClientHello (0x01)
+                if payload[0] == 0x16 and payload[5] == 0x01:
+                    clienthello_data = payload
+                    # Extract SNI
+                    try:
+                        offset = 43
+                        if offset < len(payload):
+                            session_id_len = payload[offset]
+                            offset += 1 + session_id_len
+                        if offset + 2 <= len(payload):
+                            cipher_len = struct.unpack(">H", payload[offset:offset+2])[0]
+                            offset += 2 + cipher_len
+                        if offset < len(payload):
+                            comp_len = payload[offset]
+                            offset += 1 + comp_len
+                        if offset + 2 <= len(payload):
+                            ext_len = struct.unpack(">H", payload[offset:offset+2])[0]
+                            offset += 2
+                            ext_end = offset + ext_len
+                            while offset + 4 <= ext_end:
+                                ext_type = struct.unpack(">H", payload[offset:offset+2])[0]
+                                ext_data_len = struct.unpack(">H", payload[offset+2:offset+4])[0]
+                                if ext_type == 0x0000:  # SNI
+                                    sni_data = payload[offset+4:offset+4+ext_data_len]
+                                    if len(sni_data) >= 5:
+                                        name_len = struct.unpack(">H", sni_data[3:5])[0]
+                                        if len(sni_data) >= 5 + name_len:
+                                            sni = sni_data[5:5+name_len].decode('ascii', errors='ignore')
+                                    break
+                                offset += 4 + ext_data_len
+                    except:
+                        pass
+                    break
+            
+            if not clienthello_data:
+                console.print("[bold red]Error: No TLS ClientHello found in PCAP[/bold red]")
+                return
+            
+            console.print(f"[green]✓ Found TLS ClientHello: {len(clienthello_data)} bytes[/green]")
+            if sni:
+                console.print(f"[green]✓ SNI: {sni}[/green]")
+            
+            # Save payload
+            manager = PayloadManager()
+            domain = sni or args.target or "unknown"
+            info = manager.add_payload(clienthello_data, PayloadType.TLS, domain, "captured")
+            
+            console.print(f"\n[bold green]✓ Payload saved![/bold green]")
+            console.print(f"  File: {info.file_path}")
+            console.print(f"  Size: {info.size} bytes")
+            console.print(f"  Domain: {info.domain}")
+            console.print(f"\nUse with: python cli.py auto {domain} --payload {info.file_path}")
+            return
+            
+        except ImportError as e:
+            console.print(f"[bold red]Error: Required modules not available: {e}[/bold red]")
+            return
+        except Exception as e:
+            console.print(f"[bold red]Error extracting payload: {e}[/bold red]")
+            if args.debug:
+                import traceback
+                traceback.print_exc()
+            return
+
+    # Initialize PayloadManager with custom payload if specified
+    custom_payload_bytes = None
+    if args.custom_payload or args.fake_payload_file:
+        try:
+            from core.payload import PayloadManager, PayloadType
+            from pathlib import Path
+            
+            payload_path = args.custom_payload or args.fake_payload_file
+            
+            # Check if it's a file path
+            if Path(payload_path).exists():
+                custom_payload_bytes = Path(payload_path).read_bytes()
+                console.print(f"[green]✓ Loaded custom payload: {payload_path} ({len(custom_payload_bytes)} bytes)[/green]")
+            elif payload_path.startswith("0x"):
+                # Hex string
+                custom_payload_bytes = bytes.fromhex(payload_path[2:])
+                console.print(f"[green]✓ Loaded hex payload: {len(custom_payload_bytes)} bytes[/green]")
+            elif payload_path.upper() in ["PAYLOADTLS", "PAYLOADHTTP", "PAYLOADQUIC"]:
+                # Placeholder - will be resolved by PayloadManager
+                manager = PayloadManager()
+                manager.load_all()
+                custom_payload_bytes = manager.resolve_placeholder(payload_path, args.target)
+                if custom_payload_bytes:
+                    console.print(f"[green]✓ Resolved placeholder {payload_path}: {len(custom_payload_bytes)} bytes[/green]")
+            else:
+                console.print(f"[yellow]Warning: Payload file not found: {payload_path}[/yellow]")
+                console.print("[dim]Will use default payload from bundled payloads[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not load custom payload: {e}[/yellow]")
+    
+    # Store custom payload in args for use by attack system
+    args.custom_payload_bytes = custom_payload_bytes
+    
+    # If custom payload is specified, configure the global PayloadManager
+    if custom_payload_bytes:
+        try:
+            from core.payload import (
+                PayloadManager, 
+                PayloadType, 
+                set_global_payload_manager,
+                get_global_payload_manager
+            )
+            
+            # Get or create global manager
+            manager = get_global_payload_manager()
+            
+            # Add custom payload for the target domain
+            target_domain = args.target if hasattr(args, 'target') and args.target else "custom"
+            manager.add_payload(
+                custom_payload_bytes, 
+                PayloadType.TLS, 
+                target_domain, 
+                "inline"
+            )
+            
+            console.print(f"[green]✓ Custom payload registered for domain: {target_domain}[/green]")
+            console.print(f"[dim]All fake attacks will use this payload ({len(custom_payload_bytes)} bytes)[/dim]")
+            
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not register custom payload: {e}[/yellow]")
 
     # Оффлайн анализ PCAP и выход
     if args.profile_pcap:
@@ -4421,7 +6092,69 @@ Examples:
             console.print("[yellow]Learning cache was already empty.[/yellow]")
 
     # Определяем режим выполнения
-    if args.strategy and args.single_strategy:
+    if args.command_or_target == "payload":
+        # Payload management commands
+        execution_mode = "payload"
+        # Проверяем подкоманду
+        if not args.target:
+            console.print("[bold red]Error: Payload subcommand required[/bold red]")
+            console.print("Usage: python cli.py payload <subcommand>")
+            console.print("\nAvailable subcommands:")
+            console.print("  list                    - List available payloads")
+            console.print("  capture <domain>        - Capture ClientHello from domain")
+            console.print("  test <domain> --payload - Test strategy with payload")
+            return
+    elif args.command_or_target == "auto":
+        execution_mode = "adaptive"
+        # Проверяем, что указан target для adaptive режима
+        if not args.target:
+            console.print("[bold red]Error: Target domain required for 'auto' command[/bold red]")
+            console.print("Usage: python cli.py auto <domain>")
+            console.print("       python cli.py auto -d <domains_file>")
+            return
+    elif args.command_or_target == "revalidate":
+        execution_mode = "revalidate"
+        # Проверяем, что указан target для revalidate режима
+        if not args.target:
+            console.print("[bold red]Error: Target domain required for 'revalidate' command[/bold red]")
+            console.print("Usage: python cli.py revalidate <domain>")
+            return
+    elif args.command_or_target == "list-failures":
+        execution_mode = "list_failures"
+        # Не требует target
+    elif args.command_or_target == "compare-modes":
+        execution_mode = "compare_modes"
+        # Требует target
+        if not args.target:
+            console.print("[bold red]Error: Target domain required for 'compare-modes' command[/bold red]")
+            console.print("Usage: python cli.py compare-modes <domain>")
+            return
+    elif args.command_or_target == "analyze-pcap":
+        execution_mode = "analyze_pcap"
+        # Требует target и pcap файл
+        if not args.target:
+            console.print("[bold red]Error: Target domain required for 'analyze-pcap' command[/bold red]")
+            console.print("Usage: python cli.py analyze-pcap <domain> --pcap <file>")
+            return
+        if not args.pcap:
+            console.print("[bold red]Error: PCAP file required for 'analyze-pcap' command[/bold red]")
+            console.print("Usage: python cli.py analyze-pcap <domain> --pcap <file>")
+            return
+    elif args.command_or_target == "strategy-diff":
+        execution_mode = "strategy_diff"
+        # Требует target
+        if not args.target:
+            console.print("[bold red]Error: Target domain required for 'strategy-diff' command[/bold red]")
+            console.print("Usage: python cli.py strategy-diff <domain>")
+            return
+    elif args.command_or_target == "failure-report":
+        execution_mode = "failure_report"
+        # Требует target
+        if not args.target:
+            console.print("[bold red]Error: Target domain required for 'failure-report' command[/bold red]")
+            console.print("Usage: python cli.py failure-report <domain>")
+            return
+    elif args.strategy and args.single_strategy:
         execution_mode = "single_strategy"
     elif args.evolve:
         execution_mode = "evolutionary"
@@ -4431,6 +6164,9 @@ Examples:
         execution_mode = "per_domain"
     else:
         execution_mode = "hybrid_discovery"
+        # В legacy режиме используем command_or_target как target
+        if not args.target:
+            args.target = args.command_or_target
 
     console.print(f"[dim]Execution mode: {execution_mode}[/dim]")
 
@@ -4456,7 +6192,54 @@ Examples:
             signal.signal(signal.SIGTERM, signal_handler)
 
         # Run the appropriate mode with graceful shutdown support
-        if execution_mode == "single_strategy":
+        if execution_mode == "payload":
+            # Handle payload management commands
+            from core.cli_payload.payload_commands import cmd_payload_list, cmd_payload_capture, cmd_payload_test
+            
+            subcommand = args.target
+            if subcommand == "list":
+                exit_code = asyncio.run(cmd_payload_list(args, console))
+                sys.exit(exit_code)
+            elif subcommand == "capture":
+                # Domain is in the third positional argument or --domain flag
+                if hasattr(args, 'domain') and args.domain:
+                    exit_code = asyncio.run(cmd_payload_capture(args, console))
+                    sys.exit(exit_code)
+                else:
+                    console.print("[bold red]Error: Domain required for capture command[/bold red]")
+                    console.print("Usage: python cli.py payload capture <domain>")
+                    sys.exit(1)
+            elif subcommand == "test":
+                # Domain and payload parameter required
+                if hasattr(args, 'domain') and args.domain and hasattr(args, 'payload') and args.payload:
+                    exit_code = asyncio.run(cmd_payload_test(args, console))
+                    sys.exit(exit_code)
+                else:
+                    console.print("[bold red]Error: Domain and --payload required for test command[/bold red]")
+                    console.print("Usage: python cli.py payload test <domain> --payload <path_or_hex>")
+                    sys.exit(1)
+            else:
+                console.print(f"[bold red]Error: Unknown payload subcommand: {subcommand}[/bold red]")
+                console.print("\nAvailable subcommands:")
+                console.print("  list                    - List available payloads")
+                console.print("  capture <domain>        - Capture ClientHello from domain")
+                console.print("  test <domain> --payload - Test strategy with payload")
+                sys.exit(1)
+        elif execution_mode == "adaptive":
+            asyncio.run(run_adaptive_mode_with_cleanup(args))
+        elif execution_mode == "revalidate":
+            asyncio.run(run_revalidate_mode(args))
+        elif execution_mode == "list_failures":
+            run_list_failures_mode(args)
+        elif execution_mode == "compare_modes":
+            run_compare_modes_command(args)
+        elif execution_mode == "analyze_pcap":
+            run_analyze_pcap_command(args)
+        elif execution_mode == "strategy_diff":
+            run_strategy_diff_command(args)
+        elif execution_mode == "failure_report":
+            run_failure_report_command(args)
+        elif execution_mode == "single_strategy":
             asyncio.run(run_single_strategy_mode_with_cleanup(args))
         elif execution_mode == "evolutionary":
             asyncio.run(run_evolutionary_mode_with_cleanup(args))

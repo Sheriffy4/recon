@@ -17,47 +17,22 @@ def is_tls_clienthello(payload: bytes) -> bool:
 
 
 def parse_sni(payload: bytes) -> Optional[str]:
+    """
+    Parse SNI from TLS ClientHello payload.
+    
+    Now uses SNIManipulator for robust SNI extraction.
+    """
     try:
         if not is_tls_clienthello(payload):
             return None
-        pos = 9
-        pos += 2 + 32
-        if pos + 1 > len(payload):
-            return None
-        sid_len = payload[pos]
-        pos += 1 + sid_len
-        if pos + 2 > len(payload):
-            return None
-        cs_len = int.from_bytes(payload[pos : pos + 2], "big")
-        pos += 2 + cs_len
-        if pos + 1 > len(payload):
-            return None
-        comp_len = payload[pos]
-        pos += 1 + comp_len
-        if pos + 2 > len(payload):
-            return None
-        ext_len = int.from_bytes(payload[pos : pos + 2], "big")
-        ext_start = pos + 2
-        ext_end = min(len(payload), ext_start + ext_len)
-        s = ext_start
-        while s + 4 <= ext_end:
-            etype = int.from_bytes(payload[s : s + 2], "big")
-            elen = int.from_bytes(payload[s + 2 : s + 4], "big")
-            epos = s + 4
-            if epos + elen > ext_end:
-                break
-            if etype == 0 and elen >= 5:
-                list_len = int.from_bytes(payload[epos : epos + 2], "big")
-                npos = epos + 2
-                if npos + list_len <= epos + elen and npos + 3 <= len(payload):
-                    ntype = payload[npos]
-                    nlen = int.from_bytes(payload[npos + 1 : npos + 3], "big")
-                    nstart = npos + 3
-                    if ntype == 0 and nstart + nlen <= len(payload):
-                        return payload[nstart : nstart + nlen].decode(
-                            "idna", errors="strict"
-                        )
-            s = epos + elen
+        
+        # Use SNIManipulator for proper SNI extraction
+        from core.bypass.sni.manipulator import SNIManipulator
+        
+        sni_pos = SNIManipulator.find_sni_position(payload)
+        if sni_pos:
+            return sni_pos.sni_value
+        
         return None
     except Exception:
         return None

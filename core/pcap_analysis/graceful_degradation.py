@@ -18,6 +18,8 @@ from .error_handling import (
     PartialResult,
 )
 from .diagnostics import get_debug_logger
+from core.packet.raw_pcap_reader import RawPCAPReader, CorruptedPacketError
+from core.packet.raw_packet_engine import RawPacket
 
 
 @dataclass
@@ -51,6 +53,7 @@ class GracefulPCAPParser:
     def __init__(self):
         self.logger = logging.getLogger("pcap_analysis.graceful_parser")
         self.debug_logger = get_debug_logger()
+        self.pcap_reader = RawPCAPReader()  # Use RawPCAPReader instead of Scapy
         self.fallback_strategies = self._setup_fallback_strategies()
         self.parsing_stats = {
             "total_files": 0,
@@ -61,29 +64,29 @@ class GracefulPCAPParser:
         }
 
     def _setup_fallback_strategies(self) -> List[FallbackStrategy]:
-        """Setup fallback parsing strategies."""
+        """Setup fallback parsing strategies with RawPCAPReader as primary."""
         return [
             FallbackStrategy(
                 name="skip_corrupted_packets",
-                description="Skip corrupted packets and continue parsing",
+                description="Skip corrupted packets using RawPCAPReader streaming",
                 priority=1,
                 min_success_rate=0.7,
             ),
             FallbackStrategy(
                 name="partial_file_parsing",
-                description="Parse only the readable portion of the file",
+                description="Parse only the readable portion using RawPCAPReader",
                 priority=2,
                 min_success_rate=0.5,
             ),
             FallbackStrategy(
-                name="alternative_parser",
-                description="Use alternative parsing library",
+                name="raw_packet_extraction",
+                description="Extract packets using RawPacketEngine",
                 priority=3,
                 min_success_rate=0.4,
             ),
             FallbackStrategy(
-                name="raw_packet_extraction",
-                description="Extract packets using raw binary parsing",
+                name="alternative_parser",
+                description="Use alternative parsing library (dpkt) as last resort",
                 priority=4,
                 min_success_rate=0.3,
             ),
@@ -329,27 +332,27 @@ class GracefulPCAPParser:
             )
 
     def _parse_normal(self, filepath: str) -> List[PacketInfo]:
-        """Normal PCAP parsing using scapy."""
+        """Normal PCAP parsing using RawPCAPReader."""
         try:
-            from scapy.all import rdpcap, TCP, TLS
-
-            packets = rdpcap(filepath)
+            self.logger.info("ℹ️ Используется RawPCAPReader для парсинга PCAP")
+            
+            # Use RawPCAPReader to read packets
+            raw_packets = self.pcap_reader.read_pcap_file(filepath)
             packet_infos = []
 
-            for i, packet in enumerate(packets):
+            for i, raw_packet in enumerate(raw_packets):
                 try:
-                    if TCP in packet:
-                        packet_info = self._extract_packet_info(packet, i)
-                        if packet_info:
-                            packet_infos.append(packet_info)
+                    # Convert RawPacket to PacketInfo
+                    packet_info = self._raw_packet_to_packet_info(raw_packet, i)
+                    if packet_info:
+                        packet_infos.append(packet_info)
                 except Exception as e:
                     self.logger.warning(f"Error processing packet {i}: {e}")
                     continue
 
+            self.logger.info(f"✅ Успешно обработано {len(packet_infos)} пакетов")
             return packet_infos
 
-        except ImportError:
-            raise PCAPParsingError("Scapy not available for normal parsing", filepath)
         except Exception as e:
             raise PCAPParsingError(
                 f"Normal parsing failed: {e}", filepath, original_error=e
@@ -376,30 +379,27 @@ class GracefulPCAPParser:
     def _skip_corrupted_packets(
         self, filepath: str, file_info: PCAPFileInfo
     ) -> PartialResult:
-        """Skip corrupted packets and continue parsing."""
+        """Skip corrupted packets and continue parsing using RawPCAPReader streaming."""
         try:
-            from scapy.all import PcapReader, TCP
-
+            self.logger.info("ℹ️ Используется RawPCAPReader с пропуском поврежденных пакетов")
+            
             packet_infos = []
             skipped_count = 0
             total_count = 0
 
-            with PcapReader(filepath) as pcap_reader:
-                for packet in pcap_reader:
-                    total_count += 1
-                    try:
-                        if TCP in packet:
-                            packet_info = self._extract_packet_info(
-                                packet, total_count - 1
-                            )
-                            if packet_info:
-                                packet_infos.append(packet_info)
-                    except Exception as e:
-                        skipped_count += 1
-                        self.logger.debug(
-                            f"Skipped corrupted packet {total_count}: {e}"
-                        )
-                        continue
+            # Use iterate_packets for streaming (handles corrupted packets gracefully)
+            for raw_packet in self.pcap_reader.iterate_packets(filepath):
+                total_count += 1
+                try:
+                    packet_info = self._raw_packet_to_packet_info(raw_packet, total_count - 1)
+                    if packet_info:
+                        packet_infos.append(packet_info)
+                except Exception as e:
+                    skipped_count += 1
+                    self.logger.debug(
+                        f"Skipped corrupted packet {total_count}: {e}"
+                    )
+                    continue
 
             success_rate = (total_count - skipped_count) / max(1, total_count)
 
@@ -411,7 +411,7 @@ class GracefulPCAPParser:
                 ],
                 completeness=success_rate,
                 metadata={
-                    "parsing_method": "skip_corrupted",
+                    "parsing_method": "skip_corrupted_raw",
                     "total_packets": total_count,
                     "skipped_packets": skipped_count,
                     "success_rate": success_rate,
@@ -431,8 +431,10 @@ class GracefulPCAPParser:
     def _partial_file_parsing(
         self, filepath: str, file_info: PCAPFileInfo
     ) -> PartialResult:
-        """Parse only the readable portion of the file."""
+        """Parse only the readable portion of the file using RawPCAPReader."""
         try:
+            self.logger.info(f"ℹ️ Парсинг частичного файла ({file_info.readable_portion:.1%}) с RawPCAPReader")
+            
             # Create a temporary file with only the readable portion
             readable_bytes = int(file_info.size_bytes * file_info.readable_portion)
 
@@ -441,16 +443,16 @@ class GracefulPCAPParser:
                 dst.write(src.read(readable_bytes))
 
             try:
-                # Parse the partial file
+                # Parse the partial file using RawPCAPReader
                 packet_infos = self._parse_normal(temp_filepath)
 
                 return PartialResult(
                     success=True,
                     data=packet_infos,
-                    warnings=[f"Parsed only {file_info.readable_portion:.1%} of file"],
+                    warnings=[f"Parsed only {file_info.readable_portion:.1%} of file using RawPCAPReader"],
                     completeness=file_info.readable_portion,
                     metadata={
-                        "parsing_method": "partial_file",
+                        "parsing_method": "partial_file_raw",
                         "readable_portion": file_info.readable_portion,
                         "readable_bytes": readable_bytes,
                     },
@@ -475,8 +477,10 @@ class GracefulPCAPParser:
     def _alternative_parser(
         self, filepath: str, file_info: PCAPFileInfo
     ) -> PartialResult:
-        """Use alternative parsing library (dpkt)."""
+        """Use alternative parsing library (dpkt) as last resort fallback."""
         try:
+            self.logger.info("ℹ️ Используется альтернативный парсер (dpkt) как последний fallback")
+            
             import dpkt
             import socket
 
@@ -517,12 +521,13 @@ class GracefulPCAPParser:
             return PartialResult(
                 success=True,
                 data=packet_infos,
-                warnings=["Used alternative parser (dpkt)"],
-                completeness=0.8,  # Assume some loss of detail
-                metadata={"parsing_method": "dpkt"},
+                warnings=["Used alternative parser (dpkt) as fallback"],
+                completeness=0.7,  # Lower priority than RawPCAPReader
+                metadata={"parsing_method": "dpkt_fallback"},
             )
 
         except ImportError:
+            self.logger.warning("⚠️ dpkt не доступен для альтернативного парсинга")
             return PartialResult(
                 success=False,
                 data=None,
@@ -540,13 +545,22 @@ class GracefulPCAPParser:
     def _raw_packet_extraction(
         self, filepath: str, file_info: PCAPFileInfo
     ) -> PartialResult:
-        """Extract packets using raw binary parsing."""
+        """Extract packets using RawPacketEngine.parse_packet_sync()."""
         try:
+            self.logger.info("ℹ️ Используется RawPacketEngine для извлечения пакетов")
+            
             packet_infos = []
 
             with open(filepath, "rb") as f:
-                # Skip PCAP global header
-                f.seek(24)
+                # Parse PCAP header to get byte order
+                try:
+                    pcap_header = self.pcap_reader.parse_pcap_header(f)
+                    endian = '<' if pcap_header.byte_order == 'little' else '>'
+                except Exception as e:
+                    self.logger.warning(f"Failed to parse PCAP header, using default: {e}")
+                    # Skip to packet data
+                    f.seek(24)
+                    endian = '<'
 
                 packet_index = 0
                 while True:
@@ -556,8 +570,9 @@ class GracefulPCAPParser:
                         break
 
                     try:
+                        format_str = f'{endian}IIII'
                         ts_sec, ts_usec, incl_len, orig_len = struct.unpack(
-                            "<IIII", packet_header
+                            format_str, packet_header
                         )
 
                         # Basic sanity checks
@@ -569,12 +584,21 @@ class GracefulPCAPParser:
                         if len(packet_data) < incl_len:
                             break
 
-                        # Try to extract basic info
-                        packet_info = self._extract_basic_info_raw(
-                            packet_data, ts_sec + ts_usec / 1000000.0, packet_index
-                        )
-                        if packet_info:
-                            packet_infos.append(packet_info)
+                        # Use RawPacketEngine to parse packet
+                        try:
+                            raw_packet = self.pcap_reader.engine.parse_packet_sync(packet_data)
+                            timestamp = ts_sec + ts_usec / 1000000.0
+                            packet_info = self._raw_packet_to_packet_info(raw_packet, packet_index, timestamp)
+                            if packet_info:
+                                packet_infos.append(packet_info)
+                        except Exception as e:
+                            self.logger.debug(f"Failed to parse packet {packet_index} with RawPacketEngine: {e}")
+                            # Fallback to basic extraction
+                            packet_info = self._extract_basic_info_raw(
+                                packet_data, ts_sec + ts_usec / 1000000.0, packet_index
+                            )
+                            if packet_info:
+                                packet_infos.append(packet_info)
 
                         packet_index += 1
 
@@ -591,10 +615,10 @@ class GracefulPCAPParser:
             return PartialResult(
                 success=True,
                 data=packet_infos,
-                warnings=["Used raw packet extraction - limited information available"],
-                completeness=0.4,
+                warnings=["Used RawPacketEngine for packet extraction"],
+                completeness=0.6,  # Higher completeness with RawPacketEngine
                 metadata={
-                    "parsing_method": "raw_extraction",
+                    "parsing_method": "raw_packet_engine",
                     "packets_extracted": len(packet_infos),
                 },
             )
@@ -634,47 +658,104 @@ class GracefulPCAPParser:
                 completeness=0.0,
             )
 
-    def _extract_packet_info(self, packet, index: int) -> Optional[PacketInfo]:
-        """Extract packet information from scapy packet."""
+    def _raw_packet_to_packet_info(
+        self, raw_packet: RawPacket, index: int, timestamp: Optional[float] = None
+    ) -> Optional[PacketInfo]:
+        """
+        Convert RawPacket to PacketInfo.
+        
+        Args:
+            raw_packet: RawPacket from RawPCAPReader
+            index: Packet index
+            timestamp: Optional timestamp (if not available, use 0.0)
+            
+        Returns:
+            PacketInfo or None if conversion fails
+        """
         try:
-            from scapy.all import TCP, IP, TLS
-
-            if not (IP in packet and TCP in packet):
+            # Extract TCP header information from raw packet data
+            if len(raw_packet.data) < 34:  # Minimum Ethernet + IP + TCP
                 return None
-
-            ip = packet[IP]
-            tcp = packet[TCP]
-
-            # Check for TLS
-            is_client_hello = False
+            
+            # Skip Ethernet header (14 bytes) and parse IP header
+            ip_start = 14
+            ip_header = raw_packet.data[ip_start:ip_start + 20]
+            
+            if len(ip_header) < 20:
+                return None
+            
+            # Parse IP header fields
+            version_ihl = ip_header[0]
+            ihl = (version_ihl & 0x0F) * 4
+            ttl = ip_header[8]
+            protocol = ip_header[9]
+            
+            if protocol != 6:  # Not TCP
+                return None
+            
+            # Parse TCP header
+            tcp_start = ip_start + ihl
+            tcp_header = raw_packet.data[tcp_start:tcp_start + 20]
+            
+            if len(tcp_header) < 20:
+                return None
+            
+            seq_num = struct.unpack(">I", tcp_header[4:8])[0]
+            ack_num = struct.unpack(">I", tcp_header[8:12])[0]
+            
+            # TCP flags
+            flags_byte = tcp_header[13]
+            flags = []
+            flag_names = ["FIN", "SYN", "RST", "PSH", "ACK", "URG", "ECE", "CWR"]
+            for i, flag_name in enumerate(flag_names):
+                if flags_byte & (1 << i):
+                    flags.append(flag_name)
+            
+            # Window size
+            window_size = struct.unpack(">H", tcp_header[14:16])[0]
+            
+            # Checksum
+            checksum = struct.unpack(">H", tcp_header[16:18])[0]
+            
+            # TCP header length
+            tcp_header_len = ((tcp_header[12] >> 4) & 0xF) * 4
+            
+            # Payload
+            payload = raw_packet.payload if raw_packet.payload else b""
+            
+            # Check for TLS ClientHello
+            is_client_hello = self._is_tls_client_hello(payload)
             tls_info = None
-            if TLS in packet:
-                tls_info = self._extract_tls_info(packet[TLS])
-                is_client_hello = tls_info is not None
-            elif tcp.payload:
-                is_client_hello = self._is_tls_client_hello(bytes(tcp.payload))
-
+            if is_client_hello:
+                tls_info = TLSInfo.from_payload(payload)
+            
             return PacketInfo(
-                timestamp=float(packet.time),
-                src_ip=ip.src,
-                dst_ip=ip.dst,
-                src_port=tcp.sport,
-                dst_port=tcp.dport,
-                sequence_num=tcp.seq,
-                ack_num=tcp.ack,
-                ttl=ip.ttl,
-                flags=self._parse_tcp_flags_scapy(tcp.flags),
-                payload_length=len(tcp.payload),
-                payload_hex=bytes(tcp.payload).hex() if tcp.payload else "",
-                checksum=tcp.chksum,
-                checksum_valid=True,  # Assume valid for now
+                timestamp=timestamp if timestamp is not None else 0.0,
+                src_ip=raw_packet.src_ip,
+                dst_ip=raw_packet.dst_ip,
+                src_port=raw_packet.src_port or 0,
+                dst_port=raw_packet.dst_port or 0,
+                sequence_num=seq_num,
+                ack_num=ack_num,
+                ttl=ttl,
+                flags=flags,
+                window_size=window_size,
+                payload_length=len(payload),
+                payload=payload,
+                payload_hex=payload.hex() if payload else "",
+                checksum=checksum,
+                checksum_valid=True,  # TODO: Implement checksum validation
                 is_client_hello=is_client_hello,
                 tls_info=tls_info,
+                packet_size=len(raw_packet.data),
+                raw_data=raw_packet.data,
             )
-
+            
         except Exception as e:
-            self.logger.debug(f"Error extracting packet info for packet {index}: {e}")
+            self.logger.debug(f"Error converting RawPacket to PacketInfo for packet {index}: {e}")
             return None
+
+    # Removed _extract_packet_info - replaced by _raw_packet_to_packet_info which uses RawPCAPReader
 
     def _extract_basic_info_raw(
         self, packet_data: bytes, timestamp: float, index: int
@@ -746,22 +827,7 @@ class GracefulPCAPParser:
             self.logger.debug(f"Error in raw packet extraction: {e}")
             return None
 
-    def _parse_tcp_flags_scapy(self, flags) -> List[str]:
-        """Parse TCP flags from scapy."""
-        flag_names = []
-        if flags & 0x01:
-            flag_names.append("FIN")
-        if flags & 0x02:
-            flag_names.append("SYN")
-        if flags & 0x04:
-            flag_names.append("RST")
-        if flags & 0x08:
-            flag_names.append("PSH")
-        if flags & 0x10:
-            flag_names.append("ACK")
-        if flags & 0x20:
-            flag_names.append("URG")
-        return flag_names
+    # Removed _parse_tcp_flags_scapy - TCP flags are now parsed in _raw_packet_to_packet_info
 
     def _parse_tcp_flags_dpkt(self, flags) -> List[str]:
         """Parse TCP flags from dpkt."""
@@ -792,19 +858,7 @@ class GracefulPCAPParser:
 
         return False
 
-    def _extract_tls_info(self, tls_layer) -> Optional[TLSInfo]:
-        """Extract TLS information from scapy TLS layer."""
-        try:
-            # This would need proper TLS parsing implementation
-            return TLSInfo(
-                version="unknown",
-                cipher_suites=[],
-                extensions=[],
-                sni=None,
-                client_hello_length=0,
-            )
-        except Exception:
-            return None
+    # Removed _extract_tls_info - TLS info is now extracted in _raw_packet_to_packet_info using TLSInfo.from_payload()
 
     def get_parsing_statistics(self) -> Dict[str, Any]:
         """Get parsing statistics."""

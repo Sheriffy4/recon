@@ -1,0 +1,10 @@
+{
+  "strategy_id": "f5bdae33-5c81-45e8-b593-c09971f2a2a4",
+  "strategy_name": "fake",
+  "domain": "pagead2.googlesyndication.com",
+  "timestamp": "2025-12-05T10:35:13.308579",
+  "operations": [],
+  "metadata": {
+    "target_ip": "142.250.74.130"
+  }
+}

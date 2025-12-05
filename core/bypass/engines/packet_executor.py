@@ -42,12 +42,7 @@ class IntelligentPacketExecutor:
             LOG.debug("Нет сегментов для отправки или атака не была успешной.")
             return False
         segments = result.metadata["segments"]
-        try:
-            normalized_ip = self._filter_gen.normalize_ip(context.dst_ip)
-        except Exception:
-            normalized_ip = context.dst_ip
         filter_str = self._filter_gen.generate(
-            target_ips=[normalized_ip],
             target_ports=[context.dst_port],
             direction="outbound",
             protocols=("tcp",),

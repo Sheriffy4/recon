@@ -64,6 +64,55 @@ except ImportError:
     enhance_rst_analysis = None
     ENHANCED_RST_AVAILABLE = False
 
+try:
+    from .strategy_intent_engine import (
+        StrategyIntentEngine,
+        StrategyIntent,
+        IntentCategory,
+    )
+
+    STRATEGY_INTENT_ENGINE_AVAILABLE = True
+except ImportError:
+    # Fallback definitions
+    StrategyIntentEngine = None
+    StrategyIntent = None
+    IntentCategory = None
+    STRATEGY_INTENT_ENGINE_AVAILABLE = False
+
+try:
+    from .intent_attack_mapper import (
+        IntentAttackMapper,
+        AttackMapping,
+        GeneratedStrategy,
+    )
+
+    INTENT_ATTACK_MAPPER_AVAILABLE = True
+except ImportError:
+    # Fallback definitions
+    IntentAttackMapper = None
+    AttackMapping = None
+    GeneratedStrategy = None
+    INTENT_ATTACK_MAPPER_AVAILABLE = False
+
+try:
+    from .validator import (
+        StrategyValidator,
+        ValidationResult,
+        CompatibilityResult,
+        TestResult,
+        create_strategy_validator,
+    )
+
+    STRATEGY_VALIDATOR_AVAILABLE = True
+except ImportError:
+    # Fallback definitions
+    StrategyValidator = None
+    ValidationResult = None
+    CompatibilityResult = None
+    TestResult = None
+    create_strategy_validator = None
+    STRATEGY_VALIDATOR_AVAILABLE = False
+
 # Build __all__ dynamically based on what's available
 __all__ = []
 
@@ -99,12 +148,44 @@ if ENHANCED_RST_AVAILABLE:
         ]
     )
 
+if STRATEGY_INTENT_ENGINE_AVAILABLE:
+    __all__.extend(
+        [
+            "StrategyIntentEngine",
+            "StrategyIntent",
+            "IntentCategory",
+        ]
+    )
+
+if INTENT_ATTACK_MAPPER_AVAILABLE:
+    __all__.extend(
+        [
+            "IntentAttackMapper",
+            "AttackMapping",
+            "GeneratedStrategy",
+        ]
+    )
+
+if STRATEGY_VALIDATOR_AVAILABLE:
+    __all__.extend(
+        [
+            "StrategyValidator",
+            "ValidationResult",
+            "CompatibilityResult",
+            "TestResult",
+            "create_strategy_validator",
+        ]
+    )
+
 # Add availability flags
 __all__.extend(
     [
         "RULE_ENGINE_AVAILABLE",
         "INTELLIGENT_GENERATOR_AVAILABLE",
         "ENHANCED_RST_AVAILABLE",
+        "STRATEGY_INTENT_ENGINE_AVAILABLE",
+        "INTENT_ATTACK_MAPPER_AVAILABLE",
+        "STRATEGY_VALIDATOR_AVAILABLE",
     ]
 )
 

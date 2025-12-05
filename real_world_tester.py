@@ -7,7 +7,7 @@ import time
 import logging
 import socket
 import threading
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Set
 from urllib.parse import urlparse
 
 # ИСПРАВЛЕНИЕ: Добавляем импорты Scapy на уровень модуля,
@@ -107,7 +107,6 @@ class RealWorldTester:
                     gen = WinDivertFilterGenerator()
                     ports = [80, 443] if target_port == 0 else [target_port]
                     candidates = gen.progressive_candidates(
-                        target_ips=[],
                         target_ports=ports,
                         direction="outbound",
                         protocols=("tcp",),

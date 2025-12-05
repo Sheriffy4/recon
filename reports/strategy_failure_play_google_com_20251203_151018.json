@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-12-03T15:10:18.499890",
+  "domain": "play.google.com",
+  "retransmissions": 3,
+  "strategy": {
+    "type": "smart_combo_split_fake",
+    "params": {
+      "fooling": [
+        "badsum"
+      ],
+      "ttl": 3,
+      "fake_data": null,
+      "custom_sni": null
+    },
+    "attacks": [
+      "split",
+      "fake"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 19,
+  "recommendations": [
+    "Run 'cli.py test play.google.com' to re-test the strategy",
+    "Run 'cli.py auto play.google.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "play.google.com",
+    "source": "sni",
+    "ip_address": "142.251.38.110:443",
+    "matched_rule": null,
+    "conflict_detected": false,
+    "sni_domain": "play.google.com",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "google.com",
+    "recommendation": "Try removing 'play.google.com' rule to use parent domain 'google.com' strategy"
+  }
+}

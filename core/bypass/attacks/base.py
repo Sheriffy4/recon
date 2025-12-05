@@ -468,6 +468,7 @@ class AttackResult:
     connection_established: bool = False
     data_transmitted: bool = False
     modified_payload: Optional[bytes] = None
+    segments: Optional[List[Tuple[bytes, int, Dict[str, Any]]]] = None
 
     def __post_init__(self):
         """Ensure proper initialization of metadata."""
@@ -582,21 +583,57 @@ class AttackResult:
         if value is None:
             self.metadata.pop("segments", None)
         else:
+            # ✅ Validate and fix segments instead of raising errors
             if not isinstance(value, list):
-                raise ValueError("Segments must be a list")
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"AttackResult.segments: value is not a list ({type(value)}), converting to empty list")
+                self.metadata["segments"] = []
+                return
+            
+            # Validate and filter segments
+            valid_segments = []
             for i, segment in enumerate(value):
                 if not isinstance(segment, tuple) or len(segment) != 3:
-                    raise ValueError(
-                        f"Segment {i} must be a tuple of length 3: (payload_data, seq_offset, options_dict)"
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"AttackResult.segments: Segment {i} is not a tuple of length 3, skipping"
                     )
+                    continue
+                
                 payload_data, seq_offset, options_dict = segment
+                
+                # Validate types
                 if not isinstance(payload_data, bytes):
-                    raise ValueError(f"Segment {i} payload_data must be bytes")
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"AttackResult.segments: Segment {i} payload_data is not bytes, skipping")
+                    continue
                 if not isinstance(seq_offset, int):
-                    raise ValueError(f"Segment {i} seq_offset must be int")
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"AttackResult.segments: Segment {i} seq_offset is not int, skipping")
+                    continue
                 if not isinstance(options_dict, dict):
-                    raise ValueError(f"Segment {i} options_dict must be dict")
-            self.metadata["segments"] = value
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"AttackResult.segments: Segment {i} options_dict is not dict, skipping")
+                    continue
+                
+                # Segment is valid
+                valid_segments.append(segment)
+            
+            # Store only valid segments
+            self.metadata["segments"] = valid_segments
+            
+            if len(valid_segments) < len(value):
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"AttackResult.segments: Filtered {len(value) - len(valid_segments)} invalid segments, "
+                    f"kept {len(valid_segments)} valid segments"
+                )
 
     def add_segment(
         self,

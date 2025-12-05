@@ -85,28 +85,76 @@ class SegmentPacketBuilder:
             )
             tcp_window = options.get("window_size", context.tcp_window_size)
             ttl = options.get("ttl", 64)
-            # Синонимы badsum
-            bad_checksum = options.get(
-                "bad_checksum", options.get("corrupt_tcp_checksum", False)
+            
+            # Task 2.3: Add TTL validation for fake packets
+            is_fake = options.get("is_fake", False)
+            if is_fake and ttl == 64:
+                self.logger.warning(
+                    f"⚠️ Fake packet has default TTL=64, this may not expire before DPI! "
+                    f"Consider using TTL=1-10 for fake packets."
+                )
+            
+            # Task 2.3: Log TTL value when building packet
+            if is_fake:
+                self.logger.debug(f"🔧 Building fake packet with TTL={ttl}")
+            else:
+                self.logger.debug(f"🔧 Building real packet with TTL={ttl}")
+            # Task 3.3: Handle fooling methods from fooling parameter
+            # Support both old-style (bad_checksum, corrupt_sequence) and new-style (fooling)
+            fooling_methods = options.get("fooling", [])
+            if isinstance(fooling_methods, str):
+                fooling_methods = [fooling_methods]
+            
+            # Check for badsum in fooling methods
+            bad_checksum = (
+                "badsum" in fooling_methods or
+                options.get("bad_checksum", False) or
+                options.get("corrupt_tcp_checksum", False)
             )
+            
+            # Check for badseq in fooling methods
+            corrupt_sequence = (
+                "badseq" in fooling_methods or
+                options.get("corrupt_sequence", False)
+            )
+            
+            # Task 3.4: Log which fooling methods are applied
+            if fooling_methods:
+                self.logger.info(f"🎭 Applying fooling methods: {fooling_methods}")
+            if bad_checksum:
+                self.logger.debug("   - badsum: will corrupt TCP checksum to 0xDEAD")
+            if corrupt_sequence:
+                self.logger.debug("   - badseq: will corrupt TCP sequence number")
             src_ip = context.src_ip or self._get_source_ip(context.dst_ip)
             src_port = context.src_port or self._get_source_port()
-            # seq_extra для badseq
-            seq_extra = int(
-                options.get("seq_offset", -10000 if options.get("bad_sequence") else 0)
-            )
+            
+            # CRITICAL FIX: Calculate seq_offset AFTER determining corrupt_sequence from fooling_methods
+            # Previously, seq_offset was calculated before corrupt_sequence was set from fooling_methods,
+            # causing badseq to not apply the 0x10000000 offset correctly.
+            seq_offset = options.get("seq_offset")
+            if seq_offset is None:
+                # Use corrupt_sequence (derived from fooling_methods) to determine offset
+                # For badseq, use far-future offset (0x10000000) to avoid overlap with real packets
+                seq_extra = int(
+                    options.get("seq_extra", 0x10000000 if corrupt_sequence else 0)
+                )
+                seq_offset = seq_extra
+                
+                if corrupt_sequence:
+                    self.logger.info(f"🔧 badseq: applying seq_offset=0x{seq_offset:08X}")
             packet_bytes = self._build_raw_tcp_packet(
                 src_ip=src_ip,
                 dst_ip=context.dst_ip,
                 src_port=src_port,
                 dst_port=context.dst_port,
-                seq=tcp_seq + seq_extra,
+                seq=tcp_seq + seq_offset,
                 ack=tcp_ack,
                 flags=tcp_flags,
                 window=tcp_window,
                 ttl=ttl,
                 payload=payload,
                 corrupt_checksum=bad_checksum,
+                corrupt_sequence=corrupt_sequence,
                 tcp_options=self._merge_tcp_options(context.tcp_options, options),
                 raw_packet=context.raw_packet,
             )
@@ -115,10 +163,28 @@ class SegmentPacketBuilder:
             self.stats["total_build_time_ms"] += construction_time
             if bad_checksum:
                 self.stats["checksum_corruptions"] += 1
+            if corrupt_sequence:
+                if "sequence_corruptions" not in self.stats:
+                    self.stats["sequence_corruptions"] = 0
+                self.stats["sequence_corruptions"] += 1
             if ttl != 64:
                 self.stats["ttl_modifications"] += 1
             if tcp_flags != context.tcp_flags:
                 self.stats["flag_modifications"] += 1
+            
+            # Task 2.3: Verify TTL in built packet matches params
+            # Extract TTL from IP header (byte 8)
+            built_ttl = packet_bytes[8]
+            if built_ttl != ttl:
+                self.logger.error(
+                    f"❌ TTL mismatch! Expected {ttl}, but packet has {built_ttl}"
+                )
+                raise SegmentPacketBuildError(
+                    f"TTL verification failed: expected {ttl}, got {built_ttl}"
+                )
+            else:
+                self.logger.debug(f"✅ TTL verified: {built_ttl} matches expected {ttl}")
+            
             return SegmentPacketInfo(
                 packet_bytes=packet_bytes,
                 packet_size=len(packet_bytes),
@@ -148,77 +214,80 @@ class SegmentPacketBuilder:
         ttl: int,
         payload: bytes,
         corrupt_checksum: bool = False,
+        corrupt_sequence: bool = False,
         tcp_options: bytes = b"",
         raw_packet: Optional[bytes] = None,
     ) -> bytes:
         """
         Build raw TCP packet with complete control over headers.
-        FIX: Rewritten for robustness to prevent WinError 87.
+        
+        Args:
+            corrupt_checksum: If True, set TCP checksum to 0xDEAD (badsum)
+            corrupt_sequence: If True, add offset to sequence number (badseq)
         """
-        # 1. Build TCP Header
-        tcp_header = self._build_tcp_header(
+        # Task 3.3: Apply sequence corruption if badseq is requested
+        actual_seq = seq
+        if corrupt_sequence:
+            # Add large offset for badseq (already added in seq_offset, but log it)
+            self.logger.debug(f"🔧 Sequence corruption (badseq): using seq={seq}")
+        
+        tcp_hdr = self._build_tcp_header(
             src_port=src_port,
             dst_port=dst_port,
-            seq=seq,
+            seq=actual_seq,
             ack=ack,
             flags=flags,
             window=window,
             tcp_options=tcp_options,
         )
 
-        # 2. Build IP Header
-        ip_header = self._build_ip_header(
-            src_ip=src_ip,
-            dst_ip=dst_ip,
-            ttl=ttl,
-            ip_id=random.randint(1, 65535),
-            total_len=20 + len(tcp_header) + len(payload) # IP(20) + TCP + Payload
-        )
+        ip_hl = (raw_packet[0] & 0x0F) * 4 if raw_packet else 20
 
-        # 3. Calculate TCP Checksum
-        tcp_checksum = self.builder.build_tcp_checksum(
+        # Build IP header from scratch
+        total_len = ip_hl + len(tcp_hdr) + len(payload)
+
+        raw = bytearray(raw_packet) if raw_packet else bytearray(ip_hl)
+        if not raw_packet:
+            raw[0] = (4 << 4) | 5
+            raw[9] = 6  # TCP
+            raw[12:16] = socket.inet_aton(src_ip)
+            raw[16:20] = socket.inet_aton(dst_ip)
+
+        ip_hdr = self._build_ip_header(raw, ip_hl, total_len, ttl, None)
+
+        # Assemble packet
+        seg_raw = bytearray(ip_hdr + tcp_hdr + payload)
+
+        # Final IP checksum calculation (single pass)
+        seg_raw[10:12] = b"\x00\x00"
+        ip_csum = self.builder.calculate_checksum(seg_raw[:ip_hl])
+        seg_raw[10:12] = struct.pack("!H", ip_csum)
+        self.logger.debug(f"✅ IP checksum set: 0x{ip_csum:04X}")
+
+        # TCP checksum calculation
+        tcp_start = ip_hl
+        tcp_end = ip_hl + len(tcp_hdr)
+        # Zero CSUM field before calculation
+        seg_raw[tcp_start + 16 : tcp_start + 18] = b"\x00\x00"
+        good_csum = self.builder.build_tcp_checksum(
             socket.inet_aton(src_ip),
             socket.inet_aton(dst_ip),
-            tcp_header,
-            payload,
+            seg_raw[tcp_start:tcp_end],
+            seg_raw[tcp_end:],
         )
-        
+
         if corrupt_checksum:
-            # Use a fixed non-zero value for corrupted checksum
-            final_tcp_checksum = 0xDEAD
+            # Task 3.3, 3.4: Use 0xDEAD for badsum and log before/after
+            bad_csum = 0xDEAD
+            seg_raw[tcp_start + 16 : tcp_start + 18] = struct.pack("!H", bad_csum)
+            self.logger.debug(
+                f"🔧 TCP checksum corrupted (badsum): 0x{good_csum:04X} → 0x{bad_csum:04X}"
+            )
         else:
-            final_tcp_checksum = tcp_checksum
+            seg_raw[tcp_start + 16 : tcp_start + 18] = struct.pack("!H", good_csum)
+            self.logger.debug(f"✅ TCP checksum set: 0x{good_csum:04X}")
 
-        # 4. Re-assemble TCP header with correct checksum
-        tcp_header_with_csum = tcp_header[:16] + struct.pack('!H', final_tcp_checksum) + tcp_header[18:]
-
-        # 5. Assemble final packet
-        final_packet = ip_header + tcp_header_with_csum + payload
-        
-        return final_packet
-
-    def _build_ip_header(self, src_ip: str, dst_ip: str, ttl: int, ip_id: int, total_len: int) -> bytes:
-        """Builds a valid IPv4 header from scratch."""
-        ip_ihl = 5
-        ip_ver = 4
-        ip_tos = 0
-        ip_frag_off = 0
-        ip_proto = socket.IPPROTO_TCP
-        ip_check = 0  # Kernel will calculate this if 0
-        ip_saddr = socket.inet_aton(src_ip)
-        ip_daddr = socket.inet_aton(dst_ip)
-        ip_ihl_ver = (ip_ver << 4) + ip_ihl
-
-        # Pack without checksum
-        ip_header = struct.pack('!BBHHHBBH4s4s', ip_ihl_ver, ip_tos, total_len, ip_id, ip_frag_off, ttl, ip_proto, ip_check, ip_saddr, ip_daddr)
-        
-        # Calculate checksum
-        ip_check = self.builder.calculate_checksum(ip_header)
-        
-        # Repack with correct checksum
-        ip_header = struct.pack('!BBHHHBBH4s4s', ip_ihl_ver, ip_tos, total_len, ip_id, ip_frag_off, ttl, ip_proto, ip_check, ip_saddr, ip_daddr)
-        
-        return ip_header
+        return bytes(seg_raw)
 
     def _build_tcp_header(
         self,
@@ -232,6 +301,18 @@ class SegmentPacketBuilder:
     ) -> bytes:
         """
         Build TCP header with precise control.
+
+        Args:
+            src_port: Source port
+            dst_port: Destination port
+            seq: Sequence number
+            ack: Acknowledgment number
+            flags: TCP flags
+            window: Window size
+            tcp_options: TCP options
+
+        Returns:
+            TCP header bytes
         """
         options_padded = tcp_options
         if len(options_padded) % 4 != 0:
@@ -247,8 +328,8 @@ class SegmentPacketBuilder:
             header_length << 4,
             flags,
             window,
-            0, # Checksum placeholder
-            0, # Urgent pointer
+            0,
+            0,
         )
         tcp_header += options_padded
         return tcp_header
@@ -265,9 +346,57 @@ class SegmentPacketBuilder:
                 out += b"\x01" * (4 - len(out) % 4)  # NOP padding
         return out
 
+    def _build_ip_header(
+        self, raw: bytearray, ip_hl: int, total_len: int, ttl: int, ip_id: Optional[int]
+    ) -> bytearray:
+        """
+        Builds a new IPv4 header from scratch, preserving key fields
+        from the original header.
+        """
+        vihl = raw[0]
+        version = (vihl >> 4) & 0x0F
+        ihl = vihl & 0x0F
+        if version != 4 or ihl < 5:
+            raise ValueError(f"Unsupported IP header: version={version}, ihl={ihl}")
+
+        tos = raw[1]
+        if ip_id is None:
+            ip_id_val = struct.unpack("!H", raw[4:6])[0]
+        else:
+            ip_id_val = int(ip_id) & 0xFFFF
+
+        flags_frag = struct.unpack("!H", raw[6:8])[0]
+        proto = raw[9]
+        src = raw[12:16]
+        dst = raw[16:20]
+
+        ip_hdr = bytearray(ihl * 4)
+        ip_hdr[0] = (4 << 4) | ihl  # Version/IHL
+        ip_hdr[1] = tos  # DSCP/ECN
+        ip_hdr[2:4] = struct.pack("!H", total_len)
+        ip_hdr[4:6] = struct.pack("!H", ip_id_val)
+        ip_hdr[6:8] = struct.pack("!H", flags_frag)
+        ip_hdr[8] = ttl & 0xFF
+        ip_hdr[9] = proto
+        ip_hdr[10:12] = b"\x00\x00"
+        ip_hdr[12:16] = src
+        ip_hdr[16:20] = dst
+
+        # Copy IP options if they exist
+        if ihl > 5:
+            ip_hdr[20 : ihl * 4] = raw[20 : ihl * 4]
+
+        return ip_hdr
+
     def _get_source_ip(self, dst_ip: str) -> str:
         """
         Get appropriate source IP for destination.
+
+        Args:
+            dst_ip: Destination IP address
+
+        Returns:
+            Source IP address
         """
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -279,13 +408,23 @@ class SegmentPacketBuilder:
     def _get_source_port(self) -> int:
         """
         Get random source port in ephemeral range.
+
+        Returns:
+            Random source port
         """
         import random
+
         return random.randint(49152, 65535)
 
     def validate_segment_options(self, options: Dict[str, Any]) -> bool:
         """
         Validate segment options.
+
+        Args:
+            options: Segment options dictionary
+
+        Returns:
+            True if options are valid, False otherwise
         """
         try:
             if "ttl" in options:
@@ -315,6 +454,9 @@ class SegmentPacketBuilder:
     def get_stats(self) -> Dict[str, Any]:
         """
         Get packet builder statistics.
+
+        Returns:
+            Statistics dictionary
         """
         stats = self.stats.copy()
         if stats["packets_built"] > 0:
@@ -338,6 +480,7 @@ class SegmentPacketBuilder:
 
 class SegmentPacketBuildError(Exception):
     """Exception raised when segment packet building fails."""
+
     pass
 
 
@@ -348,6 +491,14 @@ def build_segment_packet(
 ) -> SegmentPacketInfo:
     """
     Build packet for a single segment.
+
+    Args:
+        segment: Segment tuple (payload_data, seq_offset, options_dict)
+        context: Attack context
+        builder: Optional SegmentPacketBuilder instance
+
+    Returns:
+        SegmentPacketInfo with constructed packet
     """
     if builder is None:
         builder = SegmentPacketBuilder()
@@ -362,6 +513,14 @@ def build_segments_batch(
 ) -> list[SegmentPacketInfo]:
     """
     Build packets for multiple segments efficiently.
+
+    Args:
+        segments: List of segment tuples
+        context: Attack context
+        builder: Optional SegmentPacketBuilder instance
+
+    Returns:
+        List of SegmentPacketInfo objects
     """
     if builder is None:
         builder = SegmentPacketBuilder()
@@ -377,6 +536,13 @@ def validate_segments_for_building(
 ) -> Tuple[bool, Optional[str]]:
     """
     Validate segments before building packets.
+
+    Args:
+        segments: List of segment tuples to validate
+        context: Attack context
+
+    Returns:
+        Tuple of (is_valid, error_message)
     """
     try:
         builder = SegmentPacketBuilder()

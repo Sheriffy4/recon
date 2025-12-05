@@ -1,0 +1,2186 @@
+{
+  "rutor.is": {
+    "strategies": [
+      {
+        "strategy_name": "existing_existing_existing_existing_existing_existing_existing_existing_existing_smart_combo_split_fake_multisplit",
+        "strategy_params": {
+          "no_fallbacks": true,
+          "forced": true
+        },
+        "success_count": 4,
+        "failure_count": 0,
+        "last_success_ts": 1764600796.3135154,
+        "last_failure_ts": null,
+        "avg_connect_ms": 12194.979270299276,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "existing_existing_existing_existing_existing_existing_existing_existing_existing_smart_combo_split_fake_multisplit",
+    "block_type": "none"
+  },
+  "x.com": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_split_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601231.3472717,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601737.6656563,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602398.6145437,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_optimized",
+        "strategy_params": {
+          "ttl": 3,
+          "fooling": "badsum",
+          "split_pos": 3,
+          "split_count": 4,
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603134.5654454,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603866.0318143,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764604579.6526196,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605271.3265693,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605936.3606694,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606564.742091,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_pos": 3,
+          "ttl": 3,
+          "split_count": 4,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607184.1250834,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_count": 4,
+          "ttl": 3,
+          "split_pos": 3,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607781.877884,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608438.183939,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation",
+        "strategy_params": {
+          "split_pos": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609148.9218936,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation",
+        "strategy_params": {
+          "split_count": 4
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609873.5574412,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_split_fake",
+    "block_type": "none"
+  },
+  "instagram.com": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_split_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601234.2796185,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601742.8886645,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602418.543676,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_optimized",
+        "strategy_params": {
+          "ttl": 3,
+          "fooling": "badsum",
+          "split_pos": 3,
+          "split_count": 4,
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603137.8301477,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603888.2044747,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764604579.6596305,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605271.3329425,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605936.3692558,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606564.749147,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_pos": 3,
+          "ttl": 3,
+          "split_count": 4,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607186.6328256,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_count": 4,
+          "ttl": 3,
+          "split_pos": 3,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607784.831,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608440.715673,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation",
+        "strategy_params": {
+          "split_pos": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609169.051279,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation",
+        "strategy_params": {
+          "split_count": 4
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609878.4472072,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_split_fake",
+    "block_type": "none"
+  },
+  "youtube.com": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_split_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601271.5035737,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601762.2320733,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602464.0274868,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_optimized",
+        "strategy_params": {
+          "ttl": 3,
+          "fooling": "badsum",
+          "split_pos": 3,
+          "split_count": 4,
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603157.1920497,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603890.4061518,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764604601.9058635,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605294.6422677,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605948.3460774,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606588.7700095,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_pos": 3,
+          "ttl": 3,
+          "split_count": 4,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607193.8432188,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_count": 4,
+          "ttl": 3,
+          "split_pos": 3,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607828.6921363,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608477.8931613,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation",
+        "strategy_params": {
+          "split_pos": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609192.8431506,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation",
+        "strategy_params": {
+          "split_count": 4
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609881.082184,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_split_fake",
+    "block_type": "none"
+  },
+  "facebook.com": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_split_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601274.0447392,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601764.8070626,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602466.6694098,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_optimized",
+        "strategy_params": {
+          "ttl": 3,
+          "fooling": "badsum",
+          "split_pos": 3,
+          "split_count": 4,
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603160.253457,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603914.1662407,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764604601.911593,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605296.9270058,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606590.9711776,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_pos": 3,
+          "ttl": 3,
+          "split_count": 4,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607196.057718,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_count": 4,
+          "ttl": 3,
+          "split_pos": 3,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607830.9855134,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608480.112423,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation",
+        "strategy_params": {
+          "split_pos": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609195.1536243,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation",
+        "strategy_params": {
+          "split_count": 4
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609883.30945,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_split_fake",
+    "block_type": "none"
+  },
+  "mobile.x.com": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_split_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601306.9931724,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601812.2941027,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602491.063289,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_optimized",
+        "strategy_params": {
+          "ttl": 3,
+          "fooling": "badsum",
+          "split_pos": 3,
+          "split_count": 4,
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603208.2614129,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603938.7723253,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764604659.1735082,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605322.7023144,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606018.5269651,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606616.0489383,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_pos": 3,
+          "ttl": 3,
+          "split_count": 4,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607241.4796748,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_count": 4,
+          "ttl": 3,
+          "split_pos": 3,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607855.6448956,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608504.9707904,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation",
+        "strategy_params": {
+          "split_pos": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609221.163775,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation",
+        "strategy_params": {
+          "split_count": 4
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609908.2785692,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_split_fake",
+    "block_type": "none"
+  },
+  "www.facebook.com": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_split_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601663.7951956,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602163.050768,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602898.7800732,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_optimized",
+        "strategy_params": {
+          "ttl": 3,
+          "fooling": "badsum",
+          "split_pos": 3,
+          "split_count": 4,
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603649.7892137,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764604344.1209342,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605019.376593,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605699.6289492,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606327.488468,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606933.6548843,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_pos": 3,
+          "ttl": 3,
+          "split_count": 4,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607566.6961668,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_count": 4,
+          "ttl": 3,
+          "split_pos": 3,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608215.1564674,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608915.1195083,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation",
+        "strategy_params": {
+          "split_pos": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609639.1560297,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation",
+        "strategy_params": {
+          "split_count": 4
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764610306.3513565,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_split_fake",
+    "block_type": "none"
+  },
+  "nnmstatic.win": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_split_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601666.0911183,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602165.6442814,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602901.16978,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_optimized",
+        "strategy_params": {
+          "ttl": 3,
+          "fooling": "badsum",
+          "split_pos": 3,
+          "split_count": 4,
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603652.062436,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764604346.7405446,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605021.6651134,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605702.4126866,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606329.7666953,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606936.2212565,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_pos": 3,
+          "ttl": 3,
+          "split_count": 4,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607568.992939,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_count": 4,
+          "ttl": 3,
+          "split_pos": 3,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608217.8594565,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764608917.4116187,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "split_basic_fragmentation",
+        "strategy_params": {
+          "split_pos": 2
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609641.727197,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation",
+        "strategy_params": {
+          "split_count": 4
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764610308.845686,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_split_fake",
+    "block_type": "none"
+  },
+  "nnmclub.to": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764601742.893566,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764603888.2099187,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605938.5926356,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606564.7526598,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation_optimized",
+        "strategy_params": {
+          "split_count": 4,
+          "ttl": 3,
+          "split_pos": 3,
+          "fooling": "badsum",
+          "repeats": 1
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764607787.030606,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "multisplit_basic_fragmentation",
+        "strategy_params": {
+          "split_count": 4
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764609878.4534528,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_multisplit_fake",
+    "block_type": "none"
+  },
+  "www.youtube.com": {
+    "strategies": [
+      {
+        "strategy_name": "smart_combo_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602160.2598605,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764602896.3308444,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_disorder",
+        "strategy_params": {
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764604341.639378,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 2,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605016.0790868,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_fake",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 3,
+          "split_count": 8
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764605696.8747303,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_multisplit_fake_disorder",
+        "strategy_params": {
+          "ttl": 1,
+          "fooling": "badseq",
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606324.7316773,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_multisplit_disorder",
+        "strategy_params": {
+          "split_pos": 2,
+          "split_count": 6,
+          "disorder_method": "reverse"
+        },
+        "success_count": 1,
+        "failure_count": 0,
+        "last_success_ts": 1764606930.7069504,
+        "last_failure_ts": null,
+        "avg_connect_ms": null,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "smart_combo_multisplit_fake",
+    "block_type": "none"
+  },
+  "pagead2.googlesyndication.com": {
+    "strategies": [
+      {
+        "strategy_name": "existing_smart_combo_split_fake",
+        "strategy_params": {
+          "split_pos": 3,
+          "fooling": "badseq"
+        },
+        "success_count": 2,
+        "failure_count": 0,
+        "last_success_ts": 1764658805.8995786,
+        "last_failure_ts": null,
+        "avg_connect_ms": 21434.648275375366,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "existing_smart_combo_split_fake",
+        "strategy_params": {
+          "no_fallbacks": true,
+          "forced": true
+        },
+        "success_count": 30,
+        "failure_count": 0,
+        "last_success_ts": 1764666304.7040582,
+        "last_failure_ts": null,
+        "avg_connect_ms": 14707.269564842878,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      },
+      {
+        "strategy_name": "smart_combo_split_fake",
+        "strategy_params": {
+          "no_fallbacks": true,
+          "forced": true
+        },
+        "success_count": 24,
+        "failure_count": 0,
+        "last_success_ts": 1764669782.4327562,
+        "last_failure_ts": null,
+        "avg_connect_ms": 21412.140983148423,
+        "effective_against": [
+          "none"
+        ],
+        "verified": false,
+        "verification_ts": null
+      }
+    ],
+    "preferred_strategy": "existing_smart_combo_split_fake",
+    "block_type": "none"
+  }
+}

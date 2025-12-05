@@ -1,0 +1,26 @@
+================================================================================
+STRATEGY VALIDATION REPORT
+================================================================================
+
+Total Validations: 1
+  ✓ VALID:   0
+  ✗ INVALID: 0
+  ~ PARTIAL: 1
+  ? UNKNOWN: 0
+
+DETAILED RESULTS:
+--------------------------------------------------------------------------------
+
+1. [~] domain_analysis_pagead2.googlesyndication.com - PARTIAL
+   Message: PCAP-only analysis: detected 1 operation(s)
+   Actual:   disorder
+   Details:
+     - clienthello_count: 0
+     - split_detected: False
+     - fake_packet_count: 0
+     - disorder_detected: True
+     - fooling_modes: []
+     - total_packets: 6
+     - rst_packets: 0
+
+================================================================================

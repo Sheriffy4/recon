@@ -1,0 +1,10 @@
+{
+  "strategy_id": "e00cdb8b-0f1b-4c48-bf16-9677e999c5c4",
+  "strategy_name": "split",
+  "domain": "pagead2.googlesyndication.com",
+  "timestamp": "2025-12-04T18:37:14.139773",
+  "operations": [],
+  "metadata": {
+    "target_ip": "142.250.74.130"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-12-01T19:03:14.966036",
+  "domain": "i2.ytimg.com",
+  "retransmissions": 4,
+  "strategy": {
+    "type": "fake",
+    "params": {
+      "ttl": 3,
+      "fooling": "badsum",
+      "split_pos": 3,
+      "split_count": 4,
+      "repeats": 1,
+      "no_fallbacks": true,
+      "forced": true
+    },
+    "attacks": [
+      "fake",
+      "multisplit"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 461,
+  "recommendations": [
+    "Run 'cli.py test i2.ytimg.com' to re-test the strategy",
+    "Run 'cli.py auto i2.ytimg.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "i2.ytimg.com",
+    "source": "sni",
+    "ip_address": "216.239.36.60:443",
+    "matched_rule": "i2.ytimg.com",
+    "conflict_detected": false,
+    "sni_domain": "i2.ytimg.com",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "ytimg.com",
+    "recommendation": "Try removing 'i2.ytimg.com' rule to use parent domain 'ytimg.com' strategy"
+  }
+}

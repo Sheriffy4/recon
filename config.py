@@ -73,6 +73,12 @@ SOCKET_TIMEOUT = 5.0
 MAX_TESTS_PER_LEVEL = 8
 RETRY_ON_TIMEOUT = 1
 
+# --- Feature Flags ---
+# Task 22: Feature flag for gradual rollout of new attack system
+# When True, uses StrategyLoader, ComboAttackBuilder, and UnifiedAttackDispatcher
+# When False, uses legacy attack application system
+USE_NEW_ATTACK_SYSTEM = True
+
 # --- Библиотека техник ---
 TECH_LIBRARY = {
     # TCP Segmentation

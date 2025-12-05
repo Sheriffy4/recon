@@ -1,0 +1,6 @@
+{
+  "auto_start": false,
+  "minimize_to_tray": false,
+  "enable_pcap": false,
+  "pcap_dir": "./pcap_captures"
+}

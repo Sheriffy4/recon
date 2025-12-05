@@ -200,6 +200,12 @@ class PacketBuilder:
             base_seq = struct.unpack("!I", raw[ip_hl + 4 : ip_hl + 8])[0]
             base_ack = struct.unpack("!I", raw[ip_hl + 8 : ip_hl + 12])[0]
             base_win = struct.unpack("!H", raw[ip_hl + 14 : ip_hl + 16])[0]
+            
+            # CRITICAL DEBUG: Log base_seq to verify it's correct
+            self.logger.debug(
+                f"📊 Original packet: base_seq=0x{base_seq:08X} ({base_seq}), "
+                f"base_ack=0x{base_ack:08X}, payload_len={len(spec.payload) if spec.payload else 0}"
+            )
 
             # Extract IPs and ports
             src_ip = original_packet.src_addr
@@ -207,9 +213,174 @@ class PacketBuilder:
             src_port = original_packet.src_port
             dst_port = original_packet.dst_port
 
-            # Calculate sequence number
-            seq_extra = getattr(spec, "seq_extra", 0)
-            seq = (base_seq + spec.rel_seq + seq_extra) & 0xFFFFFFFF
+            # Task 3: Support both seq_offset (new) and seq_extra (legacy)
+            # seq_offset takes precedence over seq_extra for backward compatibility
+            seq_offset = getattr(spec, "seq_offset", 0)
+            seq_extra = getattr(spec, "seq_extra", None)
+            
+            # Determine which offset to use:
+            # - If seq_offset is non-zero, use it (new behavior)
+            # - Otherwise, if seq_extra is set, use it (legacy behavior)
+            # - Otherwise, use 0 (no offset)
+            if seq_offset != 0:
+                # New behavior: use seq_offset (preferred)
+                offset = seq_offset
+                self.logger.info(f"📐 Using seq_offset: {offset} (0x{offset:08X})")
+            elif seq_extra is not None:
+                # Legacy behavior: use seq_extra with validation
+                offset = seq_extra
+                self.logger.info(f"📐 Using seq_extra (legacy): {offset}")
+                
+                # Task 11: Add deprecation warning when seq_extra is used with badseq
+                # Check if this is a fake packet (badseq fooling)
+                is_fake = getattr(spec, "is_fake", False)
+                if is_fake:
+                    self.logger.warning(
+                        f"⚠️  DEPRECATION WARNING: seq_extra is deprecated for badseq fooling. "
+                        f"Please migrate to seq_offset for better compatibility and safety."
+                    )
+                    self.logger.warning(
+                        f"💡 MIGRATION GUIDE: Replace seq_extra={seq_extra} with seq_offset=0x10000000"
+                    )
+                    self.logger.warning(
+                        f"📖 See config/README_PACKET_CONFIG.md for full migration guide"
+                    )
+                
+                # Task 5: Add warning log when seq_extra=-1 is detected
+                if seq_extra == -1:
+                    self.logger.warning(
+                        f"⚠️  DETECTED seq_extra=-1: This may create sequence overlap! "
+                        f"Consider using seq_offset=0x10000000 instead."
+                    )
+            else:
+                offset = 0
+                self.logger.debug(f"📐 No offset specified, using default: {offset}")
+            
+            # Calculate final sequence number
+            # Formula: final_seq = (base_seq + rel_seq + offset) & 0xFFFFFFFF
+            seq = (base_seq + spec.rel_seq + offset) & 0xFFFFFFFF
+            
+            # Task 4: Overlap detection and validation
+            # Check if FAKE packet sequence overlaps with REAL packet sequence
+            is_fake = getattr(spec, "is_fake", False)
+            payload_len = len(spec.payload) if spec.payload else 0
+            
+            if is_fake and payload_len > 0:
+                # Calculate the expected REAL packet sequence (without offset)
+                real_seq = (base_seq + spec.rel_seq) & 0xFFFFFFFF
+                fake_seq_end = (seq + payload_len) & 0xFFFFFFFF
+                
+                # Detect overlap: FAKE packet's data range overlaps with REAL packet's start
+                # Overlap occurs when the FAKE packet's end extends into or past the REAL packet's start
+                # For negative offsets: fake_seq = real_seq + offset
+                # FAKE covers: [fake_seq, fake_seq + payload_len)
+                # REAL starts at: real_seq
+                # Overlap if: fake_seq + payload_len > real_seq
+                # Which simplifies to: (real_seq + offset) + payload_len > real_seq
+                # Which simplifies to: offset + payload_len > 0
+                overlap_detected = False
+                
+                # Check for seq_extra=-1 with non-empty payload (most common case)
+                if seq_extra == -1:
+                    overlap_detected = True
+                    self.logger.error(
+                        f"❌ OVERLAP DETECTED: seq_extra=-1 with payload_len={payload_len} "
+                        f"creates sequence overlap!"
+                    )
+                    self.logger.error(
+                        f"   FAKE packet: seq=0x{seq:08X}, covers bytes [0x{seq:08X}, 0x{fake_seq_end:08X})"
+                    )
+                    self.logger.error(
+                        f"   REAL packet: seq=0x{real_seq:08X}, starts at byte 0x{real_seq:08X}"
+                    )
+                    self.logger.error(
+                        f"   💡 SUGGESTION: Use seq_offset=0x10000000 instead of seq_extra=-1"
+                    )
+                
+                # Check for any negative offset that creates overlap
+                elif offset < 0:
+                    # Overlap occurs if: offset + payload_len > 0
+                    if offset + payload_len > 0:
+                        overlap_detected = True
+                        self.logger.error(
+                            f"❌ SEQUENCE OVERLAP: FAKE packet seq offset ({offset}) "
+                            f"overlaps with payload length ({payload_len})."
+                        )
+                        self.logger.error(
+                            f"   FAKE packet: seq=0x{seq:08X}, covers bytes [0x{seq:08X}, 0x{fake_seq_end:08X})"
+                        )
+                        self.logger.error(
+                            f"   REAL packet: seq=0x{real_seq:08X}, starts at byte 0x{real_seq:08X}"
+                        )
+                        self.logger.error(
+                            f"   Overlap amount: {offset + payload_len} bytes"
+                        )
+                        self.logger.error(
+                            f"   This will cause servers to reject the connection!"
+                        )
+                        self.logger.error(
+                            f"   💡 SUGGESTION: Use seq_offset=0x10000000 instead"
+                        )
+                
+                # Task 5: Log validation result with "no overlap" confirmation
+                if overlap_detected:
+                    self.logger.error(
+                        f"⚠️  VALIDATION FAILED: Sequence overlap will cause connection failures"
+                    )
+                else:
+                    # Add "no overlap" confirmation in logs when validation passes
+                    self.logger.info(
+                        f"✅ VALIDATION PASSED: No sequence overlap detected (no overlap)"
+                    )
+            
+            # Task 5: Enhanced logging with all sequence number components
+            packet_type = "FAKE" if getattr(spec, "is_fake", False) else "REAL"
+            
+            # Log which parameter is being used (seq_offset or seq_extra)
+            if seq_offset != 0:
+                param_used = f"seq_offset={offset} (0x{offset:08X})"
+            elif seq_extra is not None:
+                param_used = f"seq_extra={offset}"
+            else:
+                param_used = "no offset"
+            
+            self.logger.info(
+                f"🔢 {packet_type} segment seq calculation: "
+                f"base=0x{base_seq:08X} + rel={spec.rel_seq} + offset={offset} = 0x{seq:08X} "
+                f"[using {param_used}]"
+            )
+            
+            # Enhanced logging for fake vs real packet sequence numbers
+            if getattr(spec, "is_fake", False):
+                self.logger.info(
+                    f"🎭 FAKE packet: seq=0x{seq:08X} (base + {spec.rel_seq} + {offset}), "
+                    f"payload_len={len(spec.payload) if spec.payload else 0}, "
+                    f"ttl={spec.ttl if spec.ttl else 'default'}"
+                )
+            else:
+                self.logger.info(
+                    f"✅ REAL packet: seq=0x{seq:08X} (base + {spec.rel_seq}), "
+                    f"payload_len={len(spec.payload) if spec.payload else 0}, "
+                    f"covers bytes [{spec.rel_seq}:{spec.rel_seq + len(spec.payload) if spec.payload else spec.rel_seq}]"
+                )
+                
+            # Task 5: Log sequence difference between FAKE and REAL packets
+            if getattr(spec, "is_fake", False) and offset != 0:
+                expected_real_seq = (base_seq + spec.rel_seq) & 0xFFFFFFFF
+                seq_diff = (seq - expected_real_seq) & 0xFFFFFFFF
+                
+                # Handle wraparound for negative differences
+                if seq_diff > 0x80000000:  # More than half of 32-bit space means negative
+                    seq_diff_signed = seq_diff - 0x100000000
+                    self.logger.info(
+                        f"📊 Seq difference: FAKE seq vs REAL seq = {seq_diff_signed} bytes "
+                        f"(FAKE at 0x{seq:08X}, REAL at 0x{expected_real_seq:08X})"
+                    )
+                else:
+                    self.logger.info(
+                        f"📊 Seq difference: FAKE seq vs REAL seq = +{seq_diff} bytes "
+                        f"(FAKE at 0x{seq:08X}, REAL at 0x{expected_real_seq:08X})"
+                    )
 
             # Get payload
             seg_payload = spec.payload if spec.payload is not None else b""
@@ -466,6 +637,7 @@ class PacketBuilder:
         # IP ID
         if ip_id is not None:
             ip_hdr[4:6] = struct.pack("!H", int(ip_id) & 0xFFFF)
+            self.logger.debug(f"🔍 Set IP ID to {ip_id:#06x} in packet header")
         # TTL
         if ttl is not None:
             ip_hdr[8] = int(ttl) & 0xFF

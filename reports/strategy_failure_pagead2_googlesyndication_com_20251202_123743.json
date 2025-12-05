@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-12-02T12:37:43.640906",
+  "domain": "pagead2.googlesyndication.com",
+  "retransmissions": 4,
+  "strategy": {
+    "type": "split",
+    "params": {},
+    "attacks": [
+      "split",
+      "fake"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 59,
+  "recommendations": [
+    "Run 'cli.py test pagead2.googlesyndication.com' to re-test the strategy",
+    "Run 'cli.py auto pagead2.googlesyndication.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "pagead2.googlesyndication.com",
+    "source": "sni",
+    "ip_address": "216.58.207.194:443",
+    "matched_rule": "pagead2.googlesyndication.com",
+    "conflict_detected": false,
+    "sni_domain": "pagead2.googlesyndication.com",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "googlesyndication.com",
+    "recommendation": "Try removing 'pagead2.googlesyndication.com' rule to use parent domain 'googlesyndication.com' strategy"
+  }
+}

@@ -77,9 +77,11 @@ class SimpleAttackExecutor:
             opts["add_md5sig_option"] = True
         if corrupt_seq or ("badseq" in fooling):
             opts["bad_sequence"] = True
-            # Запрет-стиль badseq: смещение SEQ назад
+            # FIXED: Use far-future sequence offset to avoid overlap with real packet
+            # 0x10000000 (268,435,456 bytes) places fake packet far in future
+            # This confuses DPI while remaining acceptable to legitimate servers
             if "seq_offset" not in opts:
-                opts["seq_offset"] = -10000
+                opts["seq_offset"] = 0x10000000
         if seq_offset:
             opts["seq_offset"] = int(seq_offset)
         if isinstance(delay_ms, (int, float)) and delay_ms > 0:

@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-12-01T18:07:55.423881",
+  "domain": "robinbob.in",
+  "retransmissions": 7,
+  "strategy": {
+    "type": "disorder",
+    "params": {
+      "split_pos": 3,
+      "split_count": 2,
+      "disorder_method": "reverse",
+      "no_fallbacks": true,
+      "forced": true
+    },
+    "attacks": [
+      "disorder",
+      "split"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 91,
+  "recommendations": [
+    "Run 'cli.py test robinbob.in' to re-test the strategy",
+    "Run 'cli.py auto robinbob.in' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "robinbob.in",
+    "source": "sni",
+    "ip_address": "198.211.127.57:443",
+    "matched_rule": "robinbob.in",
+    "conflict_detected": false,
+    "sni_domain": "robinbob.in",
+    "ip_domain": null
+  }
+}

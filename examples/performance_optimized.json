@@ -1,0 +1,62 @@
+{
+  "description": "Performance-optimized configuration for high-traffic scenarios",
+  "target_domains": [
+    "*.youtube.com",
+    "*.googlevideo.com",
+    "*.instagram.com",
+    "*.cdninstagram.com",
+    "*.twitter.com",
+    "*.twimg.com"
+  ],
+  "runtime_filtering": {
+    "enabled": true,
+    "mode": "blacklist",
+    "cache_size": 5000,
+    "cache_ttl": 900,
+    "enable_wildcards": true,
+    "enable_subdomains": true,
+    "performance": {
+      "max_packet_rate": 2000,
+      "memory_limit_mb": 200,
+      "gc_threshold": 0.8,
+      "cleanup_interval": 300,
+      "precompile_patterns": true,
+      "use_fast_matching": true,
+      "batch_size": 20,
+      "worker_threads": 4
+    }
+  },
+  "extraction": {
+    "enable_sni_extraction": true,
+    "enable_host_extraction": true,
+    "sni_cache_size": 2000,
+    "host_cache_size": 2000,
+    "extraction_timeout": 1.0
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics_interval": 30,
+    "performance_tracking": true,
+    "memory_tracking": true,
+    "cache_stats": true,
+    "alerts": {
+      "error_rate_threshold": 0.02,
+      "performance_threshold": 15.0,
+      "memory_threshold": 85.0,
+      "cache_hit_rate_threshold": 0.85
+    }
+  },
+  "optimization": {
+    "pattern_grouping": true,
+    "regex_optimization": true,
+    "memory_pooling": true,
+    "lazy_compilation": false,
+    "cache_warming": true
+  },
+  "debug": {
+    "log_performance": true,
+    "log_cache_stats": true,
+    "log_memory_usage": true,
+    "performance_profiling": false
+  }
+}

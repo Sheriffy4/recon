@@ -1,0 +1,65 @@
+{
+  "results_dir": "validation_results",
+  "strategy_validation": {
+    "enabled": true,
+    "test_count_per_strategy": 5,
+    "success_threshold": 0.8,
+    "consistency_threshold": 0.7,
+    "timeout_seconds": 30,
+    "parallel_testing": true,
+    "retry_failed_tests": true,
+    "max_retries": 2
+  },
+  "fingerprint_validation": {
+    "enabled": true,
+    "accuracy_threshold": 0.75,
+    "confidence_threshold": 0.6,
+    "test_domains_count": 10,
+    "cross_validation_folds": 3,
+    "calibration_bins": 5,
+    "min_samples_per_bin": 2
+  },
+  "ab_testing": {
+    "enabled": true,
+    "sample_size": 20,
+    "significance_level": 0.05,
+    "minimum_effect_size": 0.1,
+    "power": 0.8,
+    "randomization_seed": null,
+    "stratification": true
+  },
+  "quality_metrics": {
+    "enabled": true,
+    "collection_interval_hours": 24,
+    "retention_days": 30,
+    "alert_thresholds": {
+      "success_rate": 0.7,
+      "avg_trials": 10,
+      "fingerprint_accuracy": 0.6,
+      "system_reliability": 0.75,
+      "performance_score": 0.6
+    },
+    "trend_analysis": {
+      "enabled": true,
+      "window_days": 7,
+      "min_data_points": 3
+    }
+  },
+  "reporting": {
+    "auto_generate": true,
+    "schedule": "daily",
+    "include_charts": true,
+    "export_formats": ["json", "html"],
+    "email_notifications": {
+      "enabled": false,
+      "recipients": [],
+      "threshold_score": 0.6
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "validation_system.log",
+    "max_size_mb": 10,
+    "backup_count": 5
+  }
+}

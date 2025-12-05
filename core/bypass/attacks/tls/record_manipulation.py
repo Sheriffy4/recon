@@ -127,7 +127,15 @@ class TLSRecordSplitAttack(BaseAttack):
             )
 
 
-@register_attack
+@register_attack(
+    name="tls_record_padding",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.HIGH,
+    required_params=[],
+    optional_params={"padding_size": 16},
+    aliases=["tlsrec_padding", "tls_padding"],
+    description="Adds padding to TLS records to change their size"
+)
 class TLSRecordPaddingAttack(BaseAttack):
     """
     TLS Record Padding Attack - adds padding to TLS records.
@@ -205,6 +213,15 @@ class TLSRecordPaddingAttack(BaseAttack):
             )
 
 
+@register_attack(
+    name="tls_record_fragmentation",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.HIGH,
+    required_params=[],
+    optional_params={"fragment_size": 8},
+    aliases=["tlsrec_fragment", "tls_fragment"],
+    description="Fragments TLS records across multiple TCP segments"
+)
 class TLSRecordFragmentationAttack(BaseAttack):
     """
     TLS Record Fragmentation Attack - fragments TLS records across multiple TCP segments.
@@ -225,6 +242,18 @@ class TLSRecordFragmentationAttack(BaseAttack):
     @property
     def supported_protocols(self) -> List[str]:
         return ["tcp"]
+
+    @property
+    def required_params(self) -> List[str]:
+        """List of required parameter names."""
+        return []
+
+    @property
+    def optional_params(self) -> Dict[str, Any]:
+        """Dictionary of optional parameters with default values."""
+        return {
+            "fragment_size": 8
+        }
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS record fragmentation attack."""

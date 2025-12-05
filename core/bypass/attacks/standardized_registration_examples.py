@@ -202,15 +202,33 @@ class TLSSNIFragmentationAttack(BaseAttack):
         return result
 
     def _find_sni_position(self, payload: bytes) -> int:
-        """Find SNI extension position in TLS ClientHello."""
-        # Simplified SNI detection (real implementation would be more robust)
-        sni_marker = b'\x00\x00'  # SNI extension type
-        pos = payload.find(sni_marker)
-        return pos if pos > 0 else len(payload) // 2
+        """
+        Find SNI extension position in TLS ClientHello.
+        
+        DEPRECATED: Use SNIManipulator.find_sni_position() instead.
+        """
+        from core.bypass.sni.manipulator import SNIManipulator
+        
+        sni_pos = SNIManipulator.find_sni_position(payload)
+        if sni_pos:
+            return sni_pos.sni_value_start
+        return len(payload) // 2  # Fallback
 
     def _create_tls_fragments(self, payload: bytes, sni_pos: int, fragment_size: int) -> list:
-        """Create TLS record fragments."""
+        """
+        Create TLS record fragments.
+        
+        Uses SNIManipulator for proper SNI detection.
+        """
+        from core.bypass.sni.manipulator import SNIManipulator
+        
         segments = []
+        
+        # Use SNIManipulator to find proper SNI position if not provided
+        if sni_pos == len(payload) // 2:  # Fallback position
+            sni_position = SNIManipulator.find_sni_position(payload)
+            if sni_position:
+                sni_pos = sni_position.sni_value_start
         
         # Fragment before SNI
         if sni_pos > 0:

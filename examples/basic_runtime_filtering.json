@@ -1,0 +1,27 @@
+{
+  "description": "Basic runtime filtering configuration for common blocked sites",
+  "target_domains": [
+    "*.youtube.com",
+    "*.instagram.com",
+    "*.twitter.com",
+    "*.facebook.com",
+    "*.tiktok.com"
+  ],
+  "target_ports": [80, 443],
+  "runtime_filtering": {
+    "enabled": true,
+    "mode": "blacklist",
+    "cache_size": 1000,
+    "cache_ttl": 300,
+    "enable_wildcards": true,
+    "enable_subdomains": true
+  },
+  "performance": {
+    "max_packet_rate": 1000,
+    "memory_limit_mb": 100
+  },
+  "extraction": {
+    "enable_sni_extraction": true,
+    "enable_host_extraction": true
+  }
+}

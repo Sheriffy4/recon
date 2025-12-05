@@ -32,16 +32,24 @@ class NormalizedStrategy:
 
     type: str
     params: Dict[str, Any]
+    attacks: List[str] = None  # Complete attack sequence for combination attacks
     no_fallbacks: bool = True
     forced: bool = True
     raw_string: str = ""
     source_format: str = ""
+
+    def __post_init__(self):
+        """Initialize attacks field if not provided."""
+        if self.attacks is None:
+            # Default to single attack based on type
+            self.attacks = [self.type]
 
     def to_engine_format(self) -> Dict[str, Any]:
         """Convert to format expected by BypassEngine."""
         return {
             "type": self.type,
             "params": self.params,
+            "attacks": self.attacks,
             "no_fallbacks": self.no_fallbacks,
             "forced": self.forced,
         }
@@ -56,13 +64,21 @@ class UnifiedStrategyLoader:
     Unified strategy loader for all modes.
     """
 
-    def __init__(self, debug: bool = False):
+    def __init__(self, debug: bool = False, validator=None):
         self.logger = logging.getLogger(__name__)
         self.debug = debug
         self._attack_registry = None
+        self._validator = validator
 
         # Initialize with comprehensive known attacks from AttackRegistry
         self.known_attacks = {
+            # Combination attack types - these are categories, not specific attacks
+            "combo",
+            "adaptive_combo",
+            "dpi_response_adaptive",
+            "multi_layer_combo",
+            "steganography_combo",
+            "tcp_http_combo",
             # Core attack types from AttackRegistry
             "fakeddisorder",
             "seqovl",
@@ -128,6 +144,8 @@ class UnifiedStrategyLoader:
             "packet_split": ["split_pos"],
             "packet_disorder": [],
             "multi_packet_split": [],
+            # Combination attack types
+            "combo": [],  # Combo attacks have flexible parameters
         }
 
         # Try to enhance with AttackRegistry data
@@ -148,7 +166,7 @@ class UnifiedStrategyLoader:
 
             # Clear existing known_attacks and required_params to avoid conflicts
             # Keep only the basic legacy attacks that might not be in registry
-            legacy_attacks = {"fragment-tls", "fake-sni-random", "tls13-only"}
+            legacy_attacks = {"fragment-tls", "fake-sni-random", "tls13-only", "combo"}
 
             # Reset to only legacy attacks
             self.known_attacks = legacy_attacks.copy()
@@ -156,6 +174,7 @@ class UnifiedStrategyLoader:
                 "fragment-tls": [],
                 "fake-sni-random": [],
                 "tls13-only": [],
+                "combo": [],  # Combo attacks have flexible parameters
             }
 
             # Add all registered attacks from AttackRegistry
@@ -173,6 +192,10 @@ class UnifiedStrategyLoader:
                 else:
                     # Fallback for attacks without metadata
                     self.required_params[attack_type] = []
+                    
+                # Special handling for combo attacks - they have flexible parameters
+                if "combo" in attack_type or attack_type.endswith("_combo"):
+                    self.required_params[attack_type] = []  # No required params for combo attacks
 
             # Add legacy required params back
             self.required_params.update(legacy_required_params)
@@ -198,6 +221,8 @@ class UnifiedStrategyLoader:
     def _restore_hardcoded_attacks(self):
         """Restore hardcoded attack definitions as fallback."""
         self.known_attacks = {
+            # Combination attack types
+            "combo",
             # Core attack types from AttackRegistry
             "fakeddisorder",
             "seqovl",
@@ -263,6 +288,8 @@ class UnifiedStrategyLoader:
             "packet_split": ["split_pos"],
             "packet_disorder": [],
             "multi_packet_split": [],
+            # Combination attack types
+            "combo": [],  # Combo attacks have flexible parameters
         }
 
     def _normalize_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -275,6 +302,34 @@ class UnifiedStrategyLoader:
             else:
                 del normalized["fake_sni"]
 
+        if "fooling" in normalized and "fooling_methods" in normalized:
+            # Объединяем оба списка, убираем дубликаты
+            fooling = normalized.get("fooling", [])
+            fooling_methods = normalized.get("fooling_methods", [])
+            
+            if not isinstance(fooling, list):
+                fooling = [fooling] if fooling else []
+            if not isinstance(fooling_methods, list):
+                fooling_methods = [fooling_methods] if fooling_methods else []
+            
+            # Объединяем и убираем дубликаты
+            combined = list(dict.fromkeys(fooling + fooling_methods))
+            
+            # Фильтруем None
+            combined = [f for f in combined if f and str(f).lower() not in ("none", "null", "")]
+            
+            if combined:
+                normalized["fooling"] = combined
+                del normalized["fooling_methods"]  # Оставляем только fooling
+                self.logger.debug(f"Unified fooling: {combined}")
+            else:
+                # Оба пустые
+                if "fooling" in normalized:
+                    del normalized["fooling"]
+                if "fooling_methods" in normalized:
+                    del normalized["fooling_methods"]
+        
+        # Остальная нормализация fooling
         if "fooling" in normalized:
             fooling_val = normalized["fooling"]
             fooling_list = []
@@ -328,6 +383,11 @@ class UnifiedStrategyLoader:
                 # Add missing optional parameters with their defaults
                 for param_name, default_value in metadata.optional_params.items():
                     if param_name not in normalized:
+                        # Специальная логика для fooling/fooling_methods - не добавляем дубликаты
+                        if param_name == "fooling_methods" and "fooling" in normalized:
+                            continue  # Пропускаем fooling_methods если уже есть fooling
+                        if param_name == "fooling" and "fooling_methods" in normalized:
+                            continue  # Пропускаем fooling если уже есть fooling_methods
                         normalized[param_name] = default_value
 
                 # Apply attack-specific transformations BEFORE special parameter normalization
@@ -363,43 +423,45 @@ class UnifiedStrategyLoader:
         """Apply attack-specific parameter transformations."""
         params = params.copy()
 
-        # Handle backward compatibility: convert split_count to positions for multisplit
-        if (
-            attack_type == "multisplit"
-            and "split_count" in params
-            and "positions" not in params
-        ):
-            split_count = params.get("split_count", 3)
-            split_pos = params.get("split_pos", 1)
+        # ✅ ИСПРАВЛЕНИЕ: Генерируем positions если он None или отсутствует
+        if attack_type == "multisplit":
+            # Если positions None или отсутствует, генерируем из split_count/split_pos
+            if params.get("positions") is None or "positions" not in params:
+                split_count = params.get("split_count", 3)
+                split_pos = params.get("split_pos", 1)
 
-            # Generate positions based on split_count and split_pos
-            if isinstance(split_pos, int):
-                positions = []
-                base_pos = split_pos
-                gap = max(6, split_pos * 2)  # Reasonable gap between positions
+                if isinstance(split_pos, int):
+                    positions = []
+                    base_pos = split_pos
+                    gap = max(6, split_pos * 2)
 
-                for i in range(split_count):
-                    positions.append(base_pos + (i * gap))
+                    for i in range(split_count):
+                        positions.append(base_pos + (i * gap))
 
-                params["positions"] = positions
-                self.logger.debug(
-                    f"Generated positions {positions} from split_count={split_count}, split_pos={split_pos}"
-                )
-
-        # Handle backward compatibility: convert split_pos to positions for multidisorder if needed
-        if (
-            attack_type == "multidisorder"
-            and "split_pos" in params
-            and "positions" not in params
-        ):
-            split_pos = params.get("split_pos")
-            if isinstance(split_pos, int):
-                # For multidisorder, create multiple positions around the split_pos
-                positions = [split_pos, split_pos + 5, split_pos + 10]
-                params["positions"] = positions
-                self.logger.debug(
-                    f"Generated positions {positions} from split_pos={split_pos} for multidisorder"
-                )
+                    params["positions"] = positions
+                    self.logger.debug(
+                        f"Generated positions {positions} from split_count={split_count}, split_pos={split_pos}"
+                    )
+                # Если split_pos не int (например, 'sni'), оставляем split_count
+        
+        # ✅ ИСПРАВЛЕНИЕ: Аналогично для multidisorder
+        if attack_type == "multidisorder":
+            if params.get("positions") is None or "positions" not in params:
+                split_pos = params.get("split_pos")
+                split_count = params.get("split_count")
+                
+                if isinstance(split_pos, int):
+                    # Use split_count if provided
+                    if split_count and isinstance(split_count, int) and split_count > 1:
+                        gap = 5  # Smaller gap for multidisorder
+                        positions = [split_pos + (i * gap) for i in range(split_count)]
+                    else:
+                        # Fallback: create 3 positions
+                        positions = [split_pos, split_pos + 5, split_pos + 10]
+                    params["positions"] = positions
+                    self.logger.debug(
+                        f"Generated positions {positions} from split_pos={split_pos}, split_count={split_count} for multidisorder"
+                    )
 
         return params
 
@@ -544,11 +606,45 @@ class UnifiedStrategyLoader:
 
         return normalized
 
+    def _sanitize_strategy_name(self, name: str) -> str:
+        """
+        Remove 'existing_' prefix from strategy name.
+        
+        This is a defensive measure to prevent corrupted strategy names
+        from causing errors in the attack dispatcher.
+        """
+        if isinstance(name, str):
+            # Keep removing 'existing_' prefix until there are no more
+            while name.startswith('existing_'):
+                name = name.replace('existing_', '', 1)
+                if self.debug:
+                    self.logger.warning(f"Removed 'existing_' prefix from strategy name: {name}")
+        return name
+
     def load_strategy(
         self, strategy_input: Union[str, Dict[str, Any]]
     ) -> NormalizedStrategy:
         """Load and normalize a strategy from various input formats."""
         try:
+            # Sanitize strategy input to remove 'existing_' prefix
+            if isinstance(strategy_input, str):
+                strategy_input = self._sanitize_strategy_name(strategy_input)
+            elif isinstance(strategy_input, dict):
+                # Sanitize all strategy name fields
+                if 'type' in strategy_input:
+                    strategy_input['type'] = self._sanitize_strategy_name(strategy_input['type'])
+                if 'attack_name' in strategy_input:
+                    strategy_input['attack_name'] = self._sanitize_strategy_name(strategy_input['attack_name'])
+                if 'attack_type' in strategy_input:
+                    strategy_input['attack_type'] = self._sanitize_strategy_name(strategy_input['attack_type'])
+                if 'strategy_name' in strategy_input:
+                    strategy_input['strategy_name'] = self._sanitize_strategy_name(strategy_input['strategy_name'])
+                if 'attacks' in strategy_input and isinstance(strategy_input['attacks'], list):
+                    strategy_input['attacks'] = [
+                        self._sanitize_strategy_name(a) if isinstance(a, str) else a
+                        for a in strategy_input['attacks']
+                    ]
+            
             if isinstance(strategy_input, dict):
                 strategy = self._load_from_dict(strategy_input)
             elif isinstance(strategy_input, str):
@@ -569,7 +665,6 @@ class UnifiedStrategyLoader:
             raise StrategyLoadError(f"Strategy loading failed unexpectedly: {e}") from e
 
     def _load_from_string(self, strategy_string: str) -> NormalizedStrategy:
-        """Load strategy from string format."""
         strategy_string = strategy_string.strip()
         if not strategy_string:
             raise StrategyLoadError("Empty strategy string")
@@ -580,16 +675,168 @@ class UnifiedStrategyLoader:
             return self._parse_function_style(strategy_string)
         elif self._is_colon_style(strategy_string):
             return self._parse_colon_style(strategy_string)
-        # NEW: Handle new advanced formats that are not zapret-style
         elif strategy_string.startswith("--"):
             return self._parse_generic_cli_style(strategy_string)
+        elif self._is_semicolon_combo_style(strategy_string):
+            return self._parse_semicolon_combo_style(strategy_string)
+        elif self._is_simple_attack_name(strategy_string):
+            # Простое имя атаки без параметров (например, "smart_combo_split_fake")
+            return self._parse_simple_attack_name(strategy_string)
         else:
             raise StrategyLoadError(f"Unknown strategy format: {strategy_string}")
 
+    def _is_semicolon_combo_style(self, s: str) -> bool:
+        # Формат: "attack1,attack2; k=v; k=v" ИЛИ "attack; k=v"
+        if "--" in s or ":" in s or "(" in s or ")" in s:
+            return False
+        if ";" not in s:
+            return False
+        head = s.split(";", 1)[0].strip()
+        # head — список атак через запятую или одиночная атака без '='
+        return head and "=" not in head
+
+    def _is_simple_attack_name(self, s: str) -> bool:
+        """Check if string is a simple attack name without parameters."""
+        # Простое имя: только буквы, цифры, подчеркивания
+        # Без специальных символов: --:;=(),
+        if any(char in s for char in ["--", ":", ";", "=", "(", ")", ","]):
+            return False
+        # Должно содержать только допустимые символы
+        return s.replace("_", "").replace("-", "").isalnum()
+
+    def _parse_simple_attack_name(self, strategy_string: str) -> NormalizedStrategy:
+        """Parse simple attack name without parameters."""
+        attack_type = strategy_string.lower().strip()
+        
+        # Проверяем, является ли это smart_combo стратегией
+        if attack_type.startswith("smart_combo_"):
+            # Извлекаем атаки из имени: smart_combo_split_fake -> [split, fake]
+            parts = attack_type.replace("smart_combo_", "").split("_")
+            attacks = []
+            
+            # Распознаем известные атаки
+            known_attack_names = {
+                "fake", "split", "disorder", "disorder2", "multidisorder",
+                "multisplit", "seqovl", "ttl", "badseq", "badsum",
+                "fakeddisorder", "overlap"
+            }
+            
+            for part in parts:
+                if part in known_attack_names:
+                    attacks.append(part)
+            
+            if not attacks:
+                # Если не смогли распознать, используем все части
+                attacks = parts
+            
+            if self.debug:
+                self.logger.debug(f"Parsed smart_combo: {attack_type} -> attacks={attacks}")
+        else:
+            # Для обычных атак используем имя как тип и как единственную атаку
+            attacks = [attack_type]
+        
+        # Получаем параметры по умолчанию из реестра для каждой атаки
+        params = {}
+        try:
+            registry = getattr(self, "_attack_registry", None)
+            if registry is None:
+                from core.bypass.attacks.attack_registry import get_attack_registry
+                registry = get_attack_registry()
+            
+            # Собираем параметры по умолчанию для всех атак в комбинации
+            for attack in attacks:
+                metadata = registry.get_attack_metadata(attack)
+                if metadata:
+                    # Объединяем параметры, не перезаписывая существующие
+                    for param_name, default_value in metadata.optional_params.items():
+                        if param_name not in params:
+                            params[param_name] = default_value
+            
+            if self.debug and params:
+                self.logger.debug(
+                    f"Using default params from registry for {attack_type}: {params}"
+                )
+        except Exception as e:
+            if self.debug:
+                self.logger.debug(f"Could not get default params for {attack_type}: {e}")
+        
+        return NormalizedStrategy(
+            type=attack_type,
+            attacks=attacks,
+            params=params,
+            no_fallbacks=True,
+            forced=True,
+            raw_string=strategy_string,
+            source_format="simple_name",
+        )
+
+    def _parse_semicolon_combo_style(self, strategy_string: str) -> NormalizedStrategy:
+        # Пример: "fake,split; ttl=1; fooling=badseq; split_pos=3; split_count=2"
+        parts = [p.strip() for p in strategy_string.split(";") if p.strip()]
+        head = parts[0]
+        attacks = [a.strip().lower() for a in head.split(",") if a.strip()]
+
+        params: Dict[str, Any] = {}
+        for token in parts[1:] if "=" not in head else parts:
+            if "=" not in token:
+                continue
+            k, v = token.split("=", 1)
+            params[k.strip().replace("-", "_")] = self._parse_value(v.strip())
+
+        # Выбор attack_type из комбинации (исправленная логика)
+        disorder_variants = {"disorder", "disorder2", "multidisorder", "fakeddisorder"}
+        att_set = set(attacks)
+
+        # Проверяем комбинации в правильном порядке приоритета
+        if "multisplit" in att_set:
+            attack_type = "multisplit"
+        elif "fake" in att_set and (att_set & disorder_variants):
+            # Комбинация fake + disorder (с или без split) -> fakeddisorder
+            # fakeddisorder может обрабатывать split через параметры split_pos/split_count
+            attack_type = "fakeddisorder"
+        elif "split" in att_set and ("split_count" in params or "positions" in params):
+            # Если есть split_count/positions, но это не явный multisplit, остается split
+            attack_type = "split"
+        elif "multidisorder" in att_set:
+            attack_type = "multidisorder"
+        elif att_set & {"seqovl", "seq_overlap", "overlap"}:
+            attack_type = "seqovl"
+        elif "disorder2" in att_set:
+            attack_type = "disorder2"
+        elif "disorder" in att_set:
+            attack_type = "disorder"
+        elif "split" in att_set:
+            attack_type = "split"
+        elif "fake" in att_set:
+            attack_type = "fake"
+        else:
+            # Фолбэк на первый атаковый токен
+            attack_type = attacks[0] if attacks else "fake"
+
+        normalized_params = self._normalize_params_with_registry(attack_type, params)
+
+        # CRITICAL FIX: Include ALL attacks for combination strategies
+        return NormalizedStrategy(
+            type=attack_type,
+            params=normalized_params,
+            attacks=attacks,  # CRITICAL: Include all attacks, not just type
+            no_fallbacks=True,
+            forced=True,
+            raw_string=strategy_string,
+            source_format="semicolon_combo",
+        )
+    
     def _parse_generic_cli_style(self, strategy_string: str) -> NormalizedStrategy:
         """Parses generic --key=value style strategies."""
         parts = strategy_string.split()
-        attack_type = parts[0].lstrip("-")
+        
+        # Handle --attack=<attack_type> format specifically
+        first_part = parts[0].lstrip("-")
+        if first_part.startswith("attack="):
+            attack_type = first_part[7:]  # Remove "attack=" prefix
+        else:
+            attack_type = first_part
+            
         params = {}
         for part in parts[1:]:
             if "=" in part:
@@ -601,6 +848,7 @@ class UnifiedStrategyLoader:
         return NormalizedStrategy(
             type=attack_type,
             params=self._normalize_params(params),
+            attacks=[attack_type],  # Single attack for generic CLI style
             no_fallbacks=True,
             forced=True,
             raw_string=strategy_string,
@@ -613,18 +861,292 @@ class UnifiedStrategyLoader:
             raise StrategyLoadError("Strategy dict missing 'type' field")
 
         attack_type = strategy_dict["type"]
+        params = strategy_dict.get("params", {})
+        
+        # DEBUG: Log incoming params
+        if self.debug:
+            self.logger.debug(f"📥 _load_from_dict: type={attack_type}, incoming params={params}")
+        
+        # Extract attacks field from strategy dictionary
+        attacks = strategy_dict.get("attacks", [])
+        
+        # ИСПРАВЛЕНИЕ: Если это smart_combo стратегия, парсим её через _parse_simple_attack_name
+        if attack_type.startswith("smart_combo_") and (not attacks or attacks == [attack_type]) and not params:
+            if self.debug:
+                self.logger.debug(f"📋 Detected smart_combo without params, parsing: {attack_type}")
+            # Используем парсер для извлечения атак и параметров
+            parsed = self._parse_simple_attack_name(attack_type)
+            attacks = parsed.attacks
+            params = parsed.params
+            if self.debug:
+                self.logger.debug(f"📋 Parsed smart_combo: attacks={attacks}, params={params}")
+        elif not attacks:
+            # Fall back to single attack if attacks field missing (backward compatibility)
+            attacks = [attack_type]
+            if self.debug:
+                self.logger.debug(
+                    f"Strategy for {attack_type} missing 'attacks' field, "
+                    f"assuming single attack"
+                )
+        
+        # Log the loaded attack combination
+        if self.debug:
+            self.logger.debug(
+                f"Loading strategy: type={attack_type}, attacks={attacks}"
+            )
+        
+        # Validate attack combination before normalizing parameters
+        self._validate_attack_combination(attacks, params)
+        
         normalized_params = self._normalize_params_with_registry(
-            attack_type, strategy_dict.get("params", {})
+            attack_type, params
         )
+        
+        # DEBUG: Log normalized params
+        if self.debug:
+            self.logger.debug(f"📤 _load_from_dict: type={attack_type}, normalized params={normalized_params}")
 
         return NormalizedStrategy(
             type=attack_type,
+            attacks=attacks,
             params=normalized_params,
             no_fallbacks=True,
             forced=True,
             raw_string=str(strategy_dict),
             source_format="dict",
         )
+
+    def _validate_attack_combination(
+        self, attacks: List[str], params: Dict[str, Any]
+    ) -> None:
+        """
+        Validate that attack combination is complete and consistent.
+        
+        This method ensures that attack combinations have all required parameters
+        and logs comprehensive warnings for missing or invalid configurations.
+        
+        Args:
+            attacks: List of attack types in the combination
+            params: Strategy parameters
+            
+        Raises:
+            StrategyValidationError: If validation fails critically
+        """
+        if not attacks:
+            self.logger.error("❌ Validation failed: Empty attacks list")
+            raise StrategyValidationError("Empty attacks list")
+        
+        validation_warnings = []
+        validation_errors = []
+        
+        # Check each attack is known/registered
+        unknown_attacks = []
+        for attack in attacks:
+            # Skip validation for combo attack names (e.g., "smart_combo_fake_multisplit_disorder")
+            # These are dynamically generated strategy names, not individual attack types
+            if "combo" in attack.lower() and "_" in attack:
+                continue
+            
+            if attack not in self.known_attacks:
+                unknown_attacks.append(attack)
+        
+        if unknown_attacks:
+            # Log warning but don't fail - might be a new attack type
+            warning_msg = (
+                f"Unknown attack type(s) in combination: {unknown_attacks}. "
+                f"Known attacks include: {sorted(list(self.known_attacks)[:10])}..."
+            )
+            validation_warnings.append(warning_msg)
+            self.logger.warning(f"⚠️ {warning_msg}")
+        
+        # Check combination-specific parameter requirements
+        
+        # Validate disorder combinations have disorder_method
+        disorder_variants = ["disorder", "disorder2", "multidisorder", "fakeddisorder"]
+        has_disorder = any(variant in attacks for variant in disorder_variants)
+        
+        if has_disorder:
+            if "disorder_method" not in params:
+                # Set default disorder_method to 'reverse'
+                params["disorder_method"] = "reverse"
+                warning_msg = (
+                    f"Disorder attack ({[a for a in attacks if a in disorder_variants]}) "
+                    "in combination but 'disorder_method' parameter missing. "
+                    "Defaulting to 'reverse'. Expected values: 'reverse', 'random'."
+                )
+                validation_warnings.append(warning_msg)
+                self.logger.warning(f"⚠️ {warning_msg}")
+            else:
+                # Validate disorder_method value
+                disorder_method = params["disorder_method"]
+                valid_methods = ["reverse", "random"]
+                if disorder_method not in valid_methods:
+                    warning_msg = (
+                        f"Invalid disorder_method '{disorder_method}'. "
+                        f"Valid values: {valid_methods}"
+                    )
+                    validation_warnings.append(warning_msg)
+                    self.logger.warning(f"⚠️ {warning_msg}")
+                else:
+                    if self.debug:
+                        self.logger.debug(
+                            f"✅ Disorder attack validated with method: {disorder_method}"
+                        )
+        
+        # Validate multisplit combinations have split_count or positions
+        if "multisplit" in attacks:
+            has_split_count = "split_count" in params and params["split_count"] is not None
+            has_positions = "positions" in params and params["positions"] is not None
+            has_split_pos = "split_pos" in params and params["split_pos"] is not None
+            
+            if not has_split_count and not has_positions and not has_split_pos:
+                warning_msg = (
+                    "Multisplit attack missing required parameters. "
+                    "Expected: 'split_count' (int), 'positions' (list of ints), or 'split_pos' (int). "
+                    "Attack handler will use defaults which may not be optimal."
+                )
+                validation_warnings.append(warning_msg)
+                self.logger.warning(f"⚠️ {warning_msg}")
+            else:
+                # Validate parameter values
+                if has_split_count:
+                    split_count = params["split_count"]
+                    if not isinstance(split_count, int) or split_count < 2:
+                        warning_msg = (
+                            f"Invalid split_count value: {split_count}. "
+                            "Expected: integer >= 2"
+                        )
+                        validation_warnings.append(warning_msg)
+                        self.logger.warning(f"⚠️ {warning_msg}")
+                    elif self.debug:
+                        self.logger.debug(
+                            f"✅ Multisplit validated with split_count: {split_count}"
+                        )
+                
+                if has_positions:
+                    positions = params["positions"]
+                    if not isinstance(positions, list) or len(positions) < 2:
+                        warning_msg = (
+                            f"Invalid positions value: {positions}. "
+                            "Expected: list with at least 2 positions"
+                        )
+                        validation_warnings.append(warning_msg)
+                        self.logger.warning(f"⚠️ {warning_msg}")
+                    elif self.debug:
+                        self.logger.debug(
+                            f"✅ Multisplit validated with positions: {positions}"
+                        )
+        
+        # Validate fake attack has ttl parameter
+        if "fake" in attacks or "fakeddisorder" in attacks:
+            has_ttl = "ttl" in params and params["ttl"] is not None
+            has_fake_ttl = "fake_ttl" in params and params["fake_ttl"] is not None
+            has_autottl = "autottl" in params and params["autottl"] is not None
+            
+            if not has_ttl and not has_fake_ttl and not has_autottl:
+                warning_msg = (
+                    f"Fake attack ({[a for a in attacks if 'fake' in a]}) "
+                    "in combination but no TTL parameter found. "
+                    "Expected: 'ttl' (1-255), 'fake_ttl' (1-255), or 'autottl' (-10 to 10). "
+                    "Attack handler will use default TTL which may not be optimal."
+                )
+                validation_warnings.append(warning_msg)
+                self.logger.warning(f"⚠️ {warning_msg}")
+            else:
+                # Validate TTL values
+                if has_ttl:
+                    ttl = params["ttl"]
+                    if not isinstance(ttl, int) or not (1 <= ttl <= 255):
+                        warning_msg = f"Invalid ttl value: {ttl}. Expected: integer 1-255"
+                        validation_warnings.append(warning_msg)
+                        self.logger.warning(f"⚠️ {warning_msg}")
+                    elif self.debug:
+                        self.logger.debug(f"✅ Fake attack validated with ttl: {ttl}")
+                
+                if has_autottl:
+                    autottl = params["autottl"]
+                    if not isinstance(autottl, int) or not (-10 <= autottl <= 10):
+                        warning_msg = (
+                            f"Invalid autottl value: {autottl}. Expected: integer -10 to 10"
+                        )
+                        validation_warnings.append(warning_msg)
+                        self.logger.warning(f"⚠️ {warning_msg}")
+                    elif self.debug:
+                        self.logger.debug(f"✅ Fake attack validated with autottl: {autottl}")
+        
+        # Validate seqovl attack has required parameters
+        seqovl_variants = ["seqovl", "seq_overlap", "overlap"]
+        has_seqovl = any(variant in attacks for variant in seqovl_variants)
+        
+        if has_seqovl:
+            missing_params = []
+            
+            if "overlap_size" not in params or params["overlap_size"] is None:
+                missing_params.append("overlap_size (int, bytes to overlap)")
+            
+            if "split_pos" not in params or params["split_pos"] is None:
+                missing_params.append("split_pos (int or 'sni'/'cipher'/'midsld')")
+            
+            if missing_params:
+                warning_msg = (
+                    f"Sequence overlap attack ({[a for a in attacks if a in seqovl_variants]}) "
+                    f"missing required parameters: {', '.join(missing_params)}. "
+                    "Attack handler will use defaults which may not work correctly."
+                )
+                validation_warnings.append(warning_msg)
+                self.logger.warning(f"⚠️ {warning_msg}")
+            else:
+                # Validate parameter values
+                overlap_size = params["overlap_size"]
+                if not isinstance(overlap_size, int) or overlap_size < 1:
+                    warning_msg = (
+                        f"Invalid overlap_size value: {overlap_size}. Expected: integer >= 1"
+                    )
+                    validation_warnings.append(warning_msg)
+                    self.logger.warning(f"⚠️ {warning_msg}")
+                elif self.debug:
+                    self.logger.debug(
+                        f"✅ Sequence overlap validated with overlap_size: {overlap_size}"
+                    )
+        
+        # Validate split attack has split_pos
+        if "split" in attacks:
+            if "split_pos" not in params or params["split_pos"] is None:
+                warning_msg = (
+                    "Split attack missing 'split_pos' parameter. "
+                    "Expected: integer >= 1 or special value ('sni', 'cipher', 'midsld'). "
+                    "Attack handler will use default."
+                )
+                validation_warnings.append(warning_msg)
+                self.logger.warning(f"⚠️ {warning_msg}")
+            elif self.debug:
+                self.logger.debug(
+                    f"✅ Split attack validated with split_pos: {params['split_pos']}"
+                )
+        
+        # Log validation summary
+        if validation_errors:
+            error_summary = "; ".join(validation_errors)
+            self.logger.error(
+                f"❌ Attack combination validation failed: {error_summary}"
+            )
+            raise StrategyValidationError(
+                f"Attack combination validation failed: {error_summary}"
+            )
+        
+        if validation_warnings:
+            self.logger.warning(
+                f"⚠️ Attack combination validation completed with {len(validation_warnings)} warning(s)"
+            )
+            if self.debug:
+                for i, warning in enumerate(validation_warnings, 1):
+                    self.logger.debug(f"  Warning {i}: {warning}")
+        else:
+            if self.debug:
+                self.logger.debug(
+                    f"✅ Attack combination validated successfully: {attacks} "
+                    f"with {len(params)} parameters"
+                )
 
     def _is_zapret_style(self, strategy: str) -> bool:
         return "--dpi-desync" in strategy
@@ -818,9 +1340,17 @@ class UnifiedStrategyLoader:
             and "positions" not in params
         ):
             split_pos = params.get("split_pos")
+            split_count = params.get("split_count")
+            
             if isinstance(split_pos, int):
-                # For multisplit, create multiple positions based on split_pos
-                positions = [split_pos, split_pos + 8, split_pos + 16]
+                # For multisplit, create multiple positions based on split_pos and split_count
+                if split_count and isinstance(split_count, int) and split_count > 1:
+                    # Use split_count to generate positions with gap of 6 bytes
+                    gap = 6
+                    positions = [split_pos + (i * gap) for i in range(split_count)]
+                else:
+                    # Fallback: create 3 positions if split_count not specified
+                    positions = [split_pos, split_pos + 8, split_pos + 16]
                 params["positions"] = positions
 
         normalized_params = self._normalize_params_with_registry(attack_type, params)
@@ -828,6 +1358,7 @@ class UnifiedStrategyLoader:
         return NormalizedStrategy(
             type=attack_type,
             params=normalized_params,
+            attacks=[attack_type],  # Single attack for zapret style
             no_fallbacks=True,
             forced=True,
             raw_string=strategy_string,
@@ -863,6 +1394,7 @@ class UnifiedStrategyLoader:
         return NormalizedStrategy(
             type=attack_type,
             params=normalized_params,
+            attacks=[attack_type],  # Single attack for function style
             no_fallbacks=True,
             forced=True,
             raw_string=strategy_string,
@@ -924,6 +1456,7 @@ class UnifiedStrategyLoader:
         return NormalizedStrategy(
             type=attack_type,
             params=normalized_params,
+            attacks=[attack_type],  # Single attack for colon style
             no_fallbacks=True,
             forced=True,
             raw_string=strategy_string,
@@ -1011,6 +1544,14 @@ class UnifiedStrategyLoader:
             "forced": True,
             "override_mode": True,
         }
+        
+        # CRITICAL FIX: Include 'attacks' field for combination attacks
+        # This ensures testing-production parity for combo strategies
+        if "attacks" in base_config:
+            forced_config["attacks"] = base_config["attacks"]
+            if self.debug:
+                self.logger.debug(f"Included attacks field in forced override: {base_config['attacks']}")
+        
         if self.debug:
             self.logger.debug(f"Created forced override: {forced_config}")
         return forced_config
@@ -1018,6 +1559,14 @@ class UnifiedStrategyLoader:
     def validate_strategy(self, strategy: NormalizedStrategy) -> bool:
         """Validate strategy parameters and configuration using AttackRegistry."""
         try:
+            # Special handling for combo attacks - they are valid but flexible
+            if strategy.type == "combo" or strategy.type.endswith("_combo") or "combo" in strategy.type:
+                self.logger.debug(f"Combo attack type detected: {strategy.type}, using flexible validation")
+                # Combo attacks are always valid with flexible parameters
+                # Just do basic parameter validation
+                self._validate_parameter_values(strategy)
+                return True
+            
             # Use stored registry reference if available, otherwise get it
             registry = getattr(self, "_attack_registry", None)
             if registry is None:
@@ -1067,6 +1616,12 @@ class UnifiedStrategyLoader:
 
     def _legacy_validate_strategy(self, strategy: NormalizedStrategy) -> bool:
         """Legacy strategy validation for backward compatibility."""
+        # Special handling for combo attacks - they are valid but flexible
+        if strategy.type == "combo" or strategy.type.endswith("_combo") or "combo" in strategy.type:
+            self.logger.debug(f"Combo attack type detected: {strategy.type}")
+            # Combo attacks are always valid with flexible parameters
+            return True
+            
         if strategy.type not in self.known_attacks:
             self.logger.warning(f"Unknown attack type: {strategy.type}")
 
@@ -1663,9 +2218,12 @@ class UnifiedStrategyLoader:
         # Handle different dict formats
         if "attack_type" in strategy_dict:
             # ParsedStrategy-like format
+            attack_type = strategy_dict["attack_type"]
+            attacks = strategy_dict.get("attacks", [attack_type])  # Preserve attacks or default to single
             return NormalizedStrategy(
-                type=strategy_dict["attack_type"],
+                type=attack_type,
                 params=strategy_dict.get("params", {}),
+                attacks=attacks,  # Include attacks field
                 no_fallbacks=True,
                 forced=True,
                 raw_string=strategy_dict.get("raw_string", ""),
@@ -1673,9 +2231,12 @@ class UnifiedStrategyLoader:
             )
         elif "type" in strategy_dict:
             # Direct format
+            attack_type = strategy_dict["type"]
+            attacks = strategy_dict.get("attacks", [attack_type])  # Preserve attacks or default to single
             return NormalizedStrategy(
-                type=strategy_dict["type"],
+                type=attack_type,
                 params=strategy_dict.get("params", {}),
+                attacks=attacks,  # Include attacks field
                 no_fallbacks=True,
                 forced=True,
                 raw_string=str(strategy_dict),
@@ -1928,6 +2489,278 @@ class UnifiedStrategyLoader:
 
         return status
 
+    def load_all_strategies(
+        self, file_path: str = "domain_strategies.json"
+    ) -> Dict[str, NormalizedStrategy]:
+        """
+        Load all strategies from domain_strategies.json file.
+
+        Args:
+            file_path: Path to the strategies JSON file (default: domain_strategies.json)
+
+        Returns:
+            Dict mapping domain to normalized strategy
+
+        Raises:
+            StrategyLoadError: If file cannot be loaded or parsed
+        """
+        file_path = Path(file_path)
+
+        if not file_path.exists():
+            self.logger.warning(f"Strategy file not found: {file_path}")
+            return {}
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            raise StrategyLoadError(f"Failed to read strategy file {file_path}: {e}")
+
+        strategies = {}
+
+        # Handle domain_strategies.json format
+        if "domain_strategies" in data:
+            # New format with metadata
+            domain_strategies = data["domain_strategies"]
+            for domain, strategy_data in domain_strategies.items():
+                try:
+                    if isinstance(strategy_data, dict) and "strategy" in strategy_data:
+                        # Extract strategy string from nested structure
+                        strategy_str = strategy_data["strategy"]
+                        strategies[domain] = self.load_strategy(strategy_str)
+                    elif isinstance(strategy_data, str):
+                        # Direct strategy string
+                        strategies[domain] = self.load_strategy(strategy_data)
+                    elif isinstance(strategy_data, dict):
+                        # Dict format strategy
+                        strategies[domain] = self.load_strategy(strategy_data)
+                    else:
+                        self.logger.warning(
+                            f"Skipping invalid strategy for {domain}: {strategy_data}"
+                        )
+                except Exception as e:
+                    self.logger.error(f"Failed to load strategy for {domain}: {e}")
+                    # Continue loading other strategies
+        else:
+            # Legacy format - direct domain to strategy mapping
+            for domain, strategy_data in data.items():
+                # Skip metadata fields
+                if domain in ["version", "last_updated"]:
+                    continue
+
+                try:
+                    if isinstance(strategy_data, str):
+                        strategies[domain] = self.load_strategy(strategy_data)
+                    elif isinstance(strategy_data, dict):
+                        if "strategy" in strategy_data:
+                            strategies[domain] = self.load_strategy(
+                                strategy_data["strategy"]
+                            )
+                        else:
+                            strategies[domain] = self.load_strategy(strategy_data)
+                    else:
+                        self.logger.warning(
+                            f"Skipping invalid strategy for {domain}: {strategy_data}"
+                        )
+                except Exception as e:
+                    self.logger.error(f"Failed to load strategy for {domain}: {e}")
+                    # Continue loading other strategies
+
+        if self.debug:
+            self.logger.debug(
+                f"Loaded {len(strategies)} strategies from {file_path}"
+            )
+
+        return strategies
+
+    def save_strategy(
+        self,
+        domain: str,
+        strategy: Union[str, Dict[str, Any], NormalizedStrategy],
+        file_path: str = "domain_strategies.json",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Save a strategy for a domain to domain_strategies.json file.
+
+        Args:
+            domain: Domain name
+            strategy: Strategy to save (string, dict, or NormalizedStrategy)
+            file_path: Path to the strategies JSON file (default: domain_strategies.json)
+            metadata: Optional metadata to save with the strategy (success_rate, latency, etc.)
+
+        Raises:
+            StrategyLoadError: If file cannot be written
+        """
+        from datetime import datetime
+
+        file_path = Path(file_path)
+
+        # Load existing strategies
+        existing_data = {}
+        if file_path.exists():
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to read existing strategies from {file_path}: {e}"
+                )
+                existing_data = {}
+
+        # Ensure domain_strategies structure exists
+        if "domain_strategies" not in existing_data:
+            existing_data["domain_strategies"] = {}
+
+        # Normalize the strategy
+        if isinstance(strategy, NormalizedStrategy):
+            strategy_str = strategy.raw_string
+        elif isinstance(strategy, dict):
+            # Convert dict to string format
+            normalized = self.load_strategy(strategy)
+            strategy_str = normalized.raw_string
+        elif isinstance(strategy, str):
+            # Validate the strategy string
+            normalized = self.load_strategy(strategy)
+            strategy_str = strategy
+        else:
+            raise StrategyLoadError(
+                f"Invalid strategy type: {type(strategy)}. Must be str, dict, or NormalizedStrategy"
+            )
+
+        # Create strategy entry
+        strategy_entry = {
+            "domain": domain,
+            "strategy": strategy_str,
+            "last_tested": datetime.now().isoformat(),
+        }
+
+        # Add metadata if provided
+        if metadata:
+            strategy_entry.update(metadata)
+
+        # Update domain_strategies
+        existing_data["domain_strategies"][domain] = strategy_entry
+
+        # Update file metadata
+        existing_data["last_updated"] = datetime.now().isoformat()
+        if "version" not in existing_data:
+            existing_data["version"] = "2.0"
+
+        # Write to file
+        try:
+            # Create parent directory if it doesn't exist
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(existing_data, f, indent=2, ensure_ascii=False)
+
+            if self.debug:
+                self.logger.debug(
+                    f"Saved strategy for {domain} to {file_path}: {strategy_str}"
+                )
+        except Exception as e:
+            raise StrategyLoadError(f"Failed to write strategy file {file_path}: {e}")
+
+    def save_all_strategies(
+        self,
+        strategies: Dict[str, Union[str, Dict[str, Any], NormalizedStrategy]],
+        file_path: str = "domain_strategies.json",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Save multiple strategies to domain_strategies.json file.
+
+        Args:
+            strategies: Dict mapping domain to strategy
+            file_path: Path to the strategies JSON file (default: domain_strategies.json)
+            metadata: Optional global metadata
+
+        Raises:
+            StrategyLoadError: If file cannot be written
+        """
+        from datetime import datetime
+
+        file_path = Path(file_path)
+
+        # Load existing data to preserve metadata
+        existing_data = {}
+        if file_path.exists():
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except Exception as e:
+                self.logger.warning(
+                    f"Failed to read existing strategies from {file_path}: {e}"
+                )
+                existing_data = {}
+
+        # Ensure structure
+        if "domain_strategies" not in existing_data:
+            existing_data["domain_strategies"] = {}
+
+        # Process each strategy
+        for domain, strategy in strategies.items():
+            try:
+                # Normalize the strategy
+                if isinstance(strategy, NormalizedStrategy):
+                    strategy_str = strategy.raw_string
+                elif isinstance(strategy, dict):
+                    if "strategy" in strategy:
+                        # Already in correct format
+                        existing_data["domain_strategies"][domain] = strategy
+                        continue
+                    else:
+                        # Convert dict to string format
+                        normalized = self.load_strategy(strategy)
+                        strategy_str = normalized.raw_string
+                elif isinstance(strategy, str):
+                    # Validate the strategy string
+                    normalized = self.load_strategy(strategy)
+                    strategy_str = strategy
+                else:
+                    self.logger.warning(
+                        f"Skipping invalid strategy for {domain}: {type(strategy)}"
+                    )
+                    continue
+
+                # Create strategy entry
+                strategy_entry = {
+                    "domain": domain,
+                    "strategy": strategy_str,
+                    "last_tested": datetime.now().isoformat(),
+                }
+
+                # Add per-domain metadata if available
+                if metadata and domain in metadata:
+                    strategy_entry.update(metadata[domain])
+
+                existing_data["domain_strategies"][domain] = strategy_entry
+
+            except Exception as e:
+                self.logger.error(f"Failed to process strategy for {domain}: {e}")
+                # Continue with other strategies
+
+        # Update file metadata
+        existing_data["last_updated"] = datetime.now().isoformat()
+        if "version" not in existing_data:
+            existing_data["version"] = "2.0"
+
+        # Write to file
+        try:
+            # Create parent directory if it doesn't exist
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(existing_data, f, indent=2, ensure_ascii=False)
+
+            if self.debug:
+                self.logger.debug(
+                    f"Saved {len(strategies)} strategies to {file_path}"
+                )
+        except Exception as e:
+            raise StrategyLoadError(f"Failed to write strategy file {file_path}: {e}")
+
 
 # Convenience functions for backward compatibility
 def load_strategy(
@@ -1952,3 +2785,4 @@ def load_strategies_from_file(
     """Convenience function to load strategies from file."""
     loader = UnifiedStrategyLoader(debug=debug)
     return loader.load_strategies_from_file(file_path)
+

@@ -1,0 +1,43 @@
+{
+  "timestamp": "2025-12-01T18:37:24.664397",
+  "domain": "ton.twimg.com",
+  "retransmissions": 4,
+  "strategy": {
+    "type": "fake",
+    "params": {
+      "ttl": 1,
+      "fooling": "badseq",
+      "split_pos": 2,
+      "split_count": 6,
+      "disorder_method": "reverse",
+      "no_fallbacks": true,
+      "forced": true
+    },
+    "attacks": [
+      "fake",
+      "disorder",
+      "multisplit"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 285,
+  "recommendations": [
+    "Run 'cli.py test ton.twimg.com' to re-test the strategy",
+    "Run 'cli.py auto ton.twimg.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "ton.twimg.com",
+    "source": "sni",
+    "ip_address": "199.232.172.159:443",
+    "matched_rule": "ton.twimg.com",
+    "conflict_detected": false,
+    "sni_domain": "ton.twimg.com",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "twimg.com",
+    "recommendation": "Try removing 'ton.twimg.com' rule to use parent domain 'twimg.com' strategy"
+  }
+}

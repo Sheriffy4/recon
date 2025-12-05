@@ -1,0 +1,10 @@
+{
+  "strategy_id": "f1dacdb8-3915-4db8-93a7-5271c79bac4b",
+  "strategy_name": "existing_smart_combo_split_fake",
+  "domain": "pagead2.googlesyndication.com",
+  "timestamp": "2025-12-05T15:05:51.684376",
+  "operations": [],
+  "metadata": {
+    "target_ip": "142.250.74.34"
+  }
+}

@@ -21,9 +21,12 @@ youtubei.googleapis.com
 i.ytimg.com
 i1.ytimg.com
 i2.ytimg.com
+yt3.ggpht.com
 lh3.ggpht.com
 lh4.ggpht.com
 www.youtube.com
 www.facebook.com
-googlevideo.com
 nnmstatic.win
+robinbob.in
+pagead2.googlesyndication.com
+googleads.g.doubleclick.net

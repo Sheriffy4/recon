@@ -1,0 +1,22 @@
+{
+  "enable_doh": true,
+  "auto_detect_blocking": true,
+  "cache_file": "doh_cache.json",
+  "blocked_patterns": [
+    "twitter.com",
+    "x.com",
+    "t.co",
+    "facebook.com",
+    "instagram.com",
+    "youtube.com",
+    "googlevideo.com",
+    "abs.twimg.com",
+    "pbs.twimg.com"
+  ],
+  "preferred_providers": [
+    "cloudflare",
+    "google",
+    "quad9"
+  ],
+  "cache_ttl": 300
+}

@@ -1,0 +1,10 @@
+{
+  "strategy_id": "c613259c-5ecc-49b9-bbd4-560caad963b8",
+  "strategy_name": "multisplit",
+  "domain": "pagead2.googlesyndication.com",
+  "timestamp": "2025-12-04T19:37:08.234663",
+  "operations": [],
+  "metadata": {
+    "target_ip": "142.250.74.130"
+  }
+}

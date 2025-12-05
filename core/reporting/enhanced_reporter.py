@@ -454,10 +454,16 @@ class EnhancedReporter:
             print(f"   Tests: {strategy.successful_tests}/{strategy.total_tests}")
 
             if strategy.recommended_scenarios:
-                print(f"   Best For: {', '.join(strategy.recommended_scenarios)}")
+                # Фильтруем None значения
+                filtered_scenarios = [s for s in strategy.recommended_scenarios if s is not None]
+                if filtered_scenarios:
+                    print(f"   Best For: {', '.join(filtered_scenarios)}")
 
             if strategy.limitations:
-                print(f"   Limitations: {', '.join(strategy.limitations)}")
+                # Фильтруем None значения
+                filtered_limitations = [l for l in strategy.limitations if l is not None]
+                if filtered_limitations:
+                    print(f"   Limitations: {', '.join(filtered_limitations)}")
 
         print("\n" + "-" * 80)
         print("💻 SYSTEM PERFORMANCE")

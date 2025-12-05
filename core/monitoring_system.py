@@ -8,6 +8,30 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 import socket
 
+# Task 8.2: Import closed-loop metrics
+try:
+    from core.metrics.closed_loop_metrics import (
+        get_closed_loop_metrics_collector,
+        ClosedLoopMetricsCollector
+    )
+    CLOSED_LOOP_METRICS_AVAILABLE = True
+except ImportError:
+    CLOSED_LOOP_METRICS_AVAILABLE = False
+    get_closed_loop_metrics_collector = None
+    ClosedLoopMetricsCollector = None
+
+# Task 8.3: Import effectiveness reporter
+try:
+    from core.metrics.effectiveness_reporter import (
+        get_effectiveness_reporter,
+        EffectivenessReporter
+    )
+    EFFECTIVENESS_REPORTER_AVAILABLE = True
+except ImportError:
+    EFFECTIVENESS_REPORTER_AVAILABLE = False
+    get_effectiveness_reporter = None
+    EffectivenessReporter = None
+
 try:
     import aiohttp
 
@@ -235,6 +259,31 @@ class MonitoringSystem:
             "registry_strategy_uses": 0,
             "reliability_validations": 0,
         }
+        
+        # Task 8.2: Initialize closed-loop metrics integration
+        self.closed_loop_metrics_collector = None
+        if CLOSED_LOOP_METRICS_AVAILABLE and get_closed_loop_metrics_collector:
+            try:
+                self.closed_loop_metrics_collector = get_closed_loop_metrics_collector()
+                self.logger.info("✅ Closed-loop metrics integration initialized")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Failed to initialize closed-loop metrics: {e}")
+                self.closed_loop_metrics_collector = None
+        else:
+            self.logger.warning("⚠️ Closed-loop metrics not available")
+        
+        # Task 8.3: Initialize effectiveness reporter
+        self.effectiveness_reporter = None
+        if EFFECTIVENESS_REPORTER_AVAILABLE and get_effectiveness_reporter:
+            try:
+                self.effectiveness_reporter = get_effectiveness_reporter()
+                self.logger.info("✅ Effectiveness reporter initialized")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Failed to initialize effectiveness reporter: {e}")
+                self.effectiveness_reporter = None
+        else:
+            self.logger.warning("⚠️ Effectiveness reporter not available")
+        
         logging.basicConfig(level=getattr(logging, config.log_level))
 
     def add_site(
@@ -521,6 +570,49 @@ class MonitoringSystem:
                     report["pool_manager_stats"] = pool_stats
                 except Exception as e:
                     self.logger.error(f"Failed to get pool manager stats: {e}")
+        
+        # Task 8.2: Add closed-loop metrics to monitoring report
+        if self.closed_loop_metrics_collector:
+            try:
+                closed_loop_metrics = self.closed_loop_metrics_collector.get_metrics_dict()
+                
+                # Add tags for grouping (pattern_id, root_cause)
+                tagged_metrics = {}
+                for key, value in closed_loop_metrics.items():
+                    if key == "success_rate_by_pattern":
+                        # Add pattern_id tags
+                        for pattern_id, success_rate in value.items():
+                            tagged_key = f"{key}.{pattern_id}"
+                            tagged_metrics[tagged_key] = {
+                                "value": success_rate,
+                                "tags": {
+                                    "pattern_id": pattern_id,
+                                    "metric_type": "success_rate"
+                                }
+                            }
+                    else:
+                        tagged_metrics[key] = {
+                            "value": value,
+                            "tags": {
+                                "metric_type": "closed_loop",
+                                "component": "adaptive_engine"
+                            }
+                        }
+                
+                report["closed_loop_metrics"] = tagged_metrics
+                
+                # Add summary metrics for easier monitoring
+                report["closed_loop_summary"] = self.closed_loop_metrics_collector.get_summary_report()
+                
+            except Exception as e:
+                self.logger.error(f"Failed to get closed-loop metrics: {e}")
+                report["closed_loop_metrics"] = {"error": str(e)}
+        
+        # Task 8.3: Add rule effectiveness summary to monitoring report
+        # Note: This requires knowledge_accumulator to be passed separately
+        # For now, we'll add a placeholder that can be populated when available
+        report["rule_effectiveness_available"] = self.effectiveness_reporter is not None
+        
         for site_key, health in self.monitored_sites.items():
             report["sites"][site_key] = health.to_dict()
         return report
@@ -531,6 +623,243 @@ class MonitoringSystem:
         accessible = sum((1 for h in self.monitored_sites.values() if h.is_accessible))
         with_bypass = sum((1 for h in self.monitored_sites.values() if h.bypass_active))
         return f"📊 Status: {accessible}/{total} accessible, {with_bypass} with bypass"
+    
+    def get_closed_loop_metrics(self) -> Dict[str, Any]:
+        """
+        Task 8.2: Получение метрик замкнутого цикла обучения через MonitoringSystem.
+        
+        Экспортирует метрики через существующий MonitoringSystem с тегами
+        для группировки (pattern_id, root_cause).
+        
+        Returns:
+            Словарь с метриками замкнутого цикла или пустой словарь если недоступно
+        """
+        if not self.closed_loop_metrics_collector:
+            return {}
+        
+        try:
+            # Получаем базовые метрики
+            metrics = self.closed_loop_metrics_collector.get_metrics_dict()
+            
+            # Добавляем теги для группировки
+            tagged_metrics = {
+                "closed_loop.iterations_count": {
+                    "value": metrics.get("iterations_count", 0),
+                    "tags": {
+                        "metric_type": "counter",
+                        "component": "closed_loop_learning"
+                    }
+                },
+                "closed_loop.intents_generated_total": {
+                    "value": metrics.get("intents_generated_total", 0),
+                    "tags": {
+                        "metric_type": "counter", 
+                        "component": "intent_generation"
+                    }
+                },
+                "closed_loop.strategies_generated_per_iteration": {
+                    "value": metrics.get("strategies_generated_per_iteration", 0.0),
+                    "tags": {
+                        "metric_type": "gauge",
+                        "component": "strategy_generation"
+                    }
+                },
+                "closed_loop.pattern_matches_total": {
+                    "value": metrics.get("pattern_matches_total", 0),
+                    "tags": {
+                        "metric_type": "counter",
+                        "component": "pattern_matching"
+                    }
+                },
+                "closed_loop.knowledge_base_rules_count": {
+                    "value": metrics.get("knowledge_base_rules_count", 0),
+                    "tags": {
+                        "metric_type": "gauge",
+                        "component": "knowledge_base"
+                    }
+                }
+            }
+            
+            # Добавляем success_rate_by_pattern с тегами pattern_id
+            success_rates = metrics.get("success_rate_by_pattern", {})
+            for pattern_id, success_rate in success_rates.items():
+                # Извлекаем root_cause из pattern_id если возможно
+                root_cause = "unknown"
+                if "_" in pattern_id:
+                    parts = pattern_id.split("_")
+                    if len(parts) > 1:
+                        root_cause = "_".join(parts[1:])  # Убираем "pattern_" префикс
+                
+                tagged_metrics[f"closed_loop.success_rate_by_pattern.{pattern_id}"] = {
+                    "value": success_rate,
+                    "tags": {
+                        "metric_type": "gauge",
+                        "component": "pattern_effectiveness",
+                        "pattern_id": pattern_id,
+                        "root_cause": root_cause
+                    }
+                }
+            
+            return tagged_metrics
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get closed-loop metrics: {e}")
+            return {"error": str(e)}
+    
+    def export_closed_loop_metrics(self, file_path: str = "metrics/monitoring_closed_loop_metrics.json") -> bool:
+        """
+        Task 8.2: Экспорт метрик замкнутого цикла в JSON формате.
+        
+        Args:
+            file_path: Путь к файлу для экспорта
+            
+        Returns:
+            True если экспорт успешен
+        """
+        if not self.closed_loop_metrics_collector:
+            self.logger.warning("Closed-loop metrics collector not available")
+            return False
+        
+        try:
+            # Экспортируем через коллектор метрик
+            success = self.closed_loop_metrics_collector.export_metrics(file_path)
+            
+            if success:
+                self.logger.info(f"📊 Closed-loop metrics exported to {file_path}")
+            else:
+                self.logger.error(f"Failed to export closed-loop metrics to {file_path}")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error exporting closed-loop metrics: {e}")
+            return False
+    
+    def generate_rule_effectiveness_report(self, 
+                                         knowledge_accumulator,
+                                         export_json: bool = True,
+                                         export_visualization: bool = True) -> Dict[str, Any]:
+        """
+        Task 8.3: Генерация отчетов об эффективности правил.
+        
+        Генерирует статистику по каждому правилу, экспортирует в JSON формате
+        и создает визуализацию топ правил по success_rate.
+        
+        Args:
+            knowledge_accumulator: Экземпляр KnowledgeAccumulator
+            export_json: Экспортировать JSON отчет
+            export_visualization: Создать текстовую визуализацию
+            
+        Returns:
+            Словарь с результатами генерации отчета
+        """
+        if not self.effectiveness_reporter:
+            self.logger.warning("Effectiveness reporter not available")
+            return {"error": "Effectiveness reporter not available"}
+        
+        if not knowledge_accumulator:
+            self.logger.warning("Knowledge accumulator not provided")
+            return {"error": "Knowledge accumulator not provided"}
+        
+        try:
+            # Генерируем комплексный отчет
+            created_files = self.effectiveness_reporter.generate_comprehensive_report(
+                knowledge_accumulator,
+                export_json=export_json,
+                export_visualization=export_visualization
+            )
+            
+            # Получаем статистику для возврата
+            report = self.effectiveness_reporter.generate_effectiveness_report(knowledge_accumulator)
+            
+            result = {
+                "success": True,
+                "timestamp": datetime.now().isoformat(),
+                "created_files": created_files,
+                "summary": {
+                    "total_rules": report.total_rules,
+                    "active_rules": report.active_rules,
+                    "high_performance_rules": report.high_performance_rules,
+                    "top_success_rate": report.top_rules_by_success_rate[0].success_rate if report.top_rules_by_success_rate else 0.0,
+                    "recommendations_count": len(report.recommendations)
+                },
+                "top_rules_preview": [
+                    {
+                        "rule_id": rule.rule_id,
+                        "success_rate": rule.success_rate,
+                        "total_applications": rule.total_applications,
+                        "unique_domains": rule.unique_domains_count
+                    }
+                    for rule in report.top_rules_by_success_rate[:5]
+                ]
+            }
+            
+            self.logger.info(f"📊 Rule effectiveness report generated: "
+                           f"{report.total_rules} rules analyzed, "
+                           f"{len(created_files)} files created")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error generating rule effectiveness report: {e}")
+            return {"error": str(e), "success": False}
+    
+    def get_rule_effectiveness_summary(self, knowledge_accumulator) -> Dict[str, Any]:
+        """
+        Task 8.3: Получение краткой сводки об эффективности правил.
+        
+        Args:
+            knowledge_accumulator: Экземпляр KnowledgeAccumulator
+            
+        Returns:
+            Словарь с краткой статистикой эффективности
+        """
+        if not self.effectiveness_reporter or not knowledge_accumulator:
+            return {}
+        
+        try:
+            # Анализируем правила
+            rule_stats = self.effectiveness_reporter.analyze_rule_effectiveness(knowledge_accumulator)
+            
+            if not rule_stats:
+                return {"total_rules": 0, "message": "No rules found"}
+            
+            # Вычисляем основные метрики
+            active_rules = [r for r in rule_stats if r.total_applications > 0]
+            high_performance_rules = [r for r in active_rules if r.success_rate > 0.8]
+            
+            # Топ 3 правила по успешности
+            top_rules = sorted(active_rules, key=lambda x: x.success_rate, reverse=True)[:3]
+            
+            # Средняя эффективность
+            avg_success_rate = 0.0
+            if active_rules:
+                avg_success_rate = sum(r.success_rate for r in active_rules) / len(active_rules)
+            
+            return {
+                "total_rules": len(rule_stats),
+                "active_rules": len(active_rules),
+                "high_performance_rules": len(high_performance_rules),
+                "average_success_rate": avg_success_rate,
+                "top_rules": [
+                    {
+                        "rule_id": rule.rule_id,
+                        "success_rate": rule.success_rate,
+                        "applications": rule.total_applications
+                    }
+                    for rule in top_rules
+                ],
+                "performance_distribution": {
+                    "excellent": len([r for r in active_rules if r.success_rate > 0.9]),
+                    "good": len([r for r in active_rules if 0.7 < r.success_rate <= 0.9]),
+                    "fair": len([r for r in active_rules if 0.5 < r.success_rate <= 0.7]),
+                    "poor": len([r for r in active_rules if r.success_rate <= 0.5])
+                }
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting rule effectiveness summary: {e}")
+            return {"error": str(e)}
 
 
 def load_monitoring_config(

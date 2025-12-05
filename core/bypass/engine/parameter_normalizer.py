@@ -156,6 +156,12 @@ class ParameterNormalizer:
                 attack_type, result.normalized_params, result
             )
 
+            # Step 6: Apply defaults from AttackRegistry (CRITICAL FIX for parameter loss)
+            # This ensures config parameters have priority over defaults
+            result.normalized_params = self._apply_defaults(
+                attack_type, result.normalized_params, result
+            )
+
             self.logger.debug(
                 f"Normalized {attack_type} params: "
                 f"{len(result.transformations)} transformations, "
@@ -486,7 +492,11 @@ class ParameterNormalizer:
         # Validate positions list
         if "positions" in params:
             positions = params["positions"]
-            if not isinstance(positions, list):
+            if positions is None:
+                # None is acceptable for positions - the attack handler will convert it
+                # from split_pos or use defaults
+                pass
+            elif not isinstance(positions, list):
                 errors.append(f"positions must be a list, got {type(positions)}")
             else:
                 for i, pos in enumerate(positions):
@@ -681,6 +691,101 @@ class ParameterNormalizer:
         }
 
         return aliases.get(attack_type.lower(), attack_type.lower())
+
+    def _apply_defaults(
+        self,
+        attack_type: str,
+        params: Dict[str, Any],
+        result: ValidationResult
+    ) -> Dict[str, Any]:
+        """
+        Apply default parameters from AttackRegistry.
+        
+        CRITICAL FIX: This method solves the "parameter loss" problem where
+        default parameters from AttackRegistry were overwriting configuration
+        parameters from domain_rules.json.
+        
+        CORRECT PRIORITY ORDER:
+        1. Parameters from configuration (domain_rules.json) - HIGHEST PRIORITY
+        2. Default parameters from AttackRegistry - LOWEST PRIORITY
+        
+        This ensures that user configuration always takes precedence over defaults.
+        
+        Example:
+        - AttackRegistry has: optional_params={"split_pos": 3, "ack_first": False}
+        - Config has: {"split_pos": 2, "disorder_method": "reverse"}
+        - Result: {"split_pos": 2, "ack_first": False, "disorder_method": "reverse"}
+        
+        Args:
+            attack_type: Type of attack (disorder, fake, etc.)
+            params: Parameters from configuration (already normalized)
+            result: ValidationResult to log transformations
+            
+        Returns:
+            Parameters with defaults applied (config has priority)
+        """
+        try:
+            # Import AttackRegistry here to avoid circular imports
+            from core.bypass.attacks.attack_registry import AttackRegistry
+            
+            # Get singleton instance
+            registry = AttackRegistry()
+            
+            # Get attack metadata (includes optional_params)
+            metadata = registry.get_attack_metadata(attack_type)
+            
+            if not metadata or not metadata.optional_params:
+                # No defaults to apply
+                self.logger.debug(f"No default parameters for attack '{attack_type}'")
+                return params
+            
+            default_params = metadata.optional_params
+            self.logger.info(f"📋 Default params from AttackRegistry for '{attack_type}': {default_params}")
+            self.logger.info(f"📋 Config params: {params}")
+            
+            # CRITICAL: Correct order - defaults first, then config overwrites
+            # This ensures config parameters have priority
+            final_params = {}
+            
+            # Step 1: Add all defaults
+            final_params.update(default_params)
+            
+            # Step 2: Overwrite with config parameters (PRIORITY)
+            final_params.update(params)
+            
+            self.logger.info(f"📋 Final params after applying defaults: {final_params}")
+            
+            # Step 3: Log which parameters were added/overridden
+            for key, default_value in default_params.items():
+                if key not in params:
+                    # Default was added (parameter was missing in config)
+                    result.add_transformation(
+                        key,
+                        None,
+                        default_value,
+                        f"Added default value from AttackRegistry"
+                    )
+                    self.logger.debug(f"➕ Added default: {key}={default_value}")
+                else:
+                    # Config parameter overrides default
+                    config_value = params[key]
+                    if config_value != default_value:
+                        self.logger.info(
+                            f"✅ Config overrides default: {key}={config_value} "
+                            f"(default was {default_value})"
+                        )
+                    else:
+                        self.logger.debug(
+                            f"✓ Config matches default: {key}={config_value}"
+                        )
+            
+            return final_params
+            
+        except Exception as e:
+            # If anything fails, return original params (safe fallback)
+            self.logger.error(f"Failed to apply defaults for '{attack_type}': {e}")
+            self.logger.warning(f"Using original params without defaults")
+            return params
 
 
 # Convenience function for quick normalization

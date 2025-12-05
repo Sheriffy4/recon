@@ -573,7 +573,6 @@ class PyDivertCaptureWorker:
                     ]
                     ports = ports or [80, 443]
                     candidates = gen.progressive_candidates(
-                        target_ips=[],
                         target_ports=ports,
                         direction="outbound",
                         protocols=("tcp",),
@@ -593,7 +592,6 @@ class PyDivertCaptureWorker:
                         ]
                         ports = ports or [80, 443]
                         candidates = gen.progressive_candidates(
-                            target_ips=[],
                             target_ports=ports,
                             direction="outbound",
                             protocols=("tcp",),

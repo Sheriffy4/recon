@@ -1,0 +1,15 @@
+{
+  "strategy_id": "e02d049a-ee86-48bc-9168-d5c0470f127f",
+  "strategy_name": "test",
+  "domain": "google.com",
+  "timestamp": "2025-12-02T22:20:25.733918",
+  "operations": [],
+  "metadata": {
+    "domain": "google.com",
+    "strategy": {
+      "attack": "test",
+      "_strategy_id": "e02d049a-ee86-48bc-9168-d5c0470f127f"
+    },
+    "verification_mode": true
+  }
+}

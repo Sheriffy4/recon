@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-12-01T15:43:46.278385",
+  "domain": "rutracker.org",
+  "retransmissions": 5,
+  "strategy": {
+    "type": "fake",
+    "params": {
+      "ttl": 1,
+      "fooling": "badseq",
+      "split_pos": 3,
+      "split_count": 2,
+      "no_fallbacks": true,
+      "forced": true
+    },
+    "attacks": [
+      "fake",
+      "split"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 10,
+  "recommendations": [
+    "Run 'cli.py test rutracker.org' to re-test the strategy",
+    "Run 'cli.py auto rutracker.org' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "rutracker.org",
+    "source": "sni",
+    "ip_address": "104.21.32.39:443",
+    "matched_rule": "rutracker.org",
+    "conflict_detected": false,
+    "sni_domain": "rutracker.org",
+    "ip_domain": null
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-12-01T18:38:25.280203",
+  "domain": "edge-chat.instagram.com",
+  "retransmissions": 6,
+  "strategy": {
+    "type": "fake",
+    "params": {
+      "ttl": 1,
+      "fooling": "badseq",
+      "split_pos": 3,
+      "split_count": 8,
+      "no_fallbacks": true,
+      "forced": true
+    },
+    "attacks": [
+      "fake",
+      "multisplit"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 294,
+  "recommendations": [
+    "Run 'cli.py test edge-chat.instagram.com' to re-test the strategy",
+    "Run 'cli.py auto edge-chat.instagram.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "edge-chat.instagram.com",
+    "source": "sni",
+    "ip_address": "31.13.72.53:443",
+    "matched_rule": "edge-chat.instagram.com",
+    "conflict_detected": false,
+    "sni_domain": "edge-chat.instagram.com",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "instagram.com",
+    "recommendation": "Try removing 'edge-chat.instagram.com' rule to use parent domain 'instagram.com' strategy"
+  }
+}

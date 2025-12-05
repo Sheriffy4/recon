@@ -1,0 +1,87 @@
+{
+  "features": [
+    {
+      "name": "runtime_filtering",
+      "enabled": true,
+      "rollout_stage": "full",
+      "rollout_percentage": 1.0,
+      "start_date": null,
+      "end_date": null,
+      "description": "Runtime packet filtering system (replaces IP-based filtering)",
+      "dependencies": []
+    },
+    {
+      "name": "custom_sni",
+      "enabled": false,
+      "rollout_stage": "disabled",
+      "rollout_percentage": 0.0,
+      "start_date": null,
+      "end_date": null,
+      "description": "Custom SNI values in strategies",
+      "dependencies": [
+        "runtime_filtering"
+      ]
+    },
+    {
+      "name": "performance_monitoring",
+      "enabled": true,
+      "rollout_stage": "full",
+      "rollout_percentage": 1.0,
+      "start_date": null,
+      "end_date": null,
+      "description": "Performance monitoring for runtime filtering",
+      "dependencies": []
+    },
+    {
+      "name": "domain_based_filtering",
+      "enabled": true,
+      "rollout_stage": "full",
+      "rollout_percentage": 1.0,
+      "start_date": null,
+      "end_date": null,
+      "description": "Domain-based packet filtering system (ByeByeDPI-style unified approach)",
+      "dependencies": []
+    },
+    {
+      "name": "use_domain_rules",
+      "enabled": true,
+      "rollout_stage": "full",
+      "rollout_percentage": 1.0,
+      "start_date": null,
+      "end_date": null,
+      "description": "Use domain_rules.json for structured strategy configuration",
+      "dependencies": ["domain_based_filtering"]
+    },
+    {
+      "name": "enable_runtime_ip_resolution",
+      "enabled": true,
+      "rollout_stage": "full",
+      "rollout_percentage": 1.0,
+      "start_date": null,
+      "end_date": null,
+      "description": "Enable runtime IP-to-domain resolution for dynamic CDN IP addresses",
+      "dependencies": ["domain_based_filtering"]
+    },
+    {
+      "name": "service_based_testing",
+      "enabled": true,
+      "rollout_stage": "full",
+      "rollout_percentage": 1.0,
+      "start_date": null,
+      "end_date": null,
+      "description": "Use service-based testing approach (like zapret) instead of inline interception",
+      "dependencies": []
+    }
+  ],
+  "metrics": [
+    {
+      "feature_name": "domain_based_filtering",
+      "enabled_count": 0,
+      "disabled_count": 2,
+      "error_count": 0,
+      "last_updated": "2025-10-30T14:22:18.299023",
+      "performance_impact": 0.0
+    }
+  ],
+  "last_updated": "2025-10-30T14:22:18.299023"
+}

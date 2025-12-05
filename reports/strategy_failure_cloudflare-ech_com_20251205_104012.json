@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-12-05T10:40:12.671920",
+  "domain": "cloudflare-ech.com",
+  "retransmissions": 4,
+  "strategy": {
+    "type": "fakeddisorder",
+    "params": {
+      "fake_ttl": 3
+    },
+    "attacks": [
+      "fakeddisorder"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 8,
+  "recommendations": [
+    "Run 'cli.py test cloudflare-ech.com' to re-test the strategy",
+    "Run 'cli.py auto cloudflare-ech.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "cloudflare-ech.com",
+    "source": "sni",
+    "ip_address": "172.67.175.99:443",
+    "matched_rule": null,
+    "conflict_detected": false,
+    "sni_domain": "cloudflare-ech.com",
+    "ip_domain": null
+  }
+}

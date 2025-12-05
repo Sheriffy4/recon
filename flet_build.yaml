@@ -1,0 +1,36 @@
+# Конфигурация сборки Flet для Android
+name: recon_dpi_bypass
+description: DPI Bypass System для обхода блокировок
+version: 1.0.0
+
+# Платформы
+platforms:
+  - windows
+  - android
+
+# Android специфичные настройки
+android:
+  package: com.recon.dpibypass
+  permissions:
+    - INTERNET
+    - ACCESS_NETWORK_STATE
+    - BIND_VPN_SERVICE  # Для VPN функционала
+  min_sdk: 21
+  target_sdk: 33
+
+# Зависимости
+dependencies:
+  - flet>=0.10.0
+  - aiohttp
+  - dnspython
+  
+# Исключить Windows-специфичные модули для Android
+exclude_android:
+  - pydivert
+  - WinDivert.dll
+  - WinDivert64.sys
+
+# Включить только для Windows
+include_windows:
+  - pydivert
+  - core/unified_bypass_engine.py

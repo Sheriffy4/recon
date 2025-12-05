@@ -60,10 +60,9 @@ class TestResult:
 class StrategyBruteforcer:
     """Интеллектуальный перебор вариантов стратегий"""
 
-    def __init__(self, hybrid_engine, test_sites: List[str], dns_cache: Dict[str, str]):
+    def __init__(self, hybrid_engine, test_sites: List[str]):
         self.engine = hybrid_engine
         self.test_sites = test_sites
-        self.dns_cache = dns_cache
         self.logger = logging.getLogger("StrategyBruteforcer")
         self.results: List[TestResult] = []
 
@@ -204,8 +203,8 @@ class StrategyBruteforcer:
             result = await self.engine.execute_strategy_real_world(
                 strategy_task,
                 self.test_sites,
-                set(),  # target_ips
-                self.dns_cache,
+                set(),  # Empty IP set - engine will resolve domains as needed
+                {},  # Empty DNS cache - engine will resolve domains as needed
                 return_details=True,
             )
 
@@ -407,9 +406,9 @@ class StrategyBruteforcer:
 
 
 # Использование
-async def run_optimization(hybrid_engine, test_sites, dns_cache):
+async def run_optimization(hybrid_engine, test_sites):
     """Запуск оптимизации"""
-    bruteforcer = StrategyBruteforcer(hybrid_engine, test_sites, dns_cache)
+    bruteforcer = StrategyBruteforcer(hybrid_engine, test_sites)
 
     report = await bruteforcer.run_bruteforce(max_variants=30)
 

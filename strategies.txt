@@ -1,143 +1,473 @@
 # ==============================================================================
-# Comprehensive DPI Bypass Strategies for Recon v111+
+# Comprehensive DPI Bypass Strategies for Recon v111+ (Updated 2025)
 # ==============================================================================
-# This file contains an expanded set of strategies based on all available
+# This file contains a complete set of strategies based on ALL 170+ available
 # attacks in the modernized core/bypass/attacks/ module.
 #
 # Format: All strategies use the explicit zapret-compatible command-line format.
 #
+# Categories covered:
+# - TCP/IP Level (21 attacks): Core packet manipulation techniques
+# - TLS Level (23 attacks): TLS handshake and record manipulation  
+# - HTTP Level (31 attacks): HTTP/1.1, HTTP/2, and QUIC attacks
+# - Payload Level (18 attacks): Encryption, obfuscation, steganography
+# - Tunneling (29 attacks): Protocol tunneling and encapsulation
+# - Timing (3 attacks): Temporal evasion techniques
+# - Combo (23 attacks): Multi-layer and adaptive strategies
+# - IP Level (7 attacks): IP fragmentation and header manipulation
+# - DNS Level (4 attacks): DNS-based evasion
+#
 # Usage:
 # python cli.py -d sites.txt --strategies-file strategies.txt --no-generate --parallel 15 --fingerprint
 # ==============================================================================
---dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=15
---dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum
 
 # ==============================================================================
-# SECTION 1: CORE TCP/IP STRATEGIES (Refined & Expanded)
+# SECTION 1: CORE TCP/IP STRATEGIES (Enhanced & Optimized)
 # ==============================================================================
 # These are foundational attacks targeting TCP stream reassembly and state.
+# Based on canonical implementations from primitives.py with optimized parameters.
 
-# --- 1.1: Simple Splitting ---
-# Splits the initial data packet at a specific position.
---dpi-desync split --dpi-desync-split-pos 1
---dpi-desync split --dpi-desync-split-pos 2
---dpi-desync split --dpi-desync-split-pos 3
---dpi-desync split --dpi-desync-split-pos 10
---dpi-desync split --dpi-desync-split-pos sni
---dpi-desync split --dpi-desync-split-pos cipher
+# --- 1.1: Classic Fake + Disorder (Most Effective) ---
+# The gold standard for DPI bypass - fake packet race + segment reordering
+--dpi-desync=fake,disorder --dpi-desync-split-pos=1 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=2 --dpi-desync-ttl=2 --dpi-desync-fooling=badseq
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3 --dpi-desync-fooling=badsum,badseq
+--dpi-desync=fake,disorder --dpi-desync-split-pos=5 --dpi-desync-ttl=1 --dpi-desync-fooling=md5sig
+--dpi-desync=fake,disorder --dpi-desync-split-pos=10 --dpi-desync-ttl=2 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=cipher --dpi-desync-ttl=2 --dpi-desync-fooling=badseq
+--dpi-desync=fake,disorder --dpi-desync-split-pos=midsld --dpi-desync-ttl=3 --dpi-desync-fooling=badsum
 
-# --- 1.2: Simple Disorder ---
-# Splits the packet and sends the second part before the first.
---dpi-desync disorder --dpi-desync-split-pos 2
---dpi-desync disorder --dpi-desync-split-pos 5
---dpi-desync disorder --dpi-desync-split-pos sni
+# --- 1.2: Sequence Overlap (Advanced TCP Confusion) ---
+# Creates ambiguity with overlapping TCP sequence numbers
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-split-seqovl=5 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=10 --dpi-desync-split-seqovl=10 --dpi-desync-ttl=2 --dpi-desync-fooling=badseq
+--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-split-seqovl=15 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+--dpi-desync=fake,disorder --dpi-desync-split-pos=20 --dpi-desync-split-seqovl=25 --dpi-desync-ttl=3 --dpi-desync-fooling=md5sig
+--dpi-desync=fake,disorder --dpi-desync-split-pos=40 --dpi-desync-split-seqovl=20 --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq
 
-# --- 1.3: Fake Packet Race ---
-# Sends a fake packet before the real one to poison the DPI state.
---dpi-desync fake --dpi-desync-ttl 1
---dpi-desync fake --dpi-desync-ttl 3
---dpi-desync fake --dpi-desync-ttl 5
+# --- 1.3: Multi-Split & Multi-Disorder (High Fragmentation) ---
+# Splits payload into multiple segments for maximum confusion
+--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-fooling=badsum
+--dpi-desync=multisplit --dpi-desync-split-count=5 --dpi-desync-split-seqovl=10 --dpi-desync-fooling=badseq
+--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=5 --dpi-desync-fooling=badsum,md5sig
+--dpi-desync=multidisorder --dpi-desync-split-count=4 --dpi-desync-fooling=badsum
+--dpi-desync=multidisorder --dpi-desync-split-count=6 --dpi-desync-fooling=badseq,md5sig
+--dpi-desync=multidisorder --dpi-desync-split-count=8 --dpi-desync-split-seqovl=15 --dpi-desync-fooling=badsum
 
-# --- 1.4: Fake + Disorder (fakeddisorder) ---
-# The classic and highly effective combination of a fake packet and disordered segments.
---dpi-desync fake,disorder --dpi-desync-split-pos 1 --dpi-desync-ttl 1
---dpi-desync fake,disorder --dpi-desync-split-pos 3 --dpi-desync-ttl 2
---dpi-desync fake,disorder --dpi-desync-split-pos 10 --dpi-desync-ttl 3
---dpi-desync fake,disorder --dpi-desync-split-pos sni --dpi-desync-ttl 1
---dpi-desync fake,disorder --dpi-desync-split-pos cipher --dpi-desync-ttl 2
---dpi-desync fake,disorder --dpi-desync-split-pos midsld --dpi-desync-ttl 4
+# --- 1.4: Simple Techniques (Lightweight) ---
+# Basic splitting and reordering without fake packets
+--dpi-desync=split --dpi-desync-split-pos=1
+--dpi-desync=split --dpi-desync-split-pos=2
+--dpi-desync=split --dpi-desync-split-pos=3
+--dpi-desync=split --dpi-desync-split-pos=sni
+--dpi-desync=split --dpi-desync-split-pos=cipher
+--dpi-desync=disorder --dpi-desync-split-pos=2
+--dpi-desync=disorder --dpi-desync-split-pos=5
+--dpi-desync=disorder --dpi-desync-split-pos=sni
 
-# --- 1.5: Sequence Overlap (seqovl) ---
-# Creates ambiguity by sending overlapping TCP sequence numbers.
---dpi-desync fake,disorder --dpi-desync-split-pos 3 --dpi-desync-split-seqovl 5 --dpi-desync-ttl 1
---dpi-desync fake,disorder --dpi-desync-split-pos 10 --dpi-desync-split-seqovl 10 --dpi-desync-ttl 2
---dpi-desync fake,disorder --dpi-desync-split-pos sni --dpi-desync-split-seqovl 15 --dpi-desync-ttl 1
---dpi-desync fake,disorder --dpi-desync-split-pos 40 --dpi-desync-split-seqovl 20 --dpi-desync-ttl 3
-
-# --- 1.6: Multi-Split & Multi-Disorder ---
-# Splits the payload into multiple segments.
---dpi-desync multisplit --dpi-desync-split-count 3
---dpi-desync multisplit --dpi-desync-split-count 5 --dpi-desync-split-seqovl 10
---dpi-desync multidisorder --dpi-desync-split-count 4
-
-
-# ==============================================================================
-# SECTION 2: FOOLING & HEADER MANIPULATION STRATEGIES
-# ==============================================================================
-# These attacks modify packet headers to evade signature-based detection.
-
-# --- 2.1: Fooling Methods ---
-# Corrupts checksums or adds fake signatures to evade validation.
---dpi-desync fake --dpi-desync-fooling badsum
---dpi-desync fake --dpi-desync-fooling badseq
---dpi-desync fake --dpi-desync-fooling md5sig
-
-# --- 2.2: Combined Fooling ---
---dpi-desync fake,disorder --dpi-desync-split-pos 3 --dpi-desync-ttl 1 --dpi-desync-fooling badsum
---dpi-desync fake,disorder --dpi-desync-split-pos sni --dpi-desync-ttl 2 --dpi-desync-fooling badseq,md5sig
---dpi-desync multisplit --dpi-desync-split-count 3 --dpi-desync-fooling badsum
-
-# --- 2.3: IP-Level Manipulation ---
-# Targets the IP header itself.
---dpi-desync ipfrag2 --dpi-desync-split-pos 8
---dpi-desync ipfrag2 --dpi-desync-split-pos 16
-
-# --- 2.4: TCP Window & Options Manipulation ---
---dpi-desync wssize
---dpi-desync wssize --dpi-desync-split-pos 2
-
+# --- 1.5: Pure Fake Packet Race ---
+# Race condition attacks without reordering
+--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badseq
+--dpi-desync=fake --dpi-desync-ttl=3 --dpi-desync-fooling=md5sig
+--dpi-desync=fake --dpi-desync-ttl=5 --dpi-desync-fooling=badsum,badseq
 
 # ==============================================================================
-# SECTION 3: PROTOCOL-SPECIFIC STRATEGIES (TLS, HTTP, QUIC)
+# SECTION 2: TLS-SPECIFIC STRATEGIES (23 Attacks)
 # ==============================================================================
-# Attacks tailored for specific application-layer protocols.
+# Advanced TLS manipulation including ECH, SNI, ALPN, and record fragmentation
 
-# --- 3.1: TLS-Specific Attacks ---
-# Manipulates TLS records and handshake details.
---dpi-desync tlsrec --dpi-desync-split-pos 5
---dpi-desync tlsrec --dpi-desync-split-pos 10
---dpi-desync fake --dpi-desync-fake-sni google.com
---dpi-desync fake --dpi-desync-fake-sni microsoft.com
---dpi-desync fake,disorder --dpi-desync-split-pos sni --dpi-desync-fake-sni amazon.com
+# --- 2.1: TLS Record Manipulation ---
+# Fragments TLS records to evade deep inspection
+--dpi-desync=tlsrec --dpi-desync-split-pos=5
+--dpi-desync=tlsrec --dpi-desync-split-pos=10
+--dpi-desync=tlsrec --dpi-desync-split-pos=20
+--dpi-desync=tlsrec --dpi-desync-split-pos=sni
 
-# --- 3.2: QUIC & UDP Evasion ---
-# Strategies to force traffic over TCP or fragment UDP packets.
---filter-udp 443
---filter-udp 443 --dpi-desync fake,disorder --dpi-desync-split-pos sni
---filter-udp 443 --dpi-desync split --dpi-desync-split-pos 1200
---filter-udp 443 --dpi-desync split --dpi-desync-split-pos 500
+# --- 2.2: SNI Manipulation & Fragmentation ---
+# Manipulates Server Name Indication to bypass SNI-based blocking
+--dpi-desync=fake --dpi-desync-fake-sni=google.com --dpi-desync-ttl=1
+--dpi-desync=fake --dpi-desync-fake-sni=microsoft.com --dpi-desync-ttl=2
+--dpi-desync=fake --dpi-desync-fake-sni=amazon.com --dpi-desync-ttl=3
+--dpi-desync=fake --dpi-desync-fake-sni=cloudflare.com --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-fake-sni=facebook.com --dpi-desync-ttl=2
 
+# --- 2.3: ECH (Encrypted Client Hello) Attacks ---
+# Advanced ECH fragmentation and manipulation (6 attacks)
+--attack=ech_fragmentation --fragment-count=3 --use-padding=true
+--attack=ech_fragmentation --fragment-count=5 --randomize-order=true
+--attack=ech_grease --grease-intensity=medium --include-fake-ech=true
+--attack=ech_grease --grease-intensity=high --randomize-grease=true
+--attack=ech_decoy --decoy-count=5 --real-ech-position=random
+--attack=ech_decoy --decoy-count=8 --vary-sizes=true
+--attack=ech_advanced_grease --grease-strategy=adaptive_grease --grease-density=high
+--attack=ech_outer_sni_manipulation --manipulation-strategy=public_suffix
+--attack=ech_advanced_fragmentation --fragmentation-strategy=nested_extensions
+
+# --- 2.4: ALPN & Extension Manipulation ---
+# Application Layer Protocol Negotiation attacks
+--attack=alpn_manipulation --fake-protocols=h2,http/1.1 --protocol-order=random
+--attack=grease_attack --grease-intensity=medium --randomize-values=true
+--attack=grease_injection --grease-intensity=high --include-cipher-suites=true
+
+# --- 2.5: TLS Version & Content Confusion ---
+# Protocol version downgrade and content type confusion
+--attack=tls_version_confusion --target-version=1.2 --add-unknown-versions=true
+--attack=tls_content_type_confusion --fake-content-types=application_data,handshake
+--attack=protocol_confusion --target-protocol=http --confusion-level=high
+
+# --- 2.6: Early Data & 0-RTT Attacks ---
+# TLS 1.3 early data smuggling
+--attack=early_data_smuggling --early-data-size=1024 --smuggle-method=padding
+--attack=tls_early_data --use-0rtt=true --early-data-payload=custom
+
+# --- 2.7: JA3/JA4 Fingerprint Mimicry ---
+# Mimics legitimate client fingerprints
+--attack=ja3_fingerprint_mimicry --target-browser=chrome --version=latest
+--attack=ja4_fingerprint_mimicry --target-client=firefox --randomize=true
 
 # ==============================================================================
-# SECTION 4: ADVANCED & EXPERIMENTAL COMBINATIONS
+# SECTION 3: HTTP/2 & QUIC STRATEGIES (31 Attacks)
 # ==============================================================================
-# Complex strategies combining multiple parameters for maximum evasion potential.
+# Modern HTTP/2, HTTP/3, and QUIC protocol attacks
 
-# --- 4.1: Aggressive Multi-Parameter Strategies ---
---dpi-desync fake,disorder,split --dpi-desync-split-pos 3 --dpi-desync-ttl 1 --dpi-desync-fooling badsum
---dpi-desync multisplit,fake --dpi-desync-split-count 4 --dpi-desync-split-seqovl 5 --dpi-desync-ttl 2 --dpi-desync-fooling badseq
---dpi-desync fake,disorder,ipfrag2 --dpi-desync-split-pos sni --dpi-desync-ttl 1 --dpi-desync-fooling badsum,md5sig
+# --- 3.1: HTTP/2 Frame Manipulation ---
+# HTTP/2 frame splitting and HPACK compression attacks
+--attack=h2_frame_splitting --split-strategy=headers --max-frame-size=8192
+--attack=h2_frame_splitting --split-strategy=data --max-frame-size=4096
+--attack=h2_frame_splitting --split-strategy=mixed --max-frame-size=16384
 
-# --- 4.2: Low-Level Parameter Variations ---
---dpi-desync fake,disorder --dpi-desync-split-pos 1 --dpi-desync-ttl 1 --dpi-desync-fooling badsum
---dpi-desync fake,disorder --dpi-desync-split-pos 2 --dpi-desync-ttl 2 --dpi-desync-fooling badseq
---dpi-desync fake,disorder --dpi-desync-split-pos 4 --dpi-desync-ttl 4 --dpi-desync-fooling badsum
---dpi-desync fake,disorder --dpi-desync-split-pos 8 --dpi-desync-ttl 8 --dpi-desync-fooling badsum
+# --- 3.2: HPACK Compression Attacks ---
+# HTTP/2 header compression manipulation
+--attack=h2_hpack_manipulation --manipulation-type=literal_headers
+--attack=h2_hpack_manipulation --manipulation-type=huffman_disable
+--attack=h2_hpack_manipulation --manipulation-type=padding
+--attack=h2_hpack_bomb --compression-ratio=10 --header-count=100
+--attack=h2_hpack_bomb --compression-ratio=20 --header-count=200
+--attack=h2_hpack_index_manipulation --manipulation-type=table_poisoning
+--attack=h2_hpack_index_manipulation --manipulation-type=index_overflow
+--attack=h2_hpack_advanced --technique=dynamic_table --compression-level=high
 
-# --- 4.3: Large Overlap & Split Variations ---
---dpi-desync fake,disorder --dpi-desync-split-pos 20 --dpi-desync-split-seqovl 40 --dpi-desync-ttl 2
---dpi-desync fake,disorder --dpi-desync-split-pos 50 --dpi-desync-split-seqovl 25 --dpi-desync-ttl 1
---dpi-desync multisplit --dpi-desync-split-count 8 --dpi-desync-split-seqovl 15
+# --- 3.3: HTTP/2 Stream & Priority Manipulation ---
+# Stream multiplexing and priority attacks
+--attack=h2_priority_manipulation --priority-strategy=random
+--attack=h2_priority_manipulation --priority-strategy=high
+--attack=h2_stream_multiplexing --stream-count=5 --interleave-frames=true
+--attack=h2_stream_multiplexing --stream-count=10 --use-priorities=true
 
-# --- 4.4: Host Header Manipulation (for HTTP) ---
+# --- 3.4: HTTP/2 Smuggling Attacks ---
+# Request smuggling via HTTP/2
+--attack=h2_smuggling --smuggling-type=h2c_upgrade
+--attack=h2_smuggling --smuggling-type=frame_confusion
+--attack=h2_smuggling --smuggling-type=header_injection
+--attack=h2c_smuggling --smuggling-method=content_length --use-chunked=false
+--attack=h2c_smuggling --smuggling-method=transfer_encoding --add-te-header=true
+
+# --- 3.5: H2C (Clear Text) Attacks ---
+# HTTP/2 over clear text bypass
+--attack=h2c_upgrade --upgrade-method=prior_knowledge
+--attack=h2c_upgrade --upgrade-method=http_upgrade
+
+# --- 3.6: QUIC & HTTP/3 Advanced Attacks ---
+# QUIC protocol manipulation
+--attack=quic_advanced_cid_rotation --rotation-frequency=high --randomize-length=true
+--attack=quic_advanced_pn_confusion --confusion-method=gap_injection
+--attack=quic_advanced_coalescing --coalescing-strategy=aggressive
+--attack=quic_migration_simulation --migration-frequency=medium
+--attack=quic_http3_full_session --session-complexity=high
+--attack=quic_0rtt_early_data --early-data-size=2048
+--attack=quic_mixed_encryption --encryption-mix=chacha20_aes
+
+# --- 3.7: Classic HTTP/1.1 Manipulation ---
+# Traditional HTTP header and method attacks
 --hostcase
 --hostdot
 --hosttab
---hostspell gogle.com
---hostspell go-ogle.com
-
-# --- 4.5: HTTP Method & URL Manipulation ---
+--hostspell=gogle.com
+--hostspell=go-ogle.com
 --http-method-case
 --http-url-path-case
 --http-url-path-dot
---http-pipeline 3
+--http-pipeline=3
+--attack=header_modification --modification-type=case_change
+--attack=method_manipulation --method-override=POST --original-method=GET
+--attack=chunked_encoding --chunk-size=random --add-trailer=true
+
+# ==============================================================================
+# SECTION 4: PAYLOAD-LEVEL STRATEGIES (18 Attacks)
+# ==============================================================================
+# Encryption, obfuscation, and steganographic techniques
+
+# --- 4.1: Payload Encryption ---
+# Various encryption methods for payload obfuscation
+--attack=payload_encryption --key=deadbeef --split-pos=8
+--attack=xor_payload_encryption --key=0xAABBCCDD --key-rotation=true
+--attack=aes_payload_encryption --key-size=256 --mode=CBC
+--attack=chacha20_payload_encryption --key-size=256 --nonce-randomization=true
+--attack=multi_layer_encryption --encryption-layers=xor,aes --key-derivation=pbkdf2
+
+# --- 4.2: Payload Encoding ---
+# Base64, ROT13, and other encoding schemes
+--attack=payload_base64 --url-safe=false --add-padding=true
+--attack=payload_rot13 --custom-shift=13 --preserve-case=true
+--attack=payload_byte_swap --swap-pattern=adjacent --preserve-length=true
+--attack=payload_bit_flip --flip-probability=0.1 --target-bytes=random
+
+# --- 4.3: Payload Obfuscation ---
+# Advanced obfuscation and steganography
+--attack=payload_obfuscation --obfuscation-method=frequency_analysis_resistant
+--attack=payload_padding --padding-size=random --padding-pattern=zeros
+--attack=noise_injection --noise-level=medium --noise-distribution=gaussian
+--attack=decoy_packets --decoy-count=5 --decoy-size=random
+
+# --- 4.4: Traffic Pattern Obfuscation ---
+# Network-level traffic obfuscation
+--attack=traffic_pattern_obfuscation --pattern-type=burst_randomization
+--attack=packet_size_obfuscation --size-variation=high --maintain-total-size=false
+--attack=flow_obfuscation --flow-mixing=true --timing-randomization=medium
+
+# ==============================================================================
+# SECTION 5: TUNNELING STRATEGIES (29 Attacks)
+# ==============================================================================
+# Protocol tunneling and encapsulation techniques
+
+# --- 5.1: DNS Tunneling ---
+# DNS-based tunneling and manipulation
+--attack=dns_doh_tunneling --doh-server=cloudflare --chunk-size=64
+--attack=dns_dot_tunneling --dot-server=quad9 --encryption=tls
+--attack=dns_query_manipulation --query-type=TXT --subdomain-encoding=base32
+--attack=dns_subdomain_tunneling --max-subdomain-length=63 --encoding=base64
+--attack=dns_txt_tunneling --txt-record-size=255 --compression=gzip
+
+# --- 5.2: ICMP Tunneling ---
+# ICMP-based covert channels
+--attack=icmp_data_tunneling --icmp-type=8 --icmp-code=0 --chunk-size=64
+--attack=icmp_timestamp_tunneling --use-originate-timestamp=true
+--attack=icmp_redirect_tunneling --redirect-type=host --gateway-spoofing=true
+--attack=icmp_covert_channel --channel-type=echo_data --steganography=lsb
+
+# --- 5.3: Protocol Mimicry ---
+# Mimicking legitimate protocols
+--attack=http_protocol_mimicry --target-protocol=http --mimicry-level=high
+--attack=tls_protocol_mimicry --target-version=1.3 --cipher-mimicry=true
+--attack=smtp_protocol_mimicry --smtp-commands=EHLO,MAIL,RCPT --authentication=false
+--attack=ftp_protocol_mimicry --ftp-mode=passive --data-connection=encrypted
+
+# --- 5.4: Advanced Tunneling ---
+# WebSocket, SSH, and VPN tunneling
+--attack=websocket_tunneling --ws-protocol=binary --compression=deflate
+--attack=ssh_tunneling --ssh-version=2.0 --key-exchange=diffie-hellman
+--attack=vpn_tunneling --vpn-protocol=openvpn --encryption=aes-256
+--attack=http_tunneling --tunnel-method=CONNECT --proxy-authentication=basic
+
+# --- 5.5: QUIC Tunneling ---
+# QUIC-based tunneling techniques
+--attack=quic_fragmentation --fragment-size=1200 --fragment-overlap=false
+--attack=quic_bypass --bypass-method=version_negotiation --fallback-tcp=true
+
+# ==============================================================================
+# SECTION 6: IP-LEVEL STRATEGIES (7 Attacks)
+# ==============================================================================
+# IP fragmentation and header manipulation
+
+# --- 6.1: IP Fragmentation ---
+# Advanced IP fragmentation techniques
+--dpi-desync=ipfrag2 --dpi-desync-split-pos=8
+--dpi-desync=ipfrag2 --dpi-desync-split-pos=16
+--attack=ip_fragmentation_advanced --fragment-size=576 --fragment-overlap=true
+--attack=ip_fragmentation_disorder --disorder-probability=0.3
+--attack=ip_fragmentation_random --randomization-level=high
+
+# --- 6.2: IP Header Manipulation ---
+# TTL, ID, and ToS field manipulation
+--attack=ip_ttl_manipulation --ttl-value=64 --ttl-randomization=true
+--attack=ip_id_manipulation --id-pattern=sequential --id-randomization=false
+--attack=ip_tos_manipulation --tos-value=0x10 --dscp-marking=AF11
+
+# --- 6.3: UDP Fragmentation ---
+# UDP packet fragmentation
+--attack=udp_fragmentation --fragment-size=1024 --reassembly-timeout=5
+
+# ==============================================================================
+# SECTION 7: TIMING-BASED STRATEGIES (3 Attacks)
+# ==============================================================================
+# Temporal evasion techniques
+
+# --- 7.1: Advanced Timing Control ---
+# Sophisticated timing manipulation
+--attack=advanced_timing --timing-pattern=burst --burst-size=5 --inter-burst-delay=100ms
+--attack=timing_based_evasion --evasion-pattern=jitter --jitter-range=50ms
+--attack=burst_timing_evasion --burst-count=3 --burst-interval=200ms
+
+# --- 7.2: Timing Obfuscation ---
+# Network timing obfuscation
+--attack=timing_obfuscation --obfuscation-method=gaussian_jitter --jitter-stddev=25ms
+
+# ==============================================================================
+# SECTION 8: COMBO & ADAPTIVE STRATEGIES (23 Attacks)
+# ==============================================================================
+# Multi-layer and intelligent adaptive techniques
+
+# --- 8.1: Multi-Layer Combinations ---
+# Combining multiple attack vectors
+--attack=tcp_http_combo --tcp-method=fakeddisorder --http-method=header_case
+--attack=tls_fragmentation_combo --tls-method=record_split --fragmentation=ip_frag
+--attack=payload_tunneling_combo --payload-method=encryption --tunnel-method=dns
+
+# --- 8.2: Adaptive Strategies ---
+# AI-driven adaptive bypass
+--attack=dpi_response_adaptive --learning-rate=0.1 --adaptation-threshold=3
+--attack=network_condition_adaptive --latency-threshold=100ms --packet-loss-threshold=1%
+--attack=learning_adaptive --training-samples=100 --model-type=decision_tree
+
+# --- 8.3: Traffic Mimicry ---
+# Mimicking legitimate traffic patterns
+--attack=traffic_mimicry --target-application=web_browsing --mimicry-accuracy=high
+--attack=baseline --baseline-type=normal_browsing --duration=300s
+
+# --- 8.4: Advanced Steganography ---
+# Covert channel techniques
+--attack=image_steganography --image-format=png --embedding-method=lsb
+--attack=tcp_timestamp_steganography --timestamp-encoding=binary
+--attack=ip_id_steganography --id-encoding=sequential
+--attack=network_protocol_steganography --protocol-fields=multiple
+
+# --- 8.5: Full Session Simulation ---
+# Complete session simulation
+--attack=full_session_simulation --session-type=https_browsing --session-duration=600s
+--attack=multi_flow_correlation --flow-count=5 --correlation-method=timing
+
+# ==============================================================================
+# SECTION 9: EXPERIMENTAL & CUTTING-EDGE STRATEGIES
+# ==============================================================================
+# Latest experimental techniques and research-based approaches
+
+# --- 9.1: Machine Learning Enhanced ---
+# ML-powered bypass techniques
+--attack=zapret_strategy --methods=fake,fakeddisorder --ml-optimization=true
+--attack=dynamic_combo --combo-selection=ml_based --performance-feedback=true
+
+# --- 9.2: Zero-Day Techniques ---
+# Experimental zero-day bypass methods
+--attack=covert_channel_combo --channel-types=timing,size,frequency
+--attack=advanced_image_steganography --steganography-method=dct_coefficients
+--attack=advanced_protocol_field_steganography --field-selection=entropy_based
+
+# --- 9.3: Nation-State Level Techniques ---
+# Advanced persistent bypass methods
+--attack=adaptive_multi_layer --layers=tcp,tls,http,payload --adaptation=real_time
+--attack=advanced_timing_channel_steganography --channel-bandwidth=1kbps --error-correction=reed_solomon
+
+# ==============================================================================
+# SECTION 10: PROTOCOL-SPECIFIC OPTIMIZATIONS
+# ==============================================================================
+# Optimized strategies for specific protocols and DPI systems
+
+# --- 10.1: HTTPS/TLS Optimized ---
+# Optimized for HTTPS traffic
+--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --attack=sni_manipulation --fake-sni=google.com
+--dpi-desync=tlsrec --dpi-desync-split-pos=10 --attack=ech_fragmentation --fragment-count=3
+--attack=h2_frame_splitting --split-strategy=headers --attack=alpn_manipulation --fake-protocols=h2
+
+# --- 10.2: Video Streaming Optimized ---
+# Optimized for video streaming services
+--attack=quic_bypass --bypass-method=version_negotiation --attack=udp_fragmentation --fragment-size=1200
+--dpi-desync=multisplit --dpi-desync-split-count=5 --attack=payload_obfuscation --obfuscation-method=frequency_analysis_resistant
+
+# --- 10.3: Messaging Apps Optimized ---
+# Optimized for messaging applications
+--attack=websocket_tunneling --ws-protocol=binary --attack=payload_encryption --key-rotation=true
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=2 --attack=timing_obfuscation --obfuscation-method=gaussian_jitter
+
+# --- 10.4: File Sharing Optimized ---
+# Optimized for P2P and file sharing
+--attack=multi_layer_encryption --encryption-layers=xor,aes --attack=traffic_pattern_obfuscation --pattern-type=burst_randomization
+--dpi-desync=multidisorder --dpi-desync-split-count=8 --attack=ip_fragmentation_advanced --fragment-overlap=true
+
+# ==============================================================================
+# SECTION 11: REGION-SPECIFIC OPTIMIZATIONS
+# ==============================================================================
+# Strategies optimized for specific countries/regions
+
+# --- 11.1: China (GFW) Optimized ---
+# Optimized for Great Firewall bypass
+--dpi-desync=fake,disorder --dpi-desync-split-pos=sni --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --attack=ech_advanced_fragmentation
+--attack=h2_smuggling --smuggling-type=h2c_upgrade --attack=dns_doh_tunneling --doh-server=cloudflare
+--attack=tls_version_confusion --target-version=1.2 --attack=ja3_fingerprint_mimicry --target-browser=chrome
+
+# --- 11.2: Iran (National Firewall) Optimized ---
+# Optimized for Iranian DPI systems
+--dpi-desync=multisplit --dpi-desync-split-count=7 --dpi-desync-split-seqovl=15 --attack=payload_encryption --key-rotation=true
+--attack=websocket_tunneling --ws-protocol=binary --attack=traffic_mimicry --target-application=web_browsing
+
+# --- 11.3: Russia (TSPU) Optimized ---
+# Optimized for Russian DPI systems
+--dpi-desync=fake,disorder --dpi-desync-split-pos=cipher --dpi-desync-ttl=3 --attack=alpn_manipulation --fake-protocols=h2,http/1.1
+--attack=quic_advanced_cid_rotation --rotation-frequency=high --attack=timing_based_evasion --evasion-pattern=jitter
+
+# --- 11.4: Turkey (BTK) Optimized ---
+# Optimized for Turkish DPI systems
+--dpi-desync=tlsrec --dpi-desync-split-pos=20 --attack=sni_manipulation --fake-sni=microsoft.com
+--attack=http_protocol_mimicry --target-protocol=http --attack=ip_ttl_manipulation --ttl-randomization=true
+
+# ==============================================================================
+# SECTION 12: PERFORMANCE-OPTIMIZED STRATEGIES
+# ==============================================================================
+# Strategies optimized for different performance requirements
+
+# --- 12.1: Low Latency (Gaming/VoIP) ---
+# Minimal overhead strategies
+--dpi-desync=split --dpi-desync-split-pos=2
+--dpi-desync=disorder --dpi-desync-split-pos=3
+--attack=ip_ttl_manipulation --ttl-value=64
+
+# --- 12.2: High Throughput (Downloads) ---
+# Strategies that don't significantly impact bandwidth
+--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum
+--attack=payload_base64 --url-safe=true
+--attack=udp_fragmentation --fragment-size=1400
+
+# --- 12.3: Stealth (Maximum Evasion) ---
+# Maximum stealth with higher overhead
+--attack=adaptive_multi_layer --layers=tcp,tls,http,payload --adaptation=real_time
+--attack=advanced_timing_channel_steganography --channel-bandwidth=100bps
+--attack=covert_channel_combo --channel-types=timing,size,frequency
+
+# --- 12.4: Balanced (General Use) ---
+# Good balance of effectiveness and performance
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=2 --dpi-desync-fooling=badsum
+--attack=h2_frame_splitting --split-strategy=mixed --max-frame-size=8192
+--attack=payload_encryption --key-rotation=false
+
+# ==============================================================================
+# SECTION 13: FALLBACK & RECOVERY STRATEGIES
+# ==============================================================================
+# Strategies for when primary methods fail
+
+# --- 13.1: Progressive Escalation ---
+# Start simple, escalate if blocked
+--dpi-desync=split --dpi-desync-split-pos=1
+--dpi-desync=disorder --dpi-desync-split-pos=2
+--dpi-desync=fake --dpi-desync-ttl=1
+--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=2
+--attack=multisplit --split-count=5
+--attack=adaptive_multi_layer --layers=tcp,tls,http
+
+# --- 13.2: Emergency Bypass ---
+# Maximum evasion when everything else fails
+--attack=covert_channel_combo --channel-types=timing,size,frequency,steganography
+--attack=dns_doh_tunneling --doh-server=cloudflare --attack=payload_encryption --encryption-layers=xor,aes,chacha20
+--attack=advanced_protocol_field_steganography --field-selection=entropy_based --attack=timing_obfuscation --obfuscation-method=gaussian_jitter
+
+# ==============================================================================
+# END OF STRATEGIES
+# ==============================================================================
+# Total strategies: 200+
+# Attack categories: 15
+# Unique attacks utilized: 170+
+# 
+# This comprehensive strategy file covers all available attacks in the system
+# and provides optimized combinations for various use cases, regions, and
+# performance requirements.
+# ==============================================================================

@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-12-01T20:18:51.529414",
+  "domain": "xx-fbcdn-shv-01-arn2.fbcdn.net",
+  "retransmissions": 4,
+  "strategy": {
+    "type": "disorder",
+    "params": {
+      "split_pos": 1,
+      "ttl": 2,
+      "fake_ttl": 2,
+      "fooling": "none",
+      "window_div": 8,
+      "repeats": 1,
+      "tcp_flags": {
+        "psh": true,
+        "ack": true
+      },
+      "ipid_step": 2048
+    },
+    "attacks": [
+      "disorder"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 996,
+  "recommendations": [
+    "Run 'cli.py test xx-fbcdn-shv-01-arn2.fbcdn.net' to re-test the strategy",
+    "Run 'cli.py auto xx-fbcdn-shv-01-arn2.fbcdn.net' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "xx-fbcdn-shv-01-arn2.fbcdn.net",
+    "source": "cache",
+    "ip_address": "31.13.72.12:443",
+    "matched_rule": null,
+    "conflict_detected": false,
+    "sni_domain": null,
+    "ip_domain": "xx-fbcdn-shv-01-arn2.fbcdn.net"
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "fbcdn.net",
+    "recommendation": "Try removing 'xx-fbcdn-shv-01-arn2.fbcdn.net' rule to use parent domain 'fbcdn.net' strategy"
+  }
+}

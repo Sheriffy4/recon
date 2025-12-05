@@ -85,7 +85,8 @@ goto menu
 :analyze_pcap
 echo.
 echo === Анализ PCAP файла ===
-python analyze_test1_pcap.py
+echo DEPRECATED: Use UnifiedPCAPAnalyzer instead
+echo python -m core.pcap.unified_analyzer [pcap_file] [domain]
 echo.
 pause
 goto menu

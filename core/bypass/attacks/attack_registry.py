@@ -347,6 +347,20 @@ class AttackRegistry:
 
         return self.attacks[resolved_type].handler
 
+    def get(self, attack_type: str) -> Optional[Callable]:
+        """
+        Возвращает обработчик атаки (алиас для get_attack_handler для совместимости).
+        
+        Этот метод добавлен для совместимости с кодом, который вызывает AttackRegistry.get().
+        
+        Args:
+            attack_type: Тип атаки или алиас
+            
+        Returns:
+            Функция-обработчик или None если атака не найдена
+        """
+        return self.get_attack_handler(attack_type)
+
     def get_attack_metadata(self, attack_type: str) -> Optional[AttackMetadata]:
         """
         Возвращает метаданные для указанного типа атаки с поддержкой lazy loading.
@@ -477,7 +491,12 @@ class AttackRegistry:
 
     def _resolve_attack_type(self, attack_type: str) -> str:
         """Разрешает алиас в основной тип атаки."""
-        return self._aliases.get(attack_type, attack_type)
+        # Handle attack= prefix if present (for compatibility with --attack= format)
+        normalized_type = attack_type
+        if normalized_type.startswith("attack="):
+            normalized_type = normalized_type[7:]  # Remove "attack=" prefix
+            
+        return self._aliases.get(normalized_type, normalized_type)
 
     def _register_builtin_attacks(self) -> None:
         """
@@ -532,9 +551,10 @@ class AttackRegistry:
                     "ttl": 3,
                     "fake_ttl": 3,
                     "fooling": ["badsum"],
-                    "fooling_methods": ["badsum"],
+                    # Не добавляем fooling_methods по умолчанию - это дубликат fooling
                     "fake_sni": None,
                     "fake_data": None,
+                    "custom_sni": None,  # Add custom_sni parameter support
                 },
                 aliases=["fake_disorder", "fakedisorder", "force_tcp", "filter-udp", "filter_udp"],
                 category=AttackCategories.FAKE,
@@ -550,7 +570,13 @@ class AttackRegistry:
                 name="Sequence Overlap",
                 description="Отправляет фейковый пакет с перекрытием, затем полный реальный пакет",
                 required_params=[],  # Fixed: match actual attack class
-                optional_params={"split_pos": 3, "overlap_size": 10, "fake_ttl": 3, "fooling_methods": ["badsum"]},
+                optional_params={
+                    "split_pos": 3, 
+                    "overlap_size": 10, 
+                    "fake_ttl": 3, 
+                    "fooling": ["badsum"],  # Используем fooling вместо fooling_methods
+                    "custom_sni": None,  # Add custom_sni parameter support
+                },
                 aliases=["seq_overlap", "overlap"],
                 category=AttackCategories.OVERLAP,
             ),
@@ -570,6 +596,7 @@ class AttackRegistry:
                     "split_pos": 3,
                     "fake_ttl": 3,
                     "fooling": ["badsum"],
+                    "custom_sni": None,  # Add custom_sni parameter support
                 },
                 aliases=["multi_disorder"],
                 category=AttackCategories.DISORDER,
@@ -584,8 +611,8 @@ class AttackRegistry:
             AttackMetadata(
                 name="Simple Disorder",
                 description="Разделяет пакет на две части и отправляет в обратном порядке",
-                required_params=["split_pos"],
-                optional_params={"ack_first": False},
+                required_params=[],  # Make split_pos optional with default
+                optional_params={"split_pos": 3, "ack_first": False},  # Default split_pos=3
                 aliases=["simple_disorder"],
                 category=AttackCategories.DISORDER,
             ),
@@ -616,9 +643,9 @@ class AttackRegistry:
                 description="Разделяет пакет на несколько частей по указанным позициям",
                 required_params=[],  # Не требуем обязательных параметров, обработчик сам разберется
                 optional_params={
-                    "positions": None,
-                    "split_pos": None,
-                    "split_count": None,
+                    "positions": [3, 9, 15, 21, 27, 33, 39, 45],  # Default 8 positions
+                    "split_pos": 3,  # Default split position
+                    "split_count": 8,  # Default split count
                     "fooling": ["badsum"],
                 },
                 aliases=["multi_split"],
@@ -650,7 +677,12 @@ class AttackRegistry:
                 name="Fake Packet Race",
                 description="Отправляет фейковый пакет с низким TTL перед реальным",
                 required_params=[],
-                optional_params={"ttl": 3, "fooling": ["badsum"], "fake_data": None},
+                optional_params={
+                    "ttl": 3, 
+                    "fooling": ["badsum"], 
+                    "fake_data": None,
+                    "custom_sni": None,  # Add custom_sni parameter support
+                },
                 aliases=["fake_race", "race"],
                 category=AttackCategories.RACE,
             ),
@@ -718,6 +750,49 @@ class AttackRegistry:
         )
 
         logger.info("Registered all builtin attacks")
+        
+        # Register aliases for common attack variations
+        self.register_alias(
+            alias="multisplit_conceal_sni",
+            canonical_attack="multisplit",
+            metadata=AttackMetadata(
+                name="multisplit_conceal_sni",
+                description="Alias for multisplit attack with SNI concealment",
+                required_params=[],
+                optional_params={},
+                aliases=[],
+                category=AttackCategories.SPLIT
+            )
+        )
+        
+        # Register custom strategy aliases for backward compatibility
+        self.register_alias(
+            alias="disorder_short_ttl_decoy",
+            canonical_attack="disorder",
+            metadata=AttackMetadata(
+                name="disorder_short_ttl_decoy",
+                description="Disorder attack with short TTL and decoy packets",
+                required_params=[],
+                optional_params={"ttl": 3, "split_pos": "sni", "fooling": ["badseq"]},
+                aliases=[],
+                category=AttackCategories.DISORDER
+            )
+        )
+        
+        self.register_alias(
+            alias="disorder_short_ttl_decoy_optimized",
+            canonical_attack="disorder",
+            metadata=AttackMetadata(
+                name="disorder_short_ttl_decoy_optimized",
+                description="Optimized disorder attack with short TTL",
+                required_params=[],
+                optional_params={"ttl": 1, "split_pos": "sni", "fooling": ["badseq"]},
+                aliases=[],
+                category=AttackCategories.DISORDER
+            )
+        )
+        
+        logger.info("Registered attack aliases")
 
     def _create_primitives_handler(self, method_name: str) -> Callable:
         """Создает обработчик для метода из primitives.py."""
@@ -798,8 +873,13 @@ class AttackRegistry:
                 "fooling_methods", context.params.get("fooling", ["badsum"])
             )
 
+            # Pass resolved custom SNI to the primitives method
+            kwargs = {}
+            if "resolved_custom_sni" in context.params:
+                kwargs["resolved_custom_sni"] = context.params["resolved_custom_sni"]
+            
             return techniques.apply_seqovl(
-                context.payload, split_pos, overlap_size, fake_ttl, fooling_methods
+                context.payload, split_pos, overlap_size, fake_ttl, fooling_methods, **kwargs
             )
 
         return handler
@@ -817,10 +897,143 @@ class AttackRegistry:
             fooling = context.params.get(
                 "fooling", context.params.get("fooling_methods", ["badsum"])
             )
+            
+            # Pass through resolved_custom_sni if available
+            kwargs = {}
+            if "resolved_custom_sni" in context.params:
+                kwargs["resolved_custom_sni"] = context.params["resolved_custom_sni"]
 
-            return techniques.apply_fake_packet_race(context.payload, ttl, fooling)
+            return techniques.apply_fake_packet_race(context.payload, ttl, fooling, **kwargs)
 
         return handler
+
+    def _generate_positions(
+        self,
+        split_pos: any,
+        split_count: any,
+        payload_len: int
+    ) -> List[int]:
+        """
+        Standardized position generation for multisplit attacks.
+        
+        This method ensures consistent position generation between testing and production modes.
+        
+        Algorithm:
+        1. If positions explicitly provided, use them
+        2. If split_pos AND split_count provided, generate positions starting from split_pos
+        3. If only split_pos provided, use single position
+        4. If only split_count provided, distribute evenly across payload
+        5. Default: middle of payload
+        
+        Position generation formula (when both split_pos and split_count are provided):
+        - Start at split_pos
+        - Generate split_count positions with fixed gap of 6 bytes
+        - positions = [split_pos, split_pos+6, split_pos+12, ..., split_pos+(split_count-1)*6]
+        
+        Args:
+            split_pos: Starting position for splits (int or str)
+            split_count: Number of split positions to generate (int or str)
+            payload_len: Length of payload for validation
+            
+        Returns:
+            List of integer positions, validated to be within payload bounds
+            
+        Examples:
+            >>> _generate_positions(3, 8, 100)
+            [3, 9, 15, 21, 27, 33, 39, 45]
+            
+            >>> _generate_positions(5, None, 100)
+            [5]
+            
+            >>> _generate_positions(None, 4, 100)
+            [25, 50, 75]
+        """
+        # REQUIREMENT 5.1: Log position generation parameters
+        logger.info(
+            f"🔢 Generating positions: split_pos={split_pos}, split_count={split_count}, payload_len={payload_len}"
+        )
+        
+        # Case 1: Both split_pos AND split_count provided
+        if split_pos is not None and split_count is not None:
+            # Convert split_pos to int if string
+            if isinstance(split_pos, str):
+                try:
+                    split_pos = int(split_pos)
+                except ValueError:
+                    logger.warning(f"Invalid split_pos string '{split_pos}', using default 3")
+                    split_pos = 3
+            
+            # Validate and clamp split_pos
+            base_pos = max(1, min(int(split_pos), payload_len - 1))
+            count = max(1, int(split_count))
+            
+            # Calculate step size to distribute positions evenly across payload
+            # This creates equal-sized segments like Case 3
+            remaining_payload = payload_len - base_pos
+            step = max(1, remaining_payload // count)
+            
+            positions = []
+            for i in range(count - 1):  # count-1 because we need count segments, not count positions
+                pos = base_pos + (i * step)
+                if pos < payload_len:
+                    positions.append(pos)
+            
+            # Ensure we have at least one position
+            if not positions:
+                positions = [base_pos]
+            
+            # REQUIREMENT 5.4: Log generated positions for debugging
+            logger.info(
+                f"✅ Generated {len(positions)} positions from split_pos={split_pos}, "
+                f"split_count={split_count}: {positions}"
+            )
+            
+            return positions
+        
+        # Case 2: Only split_pos provided
+        elif split_pos is not None:
+            if isinstance(split_pos, str):
+                try:
+                    split_pos = int(split_pos)
+                except ValueError:
+                    logger.warning(f"Invalid split_pos string '{split_pos}', using middle")
+                    split_pos = payload_len // 2
+            
+            base_pos = max(1, min(int(split_pos), payload_len - 1))
+            positions = [base_pos]
+            
+            logger.info(f"✅ Single position from split_pos={split_pos}: {positions}")
+            return positions
+        
+        # Case 3: Only split_count provided
+        elif split_count is not None:
+            count = max(1, int(split_count))
+            
+            if count == 1:
+                positions = [payload_len // 2]
+            else:
+                # Distribute evenly across payload
+                step = payload_len // count
+                positions = [
+                    i * step
+                    for i in range(1, count)
+                    if i * step < payload_len
+                ]
+                
+                # Ensure we have at least one position
+                if not positions:
+                    positions = [payload_len // 2]
+            
+            logger.info(
+                f"✅ Generated {len(positions)} positions from split_count={split_count}: {positions}"
+            )
+            return positions
+        
+        # Case 4: No parameters provided - use default
+        else:
+            positions = [payload_len // 2]
+            logger.info(f"✅ Using default position (middle): {positions}")
+            return positions
 
     def _create_multisplit_handler(self) -> Callable:
         """Создает специальный обработчик для multisplit с правильными параметрами."""
@@ -830,58 +1043,50 @@ class AttackRegistry:
 
             techniques = BypassTechniques()
 
-            # Конвертируем параметры в правильный формат
-            positions = context.params.get("positions")
+            # REQUIREMENT 5.1: Log complete strategy parameters
+            logger.info(f"📋 Multisplit handler called with params: {context.params}")
 
-            # Если positions не указан, но есть split_pos, создаем positions из
-            # split_pos
-            if not positions and "split_pos" in context.params:
-                split_pos = context.params["split_pos"]
-                if isinstance(split_pos, (int, str)):
-                    # Создаем позиции на основе split_pos
-                    if isinstance(split_pos, str):
-                        try:
-                            split_pos = int(split_pos)
-                        except ValueError:
-                            split_pos = len(context.payload) // 2
-
-                    base_pos = max(1, min(split_pos, len(context.payload) - 1))
-                    positions = [base_pos]
-
-                    logger.debug(
-                        f"Converted split_pos={split_pos} to positions={positions} for payload length {
-                            len(
-                                context.payload)}"
-                    )
+            # CRITICAL FIX: Always use split_count if provided, even if positions exists
+            # This fixes the issue where split_pos=2 is converted to positions=[2] and split_count is ignored
+            split_pos = context.params.get("split_pos")
+            split_count = context.params.get("split_count")
+            
+            # REQUIREMENT 5.2: Use standardized position generation
+            if split_count is not None:
+                # If split_count is provided, always generate positions from it
+                # This takes priority over any pre-set positions parameter
+                logger.info(f"🔧 Using split_count={split_count} to generate positions (ignoring pre-set positions if any)")
+                positions = self._generate_positions(split_pos, split_count, len(context.payload))
+            else:
+                # No split_count, check if positions are explicitly provided
+                positions = context.params.get("positions")
+                
+                if not positions:
+                    # No positions and no split_count, generate from split_pos only
+                    positions = self._generate_positions(split_pos, None, len(context.payload))
                 else:
-                    # Значение по умолчанию
-                    positions = [len(context.payload) // 2]
-            elif not positions and "split_count" in context.params:
-                # Создаем позиции на основе split_count
-                split_count = max(1, int(context.params.get("split_count", 2)))
-                if split_count == 1:
-                    positions = [len(context.payload) // 2]
-                else:
-                    # Равномерно распределяем позиции
-                    step = len(context.payload) // split_count
-                    positions = [
-                        i * step
-                        for i in range(1, split_count)
-                        if i * step < len(context.payload)
-                    ]
-                    if not positions:
-                        positions = [len(context.payload) // 2]
+                    # REQUIREMENT 5.3: Validate explicitly provided positions
+                    logger.info(f"📋 Using explicit positions: {positions}")
+                    
+                    # Validate positions are within bounds
+                    valid_positions = [p for p in positions if isinstance(p, int) and 0 < p < len(context.payload)]
+                    
+                    if len(valid_positions) != len(positions):
+                        logger.warning(
+                            f"⚠️ Filtered invalid positions: {len(positions)} → {len(valid_positions)}"
+                        )
+                    
+                    positions = valid_positions if valid_positions else [len(context.payload) // 2]
 
-                logger.debug(
-                    f"Generated positions={positions} from split_count={split_count} for payload length {
-                        len(
-                            context.payload)}"
-                )
-            elif not positions:
-                # Значение по умолчанию
+            # REQUIREMENT 5.3: Validate final positions
+            if not positions:
+                logger.error("❌ No valid positions generated, using default")
                 positions = [len(context.payload) // 2]
+            
+            # REQUIREMENT 5.4: Log final positions being used
+            logger.info(f"🎯 Final positions for multisplit: {positions}")
 
-            # Фильтруем только поддерживаемые параметры
+            # Get fooling parameter
             fooling = context.params.get("fooling")
 
             return techniques.apply_multisplit(context.payload, positions, fooling)
@@ -922,6 +1127,10 @@ class AttackRegistry:
                 "fooling_methods": fooling_methods,
             }
 
+            # Pass resolved custom SNI to the primitives method
+            if "resolved_custom_sni" in context.params:
+                filtered_params["resolved_custom_sni"] = context.params["resolved_custom_sni"]
+            
             return techniques.apply_fakeddisorder(context.payload, **filtered_params)
 
         return handler
@@ -930,12 +1139,16 @@ class AttackRegistry:
         """Создает специальный обработчик для multidisorder с правильными параметрами."""
 
         def handler(context: AttackContext) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+            logger.info(f"🔍 multidisorder handler CALLED! payload_len={len(context.payload)}")
             from ..techniques.primitives import BypassTechniques
 
             techniques = BypassTechniques()
 
             # Конвертируем параметры в правильный формат
             positions = context.params.get("positions")
+            
+            # CRITICAL DEBUG: Log what positions we received
+            logger.info(f"🔍 multidisorder handler: positions={positions}, payload_len={len(context.payload)}")
 
             # Если positions не указан, но есть split_pos, создаем positions из
             # split_pos
@@ -980,9 +1193,29 @@ class AttackRegistry:
                 positions = [1, 5, 10]  # Значения по умолчанию
 
             fake_ttl = context.params.get("fake_ttl", context.params.get("ttl", 3))
-            fooling = context.params.get(
-                "fooling", context.params.get("fooling_methods", ["badsum"])
-            )
+            fooling_raw = context.params.get("fooling", context.params.get("fooling_methods"))
+            
+            # CRITICAL DEBUG: Log what we got from params
+            logger.info(f"🔧 multidisorder handler: fooling_raw={fooling_raw}, type={type(fooling_raw)}")
+            
+            # CRITICAL: Convert fooling="none" string to empty list (no fooling)
+            if fooling_raw is None:
+                fooling = ["badsum"]  # Default
+                logger.info(f"🔧 multidisorder: fooling is None, using default ['badsum']")
+            elif fooling_raw == "none" or fooling_raw == ["none"]:
+                fooling = []
+                logger.info(f"🔧 multidisorder: fooling='none' detected, disabling all fooling methods")
+            elif isinstance(fooling_raw, str):
+                fooling = [fooling_raw]
+                logger.info(f"🔧 multidisorder: converted string to list: {fooling}")
+            elif isinstance(fooling_raw, list):
+                fooling = fooling_raw
+                logger.info(f"🔧 multidisorder: using list as-is: {fooling}")
+            else:
+                fooling = ["badsum"]  # Fallback
+                logger.warning(f"🔧 multidisorder: unexpected fooling type, using default")
+            
+            logger.info(f"🔧 multidisorder handler FINAL: fooling={fooling}, fake_ttl={fake_ttl}")
 
             return techniques.apply_multidisorder(
                 context.payload, positions, fooling, fake_ttl
@@ -1172,6 +1405,7 @@ class AttackRegistry:
                 "cipher",
                 "sni",
                 "midsld",
+                "random",
             ]:
                 try:
                     int(split_pos)
@@ -1184,36 +1418,41 @@ class AttackRegistry:
         # Валидация positions для multisplit/multidisorder
         if "positions" in params:
             positions = params["positions"]
-            if not isinstance(positions, list):
+            if positions is None:
+                # None is acceptable for positions - the attack handler will convert it
+                # from split_pos or use defaults
+                pass
+            elif not isinstance(positions, list):
                 return ValidationResult(
                     is_valid=False,
                     error_message=f"positions must be a list, got {
                         type(positions)}",
                 )
-
-            special_values = ["cipher", "sni", "midsld"]
-            for pos in positions:
-                if isinstance(pos, int):
-                    if pos < 1:
-                        return ValidationResult(
-                            is_valid=False,
-                            error_message=f"Position values must be >= 1, got {pos}",
-                        )
-                elif isinstance(pos, str):
-                    if pos not in special_values:
-                        try:
-                            int(pos)  # Try to convert to int
-                        except ValueError:
+            else:
+                # Only validate if positions is not None and is a list
+                special_values = ["cipher", "sni", "midsld"]
+                for pos in positions:
+                    if isinstance(pos, int):
+                        if pos < 1:
                             return ValidationResult(
                                 is_valid=False,
-                                error_message=f"Invalid position value: {pos}. Must be int or one of {special_values}",
+                                error_message=f"Position values must be >= 1, got {pos}",
                             )
-                else:
-                    return ValidationResult(
-                        is_valid=False,
-                        error_message=f"All positions must be int or str, got {
-                            type(pos)}",
-                    )
+                    elif isinstance(pos, str):
+                        if pos not in special_values:
+                            try:
+                                int(pos)  # Try to convert to int
+                            except ValueError:
+                                return ValidationResult(
+                                    is_valid=False,
+                                    error_message=f"Invalid position value: {pos}. Must be int or one of {special_values}",
+                                )
+                    else:
+                        return ValidationResult(
+                            is_valid=False,
+                            error_message=f"All positions must be int or str, got {
+                                type(pos)}",
+                        )
 
         # Валидация overlap_size для seqovl
         if "overlap_size" in params:
@@ -1250,12 +1489,33 @@ class AttackRegistry:
                 "datanoack",
                 "hopbyhop",
                 "md5sig",
+                "fakesni",  # Add fakesni to valid methods
             ]
             for method in fooling:
                 if method not in valid_fooling_methods:
                     return ValidationResult(
                         is_valid=False,
                         error_message=f"Invalid fooling method '{method}'. Valid methods: {valid_fooling_methods}",
+                    )
+
+        # Валидация custom_sni и fake_sni параметров (backward compatibility)
+        sni_params = ["custom_sni", "fake_sni"]
+        for param_name in sni_params:
+            if param_name in params and params[param_name] is not None:
+                sni_value = params[param_name]
+                if not isinstance(sni_value, str):
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"{param_name} must be a string, got {type(sni_value)}",
+                    )
+                
+                # Validate SNI format using CustomSNIHandler
+                from ..filtering.custom_sni import CustomSNIHandler
+                sni_handler = CustomSNIHandler()
+                if not sni_handler.validate_sni(sni_value):
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Invalid {param_name} format: '{sni_value}'. Must be a valid domain name.",
                     )
 
         return ValidationResult(is_valid=True, error_message=None)
@@ -2114,14 +2374,63 @@ def _register_attack_class(
 
     # Create attack handler
     def attack_handler(context: AttackContext) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Enhanced attack handler with proper context handling."""
+        """Enhanced attack handler with proper context handling and async support."""
         try:
             attack_instance = attack_class()
             result = attack_instance.execute(context)
             
+            # Check if result is a coroutine (async method)
+            if inspect.iscoroutine(result):
+                # Run async method synchronously
+                import asyncio
+                try:
+                    # Try to get existing event loop
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # If loop is already running, create a new one
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            result = loop.run_until_complete(result)
+                        finally:
+                            loop.close()
+                    else:
+                        result = loop.run_until_complete(result)
+                except RuntimeError:
+                    # No event loop, create a new one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        result = loop.run_until_complete(result)
+                    finally:
+                        loop.close()
+            
             # Convert AttackResult to segments format if needed
             if hasattr(result, 'segments') and result.segments:
-                return result.segments
+                # ✅ Validate segments format before returning
+                segments = result.segments
+                if not isinstance(segments, list):
+                    logger.error(f"Attack {attack_name} returned segments that is not a list: {type(segments)}")
+                    return [(context.payload, 0, {})]
+                
+                # Validate each segment
+                valid_segments = []
+                for i, segment in enumerate(segments):
+                    if isinstance(segment, tuple) and len(segment) == 3:
+                        payload_data, seq_offset, options_dict = segment
+                        if isinstance(payload_data, bytes) and isinstance(seq_offset, int) and isinstance(options_dict, dict):
+                            valid_segments.append(segment)
+                        else:
+                            logger.warning(f"Attack {attack_name} segment {i} has invalid types, skipping")
+                    else:
+                        logger.warning(f"Attack {attack_name} segment {i} is not a valid tuple (payload, offset, options), skipping")
+                
+                if valid_segments:
+                    return valid_segments
+                else:
+                    logger.error(f"Attack {attack_name} returned no valid segments, using fallback")
+                    return [(context.payload, 0, {})]
+                    
             elif hasattr(result, 'modified_payload') and result.modified_payload:
                 return [(result.modified_payload, 0, {})]
             else:
@@ -2130,6 +2439,8 @@ def _register_attack_class(
                 
         except Exception as e:
             logger.error(f"Attack handler execution failed for {attack_name}: {e}")
+            import traceback
+            logger.debug(f"Stack trace: {traceback.format_exc()}")
             return [(context.payload, 0, {})]
 
     # Register with registry

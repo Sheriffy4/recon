@@ -23,5 +23,13 @@
     "handshake_timeout": 15,
     "read_timeout": 20,
     "max_retries": 3
+  },
+  "packet": {
+    "badseq_offset": 268435456,
+    "badseq_offset_randomize": false,
+    "badseq_offset_min": 134217728,
+    "badseq_offset_max": 402653184,
+    "enable_overlap_detection": true,
+    "enable_overlap_warnings": true
   }
 }

@@ -1,0 +1,1 @@
+# Knowledge management components for closed-loop learning system

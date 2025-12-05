@@ -301,8 +301,11 @@ class SpecialParameterValues:
     MIDSLD = "midsld"
     """Середина второго уровня домена"""
 
+    RANDOM = "random"
+    """Случайная позиция в пределах payload"""
+
     # Список всех специальных значений
-    ALL = [CIPHER, SNI, MIDSLD]
+    ALL = [CIPHER, SNI, MIDSLD, RANDOM]
 
     @classmethod
     def is_special_value(cls, value: str) -> bool:

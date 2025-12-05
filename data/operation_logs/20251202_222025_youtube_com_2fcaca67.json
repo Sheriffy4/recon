@@ -1,0 +1,15 @@
+{
+  "strategy_id": "2fcaca67-f90a-408c-ade6-b1005731777c",
+  "strategy_name": "test",
+  "domain": "youtube.com",
+  "timestamp": "2025-12-02T22:20:25.766689",
+  "operations": [],
+  "metadata": {
+    "domain": "youtube.com",
+    "strategy": {
+      "attack": "test",
+      "_strategy_id": "2fcaca67-f90a-408c-ade6-b1005731777c"
+    },
+    "verification_mode": true
+  }
+}

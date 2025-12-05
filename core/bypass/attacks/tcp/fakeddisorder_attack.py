@@ -20,7 +20,7 @@ the low-level implementation building blocks.
 import random
 import time
 from typing import Dict, Any, Optional, List, Tuple, Union
-from dataclasses import dataclass, field, InitVar, fields
+from dataclasses import dataclass, field, InitVar
 
 
 from core.bypass.attacks.attack_registry import register_attack
@@ -36,12 +36,25 @@ from core.bypass.attacks.attack_registry import (
 )
 from core.bypass.techniques.primitives import BypassTechniques
 
+# Import payload system for fake payload support
+# Requirements: 6.1, 6.2, 6.3, 6.4
+try:
+    from core.payload import (
+        get_attack_payload,
+        PayloadType,
+    )
+    PAYLOAD_SYSTEM_AVAILABLE = True
+except ImportError:
+    PAYLOAD_SYSTEM_AVAILABLE = False
+
 
 @dataclass
 class FakedDisorderConfig:
     """
     Configuration for unified FakedDisorderAttack.
     Handles parameter aliases directly in the constructor for robustness.
+    
+    Requirements: 6.1, 6.2, 6.3, 6.4 - Payload integration support
     """
     # Core parameters
     split_pos: Union[int, str] = 3
@@ -56,6 +69,8 @@ class FakedDisorderConfig:
     overlap_size: int = 0
 
     # Fake payload configuration
+    # fake_payload: Direct bytes payload (highest priority) - Requirements: 6.2, 6.3
+    fake_payload: Optional[bytes] = None
     fake_tls: Optional[str] = "PAYLOADTLS"
     fake_http: Optional[str] = None
     fake_data: Optional[str] = None
@@ -71,16 +86,6 @@ class FakedDisorderConfig:
 
     fooling_methods: List[str] = field(default_factory=lambda: ["badsum", "badseq"])
     fooling: InitVar[Optional[List[str]]] = None # Alias for fooling_methods
-
-    # FIX: Allow unexpected keyword arguments to be ignored
-    def __init__(self, **kwargs):
-        names = set([f.name for f in fields(self)])
-        for k, v in kwargs.items():
-            if k in names:
-                setattr(self, k, v)
-        
-        # Manually call post_init logic
-        self.__post_init__(kwargs.get('ttl'), kwargs.get('fooling'))
 
 
     def __post_init__(self, ttl: Optional[int], fooling: Optional[List[str]]):
@@ -155,6 +160,7 @@ class FakedDisorderAttack(BaseAttack):
             "split_seqovl": 0,
             "overlap_size": 0,
             "fooling_methods": ["badsum", "badseq"],
+            "fake_payload": None,  # Direct bytes payload (Requirements: 6.2, 6.3)
             "fake_tls": "PAYLOADTLS",
             "fake_http": None,
             "fake_data": None,
@@ -411,31 +417,99 @@ class FakedDisorderAttack(BaseAttack):
         Generate zapret-compatible fake payload.
 
         Integrated from fake_disorder_attack_fixed.py generation logic.
+        
+        Priority order for payload resolution (Requirements: 6.1, 6.2, 6.3):
+        1. config.fake_payload (direct bytes) - highest priority
+        2. PayloadManager lookup (if available)
+        3. config.fake_tls/fake_http/fake_data string parameters
+        4. Built-in TLS/HTTP fake generation (fallback)
         """
-        # Determine protocol from payload or context
+        # Priority 1: Direct bytes payload from config (Requirements: 6.2, 6.3)
+        if self.config.fake_payload is not None:
+            fake_payload = self.config.fake_payload
+            self.logger.info(
+                f"✅ Using configured fake_payload: {len(fake_payload)} bytes (source: direct bytes)"
+            )
+            # Apply randomization if enabled
+            if self.config.randomize_fake_content and fake_payload:
+                fake_payload = self._randomize_payload_content(fake_payload)
+            return fake_payload
+        
+        # Priority 2: Use PayloadManager if available (Requirements: 6.1)
+        if PAYLOAD_SYSTEM_AVAILABLE:
+            try:
+                # Determine payload type from protocol
+                protocol = self._detect_protocol(original_payload, context)
+                payload_type = (
+                    PayloadType.TLS if protocol == "tls" 
+                    else PayloadType.HTTP if protocol == "http"
+                    else PayloadType.TLS  # Default to TLS
+                )
+                
+                # Get payload from manager
+                # Pass fake_tls as payload_param for hex/file/placeholder resolution
+                payload_param = self.config.fake_tls or self.config.fake_http
+                
+                fake_payload = get_attack_payload(
+                    payload_param=payload_param,
+                    payload_type=payload_type,
+                    domain=context.domain
+                )
+                
+                if fake_payload and len(fake_payload) > 0:
+                    # Determine payload source for logging
+                    if payload_param and payload_param.startswith("0x"):
+                        source = f"hex string ({payload_param[:20]}...)"
+                    elif payload_param and "/" in str(payload_param):
+                        source = f"file ({payload_param})"
+                    elif payload_param:
+                        source = f"placeholder ({payload_param})"
+                    else:
+                        source = "PayloadManager default"
+                    
+                    self.logger.info(
+                        f"✅ Using fake payload: {len(fake_payload)} bytes "
+                        f"(source: {source}, protocol={protocol}, domain={context.domain})"
+                    )
+                    # Apply randomization if enabled
+                    if self.config.randomize_fake_content:
+                        fake_payload = self._randomize_payload_content(fake_payload)
+                    return fake_payload
+                    
+            except Exception as e:
+                self.logger.warning(
+                    f"PayloadManager lookup failed, falling back to built-in: {e}"
+                )
+        
+        # Priority 3 & 4: Fall back to built-in generation
         protocol = self._detect_protocol(original_payload, context)
 
         if protocol == "tls" or self.config.fake_tls == "PAYLOADTLS":
             fake_payload = self._generate_zapret_tls_fake()
+            source = "built-in TLS generator"
         elif protocol == "http" or self.config.fake_http:
             fake_payload = self._generate_zapret_http_fake()
+            source = "built-in HTTP generator"
         elif self.config.fake_data:
             # Custom fake data
             try:
                 fake_payload = self.config.fake_data.encode("utf-8", errors="ignore")
+                source = f"custom fake_data ({self.config.fake_data[:20]}...)"
             except Exception as e:
                 self.logger.warning(f"Failed to encode fake_data: {e}, using default")
                 fake_payload = self._generate_zapret_tls_fake()
+                source = "built-in TLS generator (fallback)"
         else:
             # Default to TLS fake payload
             fake_payload = self._generate_zapret_tls_fake()
+            source = "built-in TLS generator (default)"
 
         # Apply randomization if enabled
         if self.config.randomize_fake_content and fake_payload:
             fake_payload = self._randomize_payload_content(fake_payload)
 
-        self.logger.debug(
-            f"Generated zapret fake payload: {len(fake_payload)} bytes, protocol={protocol}"
+        self.logger.info(
+            f"✅ Using fake payload: {len(fake_payload)} bytes (source: {source}, protocol={protocol})"
         )
         return fake_payload
 
@@ -617,6 +691,8 @@ class FakedDisorderAttack(BaseAttack):
                 "autottl": self.config.autottl,
                 "fooling_methods": self.config.fooling_methods,
                 "repeats": self.config.repeats,
+                "has_custom_payload": self.config.fake_payload is not None,
+                "payload_system_available": PAYLOAD_SYSTEM_AVAILABLE,
             },
             "features": [
                 "zapret_fake_payload_generation",
@@ -624,6 +700,7 @@ class FakedDisorderAttack(BaseAttack):
                 "special_position_resolution",
                 "primitives_integration",
                 "comprehensive_parameter_support",
+                "payload_manager_integration",  # Requirements: 6.1
             ],
         }
 

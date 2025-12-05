@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-12-01T19:38:57.506525",
+  "domain": "googleads.g.doubleclick.net",
+  "retransmissions": 6,
+  "strategy": {
+    "type": "fake",
+    "params": {
+      "ttl": 1,
+      "fooling": "badseq",
+      "split_pos": 3,
+      "split_count": 2,
+      "no_fallbacks": true,
+      "forced": true
+    },
+    "attacks": [
+      "fake",
+      "split"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 703,
+  "recommendations": [
+    "Run 'cli.py test googleads.g.doubleclick.net' to re-test the strategy",
+    "Run 'cli.py auto googleads.g.doubleclick.net' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "googleads.g.doubleclick.net",
+    "source": "sni",
+    "ip_address": "142.250.74.34:443",
+    "matched_rule": "googleads.g.doubleclick.net",
+    "conflict_detected": false,
+    "sni_domain": "googleads.g.doubleclick.net",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "g.doubleclick.net",
+    "recommendation": "Try removing 'googleads.g.doubleclick.net' rule to use parent domain 'g.doubleclick.net' strategy"
+  }
+}

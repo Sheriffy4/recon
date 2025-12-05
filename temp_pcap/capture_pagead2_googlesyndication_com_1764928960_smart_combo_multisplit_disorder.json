@@ -1,0 +1,9 @@
+{
+  "executed_attacks": "multisplit,disorder",
+  "strategy_name": "smart_combo_multisplit_disorder",
+  "strategy_id": "c9661e12-4775-4732-b8c5-69185380cf2d",
+  "domain": "pagead2.googlesyndication.com",
+  "test_start_time": 1764928960.0152314,
+  "test_start_timestamp": 1764928960,
+  "pcap_file": "capture_pagead2_googlesyndication_com_1764928960.pcap"
+}

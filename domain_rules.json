@@ -1,0 +1,107 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-12-05T15:25:35.445196",
+  "default_strategy": {
+    "type": "fakeddisorder",
+    "attacks": [
+      "fakeddisorder"
+    ],
+    "params": {
+      "fake_ttl": 3
+    }
+  },
+  "domain_rules": {
+    "example.com": {
+      "type": "split",
+      "attacks": [
+        "split",
+        "fake"
+      ],
+      "params": {
+        "split_pos": 3,
+        "ttl": 64,
+        "no_fallbacks": true,
+        "forced": true
+      },
+      "metadata": {
+        "source": "adaptive_engine_cli",
+        "discovered_at": "2025-12-03T09:34:57.027332",
+        "success_rate": 100.0
+      }
+    },
+    "default": {
+      "type": "fakeddisorder",
+      "attacks": [
+        "fakeddisorder"
+      ],
+      "params": {
+        "fake_ttl": 3,
+        "split_pos": 3,
+        "ttl": 3,
+        "fooling": [
+          "badsum"
+        ]
+      },
+      "metadata": {
+        "source": "default_config",
+        "discovered_at": "2025-12-03T09:34:57.027332"
+      }
+    },
+    "mail.com": {
+      "type": "multisplit",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 8
+      },
+      "attacks": [
+        "multisplit",
+        "fake"
+      ]
+    },
+    "mail1.com": {
+      "type": "multisplit",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 8
+      },
+      "attacks": [
+        "multisplit",
+        "fake"
+      ]
+    },
+    "pagead2.googlesyndication.com": {
+      "type": "disorder",
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ],
+      "metadata": {
+        "failure_count": 7,
+        "last_failure_time": "2025-12-05T15:41:00.232014",
+        "needs_revalidation": true,
+        "last_failure_reason": "Strategy failed with 5 retransmissions"
+      }
+    },
+    "*.googlesyndication.com": {
+      "type": "disorder",
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ]
+    }
+  }
+}

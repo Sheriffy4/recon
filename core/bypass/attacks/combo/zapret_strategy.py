@@ -12,7 +12,8 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.packet_builder import EnhancedPacketBuilder
-from core.bypass.attacks.attack_registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 
 LOG = logging.getLogger("ZapretStrategy")
 
@@ -34,7 +35,28 @@ class ZapretConfig:
     inter_packet_delay_ms: float = 0.05
     burst_delay_ms: float = 1.0
 
-@register_attack
+@register_attack(
+    name="zapret_strategy",
+    category=AttackCategories.COMBO,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "desync_methods": ["fake", "fakeddisorder"],
+        "split_seqovl": 297,
+        "auto_ttl": True,
+        "fake_tls_data": b"\x00\x00\x00\x00",
+        "fooling_method": "md5sig",
+        "repeats": 10,
+        "base_ttl": 51,
+        "disorder_window": 3,
+        "fake_packet_delay_ms": 0.1,
+        "sequence_overlap_bytes": 8,
+        "inter_packet_delay_ms": 0.05,
+        "burst_delay_ms": 1.0
+    },
+    aliases=["zapret", "zapret_combo"],
+    description="Zapret-style multi-method DPI bypass strategy"
+)
 class ZapretStrategy(BaseAttack):
 
     @property
@@ -43,7 +65,7 @@ class ZapretStrategy(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "combo"
+        return AttackCategories.COMBO
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -56,7 +78,12 @@ class ZapretStrategy(BaseAttack):
     @property
     def optional_params(self) -> Dict[str, Any]:
         # Return parameters from the config as a dictionary
-        return asdict(self.config)
+        # Use default config if self.config is not available (during registration)
+        if hasattr(self, 'config') and self.config:
+            return asdict(self.config)
+        else:
+            # Return default parameters for registration
+            return asdict(ZapretConfig())
     
     def __init__(self, config: Optional[ZapretConfig] = None):
         super().__init__()
@@ -69,7 +96,7 @@ class ZapretStrategy(BaseAttack):
             f"Zapret strategy initialized: methods={self.config.desync_methods}, split={self.config.split_seqovl}, ttl={self.config.base_ttl}"
         )
 
-    async def execute(self, context: AttackContext) -> AttackResult:
+    def execute(self, context: AttackContext) -> AttackResult:
         LOG.info(f"Executing zapret strategy for {context.dst_ip}:{context.dst_port}")
         start_time = time.time()
         try:
@@ -95,23 +122,26 @@ class ZapretStrategy(BaseAttack):
                 final_packets.append(packet)
             self.packets_sent = len(final_packets)
             success = self.packets_sent > 0
-            await asyncio.sleep(0)
+            # Removed async sleep for sync execution
             execution_time = (time.time() - start_time) * 1000
-            segments = [(packet, 0) for packet in final_packets]
-            return AttackResult(
+            segments = [(packet, 0, {}) for packet in final_packets]
+            
+            result = AttackResult(
                 status=AttackStatus.SUCCESS if success else AttackStatus.ERROR,
                 latency_ms=execution_time,
                 packets_sent=self.packets_sent,
                 bytes_sent=sum((len(p) for p in final_packets)),
                 connection_established=success,
                 data_transmitted=success,
+                technique_used=self.name,
                 metadata={
-                    "segments": segments,
                     "config": asdict(self.config),
                     "info": "Zapret strategy generated raw packets for execution.",
                     "is_raw": True,
                 },
             )
+            result.segments = segments
+            return result
         except Exception as e:
             LOG.error(f"Zapret strategy failed: {e}", exc_info=True)
             return AttackResult(

@@ -500,6 +500,15 @@ class MonitoringSystem:
             "monitoring_stats": self.monitoring_stats.copy(),
             "sites": {},
         }
+        
+        # Add attack parity metrics if available
+        try:
+            from core.metrics.attack_parity_metrics import get_metrics_collector
+            collector = get_metrics_collector()
+            summary = collector.get_summary(time_window_minutes=60)
+            report["attack_parity_metrics"] = summary.to_dict()
+        except Exception as e:
+            self.logger.debug(f"Attack parity metrics not available: {e}")
         if self.monitored_sites:
             accessible_sites = [
                 h for h in self.monitored_sites.values() if h.is_accessible

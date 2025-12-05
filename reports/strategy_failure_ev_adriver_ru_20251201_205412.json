@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-12-01T20:54:12.627362",
+  "domain": "ev.adriver.ru",
+  "retransmissions": 4,
+  "strategy": {
+    "type": "disorder",
+    "params": {
+      "split_pos": 1,
+      "ttl": 2,
+      "fake_ttl": 2,
+      "fooling": "none",
+      "window_div": 8,
+      "repeats": 1,
+      "tcp_flags": {
+        "psh": true,
+        "ack": true
+      },
+      "ipid_step": 2048
+    },
+    "attacks": [
+      "disorder"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 55,
+  "recommendations": [
+    "Run 'cli.py test ev.adriver.ru' to re-test the strategy",
+    "Run 'cli.py auto ev.adriver.ru' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "ev.adriver.ru",
+    "source": "sni",
+    "ip_address": "195.209.109.28:443",
+    "matched_rule": null,
+    "conflict_detected": false,
+    "sni_domain": "ev.adriver.ru",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "adriver.ru",
+    "recommendation": "Try removing 'ev.adriver.ru' rule to use parent domain 'adriver.ru' strategy"
+  }
+}

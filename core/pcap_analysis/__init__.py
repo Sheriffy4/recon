@@ -73,12 +73,12 @@ from .analysis_reporter import (
     VisualizationType,
 )
 from .visualization_helper import VisualizationHelper, VisualizationData
-from .regression_tester import (
-    RegressionTester,
-    RegressionTest,
-    PerformanceMetrics,
-    RollbackInfo,
-)
+# from .regression_tester import (
+#     RegressionTester,
+#     RegressionTest,
+#     PerformanceMetrics,
+#     RollbackInfo,
+# )
 from .recon_integration import ReconIntegrationManager, create_recon_integration_manager
 from .enhanced_rst_compatibility import (
     EnhancedRSTCompatibilityLayer,
@@ -197,10 +197,10 @@ __all__ = [
     "VisualizationType",
     "VisualizationHelper",
     "VisualizationData",
-    "RegressionTester",
-    "RegressionTest",
-    "PerformanceMetrics",
-    "RollbackInfo",
+    # "RegressionTester",
+    # "RegressionTest",
+    # "PerformanceMetrics",
+    # "RollbackInfo",
     "ReconIntegrationManager",
     "create_recon_integration_manager",
     "EnhancedRSTCompatibilityLayer",

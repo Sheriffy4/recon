@@ -11,7 +11,8 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.protocols.tls import TLSParser
-from core.bypass.attacks.attack_registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 ECH_EXTENSION_TYPE = 65037
 
 
@@ -31,7 +32,20 @@ def _safe_create_result(status_name: str, **kwargs):
             return None
 
 
-@register_attack
+@register_attack(
+    name="ech_fragmentation",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "fragment_count": 3,
+        "use_padding": True,
+        "randomize_order": False,
+        "ech_config": None
+    },
+    aliases=["ech_frag", "encrypted_client_hello_fragmentation"],
+    description="Fragments ECH data across multiple extensions to evade DPI"
+)
 class ECHFragmentationAttack(BaseAttack):
     """
     ECH Fragmentation Attack - fragments ECH (Encrypted Client Hello) data
@@ -44,7 +58,7 @@ class ECHFragmentationAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "tls"
+        return AttackCategories.TLS
 
     @property
     def description(self) -> str:
@@ -61,8 +75,9 @@ class ECHFragmentationAttack(BaseAttack):
     @property
     def optional_params(self) -> Dict[str, Any]:
         return {
-            "fragment_size": 32,
-            "max_fragments": 8,
+            "fragment_count": 3,
+            "use_padding": True,
+            "randomize_order": False,
             "ech_config": None
         }
 
@@ -81,17 +96,18 @@ class ECHFragmentationAttack(BaseAttack):
             if randomize_order:
                 random.shuffle(fragments)
             modified_payload = self._insert_fragmented_extensions(payload, fragments)
-            segments = [(modified_payload, 0)]
+            segments = [(modified_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(modified_payload)
             latency = (time.time() - start_time) * 1000
-            return AttackResult(
+            result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 latency_ms=latency,
                 packets_sent=packets_sent,
                 bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
+                technique_used=self.name,
                 metadata={
                     "fragment_count": len(fragments),
                     "total_ech_size": len(ech_data),
@@ -99,9 +115,10 @@ class ECHFragmentationAttack(BaseAttack):
                     "order_randomized": randomize_order,
                     "original_payload_size": len(payload),
                     "modified_payload_size": len(modified_payload),
-                    "segments": segments if context.engine_type != "local" else None,
                 },
             )
+            result.segments = segments
+            return result
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
@@ -259,7 +276,19 @@ def test_ech_attack_effectiveness(
     }
 
 
-@register_attack
+@register_attack(
+    name="ech_grease",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "grease_intensity": "medium",
+        "include_fake_ech": True,
+        "randomize_grease": True
+    },
+    aliases=["ech_grease_attack", "encrypted_client_hello_grease"],
+    description="Uses GREASE values in ECH extensions to confuse DPI analysis"
+)
 class ECHGreaseAttack(BaseAttack):
     """
     ECH GREASE Attack - uses GREASE values in ECH to confuse DPI analysis.
@@ -271,7 +300,7 @@ class ECHGreaseAttack(BaseAttack):
 
     @property
     def category(self) -> str:
-        return "tls"
+        return AttackCategories.TLS
 
     @property
     def description(self) -> str:
@@ -290,7 +319,7 @@ class ECHGreaseAttack(BaseAttack):
         return {
             "grease_intensity": "medium",
             "include_fake_ech": True,
-            "grease_count": 3
+            "randomize_grease": True
         }
 
     def execute(self, context: AttackContext) -> AttackResult:
@@ -307,17 +336,18 @@ class ECHGreaseAttack(BaseAttack):
             modified_payload = self._insert_grease_extensions(
                 payload, grease_extensions
             )
-            segments = [(modified_payload, 0)]
+            segments = [(modified_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(modified_payload)
             latency = (time.time() - start_time) * 1000
-            return AttackResult(
+            result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 latency_ms=latency,
                 packets_sent=packets_sent,
                 bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
+                technique_used=self.name,
                 metadata={
                     "grease_intensity": grease_intensity,
                     "grease_extensions_count": len(grease_extensions),
@@ -328,6 +358,8 @@ class ECHGreaseAttack(BaseAttack):
                     "segments": segments if context.engine_type != "local" else None,
                 },
             )
+            result.segments = segments
+            return result
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
@@ -504,7 +536,19 @@ class ECHGreaseAttack(BaseAttack):
             return handshake_data
 
 
-@register_attack
+@register_attack(
+    name="ech_decoy",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "decoy_count": 5,
+        "real_ech_position": "random",
+        "vary_sizes": True
+    },
+    aliases=["ech_decoy_attack", "encrypted_client_hello_decoy"],
+    description="Creates multiple fake ECH extensions to hide the real one"
+)
 class ECHDecoyAttack(BaseAttack):
     """
     ECH Decoy Attack - creates multiple fake ECH extensions to hide the real one.
@@ -550,17 +594,18 @@ class ECHDecoyAttack(BaseAttack):
                 decoy_count, real_ech_position, vary_sizes, context
             )
             modified_payload = self._insert_decoy_extensions(payload, decoy_extensions)
-            segments = [(modified_payload, 0)]
+            segments = [(modified_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(modified_payload)
             latency = (time.time() - start_time) * 1000
-            return AttackResult(
+            result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 latency_ms=latency,
                 packets_sent=packets_sent,
                 bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
+                technique_used=self.name,
                 metadata={
                     "decoy_count": decoy_count,
                     "real_ech_position": real_ech_position,
@@ -571,6 +616,8 @@ class ECHDecoyAttack(BaseAttack):
                     "segments": segments if context.engine_type != "local" else None,
                 },
             )
+            result.segments = segments
+            return result
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
@@ -647,7 +694,19 @@ class ECHDecoyAttack(BaseAttack):
         )
 
 
-@register_attack
+@register_attack(
+    name="ech_advanced_grease",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "grease_strategy": "adaptive_grease",
+        "grease_density": "high",
+        "include_malformed": True
+    },
+    aliases=["ech_advanced_grease_attack", "sophisticated_ech_grease"],
+    description="Uses advanced GREASE techniques with ECH to confuse DPI"
+)
 class ECHAdvancedGreaseAttack(BaseAttack):
     """
     ECH Advanced GREASE Attack - uses sophisticated GREASE techniques.
@@ -692,17 +751,18 @@ class ECHAdvancedGreaseAttack(BaseAttack):
             greased_payload = self._create_advanced_grease_ech(
                 payload, grease_strategy, grease_density, include_malformed, context
             )
-            segments = [(greased_payload, 0)]
+            segments = [(greased_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(greased_payload)
             latency = (time.time() - start_time) * 1000
-            return AttackResult(
+            result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 latency_ms=latency,
                 packets_sent=packets_sent,
                 bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
+                technique_used=self.name,
                 metadata={
                     "grease_strategy": grease_strategy,
                     "grease_density": grease_density,
@@ -713,6 +773,8 @@ class ECHAdvancedGreaseAttack(BaseAttack):
                     "segments": segments if context.engine_type != "local" else None,
                 },
             )
+            result.segments = segments
+            return result
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
@@ -1099,7 +1161,19 @@ class ECHAdvancedGreaseAttack(BaseAttack):
             return "zapret --ech-advanced --fake-tls --disorder"
 
 
-@register_attack
+@register_attack(
+    name="ech_outer_sni_manipulation",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "manipulation_strategy": "public_suffix",
+        "fake_sni": None,
+        "preserve_length": True
+    },
+    aliases=["ech_sni_manipulation", "outer_sni_manipulation"],
+    description="Manipulates ECH outer SNI to confuse DPI analysis"
+)
 class ECHOuterSNIManipulationAttack(BaseAttack):
     """
     ECH Outer SNI Manipulation Attack - manipulates the outer SNI to confuse DPI.
@@ -1146,17 +1220,18 @@ class ECHOuterSNIManipulationAttack(BaseAttack):
             modified_payload = self._manipulate_outer_sni(
                 payload, manipulation_strategy, use_fake_ech, sni_count, context
             )
-            segments = [(modified_payload, 0)]
+            segments = [(modified_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(modified_payload)
             latency = (time.time() - start_time) * 1000
-            return AttackResult(
+            result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 latency_ms=latency,
                 packets_sent=packets_sent,
                 bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
+                technique_used=self.name,
                 metadata={
                     "manipulation_strategy": manipulation_strategy,
                     "use_fake_ech": use_fake_ech,
@@ -1166,6 +1241,8 @@ class ECHOuterSNIManipulationAttack(BaseAttack):
                     "segments": segments if context.engine_type != "local" else None,
                 },
             )
+            result.segments = segments
+            return result
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
@@ -1312,7 +1389,19 @@ class ECHOuterSNIManipulationAttack(BaseAttack):
         return sni_data
 
 
-@register_attack
+@register_attack(
+    name="ech_advanced_fragmentation",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "fragmentation_strategy": "nested_extensions",
+        "fragment_size_variation": "random",
+        "max_fragments": 16
+    },
+    aliases=["ech_advanced_frag", "sophisticated_ech_fragmentation"],
+    description="Uses advanced ECH fragmentation techniques to evade DPI"
+)
 class ECHAdvancedFragmentationAttack(BaseAttack):
     """
     ECH Advanced Fragmentation Attack - uses sophisticated fragmentation techniques.
@@ -1367,17 +1456,18 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
                 cross_record_fragmentation,
                 context,
             )
-            segments = [(fragmented_payload, 0)]
+            segments = [(fragmented_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(fragmented_payload)
             latency = (time.time() - start_time) * 1000
-            return AttackResult(
+            result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 latency_ms=latency,
                 packets_sent=packets_sent,
                 bytes_sent=bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
+                technique_used=self.name,
                 metadata={
                     "fragmentation_strategy": fragmentation_strategy,
                     "fragment_size_variation": fragment_size_variation,
@@ -1388,6 +1478,8 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
                     "segments": segments if context.engine_type != "local" else None,
                 },
             )
+            result.segments = segments
+            return result
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,

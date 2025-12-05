@@ -400,10 +400,110 @@ class StrategyInterpreter:
             return None
 
 
+class StrategyTranslator:
+    """
+    Translator class for converting between different strategy formats.
+    
+    This class provides compatibility with the AttackCombinator by translating
+    zapret-style strategy strings to recon engine format.
+    """
+    
+    def __init__(self):
+        self.interpreter = StrategyInterpreter()
+        self.logger = logging.getLogger(__name__)
+    
+    def translate_zapret_to_recon(self, zapret_strategy: str) -> Dict[str, Any]:
+        """
+        Translate a zapret-style strategy string to recon engine format.
+        
+        Args:
+            zapret_strategy: Zapret command-line style strategy string
+            
+        Returns:
+            Dictionary with engine task format
+            
+        Raises:
+            ValueError: If strategy cannot be translated
+        """
+        try:
+            # Use the existing interpreter to parse the strategy
+            result = self.interpreter.interpret_strategy(zapret_strategy)
+            
+            if result is None:
+                raise ValueError(f"Failed to interpret strategy: {zapret_strategy}")
+            
+            self.logger.debug(f"Translated strategy: {zapret_strategy} -> {result}")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Translation failed for strategy '{zapret_strategy}': {e}")
+            raise ValueError(f"Strategy translation failed: {e}")
+    
+    def translate_recon_to_zapret(self, recon_task: Dict[str, Any]) -> str:
+        """
+        Translate a recon engine task back to zapret-style string.
+        
+        Args:
+            recon_task: Dictionary with recon engine task format
+            
+        Returns:
+            Zapret command-line style strategy string
+        """
+        try:
+            attack_type = recon_task.get("type", "unknown")
+            params = recon_task.get("params", {})
+            
+            # Build zapret command string
+            parts = []
+            
+            # Map attack types to zapret desync methods
+            type_mapping = {
+                "fakeddisorder": "fake,disorder",
+                "multisplit": "multisplit",
+                "multidisorder": "multidisorder", 
+                "split": "split",
+                "fake": "fake",
+                "disorder": "disorder",
+                "disorder2": "disorder2",
+                "badsum_race": "fake"
+            }
+            
+            desync_method = type_mapping.get(attack_type, "fake")
+            parts.append(f"--dpi-desync={desync_method}")
+            
+            # Add parameters
+            if "ttl" in params:
+                parts.append(f"--dpi-desync-ttl={params['ttl']}")
+            if "autottl" in params:
+                parts.append(f"--dpi-desync-autottl={params['autottl']}")
+            if "split_pos" in params:
+                parts.append(f"--dpi-desync-split-pos={params['split_pos']}")
+            if "split_count" in params:
+                parts.append(f"--dpi-desync-split-count={params['split_count']}")
+            if "overlap_size" in params and params["overlap_size"] > 0:
+                parts.append(f"--dpi-desync-split-seqovl={params['overlap_size']}")
+            if "fooling" in params and params["fooling"]:
+                fooling_str = ",".join(params["fooling"])
+                parts.append(f"--dpi-desync-fooling={fooling_str}")
+            if "repeats" in params and params["repeats"] > 1:
+                parts.append(f"--dpi-desync-repeats={params['repeats']}")
+            if "fake_sni" in params:
+                parts.append(f"--dpi-desync-fake-sni={params['fake_sni']}")
+            
+            result = " ".join(parts)
+            self.logger.debug(f"Reverse translated: {recon_task} -> {result}")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Reverse translation failed for task {recon_task}: {e}")
+            return "--dpi-desync=fake --dpi-desync-fooling=badsum --dpi-desync-ttl=3"
+
+
 # Example usage:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     interpreter = StrategyInterpreter()
+    translator = StrategyTranslator()
 
     test_strategies = [
         "--dpi-desync=fake,disorder --dpi-desync-fooling=badsum,badseq --dpi-desync-split-pos=64 --dpi-desync-ttl=3",
@@ -420,6 +520,15 @@ if __name__ == "__main__":
         print(f"--- Interpreting: {s} ---")
         task = interpreter.interpret_strategy(s)
         if task:
-            print(f"  -> Engine Task: {task}\n")
+            print(f"  -> Engine Task: {task}")
+            # Test translation
+            try:
+                translated = translator.translate_zapret_to_recon(s)
+                print(f"  -> Translated: {translated}")
+                # Test reverse translation
+                reverse = translator.translate_recon_to_zapret(translated)
+                print(f"  -> Reverse: {reverse}\n")
+            except Exception as e:
+                print(f"  -> Translation error: {e}\n")
         else:
             print("  -> Failed to interpret strategy.\n")

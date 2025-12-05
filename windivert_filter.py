@@ -46,8 +46,21 @@ class WinDivertFilterGenerator:
             parts.append(f"({protocol_part})")
 
         if target_ports:
-            port_conditions = [f"tcp.DstPort == {p}" for p in target_ports]
-            parts.append(f"({' or '.join(port_conditions)})")
+            # Support both TCP and UDP ports
+            if "tcp" in protocols and "udp" in protocols:
+                # Both protocols: (tcp.DstPort == X or udp.DstPort == X)
+                port_conditions = []
+                for p in target_ports:
+                    port_conditions.append(f"(tcp.DstPort == {p} or udp.DstPort == {p})")
+                parts.append(f"({' or '.join(port_conditions)})")
+            elif "udp" in protocols:
+                # UDP only
+                port_conditions = [f"udp.DstPort == {p}" for p in target_ports]
+                parts.append(f"({' or '.join(port_conditions)})")
+            else:
+                # TCP only (default)
+                port_conditions = [f"tcp.DstPort == {p}" for p in target_ports]
+                parts.append(f"({' or '.join(port_conditions)})")
 
         if target_ips:
             try:

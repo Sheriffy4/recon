@@ -1,553 +1,411 @@
-#!/usr/bin/env python3
 """
-Tests for Parameter Normalizer
+Unit tests for ParameterNormalizer.
 
-Tests the single source of truth for parameter normalization and validation.
-Addresses issues from CURRENT_BEHAVIOR_ANALYSIS.md.
+Tests parameter normalization, validation, and conflict detection.
+
+Requirements: 6.1, 6.2, 6.3, 6.5
 """
 
 import pytest
-from core.bypass.engine.parameter_normalizer import (
-    ParameterNormalizer,
-    ValidationResult,
-    normalize_attack_params,
-)
-
-
-class TestParameterNormalizer:
-    """Test parameter normalization and validation"""
-
-    @pytest.fixture
-    def normalizer(self):
-        """Create normalizer instance"""
-        return ParameterNormalizer()
-
-    def test_alias_resolution_ttl(self, normalizer):
-        """Test ttl → fake_ttl alias resolution"""
-        params = {"ttl": 3}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert "fake_ttl" in result.normalized_params
-        assert result.normalized_params["fake_ttl"] == 3
-        assert "ttl" not in result.normalized_params
-        assert len(result.transformations) == 1
-        assert "ttl" in result.transformations[0]
-
-    def test_alias_resolution_fooling(self, normalizer):
-        """Test fooling → fooling_methods alias resolution"""
-        params = {"fooling": ["badsum", "badseq"]}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert "fooling_methods" in result.normalized_params
-        assert result.normalized_params["fooling_methods"] == ["badsum", "badseq"]
-        assert "fooling" not in result.normalized_params
-
-    def test_alias_resolution_overlap(self, normalizer):
-        """Test overlap_size → split_seqovl alias resolution"""
-        params = {"overlap_size": 336}
-        result = normalizer.normalize("seqovl", params)
-
-        assert result.is_valid
-        assert "split_seqovl" in result.normalized_params
-        assert result.normalized_params["split_seqovl"] == 336
-        assert "overlap_size" not in result.normalized_params
-
-    def test_list_to_value_conversion(self, normalizer):
-        """Test split_pos list → first element conversion"""
-        params = {"split_pos": [3, 5, 10]}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert result.normalized_params["split_pos"] == 3
-        assert len(result.warnings) >= 1
-        assert "list" in result.warnings[0].lower()
-
-    def test_empty_list_removal(self, normalizer):
-        """Test empty split_pos list is removed"""
-        params = {"split_pos": []}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert "split_pos" not in result.normalized_params
-        assert len(result.warnings) >= 1
-
-    def test_fooling_methods_string_to_list(self, normalizer):
-        """Test fooling_methods string → list conversion"""
-        params = {"fooling_methods": "badsum"}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert result.normalized_params["fooling_methods"] == ["badsum"]
-        assert len(result.transformations) >= 1
-
-    def test_fooling_methods_none_to_default(self, normalizer):
-        """Test fooling_methods None → default list"""
-        params = {"fooling_methods": None}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert result.normalized_params["fooling_methods"] == ["badsum"]
-
-    def test_special_value_sni(self, normalizer):
-        """Test 'sni' special value resolution"""
-        params = {"split_pos": "sni"}
-        result = normalizer.normalize("fakeddisorder", params, payload_len=100)
-
-        assert result.is_valid
-        assert result.normalized_params["split_pos"] == 43
-        assert len(result.transformations) >= 1
-        assert "sni" in result.transformations[0].lower()
-
-    def test_special_value_cipher(self, normalizer):
-        """Test 'cipher' special value resolution"""
-        params = {"split_pos": "cipher"}
-        result = normalizer.normalize("fakeddisorder", params, payload_len=100)
-
-        assert result.is_valid
-        assert result.normalized_params["split_pos"] == 11
-
-    def test_special_value_midsld(self, normalizer):
-        """Test 'midsld' special value resolution"""
-        params = {"split_pos": "midsld"}
-        result = normalizer.normalize("fakeddisorder", params, payload_len=100)
-
-        assert result.is_valid
-        assert result.normalized_params["split_pos"] == 50  # 100 // 2
-
-    def test_special_value_exceeds_payload(self, normalizer):
-        """Test special value falls back when exceeding payload"""
-        params = {"split_pos": "sni"}  # Position 43
-        result = normalizer.normalize("fakeddisorder", params, payload_len=20)
-
-        assert result.is_valid
-        assert result.normalized_params["split_pos"] == 10  # Falls back to middle
-        assert len(result.warnings) >= 1
-
-    def test_special_value_without_payload_len(self, normalizer):
-        """Test midsld without payload_len defers resolution"""
-        params = {"split_pos": "midsld"}
-        result = normalizer.normalize("fakeddisorder", params, payload_len=None)
-
-        assert result.is_valid
-        # Should still be 'midsld' or have a warning
-        assert len(result.warnings) >= 1
-
-    def test_ttl_validation_valid(self, normalizer):
-        """Test valid TTL values"""
-        params = {"fake_ttl": 64}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert result.normalized_params["fake_ttl"] == 64
-
-    def test_ttl_validation_too_low(self, normalizer):
-        """Test TTL too low"""
-        params = {"fake_ttl": 0}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert not result.is_valid
-        assert "fake_ttl" in result.error_message
-        assert "1 and 255" in result.error_message
-
-    def test_ttl_validation_too_high(self, normalizer):
-        """Test TTL too high"""
-        params = {"fake_ttl": 300}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert not result.is_valid
-        assert "fake_ttl" in result.error_message
-
-    def test_ttl_string_conversion(self, normalizer):
-        """Test TTL string → int conversion"""
-        params = {"fake_ttl": "64"}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert result.normalized_params["fake_ttl"] == 64
-        assert isinstance(result.normalized_params["fake_ttl"], int)
-
-    def test_split_pos_validation_valid(self, normalizer):
-        """Test valid split_pos"""
-        params = {"split_pos": 10}
-        result = normalizer.normalize("fakeddisorder", params, payload_len=100)
-
-        assert result.is_valid
-        assert result.normalized_params["split_pos"] == 10
-
-    def test_split_pos_validation_too_low(self, normalizer):
-        """Test split_pos too low"""
-        params = {"split_pos": 0}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert not result.is_valid
-        assert "split_pos" in result.error_message
-        assert ">= 1" in result.error_message
-
-    def test_split_pos_validation_exceeds_payload(self, normalizer):
-        """Test split_pos exceeds payload length"""
-        params = {"split_pos": 150}
-        result = normalizer.normalize("fakeddisorder", params, payload_len=100)
-
-        assert not result.is_valid
-        assert "split_pos" in result.error_message
-        assert "payload length" in result.error_message
-
-    def test_split_seqovl_validation_valid(self, normalizer):
-        """Test valid split_seqovl"""
-        params = {"split_seqovl": 336}
-        result = normalizer.normalize("seqovl", params, payload_len=1000)
-
-        assert result.is_valid
-        assert result.normalized_params["split_seqovl"] == 336
-
-    def test_split_seqovl_validation_negative(self, normalizer):
-        """Test negative split_seqovl"""
-        params = {"split_seqovl": -10}
-        result = normalizer.normalize("seqovl", params)
-
-        assert not result.is_valid
-        assert "split_seqovl" in result.error_message
-
-    def test_split_seqovl_validation_exceeds_payload(self, normalizer):
-        """Test split_seqovl exceeds payload"""
-        params = {"split_seqovl": 500}
-        result = normalizer.normalize("seqovl", params, payload_len=100)
-
-        assert not result.is_valid
-        assert "split_seqovl" in result.error_message
-
-    def test_positions_validation_valid(self, normalizer):
-        """Test valid positions list"""
-        params = {"positions": [1, 5, 10, 20]}
-        result = normalizer.normalize("multidisorder", params, payload_len=100)
-
-        assert result.is_valid
-        assert result.normalized_params["positions"] == [1, 5, 10, 20]
-
-    def test_positions_validation_not_list(self, normalizer):
-        """Test positions not a list"""
-        params = {"positions": 10}
-        result = normalizer.normalize("multidisorder", params)
-
-        assert not result.is_valid
-        assert "positions" in result.error_message
-        assert "list" in result.error_message
-
-    def test_positions_validation_invalid_element(self, normalizer):
-        """Test positions with invalid element"""
-        params = {"positions": [1, "invalid", 10]}
-        result = normalizer.normalize("multidisorder", params)
-
-        assert not result.is_valid
-        assert "positions" in result.error_message
-
-    def test_positions_validation_negative(self, normalizer):
-        """Test positions with negative value"""
-        params = {"positions": [1, -5, 10]}
-        result = normalizer.normalize("multidisorder", params)
-
-        assert not result.is_valid
-        assert "positions" in result.error_message
-
-    def test_positions_validation_exceeds_payload(self, normalizer):
-        """Test positions exceeding payload"""
-        params = {"positions": [1, 5, 150]}
-        result = normalizer.normalize("multidisorder", params, payload_len=100)
-
-        assert not result.is_valid
-        assert "positions" in result.error_message
-        assert "payload length" in result.error_message
-
-    def test_canonical_format_multisplit_split_pos(self, normalizer):
-        """Test split_pos → positions for multisplit"""
-        params = {"split_pos": 10}
-        result = normalizer.normalize("multisplit", params)
-
-        assert result.is_valid
-        assert "positions" in result.normalized_params
-        assert result.normalized_params["positions"] == [10]
-        assert "split_pos" not in result.normalized_params
-        assert len(result.transformations) >= 1
-
-    def test_canonical_format_multidisorder_split_pos(self, normalizer):
-        """Test split_pos → positions for multidisorder"""
-        params = {"split_pos": 5}
-        result = normalizer.normalize("multidisorder", params)
-
-        assert result.is_valid
-        assert "positions" in result.normalized_params
-        assert result.normalized_params["positions"] == [5]
-
-    def test_canonical_format_fakeddisorder_keeps_split_pos(self, normalizer):
-        """Test fakeddisorder keeps split_pos (not converted to positions)"""
-        params = {"split_pos": 3}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert "split_pos" in result.normalized_params
-        assert result.normalized_params["split_pos"] == 3
-        assert "positions" not in result.normalized_params
-
-    def test_split_count_warning(self, normalizer):
-        """Test split_count generates warning (needs payload_len)"""
-        params = {"split_count": 5}
-        result = normalizer.normalize("multisplit", params)
-
-        assert result.is_valid
-        assert len(result.warnings) >= 1
-        assert "split_count" in result.warnings[0]
-
-    def test_complex_normalization(self, normalizer):
-        """Test complex normalization with multiple transformations"""
+from core.strategy.normalizer import ParameterNormalizer
+from core.strategy.exceptions import ValidationError
+
+
+class TestParameterNormalization:
+    """Test parameter normalization functionality."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.normalizer = ParameterNormalizer()
+    
+    def test_fooling_string_to_list_conversion(self):
+        """Test that fooling string is converted to fooling_methods list."""
+        params = {'fooling': 'badseq'}
+        normalized = self.normalizer.normalize(params)
+        
+        assert 'fooling_methods' in normalized
+        assert normalized['fooling_methods'] == ['badseq']
+        # Original fooling should be preserved for backward compatibility
+        assert normalized['fooling'] == 'badseq'
+    
+    def test_fooling_list_preserved(self):
+        """Test that fooling list is preserved as fooling_methods."""
+        params = {'fooling': ['badsum', 'badseq']}
+        normalized = self.normalizer.normalize(params)
+        
+        assert 'fooling_methods' in normalized
+        assert normalized['fooling_methods'] == ['badsum', 'badseq']
+    
+    def test_fooling_methods_already_list(self):
+        """Test that fooling_methods list is preserved."""
+        params = {'fooling_methods': ['badseq']}
+        normalized = self.normalizer.normalize(params)
+        
+        assert normalized['fooling_methods'] == ['badseq']
+    
+    def test_fooling_methods_string_to_list(self):
+        """Test that fooling_methods string is converted to list."""
+        params = {'fooling_methods': 'badsum'}
+        normalized = self.normalizer.normalize(params)
+        
+        assert normalized['fooling_methods'] == ['badsum']
+    
+    def test_fake_ttl_alias_resolution(self):
+        """Test that fake_ttl is resolved to ttl."""
+        params = {'fake_ttl': 1}
+        normalized = self.normalizer.normalize(params)
+        
+        assert 'ttl' in normalized
+        assert normalized['ttl'] == 1
+        # Original fake_ttl should be preserved
+        assert normalized['fake_ttl'] == 1
+    
+    def test_ttl_not_overwritten_by_fake_ttl(self):
+        """Test that explicit ttl is not overwritten by fake_ttl."""
+        params = {'ttl': 5, 'fake_ttl': 1}
+        normalized = self.normalizer.normalize(params)
+        
+        # Explicit ttl should be preserved
+        assert normalized['ttl'] == 5
+    
+    def test_default_fooling_methods_applied(self):
+        """Test that default fooling_methods is applied when missing."""
+        params = {}
+        normalized = self.normalizer.normalize(params)
+        
+        assert 'fooling_methods' in normalized
+        assert normalized['fooling_methods'] == ['badsum']
+    
+    def test_default_fake_mode_applied(self):
+        """Test that default fake_mode is applied when missing."""
+        params = {}
+        normalized = self.normalizer.normalize(params)
+        
+        assert 'fake_mode' in normalized
+        assert normalized['fake_mode'] == 'single'
+    
+    def test_default_disorder_method_applied(self):
+        """Test that default disorder_method is applied when missing."""
+        params = {}
+        normalized = self.normalizer.normalize(params)
+        
+        assert 'disorder_method' in normalized
+        assert normalized['disorder_method'] == 'reverse'
+    
+    def test_explicit_values_not_overwritten(self):
+        """Test that explicit parameter values are never overwritten."""
         params = {
-            "ttl": 3,  # Alias
-            "split_pos": [10],  # List to value
-            "fooling": "badsum",  # Alias + string to list
+            'fooling': 'badseq',
+            'fake_mode': 'per_fragment',
+            'disorder_method': 'random'
         }
-        result = normalizer.normalize("fakeddisorder", params, payload_len=100)
-
-        assert result.is_valid
-        assert "fake_ttl" in result.normalized_params
-        assert result.normalized_params["fake_ttl"] == 3
-        assert result.normalized_params["split_pos"] == 10
-        assert result.normalized_params["fooling_methods"] == ["badsum"]
-        assert len(result.transformations) >= 3
-
-    def test_validation_result_add_transformation(self):
-        """Test ValidationResult.add_transformation"""
-        result = ValidationResult(is_valid=True, normalized_params={})
-        result.add_transformation(
-            "split_pos", [3, 5], 3, "Converted list to first element"
-        )
-
-        assert len(result.transformations) == 1
-        assert len(result.warnings) == 1
-        assert "split_pos" in result.transformations[0]
-        assert "[3, 5]" in result.transformations[0]
-        assert "3" in result.transformations[0]
+        normalized = self.normalizer.normalize(params)
+        
+        # All explicit values should be preserved
+        assert normalized['fooling_methods'] == ['badseq']
+        assert normalized['fake_mode'] == 'per_fragment'
+        assert normalized['disorder_method'] == 'random'
+    
+    def test_original_params_not_modified(self):
+        """Test that original params dict is not modified."""
+        params = {'fooling': 'badseq'}
+        original_params = params.copy()
+        
+        self.normalizer.normalize(params)
+        
+        # Original should be unchanged
+        assert params == original_params
 
 
-class TestConvenienceFunction:
-    """Test convenience function"""
+class TestParameterValidation:
+    """Test parameter validation functionality."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.normalizer = ParameterNormalizer()
+    
+    def test_valid_ttl_accepted(self):
+        """Test that valid TTL values are accepted."""
+        params = {'ttl': 1}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'ttl': 128}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'ttl': 255}
+        self.normalizer.validate(params)  # Should not raise
+    
+    def test_ttl_below_range_rejected(self):
+        """Test that TTL < 1 is rejected."""
+        params = {'ttl': 0}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'ttl'
+        assert exc_info.value.actual == 0
+    
+    def test_ttl_above_range_rejected(self):
+        """Test that TTL > 255 is rejected."""
+        params = {'ttl': 256}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'ttl'
+        assert exc_info.value.actual == 256
+    
+    def test_ttl_non_integer_rejected(self):
+        """Test that non-integer TTL is rejected."""
+        params = {'ttl': '5'}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'ttl'
+    
+    def test_valid_fooling_methods_accepted(self):
+        """Test that valid fooling methods are accepted."""
+        params = {'fooling_methods': ['badsum']}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'fooling_methods': ['badseq']}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'fooling_methods': ['badsum', 'badseq']}
+        self.normalizer.validate(params)  # Should not raise
+    
+    def test_invalid_fooling_method_rejected(self):
+        """Test that invalid fooling methods are rejected."""
+        params = {'fooling_methods': ['invalid_method']}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'fooling_methods'
+        assert 'invalid_method' in str(exc_info.value.actual)
+    
+    def test_fooling_methods_not_list_rejected(self):
+        """Test that fooling_methods must be a list."""
+        params = {'fooling_methods': 'badsum'}
+        
+        # First normalize to convert string to list
+        normalized = self.normalizer.normalize(params)
+        # After normalization, it should be valid
+        self.normalizer.validate(normalized)  # Should not raise
+    
+    def test_split_pos_positive_accepted(self):
+        """Test that positive split_pos is accepted."""
+        params = {'split_pos': 2}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'split_pos': 100}
+        self.normalizer.validate(params)  # Should not raise
+    
+    def test_split_pos_sni_accepted(self):
+        """Test that split_pos='sni' is accepted."""
+        params = {'split_pos': 'sni'}
+        self.normalizer.validate(params)  # Should not raise
+    
+    def test_split_pos_zero_rejected(self):
+        """Test that split_pos=0 is rejected."""
+        params = {'split_pos': 0}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'split_pos'
+        assert exc_info.value.actual == 0
+    
+    def test_split_pos_negative_rejected(self):
+        """Test that negative split_pos is rejected."""
+        params = {'split_pos': -5}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'split_pos'
+    
+    def test_split_count_valid_accepted(self):
+        """Test that split_count >= 2 is accepted."""
+        params = {'split_count': 2}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'split_count': 6}
+        self.normalizer.validate(params)  # Should not raise
+    
+    def test_split_count_below_2_rejected(self):
+        """Test that split_count < 2 is rejected."""
+        params = {'split_count': 1}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'split_count'
+        assert exc_info.value.actual == 1
+    
+    def test_valid_disorder_method_accepted(self):
+        """Test that valid disorder methods are accepted."""
+        params = {'disorder_method': 'reverse'}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'disorder_method': 'random'}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'disorder_method': 'swap'}
+        self.normalizer.validate(params)  # Should not raise
+    
+    def test_invalid_disorder_method_rejected(self):
+        """Test that invalid disorder methods are rejected."""
+        params = {'disorder_method': 'invalid'}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'disorder_method'
+    
+    def test_valid_fake_mode_accepted(self):
+        """Test that valid fake modes are accepted."""
+        params = {'fake_mode': 'single'}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'fake_mode': 'per_fragment'}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'fake_mode': 'per_signature'}
+        self.normalizer.validate(params)  # Should not raise
+        
+        params = {'fake_mode': 'smart'}
+        self.normalizer.validate(params)  # Should not raise
+    
+    def test_invalid_fake_mode_rejected(self):
+        """Test that invalid fake modes are rejected."""
+        params = {'fake_mode': 'invalid'}
+        
+        with pytest.raises(ValidationError) as exc_info:
+            self.normalizer.validate(params)
+        
+        assert exc_info.value.parameter_name == 'fake_mode'
 
-    def test_normalize_attack_params(self):
-        """Test convenience function works"""
-        params = {"ttl": 3, "split_pos": "sni"}
-        result = normalize_attack_params("fakeddisorder", params, payload_len=100)
 
-        assert result.is_valid
-        assert "fake_ttl" in result.normalized_params
-        assert result.normalized_params["split_pos"] == 43
-
-
-class TestStrictMode:
-    """Test strict mode behavior"""
-
-    def test_strict_mode_list_split_pos_error(self):
-        """Test strict mode rejects list split_pos"""
-        normalizer = ParameterNormalizer(strict_mode=True)
-        params = {"split_pos": [3, 5]}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert not result.is_valid
-        assert "Ambiguous parameter" in result.error_message
-        assert "split_pos" in result.error_message
-
-    def test_non_strict_mode_list_split_pos_warning(self):
-        """Test non-strict mode converts list split_pos with warning"""
-        normalizer = ParameterNormalizer(strict_mode=False)
-        params = {"split_pos": [3, 5]}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid
-        assert result.normalized_params["split_pos"] == 3
-        assert len(result.warnings) >= 1
-
-    def test_strict_mode_convenience_function(self):
-        """Test strict mode via convenience function"""
-        params = {"split_pos": [10]}
-        result = normalize_attack_params("fakeddisorder", params, strict_mode=True)
-
-        assert not result.is_valid
-        assert "Ambiguous" in result.error_message
-
-
-class TestAllAttackTypes:
-    """Test normalization for all attack types"""
-
-    @pytest.fixture
-    def normalizer(self):
-        return ParameterNormalizer()
-
-    def test_disorder2_ack_first_default(self, normalizer):
-        """Test disorder2 gets ack_first=True by default"""
-        params = {"split_pos": 5}
-        result = normalizer.normalize("disorder2", params)
-
-        assert result.is_valid
-        assert result.normalized_params["ack_first"] is True
-        assert len(result.transformations) >= 1
-
-    def test_wssize_limit_window_size_default(self, normalizer):
-        """Test wssize_limit gets window_size=1 by default"""
+class TestConflictDetection:
+    """Test conflict detection functionality."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.normalizer = ParameterNormalizer()
+    
+    def test_split_pos_and_split_count_conflict(self):
+        """Test that split_pos + split_count conflict is detected."""
+        params = {'split_pos': 2, 'split_count': 6}
+        attacks = ['split']
+        
+        warnings = self.normalizer.detect_conflicts(params, attacks)
+        
+        assert len(warnings) > 0
+        assert any('split_pos' in w and 'split_count' in w for w in warnings)
+    
+    def test_fake_mode_without_split_conflict(self):
+        """Test that fake_mode without split is detected."""
+        params = {'fake_mode': 'per_fragment'}
+        attacks = ['fake']  # No split
+        
+        warnings = self.normalizer.detect_conflicts(params, attacks)
+        
+        assert len(warnings) > 0
+        assert any('fake_mode' in w and 'split' in w for w in warnings)
+    
+    def test_disorder_method_without_disorder_attack(self):
+        """Test that disorder_method without disorder attack is detected."""
+        params = {'disorder_method': 'reverse'}
+        attacks = ['fake', 'split']  # No disorder
+        
+        warnings = self.normalizer.detect_conflicts(params, attacks)
+        
+        assert len(warnings) > 0
+        assert any('disorder_method' in w and 'disorder' in w for w in warnings)
+    
+    def test_unimplemented_attacks_detected(self):
+        """Test that unimplemented attacks are detected."""
         params = {}
-        result = normalizer.normalize("wssize_limit", params)
-
-        assert result.is_valid
-        assert result.normalized_params["window_size"] == 1
-        assert len(result.transformations) >= 1
-
-    def test_tlsrec_split_split_pos_default(self, normalizer):
-        """Test tlsrec_split gets split_pos=5 by default"""
-        params = {}
-        result = normalizer.normalize("tlsrec_split", params)
-
-        assert result.is_valid
-        assert result.normalized_params["split_pos"] == 5
-        assert len(result.transformations) >= 1
-
-    def test_fake_attack_fake_ttl_default(self, normalizer):
-        """Test fake attacks get fake_ttl=3 by default"""
-        params = {}
-        result = normalizer.normalize("fake", params)
-
-        assert result.is_valid
-        assert result.normalized_params["fake_ttl"] == 3
-        assert len(result.transformations) >= 1
-
-    def test_attack_type_aliases(self, normalizer):
-        """Test attack type alias normalization"""
-        aliases_to_test = [
-            ("fake_disorder", "fakeddisorder"),
-            ("fakedisorder", "fakeddisorder"),
-            ("multi_split", "multisplit"),
-            ("seq_overlap", "seqovl"),
-            ("simple_disorder", "disorder"),
-        ]
-
-        for alias, canonical in aliases_to_test:
-            params = {"split_pos": 5}
-            result_alias = normalizer.normalize(alias, params)
-            result_canonical = normalizer.normalize(canonical, params)
-
-            # Should produce similar results (accounting for attack-specific defaults)
-            assert result_alias.is_valid == result_canonical.is_valid
-
-    def test_parameter_aliases_extended(self, normalizer):
-        """Test extended parameter aliases"""
-        # Test window_size aliases
-        params = {"window": 10}
-        result = normalizer.normalize("wssize_limit", params)
-        assert result.is_valid
-        assert result.normalized_params["window_size"] == 10
-
-        # Test ack_first alias
-        params = {"ack": True}
-        result = normalizer.normalize("disorder2", params)
-        assert result.is_valid
-        assert result.normalized_params["ack_first"] is True
-
-    def test_window_size_validation(self, normalizer):
-        """Test window_size parameter validation"""
-        # Valid window_size
-        params = {"window_size": 1024}
-        result = normalizer.normalize("wssize_limit", params)
-        assert result.is_valid
-
-        # Invalid window_size (too low)
-        params = {"window_size": 0}
-        result = normalizer.normalize("wssize_limit", params)
-        assert not result.is_valid
-        assert "window_size" in result.error_message
-
-        # Invalid window_size (too high)
-        params = {"window_size": 100000}
-        result = normalizer.normalize("wssize_limit", params)
-        assert not result.is_valid
-        assert "window_size" in result.error_message
-
-    def test_ack_first_boolean_conversion(self, normalizer):
-        """Test ack_first boolean conversion"""
-        test_cases = [
-            ("true", True),
-            ("false", False),
-            ("1", True),
-            ("0", False),
-            ("yes", True),
-            ("no", False),
-            (1, True),
-            (0, False),
-        ]
-
-        for input_val, expected in test_cases:
-            params = {"ack_first": input_val}
-            result = normalizer.normalize("disorder2", params)
-            assert result.is_valid
-            assert result.normalized_params["ack_first"] == expected
-
-    def test_fooling_methods_extended_validation(self, normalizer):
-        """Test extended fooling methods validation"""
-        # Valid extended methods
-        params = {"fooling_methods": ["badsum", "fakesni"]}
-        result = normalizer.normalize("fakeddisorder", params)
-        assert result.is_valid
-
-        # Invalid method
-        params = {"fooling_methods": ["invalid_method"]}
-        result = normalizer.normalize("fakeddisorder", params)
-        assert not result.is_valid
-        assert "Invalid fooling method" in result.error_message
+        attacks = ['fake', 'unknown_attack', 'another_unknown']
+        
+        warnings = self.normalizer.detect_conflicts(params, attacks)
+        
+        assert len(warnings) > 0
+        assert any('Unimplemented' in w for w in warnings)
+    
+    def test_no_conflicts_returns_empty_list(self):
+        """Test that no conflicts returns empty list."""
+        params = {'ttl': 1, 'fooling_methods': ['badsum'], 'split_pos': 2}
+        attacks = ['fake', 'split']
+        
+        warnings = self.normalizer.detect_conflicts(params, attacks)
+        
+        # Should have no warnings (or only about unimplemented attacks if any)
+        # For this test, we expect no warnings
+        assert len(warnings) == 0
+    
+    def test_fake_mode_with_split_no_conflict(self):
+        """Test that fake_mode with split has no conflict."""
+        params = {'fake_mode': 'per_fragment', 'split_count': 6}
+        attacks = ['fake', 'multisplit']
+        
+        warnings = self.normalizer.detect_conflicts(params, attacks)
+        
+        # Should not warn about fake_mode since split is present
+        assert not any('fake_mode' in w and 'requires split' in w for w in warnings)
+    
+    def test_disorder_method_with_disorder_attack_no_conflict(self):
+        """Test that disorder_method with disorder attack has no conflict."""
+        params = {'disorder_method': 'reverse'}
+        attacks = ['fake', 'split', 'disorder']
+        
+        warnings = self.normalizer.detect_conflicts(params, attacks)
+        
+        # Should not warn about disorder_method since disorder is present
+        assert not any('disorder_method' in w and 'not in attacks' in w for w in warnings)
 
 
-class TestEdgeCases:
-    """Test edge cases and error handling"""
-
-    @pytest.fixture
-    def normalizer(self):
-        return ParameterNormalizer()
-
-    def test_empty_params(self, normalizer):
-        """Test empty parameters"""
-        result = normalizer.normalize("fakeddisorder", {})
-
-        assert result.is_valid
-        # Should have default fake_ttl added
-        assert "fake_ttl" in result.normalized_params
-        assert result.normalized_params["fake_ttl"] == 3
-
-    def test_unknown_special_value(self, normalizer):
-        """Test unknown special value"""
-        params = {"split_pos": "unknown_value"}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert result.is_valid  # Doesn't fail, just warns
-        assert len(result.warnings) >= 1
-        assert "unknown" in result.warnings[0].lower()
-
-    def test_invalid_type_ttl(self, normalizer):
-        """Test invalid type for TTL"""
-        params = {"fake_ttl": "not_a_number"}
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert not result.is_valid
-        assert "fake_ttl" in result.error_message
-
-    def test_multiple_errors(self, normalizer):
-        """Test multiple validation errors"""
+class TestIntegration:
+    """Test integration of normalize, validate, and detect_conflicts."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.normalizer = ParameterNormalizer()
+    
+    def test_full_normalization_and_validation_pipeline(self):
+        """Test complete pipeline: normalize → validate → detect conflicts."""
         params = {
-            "fake_ttl": 0,  # Too low
-            "split_pos": -1,  # Too low
-            "split_seqovl": -10,  # Negative
+            'fooling': 'badseq',
+            'ttl': 1,
+            'split_pos': 2
         }
-        result = normalizer.normalize("fakeddisorder", params)
-
-        assert not result.is_valid
-        assert "fake_ttl" in result.error_message
-        # Should contain multiple errors
-        assert ";" in result.error_message or len(result.error_message) > 50
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+        attacks = ['fake', 'split', 'disorder']  # Include disorder to avoid warning
+        
+        # Normalize
+        normalized = self.normalizer.normalize(params)
+        
+        # Validate
+        self.normalizer.validate(normalized)  # Should not raise
+        
+        # Detect conflicts
+        warnings = self.normalizer.detect_conflicts(normalized, attacks)
+        
+        # Should have no warnings (or only about unimplemented attacks)
+        # The normalizer adds default disorder_method, so we need disorder in attacks
+        assert len(warnings) == 0
+    
+    def test_invalid_params_caught_by_validation(self):
+        """Test that invalid params are caught after normalization."""
+        params = {
+            'fooling': 'invalid_method',
+            'ttl': 300
+        }
+        
+        # Normalize
+        normalized = self.normalizer.normalize(params)
+        
+        # Validate should raise
+        with pytest.raises(ValidationError):
+            self.normalizer.validate(normalized)

@@ -1,0 +1,41 @@
+{
+  "description": "Advanced domain pattern matching examples",
+  "target_domains": [
+    "example.com",
+    "*.example.com",
+    "api.*.example.com",
+    "*.cdn.example.*",
+    "subdomain.example.org",
+    "*.google.com",
+    "*.googlevideo.com",
+    "*.googleusercontent.com",
+    "*.youtube.com",
+    "*.ytimg.com",
+    "*.facebook.com",
+    "*.fbcdn.net",
+    "*.instagram.com",
+    "*.cdninstagram.com",
+    "*.twitter.com",
+    "*.twimg.com"
+  ],
+  "runtime_filtering": {
+    "enabled": true,
+    "mode": "blacklist",
+    "cache_size": 2000,
+    "cache_ttl": 600,
+    "enable_wildcards": true,
+    "enable_subdomains": true,
+    "case_sensitive": false,
+    "normalize_domains": true
+  },
+  "pattern_optimization": {
+    "precompile_patterns": true,
+    "use_fast_matching": true,
+    "group_similar_patterns": true
+  },
+  "debug": {
+    "log_matches": false,
+    "log_non_matches": false,
+    "verbose_patterns": false
+  }
+}

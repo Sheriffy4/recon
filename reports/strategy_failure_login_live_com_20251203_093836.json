@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-12-03T09:38:36.842129",
+  "domain": "login.live.com",
+  "retransmissions": 3,
+  "strategy": {
+    "type": "fakeddisorder",
+    "params": {},
+    "attacks": []
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 21,
+  "recommendations": [
+    "Run 'cli.py test login.live.com' to re-test the strategy",
+    "Run 'cli.py auto login.live.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "login.live.com",
+    "source": "sni",
+    "ip_address": "20.190.177.21:443",
+    "matched_rule": null,
+    "conflict_detected": false,
+    "sni_domain": "login.live.com",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "live.com",
+    "recommendation": "Try removing 'login.live.com' rule to use parent domain 'live.com' strategy"
+  }
+}

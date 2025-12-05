@@ -14,31 +14,42 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
+from core.bypass.attacks.base_classes.http_attack_base import HTTPAttackBase
 from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
 from core.bypass.attacks.metadata import AttackCategories
 
 
 @register_attack(
     name="http_header_case",
-    category="http",
-    priority=RegistrationPriority.NORMAL,
+    category=AttackCategories.HTTP,
+    priority=RegistrationPriority.HIGH,
     required_params=[],
-    optional_params={"case_strategy": "random", "headers": ["Host", "User-Agent", "Accept"]},
-    aliases=["hostcase"],
+    optional_params={
+        "case_strategy": "random",
+        "headers": None,
+        "custom_pattern": None
+    },
+    aliases=["hostcase", "header_case"],
     description="Changes case of HTTP headers to evade DPI"
 )
-class HTTPHeaderCaseAttack(BaseAttack):
+class HTTPHeaderCaseAttack(HTTPAttackBase):
     """
     HTTP Header Case Attack - changes case of HTTP headers.
+    
+    Supports multiple case strategies:
+    - random: Random case for each character
+    - alternating: Alternating upper/lower case
+    - upper: All uppercase
+    - lower: All lowercase
+    - mixed: Mix of upper, lower, and original
+    - custom: Custom pattern provided by user
+    
+    Can target specific headers or all headers.
     """
 
     @property
     def name(self) -> str:
         return "http_header_case"
-
-    @property
-    def category(self) -> str:
-        return "http"
 
     @property
     def description(self) -> str:
@@ -51,91 +62,130 @@ class HTTPHeaderCaseAttack(BaseAttack):
     @property
     def optional_params(self) -> dict:
         return {
-            "case_strategy": "random",  # "upper", "lower", "random", "mixed"
-            "headers": ["Host", "User-Agent", "Accept"],  # Headers to modify
+            "case_strategy": "random",
+            "headers": None,  # None means all headers
+            "custom_pattern": None
         }
-
-    @property
-    def supported_protocols(self) -> List[str]:
-        return ["tcp"]
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP header case attack."""
         start_time = time.time()
+        
         try:
-            payload = context.payload
-            case_strategy = context.params.get("case_strategy", "random")
-            if not payload.startswith(b"GET ") and (not payload.startswith(b"POST ")):
+            # Validate context
+            if not self.validate_context(context):
                 return AttackResult(
                     status=AttackStatus.INVALID_PARAMS,
-                    error_message="Not an HTTP request",
+                    error_message="Invalid context for HTTP header case attack",
+                    technique_used=self.name
                 )
-            lines = payload.split(b"\r\n")
-            modified_lines = []
-            for line in lines:
-                if b":" in line and line != lines[0]:
-                    header_name, header_value = line.split(b":", 1)
-                    if case_strategy == "upper":
-                        header_name = header_name.upper()
-                    elif case_strategy == "lower":
-                        header_name = header_name.lower()
-                    elif case_strategy == "random":
-                        header_name = self._random_case(header_name)
-                    elif case_strategy == "mixed":
-                        header_name = self._mixed_case(header_name)
-                    modified_lines.append(header_name + b":" + header_value)
+            
+            # Parse HTTP request
+            parsed = self.parse_http_request(context.payload)
+            if not parsed:
+                return self.handle_http_error(
+                    Exception("Failed to parse HTTP request"),
+                    context,
+                    "parse"
+                )
+            
+            # Get parameters
+            case_strategy = context.params.get("case_strategy", "random")
+            target_headers = context.params.get("headers", None)
+            custom_pattern = context.params.get("custom_pattern", None)
+            
+            # Modify header names
+            modified_headers = {}
+            headers_modified = 0
+            
+            for header_name, header_value in parsed['headers'].items():
+                # Check if we should modify this header
+                should_modify = (target_headers is None or 
+                               header_name in target_headers or
+                               header_name.lower() in [h.lower() for h in (target_headers or [])])
+                
+                if should_modify:
+                    # Apply case manipulation
+                    if custom_pattern:
+                        new_name = self._apply_custom_pattern(header_name, custom_pattern)
+                    else:
+                        new_name = self.randomize_header_case(header_name, case_strategy)
+                    
+                    modified_headers[new_name] = header_value
+                    headers_modified += 1
                 else:
-                    modified_lines.append(line)
-            modified_payload = b"\r\n".join(modified_lines)
-            segments = [(modified_payload, 0)]
-            packets_sent = 1
-            bytes_sent = len(modified_payload)
-            await asyncio.sleep(0)
+                    modified_headers[header_name] = header_value
+            
+            # Rebuild request
+            parsed['headers'] = modified_headers
+            modified_payload = self.build_http_request(parsed)
+            
+            # Validate HTTP compliance
+            is_valid, error_msg = self.validate_http_compliance(modified_payload)
+            if not is_valid:
+                self.logger.warning(f"Modified request may not be HTTP compliant: {error_msg}")
+            
+            # Log operation
+            self.log_http_operation(
+                "header_case",
+                parsed['method'],
+                parsed['path'],
+                f"{case_strategy} strategy, {headers_modified} headers modified"
+            )
+            
+            # Create result
             latency = (time.time() - start_time) * 1000
-            return AttackResult(
-                status=AttackStatus.SUCCESS,
-                latency_ms=latency,
-                packets_sent=packets_sent,
-                bytes_sent=bytes_sent,
-                connection_established=True,
-                data_transmitted=True,
+            
+            return self.create_http_result(
+                modified_payload=modified_payload,
+                original_payload=context.payload,
+                operation=f"header_case_{case_strategy}",
                 metadata={
                     "case_strategy": case_strategy,
-                    "original_size": len(payload),
-                    "modified_size": len(modified_payload),
-                    "segments": segments if context.engine_type != "local" else None,
-                },
+                    "headers_modified": headers_modified,
+                    "target_headers": target_headers,
+                    "latency_ms": latency
+                }
             )
+            
         except Exception as e:
-            return AttackResult(
-                status=AttackStatus.ERROR,
-                error_message=str(e),
-                latency_ms=(time.time() - start_time) * 1000,
-            )
+            return self.handle_http_error(e, context, "header_case")
 
-    def _random_case(self, header_name: bytes) -> bytes:
-        """Apply random case to header name."""
-        result = bytearray()
-        for byte in header_name:
-            if 65 <= byte <= 90:
-                result.append(byte + 32 if random.random() > 0.5 else byte)
-            elif 97 <= byte <= 122:
-                result.append(byte - 32 if random.random() > 0.5 else byte)
+    def _apply_custom_pattern(self, header_name: str, pattern: str) -> str:
+        """
+        Apply custom case pattern to header name.
+        
+        Pattern format: 'UlUlU' where U=upper, l=lower, *=original
+        
+        Args:
+            header_name: Original header name
+            pattern: Custom pattern string
+            
+        Returns:
+            Header name with custom pattern applied
+        """
+        result = []
+        pattern_len = len(pattern)
+        
+        for i, char in enumerate(header_name):
+            if i < pattern_len:
+                if pattern[i] == 'U':
+                    result.append(char.upper())
+                elif pattern[i] == 'l':
+                    result.append(char.lower())
+                else:  # '*' or any other character
+                    result.append(char)
             else:
-                result.append(byte)
-        return bytes(result)
-
-    def _mixed_case(self, header_name: bytes) -> bytes:
-        """Apply mixed case pattern to header name."""
-        result = bytearray()
-        for i, byte in enumerate(header_name):
-            if 65 <= byte <= 90:
-                result.append(byte + 32 if i % 2 == 1 else byte)
-            elif 97 <= byte <= 122:
-                result.append(byte - 32 if i % 2 == 0 else byte)
-            else:
-                result.append(byte)
-        return bytes(result)
+                # Repeat pattern if header is longer
+                pattern_char = pattern[i % pattern_len]
+                if pattern_char == 'U':
+                    result.append(char.upper())
+                elif pattern_char == 'l':
+                    result.append(char.lower())
+                else:
+                    result.append(char)
+        
+        return ''.join(result)
 
 
 @register_attack

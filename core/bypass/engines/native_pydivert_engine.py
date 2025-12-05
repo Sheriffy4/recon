@@ -186,7 +186,6 @@ class NativePydivertEngine(BaseBypassEngine):
         filter_gen = WinDivertFilterGenerator()
         try:
             return filter_gen.generate(
-                target_ips=self.interception_config.target_ips,
                 target_ports=self.interception_config.target_ports,
                 direction="outbound",
                 protocols=("tcp",),
@@ -210,8 +209,7 @@ class NativePydivertEngine(BaseBypassEngine):
                         else {443}
                     )
                     filter_candidates = self._filter_gen.progressive_candidates(
-                        target_ips,
-                        target_ports,
+                        target_ports=target_ports,
                         direction="outbound",
                         protocols=("tcp",),
                     )

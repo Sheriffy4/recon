@@ -1,0 +1,89 @@
+{
+  "version": "1.0",
+  "payloads": [
+    {
+      "id": "tls_google",
+      "type": "tls",
+      "domain": "www.google.com",
+      "source": "bundled",
+      "file": "tls_clienthello_www_google_com.bin",
+      "size": 652,
+      "description": "TLS ClientHello from www.google.com (zapret)"
+    },
+    {
+      "id": "tls_google_alt",
+      "type": "tls",
+      "domain": "www.google.com",
+      "source": "bundled",
+      "file": "tls_clienthello_www_google_com_alt.bin",
+      "size": 652,
+      "description": "TLS ClientHello from www.google.com (DPI_Blockcheck root)"
+    },
+    {
+      "id": "tls_vk",
+      "type": "tls",
+      "domain": "vk.com",
+      "source": "bundled",
+      "file": "tls_clienthello_vk_com.bin",
+      "size": 517,
+      "description": "TLS ClientHello from vk.com"
+    },
+    {
+      "id": "tls_iana",
+      "type": "tls",
+      "domain": "iana.org",
+      "source": "bundled",
+      "file": "tls_clienthello_iana_org.bin",
+      "size": 517,
+      "description": "TLS ClientHello from iana.org"
+    },
+    {
+      "id": "quic_google",
+      "type": "quic",
+      "domain": "google.com",
+      "source": "bundled",
+      "file": "quic_initial_google_com.bin",
+      "size": 1357,
+      "description": "QUIC Initial packet from google.com"
+    },
+    {
+      "id": "quic_google_www",
+      "type": "quic",
+      "domain": "www.google.com",
+      "source": "bundled",
+      "file": "quic_initial_www_google_com.bin",
+      "size": 1200,
+      "description": "QUIC Initial packet from www.google.com"
+    },
+    {
+      "id": "quic_vk",
+      "type": "quic",
+      "domain": "vk.com",
+      "source": "bundled",
+      "file": "quic_initial_vk_com.bin",
+      "size": 1357,
+      "description": "QUIC Initial packet from vk.com"
+    },
+    {
+      "id": "http_iana",
+      "type": "http",
+      "domain": "iana.org",
+      "source": "bundled",
+      "file": "http_iana_org.bin",
+      "size": 418,
+      "description": "HTTP request to iana.org"
+    }
+  ],
+  "placeholders": {
+    "PAYLOADTLS": "tls_google",
+    "PAYLOADQUIC": "quic_google",
+    "PAYLOADHTTP": "http_iana"
+  },
+  "cdn_mappings": {
+    "googlevideo.com": "www.google.com",
+    "ytimg.com": "www.google.com",
+    "ggpht.com": "www.google.com",
+    "gstatic.com": "www.google.com",
+    "youtube.com": "www.google.com"
+  }
+}

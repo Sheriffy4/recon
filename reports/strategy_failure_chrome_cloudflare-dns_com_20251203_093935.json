@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-12-03T09:39:35.021967",
+  "domain": "chrome.cloudflare-dns.com",
+  "retransmissions": 4,
+  "strategy": {
+    "type": "fakeddisorder",
+    "params": {},
+    "attacks": []
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 52,
+  "recommendations": [
+    "Run 'cli.py test chrome.cloudflare-dns.com' to re-test the strategy",
+    "Run 'cli.py auto chrome.cloudflare-dns.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "chrome.cloudflare-dns.com",
+    "source": "sni",
+    "ip_address": "162.159.61.3:443",
+    "matched_rule": null,
+    "conflict_detected": false,
+    "sni_domain": "chrome.cloudflare-dns.com",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "cloudflare-dns.com",
+    "recommendation": "Try removing 'chrome.cloudflare-dns.com' rule to use parent domain 'cloudflare-dns.com' strategy"
+  }
+}

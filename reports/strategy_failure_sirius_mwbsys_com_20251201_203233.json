@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-12-01T20:32:33.619198",
+  "domain": "sirius.mwbsys.com",
+  "retransmissions": 4,
+  "strategy": {
+    "type": "disorder",
+    "params": {
+      "split_pos": 1,
+      "ttl": 2,
+      "fake_ttl": 2,
+      "fooling": "none",
+      "window_div": 8,
+      "repeats": 1,
+      "tcp_flags": {
+        "psh": true,
+        "ack": true
+      },
+      "ipid_step": 2048
+    },
+    "attacks": [
+      "disorder"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 1101,
+  "recommendations": [
+    "Run 'cli.py test sirius.mwbsys.com' to re-test the strategy",
+    "Run 'cli.py auto sirius.mwbsys.com' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "sirius.mwbsys.com",
+    "source": "sni",
+    "ip_address": "44.207.11.46:443",
+    "matched_rule": null,
+    "conflict_detected": false,
+    "sni_domain": "sirius.mwbsys.com",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "mwbsys.com",
+    "recommendation": "Try removing 'sirius.mwbsys.com' rule to use parent domain 'mwbsys.com' strategy"
+  }
+}

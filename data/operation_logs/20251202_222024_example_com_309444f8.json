@@ -1,0 +1,15 @@
+{
+  "strategy_id": "309444f8-e88c-4dec-b4d6-d6c591b142bc",
+  "strategy_name": "test",
+  "domain": "example.com",
+  "timestamp": "2025-12-02T22:20:24.499114",
+  "operations": [],
+  "metadata": {
+    "domain": "example.com",
+    "strategy": {
+      "attack": "test",
+      "_strategy_id": "309444f8-e88c-4dec-b4d6-d6c591b142bc"
+    },
+    "verification_mode": true
+  }
+}

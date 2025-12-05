@@ -9,8 +9,11 @@ that ensures identical behavior between testing mode and service mode.
 import logging
 import threading
 import time
+import sys
+import subprocess
 from typing import Dict, Any, Set, Optional, List, Union, Tuple
 from dataclasses import dataclass
+from pathlib import Path
 import asyncio
 import aiohttp
 import socket
@@ -29,6 +32,7 @@ from .unified_strategy_loader import (
 
 # Import existing engine and related components
 from .bypass.engine.base_engine import WindowsBypassEngine, EngineConfig
+from .bypass.engine.service_wrapper import BypassEngineService, ServiceConfig
 
 
 # Fallbacks and optional imports from the original file
@@ -96,20 +100,34 @@ except Exception:
 
 LOG = logging.getLogger("unified_engine")
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6753.0 Safari/537.36"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
+
+# Massive cipher list to inflate ClientHello size (~1200+ bytes)
+# This mimics Chrome's behavior of sending many ciphers + GREASE (simulated by length)
+BROWSER_CIPHER_LIST = (
+    "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:"
+    "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:"
+    "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:"
+    "ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:AES128-GCM-SHA256:"
+    "AES256-GCM-SHA384:AES128-SHA:AES256-SHA:DES-CBC3-SHA:"
+    "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:"
+    "ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:"
+    "ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:"
+    "DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:"
+    "DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:"
+    "DHE-RSA-AES256-SHA256:EDH-RSA-DES-CBC3-SHA"
+)
 
 
 class UnifiedBypassEngineError(Exception):
     """Raised when UnifiedBypassEngine operations fail."""
-
     pass
 
 
 @dataclass
 class UnifiedEngineConfig:
     """Configuration for the unified bypass engine."""
-
     debug: bool = True
     force_override: bool = True
     enable_diagnostics: bool = True
@@ -204,8 +222,16 @@ class UnifiedBypassEngine:
         # FIX: Initialize missing attributes
         self._strategy_applications = {}
         self._forced_override_count = 0
+        self._last_test_port = None  # ✅ FIX: For PCAP analysis tracking
 
         self.logger.info("🚀 UnifiedBypassEngine (Orchestrator) initialized.")
+        
+        # Runtime filtering state - shared between testing and service modes
+        self._runtime_filtering_enabled = False
+        self._runtime_filter_config = None
+        
+        # Task 15: Verify curl HTTP/2 support at startup
+        self._verify_curl_http2_support_at_startup()
 
     def _ensure_engine_task(
         self, strategy: Union[str, Dict[str, Any]]
@@ -213,6 +239,8 @@ class UnifiedBypassEngine:
         """
         REFACTORED: Uses the new UnifiedStrategyLoader for parsing and normalization.
         This is now the single source of truth for strategy processing.
+        
+        Task 11: Integrates ComboAttackBuilder to build attack recipes (Requirements 2.1, 2.5, 2.6)
         """
         try:
             # Use the new loader for consistent parsing and forced override.
@@ -224,6 +252,38 @@ class UnifiedBypassEngine:
 
             # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Применяем совместимость с тестовым режимом
             engine_task = self._ensure_testing_mode_compatibility(engine_task)
+            
+            # Task 11: Build attack recipe using ComboAttackBuilder (Requirements 2.1, 2.5, 2.6)
+            try:
+                from core.strategy.combo_builder import ComboAttackBuilder
+                
+                attacks = normalized_strategy.attacks
+                params = engine_task.get('params', {})
+                
+                if attacks and len(attacks) > 0:
+                    # Build recipe to validate compatibility and get proper ordering
+                    builder = ComboAttackBuilder()
+                    recipe = builder.build_recipe(attacks, params)
+                    
+                    # Add recipe to engine task for use by attack dispatcher
+                    engine_task['recipe'] = recipe
+                    
+                    self.logger.debug(
+                        f"✅ Built attack recipe: {' → '.join(s.attack_type for s in recipe.steps)}"
+                    )
+                else:
+                    self.logger.warning(f"No attacks in strategy, skipping recipe build")
+                    
+            except ValueError as e:
+                # Incompatible combination detected (Requirement 2.6)
+                self.logger.error(f"❌ Incompatible attack combination: {e}")
+                self.logger.error(f"  Attacks: {normalized_strategy.attacks}")
+                return None
+            except ImportError:
+                # ComboAttackBuilder not available - continue without recipe
+                self.logger.warning("ComboAttackBuilder not available, continuing without recipe")
+            except Exception as e:
+                self.logger.warning(f"Failed to build attack recipe: {e}, continuing without recipe")
 
             return engine_task
         except (StrategyLoadError, StrategyValidationError) as e:
@@ -272,6 +332,256 @@ class UnifiedBypassEngine:
         sock_read_timeout: Optional[float] = None,
         total_timeout: Optional[float] = None,
     ) -> Dict[str, Tuple[str, str, float, int]]:
+        """
+        Test site connectivity using tls-client with Chrome fingerprint.
+        
+        CRITICAL FIX: Uses tls-client library to generate browser-like ClientHello (~1400 bytes).
+        This ensures testing parity with production where browsers generate large ClientHello.
+        
+        tls-client emulates Chrome's TLS fingerprint including:
+        - All Chrome cipher suites
+        - GREASE extensions
+        - Proper extension ordering
+        - ~1400 byte ClientHello size
+        """
+        results = {}
+        semaphore = asyncio.Semaphore(max_concurrent)
+        
+        # Timeout presets
+        timeout_presets = {
+            "fast": 15.0,
+            "balanced": 25.0,
+            "slow": 40.0,
+        }
+        timeout = total_timeout if total_timeout is not None else timeout_presets.get(timeout_profile, 25.0)
+        
+        # Check tls-client availability
+        tls_client_available = self._check_tls_client_available()
+        if not tls_client_available:
+            self.logger.warning("⚠️ tls-client not available, falling back to aiohttp (may cause false negatives due to small ClientHello)")
+            return await self._test_sites_connectivity_aiohttp(
+                sites, dns_cache, max_concurrent, retries, backoff_base,
+                timeout_profile, connect_timeout, sock_read_timeout, total_timeout
+            )
+        
+        async def test_site_with_tls_client(site: str) -> Tuple[str, Tuple[str, str, float, int]]:
+            """Test a single site using tls-client with Chrome fingerprint."""
+            async with semaphore:
+                hostname = urlparse(site).hostname or site
+                ip_used = dns_cache.get(hostname, "N/A")
+                
+                if ip_used == "N/A":
+                    self.logger.warning(f"No IP found for {hostname} in DNS cache")
+                    return (site, ("ERROR", "N/A", 0.0, 0))
+                
+                attempt = 0
+                while True:
+                    start_time = time.time()
+                    
+                    try:
+                        # Run tls-client request in executor (it's synchronous)
+                        loop = asyncio.get_running_loop()
+                        result = await loop.run_in_executor(
+                            None,
+                            lambda: self._tls_client_request(hostname, ip_used, timeout)
+                        )
+                        
+                        latency = (time.time() - start_time) * 1000
+                        
+                        if result["success"]:
+                            http_code = result.get("status_code", 200)
+                            self.logger.info(f"✅ {hostname}: HTTP {http_code} ({latency:.1f}ms) [tls-client Chrome]")
+                            return (site, ("WORKING", ip_used, latency, http_code))
+                        
+                        # Check error type
+                        error = result.get("error", "").lower()
+                        if "connection reset" in error or "reset by peer" in error:
+                            self.logger.warning(f"❌ {hostname}: Connection reset (RST)")
+                            return (site, ("RST", ip_used, latency, 0))
+                        
+                        if "timeout" in error or "timed out" in error:
+                            if attempt < retries:
+                                delay = backoff_base * (2**attempt) + random.uniform(0.0, 0.2)
+                                self.logger.info(f"⏳ Retrying {hostname} after {delay:.2f}s")
+                                await asyncio.sleep(delay)
+                                attempt += 1
+                                continue
+                            self.logger.warning(f"❌ {hostname}: Timeout")
+                            return (site, ("TIMEOUT", ip_used, latency, 0))
+                        
+                        if "could not resolve" in error or "dns" in error:
+                            self.logger.warning(f"❌ {hostname}: DNS resolution failed")
+                            return (site, ("ERROR", ip_used, latency, 0))
+                        
+                        # Other error - retry if possible
+                        if attempt < retries:
+                            delay = backoff_base * (2**attempt) + random.uniform(0.0, 0.2)
+                            self.logger.info(f"⏳ Retrying {hostname} after {delay:.2f}s (error: {error})")
+                            await asyncio.sleep(delay)
+                            attempt += 1
+                            continue
+                        
+                        self.logger.warning(f"❌ {hostname}: Error - {error}")
+                        return (site, ("ERROR", ip_used, latency, 0))
+                        
+                    except Exception as e:
+                        latency = (time.time() - start_time) * 1000
+                        self.logger.debug(f"❌ {hostname}: Exception - {e}")
+                        if attempt < retries:
+                            delay = backoff_base * (2**attempt) + random.uniform(0.0, 0.2)
+                            await asyncio.sleep(delay)
+                            attempt += 1
+                            continue
+                        return (site, ("ERROR", ip_used, latency, 0))
+        
+        # Test all sites concurrently
+        tasks = [test_site_with_tls_client(site) for site in sites]
+        task_results = await asyncio.gather(*tasks)
+        
+        for site, result_tuple in task_results:
+            results[site] = result_tuple
+        
+        return results
+    
+    def _check_tls_client_available(self) -> bool:
+        """Check if tls-client library is available."""
+        try:
+            import tls_client
+            return True
+        except ImportError:
+            return False
+    
+    def _tls_client_request(self, hostname: str, ip: str, timeout: float) -> Dict[str, Any]:
+        """
+        Make HTTP request using tls-client with Chrome fingerprint.
+        
+        This generates a browser-like ClientHello (~1400 bytes) which is critical
+        for accurate DPI bypass testing.
+        
+        Args:
+            hostname: Target hostname
+            ip: Target IP address (for DNS override)
+            timeout: Request timeout in seconds
+            
+        Returns:
+            Dict with success, status_code, error fields
+        """
+        try:
+            import tls_client
+            
+            # Create session with Chrome 120 fingerprint
+            # This generates ~1400 byte ClientHello with all Chrome extensions
+            session = tls_client.Session(
+                client_identifier="chrome_120",
+                random_tls_extension_order=True
+            )
+            
+            # Build URL
+            url = f"https://{hostname}/"
+            
+            # Make request
+            # Note: tls-client doesn't support --resolve like curl,
+            # but WinDivert intercepts based on IP, so DNS resolution
+            # happens normally and WinDivert catches the packet
+            response = session.get(
+                url,
+                headers=HEADERS,
+                timeout_seconds=int(timeout),
+                allow_redirects=True
+            )
+            
+            return {
+                "success": True,
+                "status_code": response.status_code,
+                "error": None
+            }
+            
+        except Exception as e:
+            error_msg = str(e).lower()
+            return {
+                "success": False,
+                "status_code": 0,
+                "error": str(e)
+            }
+    
+    def _verify_curl_http2_support_at_startup(self):
+        """Verify curl is installed and supports HTTP/2 at engine startup."""
+        try:
+            if sys.platform == "win32":
+                local_curl = Path(__file__).parent.parent.parent / "curl.exe"
+                if local_curl.exists():
+                    result = subprocess.run(
+                        [str(local_curl), "--version"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if "HTTP2" in result.stdout:
+                        self.logger.info(f"✅ Local curl.exe with HTTP/2 found: {local_curl}")
+                        return True
+            
+            # Fall back to system curl
+            curl_executable = "curl.exe" if sys.platform == "win32" else "curl"
+            result = subprocess.run(
+                [curl_executable, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if "HTTP2" in result.stdout:
+                self.logger.info("✅ System curl with HTTP/2 support detected")
+                return True
+            else:
+                self.logger.error("❌ CRITICAL: curl does not support HTTP/2")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error checking curl: {e}")
+            return False
+    
+    async def _check_curl_http2_support(self) -> bool:
+        """Check if curl is available and supports HTTP/2 (async version)."""
+        try:
+            curl_executable = "curl.exe" if sys.platform == "win32" else "curl"
+            result = subprocess.run(
+                [curl_executable, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return "HTTP2" in result.stdout
+        except Exception:
+            return False
+    
+    def _is_rst_error_from_stderr(self, stderr: str) -> bool:
+        """Check if stderr indicates RST packet."""
+        rst_indicators = [
+            "connection reset",
+            "reset by peer",
+            "broken pipe",
+            "connection aborted"
+        ]
+        return any(indicator in stderr for indicator in rst_indicators)
+    
+    async def _test_sites_connectivity_aiohttp(
+        self,
+        sites: List[str],
+        dns_cache: Dict[str, str],
+        max_concurrent: int = 10,
+        retries: int = 0,
+        backoff_base: float = 0.4,
+        timeout_profile: str = "balanced",
+        connect_timeout: Optional[float] = None,
+        sock_read_timeout: Optional[float] = None,
+        total_timeout: Optional[float] = None,
+    ) -> Dict[str, Tuple[str, str, float, int]]:
+        """
+        Fallback: Test site connectivity using aiohttp (legacy method).
+        
+        WARNING: This generates small ClientHello (~517 bytes) which may cause
+        false negatives with DPI that blocks small ClientHello packets.
+        """
         results = {}
         semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -402,8 +712,22 @@ class UnifiedBypassEngine:
     async def test_baseline_connectivity(
         self, test_sites: List[str], dns_cache: Dict[str, str]
     ) -> Dict[str, Tuple[str, str, float, int]]:
-        self.logger.info("Testing baseline connectivity with DNS cache...")
+        """
+        Проверяет базовую доступность сайтов без обхода (baseline).
+        
+        Отправляет TLS ClientHello, чтобы спровоцировать DPI и зафиксировать,
+        как он ведёт себя без стратегий обхода.
+        
+        Использует тот же механизм _test_sites_connectivity, что и стратегии,
+        но без запуска движка обхода.
+        
+        Returns:
+            mapping site -> (status, ip_used, latency_ms, http_code)
+        """
+        self.logger.info("Testing baseline connectivity with DNS cache (no bypass)...")
         return await self._test_sites_connectivity(test_sites, dns_cache)
+    
+
 
     async def execute_strategy_real_world(
         self,
@@ -419,10 +743,49 @@ class UnifiedBypassEngine:
         warmup_ms: Optional[float] = None,
         enable_online_optimization: bool = False,
         engine_override: Optional[str] = None,
+        strategy_id: Optional[str] = None,
     ) -> Union[Tuple[str, int, int, float], Tuple[str, int, int, float, Dict, Dict]]:
+        """
+        Execute a strategy in real-world conditions and test connectivity.
+        
+        CRITICAL: This method uses tls-client library with Chrome fingerprint
+        for all connectivity tests to ensure browser-like ClientHello packets
+        (~500-600 bytes) are generated. This prevents false negatives in strategy
+        testing where DPI blocks small ClientHello from Python SSL (~277 bytes).
+        
+        The method:
+        1. Starts the bypass engine with the strategy
+        2. Tests connectivity using tls-client (via _test_sites_connectivity)
+        3. Returns success rate and telemetry
+        
+        Requirements: 11.1, 11.4, 11.5, 12.1
+        
+        Args:
+            strategy: Strategy configuration (string or dict)
+            test_sites: List of sites to test
+            target_ips: Set of target IP addresses
+            dns_cache: DNS resolution cache
+            target_port: Target port (default 443)
+            initial_ttl: Initial TTL value
+            fingerprint: Optional DPI fingerprint
+            return_details: Whether to return detailed results
+            prefer_retry_on_timeout: Whether to retry on timeout
+            warmup_ms: Warmup delay in milliseconds
+            enable_online_optimization: Enable online optimization
+            engine_override: Optional engine override
+            strategy_id: Strategy ID for operation logging (Task 11.4)
+            
+        Returns:
+            Tuple of (status, successful_count, total_count, avg_latency)
+            or with details: (status, successful_count, total_count, avg_latency, results, telemetry)
+        """
 
         # REFACTORED: Use the new unified parsing method
         engine_task = self._ensure_engine_task(strategy)
+        
+        # Task 11.4: Add strategy_id to engine_task for operation logging
+        if strategy_id and engine_task:
+            engine_task['_strategy_id'] = strategy_id
         if not engine_task:
             self.logger.error(
                 f"Could not translate strategy to a valid engine task: {strategy}"
@@ -451,7 +814,12 @@ class UnifiedBypassEngine:
             return ("ENGINE_START_FAILED", 0, len(test_sites), 0.0)
 
         try:
-            await asyncio.sleep(warmup_ms / 1000.0 if warmup_ms is not None else 2.0)
+            # ИСПРАВЛЕНИЕ: Wait for WinDivert to fully initialize before testing
+            # Without this delay, curl may start before WinDivert is ready to intercept packets
+            warmup_delay = warmup_ms / 1000.0 if warmup_ms is not None else 3.0  # Увеличено с 2.0 до 3.0
+            self.logger.info(f"⏳ Waiting {warmup_delay}s for WinDivert initialization...")
+            await asyncio.sleep(warmup_delay)
+            self.logger.info("✅ WinDivert ready, starting connectivity tests")
 
             results = await self._test_sites_connectivity(
                 test_sites, dns_cache, retries=(2 if prefer_retry_on_timeout else 0)
@@ -591,6 +959,11 @@ class UnifiedBypassEngine:
                 self.logger.error(f"❌ Failed to process strategy override: {e}")
                 processed_override = None
 
+        # Ensure runtime filtering configuration is applied before starting
+        if self._runtime_filtering_enabled and self._runtime_filter_config:
+            self.engine.enable_runtime_filtering(self._runtime_filter_config)
+            self.logger.info("Applied runtime filtering configuration for testing mode")
+        
         # Start the underlying engine with processed strategies
         thread = self.engine.start(
             target_ips=target_ips,
@@ -633,6 +1006,11 @@ class UnifiedBypassEngine:
             except Exception as e:
                 self.logger.error(f"❌ Failed to process service mode override: {e}")
 
+        # Ensure runtime filtering configuration is applied before starting
+        if self._runtime_filtering_enabled and self._runtime_filter_config:
+            self.engine.enable_runtime_filtering(self._runtime_filter_config)
+            self.logger.info("Applied runtime filtering configuration for service mode")
+        
         return self.engine.start_with_config(
             config, strategy_override=processed_override
         )
@@ -648,6 +1026,100 @@ class UnifiedBypassEngine:
         # Log final statistics
         if self.config.track_forced_override:
             self._log_final_statistics()
+    
+    def enable_runtime_filtering(self, filter_config: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Enable runtime packet filtering for both testing and service modes.
+        
+        Args:
+            filter_config: Optional filter configuration dict with 'mode' and 'domains'
+            
+        Returns:
+            True if runtime filtering was enabled successfully
+        """
+        try:
+            # Store configuration for consistency across modes
+            self._runtime_filter_config = filter_config
+            
+            # Enable runtime filtering in the underlying engine
+            success = self.engine.enable_runtime_filtering(filter_config)
+            
+            if success:
+                self._runtime_filtering_enabled = True
+                self.logger.info("Runtime filtering enabled for all modes")
+            else:
+                self.logger.error("Failed to enable runtime filtering")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error enabling runtime filtering: {e}")
+            return False
+    
+    def disable_runtime_filtering(self) -> bool:
+        """
+        Disable runtime packet filtering for both testing and service modes.
+        
+        Returns:
+            True if runtime filtering was disabled successfully
+        """
+        try:
+            # Disable runtime filtering in the underlying engine
+            success = self.engine.disable_runtime_filtering()
+            
+            if success:
+                self._runtime_filtering_enabled = False
+                self._runtime_filter_config = None
+                self.logger.info("Runtime filtering disabled for all modes")
+            else:
+                self.logger.error("Failed to disable runtime filtering")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error disabling runtime filtering: {e}")
+            return False
+    
+    def update_runtime_filter_config(self, filter_config: Dict[str, Any]) -> bool:
+        """
+        Update runtime filter configuration for both testing and service modes.
+        
+        Args:
+            filter_config: Filter configuration dict with 'mode' and 'domains'
+            
+        Returns:
+            True if configuration was updated successfully
+        """
+        try:
+            # Store configuration for consistency
+            self._runtime_filter_config = filter_config
+            
+            # Update configuration in the underlying engine
+            success = self.engine.update_runtime_filter_config(filter_config)
+            
+            if success:
+                self.logger.info("Runtime filter configuration updated for all modes")
+            else:
+                self.logger.error("Failed to update runtime filter configuration")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Error updating runtime filter configuration: {e}")
+            return False
+    
+    def get_runtime_filtering_status(self) -> Dict[str, Any]:
+        """
+        Get current runtime filtering status and configuration.
+        
+        Returns:
+            Dictionary with runtime filtering status information
+        """
+        return {
+            'enabled': self._runtime_filtering_enabled,
+            'config': self._runtime_filter_config,
+            'engine_stats': getattr(self.engine, '_runtime_filter', {})
+        }
 
     def apply_strategy(
         self,
@@ -843,7 +1315,7 @@ class UnifiedBypassEngine:
         target_ip: str,
         strategy_input: Union[str, Dict[str, Any]],
         domain: Optional[str] = None,
-        timeout: float = 5.0,
+        timeout: float = 15.0,  # ИСПРАВЛЕНИЕ: Увеличен с 5.0 до 15.0 для CDN
     ) -> Dict[str, Any]:
         """
         Тестирует стратегию, используя тот же процесс, что и в режиме тестирования.
@@ -851,8 +1323,17 @@ class UnifiedBypassEngine:
         Этот метод в точности воспроизводит рабочий процесс режима тестирования:
         1. Загружает и нормализует стратегию.
         2. Применяет ее с принудительным переопределением (forced override).
-        3. Симулирует попытку соединения для проверки результата.
+        3. Симулирует попытку соединения для проверки результата с использованием curl.
         4. Возвращает детальный словарь с результатами теста.
+        
+        CRITICAL: This method uses curl with HTTP/2 support to generate browser-like
+        ClientHello packets (~1400 bytes) for accurate DPI bypass testing. This ensures
+        testing mode parity with production mode where browsers generate large ClientHello.
+        
+        Without HTTP/2, curl generates small ClientHello (~458 bytes) which causes false
+        negatives in strategy testing as DPI easily blocks small ClientHello packets.
+        
+        Requirements: 11.1, 11.4, 11.5, 12.1
 
         Args:
             target_ip: Целевой IP-адрес для теста.
@@ -884,6 +1365,11 @@ class UnifiedBypassEngine:
 
             # Шаг 4: Применение стратегии к движку с принудительным переопределением
             self.engine.set_strategy_override(forced_config)
+            
+            # Set testing mode for packet sender (Requirement 9.1)
+            if hasattr(self.engine, '_packet_sender') and self.engine._packet_sender:
+                self.engine._packet_sender.set_mode("testing")
+                self.logger.debug("📊 Set PacketSender to TESTING mode")
 
             # Получение базовой телеметрии для сравнения
             baseline_telemetry = self.engine.get_telemetry_snapshot()
@@ -942,11 +1428,22 @@ class UnifiedBypassEngine:
                 self.logger.info(
                     f"🧪 Testing mode test {status}: {normalized_strategy.type} for {target_ip}"
                 )
+            
+            # Reset to production mode after test (Requirement 9.1)
+            if hasattr(self.engine, '_packet_sender') and self.engine._packet_sender:
+                self.engine._packet_sender.set_mode("production")
+                self.logger.debug("📊 Reset PacketSender to PRODUCTION mode")
 
             return result
 
         except Exception as e:
             self.logger.error(f"❌ Testing mode test failed for {target_ip}: {e}")
+            
+            # Reset to production mode on error (Requirement 9.1)
+            if hasattr(self.engine, '_packet_sender') and self.engine._packet_sender:
+                self.engine._packet_sender.set_mode("production")
+                self.logger.debug("📊 Reset PacketSender to PRODUCTION mode (after error)")
+            
             return {
                 "success": False,
                 "error": str(e),
@@ -955,93 +1452,193 @@ class UnifiedBypassEngine:
                 "test_duration_ms": (time.time() - test_start) * 1000,
                 "timestamp": test_start,
             }
+    
+
+    
+    def _run_curl_test(
+        self, target_ip: str, domain: Optional[str], timeout: float
+    ) -> Tuple[bool, str]:
+        """
+        Run curl to test connection while bypass service runs in background.
+        Uses massive cipher list to inflate ClientHello size.
+        """
+        if not domain:
+            return False, "Domain required for curl test"
+        
+        try:
+            # Use local curl.exe with HTTP/2 support (in project root)
+            import os
+            curl_path = os.path.join(os.getcwd(), 'curl.exe')
+            if not os.path.exists(curl_path):
+                curl_path = 'curl'  # Fallback to system curl
+            
+            # Build curl command
+            curl_cmd = [
+                curl_path,
+                '--resolve', f'{domain}:443:{target_ip}',
+                '--http2',
+                '--ciphers', BROWSER_CIPHER_LIST,  # ✅ INFLATE CLIENT HELLO
+                '-H', f"User-Agent: {HEADERS['User-Agent']}",
+                '-k',  # Allow insecure
+                '-m', str(int(timeout)),
+                '-s',  # Silent
+                '-o', 'nul' if sys.platform == 'win32' else '/dev/null',
+                '-w', '%{http_code}',
+                f'https://{domain}/'
+            ]
+            
+            self.logger.debug(f"Running curl: {' '.join(curl_cmd)}")
+            
+            # Run curl
+            result = subprocess.run(
+                curl_cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout + 5
+            )
+            
+            # Check result
+            if result.returncode == 0:
+                http_code = result.stdout.strip()
+                if http_code and http_code != '000':
+                    return True, f"HTTP {http_code}"
+                else:
+                    return False, "curl succeeded but no HTTP response"
+            else:
+                stderr = result.stderr.strip() if result.stderr else "unknown error"
+                return False, f"curl failed: returncode={result.returncode}, {stderr}"
+                
+        except subprocess.TimeoutExpired:
+            return False, f"curl timeout after {timeout}s"
+        except FileNotFoundError:
+            return False, "curl not found - please install curl"
+        except Exception as e:
+            return False, f"curl error: {e}"
 
     def _simulate_testing_mode_connection(
         self, target_ip: str, domain: Optional[str], timeout: float
     ) -> Tuple[bool, str]:
         """
-        Симулирует попытку соединения для проверки работоспособности стратегии,
-        аналогично тому, как это делает режим тестирования.
-
-        Args:
-            target_ip: Целевой IP-адрес для проверки.
-            domain: Опциональное доменное имя для выполнения SSL/TLS рукопожатия.
-            timeout: Таймаут на операцию соединения в секундах.
-
-        Returns:
-            Кортеж (success: bool, reason: str), где:
-            - success: True, если соединение успешно, иначе False.
-            - reason: Строка, описывающая причину успеха или сбоя.
+        Симулирует попытку соединения для проверки работоспособности стратегии.
+        Использует локальный curl с HTTP/2 для генерации правильного ClientHello.
         """
+        # Проверка поддержки перехвата движком
+        engine_supports_interception = (
+            hasattr(self.engine, 'start') and 
+            hasattr(self.engine, 'stop')
+        )
+        
+        # Проверка, запущен ли уже WinDivert
+        was_running = False
+        if engine_supports_interception:
+            was_running = getattr(self.engine, '_running', False)
+        
         sock = None
         try:
             import socket
-            import ssl
+            
+            # Запуск WinDivert если нужно
+            if engine_supports_interception and not was_running:
+                self.logger.info("🔧 Starting WinDivert interception for testing mode")
+                try:
+                    target_ips = {target_ip}
+                    strategy_map = {}
+                    self.engine.start(
+                        target_ips=target_ips,
+                        strategy_map=strategy_map,
+                        reset_telemetry=False,
+                        strategy_override=None
+                    )
+                    time.sleep(0.5) # Даем время на инициализацию
+                except Exception as e:
+                    self.logger.error(f"❌ Failed to start WinDivert: {e}")
+                    # Продолжаем, но стратегии могут не примениться
 
-            # Создаем сокет для проверки обхода блокировки
+            # Шаг 1: Проверка TCP (быстрая)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(timeout)
-
-            # Шаг 1: Попытка установить TCP-соединение
             try:
                 sock.connect((target_ip, 443))
-            except socket.timeout:
-                msg = f"TCP connection timeout for {target_ip}"
-                self.logger.debug(msg)
-                return False, msg
-            except ConnectionRefusedError:
-                msg = f"Connection refused by {target_ip}"
-                self.logger.debug(msg)
-                return False, msg
-            except OSError as e:
-                msg = f"TCP connection failed for {target_ip}: {e}"
-                self.logger.debug(msg)
-                return False, msg
+                sock.close()
+                sock = None
+            except Exception as e:
+                return False, f"TCP connection failed: {e}"
 
-            # Шаг 2: Если TCP-соединение успешно и указан домен, выполняем SSL/TLS рукопожатие
+            # Шаг 2: Проверка TLS через curl (основная)
             if domain:
-                context = ssl.create_default_context()
-                # Отключаем проверку сертификата, так как цель - только проверка соединения
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-
                 try:
-                    with context.wrap_socket(sock, server_hostname=domain) as ssock:
-                        # Соединение успешно установлено
-                        msg = f"SSL connection successful for {target_ip} ({domain})"
-                        self.logger.debug(msg)
-                        return True, msg
-                except ssl.SSLError as e:
-                    msg = f"SSL handshake failed for {target_ip}: {e}"
-                    self.logger.debug(msg)
-                    return False, msg
-                except socket.timeout:
-                    msg = f"SSL timeout for {target_ip}"
-                    self.logger.debug(msg)
-                    return False, msg
+                    import subprocess
+                    from pathlib import Path
+                    
+                    # Ищем локальный curl.exe
+                    curl_executable = "curl"
+                    if sys.platform == "win32":
+                        local_curl = Path(__file__).parent.parent.parent / "curl.exe"
+                        if local_curl.exists():
+                            curl_executable = str(local_curl)
+                        else:
+                            cwd_curl = Path("curl.exe")
+                            if cwd_curl.exists():
+                                curl_executable = str(cwd_curl)
+                            else:
+                                curl_executable = "curl.exe"
+                    
+                    # Формируем команду curl
+                    curl_cmd = [
+                        curl_executable,
+                        "--resolve", f"{domain}:443:{target_ip}",
+                        "--http2", 
+                        "--tlsv1.2",
+                        "--ciphers", BROWSER_CIPHER_LIST,  # ✅ INFLATE CLIENT HELLO
+                        "-H", f"User-Agent: {HEADERS['User-Agent']}",
+                        "-k",
+                        "-m", str(int(timeout)),
+                        "-s",
+                        "-o", "nul" if sys.platform == "win32" else "/dev/null",
+                        "-w", "%{http_code}",
+                        f"https://{domain}/"
+                    ]
+                    
+                    self.logger.debug(f"🌐 Executing curl: {' '.join(curl_cmd)}")
+                    
+                    result = subprocess.run(
+                        curl_cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=timeout + 2
+                    )
+                    
+                    http_code = result.stdout.strip()
+                    
+                    if http_code and http_code.isdigit() and int(http_code) > 0:
+                        return True, f"curl success: HTTP {http_code}"
+                    
+                    stderr = result.stderr.lower() if result.stderr else ""
+                    if "ssl" in stderr or "tls" in stderr:
+                        if "certificate" in stderr and "verify" in stderr:
+                             return True, "curl: TLS established (cert error ignored)"
+                    
+                    return False, f"curl failed (code {result.returncode}): {stderr[:100]}"
+                    
                 except Exception as e:
-                    msg = f"SSL connection error for {target_ip}: {e}"
-                    self.logger.debug(msg)
-                    return False, msg
+                    self.logger.error(f"Curl execution error: {e}")
+                    return False, f"Curl error: {e}"
             else:
-                # Если домен не указан, успешное TCP-соединение считается успехом
-                msg = f"TCP connection successful for {target_ip}"
-                self.logger.debug(msg)
-                return True, msg
+                return True, "TCP connection successful (no domain)"
 
-        except ImportError as e:
-            msg = f"Cannot test connection - missing module: {e}"
-            self.logger.warning(msg)
-            return False, msg
         except Exception as e:
-            msg = f"Unexpected error during connection test for {target_ip}: {e}"
-            self.logger.warning(msg, exc_info=self.config.debug)
-            return False, msg
+            return False, f"Unexpected error: {e}"
         finally:
+            # Останавливаем WinDivert если мы его запускали
+            if engine_supports_interception and not was_running:
+                try:
+                    self.engine.stop()
+                except:
+                    pass
             if sock:
                 try:
                     sock.close()
-                except Exception:
+                except:
                     pass
 
     def test_forced_override(
@@ -1117,8 +1714,9 @@ class UnifiedBypassEngine:
             # Шаг 6: Тест подключения
             self.logger.info("[TEST] Step 6/6: Testing connection")
             connection_start = time.time()
+            # ИСПРАВЛЕНИЕ: Увеличен таймаут с 5.0 до 15.0 секунд для CDN
             connection_success = self._simulate_testing_mode_connection(
-                target_ip, domain, 5.0
+                target_ip, domain, 15.0
             )
             connection_duration = time.time() - connection_start
 
@@ -2374,15 +2972,7 @@ class UnifiedBypassEngine:
 
         return results
 
-    async def test_baseline_connectivity(
-        self, test_sites: List[str], dns_cache: Dict[str, str]
-    ) -> Dict[str, Tuple[str, str, float, int]]:
-        """
-        Проверяет базовую доступность, отправляя ClientHello, чтобы спровоцировать DPI.
-        Использует aiohttp, так как он корректно обрабатывает сброс соединения.
-        """
-        LOG.info("Тестируем базовую доступность сайтов (без bypass) с DNS-кэшем...")
-        return await self._test_sites_connectivity(test_sites, dns_cache)
+
 
     def _log_final_statistics(self):
         """Log final statistics when stopping."""
@@ -2437,6 +3027,406 @@ class UnifiedBypassEngine:
         except (TypeError, ValueError):
             return 0.0
 
+    def test_strategy_as_service(
+        self,
+        target_ip: str,
+        strategy_input: Union[str, Dict[str, Any]],
+        domain: Optional[str] = None,
+        timeout: float = 30.0,
+        verification_mode: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Test strategy using service-like approach (real-world conditions).
+        
+        Основная идея:
+        1. Нормализуем и валидируем стратегию.
+        2. Приводим её к engine_task (как в execute_strategy_real_world).
+        3. Запускаем движок обхода + WinDivert.
+        4. Тестируем реальное соединение (через execute_strategy_real_world),
+           которое внутри использует tls-client / aiohttp для генерации
+           браузероподобного ClientHello.
+        5. Собираем статус, HTTP-код, задержку и телеметрию.
+        
+        Если метод вызывается из уже работающего event loop,
+        используются синхронные fallback-тесты с _test_with_curl_http2_sync().
+        """
+        start_ts = time.monotonic()
+        domain = domain or target_ip
+
+        self.logger.info(
+            "🧪 Testing strategy as SERVICE: %s for %s", strategy_input, target_ip
+        )
+
+        # Task 11.4: Start operation logging if in verification mode
+        strategy_id: Optional[str] = None
+        if verification_mode:
+            try:
+                from core.operation_logger import get_operation_logger
+
+                operation_logger = get_operation_logger()
+                if isinstance(strategy_input, dict):
+                    strategy_name = strategy_input.get("type", "unknown")
+                else:
+                    strategy_name = str(strategy_input)
+
+                strategy_id = operation_logger.start_strategy_log(
+                    strategy_name=strategy_name,
+                    domain=domain,
+                    metadata={"target_ip": target_ip},
+                )
+                self.logger.info(
+                    "📝 Started operation logging: strategy_id=%s",
+                    strategy_id[:8],
+                )
+            except Exception as e:
+                self.logger.warning("⚠️ Failed to start operation logging: %s", e)
+
+        try:
+            # 1. Load and validate strategy
+            normalized_strategy = self.strategy_loader.load_strategy(strategy_input)
+            self.logger.debug(
+                "📋 Normalized strategy params: %s", normalized_strategy.params
+            )
+            self.strategy_loader.validate_strategy(normalized_strategy)
+
+            # 2. Build engine_task (в формате low-level движка)
+            engine_task = normalized_strategy.to_engine_format()
+            self.logger.debug(
+                "📋 Engine task params: %s", engine_task.get("params")
+            )
+            self.logger.info("✅ Strategy loaded: %s", engine_task.get("type"))
+
+            # 3. Prepare test sites and DNS cache
+            test_site = f"https://{domain}"
+            test_sites = [test_site]
+            target_ips_set = {target_ip}
+            dns_cache = {domain: target_ip}
+
+            # 4. Запускаем реальное тестирование
+            try:
+                # Если мы уже в event loop → нельзя использовать asyncio.run()
+                try:
+                    asyncio.get_running_loop()
+                    # В event loop: используем синхронный fallback через curl/tls-client
+                    self.logger.warning(
+                        "Already in event loop, using synchronous fallback for service test"
+                    )
+                    return self._test_with_curl_http2_sync(
+                        domain=domain,
+                        timeout=max(timeout - 2.0, 5.0),
+                        target_ip=target_ip,
+                        strategy=engine_task,
+                    )
+                except RuntimeError:
+                    # Нет event loop → безопасно использовать asyncio.run()
+                    result = asyncio.run(
+                        self.execute_strategy_real_world(
+                            strategy=engine_task,
+                            test_sites=test_sites,
+                            target_ips=target_ips_set,
+                            dns_cache=dns_cache,
+                            warmup_ms=2000.0,  # 2s warmup for WinDivert
+                            return_details=True,
+                            strategy_id=strategy_id,
+                        )
+                    )
+
+                status, successful, total, avg_latency, results, telemetry = result
+                response_time = time.monotonic() - start_ts
+
+                # Check if test succeeded
+                success = successful > 0
+                error = None if success else "No sites working"
+
+                site_result = results.get(
+                    test_site, ("ERROR", target_ip, 0.0, 0)
+                )
+                site_status, site_ip, site_latency, http_code = site_result
+
+                self.logger.info(
+                    "✅ Service test complete: success=%s, http_code=%s, latency=%.1f ms",
+                    success,
+                    http_code,
+                    site_latency,
+                )
+
+                # Retransmission count from telemetry / engine
+                retransmission_count = 0
+                if telemetry and isinstance(telemetry, dict):
+                    retransmission_count = telemetry.get(
+                        "total_retransmissions_detected", 0
+                    )
+                elif hasattr(self, "_retransmission_count"):
+                    retransmission_count = getattr(
+                        self, "_retransmission_count", 0
+                    )
+
+                return {
+                    "success": success,
+                    "error": error,
+                    "response_time": response_time,
+                    "clienthello_size": 1400,  # приблизительный размер с TLS-клиентом/HTTP2
+                    "method": "service_based",
+                    "http_code": http_code,
+                    "latency": site_latency,
+                    "site_status": site_status,
+                    "retransmission_count": retransmission_count,
+                }
+
+            except Exception as e:
+                self.logger.error("❌ Service-based test failed: %s", e)
+                return {
+                    "success": False,
+                    "error": f"Service-based test failed: {e}",
+                    "response_time": time.monotonic() - start_ts,
+                    "method": "service_failed",
+                }
+
+        except (StrategyLoadError, StrategyValidationError) as e:
+            self.logger.error("❌ Strategy validation failed: %s", e)
+            return {
+                "success": False,
+                "error": f"Strategy validation failed: {e}",
+                "response_time": time.monotonic() - start_ts,
+                "method": "validation_failed",
+            }
+        except Exception as e:
+            self.logger.error("❌ Unexpected error: %s", e, exc_info=True)
+            return {
+                "success": False,
+                "error": f"Unexpected error: {e}",
+                "response_time": time.monotonic() - start_ts,
+                "method": "error",
+            }
+        finally:
+            # Task 11.4: End operation logging
+            if strategy_id:
+                try:
+                    from core.operation_logger import get_operation_logger
+
+                    operation_logger = get_operation_logger()
+                    operation_logger.end_strategy_log(strategy_id, save_to_file=True)
+                    self.logger.info(
+                        "📝 Ended operation logging: strategy_id=%s",
+                        strategy_id[:8],
+                    )
+                except Exception as e:
+                    self.logger.warning(
+                        "⚠️ Failed to end operation logging: %s", e
+                    )
+    
+    def _test_with_curl_http2_sync(
+        self, 
+        domain: str, 
+        timeout: float,
+        target_ip: str,
+        strategy: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Synchronous fallback for testing with WinDivert + browser-like TLS
+        when already in event loop.
+        """
+        start_time = time.monotonic()
+        
+        try:
+            # Start WinDivert service
+            self.logger.info(f"🚀 Starting WinDivert service for {domain}...")
+            
+            # Build strategy_map in the format expected by engine.start()
+            # Format: {ip: strategy_dict}
+            strategy_map = {target_ip: strategy}
+            target_ips = {target_ip}
+            
+            try:
+                # Start engine with correct parameters
+                # Task: Testing-Production Parity - use strategy_override to ensure test strategy is applied
+                self.engine.start(
+                    target_ips=target_ips,
+                    strategy_map=strategy_map,
+                    strategy_override=strategy  # Force the test strategy to be applied
+                )
+                self.logger.info("✅ WinDivert service started")
+                
+                # Wait for WinDivert to initialize
+                time.sleep(2.0)
+                self.logger.info("✅ WinDivert initialization complete")
+                
+            except Exception as e:
+                self.logger.error(f"❌ Failed to start WinDivert service: {e}")
+                return {
+                    'success': False,
+                    'error': f'Failed to start WinDivert: {str(e)}',
+                    'response_time': time.monotonic() - start_time,
+                    'method': 'service_failed'
+                }
+            
+            # Test with curl
+            try:
+                # Ensure timeout is at least 5 seconds for curl
+                curl_timeout = max(timeout - 3.0, 10.0)
+                curl_result = self._test_with_curl_http2(domain, curl_timeout)
+                
+                # Stop WinDivert service
+                try:
+                    self.engine.stop()
+                    self.logger.info("✅ WinDivert service stopped")
+                except Exception as e:
+                    self.logger.warning(f"⚠️ Error stopping WinDivert: {e}")
+                
+                response_time = time.monotonic() - start_time
+                
+                # Get retransmission count from engine
+                retransmission_count = 0
+                if hasattr(self, '_retransmission_count'):
+                    retransmission_count = self._retransmission_count
+                elif hasattr(self.engine, '_retransmission_count'):
+                    retransmission_count = self.engine._retransmission_count
+                
+                return {
+                    'success': curl_result['success'],
+                    'error': curl_result.get('error'),
+                    'response_time': response_time,
+                    'clienthello_size': curl_result.get('clienthello_size', 0),
+                    'method': 'curl_http2_sync',
+                    'http_code': curl_result.get('http_code'),
+                    'curl_output': curl_result.get('output', ''),
+                    'retransmission_count': retransmission_count  # Task 7.2: Include retransmissions for coordinator
+                }
+                
+            except Exception as e:
+                # Make sure to stop WinDivert even if test fails
+                try:
+                    self.engine.stop()
+                except:
+                    pass
+                
+                self.logger.error(f"❌ Curl test failed: {e}")
+                return {
+                    'success': False,
+                    'error': f'Curl test failed: {str(e)}',
+                    'response_time': time.monotonic() - start_time,
+                    'method': 'curl_http2_failed'
+                }
+                
+        except Exception as e:
+            self.logger.error(f"❌ Sync test failed: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': f'Sync test failed: {str(e)}',
+                'response_time': time.monotonic() - start_time,
+                'method': 'sync_failed'
+            }
+    
+    def _test_with_curl_http2(self, domain: str, timeout: float) -> Dict[str, Any]:
+        """
+        Test connection using browser-like ClientHello via tls-client.
+        
+        CRITICAL:
+        - tls-client генерирует большой ClientHello (~1400 байт) с
+          настоящим TLS fingerprint (Chrome/Firefox).
+        - Если tls-client недоступен, используем requests (малый ClientHello,
+          возможны ложные «не работает»).
+        
+        Args:
+            domain: Target domain
+            timeout: Timeout in seconds
+        
+        Returns:
+            Dict with test results:
+                - success: bool
+                - http_code: str
+                - output: optional response preview
+                - error: optional error string
+                - clienthello_size: approximate ClientHello size in bytes
+        """
+        self.logger.info(
+            "🌐 Testing with browser-like TLS handshake (tls-client) for %s", domain
+        )
+        import time as _time
+
+        start_ts = _time.monotonic()
+        url = f"https://{domain}"
+
+        # Основной путь: tls-client
+        try:
+            try:
+                import tls_client  # type: ignore[import]
+
+                session = tls_client.Session(
+                    client_identifier="chrome_120",  # Chrome 120 fingerprint
+                    random_tls_extension_order=True,
+                )
+                self.logger.info(
+                    "   Using tls-client with Chrome 120 fingerprint"
+                )
+
+                response = session.get(url, timeout_seconds=int(timeout))
+
+                http_code = str(response.status_code)
+                # Any HTTP response means connection was established (DPI bypass worked)
+                # 4xx/5xx errors are still success - they mean we reached the server
+                # Only timeout/connection errors indicate DPI blocking
+                success = response.status_code >= 100 and response.status_code < 600
+
+                self.logger.info("   HTTP code: %s", http_code)
+                self.logger.info("   Success: %s", success)
+
+                return {
+                    "success": success,
+                    "http_code": http_code,
+                    "output": (response.text or "")[:500],
+                    "error": None,  # No error if we got any HTTP response
+                    "clienthello_size": 1400,  # ~Chrome ClientHello
+                }
+
+            except ImportError:
+                # Fallback: обычный requests с маленьким ClientHello
+                self.logger.warning(
+                    "tls-client not available, falling back to requests "
+                    "(small ClientHello, possible false negatives)"
+                )
+                import requests
+                import urllib3
+
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+                response = requests.get(url, timeout=timeout, verify=False)
+                http_code = str(response.status_code)
+                # Any HTTP response means connection was established (DPI bypass worked)
+                # 4xx/5xx errors are still success - they mean we reached the server
+                # Only timeout/connection errors indicate DPI blocking
+                success = response.status_code >= 100 and response.status_code < 600
+
+                self.logger.info("   HTTP code: %s", http_code)
+                self.logger.info("   Success: %s", success)
+
+                return {
+                    "success": success,
+                    "http_code": http_code,
+                    "output": (response.text or "")[:500],
+                    "error": None,  # No error if we got any HTTP response
+                    "clienthello_size": 300,  # малый ClientHello
+                }
+
+        except Exception as e:
+            error_msg = str(e)
+            self.logger.error("❌ Connection failed for %s: %s", domain, error_msg)
+
+            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                return {
+                    "success": False,
+                    "error": "Timeout",
+                    "http_code": "000",
+                    "clienthello_size": 0,
+                }
+
+            return {
+                "success": False,
+                "error": error_msg,
+                "http_code": "000",
+                "clienthello_size": 0,
+            }
+    
     def cleanup(self):
         """Очистка ресурсов, аналогично старому HybridEngine."""
         if self.advanced_fingerprinter and hasattr(

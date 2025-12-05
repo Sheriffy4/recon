@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-12-01T20:06:59.978323",
+  "domain": "static.xx.fbcdn.net",
+  "retransmissions": 5,
+  "strategy": {
+    "type": "fake",
+    "params": {
+      "ttl": 3,
+      "fooling": "badsum",
+      "split_pos": 3,
+      "split_count": 4,
+      "repeats": 1,
+      "no_fallbacks": true,
+      "forced": true
+    },
+    "attacks": [
+      "fake",
+      "multisplit"
+    ]
+  },
+  "failure_threshold": 3,
+  "total_retransmissions_detected": 907,
+  "recommendations": [
+    "Run 'cli.py test static.xx.fbcdn.net' to re-test the strategy",
+    "Run 'cli.py auto static.xx.fbcdn.net' to find a new working strategy",
+    "Check if DPI behavior has changed",
+    "Verify domain_rules.json has correct strategy configuration"
+  ],
+  "strategy_result": {
+    "domain": "static.xx.fbcdn.net",
+    "source": "sni",
+    "ip_address": "31.13.72.12:443",
+    "matched_rule": "static.xx.fbcdn.net",
+    "conflict_detected": false,
+    "sni_domain": "static.xx.fbcdn.net",
+    "ip_domain": null
+  },
+  "parent_domain_suggestion": {
+    "parent_domain": "xx.fbcdn.net",
+    "recommendation": "Try removing 'static.xx.fbcdn.net' rule to use parent domain 'xx.fbcdn.net' strategy"
+  }
+}

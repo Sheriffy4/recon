@@ -121,28 +121,39 @@ class SNIManipulationAttack(BaseTLSAdvancedAttack):
         return context.payload
 
     def _find_sni_extension(self, payload: bytes) -> int:
-        """Находит позицию SNI extension."""
-        # SNI extension type = 0x0000
-        sni_marker = b"\x00\x00"
-        return payload.find(sni_marker)
+        """
+        Находит позицию SNI extension.
+        
+        DEPRECATED: Use SNIManipulator.find_sni_position() instead.
+        """
+        from core.bypass.sni.manipulator import SNIManipulator
+        
+        sni_pos = SNIManipulator.find_sni_position(payload)
+        if sni_pos:
+            return sni_pos.extension_start
+        return -1
 
     def _replace_sni(self, payload: bytes, pos: int, new_sni: str) -> bytes:
-        """Заменяет SNI на новый."""
-        # Упрощенная реализация - в реальности нужен полный TLS парсер
-        new_sni_bytes = new_sni.encode("utf-8")
-
-        # Находим длину старого SNI
-        # Формат: type(2) + length(2) + server_name_list_length(2) + ...
-        old_length = struct.unpack("!H", payload[pos + 2 : pos + 4])[0]
-
-        # Создаем новый SNI extension
-        new_sni_ext = self._build_sni_extension(new_sni_bytes)
-
-        # Заменяем в payload
-        return payload[:pos] + new_sni_ext + payload[pos + 4 + old_length :]
+        """
+        Заменяет SNI на новый.
+        
+        DEPRECATED: Use SNIManipulator.change_sni() instead.
+        """
+        from core.bypass.sni.manipulator import SNIManipulator
+        
+        try:
+            return SNIManipulator.change_sni(payload, new_sni)
+        except Exception as e:
+            LOG.error(f"Failed to change SNI using SNIManipulator: {e}")
+            # Fallback to old behavior if needed
+            return payload
 
     def _build_sni_extension(self, sni: bytes) -> bytes:
-        """Строит SNI extension."""
+        """
+        Строит SNI extension.
+        
+        DEPRECATED: This method is no longer needed with SNIManipulator.
+        """
         # Extension type (0x0000)
         ext_type = struct.pack("!H", 0)
 

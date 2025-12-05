@@ -796,11 +796,18 @@ if __name__ == "__main__":
             print(f"   Confidence: {strategy.confidence_score:.2f}")
             print(f"   Expected Success: {strategy.expected_success_rate:.2f}")
             print(f"   Priority: {strategy.priority}")
-            print(f"   Sources: {', '.join(strategy.source_data)}")
-            print(f"   Reasoning: {'; '.join(strategy.reasoning)}")
+            # Фильтруем None значения перед отображением
+            filtered_sources = [s for s in strategy.source_data if s is not None]
+            print(f"   Sources: {', '.join(filtered_sources)}")
+            filtered_reasoning = [r for r in strategy.reasoning if r is not None]
+            print(f"   Reasoning: {'; '.join(filtered_reasoning)}")
             if strategy.risk_factors:
-                print(f"   Risks: {'; '.join(strategy.risk_factors)}")
+                filtered_risks = [r for r in strategy.risk_factors if r is not None]
+                if filtered_risks:
+                    print(f"   Risks: {'; '.join(filtered_risks)}")
             if strategy.optimization_hints:
-                print(f"   Hints: {'; '.join(strategy.optimization_hints)}")
+                filtered_hints = [h for h in strategy.optimization_hints if h is not None]
+                if filtered_hints:
+                    print(f"   Hints: {'; '.join(filtered_hints)}")
 
     asyncio.run(main())

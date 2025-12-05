@@ -4,8 +4,10 @@
 """
 
 from .raw_packet_engine import RawPacketEngine
+from .raw_pcap_reader import RawPCAPReader, PCAPHeader, PCAPPacketHeader, read_pcap, iterate_pcap
 from .scapy_compatibility import ScapyCompatibilityLayer
 from .migration_tool import ScapyMigrationTool
+from .modifier import PacketModifier
 from .packet_models import (
     ProtocolType,
     PacketDirection,
@@ -23,8 +25,14 @@ from .packet_models import (
 
 __all__ = [
     "RawPacketEngine",
+    "RawPCAPReader",
+    "PCAPHeader",
+    "PCAPPacketHeader",
+    "read_pcap",
+    "iterate_pcap",
     "ScapyCompatibilityLayer",
     "ScapyMigrationTool",
+    "PacketModifier",
     "ProtocolType",
     "PacketDirection",
     "IPHeader",

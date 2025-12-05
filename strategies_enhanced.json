@@ -27,9 +27,15 @@
   "*.googleapis.com": "--dpi-desync=multisplit --dpi-desync-split-count=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
   "*.ytimg.com": "--dpi-desync=multisplit --dpi-desync-split-count=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
   "*.ggpht.com": "--dpi-desync=multisplit --dpi-desync-split-count=10 --dpi-desync-fooling=badsum --dpi-desync-ttl=2",
+  "googlevideo.com": "--dpi-desync=fake,multisplit --dpi-desync-split-count=15 --dpi-desync-fooling=badsum --dpi-desync-ttl=1 --dpi-desync-repeats=2",
+  "*.googlevideo.com": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-fooling=badsum --dpi-desync-ttl=3 --dpi-desync-split-seqovl=10",
+  "rr*---sn-*.googlevideo.com": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-fooling=badsum --dpi-desync-ttl=3 --dpi-desync-split-seqovl=10",
+  "rr1---sn-n8v7znsr.googlevideo.com": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-fooling=badsum --dpi-desync-ttl=3 --dpi-desync-split-seqovl=10",
+  "rr5---sn-4pvgq-n8vs.googlevideo.com": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-fooling=badsum --dpi-desync-ttl=3 --dpi-desync-split-seqovl=10",
   "www.facebook.com": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-fake-tls=0x16030100 --dpi-desync-ttl6=1",
   "*.xx.fbcdn.net": "--dpi-desync=multisplit --dpi-desync-split-count=8 --dpi-desync-ttl=1 --dpi-desync-fooling=badsum --dpi-desync-fake-tls=0x16030100 --dpi-desync-ttl6=1",
   "*.cloudflare.net": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum --dpi-desync-repeats=2",
   "*.fastly.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum --dpi-desync-repeats=2",
-  "*.fastly.net": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum --dpi-desync-repeats=2"
+  "*.fastly.net": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum --dpi-desync-repeats=2",
+  "test.example.com": "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=2 --dpi-desync-fooling=badsum --dpi-desync-repeats=1"
 }

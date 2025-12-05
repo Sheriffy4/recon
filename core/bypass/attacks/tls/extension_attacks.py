@@ -9,7 +9,8 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.protocols.tls import TLSParser
-from core.bypass.attacks.attack_registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
@@ -27,7 +28,19 @@ def _safe_create_result(status_name: str, **kwargs):
             return None
 
 
-@register_attack
+@register_attack(
+    name="sni_manipulation",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "fake_sni": "example.com",
+        "sni_position": "auto",
+        "fragment_at_sni": True
+    },
+    aliases=["sni_fake", "server_name_manipulation"],
+    description="Manipulates TLS SNI extension to evade DPI"
+)
 class SNIManipulationAttack(BaseAttack):
     """
     SNI Manipulation Attack - modifies Server Name Indication extension.
@@ -102,7 +115,7 @@ class SNIManipulationAttack(BaseAttack):
             else:
                 modified_domain = original_domain
             modified_payload = TLSParser.replace_sni(payload, modified_domain)
-            segments = [(modified_payload, 0)]
+            segments = [(modified_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(modified_payload)
             latency = (time.time() - start_time) * 1000
@@ -274,7 +287,19 @@ class SNIManipulationAttack(BaseAttack):
         return payload
 
 
-@register_attack
+@register_attack(
+    name="alpn_manipulation",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "fake_protocols": ["h2", "http/1.1"],
+        "protocol_order": "random",
+        "add_unknown_protocols": True
+    },
+    aliases=["alpn_fake", "application_layer_protocol_manipulation"],
+    description="Manipulates TLS ALPN extension to evade DPI"
+)
 class ALPNManipulationAttack(BaseAttack):
     """
     ALPN Manipulation Attack - modifies Application Layer Protocol Negotiation.
@@ -330,7 +355,7 @@ class ALPNManipulationAttack(BaseAttack):
                 + alpn_data
             )
             modified_payload = payload + alpn_extension
-            segments = [(modified_payload, 0)]
+            segments = [(modified_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(modified_payload)
             latency = (time.time() - start_time) * 1000
@@ -362,7 +387,19 @@ class ALPNManipulationAttack(BaseAttack):
             )
 
 
-@register_attack
+@register_attack(
+    name="grease_attack",
+    category=AttackCategories.TLS,
+    priority=RegistrationPriority.HIGH,
+    required_params=[],
+    optional_params={
+        "grease_intensity": "medium",
+        "randomize_values": True,
+        "include_cipher_suites": True
+    },
+    aliases=["grease_extension"],
+    description="Uses GREASE values in TLS to confuse DPI analysis"
+)
 class GREASEAttack(BaseAttack):
     """
     GREASE Attack - adds GREASE (Generate Random Extensions And Sustain Extensibility) values.
@@ -414,7 +451,7 @@ class GREASEAttack(BaseAttack):
                 )
                 grease_extensions += grease_ext
             modified_payload = payload + grease_extensions
-            segments = [(modified_payload, 0)]
+            segments = [(modified_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(modified_payload)
             latency = (time.time() - start_time) * 1000

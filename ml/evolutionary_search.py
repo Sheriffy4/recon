@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Set
 # >>> ИЗМЕНЕНИЕ: Заменяем относительные импорты на абсолютные <<<
 from core.interfaces import IEvolutionarySearcher, IAttackAdapter, IStrategyGenerator
 from core.bypass.attacks.base import AttackContext
-from core.metrics import BypassQualityMetrics
+from metrics import BypassQualityMetrics
 import config  # <-- Этот импорт нужно будет проверить, возможно, `from . import config` или `import config`
 
 LOG = logging.getLogger("EvolutionarySearcher")

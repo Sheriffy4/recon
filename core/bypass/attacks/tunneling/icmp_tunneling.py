@@ -8,7 +8,8 @@ import time
 import struct
 import random
 from typing import List, Dict, Any
-from core.bypass.attacks.attack_registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
@@ -17,7 +18,19 @@ from core.bypass.attacks.base import (
 )
 
 
-@register_attack
+@register_attack(
+    name="icmp_data_tunneling",
+    category=AttackCategories.TUNNELING,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "icmp_type": 8,
+        "icmp_code": 0,
+        "chunk_size": 64
+    },
+    aliases=["icmp_tunnel", "icmp_data"],
+    description="Tunnels data through ICMP packets to evade DPI"
+)
 class ICMPDataTunnelingAttack(BaseAttack):
     """
     ICMP Data Tunneling Attack - embeds data in ICMP packets.
@@ -125,7 +138,19 @@ class ICMPDataTunnelingAttack(BaseAttack):
         return ~checksum & 65535
 
 
-@register_attack
+@register_attack(
+    name="icmp_timestamp_tunneling",
+    category=AttackCategories.TUNNELING,
+    priority=RegistrationPriority.NORMAL,
+    required_params=[],
+    optional_params={
+        "use_originate_timestamp": True,
+        "use_receive_timestamp": True,
+        "use_transmit_timestamp": True
+    },
+    aliases=["icmp_timestamp", "icmp_ts_tunnel"],
+    description="Tunnels data through ICMP timestamp packets"
+)
 class ICMPTimestampTunnelingAttack(BaseAttack):
     """
     ICMP Timestamp Tunneling Attack - uses ICMP timestamp fields for data.

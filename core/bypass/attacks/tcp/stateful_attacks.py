@@ -12,8 +12,11 @@ Implements Task 17.2: Create attacks against stateful DPI with timeouts
 
 import random
 import asyncio
+import logging
 from typing import Any, List, Optional, Tuple
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 try:
     from scapy.all import IP, TCP, Raw, send, sr1
@@ -21,7 +24,8 @@ try:
     SCAPY_AVAILABLE = True
 except ImportError:
     SCAPY_AVAILABLE = False
-from core.bypass.attacks.attack_registry import register_attack
+from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
+from core.bypass.attacks.metadata import AttackCategories
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
@@ -47,7 +51,20 @@ class StatefulAttackConfig:
     window_manipulation: bool = True
 
 
-@register_attack
+@register_attack(
+    name="fake_disorder",
+    category=AttackCategories.TCP,
+    priority=RegistrationPriority.NORMAL,
+    required_params=["split_pos"],
+    optional_params={
+        "fake_ttl": 3,
+        "fooling_methods": ["badsum"],
+        "fake_data": None,
+        "disorder_method": "reverse"
+    },
+    aliases=["fakeddisorder", "fake_disorder_attack"],
+    description="Sends fake disordered TCP segments to evade DPI"
+)
 class FakeDisorderAttack(BaseAttack):
     """
     Fake + Disorder Attack for Stateful DPI Evasion.
@@ -86,7 +103,7 @@ class FakeDisorderAttack(BaseAttack):
         super().__init__()
         self.config = config or StatefulAttackConfig()
 
-    async def execute(self, context: AttackContext) -> AttackResult:
+    def execute(self, context: AttackContext) -> AttackResult:
         """Execute fake disorder attack."""
         if not SCAPY_AVAILABLE:
             return AttackResult(
@@ -103,24 +120,51 @@ class FakeDisorderAttack(BaseAttack):
             real_packets = self._create_disordered_packets(
                 target_ip, target_port, segments
             )
-            await self._send_fake_packets(fake_packets)
+            
+            # Send fake packets and collect their segments
+            fake_segments = []
+            try:
+                fake_result = asyncio.run(self._send_fake_packets(fake_packets))
+                if fake_result and isinstance(fake_result, list):
+                    fake_segments = fake_result
+            except Exception as fake_err:
+                # Log but don't fail - fake packets are optional
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to send fake packets: {fake_err}")
+            
             if self.config.timing_jitter:
                 jitter = random.randint(0, self.config.max_jitter_ms)
-                await asyncio.sleep(jitter / 1000.0)
-            response = await self._send_disordered_packets(real_packets)
-            success = self._analyze_response(response)
-            return AttackResult(
+            
+            # Send real packets and collect their segments
+            real_segments = asyncio.run(self._send_disordered_packets(real_packets))
+            
+            # Combine all segments (fake + real)
+            all_segments = fake_segments + (real_segments if real_segments else [])
+            
+            success = self._analyze_response(real_segments)
+            
+            result = AttackResult(
                 status=AttackStatus.SUCCESS if success else AttackStatus.ERROR,
                 technique_used=self.name,
                 metadata={
                     "fake_packet_count": len(fake_packets),
                     "real_packet_count": len(real_packets),
+                    "fake_segments_sent": len(fake_segments),
+                    "real_segments_sent": len(real_segments) if real_segments else 0,
+                    "total_segments": len(all_segments),
                     "disorder_level": self.config.disorder_level,
                     "timing_jitter_used": self.config.timing_jitter,
                     "segments_created": len(segments),
                     "modified_packets": len(fake_packets + real_packets),
                 },
             )
+            
+            # Set segments for orchestrated execution
+            if all_segments:
+                result.segments = all_segments
+            
+            return result
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
@@ -184,7 +228,6 @@ class FakeDisorderAttack(BaseAttack):
         for packet in fake_packets:
             try:
                 send(packet, verbose=0)
-                await asyncio.sleep(self.config.disorder_delay_ms / 1000.0)
             except Exception:
                 pass
 
@@ -199,7 +242,6 @@ class FakeDisorderAttack(BaseAttack):
                     send(packet, verbose=0)
                 if self.config.timing_jitter and i < len(real_packets) - 1:
                     jitter = random.randint(0, self.config.max_jitter_ms)
-                    await asyncio.sleep(jitter / 1000.0)
             except Exception:
                 continue
         return response
@@ -215,7 +257,20 @@ class FakeDisorderAttack(BaseAttack):
         return False
 
 
-@register_attack
+@register_attack(
+    name="multi_disorder",
+    category=AttackCategories.TCP,
+    priority=RegistrationPriority.NORMAL,
+    required_params=["positions"],
+    optional_params={
+        "fake_ttl": 3,
+        "fooling_methods": ["badsum"],
+        "randomize_order": False,
+        "disorder_method": "reverse"
+    },
+    aliases=["multidisorder", "multiple_disorder"],
+    description="Sends multiple disordered TCP segments to evade DPI"
+)
 class MultiDisorderAttack(BaseAttack):
     """
     Multiple Disorder Attack for Advanced Stateful DPI Evasion.
@@ -252,33 +307,71 @@ class MultiDisorderAttack(BaseAttack):
             "stream_count": 5
         }
 
-    async def execute(self, context: AttackContext) -> AttackResult:
-        """Execute multi-disorder attack."""
-        if not SCAPY_AVAILABLE:
-            return AttackResult(
-                status=AttackStatus.ERROR,
-                technique_used=self.name,
-                error_message="Scapy not available for packet crafting",
-            )
+    def execute(self, context: AttackContext) -> AttackResult:
+        """
+        Execute multi-disorder attack using primitives.py implementation.
+        
+        CRITICAL FIX: This now delegates to BypassTechniques.apply_multidisorder
+        which properly uses the 'positions' parameter to create multiple segments.
+        """
         try:
-            target_ip = context.dst_ip
-            target_port = context.dst_port
-            payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-            streams = self._create_multiple_streams(target_ip, target_port, payload)
-            response = await self._send_multiple_disordered_streams(streams)
-            success = self._analyze_response(response)
+            from ...techniques.primitives import BypassTechniques
+            
+            # Extract parameters
+            positions = context.params.get("positions")
+            if not positions:
+                # Fallback: generate positions from split_pos and split_count
+                split_pos = context.params.get("split_pos", 2)
+                split_count = context.params.get("split_count", 6)
+                
+                # Generate positions based on split_count
+                if isinstance(split_pos, int) and isinstance(split_count, int):
+                    step = max(1, (len(context.payload) - split_pos) // (split_count - 1))
+                    positions = [split_pos + i * step for i in range(split_count - 1)]
+                    positions = [p for p in positions if p < len(context.payload)]
+                    logger.info(f"🔧 Generated positions={positions} from split_pos={split_pos}, split_count={split_count}")
+                else:
+                    positions = [2, 7, 12]  # Default positions
+                    logger.warning(f"⚠️ Using default positions={positions}")
+            
+            fake_ttl = context.params.get("fake_ttl", context.params.get("ttl", 3))
+            
+            # Use fooling_methods if available, otherwise default to badsum
+            fooling = context.params.get("fooling_methods", context.params.get("fooling", ["badsum"]))
+            logger.info(f"🎯 MultiDisorderAttack: using fooling={fooling}")
+            
+            logger.info(f"🎯 MultiDisorderAttack FINAL: positions={positions}, fake_ttl={fake_ttl}, fooling={fooling}, payload_len={len(context.payload)}")
+            
+            # Use primitives.py implementation which properly handles positions
+            segments = BypassTechniques.apply_multidisorder(
+                context.payload,
+                positions,
+                fooling,
+                fake_ttl
+            )
+            
+            if not segments:
+                return AttackResult(
+                    status=AttackStatus.ERROR,
+                    technique_used=self.name,
+                    error_message="No segments generated",
+                )
+            
+            logger.info(f"✅ MultiDisorderAttack generated {len(segments)} segments")
+            
             return AttackResult(
-                status=AttackStatus.SUCCESS if success else AttackStatus.ERROR,
+                status=AttackStatus.SUCCESS,
                 technique_used=self.name,
+                segments=segments,
                 metadata={
-                    "stream_count": len(streams),
-                    "total_packets": sum((len(stream) for stream in streams)),
-                    "disorder_level": self.config.disorder_level,
-                    "state_confusion_enabled": self.config.state_confusion,
-                    "modified_packets": sum((len(stream) for stream in streams)),
+                    "segment_count": len(segments),
+                    "positions": positions,
+                    "fake_ttl": fake_ttl,
+                    "fooling": fooling,
                 },
             )
         except Exception as e:
+            logger.error(f"❌ MultiDisorderAttack failed: {e}", exc_info=True)
             return AttackResult(
                 status=AttackStatus.ERROR,
                 technique_used=self.name,
@@ -348,7 +441,6 @@ class MultiDisorderAttack(BaseAttack):
                     response = sr1(packet, timeout=3, verbose=0)
                 else:
                     send(packet, verbose=0)
-                await asyncio.sleep(self.config.disorder_delay_ms / 2000.0)
             except Exception:
                 continue
         return response
@@ -400,7 +492,7 @@ class SequenceOverlapAttack(BaseAttack):
             "overlap_method": "aggressive"
         }
 
-    async def execute(self, context: AttackContext) -> AttackResult:
+    def execute(self, context: AttackContext) -> AttackResult:
         """Execute sequence overlap attack."""
         if not SCAPY_AVAILABLE:
             return AttackResult(
@@ -415,7 +507,7 @@ class SequenceOverlapAttack(BaseAttack):
             overlapping_packets = self._create_overlapping_packets(
                 target_ip, target_port, payload
             )
-            response = await self._send_overlapping_packets(overlapping_packets)
+            response = asyncio.run(self._send_overlapping_packets(overlapping_packets))
             success = self._analyze_response(response)
             return AttackResult(
                 status=AttackStatus.SUCCESS if success else AttackStatus.ERROR,
@@ -489,7 +581,6 @@ class SequenceOverlapAttack(BaseAttack):
                     if self.config.timing_jitter:
                         jitter = random.randint(0, self.config.max_jitter_ms) / 1000.0
                         delay += jitter
-                    await asyncio.sleep(delay)
             except Exception:
                 continue
         return response
@@ -542,7 +633,7 @@ class TimingManipulationAttack(BaseAttack):
             "delay_pattern": "random"
         }
 
-    async def execute(self, context: AttackContext) -> AttackResult:
+    def execute(self, context: AttackContext) -> AttackResult:
         """Execute timing manipulation attack."""
         if not SCAPY_AVAILABLE:
             return AttackResult(
@@ -555,7 +646,7 @@ class TimingManipulationAttack(BaseAttack):
             target_port = context.dst_port
             payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
             timed_packets = self._create_timed_packets(target_ip, target_port, payload)
-            response = await self._send_timed_packets(timed_packets)
+            response = asyncio.run(self._send_timed_packets(timed_packets))
             success = self._analyze_response(response)
             return AttackResult(
                 status=AttackStatus.SUCCESS if success else AttackStatus.ERROR,
@@ -621,7 +712,6 @@ class TimingManipulationAttack(BaseAttack):
                     response = sr1(packet, timeout=3, verbose=0)
                 else:
                     send(packet, verbose=0)
-                    await asyncio.sleep(delay)
             except Exception:
                 continue
         return response
