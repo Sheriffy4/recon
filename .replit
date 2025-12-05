@@ -37,3 +37,7 @@ externalPort = 80
 [[ports]]
 localPort = 46147
 externalPort = 3000
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["python", "run_web_dashboard.py"]
