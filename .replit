@@ -1,0 +1,7 @@
+modules = ["bash", "python-3.12"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+packages = ["cacert", "cargo", "imagemagickBig", "libiconv", "libxcrypt", "libyaml", "openssl", "pkg-config", "rustc", "sox", "tcpdump", "wireshark"]
