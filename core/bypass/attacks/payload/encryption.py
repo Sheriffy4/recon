@@ -20,9 +20,7 @@ Known Limitations:
 - Key length affects encryption strength (longer keys are better)
 """
 
-import asyncio
 import time
-from typing import Dict, Any, List
 from core.bypass.attacks.base import (
     PayloadAttack,
     AttackContext,
@@ -38,46 +36,43 @@ from core.bypass.attacks.metadata import AttackCategories
     category=AttackCategories.PAYLOAD,
     priority=RegistrationPriority.NORMAL,
     required_params=[],
-    optional_params={
-        "key": b"\xaa\xbb\xcc\xdd",
-        "split_pos": 8
-    },
+    optional_params={"key": b"\xaa\xbb\xcc\xdd", "split_pos": 8},
     aliases=["xor_encryption", "payload_xor"],
-    description="Encrypts payload using XOR encryption to evade DPI"
+    description="Encrypts payload using XOR encryption to evade DPI",
 )
 class PayloadEncryptionAttack(PayloadAttack):
     """
     Payload Encryption Attack using XOR cipher.
-    
+
     Encrypts payload data using XOR encryption to evade payload-based DPI detection.
     Supports split encryption where the payload is divided into two parts, each encrypted
     with a different key for enhanced obfuscation.
-    
+
     Attack Mechanism:
         The attack applies XOR encryption to the payload bytes. When split_pos is specified,
         the payload is divided at that position and each part is encrypted with a different
         key (the second key is derived by incrementing each byte of the first key).
-    
+
     Use Cases:
         - Evading signature-based DPI that matches known payload patterns
         - Obfuscating HTTP request/response bodies
         - Bypassing keyword filtering in encrypted channels
         - Testing DPI resilience to encrypted payloads
-    
+
     Parameters:
         key (bytes): XOR encryption key (default: b"\\xaa\\xbb\\xcc\\xdd")
             - Type: bytes
             - Default: b"\\xaa\\xbb\\xcc\\xdd"
             - Valid range: Any byte sequence (1-256 bytes recommended)
             - Longer keys provide better obfuscation
-        
+
         split_pos (int): Position to split payload for dual-key encryption (default: 8)
             - Type: int
             - Default: 8
             - Valid range: 0 < split_pos < len(payload)
             - If out of range, single-key encryption is used
             - Recommended: payload_length // 2 for balanced encryption
-    
+
     Examples:
         # Example 1: Simple XOR encryption with default key
         context = AttackContext(
@@ -87,7 +82,7 @@ class PayloadEncryptionAttack(PayloadAttack):
         attack = PayloadEncryptionAttack()
         result = attack.execute(context)
         # Result: Entire payload encrypted with default key
-        
+
         # Example 2: Custom key encryption
         context = AttackContext(
             payload=b"sensitive data that needs obfuscation",
@@ -97,7 +92,7 @@ class PayloadEncryptionAttack(PayloadAttack):
         )
         result = attack.execute(context)
         # Result: Payload encrypted with custom 19-byte key
-        
+
         # Example 3: Split encryption with custom split position
         context = AttackContext(
             payload=b"This is a longer payload that will be split and encrypted with two different keys",
@@ -109,25 +104,25 @@ class PayloadEncryptionAttack(PayloadAttack):
         result = attack.execute(context)
         # Result: First 40 bytes encrypted with key1, remaining bytes with key2
         # key2 is automatically derived as [0x02, 0x03, 0x04, 0x05]
-    
+
     Known Limitations:
         - XOR encryption is easily reversible if the key is known
         - Not suitable for actual cryptographic security
         - Pattern analysis can reveal key length through frequency analysis
         - Split position must be carefully chosen to avoid predictable patterns
-    
+
     Workarounds:
         - Use longer, random keys to increase obfuscation strength
         - Combine with other payload attacks (padding, noise injection)
         - Rotate keys periodically in long-running connections
         - Use split encryption to make pattern analysis more difficult
-    
+
     Performance Characteristics:
         - Execution time: O(n) where n is payload length
         - Memory usage: O(n) for encrypted payload storage
         - Typical latency: < 0.5ms for 1KB payload
         - Throughput: > 15,000 encryptions/second on modern hardware
-    
+
     Migrated from:
         - apply_payload_encryption (fast_bypass.py)
     """
@@ -190,30 +185,27 @@ class PayloadEncryptionAttack(PayloadAttack):
     category=AttackCategories.PAYLOAD,
     priority=RegistrationPriority.NORMAL,
     required_params=[],
-    optional_params={
-        "url_safe": False,
-        "add_padding": True
-    },
+    optional_params={"url_safe": False, "add_padding": True},
     aliases=["base64_encoding", "payload_b64"],
-    description="Encodes payload using Base64 to evade DPI"
+    description="Encodes payload using Base64 to evade DPI",
 )
 class PayloadBase64Attack(PayloadAttack):
     """
     Payload Base64 Encoding Attack.
-    
+
     Encodes payload data using Base64 encoding to evade payload-based DPI detection.
     Supports both standard and URL-safe Base64 encoding with optional padding control.
-    
+
     Attack Mechanism:
         The attack transforms binary payload data into ASCII text using Base64 encoding.
         This breaks signature patterns and makes the payload appear as legitimate text data.
-    
+
     Use Cases:
         - Evading binary signature detection in DPI systems
         - Bypassing content filters that block binary data
         - Obfuscating HTTP POST bodies and API payloads
         - Testing DPI resilience to encoded content
-    
+
     Parameters:
         url_safe (bool): Use URL-safe Base64 encoding (default: False)
             - Type: bool
@@ -221,14 +213,14 @@ class PayloadBase64Attack(PayloadAttack):
             - Valid values: True, False
             - URL-safe encoding replaces '+' with '-' and '/' with '_'
             - Use True for URLs and filenames
-        
+
         add_padding (bool): Include Base64 padding characters (default: True)
             - Type: bool
             - Default: True
             - Valid values: True, False
             - Padding uses '=' characters to align to 4-byte boundaries
             - Some systems require padding, others reject it
-    
+
     Examples:
         # Example 1: Simple Base64 encoding
         context = AttackContext(
@@ -238,7 +230,7 @@ class PayloadBase64Attack(PayloadAttack):
         attack = PayloadBase64Attack()
         result = attack.execute(context)
         # Result: b"SGVsbG8sIFdvcmxkIQ==" (standard Base64 with padding)
-        
+
         # Example 2: URL-safe encoding without padding
         context = AttackContext(
             payload=b"data?with/special+chars",
@@ -249,7 +241,7 @@ class PayloadBase64Attack(PayloadAttack):
         )
         result = attack.execute(context)
         # Result: URL-safe Base64 without '=' padding
-        
+
         # Example 3: Large payload encoding
         context = AttackContext(
             payload=b"\\x00\\x01\\x02" * 1000,  # 3KB binary data
@@ -260,19 +252,19 @@ class PayloadBase64Attack(PayloadAttack):
         )
         result = attack.execute(context)
         # Result: 4KB Base64-encoded text (33% size increase)
-    
+
     Known Limitations:
         - Increases payload size by approximately 33%
         - Easily reversible (Base64 is encoding, not encryption)
         - Some DPI systems can detect and decode Base64
         - May trigger different DPI rules for text vs binary content
-    
+
     Workarounds:
         - Combine with encryption before encoding
         - Use chunked encoding to break patterns
         - Mix with other obfuscation techniques
         - Apply padding manipulation to vary output format
-    
+
     Performance Characteristics:
         - Execution time: O(n) where n is payload length
         - Memory usage: O(1.33n) due to Base64 expansion
@@ -327,45 +319,42 @@ class PayloadBase64Attack(PayloadAttack):
     category=AttackCategories.PAYLOAD,
     priority=RegistrationPriority.NORMAL,
     required_params=[],
-    optional_params={
-        "custom_shift": 13,
-        "preserve_case": True
-    },
+    optional_params={"custom_shift": 13, "preserve_case": True},
     aliases=["rot13_encoding", "payload_caesar"],
-    description="Encodes payload using ROT13 cipher to evade DPI"
+    description="Encodes payload using ROT13 cipher to evade DPI",
 )
 class PayloadROT13Attack(PayloadAttack):
     """
     Payload ROT13/Caesar Cipher Attack.
-    
+
     Applies ROT13 (or custom Caesar cipher) transformation to payload data to evade
     text-based DPI detection. ROT13 is a simple letter substitution cipher that
     replaces each letter with the letter 13 positions after it in the alphabet.
-    
+
     Attack Mechanism:
         The attack rotates alphabetic characters by a specified shift value (default 13).
         Only letters (A-Z, a-z) are transformed; other characters remain unchanged.
         This breaks keyword matching while maintaining payload structure.
-    
+
     Use Cases:
         - Evading keyword-based DPI filters
         - Obfuscating HTTP headers and URLs
         - Bypassing simple text pattern matching
         - Testing DPI resilience to character substitution
-    
+
     Parameters:
         custom_shift (int): Number of positions to shift letters (default: 13)
             - Type: int
             - Default: 13 (classic ROT13)
             - Valid range: 1-25 (0 and 26 have no effect)
             - ROT13 (shift=13) is self-inverse for decoding
-        
+
         preserve_case (bool): Maintain uppercase/lowercase distinction (default: True)
             - Type: bool
             - Default: True
             - Valid values: True, False
             - When True, 'A' and 'a' are rotated independently
-    
+
     Examples:
         # Example 1: Classic ROT13 transformation
         context = AttackContext(
@@ -376,7 +365,7 @@ class PayloadROT13Attack(PayloadAttack):
         result = attack.execute(context)
         # Result: b"TRG /oybpxrq/cngu UGGC/1.1"
         # "GET" -> "TRG", "blocked" -> "oybpxrq", "path" -> "cngu"
-        
+
         # Example 2: Custom Caesar cipher with shift=5
         context = AttackContext(
             payload=b"Secret Message",
@@ -387,7 +376,7 @@ class PayloadROT13Attack(PayloadAttack):
         result = attack.execute(context)
         # Result: b"Xjhwjy Rjxxflj"
         # Each letter shifted by 5 positions
-        
+
         # Example 3: Mixed content with special characters
         context = AttackContext(
             payload=b"User: admin@example.com, Pass: secret123!",
@@ -399,20 +388,20 @@ class PayloadROT13Attack(PayloadAttack):
         result = attack.execute(context)
         # Result: b"Hfre: nqzva@rknzcyr.pbz, Cnff: frperg123!"
         # Only letters rotated, numbers and symbols unchanged
-    
+
     Known Limitations:
         - Only affects alphabetic characters (A-Z, a-z)
         - Easily reversible (ROT13 is self-inverse)
         - Does not obfuscate numbers, symbols, or structure
         - Frequency analysis can reveal the shift value
         - Not suitable for cryptographic security
-    
+
     Workarounds:
         - Combine with other payload attacks for stronger obfuscation
         - Use variable shift values across different payload segments
         - Apply to specific payload sections (e.g., only URLs or headers)
         - Mix with case manipulation for additional variation
-    
+
     Performance Characteristics:
         - Execution time: O(n) where n is payload length
         - Memory usage: O(n) for transformed payload

@@ -117,9 +117,7 @@ def format_strategy_validation_output(
         for error in validation_summary["errors"][:10]:
             lines.append(f"  ✗ {error}")
         if len(validation_summary["errors"]) > 10:
-            lines.append(
-                f"  ... and {len(validation_summary['errors']) - 10} more errors"
-            )
+            lines.append(f"  ... and {len(validation_summary['errors']) - 10} more errors")
         lines.append("")
 
     if validation_summary["warnings"]:
@@ -128,9 +126,7 @@ def format_strategy_validation_output(
         for warning in validation_summary["warnings"][:10]:
             lines.append(f"  ⚠ {warning}")
         if len(validation_summary["warnings"]) > 10:
-            lines.append(
-                f"  ... and {len(validation_summary['warnings']) - 10} more warnings"
-            )
+            lines.append(f"  ... and {len(validation_summary['warnings']) - 10} more warnings")
         lines.append("")
 
     if verbose and validation_summary["results"]:
@@ -161,9 +157,7 @@ def format_strategy_validation_output(
                 if "attack_category" in result.details:
                     lines.append(f"     Category: {result.details['attack_category']}")
                 if "attack_available" in result.details:
-                    lines.append(
-                        f"     Available: {result.details['attack_available']}"
-                    )
+                    lines.append(f"     Available: {result.details['attack_available']}")
 
         lines.append("")
 
@@ -229,9 +223,7 @@ def check_strategy_syntax(strategy_string: str) -> Dict[str, Any]:
         }
 
 
-def report_validation_errors_to_user(
-    validation_summary: Dict[str, Any], console=None
-) -> None:
+def report_validation_errors_to_user(validation_summary: Dict[str, Any], console=None) -> None:
     """Report validation errors and warnings to user."""
     if console is None:
         print(format_strategy_validation_output(validation_summary, use_colors=False))
@@ -256,23 +248,17 @@ def report_validation_errors_to_user(
         for error in validation_summary["errors"][:10]:
             console.print(f"  [red]✗[/red] {error}")
         if len(validation_summary["errors"]) > 10:
-            console.print(
-                f"  ... and {len(validation_summary['errors']) - 10} more errors"
-            )
+            console.print(f"  ... and {len(validation_summary['errors']) - 10} more errors")
 
     if validation_summary["warnings"]:
         console.print("\n[bold yellow]Warnings:[/bold yellow]")
         for warning in validation_summary["warnings"][:10]:
             console.print(f"  [yellow]⚠[/yellow] {warning}")
         if len(validation_summary["warnings"]) > 10:
-            console.print(
-                f"  ... and {len(validation_summary['warnings']) - 10} more warnings"
-            )
+            console.print(f"  ... and {len(validation_summary['warnings']) - 10} more warnings")
 
     if validation_summary["passed"]:
-        console.print(
-            "\n[bold green]✓ All strategies validated successfully[/bold green]"
-        )
+        console.print("\n[bold green]✓ All strategies validated successfully[/bold green]")
     else:
         console.print("\n[bold red]✗ Strategy validation failed[/bold red]")
 

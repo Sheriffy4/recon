@@ -87,9 +87,7 @@ class SystemHealthReport:
     @property
     def can_use_scapy(self) -> bool:
         """Check if Scapy can be used."""
-        scapy_result = next(
-            (r for r in self.component_results if r.component == "scapy"), None
-        )
+        scapy_result = next((r for r in self.component_results if r.component == "scapy"), None)
         return scapy_result and scapy_result.is_healthy
 
 
@@ -154,9 +152,7 @@ class EngineHealthCheck:
             fallback_options=fallback_options,
         )
 
-        self.logger.info(
-            f"🏥 Health check completed. Overall status: {overall_status.value}"
-        )
+        self.logger.info(f"🏥 Health check completed. Overall status: {overall_status.value}")
         return report
 
     def _check_pydivert(self) -> HealthCheckResult:
@@ -353,9 +349,7 @@ class EngineHealthCheck:
             try:
                 if sys.platform.startswith("win"):
                     # On Windows, try to create a socket
-                    sock = socket.socket(
-                        socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
-                    )
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
                     sock.close()
 
                     return HealthCheckResult(
@@ -366,9 +360,7 @@ class EngineHealthCheck:
                     )
                 else:
                     # On Unix-like systems
-                    sock = socket.socket(
-                        socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
-                    )
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
                     sock.close()
 
                     return HealthCheckResult(
@@ -500,9 +492,7 @@ class EngineHealthCheck:
                 details={"error": str(e)},
             )
 
-    def _determine_overall_status(
-        self, results: List[HealthCheckResult]
-    ) -> HealthStatus:
+    def _determine_overall_status(self, results: List[HealthCheckResult]) -> HealthStatus:
         """Determine overall system health status."""
         if not results:
             return HealthStatus.UNKNOWN
@@ -527,10 +517,7 @@ class EngineHealthCheck:
         recommendations = []
 
         for result in results:
-            if (
-                result.component == "pydivert"
-                and result.status == HealthStatus.CRITICAL
-            ):
+            if result.component == "pydivert" and result.status == HealthStatus.CRITICAL:
                 if result.details.get("requires_admin"):
                     recommendations.append(
                         "Run the application as Administrator to enable PyDivert"
@@ -548,35 +535,25 @@ class EngineHealthCheck:
                         "Install Scapy for enhanced packet building: pip install scapy"
                     )
 
-            elif (
-                result.component == "permissions"
-                and result.status == HealthStatus.CRITICAL
-            ):
+            elif result.component == "permissions" and result.status == HealthStatus.CRITICAL:
                 if result.details.get("elevation_required"):
                     recommendations.append(
                         "Run the application as Administrator (Windows) or with sudo (Linux)"
                     )
 
-            elif (
-                result.component == "windivert_driver"
-                and result.status == HealthStatus.CRITICAL
-            ):
+            elif result.component == "windivert_driver" and result.status == HealthStatus.CRITICAL:
                 if result.details.get("needs_admin"):
                     recommendations.append(
                         "Run the application as Administrator to enable WinDivert driver"
                     )
                 elif result.details.get("needs_install"):
-                    recommendations.append(
-                        "Install PyDivert with driver: pip install pydivert"
-                    )
+                    recommendations.append("Install PyDivert with driver: pip install pydivert")
                 elif result.details.get("needs_reinstall"):
                     recommendations.append(
                         "Reinstall PyDivert: pip uninstall pydivert && pip install pydivert"
                     )
                 elif result.details.get("files_missing"):
-                    recommendations.append(
-                        "WinDivert driver files missing - reinstall PyDivert"
-                    )
+                    recommendations.append("WinDivert driver files missing - reinstall PyDivert")
                     recommendations.append(
                         "Check if antivirus software is blocking WinDivert files"
                     )
@@ -587,23 +564,15 @@ class EngineHealthCheck:
         """Generate fallback options when primary engines are unavailable."""
         fallback_options = []
 
-        pydivert_available = any(
-            r.component == "pydivert" and r.is_healthy for r in results
-        )
+        pydivert_available = any(r.component == "pydivert" and r.is_healthy for r in results)
         scapy_available = any(r.component == "scapy" and r.is_healthy for r in results)
 
         if not pydivert_available:
-            fallback_options.append(
-                "Use simulation mode for testing (no real packet processing)"
-            )
-            fallback_options.append(
-                "Use external tools like zapret for packet manipulation"
-            )
+            fallback_options.append("Use simulation mode for testing (no real packet processing)")
+            fallback_options.append("Use external tools like zapret for packet manipulation")
 
             if scapy_available:
-                fallback_options.append(
-                    "Use Scapy-based packet building with external sending"
-                )
+                fallback_options.append("Use Scapy-based packet building with external sending")
 
         if not scapy_available:
             fallback_options.append("Use raw packet building instead of Scapy")
@@ -659,9 +628,7 @@ class EngineHealthCheck:
         healthy_count = len(report.healthy_components)
         problem_count = len(report.problematic_components)
 
-        self.logger.info(
-            f"Summary: {healthy_count} healthy, {problem_count} with issues"
-        )
+        self.logger.info(f"Summary: {healthy_count} healthy, {problem_count} with issues")
 
         if report.can_use_pydivert:
             self.logger.info("✅ PyDivert engine can be used")
@@ -688,9 +655,7 @@ class EngineHealthCheck:
         # Пороговые значения (переопределяются конфигом при наличии)
         failing_sr = float((thresholds or {}).get("failing_success_rate", 0.4))
         degrading_sr = float((thresholds or {}).get("degrading_success_rate", 0.7))
-        degrading_latency = float(
-            (thresholds or {}).get("degrading_latency_ms", 1500.0)
-        )
+        degrading_latency = float((thresholds or {}).get("degrading_latency_ms", 1500.0))
 
         status = "healthy"
         reason = None

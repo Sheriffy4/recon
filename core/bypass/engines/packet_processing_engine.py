@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import logging
 import threading
 import time
+import math
 import socket
 import struct
 import asyncio
+import concurrent.futures
 from typing import Dict, Set, Optional, List, Tuple, Any, Union
 from dataclasses import dataclass
 
@@ -13,6 +17,7 @@ try:
     PYDIVERT_AVAILABLE = True
 except ImportError:
     PYDIVERT_AVAILABLE = False
+    pydivert = None  # type: ignore[assignment]
 from core.bypass.engines.base import BaseBypassEngine, EngineConfig
 from core.bypass.engines.health_check import (
     EngineHealthCheck,
@@ -85,6 +90,7 @@ class PacketProcessingEngine(BaseBypassEngine):
         super().__init__(config)
         self._lock = threading.Lock()
         self._status = EngineStatus.STOPPED
+        self._windivert_handle = None
         self._performance_optimizer = None
         self._effectiveness_validator = None
         self._thread: Optional[threading.Thread] = None
@@ -98,11 +104,11 @@ class PacketProcessingEngine(BaseBypassEngine):
                 "AttackAdapter, UltimateAdvancedFingerprintEngine и DiagnosticSystem должны быть предоставлены через DI."
             )
         self.attack_adapter = attack_adapter
+        self._domain_filter = None  # Domain filter for discovery mode
+        self._shared_ip_sni_filter = None  # Shared IP SNI filter for discovery mode
         self.fingerprint_engine = fingerprint_engine
         self.diagnostic_system = diagnostic_system
-        self.packet_processor = packet_processor or RobustPacketProcessor(
-            debug=self.config.debug
-        )
+        self.packet_processor = packet_processor or RobustPacketProcessor(debug=self.config.debug)
         self.strategy_mapper = strategy_mapper or StrategyMapper()
         self.result_processor = result_processor or ResultProcessor()
         self.performance_optimizer = performance_optimizer or (
@@ -126,6 +132,27 @@ class PacketProcessingEngine(BaseBypassEngine):
         self.last_health_report: Optional[SystemHealthReport] = None
         self.logger.info("PacketProcessingEngine инициализирован успешно через DI")
         self.logger.info("This engine is configured for PRODUCTION packet processing")
+
+    def _run_coro_sync(self, coro, timeout: float = 30.0):
+        """
+        Safely run coroutine from sync code.
+        - If no running loop in this thread -> asyncio.run
+        - If running loop exists -> run in a dedicated thread with its own event loop
+        """
+        if not asyncio.iscoroutine(coro):
+            return coro
+        try:
+            asyncio.get_running_loop()
+            running_loop = True
+        except RuntimeError:
+            running_loop = False
+
+        if not running_loop:
+            return asyncio.run(coro)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            fut = ex.submit(lambda: asyncio.run(coro))
+            return fut.result(timeout=timeout)
 
     def _change_status(self, new_status: EngineStatus):
         """Потокобезопасно изменяет статус движка."""
@@ -191,45 +218,39 @@ class PacketProcessingEngine(BaseBypassEngine):
         if not self.last_health_report:
             self.perform_health_check()
         return self.last_health_report.fallback_options
-        return self.fingerprint_engine
 
-    def apply_strategy(
-        self, packet_info: PacketInfo, strategy: Dict[str, Any]
-    ) -> StrategyResult:
+    def apply_strategy(self, packet_info: PacketInfo, strategy: Dict[str, Any]) -> StrategyResult:
         """
         Применяет стратегию к пакету, используя AttackAdapter.
         Это реализация абстрактного метода из базового класса.
         """
         start_time = time.time()
         try:
-            payload_start = (packet_info.raw_data[0] & 15) * 4 + (
-                packet_info.raw_data[(packet_info.raw_data[0] & 15) * 4 + 12] >> 4 & 15
-            ) * 4
+            raw = packet_info.raw_data or b""
+            payload_start = 0
+            try:
+                # IPv4 IHL + TCP data offset (best-effort, guarded)
+                if len(raw) >= 1:
+                    ip_hlen = (raw[0] & 0x0F) * 4
+                    if len(raw) >= ip_hlen + 13:
+                        tcp_hlen = ((raw[ip_hlen + 12] >> 4) & 0x0F) * 4
+                        payload_start = ip_hlen + tcp_hlen
+            except Exception:
+                payload_start = 0
+
             context = AttackContext(
                 dst_ip=packet_info.dst_ip,
                 dst_port=packet_info.dst_port,
                 src_ip=packet_info.src_ip,
                 src_port=packet_info.src_port,
-                payload=packet_info.raw_data[payload_start:],
+                payload=raw[payload_start:] if payload_start < len(raw) else b"",
                 protocol=(
-                    packet_info.protocol.value
-                    if hasattr(packet_info.protocol, "value")
-                    else "tcp"
+                    packet_info.protocol.value if hasattr(packet_info.protocol, "value") else "tcp"
                 ),
                 params=strategy.get("params", {}),
             )
             attack_name = strategy.get("type") or strategy.get("name")
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                future = asyncio.run_coroutine_threadsafe(
-                    self.attack_adapter.execute_attack_by_name(attack_name, context),
-                    loop,
-                )
-                attack_result = future.result(timeout=10)
-            else:
-                attack_result = asyncio.run(
-                    self.attack_adapter.execute_attack_by_name(attack_name, context)
-                )
+            attack_result = self._execute_attack_by_name_sync(attack_name, context, timeout=10.0)
             return StrategyResult(
                 success=attack_result.status == AttackStatus.SUCCESS,
                 technique_used=attack_name,
@@ -239,9 +260,7 @@ class PacketProcessingEngine(BaseBypassEngine):
                 metadata={"attack_result": attack_result},
             )
         except Exception as e:
-            self.logger.error(
-                f"Ошибка применения стратегии '{strategy.get('type')}': {e}"
-            )
+            self.logger.error(f"Ошибка применения стратегии '{strategy.get('type')}': {e}")
             return StrategyResult(
                 success=False,
                 technique_used=strategy.get("type", "unknown"),
@@ -249,24 +268,74 @@ class PacketProcessingEngine(BaseBypassEngine):
                 error_message=str(e),
             )
 
+    def _execute_attack_by_name_sync(
+        self, attack_name: str, context: AttackContext, timeout: float = 10.0
+    ) -> AttackResult:
+        """
+        Выполняет async-атаку из sync-кода с учетом:
+        - отсутствия event loop в текущем thread,
+        - наличия running loop в другом thread,
+        - потенциального deadlock при ожидании результата в том же loop-thread.
+        Интерфейсы публичных методов не меняем — это внутренний helper.
+        """
+        try:
+            result_or_coro = self.attack_adapter.execute_attack_by_name(attack_name, context)
+        except Exception as e:
+            return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=0)
+
+        # Adapter might be sync in some deployments
+        if not asyncio.iscoroutine(result_or_coro):
+            return result_or_coro
+
+        coro = result_or_coro
+
+        # Are we already inside a running loop in THIS thread?
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        # Get (possibly) configured loop for current thread (may fail in non-main threads)
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None and loop.is_running():
+            # Deadlock guard: if we're in the same loop thread, we must not block on result()
+            if running_loop is loop:
+                msg = "Cannot synchronously wait for attack execution from within the running event loop thread"
+                LOG.error(msg)
+                return AttackResult(status=AttackStatus.ERROR, error_message=msg, latency_ms=0)
+
+            fut = asyncio.run_coroutine_threadsafe(coro, loop)
+            return fut.result(timeout=timeout)
+
+        # If we have a non-running loop bound to this thread, use it
+        if loop is not None and not loop.is_closed():
+            return loop.run_until_complete(coro)
+
+        # No loop in this thread: create a temporary one
+        return asyncio.run(coro)
+
     def _initialize_optional_components(self) -> None:
         """Инициализация опциональных компонентов."""
         if PERFORMANCE_OPTIMIZATION_AVAILABLE:
             try:
-                self.performance_optimizer = PerformanceOptimizer(
-                    self, debug=self.config.debug
-                )
-                self.logger.info("PerformanceOptimizer инициализирован")
+                # Do not override injected optimizer
+                if self.performance_optimizer is None:
+                    self.performance_optimizer = PerformanceOptimizer(self, debug=self.config.debug)
+                    self.logger.info("PerformanceOptimizer инициализирован")
             except Exception as e:
-                self.logger.warning(
-                    f"Не удалось инициализировать PerformanceOptimizer: {e}"
-                )
+                self.logger.warning(f"Не удалось инициализировать PerformanceOptimizer: {e}")
         if COMBO_ATTACKER_AVAILABLE:
             try:
-                self.combo_attacker = ComboAttacker(
-                    attack_adapter=self.attack_adapter, debug=self.config.debug
-                )
-                self.logger.info("ComboAttacker инициализирован")
+                # Do not override injected combo attacker
+                if self.combo_attacker is None:
+                    self.combo_attacker = ComboAttacker(
+                        attack_adapter=self.attack_adapter, debug=self.config.debug
+                    )
+                    self.logger.info("ComboAttacker инициализирован")
             except Exception as e:
                 self.logger.warning(f"Не удалось инициализировать ComboAttacker: {e}")
 
@@ -279,9 +348,7 @@ class PacketProcessingEngine(BaseBypassEngine):
             return None
         self._change_status(EngineStatus.STARTING)
         if not self.is_engine_healthy():
-            LOG.error(
-                "❌ Критические проблемы со здоровьем системы. Запуск движка невозможен."
-            )
+            LOG.error("❌ Критические проблемы со здоровьем системы. Запуск движка невозможен.")
             self.health_checker.log_health_report(self.last_health_report)
             raise EngineError("Engine health check failed - critical issues detected.")
         self.diagnostic_system.start_monitoring(self)
@@ -301,6 +368,13 @@ class PacketProcessingEngine(BaseBypassEngine):
         if self._status == EngineStatus.STOPPED:
             return
         self._change_status(EngineStatus.STOPPING)
+        # Ensure WinDivert recv unblocks
+        try:
+            h = self._windivert_handle
+            if h is not None:
+                h.close()
+        except Exception:
+            pass
         self.diagnostic_system.stop_monitoring()
         if self.performance_optimizer:
             self.performance_optimizer.stop_optimization()
@@ -321,9 +395,10 @@ class PacketProcessingEngine(BaseBypassEngine):
         from core.windivert_filter import WinDivertFilterGenerator
 
         gen = WinDivertFilterGenerator()
-        ports: Set[int] = {
-            d.get("target_port", 443) for d in (strategy_map or {}).values()
-        } or {80, 443}
+        ports: Set[int] = {d.get("target_port", 443) for d in (strategy_map or {}).values()} or {
+            80,
+            443,
+        }
         candidates = gen.progressive_candidates(
             target_ports=ports,
             direction="outbound",
@@ -349,6 +424,7 @@ class PacketProcessingEngine(BaseBypassEngine):
                 w = pydivert.WinDivert(simple_filter, priority=1000)
                 w.open()
             try:
+                self._windivert_handle = w
                 self._change_status(EngineStatus.RUNNING)
                 LOG.info("✅ WinDivert запущен успешно. Движок активен.")
                 while self._running:
@@ -363,9 +439,7 @@ class PacketProcessingEngine(BaseBypassEngine):
                             self._safe_send_packet(w, packet)
                     except Exception as e:
                         self.metrics.increment_counter("processing_errors")
-                        LOG.error(
-                            f"Ошибка обработки пакета: {e}", exc_info=self.config.debug
-                        )
+                        LOG.error(f"Ошибка обработки пакета: {e}", exc_info=self.config.debug)
             finally:
                 try:
                     if w is not None:
@@ -374,25 +448,55 @@ class PacketProcessingEngine(BaseBypassEngine):
                     pass
         except Exception as e:
             self._change_status(EngineStatus.ERROR)
-            LOG.error(
-                f"❌ Критическая ошибка WinDivert: {e}", exc_info=self.config.debug
-            )
-        except Exception as e:
-            raise EngineError(f"Packet processing loop failed: {e}") from e
+            LOG.error(f"❌ Критическая ошибка WinDivert: {e}", exc_info=self.config.debug)
         finally:
+            try:
+                self._windivert_handle = None
+            except Exception:
+                pass
             self._change_status(EngineStatus.STOPPED)
             LOG.info("🛑 Движок остановлен")
 
-    def _should_process_packet(
-        self, packet: pydivert.Packet, target_ips: Set[str]
-    ) -> bool:
+    def _should_process_packet(self, packet: pydivert.Packet, target_ips: Set[str]) -> bool:
         """Определяет, нужно ли обрабатывать пакет."""
         if not self.packet_processor.validate_packet(packet):
             self.metrics.increment_counter("invalid_packets")
             return False
         if self.packet_processor.handle_localhost_packets(packet):
             return False
-        return packet.dst_addr in target_ips
+
+        # Basic IP filtering
+        if packet.dst_addr not in target_ips:
+            return False
+
+        # Apply domain filtering if discovery mode is active
+        if (
+            hasattr(self, "_domain_filter")
+            and self._domain_filter
+            and self._domain_filter.is_discovery_mode()
+        ):
+            try:
+                # Extract packet payload for domain filtering
+                if packet.tcp and packet.tcp.payload:
+                    packet_data = bytes(packet.tcp.payload)
+
+                    # Check if we have a shared IP SNI filter for this scenario
+                    if hasattr(self, "_shared_ip_sni_filter") and self._shared_ip_sni_filter:
+                        if not self._shared_ip_sni_filter.should_process_packet_for_shared_ip(
+                            packet_data, packet.dst_addr
+                        ):
+                            self.metrics.increment_counter("shared_ip_filtered_packets")
+                            LOG.debug(f"Shared IP SNI filter rejected packet to {packet.dst_addr}")
+                            return False
+                    elif not self._domain_filter.should_process_packet(packet_data):
+                        self.metrics.increment_counter("domain_filtered_packets")
+                        LOG.debug(f"Domain filter rejected packet to {packet.dst_addr}")
+                        return False
+            except Exception as e:
+                LOG.warning(f"Error in domain filtering: {e}")
+                # In case of error, allow packet processing to avoid breaking functionality
+
+        return True
 
     @performance_timer
     def _process_packet(self, packet: pydivert.Packet, w: pydivert.WinDivert) -> None:
@@ -401,14 +505,33 @@ class PacketProcessingEngine(BaseBypassEngine):
         if not strategy:
             self._safe_send_packet(w, packet)
             return
-        context = self._create_attack_context_from_packet(packet, strategy)
-        loop = asyncio.get_event_loop()
-        future = asyncio.run_coroutine_threadsafe(
-            self.attack_adapter.execute_attack_by_name(strategy["type"], context), loop
-        )
-        attack_result = future.result(timeout=10)
+        try:
+            context = self._create_attack_context_from_packet(packet, strategy)
+            attack_result = self._execute_attack_by_name_sync(
+                strategy["type"], context, timeout=10.0
+            )
+        except Exception as e:
+            self.metrics.increment_counter("processing_errors")
+            LOG.error(f"Ошибка исполнения атаки: {e}", exc_info=self.config.debug)
+            self._safe_send_packet(w, packet)
+            return
+
         processing_result = self._handle_attack_result(attack_result, packet, w)
         self._log_processing_result(packet, strategy, processing_result)
+
+    def set_domain_filter(self, domain_filter) -> None:
+        """Set domain filter for discovery mode integration."""
+        self._domain_filter = domain_filter
+        LOG.info(
+            f"Domain filter {'enabled' if domain_filter else 'disabled'} for packet processing engine"
+        )
+
+    def set_shared_ip_sni_filter(self, shared_ip_filter) -> None:
+        """Set shared IP SNI filter for discovery mode integration."""
+        self._shared_ip_sni_filter = shared_ip_filter
+        LOG.info(
+            f"Shared IP SNI filter {'enabled' if shared_ip_filter else 'disabled'} for packet processing engine"
+        )
 
     def _handle_attack_result(
         self,
@@ -419,14 +542,10 @@ class PacketProcessingEngine(BaseBypassEngine):
         """Обрабатывает результат атаки и отправляет пакеты."""
         if result.status != AttackStatus.SUCCESS:
             meta_params_missing = (
-                (result.metadata or {}).get("params_missing_required")
-                if result.metadata
-                else None
+                (result.metadata or {}).get("params_missing_required") if result.metadata else None
             )
             meta_params_unexpected = (
-                (result.metadata or {}).get("params_unexpected")
-                if result.metadata
-                else None
+                (result.metadata or {}).get("params_unexpected") if result.metadata else None
             )
             if meta_params_missing or meta_params_unexpected:
                 LOG.warning(
@@ -441,14 +560,14 @@ class PacketProcessingEngine(BaseBypassEngine):
             )
         metadata = result.metadata or {}
         packets_sent = 0
-        if "segments" in metadata and metadata["segments"]:
-            packets_sent = self._send_attack_segments(
-                w, original_packet, metadata["segments"]
-            )
+
+        # Prefer the public API (property). It is the single source of truth and
+        # keeps future validation/normalization centralized in AttackResult.
+        segments = result.segments
+        if segments:
+            packets_sent = self._send_attack_segments(w, original_packet, segments)
         elif "modified_payload" in metadata:
-            if self._send_modified_payload(
-                w, original_packet, metadata["modified_payload"]
-            ):
+            if self._send_modified_payload(w, original_packet, metadata["modified_payload"]):
                 packets_sent = 1
         elif "raw_packets" in metadata:
             for packet_data in metadata["raw_packets"]:
@@ -468,15 +587,18 @@ class PacketProcessingEngine(BaseBypassEngine):
         self, packet: pydivert.Packet, strategy: Dict
     ) -> AttackContext:
         """Создает AttackContext из пакета PyDivert."""
+        tcp = getattr(packet, "tcp", None)
+        dst_port = getattr(tcp, "dst_port", getattr(tcp, "dport", 0)) if tcp else 0
+        src_port = getattr(tcp, "src_port", getattr(tcp, "sport", 0)) if tcp else 0
         return AttackContext(
             dst_ip=packet.dst_addr,
-            dst_port=packet.tcp.dst_port,
+            dst_port=dst_port,
             src_ip=packet.src_addr,
-            src_port=packet.tcp.sport,
+            src_port=src_port,
             payload=bytes(packet.payload),
             protocol="tcp",
-            seq=packet.tcp.seq,
-            ack=packet.tcp.ack,
+            seq=packet.tcp.seq if tcp else 0,
+            ack=packet.tcp.ack if tcp else 0,
             params=strategy.get("params", {}).copy(),
             debug=self.config.debug,
         )
@@ -491,9 +613,7 @@ class PacketProcessingEngine(BaseBypassEngine):
                 return self._execute_combo_strategy(strategy, context)
             available_attacks = self.attack_adapter.get_available_attacks()
             if strategy_type in available_attacks:
-                return self.attack_adapter.execute_attack_by_name(
-                    strategy_type, context
-                )
+                return self.attack_adapter.execute_attack_by_name(strategy_type, context)
             else:
                 legacy_result = self.attack_adapter.execute_legacy_technique(
                     strategy_type, self._context_to_legacy_params(context)
@@ -501,9 +621,7 @@ class PacketProcessingEngine(BaseBypassEngine):
                 return self._legacy_result_to_attack_result(legacy_result)
         except Exception as e:
             self.logger.error(f"Ошибка выполнения стратегии '{strategy_type}': {e}")
-            return AttackResult(
-                status=AttackStatus.ERROR, error_message=str(e), latency_ms=0
-            )
+            return AttackResult(status=AttackStatus.ERROR, error_message=str(e), latency_ms=0)
 
     def _execute_combo_strategy(
         self, strategy: Dict[str, Any], context: AttackContext
@@ -518,15 +636,11 @@ class PacketProcessingEngine(BaseBypassEngine):
         domain = params.get("domain") or context.domain
         try:
             if combo_name:
-                combo_result = self.combo_attacker.execute_combo_by_name(
-                    combo_name, context
-                )
+                combo_result = self.combo_attacker.execute_combo_by_name(combo_name, context)
             else:
                 fingerprint = None
                 if domain:
-                    fingerprint = self._get_or_create_fingerprint(
-                        domain, [context.dst_ip]
-                    )
+                    fingerprint = self._get_or_create_fingerprint(domain, [context.dst_ip])
                 combo = self.combo_attacker.create_adaptive_combo(fingerprint, domain)
                 if not combo:
                     raise Exception("Не удалось создать адаптивную combo стратегию")
@@ -536,6 +650,67 @@ class PacketProcessingEngine(BaseBypassEngine):
             self.logger.error(f"Ошибка выполнения combo стратегии: {e}")
             return AttackResult(status=AttackStatus.ERROR, error_message=str(e))
 
+    def _tcp_flags_int_to_str(self, flags: int) -> str:
+        """
+        Convert common TCP flags bitmask to WinDivert-style string representation.
+        """
+        try:
+            f = int(flags)
+        except Exception:
+            return "A"
+        mapping = [
+            ("F", 0x01),
+            ("S", 0x02),
+            ("R", 0x04),
+            ("P", 0x08),
+            ("A", 0x10),
+            ("U", 0x20),
+        ]
+        s = "".join((ch for ch, mask in mapping if (f & mask)))
+        return s or "A"
+
+    def _apply_ipv4_ttl(self, packet_raw: bytes, ttl: int) -> bytes:
+        """
+        Best-effort IPv4 TTL rewrite (does nothing for non-IPv4 packets).
+        """
+        try:
+            t = int(ttl)
+            if t < 0 or t > 255:
+                return packet_raw
+            b = bytearray(packet_raw)
+            if len(b) < 20:
+                return packet_raw
+            version = b[0] >> 4
+            if version != 4:
+                return packet_raw
+            # IPv4 TTL is byte 8
+            b[8] = t
+            return bytes(b)
+        except Exception:
+            return packet_raw
+
+    def _apply_tcp_window_size(self, packet_raw: bytes, window_size: int) -> bytes:
+        """
+        Best-effort TCP window rewrite for IPv4 packets.
+        """
+        try:
+            w = int(window_size)
+            if w < 0 or w > 0xFFFF:
+                return packet_raw
+            b = bytearray(packet_raw)
+            if len(b) < 40:
+                return packet_raw
+            version = b[0] >> 4
+            if version != 4:
+                return packet_raw
+            ip_hlen = (b[0] & 0x0F) * 4
+            tcp_window_pos = ip_hlen + 14
+            if len(b) >= tcp_window_pos + 2:
+                b[tcp_window_pos : tcp_window_pos + 2] = struct.pack("!H", w)
+            return bytes(b)
+        except Exception:
+            return packet_raw
+
     def _send_attack_segments(
         self,
         w: pydivert.WinDivert,
@@ -543,16 +718,32 @@ class PacketProcessingEngine(BaseBypassEngine):
         segments: List[Tuple],
     ) -> int:
         """Отправляет сегменты, сгенерированные атакой, с корректным расчетом SEQ."""
+        log = self.logger
         packets_sent = 0
         # Базовый Sequence Number из оригинального пакета
         base_seq = original_packet.tcp.seq
         original_payload = bytes(original_packet.payload)
+        prev_delay_after_ms: float = 0.0
 
         for i, segment_info in enumerate(segments):
             data, seq_offset, delay_ms, options = self._parse_segment_info(segment_info)
 
-            if delay_ms > 0:
-                time.sleep(delay_ms / 1000.0)
+            # Support both:
+            # - delay_ms (before this segment)
+            # - delay_ms_after (after previous segment; applied before this one)
+            try:
+                delay_before_ms = float(delay_ms or 0.0)
+            except Exception:
+                delay_before_ms = 0.0
+            try:
+                delay_after_ms = float((options or {}).get("delay_ms_after", 0.0) or 0.0)
+            except Exception:
+                delay_after_ms = 0.0
+
+            effective_sleep_ms = max(0.0, prev_delay_after_ms) + max(0.0, delay_before_ms)
+            if effective_sleep_ms > 0:
+                time.sleep(effective_sleep_ms / 1000.0)
+            prev_delay_after_ms = max(0.0, delay_after_ms)
 
             # --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
             # Вычисляем новый Sequence Number для КАЖДОГО сегмента
@@ -561,16 +752,57 @@ class PacketProcessingEngine(BaseBypassEngine):
                 base_seq + seq_offset
             ) & 0xFFFFFFFF  # & 0xFFFFFFFF для обработки переполнения
 
+            opts = options or {}
+            # Flags precedence: explicit -> tcp_flags/flags -> engine default
+            explicit_flags = opts.get("new_flags", None)
+            if explicit_flags is None:
+                explicit_flags = opts.get("tcp_flags", opts.get("flags", None))
+            if explicit_flags is None:
+                flags_str = "A" if i < len(segments) - 1 else "PA"
+            elif isinstance(explicit_flags, str):
+                flags_str = explicit_flags
+            else:
+                flags_str = self._tcp_flags_int_to_str(explicit_flags)
+
+            # "delay-only" markers (do not send empty payload packets unless explicitly requested)
+            if (not data) and (opts.get("is_session_gap") or opts.get("delay_only")):
+                continue
+
             packet_params = {
                 "new_payload": data,
                 "new_seq": new_sequence_number,  # <--- ИСПОЛЬЗУЕМ ВЫЧИСЛЕННЫЙ SEQ
-                "new_flags": "A" if i < len(segments) - 1 else "PA",
+                "new_flags": flags_str,
             }
-            packet_params.update(options)
 
-            new_packet_raw = EnhancedPacketBuilder.assemble_tcp_packet(
-                bytes(original_packet.raw), **packet_params
-            )
+            # Only pass-through keys that are likely to be supported by EnhancedPacketBuilder.
+            # Everything else stays in metadata/options for observability.
+            tcp_options = opts.get("tcp_options")
+            if isinstance(tcp_options, (bytes, bytearray, memoryview)):
+                packet_params["tcp_options"] = bytes(tcp_options)
+
+            try:
+                new_packet_raw = EnhancedPacketBuilder.assemble_tcp_packet(
+                    bytes(original_packet.raw), **packet_params
+                )
+            except TypeError as e:
+                # If builder signature differs, retry with minimal known kwargs
+                log.debug(f"assemble_tcp_packet TypeError, retry minimal kwargs: {e}")
+                new_packet_raw = EnhancedPacketBuilder.assemble_tcp_packet(
+                    bytes(original_packet.raw),
+                    new_payload=data,
+                    new_seq=new_sequence_number,
+                    new_flags=flags_str,
+                )
+
+            # Apply post-build low-level modifications (independent of builder kwargs support)
+            ttl = opts.get("ttl", None)
+            if ttl is not None:
+                new_packet_raw = self._apply_ipv4_ttl(new_packet_raw, ttl)
+            win = opts.get("window_size_override", opts.get("window_size", None))
+            if win is not None:
+                new_packet_raw = self._apply_tcp_window_size(new_packet_raw, win)
+            if opts.get("corrupt_tcp_checksum") or opts.get("bad_checksum"):
+                new_packet_raw = self._apply_bad_checksum(new_packet_raw, 0xDEAD)
 
             if self._send_raw_packet(w, new_packet_raw, original_packet):
                 packets_sent += 1
@@ -590,7 +822,7 @@ class PacketProcessingEngine(BaseBypassEngine):
                     except Exception:
                         pass
                 else:
-                    LOG.debug(
+                    log.debug(
                         f"Modification validation failed: {report.reason} {report.details or ''}"
                     )
         return packets_sent
@@ -688,43 +920,23 @@ class PacketProcessingEngine(BaseBypassEngine):
 
     def _get_packet_port(self, packet: pydivert.Packet) -> int:
         """Получает порт назначения из пакета."""
-        if (
-            packet.protocol == socket.IPPROTO_TCP
-            and hasattr(packet, "tcp")
-            and packet.tcp
-        ):
+        if packet.protocol == socket.IPPROTO_TCP and hasattr(packet, "tcp") and packet.tcp:
             return packet.tcp.dport
-        elif (
-            packet.protocol == socket.IPPROTO_UDP
-            and hasattr(packet, "udp")
-            and packet.udp
-        ):
+        elif packet.protocol == socket.IPPROTO_UDP and hasattr(packet, "udp") and packet.udp:
             return packet.udp.dport
         return 0
 
     def _get_packet_src_port(self, packet: pydivert.Packet) -> int:
         """Получает порт источника из пакета."""
-        if (
-            packet.protocol == socket.IPPROTO_TCP
-            and hasattr(packet, "tcp")
-            and packet.tcp
-        ):
+        if packet.protocol == socket.IPPROTO_TCP and hasattr(packet, "tcp") and packet.tcp:
             return packet.tcp.sport
-        elif (
-            packet.protocol == socket.IPPROTO_UDP
-            and hasattr(packet, "udp")
-            and packet.udp
-        ):
+        elif packet.protocol == socket.IPPROTO_UDP and hasattr(packet, "udp") and packet.udp:
             return packet.udp.sport
         return 0
 
     def _get_tcp_seq(self, packet: pydivert.Packet) -> int:
         """Получает TCP sequence number из пакета."""
-        if (
-            packet.protocol == socket.IPPROTO_TCP
-            and hasattr(packet, "tcp")
-            and packet.tcp
-        ):
+        if packet.protocol == socket.IPPROTO_TCP and hasattr(packet, "tcp") and packet.tcp:
             return packet.tcp.seq
         try:
             raw = bytes(packet.raw)
@@ -754,14 +966,14 @@ class PacketProcessingEngine(BaseBypassEngine):
 
     def _get_strategy_for_packet(self, packet: pydivert.Packet) -> Optional[Dict]:
         """Получает стратегию для пакета с учетом кэширования."""
-        cache_key = f"{packet.dst_addr}:{packet.tcp.dst_port}"
+        tcp = getattr(packet, "tcp", None)
+        dport = getattr(tcp, "dst_port", getattr(tcp, "dport", 0)) if tcp else 0
+        cache_key = f"{packet.dst_addr}:{dport}"
         cached = self.strategy_cache.get(cache_key)
         if cached and time.time() - cached[1] < self.cache_ttl:
             self.metrics.increment_counter("strategy_cache_hits")
             return cached[0]
-        strategy = self.strategy_map.get(packet.dst_addr) or self.strategy_map.get(
-            "default"
-        )
+        strategy = self.strategy_map.get(packet.dst_addr) or self.strategy_map.get("default")
         if strategy:
             self.strategy_cache[cache_key] = (strategy, time.time())
             self.metrics.increment_counter("strategy_cache_misses")
@@ -769,16 +981,92 @@ class PacketProcessingEngine(BaseBypassEngine):
 
     def _parse_segment_info(
         self, segment_info: Union[tuple, bytes]
-    ) -> Tuple[bytes, int, int, Dict[str, Any]]:
+    ) -> Tuple[bytes, int, float, Dict[str, Any]]:
         """Парсит информацию о сегменте в унифицированный формат."""
-        if isinstance(segment_info, tuple):
-            data = segment_info[0]
-            offset_or_delay = segment_info[1] if len(segment_info) > 1 else 0
-            options = segment_info[2] if len(segment_info) > 2 else {}
-            seq_offset = offset_or_delay
-            delay_ms = options.get("delay_ms", 0)
-            return (data, seq_offset, delay_ms, options)
-        return (segment_info, 0, 0, {})
+        # bytes-like segment
+        if isinstance(segment_info, (bytes, bytearray, memoryview)):
+            return (bytes(segment_info), 0, 0.0, {})
+
+        if not isinstance(segment_info, tuple) or len(segment_info) == 0:
+            return (b"", 0, 0.0, {})
+
+        data = segment_info[0]
+        if not isinstance(data, (bytes, bytearray, memoryview)):
+            return (b"", 0, 0.0, {})
+        data_b = bytes(data)
+
+        # Defaults
+        seq_offset = 0
+        delay_ms: float = 0.0
+        options: Dict[str, Any] = {}
+
+        def _get_delay_from_options(opts: Dict[str, Any]) -> float:
+            try:
+                v = opts.get("delay_ms", opts.get("delay_ms_before", 0.0))
+                if v is None:
+                    v = 0.0
+                return float(v)
+            except Exception:
+                return 0.0
+
+        # 2-tuple:
+        #   (data, seq_offset)  [canonical-short]
+        #   (data, options_dict) [accepted convenience]
+        if len(segment_info) == 2:
+            second = segment_info[1]
+            if isinstance(second, dict):
+                options = second
+                delay_ms = _get_delay_from_options(options)
+                seq_offset = (
+                    int(options.get("seq_offset", 0) or 0) if isinstance(options, dict) else 0
+                )
+            else:
+                try:
+                    seq_offset = int(second or 0)
+                except Exception:
+                    seq_offset = 0
+            return (data_b, seq_offset, max(0.0, delay_ms), options)
+
+        # 3+ tuple:
+        # canonical: (data, seq_offset, options_dict)
+        # legacy:    (data, seq_offset, delay_ms)
+        # opt-in legacy: (data, delay_ms, options_dict) when options["_interpret_second_as_delay"]=True
+        second = segment_info[1] if len(segment_info) >= 2 else 0
+        third = segment_info[2] if len(segment_info) >= 3 else {}
+
+        if isinstance(third, dict):
+            options = third
+            if options.get("_interpret_second_as_delay"):
+                # explicit opt-in to avoid guessing
+                seq_offset = 0
+                try:
+                    delay_ms = float(second or 0.0)
+                except Exception:
+                    delay_ms = 0.0
+            else:
+                try:
+                    seq_offset = int(second or 0)
+                except Exception:
+                    seq_offset = 0
+                delay_ms = _get_delay_from_options(options)
+        else:
+            # tolerate (data, seq_offset, delay_ms)
+            try:
+                seq_offset = int(second or 0)
+            except Exception:
+                seq_offset = 0
+            try:
+                delay_ms = float(third or 0.0)
+            except Exception:
+                delay_ms = 0.0
+
+        # tolerate extended: (data, seq_offset, delay_ms, options_dict)
+        if len(segment_info) >= 4 and isinstance(segment_info[3], dict):
+            options = segment_info[3]
+            # if dict provides delay_ms, it wins
+            delay_ms = _get_delay_from_options(options) or delay_ms
+
+        return (data_b, seq_offset, max(0.0, delay_ms), options)
 
     def _get_or_create_fingerprint(self, domain: str, target_ips: List[str]) -> Any:
         """Получает или создает fingerprint для домена."""
@@ -787,9 +1075,8 @@ class PacketProcessingEngine(BaseBypassEngine):
             cached_fingerprint, cache_time = self.fingerprint_cache[cache_key]
             if time.time() - cache_time < self.cache_ttl:
                 return cached_fingerprint
-        fingerprint = self.fingerprint_engine.create_comprehensive_fingerprint(
-            domain, target_ips
-        )
+        fp = self.fingerprint_engine.create_comprehensive_fingerprint(domain, target_ips)
+        fingerprint = self._run_coro_sync(fp, timeout=60.0)
         if fingerprint:
             self.fingerprint_cache[cache_key] = (fingerprint, time.time())
         return fingerprint
@@ -813,9 +1100,7 @@ class PacketProcessingEngine(BaseBypassEngine):
         legacy_params.update(context.params)
         return legacy_params
 
-    def _legacy_result_to_attack_result(
-        self, legacy_result: Dict[str, Any]
-    ) -> AttackResult:
+    def _legacy_result_to_attack_result(self, legacy_result: Dict[str, Any]) -> AttackResult:
         """Конвертирует legacy результат в AttackResult."""
         if legacy_result.get("success", False):
             status = AttackStatus.SUCCESS
@@ -850,7 +1135,9 @@ class PacketProcessingEngine(BaseBypassEngine):
                 self.metrics.increment_counter("strategy_success")
             else:
                 self.metrics.increment_counter("strategy_failed")
-            self.metrics.increment_counter("packets_sent", result.packets_sent)
+            # Do NOT increment packets_sent here: it is already counted in _safe_send_packet()
+            # Otherwise packets_sent becomes double-counted.
+            self.metrics.increment_counter("packets_sent_reported", result.packets_sent)
         except Exception:
             pass
         self.diagnostic_system.log_packet_processing(
@@ -881,22 +1168,20 @@ class PacketProcessingEngine(BaseBypassEngine):
             "attack_adapter_stats": self.attack_adapter.get_execution_stats(),
         }
         if self.performance_optimizer:
-            stats["performance_stats"] = (
-                self.performance_optimizer.get_comprehensive_stats()
-            )
+            stats["performance_stats"] = self.performance_optimizer.get_comprehensive_stats()
         if self.combo_attacker:
             stats["combo_stats"] = self.combo_attacker.get_stats()
         return stats
 
     def create_domain_fingerprint(self, domain: str, target_ips: List[str] = None):
         """Создать отпечаток DPI для домена."""
-        return self.fingerprint_engine.create_comprehensive_fingerprint(
-            domain, target_ips
-        )
+        fp = self.fingerprint_engine.create_comprehensive_fingerprint(domain, target_ips)
+        return self._run_coro_sync(fp, timeout=60.0)
 
     def analyze_domain_behavior(self, domain: str):
         """Анализ поведения DPI для домена."""
-        return self.fingerprint_engine.analyze_dpi_behavior(domain)
+        coro = self.fingerprint_engine.analyze_dpi_behavior(domain)
+        return self._run_coro_sync(coro, timeout=120.0)
 
     def get_performance_recommendations(self) -> Dict[str, Any]:
         """Получить рекомендации по оптимизации производительности."""
@@ -914,29 +1199,19 @@ class PacketProcessingEngine(BaseBypassEngine):
         """Получить информацию о конкретной атаке."""
         return self.attack_adapter.get_attack_info(attack_name)
 
-
-def create_packet_processing_engine(
-    config: Optional[EngineConfig] = None,
-) -> PacketProcessingEngine:
-    """Фабричная функция для создания движка."""
-    return PacketProcessingEngine(config)
-
+    # ---- DI helpers (were previously unreachable due to indentation after a return) ----
     def set_performance_optimizer(self, optimizer) -> None:
         """
         Set performance optimizer via dependency injection.
-
-        Args:
-            optimizer: Performance optimizer instance
         """
         self._performance_optimizer = optimizer
+        # Keep main field consistent (engine code uses self.performance_optimizer)
+        self.performance_optimizer = optimizer
         self.logger.debug("Performance optimizer injected via DI")
 
     def set_effectiveness_validator(self, validator) -> None:
         """
         Set effectiveness validator via dependency injection.
-
-        Args:
-            validator: Effectiveness validator instance
         """
         self._effectiveness_validator = validator
         self.logger.debug("Effectiveness validator injected via DI")
@@ -951,16 +1226,22 @@ def create_packet_processing_engine(
 
     def has_di_dependencies(self) -> bool:
         """Check if DI dependencies are available."""
-        return (
-            self._performance_optimizer is not None
-            or self._effectiveness_validator is not None
-        )
+        return self._performance_optimizer is not None or self._effectiveness_validator is not None
 
     def get_di_status(self) -> Dict[str, Any]:
         """Get status of DI dependencies."""
         return {
             "performance_optimizer_injected": self._performance_optimizer is not None,
-            "effectiveness_validator_injected": self._effectiveness_validator
-            is not None,
+            "effectiveness_validator_injected": self._effectiveness_validator is not None,
             "di_enabled": self.has_di_dependencies(),
         }
+
+
+def create_packet_processing_engine(
+    config: Optional[EngineConfig] = None,
+) -> PacketProcessingEngine:
+    """Фабричная функция для создания движка."""
+    raise EngineError(
+        "PacketProcessingEngine must be created via dependency injection "
+        "(attack_adapter, fingerprint_engine, diagnostic_system are required)."
+    )

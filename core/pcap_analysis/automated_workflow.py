@@ -112,9 +112,7 @@ class AutomatedWorkflow:
 
             # Phase 2: Strategy Difference Detection
             self.logger.info("Phase 2: Detecting strategy differences")
-            strategy_differences = await self._detect_strategy_differences(
-                comparison_result
-            )
+            strategy_differences = await self._detect_strategy_differences(comparison_result)
             result.strategy_differences = strategy_differences
 
             # Phase 3: Root Cause Analysis
@@ -181,9 +179,7 @@ class AutomatedWorkflow:
             )
 
             # Save comparison results
-            comparison_file = os.path.join(
-                self.config.output_dir, "pcap_comparison_result.json"
-            )
+            comparison_file = os.path.join(self.config.output_dir, "pcap_comparison_result.json")
             await self._save_json_result(comparison_result, comparison_file)
 
             return comparison_result
@@ -228,17 +224,13 @@ class AutomatedWorkflow:
             }
 
             # Save results
-            differences_file = os.path.join(
-                self.config.output_dir, "strategy_differences.json"
-            )
+            differences_file = os.path.join(self.config.output_dir, "strategy_differences.json")
             await self._save_json_result(combined_differences, differences_file)
 
             return combined_differences
 
         except Exception as e:
-            return self.error_handler.handle_analysis_error(
-                e, "strategy_difference_detection"
-            )
+            return self.error_handler.handle_analysis_error(e, "strategy_difference_detection")
 
     async def _perform_root_cause_analysis(
         self, comparison_result: Any, strategy_differences: Any
@@ -263,9 +255,7 @@ class AutomatedWorkflow:
             )
 
             # Save root cause analysis
-            root_cause_file = os.path.join(
-                self.config.output_dir, "root_cause_analysis.json"
-            )
+            root_cause_file = os.path.join(self.config.output_dir, "root_cause_analysis.json")
             await self._save_json_result(root_causes, root_cause_file)
 
             return root_causes
@@ -280,9 +270,7 @@ class AutomatedWorkflow:
 
         try:
             # Generate fixes
-            fixes = await asyncio.to_thread(
-                self.fix_generator.generate_code_fixes, root_causes
-            )
+            fixes = await asyncio.to_thread(self.fix_generator.generate_code_fixes, root_causes)
 
             if not fixes:
                 self.logger.warning("No fixes generated from root cause analysis")
@@ -333,10 +321,7 @@ class AutomatedWorkflow:
             # Validate each domain
             if self.config.parallel_validation:
                 # Parallel validation
-                tasks = [
-                    self._validate_domain(domain)
-                    for domain in self.config.target_domains
-                ]
+                tasks = [self._validate_domain(domain) for domain in self.config.target_domains]
                 results = await asyncio.gather(*tasks, return_exceptions=True)
 
                 for domain, result in zip(self.config.target_domains, results):
@@ -357,9 +342,7 @@ class AutomatedWorkflow:
                         validation_results[domain] = {"success": False, "error": str(e)}
 
             # Save validation results
-            validation_file = os.path.join(
-                self.config.output_dir, "validation_results.json"
-            )
+            validation_file = os.path.join(self.config.output_dir, "validation_results.json")
             await self._save_json_result(validation_results, validation_file)
 
         except Exception as e:
@@ -416,9 +399,7 @@ class AutomatedWorkflow:
                 recommendations = report.recommendations
             else:
                 # Generate basic recommendations
-                if strategy_differences and strategy_differences.get(
-                    "critical_differences"
-                ):
+                if strategy_differences and strategy_differences.get("critical_differences"):
                     recommendations.append(
                         "Critical differences detected between recon and zapret implementations"
                     )
@@ -429,21 +410,15 @@ class AutomatedWorkflow:
                     )
 
                 if not self.config.enable_auto_fix:
-                    recommendations.append(
-                        "Enable auto-fix to automatically apply generated fixes"
-                    )
+                    recommendations.append("Enable auto-fix to automatically apply generated fixes")
 
             # Save recommendations
-            recommendations_file = os.path.join(
-                self.config.output_dir, "recommendations.json"
-            )
+            recommendations_file = os.path.join(self.config.output_dir, "recommendations.json")
             await self._save_json_result(recommendations, recommendations_file)
 
         except Exception as e:
             self.logger.error(f"Failed to generate recommendations: {e}")
-            recommendations.append(
-                "Manual analysis recommended due to processing errors"
-            )
+            recommendations.append("Manual analysis recommended due to processing errors")
 
         return recommendations
 
@@ -570,9 +545,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 3:
-        print(
-            "Usage: python automated_workflow.py <recon_pcap> <zapret_pcap> [target_domains...]"
-        )
+        print("Usage: python automated_workflow.py <recon_pcap> <zapret_pcap> [target_domains...]")
         sys.exit(1)
 
     config = WorkflowConfig(

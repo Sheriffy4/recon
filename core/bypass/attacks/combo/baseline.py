@@ -16,6 +16,7 @@ from core.bypass.attacks.base import (
 )
 from core.bypass.attacks.attack_registry import register_attack
 
+
 @register_attack
 class BaselineAttack(BaseAttack):
     """
@@ -39,7 +40,6 @@ class BaselineAttack(BaseAttack):
     def supported_protocols(self) -> List[str]:
         return ["tcp", "udp", "icmp"]
 
-
     @property
     def required_params(self) -> List[str]:
         """Baseline attack requires no parameters."""
@@ -49,7 +49,6 @@ class BaselineAttack(BaseAttack):
     def optional_params(self) -> Dict[str, Any]:
         """Baseline attack has no optional parameters."""
         return {}
-
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute the baseline test."""
@@ -66,8 +65,11 @@ class BaselineAttack(BaseAttack):
                 bytes_sent=len(context.payload),
                 connection_established=True,
                 data_transmitted=True,
+                technique_used=self.name,
                 metadata={
-                    "segments": segments if context.engine_type != "local" else None,
+                    # Единственная схема сегментов в проекте: AttackResult.segments (property -> metadata["segments"])
+                    # В local режиме сегменты могут быть намеренно опущены.
+                    "segments": (segments if context.engine_type != "local" else None),
                     "info": "Payload sent without modification.",
                 },
             )

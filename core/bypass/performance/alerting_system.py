@@ -87,9 +87,7 @@ class AlertingSystem:
             )
             if self.config["email"]["username"]:
                 server.starttls()
-                server.login(
-                    self.config["email"]["username"], self.config["email"]["password"]
-                )
+                server.login(self.config["email"]["username"], self.config["email"]["password"])
             server.send_message(msg)
             server.quit()
             self.logger.debug(f"Email alert sent for: {alert.title}")
@@ -188,9 +186,7 @@ class AlertingSystem:
                     if "severity" in rule:
                         escalated_alert.severity = AlertSeverity(rule["severity"])
                     if "title_prefix" in rule:
-                        escalated_alert.title = (
-                            f"{rule['title_prefix']} {escalated_alert.title}"
-                        )
+                        escalated_alert.title = f"{rule['title_prefix']} {escalated_alert.title}"
                     self.logger.debug(f"Alert escalated by rule: {rule_name}")
                     break
             return escalated_alert

@@ -65,9 +65,7 @@ class TCPOptions:
     @staticmethod
     def create_window_scale(shift_count: int) -> TCPOption:
         """Создать Window Scale option"""
-        return TCPOption(
-            kind=TCPOptions.WINDOW_SCALE, length=3, data=bytes([shift_count])
-        )
+        return TCPOption(kind=TCPOptions.WINDOW_SCALE, length=3, data=bytes([shift_count]))
 
     @staticmethod
     def create_timestamp(ts_val: int, ts_echo: int) -> TCPOption:

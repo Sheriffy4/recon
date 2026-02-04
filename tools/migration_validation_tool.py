@@ -266,11 +266,11 @@ class MigrationValidationTool:
                     successful_tests += 1
 
                     # Check segments
-                    if not hasattr(result, "_segments") or not result._segments:
+                    if not result.segments:
                         issues.append(f"Test {i+1}: No segments generated")
                     else:
                         # Validate segment format
-                        for j, segment in enumerate(result._segments):
+                        for j, segment in enumerate(result.segments):
                             if not isinstance(segment, tuple) or len(segment) != 3:
                                 issues.append(
                                     f"Test {i+1}, Segment {j+1}: Invalid format"

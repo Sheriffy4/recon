@@ -100,9 +100,7 @@ class QuickBypassProber:
             await asyncio.sleep(0.1)
 
         successful = [r for r in results if r.success]
-        self.logger.info(
-            f"Bypass probes complete: {len(successful)}/{len(results)} successful"
-        )
+        self.logger.info(f"Bypass probes complete: {len(successful)}/{len(results)} successful")
 
         return results
 
@@ -172,9 +170,7 @@ class QuickBypassProber:
         result.response_time_ms = (time.time() - start_time) * 1000
         return result
 
-    def get_best_strategy(
-        self, results: List[BypassProbeResult]
-    ) -> Optional[Dict[str, Any]]:
+    def get_best_strategy(self, results: List[BypassProbeResult]) -> Optional[Dict[str, Any]]:
         """
         Get the best working strategy from probe results.
 

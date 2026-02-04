@@ -97,9 +97,7 @@ class AdaptiveStrategyController:
 
         with self.lock:
             # Update statistics
-            d = self.stats.setdefault(key, {}).setdefault(
-                sid, {"ok": 0, "fail": 0, "last": 0}
-            )
+            d = self.stats.setdefault(key, {}).setdefault(sid, {"ok": 0, "fail": 0, "last": 0})
             if outcome == "ok":
                 d["ok"] += 1
             else:
@@ -212,8 +210,7 @@ class AdaptiveStrategyController:
                 for key_stats in self.stats.values()
             )
             total_success = sum(
-                sum(v["ok"] for v in key_stats.values())
-                for key_stats in self.stats.values()
+                sum(v["ok"] for v in key_stats.values()) for key_stats in self.stats.values()
             )
 
             return {

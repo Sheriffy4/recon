@@ -108,9 +108,7 @@ class AdaptivePlanner:
                 delivery_params["noise_ratio"] = params["noise_ratio"]
         stage = {"type": delivery_tech, "params": delivery_params}
         stages.append(stage)
-        LOG.debug(
-            f"Added delivery stage: {delivery_tech} with params {delivery_params}"
-        )
+        LOG.debug(f"Added delivery stage: {delivery_tech} with params {delivery_params}")
         post_delivery_fooling = ["badsum_fooling", "md5sig_fooling"]
         for fool_tech in fooling_techs:
             if fool_tech in post_delivery_fooling and fool_tech in config.TECH_LIBRARY:
@@ -127,14 +125,10 @@ class AdaptivePlanner:
                 "stop_on_success": False,
             },
         }
-        LOG.info(
-            f"Created logical combo with {len(stages)} stages: {[s['type'] for s in stages]}"
-        )
+        LOG.info(f"Created logical combo with {len(stages)} stages: {[s['type'] for s in stages]}")
         return combo
 
-    def _analyze_dpi_context(
-        self, fp: "Fingerprint", history: List[Dict]
-    ) -> Dict[str, Any]:
+    def _analyze_dpi_context(self, fp: "Fingerprint", history: List[Dict]) -> Dict[str, Any]:
         """Анализирует контекст DPI на основе fingerprint и истории."""
         context = {
             "active_dpi": False,
@@ -157,8 +151,7 @@ class AdaptivePlanner:
             (
                 1
                 for h in history
-                if h.get("result") == "TIMEOUT"
-                and h.get("technique") in config.OBFUSCATION_TECHS
+                if h.get("result") == "TIMEOUT" and h.get("technique") in config.OBFUSCATION_TECHS
             )
         )
         if complex_timeouts >= 2:
@@ -186,9 +179,7 @@ class AdaptivePlanner:
 
         combos = []
         session_failures = getattr(fp, "session_history", {})
-        ml_predictions = (
-            self.predictor.predict(fp.to_dict()) if hasattr(fp, "to_dict") else []
-        )
+        ml_predictions = self.predictor.predict(fp.to_dict()) if hasattr(fp, "to_dict") else []
         dpi_context = self._analyze_dpi_context(fp, history)
         if dpi_context["active_dpi"]:
             LOG.info("💡 Тактика: 'Шок и трепет' (против активного DPI)")
@@ -259,25 +250,19 @@ class AdaptivePlanner:
             LOG.info("💡 Тактика: 'Адаптивная разведка' (на основе ML)")
             if len(ml_predictions) >= 2:
                 tech1, conf1 = ml_predictions[0]
-                tech2, conf2 = (
-                    ml_predictions[1] if len(ml_predictions) > 1 else (None, 0)
-                )
+                tech2, conf2 = ml_predictions[1] if len(ml_predictions) > 1 else (None, 0)
                 race_tech = None
                 delivery_tech = None
                 fooling_techs = []
                 if tech1 in config.RACE_TECHS and conf1 > 0.7:
                     race_tech = tech1
                     delivery_tech = (
-                        tech2
-                        if tech2 in config.SEGMENTATION_TECHS
-                        else "tcp_fakeddisorder"
+                        tech2 if tech2 in config.SEGMENTATION_TECHS else "tcp_fakeddisorder"
                     )
                 elif tech2 in config.RACE_TECHS and conf2 > 0.6:
                     race_tech = tech2
                     delivery_tech = (
-                        tech1
-                        if tech1 in config.SEGMENTATION_TECHS
-                        else "tcp_multisplit"
+                        tech1 if tech1 in config.SEGMENTATION_TECHS else "tcp_multisplit"
                     )
                 else:
                     delivery_tech = (

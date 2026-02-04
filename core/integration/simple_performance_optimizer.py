@@ -112,9 +112,7 @@ class SimplePerformanceOptimizer:
             return
 
         recent_profiles = list(self.profiles)[-10:]
-        avg_threads = sum(p.thread_count for p in recent_profiles) / len(
-            recent_profiles
-        )
+        avg_threads = sum(p.thread_count for p in recent_profiles) / len(recent_profiles)
 
         # Simple threshold check
         if avg_threads > 20:

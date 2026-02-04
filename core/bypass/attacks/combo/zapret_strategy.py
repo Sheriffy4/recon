@@ -12,8 +12,8 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.packet_builder import EnhancedPacketBuilder
-from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
-from core.bypass.attacks.metadata import AttackCategories
+from core.bypass.attacks.registry.decorator import register_attack
+from core.bypass.attacks.metadata import AttackCategories, RegistrationPriority
 
 LOG = logging.getLogger("ZapretStrategy")
 
@@ -35,6 +35,7 @@ class ZapretConfig:
     inter_packet_delay_ms: float = 0.05
     burst_delay_ms: float = 1.0
 
+
 @register_attack(
     name="zapret_strategy",
     category=AttackCategories.COMBO,
@@ -52,10 +53,10 @@ class ZapretConfig:
         "fake_packet_delay_ms": 0.1,
         "sequence_overlap_bytes": 8,
         "inter_packet_delay_ms": 0.05,
-        "burst_delay_ms": 1.0
+        "burst_delay_ms": 1.0,
     },
     aliases=["zapret", "zapret_combo"],
-    description="Zapret-style multi-method DPI bypass strategy"
+    description="Zapret-style multi-method DPI bypass strategy",
 )
 class ZapretStrategy(BaseAttack):
 
@@ -79,12 +80,12 @@ class ZapretStrategy(BaseAttack):
     def optional_params(self) -> Dict[str, Any]:
         # Return parameters from the config as a dictionary
         # Use default config if self.config is not available (during registration)
-        if hasattr(self, 'config') and self.config:
+        if hasattr(self, "config") and self.config:
             return asdict(self.config)
         else:
             # Return default parameters for registration
             return asdict(ZapretConfig())
-    
+
     def __init__(self, config: Optional[ZapretConfig] = None):
         super().__init__()
         self.config = config or ZapretConfig()
@@ -125,7 +126,7 @@ class ZapretStrategy(BaseAttack):
             # Removed async sleep for sync execution
             execution_time = (time.time() - start_time) * 1000
             segments = [(packet, 0, {}) for packet in final_packets]
-            
+
             result = AttackResult(
                 status=AttackStatus.SUCCESS if success else AttackStatus.ERROR,
                 latency_ms=execution_time,
@@ -207,7 +208,9 @@ class ZapretStrategy(BaseAttack):
                         AttackStatus.SUCCESS if bypass.success else AttackStatus.BLOCKED
                     )
                     if not bypass.success:
-                        basic_result.error_message = f"Domain remains blocked after zapret bypass: {baseline.block_type}"
+                        basic_result.error_message = (
+                            f"Domain remains blocked after zapret bypass: {baseline.block_type}"
+                        )
                         LOG.warning(
                             f"Zapret bypass failed for {context.domain}: domain still blocked"
                         )
@@ -262,9 +265,7 @@ class ZapretStrategy(BaseAttack):
         LOG.debug(f"Generated {len(fake_packets)} fake packets with TTL={ttl}")
         return fake_packets
 
-    async def _apply_sequence_overlap_split(
-        self, context: AttackContext
-    ) -> List[bytes]:
+    async def _apply_sequence_overlap_split(self, context: AttackContext) -> List[bytes]:
         """Apply sequence overlap splitting at specified position."""
         split_packets = []
         main_payload = self._create_main_payload(context)
@@ -339,9 +340,7 @@ class ZapretStrategy(BaseAttack):
         LOG.debug(f"Generated {len(disorder_packets)} disorder packets")
         return disorder_packets
 
-    async def _apply_md5_fooling(
-        self, context: AttackContext, packets: List[bytes]
-    ) -> List[bytes]:
+    async def _apply_md5_fooling(self, context: AttackContext, packets: List[bytes]) -> List[bytes]:
         """Apply MD5 signature fooling to packets."""
         fooled_packets = []
         for packet in packets[-3:]:
@@ -406,7 +405,7 @@ class ZapretStrategy(BaseAttack):
             tcp_start = ip_header_len
             if len(packet) < tcp_start + 20:
                 return packet
-            tcp_header_len = (packet[tcp_start + 12] >> 4 & 15) * 4
+            # tcp_header_len = (packet[tcp_start + 12] >> 4 & 15) * 4  # unused
             md5_option = b"\x13\x12" + b"\x00" * 16
             return packet + md5_option
         except Exception:
@@ -462,12 +461,3 @@ def create_zapret_strategy(
         **kwargs,
     )
     return ZapretStrategy(config)
-
-
-try:
-    from core.bypass.attacks.attack_registry import AttackRegistry
-
-    register_attack(ZapretStrategy)
-    LOG.info("ZapretStrategy registered successfully")
-except ImportError:
-    LOG.debug("Registry not available, skipping registration")

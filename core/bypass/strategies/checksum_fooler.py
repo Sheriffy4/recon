@@ -148,9 +148,7 @@ class ChecksumFooler:
 
         except Exception as e:
             logger.error(f"Failed to calculate bad checksum: {e}")
-            raise ChecksumCalculationError(
-                f"Bad checksum calculation failed: {e}"
-            ) from e
+            raise ChecksumCalculationError(f"Bad checksum calculation failed: {e}") from e
 
     def should_apply_badsum(
         self,
@@ -173,7 +171,9 @@ class ChecksumFooler:
             True if badsum should be applied
         """
         context = packet_context or {}
-        connection_info = f"{tcp_info.src_ip}:{tcp_info.src_port} -> {tcp_info.dst_ip}:{tcp_info.dst_port}"
+        connection_info = (
+            f"{tcp_info.src_ip}:{tcp_info.src_port} -> {tcp_info.dst_ip}:{tcp_info.dst_port}"
+        )
 
         # Check if badsum is enabled in configuration
         if not self.config.should_apply_badsum():
@@ -184,18 +184,14 @@ class ChecksumFooler:
 
         # Only apply to first part of split packets
         if not is_first_part:
-            logger.debug(
-                f"Skipping badsum for non-first packet part: {connection_info}"
-            )
+            logger.debug(f"Skipping badsum for non-first packet part: {connection_info}")
             self._stats["badsum_skipped"] += 1
             self._log_badsum_decision("not_first_part", tcp_info, context)
             return False
 
         # Only apply to packets with payload (avoid applying to control packets)
         if not tcp_info.has_payload():
-            logger.debug(
-                f"Skipping badsum for packet without payload: {connection_info}"
-            )
+            logger.debug(f"Skipping badsum for packet without payload: {connection_info}")
             self._stats["badsum_skipped"] += 1
             self._log_badsum_decision("no_payload", tcp_info, context)
             return False
@@ -257,15 +253,11 @@ class ChecksumFooler:
             return bytes(packet)
 
         except struct.error as e:
-            raise ChecksumCalculationError(
-                f"Failed to replace TCP checksum: {e}"
-            ) from e
+            raise ChecksumCalculationError(f"Failed to replace TCP checksum: {e}") from e
         except Exception as e:
             raise ChecksumCalculationError(f"Packet modification failed: {e}") from e
 
-    def verify_checksum_modification(
-        self, original_packet: bytes, modified_packet: bytes
-    ) -> bool:
+    def verify_checksum_modification(self, original_packet: bytes, modified_packet: bytes) -> bool:
         """
         Verify that checksum was correctly modified.
 
@@ -287,9 +279,7 @@ class ChecksumFooler:
                 return False
 
             # Verify rest of packet is unchanged (except checksum)
-            if not self._packets_equal_except_checksum(
-                original_packet, modified_packet
-            ):
+            if not self._packets_equal_except_checksum(original_packet, modified_packet):
                 logger.warning("Packet data changed beyond checksum")
                 return False
 
@@ -336,9 +326,7 @@ class ChecksumFooler:
             return checksum
 
         except struct.error as e:
-            raise ChecksumCalculationError(
-                f"Failed to extract TCP checksum: {e}"
-            ) from e
+            raise ChecksumCalculationError(f"Failed to extract TCP checksum: {e}") from e
 
     def _packets_equal_except_checksum(self, packet1: bytes, packet2: bytes) -> bool:
         """
@@ -372,9 +360,7 @@ class ChecksumFooler:
         except Exception:
             return False
 
-    def restore_original_checksum(
-        self, modified_packet: bytes, original_checksum: int
-    ) -> bytes:
+    def restore_original_checksum(self, modified_packet: bytes, original_checksum: int) -> bytes:
         """
         Restore original checksum for testing purposes.
 
@@ -410,9 +396,7 @@ class ChecksumFooler:
         self._stats = {"badsum_applied": 0, "badsum_skipped": 0, "checksum_errors": 0}
         self._checksum_cache.clear()
 
-    def _log_badsum_decision(
-        self, decision: str, tcp_info: TCPPacketInfo, context: Dict[str, Any]
-    ):
+    def _log_badsum_decision(self, decision: str, tcp_info: TCPPacketInfo, context: Dict[str, Any]):
         """
         Log badsum application decision for tracking and debugging.
 
@@ -491,9 +475,7 @@ class ChecksumFooler:
         Returns:
             Summary dictionary with application statistics
         """
-        applied_count = sum(
-            1 for result in checksum_results if result and result.is_badsum_applied
-        )
+        applied_count = sum(1 for result in checksum_results if result and result.is_badsum_applied)
         total_parts = len(checksum_results)
 
         summary = {
@@ -681,9 +663,7 @@ class ChecksumFooler:
         else:
             return "major_corruption"
 
-    def create_test_packet_with_badsum(
-        self, base_packet: bytes
-    ) -> Tuple[bytes, Dict[str, Any]]:
+    def create_test_packet_with_badsum(self, base_packet: bytes) -> Tuple[bytes, Dict[str, Any]]:
         """
         Create a test packet with badsum for validation testing.
 
@@ -743,8 +723,8 @@ class ChecksumFooler:
             tcp_header_start = ip_header_length
             tcp_header = packet_data[tcp_header_start : tcp_header_start + 20]
 
-            src_port, dst_port, seq_num, ack_num, flags_and_window, window_size = (
-                struct.unpack("!HHIIHH", tcp_header[:16])
+            src_port, dst_port, seq_num, ack_num, flags_and_window, window_size = struct.unpack(
+                "!HHIIHH", tcp_header[:16]
             )
             flags = (flags_and_window >> 8) & 0xFF
             checksum = struct.unpack("!H", tcp_header[16:18])[0]
@@ -839,7 +819,9 @@ class ChecksumFooler:
 
             # Test 3: Internet checksum calculation
             test_results["tests_run"] += 1
-            test_data = b"\x45\x00\x00\x3c\x1c\x46\x40\x00\x40\x06\x00\x00\xac\x10\x0a\x63\xac\x10\x0a\x0c"
+            test_data = (
+                b"\x45\x00\x00\x3c\x1c\x46\x40\x00\x40\x06\x00\x00\xac\x10\x0a\x63\xac\x10\x0a\x0c"
+            )
             calculated = self._calculate_internet_checksum(test_data)
 
             # This should produce a valid checksum (non-zero for this test data)
@@ -873,9 +855,7 @@ class ChecksumFooler:
 
         return test_results
 
-    def _classify_checksum_error(
-        self, actual_checksum: int, expected_checksum: int
-    ) -> str:
+    def _classify_checksum_error(self, actual_checksum: int, expected_checksum: int) -> str:
         """
         Classify the type of checksum error.
 
@@ -907,9 +887,7 @@ class ChecksumFooler:
 
         return "unknown_checksum_error"
 
-    def should_apply_badsum(
-        self, tcp_info: TCPPacketInfo, is_first_part: bool = True
-    ) -> bool:
+    def should_apply_badsum(self, tcp_info: TCPPacketInfo, is_first_part: bool = True) -> bool:
         """
         Determine if badsum should be applied to this packet.
 

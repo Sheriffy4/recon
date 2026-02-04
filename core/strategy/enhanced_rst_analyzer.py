@@ -219,13 +219,9 @@ class EnhancedRSTAnalyzer:
 
         # Update statistics
         end_time = datetime.now()
-        self.analysis_stats["analysis_duration"] = (
-            end_time - start_time
-        ).total_seconds()
+        self.analysis_stats["analysis_duration"] = (end_time - start_time).total_seconds()
 
-        LOG.info(
-            f"Enhanced analysis complete in {self.analysis_stats['analysis_duration']:.2f}s"
-        )
+        LOG.info(f"Enhanced analysis complete in {self.analysis_stats['analysis_duration']:.2f}s")
 
         return results
 
@@ -237,9 +233,7 @@ class EnhancedRSTAnalyzer:
                 return
 
             if self.strategy_generator:
-                success = self.strategy_generator.load_recon_summary(
-                    self.recon_summary_file
-                )
+                success = self.strategy_generator.load_recon_summary(self.recon_summary_file)
                 if success:
                     LOG.info("Recon summary data loaded successfully")
                 else:
@@ -266,8 +260,8 @@ class EnhancedRSTAnalyzer:
             if self.rst_analyzer:
                 try:
                     if hasattr(self.rst_analyzer, "analyze_pcap"):
-                        self.pcap_analysis_results = (
-                            await self.rst_analyzer.analyze_pcap(self.pcap_file)
+                        self.pcap_analysis_results = await self.rst_analyzer.analyze_pcap(
+                            self.pcap_file
                         )
                     else:
                         # Use mock results for analyzers without analyze_pcap method
@@ -307,9 +301,7 @@ class EnhancedRSTAnalyzer:
         except Exception as e:
             LOG.error(f"Error analyzing PCAP: {e}")
 
-    async def _generate_second_pass_strategies(
-        self, target_sites: List[str], max_strategies: int
-    ):
+    async def _generate_second_pass_strategies(self, target_sites: List[str], max_strategies: int):
         """Generate intelligent second-pass strategies"""
         try:
             if not self.strategy_generator:
@@ -321,19 +313,15 @@ class EnhancedRSTAnalyzer:
 
             for site in target_sites[:3]:  # Limit to first 3 sites for performance
                 try:
-                    strategies = (
-                        await self.strategy_generator.generate_intelligent_strategies(
-                            site,
-                            count=max_strategies // len(target_sites) + 1,
-                            include_experimental=True,
-                        )
+                    strategies = await self.strategy_generator.generate_intelligent_strategies(
+                        site,
+                        count=max_strategies // len(target_sites) + 1,
+                        include_experimental=True,
                     )
 
                     # Convert to SecondPassStrategy format
                     for strategy in strategies:
-                        second_pass_strategy = self._convert_to_second_pass_strategy(
-                            strategy
-                        )
+                        second_pass_strategy = self._convert_to_second_pass_strategy(strategy)
                         if second_pass_strategy:
                             all_strategies.append(second_pass_strategy)
 
@@ -346,12 +334,8 @@ class EnhancedRSTAnalyzer:
                 unique_strategies, key=lambda x: x.confidence_score, reverse=True
             )[:max_strategies]
 
-            self.analysis_stats["strategies_generated"] = len(
-                self.second_pass_strategies
-            )
-            LOG.info(
-                f"Generated {len(self.second_pass_strategies)} second-pass strategies"
-            )
+            self.analysis_stats["strategies_generated"] = len(self.second_pass_strategies)
+            LOG.info(f"Generated {len(self.second_pass_strategies)} second-pass strategies")
 
         except Exception as e:
             LOG.error(f"Error generating second-pass strategies: {e}")
@@ -362,9 +346,7 @@ class EnhancedRSTAnalyzer:
         """Convert IntelligentStrategyRecommendation to SecondPassStrategy"""
         try:
             # Generate zapret command from strategy config
-            zapret_command = self._generate_zapret_command(
-                intelligent_strategy.strategy_config
-            )
+            zapret_command = self._generate_zapret_command(intelligent_strategy.strategy_config)
 
             # Assess risk level
             risk_assessment = "LOW"
@@ -410,9 +392,7 @@ class EnhancedRSTAnalyzer:
         elif strategy_type == "tcp_multisplit":
             command_parts.append("--dpi-desync=multisplit")
             if "split_count" in params:
-                command_parts.append(
-                    f"--dpi-desync-split-count={params['split_count']}"
-                )
+                command_parts.append(f"--dpi-desync-split-count={params['split_count']}")
         elif strategy_type == "tcp_multidisorder":
             command_parts.append("--dpi-desync=multidisorder")
         elif strategy_type == "client_hello_split":
@@ -519,9 +499,7 @@ class EnhancedRSTAnalyzer:
                 # For now, we'll simulate based on confidence score
                 import random
 
-                success_probability = (
-                    strategy.confidence_score * 0.8
-                )  # Conservative estimate
+                success_probability = strategy.confidence_score * 0.8  # Conservative estimate
                 test_success = random.random() < success_probability
 
                 test_end = datetime.now()
@@ -548,9 +526,7 @@ class EnhancedRSTAnalyzer:
         # Calculate results
         actual_success_rate = successful_tests / len(test_sites) if test_sites else 0.0
         avg_latency = total_latency / test_count if test_count > 0 else 0.0
-        overall_success = (
-            actual_success_rate > 0.5
-        )  # Consider successful if >50% sites work
+        overall_success = actual_success_rate > 0.5  # Consider successful if >50% sites work
 
         return SecondPassResult(
             strategy=strategy,
@@ -664,9 +640,7 @@ class EnhancedRSTAnalyzer:
         if self.test_results:
             successful_results = [r for r in self.test_results if r.test_success]
             if successful_results:
-                best_result = max(
-                    successful_results, key=lambda x: x.actual_success_rate
-                )
+                best_result = max(successful_results, key=lambda x: x.actual_success_rate)
                 recommendations.append(
                     {
                         "type": "best_strategy",
@@ -678,9 +652,7 @@ class EnhancedRSTAnalyzer:
                 )
 
         # Recommend based on risk assessment
-        low_risk_strategies = [
-            s for s in self.second_pass_strategies if s.risk_assessment == "LOW"
-        ]
+        low_risk_strategies = [s for s in self.second_pass_strategies if s.risk_assessment == "LOW"]
         if low_risk_strategies:
             recommendations.append(
                 {
@@ -766,12 +738,8 @@ if __name__ == "__main__":
         )
 
         print("Enhanced RST Analysis Results:")
-        print(
-            f"Strategies generated: {results['second_pass_summary']['strategies_generated']}"
-        )
-        print(
-            f"Success rate improvement: {results['second_pass_summary']['improvement']:.2%}"
-        )
+        print(f"Strategies generated: {results['second_pass_summary']['strategies_generated']}")
+        print(f"Success rate improvement: {results['second_pass_summary']['improvement']:.2%}")
 
         print("\nRecommendations:")
         for rec in results["recommendations"]:

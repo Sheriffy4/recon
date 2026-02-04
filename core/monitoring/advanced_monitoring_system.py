@@ -86,9 +86,7 @@ class MetricCollector:
         self._metrics: Dict[str, deque] = defaultdict(lambda: deque(maxlen=max_history))
         self._lock = threading.RLock()
 
-    def record_metric(
-        self, name: str, value: float, timestamp: Optional[datetime] = None
-    ) -> None:
+    def record_metric(self, name: str, value: float, timestamp: Optional[datetime] = None) -> None:
         """Record a metric value."""
         if timestamp is None:
             timestamp = datetime.now()
@@ -96,9 +94,7 @@ class MetricCollector:
         with self._lock:
             self._metrics[name].append({"value": value, "timestamp": timestamp})
 
-    def get_metric_history(
-        self, name: str, limit: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+    def get_metric_history(self, name: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get metric history."""
         with self._lock:
             history = list(self._metrics[name])
@@ -226,9 +222,7 @@ class AlertManager:
         cutoff_time = datetime.now() - timedelta(minutes=time_window_minutes)
 
         with self._lock:
-            recent_alerts = [
-                a for a in self._alert_history if a.timestamp >= cutoff_time
-            ]
+            recent_alerts = [a for a in self._alert_history if a.timestamp >= cutoff_time]
 
         summary = {
             "total_alerts": len(recent_alerts),
@@ -361,9 +355,7 @@ class AdvancedMonitoringSystem:
         # Calculate success rate
         recent_results = list(self._attack_results)[-100:]  # Last 100 results
         if recent_results:
-            successful = sum(
-                1 for r in recent_results if r.status == AttackStatus.SUCCESS
-            )
+            successful = sum(1 for r in recent_results if r.status == AttackStatus.SUCCESS)
             success_rate = successful / len(recent_results)
             self.metric_collector.record_metric("success_rate", success_rate, timestamp)
 
@@ -371,15 +363,11 @@ class AdvancedMonitoringSystem:
             latencies = [r.latency_ms for r in recent_results if r.latency_ms > 0]
             if latencies:
                 avg_latency = statistics.mean(latencies)
-                self.metric_collector.record_metric(
-                    "average_latency", avg_latency, timestamp
-                )
+                self.metric_collector.record_metric("average_latency", avg_latency, timestamp)
 
             # Calculate error rate
             errors = sum(
-                1
-                for r in recent_results
-                if r.status in [AttackStatus.ERROR, AttackStatus.FAILED]
+                1 for r in recent_results if r.status in [AttackStatus.ERROR, AttackStatus.FAILED]
             )
             error_rate = errors / len(recent_results)
             self.metric_collector.record_metric("error_rate", error_rate, timestamp)
@@ -394,9 +382,7 @@ class AdvancedMonitoringSystem:
         """Collect system health metrics."""
         # Calculate overall system health score
         health_score = self._calculate_system_health_score()
-        self.metric_collector.record_metric(
-            "system_health_score", health_score, timestamp
-        )
+        self.metric_collector.record_metric("system_health_score", health_score, timestamp)
 
     def _calculate_system_health_score(self) -> float:
         """Calculate overall system health score (0.0 to 1.0)."""
@@ -429,9 +415,7 @@ class AdvancedMonitoringSystem:
             if not threshold.enabled:
                 continue
 
-            stats = self.metric_collector.get_metric_stats(
-                metric_name, time_window_minutes=10
-            )
+            stats = self.metric_collector.get_metric_stats(metric_name, time_window_minutes=10)
             if not stats:
                 continue
 
@@ -449,9 +433,7 @@ class AdvancedMonitoringSystem:
                 )
                 self.alert_manager.trigger_alert(alert)
 
-    def _evaluate_threshold(
-        self, value: float, threshold: MetricThreshold
-    ) -> Optional[AlertLevel]:
+    def _evaluate_threshold(self, value: float, threshold: MetricThreshold) -> Optional[AlertLevel]:
         """Evaluate if a value exceeds threshold."""
         if threshold.comparison == "greater_than":
             if value >= threshold.critical_threshold:
@@ -470,9 +452,7 @@ class AdvancedMonitoringSystem:
 
         return None
 
-    def _get_threshold_value(
-        self, threshold: MetricThreshold, level: AlertLevel
-    ) -> float:
+    def _get_threshold_value(self, threshold: MetricThreshold, level: AlertLevel) -> float:
         """Get threshold value for alert level."""
         if level == AlertLevel.CRITICAL:
             return threshold.critical_threshold
@@ -535,9 +515,7 @@ class AdvancedMonitoringSystem:
             "error_rate",
             "system_health_score",
         ]:
-            stats = self.metric_collector.get_metric_stats(
-                metric_name, time_window_minutes=30
-            )
+            stats = self.metric_collector.get_metric_stats(metric_name, time_window_minutes=30)
             if stats:
                 dashboard["recent_metrics"][metric_name] = stats
 

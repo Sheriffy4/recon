@@ -17,6 +17,7 @@ from core.bypass.attacks.base import (
 )
 from core.bypass.attacks.attack_registry import register_attack
 
+
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
     try:
@@ -61,8 +62,7 @@ class HTTPTunnelingAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'method': 'POST', 'path': '/', 'headers': {}}
-
+        return {"method": "POST", "path": "/", "headers": {}}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP tunneling attack."""
@@ -80,21 +80,13 @@ class HTTPTunnelingAttack(BaseAttack):
             else:
                 encoded_payload = payload.decode("utf-8", errors="ignore")
             if tunnel_method == "POST":
-                http_request = self._create_post_tunnel(
-                    tunnel_path, host_header, encoded_payload
-                )
+                http_request = self._create_post_tunnel(tunnel_path, host_header, encoded_payload)
             elif tunnel_method == "GET":
-                http_request = self._create_get_tunnel(
-                    tunnel_path, host_header, encoded_payload
-                )
+                http_request = self._create_get_tunnel(tunnel_path, host_header, encoded_payload)
             elif tunnel_method == "PUT":
-                http_request = self._create_put_tunnel(
-                    tunnel_path, host_header, encoded_payload
-                )
+                http_request = self._create_put_tunnel(tunnel_path, host_header, encoded_payload)
             else:
-                http_request = self._create_post_tunnel(
-                    tunnel_path, host_header, encoded_payload
-                )
+                http_request = self._create_post_tunnel(tunnel_path, host_header, encoded_payload)
             segments = [(http_request, 0)]
             packets_sent = 1
             bytes_sent = len(http_request)
@@ -180,8 +172,7 @@ class WebSocketTunnelingAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'path': '/ws', 'protocol': 'chat'}
-
+        return {"path": "/ws", "protocol": "chat"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute WebSocket tunneling attack."""
@@ -246,12 +237,7 @@ class WebSocketTunnelingAttack(BaseAttack):
         masked_payload = bytearray()
         for i, byte in enumerate(payload):
             masked_payload.append(byte ^ masking_key[i % 4])
-        return (
-            bytes([first_byte, second_byte])
-            + length_bytes
-            + masking_key
-            + bytes(masked_payload)
-        )
+        return bytes([first_byte, second_byte]) + length_bytes + masking_key + bytes(masked_payload)
 
 
 @register_attack
@@ -282,8 +268,7 @@ class SSHTunnelingAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'port': 22, 'username': 'user'}
-
+        return {"port": 22, "username": "user"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute SSH tunneling attack."""
@@ -326,12 +311,7 @@ class SSHTunnelingAttack(BaseAttack):
         padding_length = 8 - (len(kex_payload) + 1) % 8
         padding = random.randbytes(padding_length)
         packet_length = len(kex_payload) + 1 + padding_length
-        return (
-            struct.pack("!I", packet_length)
-            + bytes([padding_length])
-            + kex_payload
-            + padding
-        )
+        return struct.pack("!I", packet_length) + bytes([padding_length]) + kex_payload + padding
 
     def _create_encrypted_payload(self, payload: bytes) -> bytes:
         """Create encrypted-looking payload."""
@@ -343,10 +323,7 @@ class SSHTunnelingAttack(BaseAttack):
         padding = random.randbytes(padding_length)
         packet_length = len(encrypted) + 1 + padding_length
         return (
-            struct.pack("!I", packet_length)
-            + bytes([padding_length])
-            + bytes(encrypted)
-            + padding
+            struct.pack("!I", packet_length) + bytes([padding_length]) + bytes(encrypted) + padding
         )
 
 
@@ -378,8 +355,7 @@ class VPNTunnelingAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'protocol': 'openvpn', 'port': 1194}
-
+        return {"protocol": "openvpn", "port": 1194}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute VPN tunneling attack."""

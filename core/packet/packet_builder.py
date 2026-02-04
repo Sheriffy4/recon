@@ -6,7 +6,7 @@ Replaces Scapy packet construction functionality.
 import struct
 import socket
 import random
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from .packet_models import (
     EthernetHeader,
     IPv4Header,
@@ -27,6 +27,27 @@ class PacketBuilder:
         self.layers = []
         self.payload = b""
 
+    @staticmethod
+    def _internet_checksum(data: bytes) -> int:
+        """Compute RFC1071 checksum."""
+        if len(data) % 2:
+            data += b"\x00"
+        s = 0
+        for i in range(0, len(data), 2):
+            s += (data[i] << 8) + data[i + 1]
+        while s >> 16:
+            s = (s & 0xFFFF) + (s >> 16)
+        return (~s) & 0xFFFF
+
+    @staticmethod
+    def _detect_ip_offset(packet_data: bytes) -> Tuple[Optional[int], Optional[int]]:
+        """Return (ip_offset, ip_version) for Ethernet-less or Ethernet packets."""
+        if len(packet_data) >= 1 and (packet_data[0] >> 4) in (4, 6):
+            return 0, (packet_data[0] >> 4)
+        if len(packet_data) >= 15 and (packet_data[14] >> 4) in (4, 6):
+            return 14, (packet_data[14] >> 4)
+        return None, None
+
     def ethernet(
         self,
         dst_mac: str = "00:00:00:00:00:00",
@@ -46,6 +67,7 @@ class PacketBuilder:
         ttl: int = 64,
         flags: int = 0x4000,
         identification: Optional[int] = None,
+        fragment_offset: int = 0,
     ) -> "PacketBuilder":
         """Add IPv4 header."""
         if identification is None:
@@ -58,7 +80,7 @@ class PacketBuilder:
             total_length=0,  # Will be calculated
             identification=identification,
             flags=flags,
-            fragment_offset=0,
+            fragment_offset=fragment_offset,
             ttl=ttl,
             protocol=protocol,
             checksum=0,  # Will be calculated
@@ -183,9 +205,7 @@ class PacketBuilder:
         if headers is None:
             headers = {}
 
-        header = HTTPHeader(
-            method=method, path=path, version=version, headers=headers, body=b""
-        )
+        header = HTTPHeader(method=method, path=path, version=version, headers=headers, body=b"")
         self.layers.append(("http", header))
         return self
 
@@ -244,7 +264,17 @@ class PacketBuilder:
     def _build_ipv4(self, header: IPv4Header) -> bytes:
         """Build IPv4 header."""
         version_ihl = (header.version << 4) | header.ihl
-        flags_frag = (header.flags << 13) | header.fragment_offset
+
+        # Backward-compatible flags handling:
+        # some callers pass raw 0x4000/0x2000 (already shifted), others pass 0..7 bits.
+        flags_value = int(header.flags or 0)
+        if flags_value > 0x7:
+            flags_bits = (flags_value & 0xE000) >> 13
+        else:
+            flags_bits = flags_value & 0x7
+
+        frag_off = int(header.fragment_offset or 0) & 0x1FFF
+        flags_frag = (flags_bits << 13) | frag_off
 
         src_ip = socket.inet_aton(header.src_ip)
         dst_ip = socket.inet_aton(header.dst_ip)
@@ -265,9 +295,7 @@ class PacketBuilder:
 
     def _build_ipv6(self, header: IPv6Header) -> bytes:
         """Build IPv6 header."""
-        version_tc_fl = (
-            (header.version << 28) | (header.traffic_class << 20) | header.flow_label
-        )
+        version_tc_fl = (header.version << 28) | (header.traffic_class << 20) | header.flow_label
 
         src_ip = socket.inet_pton(socket.AF_INET6, header.src_ip)
         dst_ip = socket.inet_pton(socket.AF_INET6, header.dst_ip)
@@ -284,9 +312,12 @@ class PacketBuilder:
 
     def _build_tcp(self, header: TCPHeader) -> bytes:
         """Build TCP header."""
-        data_offset_flags = (
-            (header.data_offset << 12) | (header.reserved << 6) | header.flags
-        )
+        options = header.options or b""
+        # TCP options must be padded to 4-byte alignment
+        if len(options) % 4:
+            options += b"\x00" * (4 - (len(options) % 4))
+        data_offset_words = 5 + (len(options) // 4)
+        data_offset_flags = (data_offset_words << 12) | (header.reserved << 6) | header.flags
 
         tcp_header = struct.pack(
             "!HHLLHHHH",
@@ -300,7 +331,7 @@ class PacketBuilder:
             header.urgent_ptr,
         )
 
-        return tcp_header + header.options
+        return tcp_header + options
 
     def _build_udp(self, header: UDPHeader) -> bytes:
         """Build UDP header."""
@@ -348,14 +379,97 @@ class PacketBuilder:
 
     def _update_checksums(self, packet_data: bytes) -> bytes:
         """Update checksums in the packet."""
-        # This is a simplified implementation
-        # In a real implementation, you would need to:
-        # 1. Find IP and TCP/UDP headers in the packet
-        # 2. Calculate proper checksums
-        # 3. Update the packet data
+        ip_offset, ip_version = self._detect_ip_offset(packet_data)
+        if ip_offset is None or ip_version is None:
+            return packet_data
 
-        # For now, return the packet as-is
-        # TODO: Implement proper checksum calculation
+        buf = bytearray(packet_data)
+
+        if ip_version == 4:
+            if len(buf) < ip_offset + 20:
+                return packet_data
+
+            ihl = (buf[ip_offset] & 0x0F) * 4
+            if ihl < 20 or len(buf) < ip_offset + ihl:
+                return packet_data
+
+            total_len = len(buf) - ip_offset
+            struct.pack_into("!H", buf, ip_offset + 2, total_len)
+
+            # IPv4 header checksum
+            struct.pack_into("!H", buf, ip_offset + 10, 0)
+            csum = self._internet_checksum(bytes(buf[ip_offset : ip_offset + ihl]))
+            struct.pack_into("!H", buf, ip_offset + 10, csum)
+
+            proto = buf[ip_offset + 9]
+            src_ip = bytes(buf[ip_offset + 12 : ip_offset + 16])
+            dst_ip = bytes(buf[ip_offset + 16 : ip_offset + 20])
+            l4_offset = ip_offset + ihl
+            if len(buf) < l4_offset:
+                return bytes(buf)
+            l4_len = len(buf) - l4_offset
+
+            if proto == 6 and len(buf) >= l4_offset + 20:
+                # TCP checksum
+                struct.pack_into("!H", buf, l4_offset + 16, 0)
+                pseudo = struct.pack("!4s4sBBH", src_ip, dst_ip, 0, proto, l4_len)
+                tcp_seg = bytes(buf[l4_offset:])
+                tcp_csum = self._internet_checksum(pseudo + tcp_seg)
+                struct.pack_into("!H", buf, l4_offset + 16, tcp_csum)
+
+            elif proto == 17 and len(buf) >= l4_offset + 8:
+                # UDP length + checksum
+                struct.pack_into("!H", buf, l4_offset + 4, l4_len)
+                struct.pack_into("!H", buf, l4_offset + 6, 0)
+                pseudo = struct.pack("!4s4sBBH", src_ip, dst_ip, 0, proto, l4_len)
+                udp_seg = bytes(buf[l4_offset:])
+                udp_csum = self._internet_checksum(pseudo + udp_seg)
+                # UDP checksum of 0 means "not used" in IPv4; keep computed value unless it's 0.
+                struct.pack_into("!H", buf, l4_offset + 6, udp_csum)
+
+            elif proto == 1 and len(buf) >= l4_offset + 4:
+                # ICMP checksum
+                struct.pack_into("!H", buf, l4_offset + 2, 0)
+                icmp_seg = bytes(buf[l4_offset:])
+                icmp_csum = self._internet_checksum(icmp_seg)
+                struct.pack_into("!H", buf, l4_offset + 2, icmp_csum)
+
+            return bytes(buf)
+
+        if ip_version == 6:
+            if len(buf) < ip_offset + 40:
+                return packet_data
+
+            payload_len = len(buf) - ip_offset - 40
+            struct.pack_into("!H", buf, ip_offset + 4, payload_len)
+
+            next_header = buf[ip_offset + 6]
+            src_ip = bytes(buf[ip_offset + 8 : ip_offset + 24])
+            dst_ip = bytes(buf[ip_offset + 24 : ip_offset + 40])
+            l4_offset = ip_offset + 40
+            l4_len = len(buf) - l4_offset
+
+            # Pseudo header for IPv6: src(16)+dst(16)+len(4)+zeros(3)+next(1)
+            pseudo = src_ip + dst_ip + struct.pack("!I", l4_len) + b"\x00" * 3 + bytes([next_header])
+
+            if next_header == 6 and len(buf) >= l4_offset + 20:
+                struct.pack_into("!H", buf, l4_offset + 16, 0)
+                tcp_seg = bytes(buf[l4_offset:])
+                tcp_csum = self._internet_checksum(pseudo + tcp_seg)
+                struct.pack_into("!H", buf, l4_offset + 16, tcp_csum)
+
+            elif next_header == 17 and len(buf) >= l4_offset + 8:
+                struct.pack_into("!H", buf, l4_offset + 4, l4_len)
+                struct.pack_into("!H", buf, l4_offset + 6, 0)
+                udp_seg = bytes(buf[l4_offset:])
+                udp_csum = self._internet_checksum(pseudo + udp_seg)
+                # In IPv6 UDP checksum must not be 0; represent 0 as 0xFFFF
+                if udp_csum == 0:
+                    udp_csum = 0xFFFF
+                struct.pack_into("!H", buf, l4_offset + 6, udp_csum)
+
+            return bytes(buf)
+
         return packet_data
 
     def reset(self) -> "PacketBuilder":
@@ -376,40 +490,86 @@ class FragmentedPacketBuilder:
         """Fragment the packet into multiple packets."""
         original_packet = self.packet_builder.build()
 
-        # Simple fragmentation implementation
+        # Best-effort IPv4 fragmentation for packets built by PacketBuilder.
         fragments = []
-        offset = 0
         fragment_id = random.randint(1, 65535)
 
-        while offset < len(original_packet):
-            fragment_size = min(
-                self.mtu - 20, len(original_packet) - offset
-            )  # 20 bytes for IP header
-            fragment_data = original_packet[offset : offset + fragment_size]
+        ip_offset, ip_version = PacketBuilder._detect_ip_offset(original_packet)
+        if ip_offset is None or ip_version != 4 or len(original_packet) < ip_offset + 20:
+            return [original_packet]
 
-            # Create fragment packet
-            more_fragments = 1 if offset + fragment_size < len(original_packet) else 0
-            flags = 0x2000 if more_fragments else 0x0000  # More fragments flag
+        ihl = (original_packet[ip_offset] & 0x0F) * 4
+        if ihl < 20 or len(original_packet) < ip_offset + ihl:
+            return [original_packet]
+
+        ip_payload = original_packet[ip_offset + ihl :]
+        if not ip_payload:
+            return [original_packet]
+
+        # Determine if Ethernet header should be replicated
+        has_eth = (ip_offset == 14)
+
+        # Max payload per fragment must be multiple of 8 bytes (except last)
+        max_payload = max(8, self.mtu - ihl - (14 if has_eth else 0))
+        max_payload_aligned = (max_payload // 8) * 8
+        if max_payload_aligned <= 0:
+            return [original_packet]
+
+        # Find original IPv4 layer params
+        src_ip = dst_ip = None
+        proto = 6
+        ttl = 64
+        for layer_type, header in self.packet_builder.layers:
+            if layer_type == "ipv4":
+                src_ip = header.src_ip
+                dst_ip = header.dst_ip
+                proto = header.protocol
+                ttl = header.ttl
+                break
+        if not src_ip or not dst_ip:
+            # Fallback to parsing raw header
+            src_ip = socket.inet_ntoa(original_packet[ip_offset + 12 : ip_offset + 16])
+            dst_ip = socket.inet_ntoa(original_packet[ip_offset + 16 : ip_offset + 20])
+            proto = original_packet[ip_offset + 9]
+            ttl = original_packet[ip_offset + 8]
+
+        offset_bytes = 0
+        while offset_bytes < len(ip_payload):
+            is_last = (offset_bytes + max_payload_aligned) >= len(ip_payload)
+            frag_payload = (
+                ip_payload[offset_bytes:] if is_last else ip_payload[offset_bytes : offset_bytes + max_payload_aligned]
+            )
+
+            # MF flag if not last
+            flags = 0x2000 if not is_last else 0x0000
 
             fragment_builder = PacketBuilder()
 
-            # Find IP layer in original packet
-            for layer_type, header in self.packet_builder.layers:
-                if layer_type == "ipv4":
-                    fragment_builder.ipv4(
-                        src_ip=header.src_ip,
-                        dst_ip=header.dst_ip,
-                        protocol=header.protocol,
-                        ttl=header.ttl,
-                        flags=flags,
-                        identification=fragment_id,
-                    )
-                    break
+            # Replicate Ethernet header if present in the original builder
+            if has_eth:
+                for layer_type, header in self.packet_builder.layers:
+                    if layer_type == "ethernet":
+                        fragment_builder.ethernet(
+                            dst_mac=header.dst_mac,
+                            src_mac=header.src_mac,
+                            ethertype=header.ethertype,
+                        )
+                        break
 
-            fragment_builder.add_payload(fragment_data)
+            fragment_builder.ipv4(
+                src_ip=src_ip,
+                dst_ip=dst_ip,
+                protocol=proto,
+                ttl=ttl,
+                flags=flags,
+                identification=fragment_id,
+                fragment_offset=(offset_bytes // 8),
+            )
+
+            fragment_builder.add_payload(frag_payload)
             fragments.append(fragment_builder.build())
 
-            offset += fragment_size
+            offset_bytes += len(frag_payload)
 
         return fragments
 
@@ -420,8 +580,12 @@ class PacketModifier:
     @staticmethod
     def modify_tcp_flags(packet_data: bytes, new_flags: int) -> bytes:
         """Modify TCP flags in a packet."""
-        # Find TCP header (assuming standard Ethernet + IP + TCP)
-        tcp_offset = 14 + 20  # Ethernet (14) + IP (20)
+        ip_offset, ip_version = PacketBuilder._detect_ip_offset(packet_data)
+        if ip_offset is None or ip_version != 4 or len(packet_data) < ip_offset + 20:
+            return packet_data
+
+        ihl = (packet_data[ip_offset] & 0x0F) * 4
+        tcp_offset = ip_offset + ihl
 
         if len(packet_data) < tcp_offset + 13:
             return packet_data
@@ -435,8 +599,9 @@ class PacketModifier:
     @staticmethod
     def modify_ip_ttl(packet_data: bytes, new_ttl: int) -> bytes:
         """Modify IP TTL in a packet."""
-        # TTL is at offset 8 in IP header (after Ethernet header)
-        ip_offset = 14
+        ip_offset, ip_version = PacketBuilder._detect_ip_offset(packet_data)
+        if ip_offset is None or ip_version != 4:
+            return packet_data
 
         if len(packet_data) < ip_offset + 9:
             return packet_data
@@ -449,7 +614,12 @@ class PacketModifier:
     @staticmethod
     def modify_tcp_window(packet_data: bytes, new_window: int) -> bytes:
         """Modify TCP window size in a packet."""
-        tcp_offset = 14 + 20  # Ethernet + IP
+        ip_offset, ip_version = PacketBuilder._detect_ip_offset(packet_data)
+        if ip_offset is None or ip_version != 4 or len(packet_data) < ip_offset + 20:
+            return packet_data
+
+        ihl = (packet_data[ip_offset] & 0x0F) * 4
+        tcp_offset = ip_offset + ihl
 
         if len(packet_data) < tcp_offset + 16:
             return packet_data
@@ -472,9 +642,7 @@ class PacketModifier:
         return packet_data + options
 
     @staticmethod
-    def modify_payload(
-        packet_data: bytes, new_payload: bytes, payload_offset: int
-    ) -> bytes:
+    def modify_payload(packet_data: bytes, new_payload: bytes, payload_offset: int) -> bytes:
         """Replace payload in a packet."""
         if payload_offset >= len(packet_data):
             return packet_data
@@ -515,9 +683,7 @@ def create_http_request(
     )
 
 
-def create_dns_query(
-    src_ip: str, dst_ip: str, src_port: int, dst_port: int, domain: str
-) -> bytes:
+def create_dns_query(src_ip: str, dst_ip: str, src_port: int, dst_port: int, domain: str) -> bytes:
     """Create a DNS query packet."""
     # Simple DNS query payload
     query_payload = _build_dns_query(domain)

@@ -34,9 +34,7 @@ class STUNBypassAttack(BaseAttack):
     Effective against Telegram calls, WhatsApp calls, Discord voice, etc.
     """
 
-    def __init__(
-        self, name: str = "stun_bypass", config: Optional[STUNBypassConfig] = None
-    ):
+    def __init__(self, name: str = "stun_bypass", config: Optional[STUNBypassConfig] = None):
         super().__init__()
         self.config = config or STUNBypassConfig()
 
@@ -57,7 +55,7 @@ class STUNBypassAttack(BaseAttack):
         return {
             "stun_method": "binding_request",
             "magic_cookie": True,
-            "transaction_id_randomize": True
+            "transaction_id_randomize": True,
         }
 
     async def execute(self, context: AttackContext) -> AttackResult:
@@ -167,8 +165,6 @@ class STUNBypassAttack(BaseAttack):
                 )
         else:
             # Send original packet if small enough
-            segments.append(
-                (payload, 0, {"is_fake": False, "delay_ms": self.config.delay_ms})
-            )
+            segments.append((payload, 0, {"is_fake": False, "delay_ms": self.config.delay_ms}))
 
         return segments

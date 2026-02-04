@@ -124,10 +124,8 @@ class AutonomousStrategyOrchestrator:
         try:
             # В HybridEngine ожидается либо zapret-строка, либо dict engine_task
             # Используем dict напрямую
-            res_status, succ, total, avg_lat = (
-                await self.engine.execute_strategy_real_world(
-                    engine_task, test_sites, ips, dns_cache, port
-                )
+            res_status, succ, total, avg_lat = await self.engine.execute_strategy_real_world(
+                engine_task, test_sites, ips, dns_cache, port
             )
             LOG.info(f"Exec result for {domain}: {succ}/{total}, avg={avg_lat:.1f}ms")
         except Exception as e:

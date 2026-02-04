@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Union
 from enum import Enum, auto
 
+SplitPos = Union[int, str]
+
 
 @dataclass
 class AttackTask:
@@ -18,11 +20,9 @@ class AttackTask:
     attack_type: str  # 'multidisorder', 'fakeddisorder', 'split', etc.
     ttl: Optional[int] = None  # Fixed TTL (mutually exclusive with autottl)
     autottl: Optional[int] = None  # AutoTTL offset (mutually exclusive with ttl)
-    split_pos: int = 3  # Position to split packets
+    split_pos: SplitPos = 3  # Position to split packets (int or special token)
     overlap_size: int = 0  # Sequence overlap size (from split_seqovl)
-    fooling: List[str] = field(
-        default_factory=list
-    )  # Fooling methods (badseq, badsum, etc.)
+    fooling: List[str] = field(default_factory=list)  # Fooling methods (badseq, badsum, etc.)
     repeats: int = 1  # Number of times to repeat attack sequence
     window_div: int = 8  # TCP window division factor
     tcp_flags: Dict[str, bool] = field(default_factory=dict)  # TCP flags to set
@@ -33,13 +33,24 @@ class AttackTask:
     def __post_init__(self):
         """Validate that ttl and autottl are mutually exclusive."""
         if self.ttl is not None and self.autottl is not None:
-            raise ValueError(
-                "Cannot specify both ttl and autottl - they are mutually exclusive"
-            )
+            raise ValueError("Cannot specify both ttl and autottl - they are mutually exclusive")
 
         # Ensure fooling is always a list
         if isinstance(self.fooling, str):
             self.fooling = [self.fooling]
+
+        # Normalize split_pos token casing; accept numeric strings.
+        if isinstance(self.split_pos, str):
+            tok = self.split_pos.strip().lower()
+            if tok.isdigit():
+                self.split_pos = int(tok)
+            else:
+                allowed = {"midsld", "sni", "cipher", "random"}
+                if tok not in allowed:
+                    # keep original for observability but avoid crashing
+                    # downstream normalization will handle fallback
+                    pass
+                self.split_pos = tok
 
 
 class DPIMethod(Enum):
@@ -117,9 +128,7 @@ class StrategyInterpreter:
                     try:
                         methods.append(DPIMethod[part.upper()])
                     except KeyError:
-                        self.logger.warning(
-                            f"Unknown DPI method '{part}' in strategy string."
-                        )
+                        self.logger.warning(f"Unknown DPI method '{part}' in strategy string.")
         return methods
 
     def _extract_int_param(
@@ -139,15 +148,11 @@ class StrategyInterpreter:
                     return 2
             elif param_name == "ttl":
                 if not (1 <= value <= 255):
-                    self.logger.error(
-                        f"Invalid ttl value {value}. Must be 1-255. Using default."
-                    )
+                    self.logger.error(f"Invalid ttl value {value}. Must be 1-255. Using default.")
                     return 64
             return value
         except (ValueError, IndexError):
-            self.logger.error(
-                f"Invalid value for --dpi-desync-{param_name}. Expected an integer."
-            )
+            self.logger.error(f"Invalid value for --dpi-desync-{param_name}. Expected an integer.")
             return default
 
     def _extract_split_pos(self, strategy_str: str) -> Optional[Union[int, str]]:
@@ -156,8 +161,8 @@ class StrategyInterpreter:
         if not m:
             return None
         val = m.group(1).strip().lower()
-        if val == "midsld":
-            return "midsld"
+        if val in ("midsld", "sni", "cipher", "random"):
+            return val
 
         # Handle comma-separated lists by taking the first valid integer
         parts = val.split(",")
@@ -192,9 +197,7 @@ class StrategyInterpreter:
                 fooling_match = re.search(r"fooling=\['([^']*)'\]", strategy_str)
                 if fooling_match:
                     fooling_str = fooling_match.group(1)
-                    fooling = [
-                        f.strip() for f in fooling_str.replace("'", "").split(",")
-                    ]
+                    fooling = [f.strip() for f in fooling_str.replace("'", "").split(",")]
                 else:
                     fooling = []
             else:
@@ -212,9 +215,7 @@ class StrategyInterpreter:
             "repeats": self._extract_int_param(strategy_str, "repeats"),
         }
 
-        return ZapretStrategy(
-            raw_strategy=strategy_str, methods=methods, fooling=fooling, **params
-        )
+        return ZapretStrategy(raw_strategy=strategy_str, methods=methods, fooling=fooling, **params)
 
     def validate_strategy(self, strategy: ZapretStrategy) -> bool:
         """Validates the logic and parameters of a parsed strategy."""
@@ -313,9 +314,7 @@ class StrategyInterpreter:
             ttl=ttl,
             autottl=autottl,
             split_pos=strategy.split_pos if strategy.split_pos is not None else 3,
-            overlap_size=(
-                strategy.split_seqovl if strategy.split_seqovl is not None else 0
-            ),
+            overlap_size=(strategy.split_seqovl if strategy.split_seqovl is not None else 0),
             fooling=strategy.fooling if strategy.fooling else [],
             repeats=strategy.repeats if strategy.repeats is not None else 1,
             split_count=strategy.split_count,
@@ -403,74 +402,74 @@ class StrategyInterpreter:
 class StrategyTranslator:
     """
     Translator class for converting between different strategy formats.
-    
+
     This class provides compatibility with the AttackCombinator by translating
     zapret-style strategy strings to recon engine format.
     """
-    
+
     def __init__(self):
         self.interpreter = StrategyInterpreter()
         self.logger = logging.getLogger(__name__)
-    
+
     def translate_zapret_to_recon(self, zapret_strategy: str) -> Dict[str, Any]:
         """
         Translate a zapret-style strategy string to recon engine format.
-        
+
         Args:
             zapret_strategy: Zapret command-line style strategy string
-            
+
         Returns:
             Dictionary with engine task format
-            
+
         Raises:
             ValueError: If strategy cannot be translated
         """
         try:
             # Use the existing interpreter to parse the strategy
             result = self.interpreter.interpret_strategy(zapret_strategy)
-            
+
             if result is None:
                 raise ValueError(f"Failed to interpret strategy: {zapret_strategy}")
-            
+
             self.logger.debug(f"Translated strategy: {zapret_strategy} -> {result}")
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Translation failed for strategy '{zapret_strategy}': {e}")
             raise ValueError(f"Strategy translation failed: {e}")
-    
+
     def translate_recon_to_zapret(self, recon_task: Dict[str, Any]) -> str:
         """
         Translate a recon engine task back to zapret-style string.
-        
+
         Args:
             recon_task: Dictionary with recon engine task format
-            
+
         Returns:
             Zapret command-line style strategy string
         """
         try:
             attack_type = recon_task.get("type", "unknown")
             params = recon_task.get("params", {})
-            
+
             # Build zapret command string
             parts = []
-            
+
             # Map attack types to zapret desync methods
             type_mapping = {
                 "fakeddisorder": "fake,disorder",
                 "multisplit": "multisplit",
-                "multidisorder": "multidisorder", 
+                "multidisorder": "multidisorder",
                 "split": "split",
                 "fake": "fake",
                 "disorder": "disorder",
                 "disorder2": "disorder2",
-                "badsum_race": "fake"
+                "badsum_race": "fake",
             }
-            
+
             desync_method = type_mapping.get(attack_type, "fake")
             parts.append(f"--dpi-desync={desync_method}")
-            
+
             # Add parameters
             if "ttl" in params:
                 parts.append(f"--dpi-desync-ttl={params['ttl']}")
@@ -489,11 +488,11 @@ class StrategyTranslator:
                 parts.append(f"--dpi-desync-repeats={params['repeats']}")
             if "fake_sni" in params:
                 parts.append(f"--dpi-desync-fake-sni={params['fake_sni']}")
-            
+
             result = " ".join(parts)
             self.logger.debug(f"Reverse translated: {recon_task} -> {result}")
             return result
-            
+
         except Exception as e:
             self.logger.error(f"Reverse translation failed for task {recon_task}: {e}")
             return "--dpi-desync=fake --dpi-desync-fooling=badsum --dpi-desync-ttl=3"

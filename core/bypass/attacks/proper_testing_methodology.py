@@ -215,17 +215,13 @@ class ProperTestingMethodology:
                     f"Native engine has attack_adapter: {hasattr(engine, 'attack_adapter')}"
                 )
                 if hasattr(engine, "attack_adapter"):
-                    self.logger.debug(
-                        f"Attack adapter type: {type(engine.attack_adapter)}"
-                    )
+                    self.logger.debug(f"Attack adapter type: {type(engine.attack_adapter)}")
             strategy_dict = self._normalize_strategy_for_engine(strategy, port)
             strategy_map = {target_ip: strategy_dict}
             if not engine.start({target_ip}, strategy_map):
                 raise RuntimeError("Failed to start system interceptor engine")
             bypass_started = True
-            self.logger.debug(
-                "System interceptor started, waiting for initialization..."
-            )
+            self.logger.debug("System interceptor started, waiting for initialization...")
             await asyncio.sleep(1.5)
             start_time = time.time()
             try:
@@ -290,9 +286,7 @@ class ProperTestingMethodology:
                     self.logger.debug("Stopping system interceptor...")
                     engine.stop()
                     stats = engine.get_stats()
-                    if hasattr(stats, "packets_processed") and hasattr(
-                        stats, "packets_modified"
-                    ):
+                    if hasattr(stats, "packets_processed") and hasattr(stats, "packets_modified"):
                         self.logger.info(
                             f"System interceptor stats: packets={stats.packets_processed}, modified={stats.packets_modified}"
                         )
@@ -301,9 +295,7 @@ class ProperTestingMethodology:
                 except Exception as e:
                     self.logger.error(f"Error stopping system interceptor: {e}")
 
-    def _normalize_strategy_for_engine(
-        self, strategy: Dict[str, Any], port: int
-    ) -> Dict[str, Any]:
+    def _normalize_strategy_for_engine(self, strategy: Dict[str, Any], port: int) -> Dict[str, Any]:
         """Normalize strategy for engine usage."""
         if isinstance(strategy, dict):
             if "raw_string" in strategy:
@@ -311,10 +303,7 @@ class ProperTestingMethodology:
                 strategy_type = "custom"
                 if "--dpi-desync=fake" in raw_string:
                     strategy_type = "fake"
-                elif (
-                    "--dpi-desync=split" in raw_string
-                    or "--dpi-desync=multisplit" in raw_string
-                ):
+                elif "--dpi-desync=split" in raw_string or "--dpi-desync=multisplit" in raw_string:
                     strategy_type = "multisplit"
                 elif "--dpi-desync=disorder" in raw_string:
                     strategy_type = "disorder"
@@ -389,9 +378,7 @@ class ProperTestingMethodology:
         self, baseline: SystemTestResult, bypass: SystemTestResult
     ) -> EffectivenessResult:
         """Calculate effectiveness by comparing baseline and bypass results."""
-        bypass_applied = (
-            bypass.interceptor_used is not None and bypass.interceptor_used != "none"
-        )
+        bypass_applied = bypass.interceptor_used is not None and bypass.interceptor_used != "none"
         if not bypass_applied:
             if baseline.success:
                 effectiveness_score = 1.0
@@ -405,10 +392,7 @@ class ProperTestingMethodology:
         elif baseline.success and bypass.success:
             if bypass.latency_ms < baseline.latency_ms * 0.9:
                 effectiveness_score = (
-                    0.5
-                    + (baseline.latency_ms - bypass.latency_ms)
-                    / baseline.latency_ms
-                    * 0.5
+                    0.5 + (baseline.latency_ms - bypass.latency_ms) / baseline.latency_ms * 0.5
                 )
                 improvement_type = "latency_improved"
             else:
@@ -420,9 +404,7 @@ class ProperTestingMethodology:
         latency_improvement_ms = baseline.latency_ms - bypass.latency_ms
         latency_improvement_percent = 0.0
         if baseline.latency_ms > 0:
-            latency_improvement_percent = (
-                latency_improvement_ms / baseline.latency_ms * 100
-            )
+            latency_improvement_percent = latency_improvement_ms / baseline.latency_ms * 100
         return EffectivenessResult(
             domain=baseline.domain,
             baseline=None,
@@ -434,9 +416,7 @@ class ProperTestingMethodology:
             latency_improvement_percent=latency_improvement_percent,
         )
 
-    def _convert_to_baseline_result(
-        self, system_result: SystemTestResult
-    ) -> BaselineResult:
+    def _convert_to_baseline_result(self, system_result: SystemTestResult) -> BaselineResult:
         """Convert SystemTestResult to BaselineResult."""
         return BaselineResult(
             domain=system_result.domain,
@@ -451,9 +431,7 @@ class ProperTestingMethodology:
             server_ip=system_result.server_ip,
         )
 
-    def _convert_to_bypass_result(
-        self, system_result: SystemTestResult
-    ) -> BypassResult:
+    def _convert_to_bypass_result(self, system_result: SystemTestResult) -> BypassResult:
         """Convert SystemTestResult to BypassResult."""
         return BypassResult(
             domain=system_result.domain,

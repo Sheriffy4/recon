@@ -57,7 +57,16 @@ class ServiceFactory:
             from core.bypass.attacks.attack_registry import AttackRegistry
             from core.domain_specific_strategies import DomainSpecificStrategies
             from ml.strategy_predictor import StrategyPredictor, SKLEARN_AVAILABLE
-            from ml.evolutionary_search import EvolutionarySearcher
+
+            # Try to import EvolutionarySearcher, but don't fail if it's not available
+            try:
+                from ml.evolutionary_search import EvolutionarySearcher
+
+                EVOLUTIONARY_AVAILABLE = True
+            except (ImportError, Exception) as e:
+                LOG.warning(f"Evolutionary optimization not available: {e}")
+                EvolutionarySearcher = None
+                EVOLUTIONARY_AVAILABLE = False
 
             container.register_singleton(AttackRegistry)
 
@@ -71,18 +80,12 @@ class ServiceFactory:
                     ),
                 )
 
-            container.register_singleton(
-                IAttackAdapter, factory=create_attack_adapter_factory
-            )
+            container.register_singleton(IAttackAdapter, factory=create_attack_adapter_factory)
 
             def create_diagnostic_system_factory(attack_adapter: IAttackAdapter):
-                return DiagnosticSystem(
-                    attack_adapter=attack_adapter, debug=config.debug_enabled
-                )
+                return DiagnosticSystem(attack_adapter=attack_adapter, debug=config.debug_enabled)
 
-            container.register_singleton(
-                DiagnosticSystem, factory=create_diagnostic_system_factory
-            )
+            container.register_singleton(DiagnosticSystem, factory=create_diagnostic_system_factory)
 
             def create_prober_factory():
                 return UltimateDPIProber(debug=config.debug_enabled)
@@ -101,9 +104,7 @@ class ServiceFactory:
                     timeout=config.effectiveness_tester.timeout,
                     max_retries=config.effectiveness_tester.max_retries,
                     engine_config=EngineConfig(debug=config.debug_enabled),
-                    engine_override=getattr(
-                        config.effectiveness_tester, "engine_override", None
-                    ),
+                    engine_override=getattr(config.effectiveness_tester, "engine_override", None),
                 )
 
             container.register_singleton(
@@ -120,9 +121,7 @@ class ServiceFactory:
             def create_strategy_mapper_factory():
                 return StrategyMapper()
 
-            container.register_singleton(
-                StrategyMapper, factory=create_strategy_mapper_factory
-            )
+            container.register_singleton(StrategyMapper, factory=create_strategy_mapper_factory)
             container.register_singleton(ResultProcessor)
 
             def create_fingerprint_engine_factory(
@@ -145,9 +144,7 @@ class ServiceFactory:
                     timeout=config.effectiveness_tester.timeout,
                     max_retries=config.effectiveness_tester.max_retries,
                     engine_config=EngineConfig(debug=config.debug_enabled),
-                    engine_override=getattr(
-                        config.effectiveness_tester, "engine_override", None
-                    ),
+                    engine_override=getattr(config.effectiveness_tester, "engine_override", None),
                 )
 
             container.register_singleton(
@@ -160,15 +157,11 @@ class ServiceFactory:
                     max_history_entries=config.learning_memory.max_history_entries,
                 )
 
-            container.register_singleton(
-                IAttackAdapter, factory=create_attack_adapter_factory
-            )
+            container.register_singleton(IAttackAdapter, factory=create_attack_adapter_factory)
             container.register_singleton(
                 IEffectivenessTester, factory=create_effectiveness_tester_factory
             )
-            container.register_singleton(
-                ILearningMemory, factory=create_learning_memory_factory
-            )
+            container.register_singleton(ILearningMemory, factory=create_learning_memory_factory)
 
             def create_fingerprint_engine_factory(
                 prober: IProber, classifier: IClassifier, attack_adapter: IAttackAdapter
@@ -188,9 +181,7 @@ class ServiceFactory:
             container.register_singleton(DomainSpecificStrategies)
 
             def create_strategy_predictor_factory():
-                return StrategyPredictor(
-                    model_path="data/strategy_predictor_model.joblib"
-                )
+                return StrategyPredictor(model_path="data/strategy_predictor_model.joblib")
 
             if config.strategy_generator.enable_ml_prediction and SKLEARN_AVAILABLE:
                 container.register_singleton(
@@ -205,26 +196,20 @@ class ServiceFactory:
                     max_strategies_per_fingerprint=config.strategy_saver.max_strategies_to_save,
                 )
 
-            container.register_singleton(
-                IStrategySaver, factory=create_strategy_saver_factory
-            )
+            container.register_singleton(IStrategySaver, factory=create_strategy_saver_factory)
             if OPTIMIZER_AVAILABLE:
 
                 def create_parameter_optimizer_factory(
                     effectiveness_tester: IEffectivenessTester,
                 ):
-                    return DynamicParameterOptimizer(
-                        effectiveness_tester=effectiveness_tester
-                    )
+                    return DynamicParameterOptimizer(effectiveness_tester=effectiveness_tester)
 
                 container.register_singleton(
                     DynamicParameterOptimizer,
                     factory=create_parameter_optimizer_factory,
                 )
             else:
-                LOG.warning(
-                    "DynamicParameterOptimizer not available. Registering as None."
-                )
+                LOG.warning("DynamicParameterOptimizer not available. Registering as None.")
                 container.register_singleton(DynamicParameterOptimizer, instance=None)
 
             def create_strategy_generator_factory(
@@ -271,13 +256,9 @@ class ServiceFactory:
             container.register_singleton(FailureAnalyzer)
 
             def create_diagnostic_system_factory(attack_adapter: IAttackAdapter):
-                return DiagnosticSystem(
-                    attack_adapter=attack_adapter, debug=config.debug_enabled
-                )
+                return DiagnosticSystem(attack_adapter=attack_adapter, debug=config.debug_enabled)
 
-            container.register_singleton(
-                DiagnosticSystem, factory=create_diagnostic_system_factory
-            )
+            container.register_singleton(DiagnosticSystem, factory=create_diagnostic_system_factory)
 
             def create_evolutionary_searcher_factory(
                 attack_adapter: IAttackAdapter, strategy_generator: IStrategyGenerator
@@ -313,14 +294,10 @@ class ServiceFactory:
             container.register_singleton(
                 PacketProcessingEngine, factory=create_packet_processing_engine_factory
             )
-            LOG.info(
-                f"Created DI container from typed configuration (mode: {config.mode})"
-            )
+            LOG.info(f"Created DI container from typed configuration (mode: {config.mode})")
             return container
         except Exception as e:
-            LOG.error(
-                f"Failed to create container from typed config: {e}", exc_info=True
-            )
+            LOG.error(f"Failed to create container from typed config: {e}", exc_info=True)
             raise DIError("Failed to build DI container from typed config.") from e
 
     @staticmethod
@@ -384,9 +361,7 @@ class ServiceFactory:
                 )
         for service_name, service_config in config.custom_services.items():
             if service_config.enabled:
-                ServiceFactory._register_custom_service(
-                    container, service_name, service_config
-                )
+                ServiceFactory._register_custom_service(container, service_name, service_config)
         LOG.info(f"Created DI container from configuration (mode: {config.mode.value})")
         return container
 

@@ -68,17 +68,13 @@ def _get_error_message(error_str: str) -> str:
         return "Driver issue - WinDivert driver not loaded or corrupted"
     elif "timeout" in error_lower:
         return "Operation timeout - Network or system resource issue"
-    elif "handle" in error_lower and (
-        "invalid" in error_lower or "closed" in error_lower
-    ):
+    elif "handle" in error_lower and ("invalid" in error_lower or "closed" in error_lower):
         return "Handle error - WinDivert handle was closed or became invalid"
     else:
         return f"PyDivert error: {error_str}"
 
 
-def _log_packet_details(
-    packet, description: str, log_level: int = logging.DEBUG
-) -> None:
+def _log_packet_details(packet, description: str, log_level: int = logging.DEBUG) -> None:
     """
     Log detailed packet information for debugging purposes.
 
@@ -119,9 +115,7 @@ def _log_packet_details(
         LOG.debug(f"Error logging packet details: {e}")
 
 
-def _log_operation_stats(
-    operation: str, start_time: float, success: bool, **kwargs
-) -> None:
+def _log_operation_stats(operation: str, start_time: float, success: bool, **kwargs) -> None:
     """
     Log operation statistics for performance monitoring.
 
@@ -182,17 +176,13 @@ def _test_pydivert_availability() -> bool:
                 "Troubleshooting: Ensure WinDivert is properly installed and filter syntax is correct"
             )
         elif "access" in error_str or "denied" in error_str:
-            LOG.info(
-                "Troubleshooting: Run the application as Administrator to use PyDivert"
-            )
+            LOG.info("Troubleshooting: Run the application as Administrator to use PyDivert")
         elif "driver" in error_str:
             LOG.info(
                 "Troubleshooting: Reinstall WinDivert or check if antivirus is blocking the driver"
             )
 
-        _log_operation_stats(
-            "PyDivert availability test", start_time, False, error=error_msg
-        )
+        _log_operation_stats("PyDivert availability test", start_time, False, error=error_msg)
         return False
 
 
@@ -342,9 +332,7 @@ class PacketQueueProcessor:
         # Check if thread is still alive and running
         if not self.processor_thread.is_alive() or not self.is_running:
             self.is_running = False
-            raise RuntimeError(
-                "PacketQueueProcessor thread failed to start or crashed immediately"
-            )
+            raise RuntimeError("PacketQueueProcessor thread failed to start or crashed immediately")
 
         LOG.debug("PacketQueueProcessor started")
 
@@ -442,9 +430,7 @@ class PacketQueueProcessor:
                     break
 
             if processed_count > 0:
-                LOG.debug(
-                    f"Processed {processed_count} remaining packets during cleanup"
-                )
+                LOG.debug(f"Processed {processed_count} remaining packets during cleanup")
 
         except Exception as e:
             LOG.debug(f"Error during packet queue cleanup: {e}")
@@ -462,9 +448,7 @@ class PacketQueueProcessor:
 class PyDivertCaptureWorker:
     """Thread-safe packet capture worker using PyDivert."""
 
-    def __init__(
-        self, filter_expr: str, packet_queue: queue.Queue, stop_event: threading.Event
-    ):
+    def __init__(self, filter_expr: str, packet_queue: queue.Queue, stop_event: threading.Event):
         """
         Initialize PyDivert capture worker.
 
@@ -559,17 +543,12 @@ class PyDivertCaptureWorker:
                 gen = WinDivertFilterGenerator()
                 ok, err = gen.validate_syntax(self.filter_expr)
                 if not ok:
-                    LOG.warning(
-                        f"Filter syntax warning: {err}. Trying progressive candidates."
-                    )
+                    LOG.warning(f"Filter syntax warning: {err}. Trying progressive candidates.")
                     # Попробуем построить кандидаты по портам из фильтра (простое извлечение) и без IP
                     import re
 
                     ports = [
-                        int(p)
-                        for p in re.findall(
-                            r"tcp\.DstPort\s*==\s*(\d+)", self.filter_expr
-                        )
+                        int(p) for p in re.findall(r"tcp\.DstPort\s*==\s*(\d+)", self.filter_expr)
                     ]
                     ports = ports or [80, 443]
                     candidates = gen.progressive_candidates(
@@ -586,9 +565,7 @@ class PyDivertCaptureWorker:
 
                         ports = [
                             int(p)
-                            for p in re.findall(
-                                r"tcp\.DstPort\s*==\s*(\d+)", self.filter_expr
-                            )
+                            for p in re.findall(r"tcp\.DstPort\s*==\s*(\d+)", self.filter_expr)
                         ]
                         ports = ports or [80, 443]
                         candidates = gen.progressive_candidates(
@@ -606,16 +583,12 @@ class PyDivertCaptureWorker:
                 try:
                     handle = pydivert.WinDivert(cand)
                     handle.open()
-                    self.filter_expr = (
-                        cand  # зафиксировать реальный используемый фильтр
-                    )
+                    self.filter_expr = cand  # зафиксировать реальный используемый фильтр
                     break
                 except Exception as e:
                     last_error = e
                     handle = None
-                    LOG.warning(
-                        f"Failed to open WinDivert with candidate filter '{cand}': {e}"
-                    )
+                    LOG.warning(f"Failed to open WinDivert with candidate filter '{cand}': {e}")
             if handle is None:
                 # Финальный fallback — безопасный общий
                 simple_filter = "outbound and tcp"
@@ -630,9 +603,7 @@ class PyDivertCaptureWorker:
             _log_operation_stats(
                 "WinDivert handle creation", start_time, True, filter=self.filter_expr
             )
-            LOG.debug(
-                f"WinDivert handle created successfully with filter: '{self.filter_expr}'"
-            )
+            LOG.debug(f"WinDivert handle created successfully with filter: '{self.filter_expr}'")
 
         except Exception as e:
             error_msg = _get_error_message(str(e))
@@ -652,9 +623,7 @@ class PyDivertCaptureWorker:
                 LOG.info("  - Or run from elevated command prompt")
             elif "driver" in error_str:
                 LOG.info("WinDivert driver issues detected")
-                LOG.info(
-                    "  - Reinstall PyDivert: pip uninstall pydivert && pip install pydivert"
-                )
+                LOG.info("  - Reinstall PyDivert: pip uninstall pydivert && pip install pydivert")
                 LOG.info("  - Check if antivirus is blocking WinDivert.sys")
                 LOG.info("  - Ensure Windows version compatibility")
 
@@ -687,9 +656,7 @@ class PyDivertCaptureWorker:
                     LOG.debug("Starting packet reception...")
 
                     # Remove timeout parameter - PyDivert recv() doesn't support it
-                    packet = (
-                        self.windivert_handle.recv()
-                    )  # This blocks until packet arrives
+                    packet = self.windivert_handle.recv()  # This blocks until packet arrives
 
                     if recv_active.is_set():  # Check again to avoid race condition
                         recv_time = time.perf_counter() - thread_start
@@ -699,23 +666,15 @@ class PyDivertCaptureWorker:
                         if LOG.isEnabledFor(logging.DEBUG):
                             try:
                                 packet_info = {
-                                    "direction": (
-                                        "inbound" if packet.is_inbound else "outbound"
-                                    ),
+                                    "direction": ("inbound" if packet.is_inbound else "outbound"),
                                     "size": (
-                                        len(packet.raw)
-                                        if hasattr(packet, "raw")
-                                        else "unknown"
+                                        len(packet.raw) if hasattr(packet, "raw") else "unknown"
                                     ),
-                                    "protocol": (
-                                        "TCP" if hasattr(packet, "tcp") else "other"
-                                    ),
+                                    "protocol": ("TCP" if hasattr(packet, "tcp") else "other"),
                                 }
                                 LOG.debug(f"Packet details: {packet_info}")
                             except Exception as detail_error:
-                                LOG.debug(
-                                    f"Could not log packet details: {detail_error}"
-                                )
+                                LOG.debug(f"Could not log packet details: {detail_error}")
 
                         packet_result.put(("packet", packet))
                     else:
@@ -728,12 +687,8 @@ class PyDivertCaptureWorker:
 
                     # Log specific error patterns for troubleshooting
                     error_str = str(e).lower()
-                    if "handle" in error_str and (
-                        "invalid" in error_str or "closed" in error_str
-                    ):
-                        LOG.warning(
-                            "WinDivert handle became invalid during packet reception"
-                        )
+                    if "handle" in error_str and ("invalid" in error_str or "closed" in error_str):
+                        LOG.warning("WinDivert handle became invalid during packet reception")
                     elif "timeout" in error_str:
                         LOG.debug("Packet reception timeout (expected behavior)")
                     elif "access" in error_str:
@@ -744,9 +699,7 @@ class PyDivertCaptureWorker:
                     packet_result.put(("error", error_msg))
 
         # Start recv in separate thread
-        recv_worker = threading.Thread(
-            target=recv_thread, daemon=True, name="PyDivert-Recv"
-        )
+        recv_worker = threading.Thread(target=recv_thread, daemon=True, name="PyDivert-Recv")
         recv_worker.start()
 
         # Wait for result with timeout using queue.Queue
@@ -766,9 +719,7 @@ class PyDivertCaptureWorker:
             LOG.debug("Packet reception timeout (no packets available)")
             return None
 
-    def _convert_packet_to_scapy(
-        self, pydivert_packet: "pydivert.Packet"
-    ) -> Optional[ScapyPacket]:
+    def _convert_packet_to_scapy(self, pydivert_packet: "pydivert.Packet") -> Optional[ScapyPacket]:
         """
         Convert PyDivert packet to Scapy format with comprehensive error handling.
 
@@ -821,17 +772,13 @@ class PyDivertCaptureWorker:
             conversion_time = time.perf_counter() - conversion_start
             error_msg = str(e)
 
-            LOG.debug(
-                f"Packet conversion failed after {conversion_time:.4f}s: {error_msg}"
-            )
+            LOG.debug(f"Packet conversion failed after {conversion_time:.4f}s: {error_msg}")
 
             # Log specific error patterns for troubleshooting
             if "malformed" in error_msg.lower() or "invalid" in error_msg.lower():
                 LOG.debug("Packet appears to be malformed or corrupted")
             elif "memory" in error_msg.lower():
-                LOG.warning(
-                    "Memory error during packet conversion - possible resource exhaustion"
-                )
+                LOG.warning("Memory error during packet conversion - possible resource exhaustion")
             elif "decode" in error_msg.lower() or "parse" in error_msg.lower():
                 LOG.debug("Packet parsing error - unsupported protocol or format")
 
@@ -867,16 +814,12 @@ class PyDivertCaptureWorker:
 
                 # Log specific cleanup error patterns
                 error_str = str(e).lower()
-                if "handle" in error_str and (
-                    "invalid" in error_str or "closed" in error_str
-                ):
+                if "handle" in error_str and ("invalid" in error_str or "closed" in error_str):
                     LOG.debug("Handle was already closed or invalid")
                 elif "access" in error_str:
                     LOG.warning("Access denied during handle cleanup")
                 elif "resource" in error_str:
-                    LOG.warning(
-                        "Resource cleanup issue - possible system resource leak"
-                    )
+                    LOG.warning("Resource cleanup issue - possible system resource leak")
 
             finally:
                 self.windivert_handle = None
@@ -1052,13 +995,9 @@ def _scapy_session(
 
     try:
         # Create and start Scapy sniffer
-        sniffer = AsyncSniffer(
-            filter=filter_expr, prn=_packet_callback, store=False, iface=iface
-        )
+        sniffer = AsyncSniffer(filter=filter_expr, prn=_packet_callback, store=False, iface=iface)
         sniffer.start()
-        LOG.debug(
-            f"Scapy capture session started with filter: '{filter_expr}', interface: {iface}"
-        )
+        LOG.debug(f"Scapy capture session started with filter: '{filter_expr}', interface: {iface}")
 
         yield packets, timestamps
 
@@ -1075,11 +1014,7 @@ def _scapy_session(
                     sniffer.stop()
 
                     # Wait for sniffer thread to finish gracefully
-                    if (
-                        hasattr(sniffer, "thread")
-                        and sniffer.thread
-                        and sniffer.thread.is_alive()
-                    ):
+                    if hasattr(sniffer, "thread") and sniffer.thread and sniffer.thread.is_alive():
                         sniffer.thread.join(timeout=2.0)
                         if sniffer.thread.is_alive():
                             LOG.warning("Scapy sniffer thread did not stop gracefully")
@@ -1088,9 +1023,7 @@ def _scapy_session(
                 # Scapy may raise exceptions if socket is already closed or unavailable
                 LOG.debug(f"Error during Scapy sniffer cleanup: {e}")
 
-        LOG.debug(
-            f"Scapy capture session cleanup complete. Captured {len(packets)} packets."
-        )
+        LOG.debug(f"Scapy capture session cleanup complete. Captured {len(packets)} packets.")
 
 
 @contextlib.contextmanager
@@ -1124,21 +1057,15 @@ def _pydivert_session(filter_expr: str) -> Generator[Tuple[List, List], None, No
 
         # Validate converted filter
         if not windivert_filter or not windivert_filter.strip():
-            raise ValueError(
-                f"Filter conversion resulted in empty filter from: '{filter_expr}'"
-            )
+            raise ValueError(f"Filter conversion resulted in empty filter from: '{filter_expr}'")
 
         # Create PyDivert capture worker
         LOG.debug("Creating PyDivert capture worker...")
-        capture_worker = PyDivertCaptureWorker(
-            windivert_filter, packet_queue, capture_active
-        )
+        capture_worker = PyDivertCaptureWorker(windivert_filter, packet_queue, capture_active)
 
         # Create packet queue processor
         LOG.debug("Creating packet queue processor...")
-        queue_processor = PacketQueueProcessor(
-            packet_queue, packets, timestamps, capture_active
-        )
+        queue_processor = PacketQueueProcessor(packet_queue, packets, timestamps, capture_active)
 
         # Start worker threads with comprehensive error handling
         try:
@@ -1167,14 +1094,10 @@ def _pydivert_session(filter_expr: str) -> Generator[Tuple[List, List], None, No
 
             # Check if the capture worker encountered an initialization error
             if not initialization_success or not capture_worker.is_running:
-                raise RuntimeError(
-                    "PyDivert capture worker failed to initialize within timeout"
-                )
+                raise RuntimeError("PyDivert capture worker failed to initialize within timeout")
 
             init_time = time.perf_counter() - session_start
-            LOG.info(
-                f"PyDivert capture session initialized successfully in {init_time:.3f}s"
-            )
+            LOG.info(f"PyDivert capture session initialized successfully in {init_time:.3f}s")
 
         except Exception as e:
             error_msg = _get_error_message(str(e))
@@ -1182,9 +1105,7 @@ def _pydivert_session(filter_expr: str) -> Generator[Tuple[List, List], None, No
 
             # Provide specific troubleshooting advice
             if "timeout" in str(e).lower():
-                LOG.info(
-                    "Initialization timeout - check if WinDivert driver is responding"
-                )
+                LOG.info("Initialization timeout - check if WinDivert driver is responding")
             elif "worker" in str(e).lower():
                 LOG.info("Worker thread issue - check system resources and permissions")
 
@@ -1250,9 +1171,7 @@ def _pydivert_session(filter_expr: str) -> Generator[Tuple[List, List], None, No
                         break
 
                 if remaining_packets > 0:
-                    LOG.debug(
-                        f"Cleared {remaining_packets} remaining packets from queue"
-                    )
+                    LOG.debug(f"Cleared {remaining_packets} remaining packets from queue")
 
             except Exception as e:
                 cleanup_errors.append(f"queue cleanup: {e}")
@@ -1266,9 +1185,7 @@ def _pydivert_session(filter_expr: str) -> Generator[Tuple[List, List], None, No
                 f"PyDivert session cleanup completed with errors in {cleanup_time:.3f}s: {'; '.join(cleanup_errors)}"
             )
         else:
-            LOG.debug(
-                f"PyDivert session cleanup completed successfully in {cleanup_time:.3f}s"
-            )
+            LOG.debug(f"PyDivert session cleanup completed successfully in {cleanup_time:.3f}s")
 
         # Log final session statistics
         _log_operation_stats(

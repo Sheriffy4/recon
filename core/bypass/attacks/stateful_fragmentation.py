@@ -1,10 +1,9 @@
 import time
 import logging
-from typing import List, Dict, Any
+from typing import List
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
 from core.bypass.attacks.base import BaseAttack
 from core.bypass.attacks.metadata import AttackCategories
-from core.bypass.attacks.attack_registry import register_attack
 
 LOG = logging.getLogger(__name__)
 
@@ -81,9 +80,7 @@ class StatefulFragmentationAttack(BaseAttack):
             )
             return result
         except Exception as e:
-            LOG.error(
-                f"Stateful fragmentation attack failed: {e}", exc_info=context.debug
-            )
+            LOG.error(f"Stateful fragmentation attack failed: {e}", exc_info=context.debug)
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=str(e),

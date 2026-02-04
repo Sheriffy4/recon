@@ -50,7 +50,9 @@
       "start_date": null,
       "end_date": null,
       "description": "Use domain_rules.json for structured strategy configuration",
-      "dependencies": ["domain_based_filtering"]
+      "dependencies": [
+        "domain_based_filtering"
+      ]
     },
     {
       "name": "enable_runtime_ip_resolution",
@@ -60,7 +62,9 @@
       "start_date": null,
       "end_date": null,
       "description": "Enable runtime IP-to-domain resolution for dynamic CDN IP addresses",
-      "dependencies": ["domain_based_filtering"]
+      "dependencies": [
+        "domain_based_filtering"
+      ]
     },
     {
       "name": "service_based_testing",
@@ -69,7 +73,7 @@
       "rollout_percentage": 1.0,
       "start_date": null,
       "end_date": null,
-      "description": "Use service-based testing approach (like zapret) instead of inline interception",
+      "description": "Use service-based testing approach (like zapret) instead of inline interception - ENABLED for accurate domain blocking detection",
       "dependencies": []
     }
   ],
@@ -83,5 +87,21 @@
       "performance_impact": 0.0
     }
   ],
-  "last_updated": "2025-10-30T14:22:18.299023"
+  "last_updated": "2025-10-30T14:22:18.299023",
+  "combination_attacks_enabled": {
+    "enabled": true,
+    "description": "Включить поддержку комбинированных атак в системе автоматического поиска"
+  },
+  "intelligent_combination_generation": {
+    "enabled": true,
+    "description": "Использовать интеллектуальный генератор комбинаций на основе анализа провалов"
+  },
+  "adaptive_combination_thresholds": {
+    "enabled": true,
+    "description": "Адаптивные пороги для разных типов доменов"
+  },
+  "pcap_based_combination_triggers": {
+    "enabled": true,
+    "description": "Триггеры комбинаций на основе анализа PCAP"
+  }
 }

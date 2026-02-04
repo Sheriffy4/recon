@@ -86,36 +86,30 @@ class NativePydivertEngine(BaseBypassEngine):
         self._recipe_consumed_ips: Set[str] = set()
         self._consumed_recipes: Set[str] = set()
         self.segments_recipe = None
+        self._domain_filter = None  # Domain filter for discovery mode
+        self._shared_ip_sni_filter = None  # Shared IP SNI filter for discovery mode
 
     def _run_async_loop(self):
         asyncio.set_event_loop(self._loop)
         self._loop.run_forever()
 
-    def start(
-        self, target_ips: Set[str], strategy_map: Dict[str, Dict[str, Any]]
-    ) -> bool:
+    def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict[str, Any]]) -> bool:
         if self.is_running:
             self.logger.warning("Engine already running")
             return False
         if not isinstance(target_ips, set):
-            self.logger.warning(
-                f"target_ips is not a set ({type(target_ips)}), converting."
-            )
+            self.logger.warning(f"target_ips is not a set ({type(target_ips)}), converting.")
             target_ips = set(target_ips)
         ports = {s.get("target_port", 443) for s in strategy_map.values()}
         if not ports:
             ports = {80, 443}
-        self.interception_config = InterceptionConfig(
-            target_ips=target_ips, target_ports=ports
-        )
+        self.interception_config = InterceptionConfig(target_ips=target_ips, target_ports=ports)
         self.logger.info(f"Engine starting for {len(target_ips)} target IPs.")
         self.logger.info(f"Filter target IPs: {target_ips}")
         self.logger.info(f"Filter target ports: {ports}")
         self.strategy_map = strategy_map
         self.stop_event.clear()
-        self.intercept_thread = threading.Thread(
-            target=self._intercept_loop, daemon=True
-        )
+        self.intercept_thread = threading.Thread(target=self._intercept_loop, daemon=True)
         self.intercept_thread.start()
         time.sleep(0.5)
         self.is_running = True
@@ -159,9 +153,7 @@ class NativePydivertEngine(BaseBypassEngine):
                         )[0]
                         name_start = name_len_start + 2
                         if name_start + server_name_len <= sni_data_start + ext_len:
-                            domain_bytes = payload[
-                                name_start : name_start + server_name_len
-                            ]
+                            domain_bytes = payload[name_start : name_start + server_name_len]
                             return domain_bytes.decode("utf-8", errors="ignore")
                 cursor += ext_len
             return None
@@ -169,17 +161,13 @@ class NativePydivertEngine(BaseBypassEngine):
             self.logger.debug(f"Error parsing TLS ClientHello for SNI: {e}")
             return None
         except Exception as e:
-            self.logger.error(
-                f"Unexpected error in _extract_sni: {e}", exc_info=self.config.debug
-            )
+            self.logger.error(f"Unexpected error in _extract_sni: {e}", exc_info=self.config.debug)
             return None
 
     def _build_filter(self) -> str:
         """Создает надежный фильтр для WinDivert, используя переданные целевые IP."""
         if not self.interception_config or not self.interception_config.target_ips:
-            self.logger.warning(
-                "Нет целевых IP для создания фильтра, используется общий фильтр."
-            )
+            self.logger.warning("Нет целевых IP для создания фильтра, используется общий фильтр.")
             return "outbound and tcp and tcp.DstPort == 443"
         from core.windivert_filter import WinDivertFilterGenerator
 
@@ -199,14 +187,10 @@ class NativePydivertEngine(BaseBypassEngine):
             with self._global_lock:
                 if self._global_handle is None:
                     target_ips = (
-                        self.interception_config.target_ips
-                        if self.interception_config
-                        else set()
+                        self.interception_config.target_ips if self.interception_config else set()
                     )
                     target_ports = (
-                        self.interception_config.target_ports
-                        if self.interception_config
-                        else {443}
+                        self.interception_config.target_ports if self.interception_config else {443}
                     )
                     filter_candidates = self._filter_gen.progressive_candidates(
                         target_ports=target_ports,
@@ -292,12 +276,47 @@ class NativePydivertEngine(BaseBypassEngine):
         """
         if not packet.is_outbound or not packet.tcp or (not packet.tcp.payload):
             return False
+
         payload = bytes(packet.tcp.payload)
-        if packet.tcp.dst_port == 443:
-            return len(payload) > 5 and payload[0] == 22 and (payload[5] == 1)
-        if packet.tcp.dst_port == 80:
-            return payload.startswith((b"GET", b"POST", b"PUT", b"DELETE", b"HEAD"))
-        return False
+
+        # Basic protocol filtering
+        is_tls = (
+            packet.tcp.dst_port == 443
+            and len(payload) > 5
+            and payload[0] == 22
+            and (payload[5] == 1)
+        )
+        is_http = packet.tcp.dst_port == 80 and payload.startswith(
+            (b"GET", b"POST", b"PUT", b"DELETE", b"HEAD")
+        )
+
+        if not (is_tls or is_http):
+            return False
+
+        # Apply domain filtering if discovery mode is active
+        if (
+            hasattr(self, "_domain_filter")
+            and self._domain_filter
+            and self._domain_filter.is_discovery_mode()
+        ):
+            try:
+                # Check if we have a shared IP SNI filter for this scenario
+                if hasattr(self, "_shared_ip_sni_filter") and self._shared_ip_sni_filter:
+                    if not self._shared_ip_sni_filter.should_process_packet_for_shared_ip(
+                        payload, packet.dst_addr
+                    ):
+                        self.logger.debug(
+                            f"Shared IP SNI filter rejected packet to {packet.dst_addr}"
+                        )
+                        return False
+                elif not self._domain_filter.should_process_packet(payload):
+                    self.logger.debug(f"Domain filter rejected packet to {packet.dst_addr}")
+                    return False
+            except Exception as e:
+                self.logger.warning(f"Error in domain filtering: {e}")
+                # In case of error, allow packet processing to avoid breaking functionality
+
+        return True
 
     def start_with_strategy_or_segments(
         self,
@@ -335,9 +354,8 @@ class NativePydivertEngine(BaseBypassEngine):
             return False
         from core.bypass.attacks.base import AttackResult, AttackStatus
 
-        recipe_result = AttackResult(
-            status=AttackStatus.SUCCESS, segments=self.segments_recipe
-        )
+        recipe_result = AttackResult(status=AttackStatus.SUCCESS, metadata={"segments": self.segments_recipe})
+        recipe_result.segments = self.segments_recipe
         return self._execute_segments_orchestration(recipe_result, context, packet)
 
     def _process_packet_with_attack(self, packet: pydivert.Packet) -> bool:
@@ -379,9 +397,7 @@ class NativePydivertEngine(BaseBypassEngine):
             return False
         context = self._create_enhanced_attack_context(packet)
         if not context:
-            self.logger.warning(
-                "Failed to create enhanced AttackContext. Sending original."
-            )
+            self.logger.warning("Failed to create enhanced AttackContext. Sending original.")
             return False
         context.params = strategy.get("params", {})
         attack_name = strategy.get("type") or strategy.get("name")
@@ -396,22 +412,16 @@ class NativePydivertEngine(BaseBypassEngine):
             attack_result = future.result(timeout=5.0)
             if attack_result.status == AttackStatus.SUCCESS:
                 if attack_result.has_segments():
-                    return self._execute_segments_orchestration(
-                        attack_result, context, packet
-                    )
+                    return self._execute_segments_orchestration(attack_result, context, packet)
                 elif attack_result.modified_payload:
-                    return self._send_modified_packet(
-                        packet, attack_result.modified_payload
-                    )
+                    return self._send_modified_packet(packet, attack_result.modified_payload)
                 else:
                     self.logger.warning(
                         f"Attack '{attack_name}' succeeded but produced no packets."
                     )
                     return False
             else:
-                self.logger.error(
-                    f"Attack '{attack_name}' failed: {attack_result.error_message}"
-                )
+                self.logger.error(f"Attack '{attack_name}' failed: {attack_result.error_message}")
                 return False
         except Exception as e:
             self.logger.error(
@@ -422,22 +432,14 @@ class NativePydivertEngine(BaseBypassEngine):
             attack_latency_ms = (time.time() - attack_start_time) * 1000
             if attack_result.status == AttackStatus.SUCCESS:
                 if attack_result.has_segments():
-                    return self._execute_segments_orchestration(
-                        attack_result, context, packet
-                    )
+                    return self._execute_segments_orchestration(attack_result, context, packet)
                 elif attack_result.modified_payload:
-                    return self._send_modified_packet(
-                        packet, attack_result.modified_payload
-                    )
+                    return self._send_modified_packet(packet, attack_result.modified_payload)
             success = attack_result.status == AttackStatus.SUCCESS
-            self.performance_integrator.record_attack_executed(
-                attack_latency_ms, success
-            )
+            self.performance_integrator.record_attack_executed(attack_latency_ms, success)
             if strategy.get("ml_predicted", False):
                 try:
-                    feedback_latency = attack_result.metadata.get(
-                        "latency_ms", attack_latency_ms
-                    )
+                    feedback_latency = attack_result.metadata.get("latency_ms", attack_latency_ms)
                     self.strategy_integrator.update_strategy_effectiveness(
                         packet.dst_addr, attack_name, success, feedback_latency
                     )
@@ -498,14 +500,10 @@ class NativePydivertEngine(BaseBypassEngine):
         time.sleep(0.5)
         self.is_running = True
         self.stats.start_time = time.time()
-        self.logger.info(
-            f"Native pydivert engine started in RECIPE MODE for IPs {target_ips}"
-        )
+        self.logger.info(f"Native pydivert engine started in RECIPE MODE for IPs {target_ips}")
         return True
 
-    def _create_enhanced_attack_context(
-        self, packet: pydivert.Packet
-    ) -> Optional[AttackContext]:
+    def _create_enhanced_attack_context(self, packet: pydivert.Packet) -> Optional[AttackContext]:
         """
         Create enhanced AttackContext with complete TCP session information.
 
@@ -584,9 +582,7 @@ class NativePydivertEngine(BaseBypassEngine):
                 attack_result, "segments", None
             )
             if not segments:
-                self.logger.warning(
-                    "No segments found in attack result for orchestration"
-                )
+                self.logger.warning("No segments found in attack result for orchestration")
                 return False
             self.logger.info(
                 f"Orchestrating {len(segments)} segments for connection {context.connection_id}"
@@ -610,14 +606,10 @@ class NativePydivertEngine(BaseBypassEngine):
                 )
                 self.windivert_handle.send(pydivert_packet)
                 self.stats.packets_sent += 1
-            self.logger.debug(
-                f"Successfully sent {len(segments)} orchestrated segments."
-            )
+            self.logger.debug(f"Successfully sent {len(segments)} orchestrated segments.")
             return True
         except Exception as e:
-            self.logger.error(
-                f"Segments orchestration failed: {e}", exc_info=self.debug
-            )
+            self.logger.error(f"Segments orchestration failed: {e}", exc_info=self.debug)
             return False
 
     def _validate_segments_for_execution(
@@ -673,9 +665,7 @@ class NativePydivertEngine(BaseBypassEngine):
                         i + 1, session_id, len(payload_data), seq_offset, options_dict
                     )
                     validation_start = time.time()
-                    is_valid, error_msg = self._validate_single_segment(
-                        segment, context
-                    )
+                    is_valid, error_msg = self._validate_single_segment(segment, context)
                     validation_time = (time.time() - validation_start) * 1000
                     diagnostic_logger.log_validation_phase(
                         segment_data, validation_time, is_valid, error_msg
@@ -684,9 +674,7 @@ class NativePydivertEngine(BaseBypassEngine):
                         segment_metrics, ExecutionPhase.VALIDATION, validation_time
                     )
                     if not is_valid:
-                        self.logger.warning(
-                            f"Segment {i + 1} validation failed: {error_msg}"
-                        )
+                        self.logger.warning(f"Segment {i + 1} validation failed: {error_msg}")
                         stats_collector.complete_segment_execution(
                             segment_metrics, ExecutionStatus.FAILED, error_msg
                         )
@@ -716,9 +704,7 @@ class NativePydivertEngine(BaseBypassEngine):
                             segment_metrics, ExecutionPhase.TIMING, timing_phase_time
                         )
                     transmission_start = time.time()
-                    success = self._send_segment_packet(
-                        packet_info, i + 1, original_packet
-                    )
+                    success = self._send_segment_packet(packet_info, i + 1, original_packet)
                     transmission_time = (time.time() - transmission_start) * 1000
                     diagnostic_logger.log_transmission_phase(
                         segment_data,
@@ -745,9 +731,7 @@ class NativePydivertEngine(BaseBypassEngine):
                             timing_result.accuracy_error_ms if timing_result else 0.0,
                         )
                         segment_time = (time.time() - segment_start_time) * 1000
-                        self._log_segment_execution(
-                            i + 1, packet_info, options_dict, segment_time
-                        )
+                        self._log_segment_execution(i + 1, packet_info, options_dict, segment_time)
                     else:
                         self.logger.warning(f"Failed to send segment {i + 1}")
                         stats_collector.complete_segment_execution(
@@ -774,9 +758,7 @@ class NativePydivertEngine(BaseBypassEngine):
                 self.logger.info(
                     f"Session statistics: {session_stats.success_rate_percent:.1f}% success rate, {session_stats.avg_segment_time_ms:.2f}ms avg time, {session_stats.throughput_segments_per_sec:.1f} segments/sec"
                 )
-            success_rate = (
-                successful_segments / total_segments * 100 if total_segments > 0 else 0
-            )
+            success_rate = successful_segments / total_segments * 100 if total_segments > 0 else 0
             self.logger.info(
                 f"Segments execution completed: {successful_segments}/{total_segments} successful ({success_rate:.1f}%)"
             )
@@ -819,9 +801,7 @@ class NativePydivertEngine(BaseBypassEngine):
         except Exception as e:
             return (False, f"Validation error: {e}")
 
-    def _apply_ttl_modification(
-        self, packet_info: "SegmentPacketInfo", ttl: int
-    ) -> None:
+    def _apply_ttl_modification(self, packet_info: "SegmentPacketInfo", ttl: int) -> None:
         """
         Apply TTL modification to packet.
 
@@ -831,9 +811,7 @@ class NativePydivertEngine(BaseBypassEngine):
         """
         try:
             if packet_info.ttl != ttl:
-                self.logger.warning(
-                    f"TTL mismatch: expected {ttl}, got {packet_info.ttl}"
-                )
+                self.logger.warning(f"TTL mismatch: expected {ttl}, got {packet_info.ttl}")
             else:
                 self.logger.debug(f"TTL modification applied: {ttl}")
         except Exception as e:
@@ -949,11 +927,7 @@ class NativePydivertEngine(BaseBypassEngine):
                 f"Segment {segment_num} performance: build_time={packet_info.construction_time_ms:.3f}ms, total_time={execution_time_ms:.3f}ms"
             )
         if self.logger.isEnabledFor(logging.INFO):
-            payload_size = (
-                len(options.get("payload_data", b""))
-                if "payload_data" in options
-                else 0
-            )
+            payload_size = len(options.get("payload_data", b"")) if "payload_data" in options else 0
             self.logger.info(
                 f"Segment {segment_num} executed: {payload_size} bytes payload, {packet_info.packet_size} bytes total"
             )
@@ -981,9 +955,7 @@ class NativePydivertEngine(BaseBypassEngine):
             self.windivert_handle.send(modified_packet)
             self.stats.packets_sent += 1
             self.stats.modified_packets += 1
-            self.logger.debug(
-                f"Sent modified packet with {len(modified_payload)} bytes payload"
-            )
+            self.logger.debug(f"Sent modified packet with {len(modified_payload)} bytes payload")
             return True
         except Exception as e:
             self.logger.error(f"Failed to send modified packet: {e}")
@@ -1044,21 +1016,11 @@ class NativePydivertEngine(BaseBypassEngine):
             self.stats.metadata.update(
                 {
                     "segment_packets_built": segment_stats.get("packets_built", 0),
-                    "segment_build_time_ms": segment_stats.get(
-                        "total_build_time_ms", 0.0
-                    ),
-                    "segment_avg_build_time_ms": segment_stats.get(
-                        "avg_build_time_ms", 0.0
-                    ),
-                    "segment_ttl_modifications": segment_stats.get(
-                        "ttl_modifications", 0
-                    ),
-                    "segment_checksum_corruptions": segment_stats.get(
-                        "checksum_corruptions", 0
-                    ),
-                    "segment_flag_modifications": segment_stats.get(
-                        "flag_modifications", 0
-                    ),
+                    "segment_build_time_ms": segment_stats.get("total_build_time_ms", 0.0),
+                    "segment_avg_build_time_ms": segment_stats.get("avg_build_time_ms", 0.0),
+                    "segment_ttl_modifications": segment_stats.get("ttl_modifications", 0),
+                    "segment_checksum_corruptions": segment_stats.get("checksum_corruptions", 0),
+                    "segment_flag_modifications": segment_stats.get("flag_modifications", 0),
                 }
             )
         try:
@@ -1089,17 +1051,13 @@ class NativePydivertEngine(BaseBypassEngine):
                             "timing_total_requested_ms": timing_data.get(
                                 "total_requested_time_ms", 0.0
                             ),
-                            "timing_total_actual_ms": timing_data.get(
-                                "total_actual_time_ms", 0.0
-                            ),
+                            "timing_total_actual_ms": timing_data.get("total_actual_time_ms", 0.0),
                         }
                     )
                 else:
                     self.stats.metadata.update(
                         {
-                            "timing_total_delays": getattr(
-                                timing_data, "total_delays", 0
-                            ),
+                            "timing_total_delays": getattr(timing_data, "total_delays", 0),
                             "timing_average_accuracy": getattr(
                                 timing_data,
                                 "average_accuracy_percent",
@@ -1147,16 +1105,12 @@ class NativePydivertEngine(BaseBypassEngine):
             report["timing_performance"] = {"error": str(e)}
         try:
             stats_collector = get_segment_stats_collector()
-            report["segment_execution_stats"] = (
-                stats_collector.get_performance_summary()
-            )
+            report["segment_execution_stats"] = stats_collector.get_performance_summary()
         except Exception as e:
             report["segment_execution_stats"] = {"error": str(e)}
         return report
 
-    async def execute_dry_run_test(
-        self, attack_name: str, context: AttackContext
-    ) -> AttackResult:
+    async def execute_dry_run_test(self, attack_name: str, context: AttackContext) -> AttackResult:
         """
         Execute attack in dry run mode for testing without network transmission.
 
@@ -1181,9 +1135,7 @@ class NativePydivertEngine(BaseBypassEngine):
                 }
             )
             self._log_dry_run_results(result, attack_name, context)
-            self.logger.info(
-                f"Dry run test completed for '{attack_name}': {result.status.value}"
-            )
+            self.logger.info(f"Dry run test completed for '{attack_name}': {result.status.value}")
             return result
         except Exception as e:
             self.logger.error(f"Dry run test failed for '{attack_name}': {e}")
@@ -1200,9 +1152,7 @@ class NativePydivertEngine(BaseBypassEngine):
                 },
             )
 
-    def _log_dry_run_results(
-        self, result: AttackResult, attack_name: str, context: AttackContext
-    ):
+    def _log_dry_run_results(self, result: AttackResult, attack_name: str, context: AttackContext):
         """
         Log dry run test results with engine-specific details.
 
@@ -1223,26 +1173,18 @@ class NativePydivertEngine(BaseBypassEngine):
             analysis = result.metadata["segment_analysis"]
             self.logger.info("Segments Analysis:")
             self.logger.info(f"  - Total segments: {analysis.get('total_segments', 0)}")
-            self.logger.info(
-                f"  - TTL modifications: {analysis.get('ttl_modifications', 0)}"
-            )
-            self.logger.info(
-                f"  - Checksum corruptions: {analysis.get('checksum_corruptions', 0)}"
-            )
+            self.logger.info(f"  - TTL modifications: {analysis.get('ttl_modifications', 0)}")
+            self.logger.info(f"  - Checksum corruptions: {analysis.get('checksum_corruptions', 0)}")
             self.logger.info(f"  - Timing delays: {analysis.get('timing_delays', 0)}")
         if "segments_valid" in result.metadata:
-            validation_status = (
-                "✓ PASSED" if result.metadata["segments_valid"] else "✗ FAILED"
-            )
+            validation_status = "✓ PASSED" if result.metadata["segments_valid"] else "✗ FAILED"
             self.logger.info(f"Validation: {validation_status}")
             if not result.metadata["segments_valid"]:
                 errors = result.metadata.get("validation_errors", [])
                 for error in errors:
                     self.logger.info(f"  - {error}")
         if "simulation_time_ms" in result.metadata:
-            self.logger.info(
-                f"Simulation time: {result.metadata['simulation_time_ms']:.3f}ms"
-            )
+            self.logger.info(f"Simulation time: {result.metadata['simulation_time_ms']:.3f}ms")
         self.logger.info("=" * 60)
 
     def test_attack_scenarios(self, attack_scenarios: list) -> dict:
@@ -1256,14 +1198,10 @@ class NativePydivertEngine(BaseBypassEngine):
             Dictionary with test results for each scenario
         """
         results = {}
-        self.logger.info(
-            f"Testing {len(attack_scenarios)} attack scenarios in dry run mode"
-        )
+        self.logger.info(f"Testing {len(attack_scenarios)} attack scenarios in dry run mode")
         for i, (attack_name, context) in enumerate(attack_scenarios):
             try:
-                self.logger.info(
-                    f"Testing scenario {i + 1}/{len(attack_scenarios)}: {attack_name}"
-                )
+                self.logger.info(f"Testing scenario {i + 1}/{len(attack_scenarios)}: {attack_name}")
                 future = asyncio.run_coroutine_threadsafe(
                     self.execute_dry_run_test(attack_name, context), self._loop
                 )
@@ -1286,17 +1224,13 @@ class NativePydivertEngine(BaseBypassEngine):
                     "error_message": str(e),
                 }
         total_scenarios = len(attack_scenarios)
-        successful_scenarios = sum(
-            (1 for r in results.values() if r.get("success", False))
-        )
+        successful_scenarios = sum((1 for r in results.values() if r.get("success", False)))
         summary = {
             "total_scenarios": total_scenarios,
             "successful_scenarios": successful_scenarios,
             "failed_scenarios": total_scenarios - successful_scenarios,
             "success_rate": (
-                successful_scenarios / total_scenarios * 100
-                if total_scenarios > 0
-                else 0
+                successful_scenarios / total_scenarios * 100 if total_scenarios > 0 else 0
             ),
             "results": results,
         }
@@ -1331,13 +1265,9 @@ class NativePydivertEngine(BaseBypassEngine):
                     "global_avg_timing_accuracy_percent": segment_stats.global_avg_timing_accuracy_percent,
                 },
                 "engine_integration": {
-                    "diagnostic_sessions_active": global_stats.get(
-                        "active_sessions", 0
-                    ),
+                    "diagnostic_sessions_active": global_stats.get("active_sessions", 0),
                     "total_diagnostic_sessions": global_stats.get("total_sessions", 0),
-                    "segments_diagnosed": global_stats.get(
-                        "total_segments_processed", 0
-                    ),
+                    "segments_diagnosed": global_stats.get("total_segments_processed", 0),
                 },
             }
         except Exception as e:
@@ -1425,9 +1355,7 @@ class NativePydivertEngine(BaseBypassEngine):
                 },
                 "recent_performance": performance_summary.get("recent_performance", {}),
                 "timing_analysis": performance_summary.get("timing_analysis", {}),
-                "modification_analysis": performance_summary.get(
-                    "modification_analysis", {}
-                ),
+                "modification_analysis": performance_summary.get("modification_analysis", {}),
                 "error_analysis": performance_summary.get("error_analysis", {}),
             }
         except Exception as e:
@@ -1451,6 +1379,20 @@ class NativePydivertEngine(BaseBypassEngine):
         if ip_address in ip_to_domain:
             return ip_to_domain[ip_address]
         return None
+
+    def set_domain_filter(self, domain_filter) -> None:
+        """Set domain filter for discovery mode integration."""
+        self._domain_filter = domain_filter
+        self.logger.info(
+            f"Domain filter {'enabled' if domain_filter else 'disabled'} for native PyDivert engine"
+        )
+
+    def set_shared_ip_sni_filter(self, shared_ip_filter) -> None:
+        """Set shared IP SNI filter for discovery mode integration."""
+        self._shared_ip_sni_filter = shared_ip_filter
+        self.logger.info(
+            f"Shared IP SNI filter {'enabled' if shared_ip_filter else 'disabled'} for native PyDivert engine"
+        )
 
     def _apply_attack_strategy(
         self, packet_data: bytes, packet_info: dict, strategy: dict
@@ -1534,9 +1476,7 @@ class NativePydivertEngine(BaseBypassEngine):
                     )
                     return None
             else:
-                self.logger.warning(
-                    "AttackAdapter not available for strategy execution"
-                )
+                self.logger.warning("AttackAdapter not available for strategy execution")
                 return None
         except Exception as e:
             self.logger.error(f"Error applying attack strategy: {e}")

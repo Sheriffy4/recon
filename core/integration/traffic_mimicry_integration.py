@@ -155,9 +155,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
             try:
                 self.steganographic_manager = SteganographicManager()
                 self.advanced_profiler = AdvancedTrafficProfiler()
-                LOG.info(
-                    "Steganographic and advanced profiling systems initialized successfully"
-                )
+                LOG.info("Steganographic and advanced profiling systems initialized successfully")
             except Exception as e:
                 LOG.warning(f"Failed to initialize steganographic systems: {e}")
                 self.steganographic_manager = None
@@ -174,13 +172,9 @@ class TrafficMimicryIntegration(AdvancedAttack):
             except Exception as e:
                 LOG.warning(f"Failed to initialize DPI prober: {e}")
                 self.dpi_prober = None
-        LOG.info(
-            "Traffic Mimicry Integration initialized with steganographic capabilities"
-        )
+        LOG.info("Traffic Mimicry Integration initialized with steganographic capabilities")
 
-    async def execute(
-        self, target: str, context: AttackContext
-    ) -> AdvancedAttackResult:
+    async def execute(self, target: str, context: AttackContext) -> AdvancedAttackResult:
         """Execute traffic mimicry attack with sophisticated DPI detection and steganographic capabilities."""
         start_time = time.time()
         try:
@@ -207,9 +201,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
                 dpi_complexity,
                 steganographic_result,
             )
-            await self._update_state_and_stats(
-                result, dpi_complexity, steganographic_result
-            )
+            await self._update_state_and_stats(result, dpi_complexity, steganographic_result)
             return result
         except Exception as e:
             LOG.error(f"Traffic mimicry attack execution failed: {e}")
@@ -230,9 +222,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
                 effectiveness_score=0.0,
             )
 
-    async def _generate_fingerprint_hash(
-        self, target: str, context: AttackContext
-    ) -> str:
+    async def _generate_fingerprint_hash(self, target: str, context: AttackContext) -> str:
         """Generate fingerprint hash for target."""
         try:
             fingerprint_data = {
@@ -264,9 +254,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
                         sophistication_level = "advanced"
                         behavioral_analysis = True
                         confidence = 0.8
-                    elif (
-                        "corporate" in target.lower() or "enterprise" in target.lower()
-                    ):
+                    elif "corporate" in target.lower() or "enterprise" in target.lower():
                         sophistication_level = "sophisticated"
                         behavioral_analysis = True
                         steganographic_detection = True
@@ -528,13 +516,9 @@ class TrafficMimicryIntegration(AdvancedAttack):
             embedding_method = "payload_modification"
             data_size_bytes = len(context.payload) // 10
             camouflage_effectiveness = (
-                0.8
-                if profile_selection["profile_type"] in ["video_call", "streaming"]
-                else 0.6
+                0.8 if profile_selection["profile_type"] in ["video_call", "streaming"] else 0.6
             )
-            detection_risk = (
-                0.2 if dpi_complexity.sophistication_level == "sophisticated" else 0.1
-            )
+            detection_risk = 0.2 if dpi_complexity.sophistication_level == "sophisticated" else 0.1
             self.state.steganographic_embedding_count += 1
             return SteganographicResult(
                 embedding_successful=True,
@@ -581,11 +565,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
             )
             ml_feedback = MLFeedback(
                 attack_name=f"traffic_mimicry_{profile_type}",
-                success=(
-                    result.status.name == "SUCCESS"
-                    if hasattr(result, "status")
-                    else True
-                ),
+                success=(result.status.name == "SUCCESS" if hasattr(result, "status") else True),
                 latency_ms=execution_time,
                 effectiveness_score=effectiveness_score,
                 failure_reason=(
@@ -606,13 +586,9 @@ class TrafficMimicryIntegration(AdvancedAttack):
                 effectiveness=effectiveness_score,
                 context={
                     "profile_type": profile_type,
-                    "dpi_sophistication": profile_selection[
-                        "dpi_complexity"
-                    ].sophistication_level,
+                    "dpi_sophistication": profile_selection["dpi_complexity"].sophistication_level,
                     "steganographic_used": steganographic_result.embedding_successful,
-                    "behavioral_analysis": profile_selection[
-                        "dpi_complexity"
-                    ].behavioral_analysis,
+                    "behavioral_analysis": profile_selection["dpi_complexity"].behavioral_analysis,
                 },
                 timestamp=datetime.now(),
             )
@@ -621,18 +597,12 @@ class TrafficMimicryIntegration(AdvancedAttack):
                 memory_usage_mb=1.5,
                 cpu_usage_percent=2.0,
                 network_overhead_bytes=(
-                    getattr(result, "bytes_sent", 1024)
-                    if hasattr(result, "bytes_sent")
-                    else 1024
+                    getattr(result, "bytes_sent", 1024) if hasattr(result, "bytes_sent") else 1024
                 ),
                 success_rate=effectiveness_score,
             )
             return AdvancedAttackResult(
-                success=(
-                    result.status.name == "SUCCESS"
-                    if hasattr(result, "status")
-                    else True
-                ),
+                success=(result.status.name == "SUCCESS" if hasattr(result, "status") else True),
                 attack_name=f"traffic_mimicry_{profile_type}",
                 target=target,
                 latency_ms=execution_time,
@@ -650,9 +620,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
                     "parameters": parameters,
                     "packets_sent": getattr(result, "packets_sent", 1),
                     "bytes_sent": getattr(result, "bytes_sent", len(context.payload)),
-                    "connection_established": getattr(
-                        result, "connection_established", True
-                    ),
+                    "connection_established": getattr(result, "connection_established", True),
                     "steganographic_embedding": steganographic_result.embedding_successful,
                     "camouflage_effectiveness": steganographic_result.camouflage_effectiveness,
                 },
@@ -668,9 +636,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
                 effectiveness_score=0.0,
             )
 
-    def _simulate_traffic_mimicry(
-        self, profile_type: str, parameters: Dict[str, Any]
-    ) -> Any:
+    def _simulate_traffic_mimicry(self, profile_type: str, parameters: Dict[str, Any]) -> Any:
         """Simulate traffic mimicry attack for testing."""
 
         class MockResult:
@@ -820,9 +786,10 @@ class TrafficMimicryIntegration(AdvancedAttack):
         """Update internal state and statistics."""
         try:
             self.update_stats(result)
-            self.state.sophisticated_dpi_detected = (
-                dpi_complexity.sophistication_level in ["advanced", "sophisticated"]
-            )
+            self.state.sophisticated_dpi_detected = dpi_complexity.sophistication_level in [
+                "advanced",
+                "sophisticated",
+            ]
             if steganographic_result.embedding_successful:
                 self.state.steganographic_enabled = True
         except Exception as e:
@@ -831,9 +798,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
     async def adapt_from_feedback(self, feedback: MLFeedback) -> None:
         """Adapt attack parameters based on ML feedback."""
         try:
-            LOG.info(
-                f"Adapting Traffic Mimicry attack from feedback: {feedback.attack_name}"
-            )
+            LOG.info(f"Adapting Traffic Mimicry attack from feedback: {feedback.attack_name}")
             if feedback.success:
                 self.state.successful_attacks += 1
             self.state.total_attacks += 1
@@ -843,9 +808,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
                 elif "steganographic" in suggestion.lower():
                     LOG.debug("Adapting steganographic parameters based on feedback")
                 elif "behavioral" in suggestion.lower():
-                    LOG.debug(
-                        "Adapting behavioral mimicry parameters based on feedback"
-                    )
+                    LOG.debug("Adapting behavioral mimicry parameters based on feedback")
             LOG.info("Traffic Mimicry attack adaptation completed")
         except Exception as e:
             LOG.error(f"Failed to adapt Traffic Mimicry attack from feedback: {e}")
@@ -875,14 +838,9 @@ class TrafficMimicryIntegration(AdvancedAttack):
             if self.state.profile_usage_count:
                 total_profile_usage = sum(self.state.profile_usage_count.values())
                 if total_profile_usage > 0:
-                    profile_effectiveness = (
-                        0.8 if self.state.sophisticated_dpi_detected else 0.6
-                    )
+                    profile_effectiveness = 0.8 if self.state.sophisticated_dpi_detected else 0.6
             steganographic_effectiveness = 0.0
-            if (
-                self.state.steganographic_enabled
-                and self.state.steganographic_embedding_count > 0
-            ):
+            if self.state.steganographic_enabled and self.state.steganographic_embedding_count > 0:
                 steganographic_effectiveness = 0.7
             overall_effectiveness = (
                 success_rate * 0.4
@@ -897,9 +855,7 @@ class TrafficMimicryIntegration(AdvancedAttack):
                 "overall_effectiveness": overall_effectiveness,
             }
         except Exception as e:
-            LOG.error(
-                f"Failed to get Traffic Mimicry attack effectiveness metrics: {e}"
-            )
+            LOG.error(f"Failed to get Traffic Mimicry attack effectiveness metrics: {e}")
             return {
                 "success_rate": 0.0,
                 "average_latency_ms": 0.0,

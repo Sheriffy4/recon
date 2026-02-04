@@ -80,20 +80,18 @@ class SegmentPacketBuilder:
             tcp_seq = context.tcp_seq + seq_offset
             tcp_ack = context.tcp_ack
             # Совместимость ключей флагов
-            tcp_flags = options.get(
-                "tcp_flags", options.get("flags", context.tcp_flags)
-            )
+            tcp_flags = options.get("tcp_flags", options.get("flags", context.tcp_flags))
             tcp_window = options.get("window_size", context.tcp_window_size)
             ttl = options.get("ttl", 64)
-            
+
             # Task 2.3: Add TTL validation for fake packets
             is_fake = options.get("is_fake", False)
             if is_fake and ttl == 64:
                 self.logger.warning(
-                    f"⚠️ Fake packet has default TTL=64, this may not expire before DPI! "
-                    f"Consider using TTL=1-10 for fake packets."
+                    "⚠️ Fake packet has default TTL=64, this may not expire before DPI! "
+                    "Consider using TTL=1-10 for fake packets."
                 )
-            
+
             # Task 2.3: Log TTL value when building packet
             if is_fake:
                 self.logger.debug(f"🔧 Building fake packet with TTL={ttl}")
@@ -104,20 +102,17 @@ class SegmentPacketBuilder:
             fooling_methods = options.get("fooling", [])
             if isinstance(fooling_methods, str):
                 fooling_methods = [fooling_methods]
-            
+
             # Check for badsum in fooling methods
             bad_checksum = (
-                "badsum" in fooling_methods or
-                options.get("bad_checksum", False) or
-                options.get("corrupt_tcp_checksum", False)
+                "badsum" in fooling_methods
+                or options.get("bad_checksum", False)
+                or options.get("corrupt_tcp_checksum", False)
             )
-            
+
             # Check for badseq in fooling methods
-            corrupt_sequence = (
-                "badseq" in fooling_methods or
-                options.get("corrupt_sequence", False)
-            )
-            
+            corrupt_sequence = "badseq" in fooling_methods or options.get("corrupt_sequence", False)
+
             # Task 3.4: Log which fooling methods are applied
             if fooling_methods:
                 self.logger.info(f"🎭 Applying fooling methods: {fooling_methods}")
@@ -127,7 +122,7 @@ class SegmentPacketBuilder:
                 self.logger.debug("   - badseq: will corrupt TCP sequence number")
             src_ip = context.src_ip or self._get_source_ip(context.dst_ip)
             src_port = context.src_port or self._get_source_port()
-            
+
             # CRITICAL FIX: Calculate seq_offset AFTER determining corrupt_sequence from fooling_methods
             # Previously, seq_offset was calculated before corrupt_sequence was set from fooling_methods,
             # causing badseq to not apply the 0x10000000 offset correctly.
@@ -135,11 +130,9 @@ class SegmentPacketBuilder:
             if seq_offset is None:
                 # Use corrupt_sequence (derived from fooling_methods) to determine offset
                 # For badseq, use far-future offset (0x10000000) to avoid overlap with real packets
-                seq_extra = int(
-                    options.get("seq_extra", 0x10000000 if corrupt_sequence else 0)
-                )
+                seq_extra = int(options.get("seq_extra", 0x10000000 if corrupt_sequence else 0))
                 seq_offset = seq_extra
-                
+
                 if corrupt_sequence:
                     self.logger.info(f"🔧 badseq: applying seq_offset=0x{seq_offset:08X}")
             packet_bytes = self._build_raw_tcp_packet(
@@ -171,20 +164,18 @@ class SegmentPacketBuilder:
                 self.stats["ttl_modifications"] += 1
             if tcp_flags != context.tcp_flags:
                 self.stats["flag_modifications"] += 1
-            
+
             # Task 2.3: Verify TTL in built packet matches params
             # Extract TTL from IP header (byte 8)
             built_ttl = packet_bytes[8]
             if built_ttl != ttl:
-                self.logger.error(
-                    f"❌ TTL mismatch! Expected {ttl}, but packet has {built_ttl}"
-                )
+                self.logger.error(f"❌ TTL mismatch! Expected {ttl}, but packet has {built_ttl}")
                 raise SegmentPacketBuildError(
                     f"TTL verification failed: expected {ttl}, got {built_ttl}"
                 )
             else:
                 self.logger.debug(f"✅ TTL verified: {built_ttl} matches expected {ttl}")
-            
+
             return SegmentPacketInfo(
                 packet_bytes=packet_bytes,
                 packet_size=len(packet_bytes),
@@ -220,7 +211,7 @@ class SegmentPacketBuilder:
     ) -> bytes:
         """
         Build raw TCP packet with complete control over headers.
-        
+
         Args:
             corrupt_checksum: If True, set TCP checksum to 0xDEAD (badsum)
             corrupt_sequence: If True, add offset to sequence number (badseq)
@@ -230,7 +221,7 @@ class SegmentPacketBuilder:
         if corrupt_sequence:
             # Add large offset for badseq (already added in seq_offset, but log it)
             self.logger.debug(f"🔧 Sequence corruption (badseq): using seq={seq}")
-        
+
         tcp_hdr = self._build_tcp_header(
             src_port=src_port,
             dst_port=dst_port,
@@ -460,9 +451,7 @@ class SegmentPacketBuilder:
         """
         stats = self.stats.copy()
         if stats["packets_built"] > 0:
-            stats["avg_build_time_ms"] = (
-                stats["total_build_time_ms"] / stats["packets_built"]
-            )
+            stats["avg_build_time_ms"] = stats["total_build_time_ms"] / stats["packets_built"]
         else:
             stats["avg_build_time_ms"] = 0.0
         return stats

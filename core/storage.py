@@ -91,7 +91,5 @@ class Storage:
         """
         Экспортирует историю тестов для использования в ML-моделях.
         """
-        cur = self.conn.execute(
-            "SELECT * FROM tests ORDER BY timestamp DESC LIMIT ?", (limit,)
-        )
+        cur = self.conn.execute("SELECT * FROM tests ORDER BY timestamp DESC LIMIT ?", (limit,))
         return [dict(row) for row in cur.fetchall()]

@@ -48,9 +48,7 @@ class RealTimeStrategyOptimizer:
                         "latency": r.get("avg_latency_ms", 0),
                         "bytes": metrics.get("data_transferred", 0),
                     }
-                    analysis["domain_specific"].setdefault(domain, []).append(
-                        domain_entry
-                    )
+                    analysis["domain_specific"].setdefault(domain, []).append(domain_entry)
 
         # Calculate optimal parameters
         for param, values in self.param_perf.items():
@@ -139,14 +137,10 @@ class RealTimeStrategyOptimizer:
                 api_domains.append(domain)
 
         if cdn_domains:
-            recs.append(
-                f"CDN домены ({len(cdn_domains)}) требуют более агрессивных стратегий"
-            )
+            recs.append(f"CDN домены ({len(cdn_domains)}) требуют более агрессивных стратегий")
 
         if api_domains:
-            recs.append(
-                f"API домены ({len(api_domains)}) лучше работают с простыми стратегиями"
-            )
+            recs.append(f"API домены ({len(api_domains)}) лучше работают с простыми стратегиями")
 
         return recs
 

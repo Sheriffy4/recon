@@ -7,6 +7,7 @@ Attacks that combine multiple bypass techniques in layers.
 import asyncio
 import time
 import random
+import os
 from typing import List, Dict, Any, Optional
 from core.bypass.attacks.base import (
     BaseAttack,
@@ -15,6 +16,13 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.bypass.attacks.attack_registry import register_attack
+
+
+def _randbytes(n: int) -> bytes:
+    rb = getattr(random, "randbytes", None)
+    if callable(rb):
+        return rb(n)
+    return os.urandom(n)
 
 
 @register_attack
@@ -46,7 +54,7 @@ class TCPHTTPComboAttack(BaseAttack):
     @property
     def optional_params(self) -> Dict[str, Any]:
         return {"segment_size": 32, "header_case": "random"}
-    
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TCP + HTTP combo attack."""
         start_time = time.time()
@@ -78,9 +86,7 @@ class TCPHTTPComboAttack(BaseAttack):
                     "segment_size": segment_size,
                     "original_size": len(payload),
                     "final_size": total_bytes,
-                    "segments": (
-                        timed_segments if context.engine_type != "local" else None
-                    ),
+                    "segments": (timed_segments if context.engine_type != "local" else None),
                 },
             )
         except Exception as e:
@@ -94,14 +100,11 @@ class TCPHTTPComboAttack(BaseAttack):
         """Apply HTTP header case manipulation."""
         try:
             text = payload.decode("utf-8", errors="ignore")
-            lines = text.split("\\r\\n")
+            lines = text.split("\r\n")
             modified_lines = []
             for i, line in enumerate(lines):
                 if i == 0 and any(
-                    (
-                        line.startswith(method)
-                        for method in ["GET ", "POST ", "PUT ", "DELETE "]
-                    )
+                    (line.startswith(method) for method in ["GET ", "POST ", "PUT ", "DELETE "])
                 ):
                     parts = line.split(" ", 2)
                     if len(parts) >= 1:
@@ -124,8 +127,8 @@ class TCPHTTPComboAttack(BaseAttack):
                         header = self._randomize_case(header)
                     line = f"{header}:{value}"
                 modified_lines.append(line)
-            return "\\r\\n".join(modified_lines).encode("utf-8")
-        except:
+            return "\r\n".join(modified_lines).encode("utf-8")
+        except Exception:
             return payload
 
     def _randomize_case(self, text: str) -> str:
@@ -141,9 +144,11 @@ class TCPHTTPComboAttack(BaseAttack):
     def _apply_tcp_segmentation(self, payload: bytes, segment_size: int) -> List[tuple]:
         """Apply TCP segmentation."""
         segments = []
-        for i in range(0, len(payload), segment_size):
-            segment = payload[i : i + segment_size]
-            segments.append((segment, 0))
+        seq_offset = 0
+        for pos in range(0, len(payload), segment_size):
+            segment = payload[pos : pos + segment_size]
+            segments.append((segment, seq_offset, {}))
+            seq_offset = (seq_offset + len(segment)) & 0xFFFFFFFF
         return segments
 
     def to_zapret_command(self, params: Optional[Dict[str, Any]] = None) -> str:
@@ -158,11 +163,15 @@ class TCPHTTPComboAttack(BaseAttack):
     async def _add_timing_delays(self, segments: List[tuple]) -> List[tuple]:
         """Add timing delays between segments."""
         timed_segments = []
-        for i, (segment, _) in enumerate(segments):
+        for i, seg in enumerate(segments):
+            # Accept both legacy (data, seq_offset) and canonical (data, seq_offset, options)
+            segment = seg[0]
+            seq_offset = seg[1] if len(seg) > 1 else 0
+            options = seg[2] if len(seg) > 2 and isinstance(seg[2], dict) else {}
             delay = random.randint(10, 100) if i > 0 else 0
-            if delay > 0:
-                await asyncio.sleep(delay / 1000.0)
-            timed_segments.append((segment, delay))
+            new_options = dict(options)
+            new_options["delay_ms"] = delay
+            timed_segments.append((segment, seq_offset, new_options))
         return timed_segments
 
 
@@ -195,7 +204,7 @@ class TLSFragmentationComboAttack(BaseAttack):
     @property
     def optional_params(self) -> Dict[str, Any]:
         return {"fragment_size": 64, "tls_record_split": True}
-    
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS + Fragmentation combo attack."""
         start_time = time.time()
@@ -228,9 +237,7 @@ class TLSFragmentationComboAttack(BaseAttack):
                     "tls_record_split": tls_record_split,
                     "original_size": len(payload),
                     "final_size": total_bytes,
-                    "segments": (
-                        randomized_fragments if context.engine_type != "local" else None
-                    ),
+                    "segments": (randomized_fragments if context.engine_type != "local" else None),
                 },
             )
         except Exception as e:
@@ -252,23 +259,15 @@ class TLSFragmentationComboAttack(BaseAttack):
                 first_data = data[:mid_point]
                 second_data = data[mid_point:]
                 first_record = (
-                    header[:1]
-                    + header[1:3]
-                    + len(first_data).to_bytes(2, "big")
-                    + first_data
+                    header[:1] + header[1:3] + len(first_data).to_bytes(2, "big") + first_data
                 )
                 second_record = (
-                    header[:1]
-                    + header[1:3]
-                    + len(second_data).to_bytes(2, "big")
-                    + second_data
+                    header[:1] + header[1:3] + len(second_data).to_bytes(2, "big") + second_data
                 )
                 return first_record + second_record
         return payload
 
-    def _apply_ip_fragmentation(
-        self, payload: bytes, fragment_size: int
-    ) -> List[tuple]:
+    def _apply_ip_fragmentation(self, payload: bytes, fragment_size: int) -> List[tuple]:
         """Apply IP fragmentation."""
         fragments = []
         fragment_id = random.randint(0, 65535)
@@ -280,7 +279,8 @@ class TLSFragmentationComboAttack(BaseAttack):
                 fragment_id, fragment_offset, more_fragments
             )
             fragment = ip_header + fragment_data
-            fragments.append((fragment, 0))
+            # seq_offset = original position in byte-stream (works even if we reorder later)
+            fragments.append((fragment, i, {}))
         return fragments
 
     def _create_ip_fragment_header(
@@ -357,7 +357,7 @@ class PayloadTunnelingComboAttack(BaseAttack):
             "tunnel_protocol": "dns",
             "encryption_key": b"default_key_123",
         }
-    
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute Payload + Tunneling combo attack."""
         start_time = time.time()
@@ -369,11 +369,9 @@ class PayloadTunnelingComboAttack(BaseAttack):
             obfuscated_payload = self._apply_payload_obfuscation(
                 payload, obfuscation_type, encryption_key
             )
-            tunneled_payload = self._apply_protocol_tunneling(
-                obfuscated_payload, tunnel_protocol
-            )
+            tunneled_payload = self._apply_protocol_tunneling(obfuscated_payload, tunnel_protocol)
             final_payload = self._add_noise_padding(tunneled_payload)
-            segments = [(final_payload, 0)]
+            segments = [(final_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(final_payload)
             await asyncio.sleep(0)
@@ -498,9 +496,7 @@ class PayloadTunnelingComboAttack(BaseAttack):
         header = struct.pack("!BBHHH", icmp_type, icmp_code, 0, icmp_id, icmp_seq)
         packet = header + payload
         checksum = self._calculate_icmp_checksum(packet)
-        header = struct.pack(
-            "!BBHHH", icmp_type, icmp_code, checksum, icmp_id, icmp_seq
-        )
+        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, icmp_seq)
         return header + payload
 
     def _calculate_icmp_checksum(self, data: bytes) -> int:
@@ -518,7 +514,7 @@ class PayloadTunnelingComboAttack(BaseAttack):
     def _add_noise_padding(self, payload: bytes) -> bytes:
         """Add noise padding to payload."""
         noise_size = random.randint(16, 64)
-        noise = random.randbytes(noise_size)
+        noise = _randbytes(noise_size)
         position = random.randint(0, len(payload))
         return payload[:position] + noise + payload[position:]
 
@@ -539,9 +535,7 @@ class AdaptiveMultiLayerAttack(BaseAttack):
 
     @property
     def description(self) -> str:
-        return (
-            "Dynamically combines multiple bypass techniques based on payload analysis"
-        )
+        return "Dynamically combines multiple bypass techniques based on payload analysis"
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -605,19 +599,11 @@ class AdaptiveMultiLayerAttack(BaseAttack):
             "size": len(payload),
             "entropy": self._calculate_entropy(payload),
             "has_http": b"HTTP/" in payload
-            or any(
-                (
-                    payload.startswith(method.encode())
-                    for method in ["GET ", "POST ", "PUT "]
-                )
-            ),
+            or any((payload.startswith(method.encode()) for method in ["GET ", "POST ", "PUT "])),
             "has_tls": len(payload) > 5 and payload[0] in [22, 23, 20, 21],
-            "has_dns": len(payload) > 12
-            and payload[2:4] in [b"\\x01\\x00", b"\\x81\\x80"],
+            "has_dns": len(payload) > 12 and payload[2:4] in [b"\\x01\\x00", b"\\x81\\x80"],
             "printable_ratio": (
-                sum((1 for b in payload if 32 <= b <= 126)) / len(payload)
-                if payload
-                else 0
+                sum((1 for b in payload if 32 <= b <= 126)) / len(payload) if payload else 0
             ),
         }
         return analysis
@@ -639,30 +625,20 @@ class AdaptiveMultiLayerAttack(BaseAttack):
                 entropy -= probability * math.log2(probability)
         return entropy
 
-    def _select_techniques(
-        self, analysis: Dict[str, Any], level: str
-    ) -> List[Dict[str, Any]]:
+    def _select_techniques(self, analysis: Dict[str, Any], level: str) -> List[Dict[str, Any]]:
         """Select techniques based on payload analysis."""
         techniques = []
         if analysis["size"] > 64:
             techniques.append({"name": "segmentation", "params": {"size": 32}})
         if level in ["medium", "high"]:
             if analysis["has_http"]:
-                techniques.append(
-                    {"name": "http_manipulation", "params": {"case": "random"}}
-                )
+                techniques.append({"name": "http_manipulation", "params": {"case": "random"}})
             if analysis["entropy"] < 6.0:
-                techniques.append(
-                    {"name": "payload_obfuscation", "params": {"type": "xor"}}
-                )
+                techniques.append({"name": "payload_obfuscation", "params": {"type": "xor"}})
         if level == "high":
-            techniques.append(
-                {"name": "timing_variation", "params": {"max_delay": 200}}
-            )
+            techniques.append({"name": "timing_variation", "params": {"max_delay": 200}})
             if not analysis["has_tls"]:
-                techniques.append(
-                    {"name": "protocol_tunneling", "params": {"protocol": "dns"}}
-                )
+                techniques.append({"name": "protocol_tunneling", "params": {"protocol": "dns"}})
         return techniques
 
     def _apply_technique(self, payload: bytes, technique: Dict[str, Any]) -> bytes:
@@ -687,16 +663,12 @@ class AdaptiveMultiLayerAttack(BaseAttack):
             if case_type == "random":
                 result = "".join(
                     (
-                        (
-                            c.upper()
-                            if random.random() > 0.5
-                            else c.lower() if c.isalpha() else c
-                        )
+                        (c.upper() if random.random() > 0.5 else c.lower() if c.isalpha() else c)
                         for c in text
                     )
                 )
                 return result.encode("utf-8")
-        except:
+        except Exception:
             pass
         return payload
 
@@ -716,18 +688,15 @@ class AdaptiveMultiLayerAttack(BaseAttack):
             return prefix + payload + suffix
         return payload
 
-    def _create_adaptive_segments(
-        self, payload: bytes, analysis: Dict[str, Any]
-    ) -> List[tuple]:
+    def _create_adaptive_segments(self, payload: bytes, analysis: Dict[str, Any]) -> List[tuple]:
         """Create segments with adaptive timing."""
         segment_size = 64 if analysis["size"] > 128 else 32
         segments = []
-        for i in range(0, len(payload), segment_size):
-            segment = payload[i : i + segment_size]
-            delay = (
-                random.randint(10, 50)
-                if analysis["entropy"] > 6.0
-                else random.randint(50, 150)
-            )
-            segments.append((segment, delay if i > 0 else 0))
+        seq_offset = 0
+        for pos in range(0, len(payload), segment_size):
+            segment = payload[pos : pos + segment_size]
+            delay = random.randint(10, 50) if analysis["entropy"] > 6.0 else random.randint(50, 150)
+            delay = 0 if pos == 0 else delay
+            segments.append((segment, seq_offset, {"delay_ms": delay}))
+            seq_offset = (seq_offset + len(segment)) & 0xFFFFFFFF
         return segments

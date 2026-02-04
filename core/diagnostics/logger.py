@@ -41,9 +41,7 @@ def get_logger(name: str, debug: bool = False) -> logging.Logger:
                 show_path=False,  # Для чистоты вывода
                 log_time_format="[%H:%M:%S]",
             )
-            formatter = logging.Formatter(
-                "%(message)s"
-            )  # Rich позаботится об остальном
+            formatter = logging.Formatter("%(message)s")  # Rich позаботится об остальном
         else:
             # Стандартный обработчик в качестве запасного варианта
             handler = logging.StreamHandler(sys.stdout)
@@ -60,9 +58,7 @@ def get_logger(name: str, debug: bool = False) -> logging.Logger:
         if root_logger.hasHandlers():
             root_logger.handlers.clear()
         root_logger.addHandler(handler)
-        root_logger.setLevel(
-            logging.INFO
-        )  # Устанавливаем базовый уровень для корневого логгера
+        root_logger.setLevel(logging.INFO)  # Устанавливаем базовый уровень для корневого логгера
 
         _is_configured = True
 

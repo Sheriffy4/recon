@@ -43,11 +43,7 @@ class DomainHealth:
 
     def is_critical(self) -> bool:
         """Критическое состояние"""
-        return (
-            self.consecutive_failures >= 5
-            or self.success_rate < 0.2
-            or not self.is_accessible
-        )
+        return self.consecutive_failures >= 5 or self.success_rate < 0.2 or not self.is_accessible
 
 
 @dataclass
@@ -239,9 +235,7 @@ class AdaptiveStrategyMonitor:
                 degraded.append(domain)
 
         if degraded or critical:
-            self.logger.warning(
-                f"Health check: {len(critical)} critical, {len(degraded)} degraded"
-            )
+            self.logger.warning(f"Health check: {len(critical)} critical, {len(degraded)} degraded")
 
             # Вывести детали
             for domain in critical:
@@ -360,10 +354,7 @@ class AdaptiveStrategyMonitor:
         # Добавить в очередь оптимизации
         for domain, reason, priority in needs_optimization:
             # Проверить не в очереди ли уже
-            if any(
-                t.domain == domain and t.status == "pending"
-                for t in self.optimization_queue
-            ):
+            if any(t.domain == domain and t.status == "pending" for t in self.optimization_queue):
                 continue
 
             task = OptimizationTask(
@@ -485,9 +476,7 @@ class AdaptiveStrategyMonitor:
                 },
             ]
 
-            self.logger.info(
-                f"Testing {len(test_strategies)} strategies for {domain}..."
-            )
+            self.logger.info(f"Testing {len(test_strategies)} strategies for {domain}...")
 
             # Тестировать каждую стратегию
             best_strategy = None
@@ -513,9 +502,7 @@ class AdaptiveStrategyMonitor:
 
                         # Если нашли быструю стратегию, можно остановиться
                         if health.response_time_ms < 1000:
-                            self.logger.info(
-                                "  🎯 Fast strategy found, stopping tests"
-                            )
+                            self.logger.info("  🎯 Fast strategy found, stopping tests")
                             break
                 else:
                     self.logger.warning(f"  ❌ {strategy_info['name']}: Failed")
@@ -619,9 +606,7 @@ class AdaptiveStrategyMonitor:
         print(f"  Critical: {report['domains']['critical']}")
         print(f"\nChecks performed: {report['stats']['checks_performed']}")
         print(f"Optimizations triggered: {report['stats']['optimizations_triggered']}")
-        print(
-            f"Optimizations successful: {report['stats']['optimizations_successful']}"
-        )
+        print(f"Optimizations successful: {report['stats']['optimizations_successful']}")
         print(f"Optimization queue: {report['optimization_queue']}")
 
         if report["stats"]["last_check"]:
@@ -629,9 +614,7 @@ class AdaptiveStrategyMonitor:
 
         # Показать проблемные домены
         critical_domains = [
-            domain
-            for domain, health in self.domain_health.items()
-            if health.is_critical()
+            domain for domain, health in self.domain_health.items() if health.is_critical()
         ]
 
         degraded_domains = [

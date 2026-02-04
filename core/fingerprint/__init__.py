@@ -78,11 +78,28 @@ try:
         AdvancedFingerprinter,
         FingerprintingConfig,
     )
+    from core.fingerprint.component_initializer import ComponentInitializer
+    from core.fingerprint.probing_methods import DPIProber as DPIProbingMethods
+    from core.fingerprint.analysis_methods import DPIAnalyzer as DPIAnalysisMethods
+    from core.fingerprint.fingerprint_processor import FingerprintProcessor
 
     _advanced_fingerprinter_available = True
 except ImportError:
     _advanced_fingerprinter_available = False
     AdvancedFingerprinter = None
     FingerprintingConfig = None
+    ComponentInitializer = None
+    DPIProbingMethods = None
+    DPIAnalysisMethods = None
+    FingerprintProcessor = None
 if _advanced_fingerprinter_available:
-    __all__.extend(["AdvancedFingerprinter", "FingerprintingConfig"])
+    __all__.extend(
+        [
+            "AdvancedFingerprinter",
+            "FingerprintingConfig",
+            "ComponentInitializer",
+            "DPIProbingMethods",
+            "DPIAnalysisMethods",
+            "FingerprintProcessor",
+        ]
+    )

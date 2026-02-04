@@ -77,9 +77,7 @@ class CommunityDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
-                cursor = conn.execute(
-                    "SELECT * FROM strategies WHERE id = ?", (strategy_id,)
-                )
+                cursor = conn.execute("SELECT * FROM strategies WHERE id = ?", (strategy_id,))
                 row = cursor.fetchone()
                 if not row:
                     return None
@@ -215,9 +213,7 @@ class CommunityDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
-                cursor = conn.execute(
-                    "SELECT * FROM packages WHERE id = ?", (package_id,)
-                )
+                cursor = conn.execute("SELECT * FROM packages WHERE id = ?", (package_id,))
                 row = cursor.fetchone()
                 if not row:
                     return None
@@ -258,9 +254,7 @@ class CommunityDatabase:
             success_reports=row["success_reports"],
             failure_reports=row["failure_reports"],
             tags=json.loads(row["tags"]) if row["tags"] else [],
-            target_regions=(
-                json.loads(row["target_regions"]) if row["target_regions"] else []
-            ),
+            target_regions=(json.loads(row["target_regions"]) if row["target_regions"] else []),
             target_isps=json.loads(row["target_isps"]) if row["target_isps"] else [],
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),

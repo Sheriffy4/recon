@@ -105,9 +105,7 @@ class IP(PacketLayer):
         elif isinstance(other, Raw):
             return IPRawPacket(self, other)
         else:
-            raise ScapyCompatibilityError(
-                f"Unsupported layer combination: IP / {type(other)}"
-            )
+            raise ScapyCompatibilityError(f"Unsupported layer combination: IP / {type(other)}")
 
 
 class TCP(PacketLayer):
@@ -202,9 +200,7 @@ class UDP(PacketLayer):
     def __bytes__(self) -> bytes:
         """Конвертирует в байты."""
         # UDP заголовок: src_port(2) + dst_port(2) + length(2) + checksum(2)
-        length = (
-            self.len if self.len is not None else 8
-        )  # Минимальная длина UDP заголовка
+        length = self.len if self.len is not None else 8  # Минимальная длина UDP заголовка
         checksum = self.chksum if self.chksum is not None else 0
 
         return struct.pack("!HHHH", self.sport, self.dport, length, checksum)
@@ -424,9 +420,7 @@ class ScapySocket:
     def _setup_socket(self):
         """Настраивает сырой сокет."""
         try:
-            self._socket = socket.socket(
-                socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
-            )
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
             self._socket.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
         except PermissionError:
             self.logger.error("Raw socket requires administrator privileges")

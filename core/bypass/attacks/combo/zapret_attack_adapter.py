@@ -8,7 +8,7 @@ enabling seamless integration with the strategy manager and execution engines.
 
 import logging
 import asyncio
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 from enum import Enum
 
@@ -18,14 +18,12 @@ from core.bypass.attacks.base import (
     AttackResult,
     AttackStatus,
 )
-from core.bypass.attacks.combo.zapret_strategy import (
-    ZapretStrategy,
-    ZapretConfig,
-)
-from core.bypass.attacks.combo.zapret_integration import (
-    ZapretIntegration,
-    get_zapret_integration,
-)
+
+# Avoid circular import: import ZapretStrategy and ZapretConfig only for type hints
+if TYPE_CHECKING:
+    from core.bypass.attacks.combo.zapret_strategy import (
+        ZapretConfig,
+    )
 
 LOG = logging.getLogger("ZapretAttackAdapter")
 
@@ -51,8 +49,8 @@ class ZapretAdapterConfig:
     retry_count: int = 2
     timeout_seconds: float = 30.0
 
-    # Zapret-specific configuration
-    zapret_config: Optional[ZapretConfig] = None
+    # Zapret-specific configuration (use Dict to avoid circular import)
+    zapret_config: Optional[Dict[str, Any]] = None
 
     # Integration settings
     use_combo_engine: bool = True
@@ -89,8 +87,8 @@ class ZapretAttackAdapter(BaseAttack):
         """
         super().__init__()
         self.config = config or ZapretAdapterConfig()
-        self.zapret_integration: Optional[ZapretIntegration] = None
-        self.direct_strategy: Optional[ZapretStrategy] = None
+        self.zapret_integration: Optional[Any] = None  # Type: ZapretIntegration
+        self.direct_strategy: Optional[Any] = None  # Type: ZapretStrategy
 
         # Initialize components based on configuration
         self._initialize_components()
@@ -103,6 +101,8 @@ class ZapretAttackAdapter(BaseAttack):
     def _initialize_components(self):
         """Initialize internal components based on configuration."""
         try:
+            from core.bypass.attacks.combo.zapret_integration import get_zapret_integration
+
             # Initialize integration component if needed
             if self.config.mode in [
                 ZapretAdapterMode.PRESET,
@@ -115,7 +115,13 @@ class ZapretAttackAdapter(BaseAttack):
 
             # Initialize direct strategy if needed
             if self.config.mode in [ZapretAdapterMode.DIRECT, ZapretAdapterMode.AUTO]:
-                zapret_config = self.config.zapret_config or ZapretConfig()
+                from core.bypass.attacks.combo.zapret_strategy import ZapretStrategy, ZapretConfig
+
+                zapret_config = (
+                    ZapretConfig(**self.config.zapret_config)
+                    if self.config.zapret_config
+                    else ZapretConfig()
+                )
                 self.direct_strategy = ZapretStrategy(zapret_config)
                 LOG.debug("Direct Zapret strategy initialized")
 
@@ -248,13 +254,9 @@ class ZapretAttackAdapter(BaseAttack):
                 retry_count += 1
                 if retry_count <= self.config.retry_count:
                     await asyncio.sleep(0.1 * retry_count)  # Progressive backoff
-                    LOG.warning(
-                        f"Execution attempt {retry_count} failed, retrying: {e}"
-                    )
+                    LOG.warning(f"Execution attempt {retry_count} failed, retrying: {e}")
                 else:
-                    LOG.error(
-                        f"All {self.config.retry_count + 1} execution attempts failed"
-                    )
+                    LOG.error(f"All {self.config.retry_count + 1} execution attempts failed")
                     break
 
         # If all retries failed, try fallback if enabled
@@ -281,15 +283,13 @@ class ZapretAttackAdapter(BaseAttack):
         if self.config.enable_network_validation:
             # Use network validation if available
             try:
+                from core.bypass.attacks.combo.zapret_strategy import ZapretStrategy
+
                 strategy = ZapretStrategy()
                 if hasattr(strategy, "execute_with_network_validation"):
-                    return await strategy.execute_with_network_validation(
-                        context, strict_mode=True
-                    )
+                    return await strategy.execute_with_network_validation(context, strict_mode=True)
             except Exception as e:
-                LOG.warning(
-                    f"Network validation failed, falling back to standard execution: {e}"
-                )
+                LOG.warning(f"Network validation failed, falling back to standard execution: {e}")
 
         # Convert AttackContext to zapret integration compatible format
         zapret_context = self._convert_context_for_integration(context)
@@ -320,7 +320,13 @@ class ZapretAttackAdapter(BaseAttack):
         """Execute using direct strategy."""
         if not self.direct_strategy:
             # Create strategy on demand
-            zapret_config = self.config.zapret_config or ZapretConfig()
+            from core.bypass.attacks.combo.zapret_strategy import ZapretStrategy, ZapretConfig
+
+            if isinstance(self.config.zapret_config, dict):
+                zapret_config = ZapretConfig(**self.config.zapret_config)
+            else:
+                zapret_config = self.config.zapret_config or ZapretConfig()
+
             if self.config.custom_config:
                 # Apply custom configuration to ZapretConfig
                 for key, value in self.config.custom_config.items():
@@ -396,9 +402,7 @@ class ZapretAttackAdapter(BaseAttack):
     def _convert_result_from_integration(self, integration_result) -> AttackResult:
         """Convert zapret integration result to base AttackResult."""
         # Handle different result formats
-        if hasattr(integration_result, "status") and hasattr(
-            integration_result.status, "value"
-        ):
+        if hasattr(integration_result, "status") and hasattr(integration_result.status, "value"):
             # Already a proper AttackResult
             return integration_result
 
@@ -431,9 +435,7 @@ class ZapretAttackAdapter(BaseAttack):
             response_received=success,
             error_message=getattr(integration_result, "error_message", None),
             metadata=getattr(integration_result, "details", {}),
-            technique_used=getattr(
-                integration_result, "technique_used", "zapret_integration"
-            ),
+            technique_used=getattr(integration_result, "technique_used", "zapret_integration"),
             connection_established=success,
             data_transmitted=success,
         )
@@ -451,9 +453,7 @@ class ZapretAttackAdapter(BaseAttack):
             },
         }
 
-    def update_configuration(
-        self, new_config: Union[ZapretAdapterConfig, Dict[str, Any]]
-    ):
+    def update_configuration(self, new_config: Union[ZapretAdapterConfig, Dict[str, Any]]):
         """Update adapter configuration."""
         if isinstance(new_config, dict):
             # Update specific fields
@@ -488,6 +488,8 @@ class ZapretAttackAdapter(BaseAttack):
             # Validate custom config if specified
             if self.config.custom_config:
                 # Basic validation - check if config keys are reasonable
+                from core.bypass.attacks.combo.zapret_strategy import ZapretConfig
+
                 zapret_config_fields = set(ZapretConfig.__annotations__.keys())
                 custom_keys = set(self.config.custom_config.keys())
                 unknown_keys = custom_keys - zapret_config_fields
@@ -516,18 +518,14 @@ class ZapretAttackAdapter(BaseAttack):
 # Factory functions for common use cases
 
 
-def create_zapret_adapter_with_preset(
-    preset_name: str, **kwargs
-) -> ZapretAttackAdapter:
+def create_zapret_adapter_with_preset(preset_name: str, **kwargs) -> ZapretAttackAdapter:
     """Create Zapret adapter configured for preset execution."""
-    config = ZapretAdapterConfig(
-        mode=ZapretAdapterMode.PRESET, preset_name=preset_name, **kwargs
-    )
+    config = ZapretAdapterConfig(mode=ZapretAdapterMode.PRESET, preset_name=preset_name, **kwargs)
     return ZapretAttackAdapter(config)
 
 
 def create_zapret_adapter_with_config(
-    zapret_config: Union[ZapretConfig, Dict[str, Any]], **kwargs
+    zapret_config: Union["ZapretConfig", Dict[str, Any]], **kwargs
 ) -> ZapretAttackAdapter:
     """Create Zapret adapter configured for direct execution with custom config."""
     if isinstance(zapret_config, dict):

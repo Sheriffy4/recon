@@ -54,21 +54,15 @@ class MetricsCollector:
         metrics = self.attack_metrics[attack_id]
         metrics.update_metrics(success, response_time)
         await self._store_attack_metrics(attack_id, metrics)
-        await self._record_metric_history(
-            attack_id, MetricType.SUCCESS_RATE, metrics.success_rate
-        )
-        await self._record_metric_history(
-            attack_id, MetricType.RESPONSE_TIME, response_time
-        )
+        await self._record_metric_history(attack_id, MetricType.SUCCESS_RATE, metrics.success_rate)
+        await self._record_metric_history(attack_id, MetricType.RESPONSE_TIME, response_time)
 
     async def record_strategy_result(
         self, strategy_id: str, domain: str, success: bool, effectiveness: float
     ):
         """Record result of strategy application"""
         if strategy_id not in self.strategy_metrics:
-            self.strategy_metrics[strategy_id] = StrategyMetrics(
-                strategy_id=strategy_id
-            )
+            self.strategy_metrics[strategy_id] = StrategyMetrics(strategy_id=strategy_id)
         metrics = self.strategy_metrics[strategy_id]
         metrics.domain_count += 1
         if success:
@@ -93,20 +87,13 @@ class MetricsCollector:
         if success:
             if strategy_id not in analytics.successful_strategies:
                 analytics.successful_strategies.append(strategy_id)
-            if (
-                not analytics.best_strategy
-                or effectiveness > analytics.avg_success_rate
-            ):
+            if not analytics.best_strategy or effectiveness > analytics.avg_success_rate:
                 analytics.best_strategy = strategy_id
         elif strategy_id not in analytics.failed_strategies:
             analytics.failed_strategies.append(strategy_id)
-        total_tests = len(analytics.successful_strategies) + len(
-            analytics.failed_strategies
-        )
+        total_tests = len(analytics.successful_strategies) + len(analytics.failed_strategies)
         if total_tests > 0:
-            analytics.avg_success_rate = (
-                len(analytics.successful_strategies) / total_tests
-            )
+            analytics.avg_success_rate = len(analytics.successful_strategies) / total_tests
         analytics.last_tested = datetime.now()
         analytics.test_history.append(
             {
@@ -180,9 +167,7 @@ class MetricsCollector:
         conn.commit()
         conn.close()
 
-    async def _record_metric_history(
-        self, entity_id: str, metric_type: MetricType, value: float
-    ):
+    async def _record_metric_history(self, entity_id: str, metric_type: MetricType, value: float):
         """Record metric value in history table"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -223,9 +208,7 @@ class MetricsCollector:
             return self.strategy_metrics[strategy_id]
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM strategy_metrics WHERE strategy_id = ?", (strategy_id,)
-        )
+        cursor.execute("SELECT * FROM strategy_metrics WHERE strategy_id = ?", (strategy_id,))
         row = cursor.fetchone()
         conn.close()
         if row:
@@ -249,17 +232,11 @@ class MetricsCollector:
         total_strategies = len(self.strategy_metrics)
         total_successes = sum((m.success_count for m in self.attack_metrics.values()))
         total_attempts = sum((m.total_attempts for m in self.attack_metrics.values()))
-        overall_success_rate = (
-            total_successes / total_attempts if total_attempts > 0 else 0.0
-        )
+        overall_success_rate = total_successes / total_attempts if total_attempts > 0 else 0.0
         response_times = [
-            m.avg_response_time
-            for m in self.attack_metrics.values()
-            if m.avg_response_time > 0
+            m.avg_response_time for m in self.attack_metrics.values() if m.avg_response_time > 0
         ]
-        avg_response_time = (
-            sum(response_times) / len(response_times) if response_times else 0.0
-        )
+        avg_response_time = sum(response_times) / len(response_times) if response_times else 0.0
         system_health = min(overall_success_rate * 1.2, 1.0)
         recent_failures = []
         for attack_id, metrics in self.attack_metrics.items():
@@ -290,9 +267,7 @@ class MetricsCollector:
             system_health=system_health,
             recent_failures=recent_failures[:10],
             top_performing_attacks=[attack_id for attack_id, _ in top_attacks],
-            top_performing_strategies=[
-                strategy_id for strategy_id, _ in top_strategies
-            ],
+            top_performing_strategies=[strategy_id for strategy_id, _ in top_strategies],
         )
 
     async def get_metric_history(
@@ -315,8 +290,6 @@ class MetricsCollector:
         cutoff = datetime.now() - timedelta(days=days)
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute(
-            "DELETE FROM metric_history WHERE timestamp < ?", (cutoff.isoformat(),)
-        )
+        cursor.execute("DELETE FROM metric_history WHERE timestamp < ?", (cutoff.isoformat(),))
         conn.commit()
         conn.close()

@@ -1,77 +1,30 @@
 """
-Enhanced Monitoring Module
+Monitoring system components for DPI bypass.
 
-Модуль расширенного мониторинга с онлайн анализом трафика,
-адаптивной генерацией стратегий и автоматическим переключением обходов.
+This package provides modular components for monitoring site accessibility
+and automatic recovery:
+
+Components:
+    - models: Shared data models (ConnectionHealth, MonitoringConfig)
+    - HealthChecker: Asynchronous connectivity testing (HTTP/TCP)
+    - AutoRecoverySystem: Automatic recovery with strategy optimization
+    - SiteManager: Site lifecycle and health tracking
+    - Strategy helpers: Strategy generation and validation
+    - Reporters: Status and metrics reporting
+    - Effectiveness: Rule effectiveness analysis
+    - Config helpers: Configuration persistence
+
+The main MonitoringSystem class in the parent module acts as a facade,
+orchestrating these components to provide a unified monitoring interface.
 """
 
-from .real_time_traffic_analyzer import (
-    RealTimeTrafficAnalyzer,
-    BlockingEvent,
-    BlockingType,
-    TrafficEvent,
-    ConnectionAttempt,
-    TrafficBuffer,
-    DPIPatternDetector,
-    NotificationSystem
-)
-
-from .adaptive_online_strategy_generator import (
-    AdaptiveOnlineStrategyGenerator,
-    StrategyCandidate,
-    StrategyType,
-    ABTestResult,
-    ABTestManager,
-    OnlineMLPredictor,
-    FeedbackSystem
-)
-
-from .online_analysis_integration import (
-    OnlineAnalysisIntegration,
-    OnlineAnalysisMetrics,
-    StrategySwitch,
-    NotificationManager,
-    StrategyOrchestrator
-)
-
-from .enhanced_monitoring_system import (
-    EnhancedMonitoringSystem,
-    create_enhanced_monitoring_system
-)
+from core.monitoring.models import ConnectionHealth, MonitoringConfig
+from core.monitoring.health_checker import HealthChecker
+from core.monitoring.auto_recovery import AutoRecoverySystem
 
 __all__ = [
-    # Real-time traffic analysis
-    'RealTimeTrafficAnalyzer',
-    'BlockingEvent',
-    'BlockingType', 
-    'TrafficEvent',
-    'ConnectionAttempt',
-    'TrafficBuffer',
-    'DPIPatternDetector',
-    'NotificationSystem',
-    
-    # Adaptive strategy generation
-    'AdaptiveOnlineStrategyGenerator',
-    'StrategyCandidate',
-    'StrategyType',
-    'ABTestResult',
-    'ABTestManager',
-    'OnlineMLPredictor',
-    'FeedbackSystem',
-    
-    # Integration components
-    'OnlineAnalysisIntegration',
-    'OnlineAnalysisMetrics',
-    'StrategySwitch',
-    'NotificationManager',
-    'StrategyOrchestrator',
-    
-    # Enhanced monitoring system
-    'EnhancedMonitoringSystem',
-    'create_enhanced_monitoring_system'
+    "ConnectionHealth",
+    "MonitoringConfig",
+    "HealthChecker",
+    "AutoRecoverySystem",
 ]
-
-# Version info
-__version__ = '1.0.0'
-__author__ = 'DPI Bypass System'
-__description__ = 'Enhanced monitoring with online traffic analysis and adaptive strategy generation'

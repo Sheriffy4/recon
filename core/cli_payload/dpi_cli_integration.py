@@ -52,21 +52,15 @@ class DPICLIIntegration:
                 "Configure DPI bypass strategies for packet manipulation",
             )
 
-            # Use the parameter parser to add arguments to the group
-            # We need to temporarily replace the parser's add_argument method
-            original_add_argument = parser.add_argument
-            parser.add_argument = dpi_group.add_argument
-
-            try:
-                self.parameter_parser.add_dpi_arguments(parser)
-            finally:
-                # Restore original add_argument method
-                parser.add_argument = original_add_argument
+            # DPIParameterParser.add_dpi_arguments accepts any object with add_argument()
+            self.parameter_parser.add_dpi_arguments(dpi_group)
 
             logger.debug("Successfully added DPI arguments to CLI parser")
 
+        except ConfigurationError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to add DPI arguments to parser: {e}")
+            logger.exception("Failed to add DPI arguments to parser: %s", e)
             raise ConfigurationError(
                 "cli_integration", str(parser), f"Failed to add DPI arguments: {e}"
             )
@@ -91,19 +85,19 @@ class DPICLIIntegration:
             self.current_config = config
 
             logger.info("Created DPI configuration from CLI arguments")
-            logger.debug(f"DPI config details: {config.to_dict()}")
+            to_dict = getattr(config, "to_dict", None)
+            if callable(to_dict):
+                logger.debug("DPI config details: %s", to_dict())
 
             return config
 
+        except ConfigurationError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to parse DPI configuration from CLI: {e}")
-            raise ConfigurationError(
-                "cli_parsing", str(args), f"CLI parsing failed: {e}"
-            )
+            logger.exception("Failed to parse DPI configuration from CLI: %s", e)
+            raise ConfigurationError("cli_parsing", str(args), f"CLI parsing failed: {e}")
 
-    def create_strategy_engine(
-        self, config: Optional[DPIConfig] = None
-    ) -> DPIStrategyEngine:
+    def create_strategy_engine(self, config: Optional[DPIConfig] = None) -> DPIStrategyEngine:
         """
         Create and initialize DPI strategy engine.
 
@@ -123,24 +117,24 @@ class DPICLIIntegration:
                 config = self.current_config
 
             if config is None:
-                raise ConfigurationError(
-                    "strategy_engine", None, "No DPI configuration available"
-                )
+                raise ConfigurationError("strategy_engine", None, "No DPI configuration available")
 
             # Create strategy engine
             engine = DPIStrategyEngine(config)
             self.strategy_engine = engine
 
             logger.info("Created DPI strategy engine successfully")
-            logger.debug(f"Engine configuration: {config.to_dict()}")
+            to_dict = getattr(config, "to_dict", None)
+            if callable(to_dict):
+                logger.debug("Engine configuration: %s", to_dict())
 
             return engine
 
+        except ConfigurationError:
+            raise
         except Exception as e:
-            logger.error(f"Failed to create DPI strategy engine: {e}")
-            raise ConfigurationError(
-                "strategy_engine", str(config), f"Engine creation failed: {e}"
-            )
+            logger.exception("Failed to create DPI strategy engine: %s", e)
+            raise ConfigurationError("strategy_engine", str(config), f"Engine creation failed: {e}")
 
     def get_strategy_engine(self) -> Optional[DPIStrategyEngine]:
         """
@@ -175,21 +169,15 @@ class DPICLIIntegration:
             config = self.parameter_parser.parse_dpi_config(args)
 
             # Additional validation checks
-            if (
-                config.enabled
-                and config.desync_mode == "split"
-                and not config.split_positions
-            ):
-                logger.warning(
-                    "DPI split mode enabled but no split positions specified"
-                )
+            if config.enabled and config.desync_mode == "split" and not config.split_positions:
+                logger.warning("DPI split mode enabled but no split positions specified")
                 return False
 
             logger.debug("DPI CLI arguments validation passed")
             return True
 
         except Exception as e:
-            logger.error(f"DPI CLI arguments validation failed: {e}")
+            logger.debug("DPI CLI arguments validation failed: %s", e, exc_info=True)
             return False
 
     def print_dpi_help(self) -> None:
@@ -300,10 +288,18 @@ class DPICLIIntegration:
 
             # Return first packet for simple interface
             # Full integration would handle multiple packets
-            return result_packets[0] if result_packets else packet
+            if isinstance(result_packets, (list, tuple)):
+                first = result_packets[0] if result_packets else packet
+                return first if isinstance(first, (bytes, bytearray)) else packet
+
+            # Some implementations may return a single bytes object
+            if isinstance(result_packets, (bytes, bytearray)):
+                return bytes(result_packets)
+
+            return packet
 
         except Exception as e:
-            logger.error(f"Failed to apply DPI strategy to packet: {e}")
+            logger.exception("Failed to apply DPI strategy to packet: %s", e)
             raise DPIStrategyError(f"Strategy application failed: {e}")
 
     def reset_engine_statistics(self) -> None:

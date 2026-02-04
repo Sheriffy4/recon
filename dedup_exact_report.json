@@ -1,0 +1,113 @@
+{
+  "root": "C:\\Users\\admin\\Downloads\\zapretttt\\DPI_Blockcheck\\recon_v109\\recon_v09\\combo\\recon",
+  "timestamp": "20260122_141911",
+  "duplicate_group_count": 3,
+  "scanned_files": 1065,
+  "decisions": [
+    {
+      "sha256": "fd3f5be7132d83e7964dd7b96ae56088afdff6ef7138c483736cac33e7929917",
+      "files": [
+        "core/bypass/attacks/dynamic_attack_registry.py",
+        "core/bypass/attacks/dynamic_attack_registry_fixed.py"
+      ],
+      "sizes": {
+        "core/bypass/attacks/dynamic_attack_registry.py": 21872,
+        "core/bypass/attacks/dynamic_attack_registry_fixed.py": 21872
+      },
+      "import_names": {
+        "core/bypass/attacks/dynamic_attack_registry.py": [
+          "core.bypass.attacks.dynamic_attack_registry"
+        ],
+        "core/bypass/attacks/dynamic_attack_registry_fixed.py": [
+          "core.bypass.attacks.dynamic_attack_registry_fixed"
+        ]
+      },
+      "usage_counts": {
+        "C:/Users/admin/Downloads/zapretttt/DPI_Blockcheck/recon_v109/recon_v09/combo/recon/core/bypass/attacks/dynamic_attack_registry.py": 0,
+        "C:/Users/admin/Downloads/zapretttt/DPI_Blockcheck/recon_v109/recon_v09/combo/recon/core/bypass/attacks/dynamic_attack_registry_fixed.py": 2
+      },
+      "usage_hits": {
+        "core.bypass.attacks.dynamic_attack_registry_fixed": [
+          "interactive_registration_test.py:16",
+          "working_registration_test.py:15"
+        ]
+      },
+      "canonical": "core/bypass/attacks/dynamic_attack_registry_fixed.py",
+      "action": "archive_non_canonical",
+      "moved": [],
+      "notes": [
+        "Canonical chosen by highest import usage count. Others will be archived."
+      ]
+    },
+    {
+      "sha256": "92a55341f0f76f910067f8f377e88327b58615ffd4ef47f04535cc5612e253e1",
+      "files": [
+        "storage.py",
+        "core/storage.py"
+      ],
+      "sizes": {
+        "storage.py": 3024,
+        "core/storage.py": 3024
+      },
+      "import_names": {
+        "storage.py": [
+          "storage"
+        ],
+        "core/storage.py": [
+          "core.storage"
+        ]
+      },
+      "usage_counts": {
+        "C:/Users/admin/Downloads/zapretttt/DPI_Blockcheck/recon_v109/recon_v09/combo/recon/storage.py": 0,
+        "C:/Users/admin/Downloads/zapretttt/DPI_Blockcheck/recon_v109/recon_v09/combo/recon/core/storage.py": 0
+      },
+      "usage_hits": {
+        "core.bypass.attacks.dynamic_attack_registry_fixed": [
+          "interactive_registration_test.py:16",
+          "working_registration_test.py:15"
+        ]
+      },
+      "canonical": null,
+      "action": "no_auto_action",
+      "moved": [],
+      "notes": [
+        "No import usage detected for any duplicate; keep as-is (manual review)."
+      ]
+    },
+    {
+      "sha256": "defba993aa6f263e21196bd9a76402b914ae28e5f3358cb8a2c107c8f9ce6287",
+      "files": [
+        "quality_analyzer.py",
+        "core/quality_analyzer.py"
+      ],
+      "sizes": {
+        "quality_analyzer.py": 2193,
+        "core/quality_analyzer.py": 2193
+      },
+      "import_names": {
+        "quality_analyzer.py": [
+          "quality_analyzer"
+        ],
+        "core/quality_analyzer.py": [
+          "core.quality_analyzer"
+        ]
+      },
+      "usage_counts": {
+        "C:/Users/admin/Downloads/zapretttt/DPI_Blockcheck/recon_v109/recon_v09/combo/recon/quality_analyzer.py": 0,
+        "C:/Users/admin/Downloads/zapretttt/DPI_Blockcheck/recon_v109/recon_v09/combo/recon/core/quality_analyzer.py": 0
+      },
+      "usage_hits": {
+        "core.bypass.attacks.dynamic_attack_registry_fixed": [
+          "interactive_registration_test.py:16",
+          "working_registration_test.py:15"
+        ]
+      },
+      "canonical": null,
+      "action": "no_auto_action",
+      "moved": [],
+      "notes": [
+        "No import usage detected for any duplicate; keep as-is (manual review)."
+      ]
+    }
+  ]
+}

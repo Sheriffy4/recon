@@ -235,9 +235,7 @@ class SegmentReportingIntegration:
                 attack_types[attack_type]["successful_executions"] += 1
 
             if "execution_time" in execution:
-                attack_types[attack_type]["execution_times"].append(
-                    execution["execution_time"]
-                )
+                attack_types[attack_type]["execution_times"].append(execution["execution_time"])
 
             if "effectiveness_score" in execution:
                 attack_types[attack_type]["effectiveness_scores"].append(
@@ -246,9 +244,7 @@ class SegmentReportingIntegration:
 
         # Calculate statistics for each attack type
         for attack_type, stats in attack_types.items():
-            stats["success_rate"] = (
-                stats["successful_executions"] / stats["total_executions"]
-            )
+            stats["success_rate"] = stats["successful_executions"] / stats["total_executions"]
 
             if stats["execution_times"]:
                 stats["avg_execution_time"] = sum(stats["execution_times"]) / len(
@@ -313,15 +309,11 @@ class SegmentReportingIntegration:
         report_data.total_bytes_transmitted = total_bytes
 
         if segment_counts:
-            report_data.average_segments_per_attack = sum(segment_counts) / len(
-                segment_counts
-            )
+            report_data.average_segments_per_attack = sum(segment_counts) / len(segment_counts)
 
         report_data.segment_option_usage = option_usage
         report_data.ttl_modification_stats = ttl_modifications
-        report_data.checksum_corruption_stats = {
-            "total_corruptions": checksum_corruptions
-        }
+        report_data.checksum_corruption_stats = {"total_corruptions": checksum_corruptions}
 
     async def _collect_performance_metrics(
         self, report_data: SegmentReportData, execution_summary: Dict[str, Any]
@@ -330,9 +322,7 @@ class SegmentReportingIntegration:
 
         completed_executions = execution_summary.get("completed_executions", [])
         execution_times = [
-            ex.get("execution_time", 0)
-            for ex in completed_executions
-            if "execution_time" in ex
+            ex.get("execution_time", 0) for ex in completed_executions if "execution_time" in ex
         ]
 
         if execution_times:
@@ -394,9 +384,7 @@ class SegmentReportingIntegration:
             report_data.effectiveness_distribution = distribution
 
             # Identify top performing attacks
-            successful_executions = [
-                ex for ex in completed_executions if ex.get("success", False)
-            ]
+            successful_executions = [ex for ex in completed_executions if ex.get("success", False)]
             top_attacks = sorted(
                 successful_executions,
                 key=lambda x: x.get("effectiveness_score", 0),
@@ -451,9 +439,7 @@ class SegmentReportingIntegration:
 
             report_data.delay_distribution = delay_ranges
 
-    async def _generate_trends_and_recommendations(
-        self, report_data: SegmentReportData
-    ):
+    async def _generate_trends_and_recommendations(self, report_data: SegmentReportData):
         """Generate trends analysis and recommendations."""
 
         # Performance recommendations
@@ -479,25 +465,17 @@ class SegmentReportingIntegration:
             )
 
         # Timing recommendations
-        timing_accuracy = report_data.timing_accuracy_metrics.get(
-            "average_timing_accuracy", 1.0
-        )
+        timing_accuracy = report_data.timing_accuracy_metrics.get("average_timing_accuracy", 1.0)
         if timing_accuracy < 0.9:
             report_data.performance_recommendations.append(
                 f"Timing accuracy ({timing_accuracy:.1%}) could be improved. Check system load and consider timing optimizations."
             )
 
-    async def _generate_html_report(
-        self, report_data: SegmentReportData, report_name: str
-    ) -> str:
+    async def _generate_html_report(self, report_data: SegmentReportData, report_name: str) -> str:
         """Generate HTML report."""
 
-        timestamp = datetime.fromtimestamp(report_data.generation_time).strftime(
-            "%Y%m%d_%H%M%S"
-        )
-        report_path = (
-            Path(self.config.output_directory) / f"{report_name}_{timestamp}.html"
-        )
+        timestamp = datetime.fromtimestamp(report_data.generation_time).strftime("%Y%m%d_%H%M%S")
+        report_path = Path(self.config.output_directory) / f"{report_name}_{timestamp}.html"
 
         # Generate HTML content
         html_content = self._create_html_report_content(report_data)
@@ -698,17 +676,11 @@ class SegmentReportingIntegration:
 
         return html_content
 
-    async def _generate_json_report(
-        self, report_data: SegmentReportData, report_name: str
-    ) -> str:
+    async def _generate_json_report(self, report_data: SegmentReportData, report_name: str) -> str:
         """Generate JSON report."""
 
-        timestamp = datetime.fromtimestamp(report_data.generation_time).strftime(
-            "%Y%m%d_%H%M%S"
-        )
-        report_path = (
-            Path(self.config.output_directory) / f"{report_name}_{timestamp}.json"
-        )
+        timestamp = datetime.fromtimestamp(report_data.generation_time).strftime("%Y%m%d_%H%M%S")
+        report_path = Path(self.config.output_directory) / f"{report_name}_{timestamp}.json"
 
         # Convert report data to dictionary
         report_dict = {
@@ -748,9 +720,7 @@ class SegmentReportingIntegration:
 
         return str(report_path)
 
-    async def _generate_pdf_report(
-        self, report_data: SegmentReportData, report_name: str
-    ) -> str:
+    async def _generate_pdf_report(self, report_data: SegmentReportData, report_name: str) -> str:
         """Generate PDF report (placeholder - would require additional dependencies)."""
 
         # For now, generate HTML and suggest conversion
@@ -762,9 +732,7 @@ class SegmentReportingIntegration:
 
         return html_path
 
-    async def _generate_charts(
-        self, report_data: SegmentReportData, report_name: str
-    ) -> List[str]:
+    async def _generate_charts(self, report_data: SegmentReportData, report_name: str) -> List[str]:
         """Generate visualization charts."""
 
         chart_paths = []
@@ -809,8 +777,7 @@ class SegmentReportingIntegration:
             # Prepare data
             attack_types = list(report_data.attack_type_statistics.keys())
             success_rates = [
-                stats["success_rate"]
-                for stats in report_data.attack_type_statistics.values()
+                stats["success_rate"] for stats in report_data.attack_type_statistics.values()
             ]
             avg_times = [
                 stats.get("avg_execution_time", 0) * 1000

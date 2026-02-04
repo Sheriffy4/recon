@@ -196,9 +196,7 @@ class RegressionTest:
             "test_name": self.test_name,
             "test_type": self.test_type,
             "target_domain": self.target_domain,
-            "strategy_config": (
-                self.strategy_config.to_dict() if self.strategy_config else None
-            ),
+            "strategy_config": (self.strategy_config.to_dict() if self.strategy_config else None),
             "expected_result": self.expected_result,
             "test_code": self.test_code,
             "setup_code": self.setup_code,
@@ -365,9 +363,7 @@ class FixGenerator:
 
         return fixes
 
-    def create_checksum_corruption_fix(
-        self, checksum_analysis: Dict[str, Any]
-    ) -> List[CodeFix]:
+    def create_checksum_corruption_fix(self, checksum_analysis: Dict[str, Any]) -> List[CodeFix]:
         """
         Create fixes for checksum corruption issues.
 
@@ -408,9 +404,7 @@ class FixGenerator:
 
         return fixes
 
-    def generate_timing_optimization_fixes(
-        self, timing_analysis: Dict[str, Any]
-    ) -> List[CodeFix]:
+    def generate_timing_optimization_fixes(self, timing_analysis: Dict[str, Any]) -> List[CodeFix]:
         """
         Generate timing optimization fixes for packet sending delays.
 
@@ -446,9 +440,7 @@ class FixGenerator:
             fixes.append(fix)
 
         if timing_analysis.get("send_order_incorrect", False):
-            correct_order = timing_analysis.get(
-                "correct_send_order", ["fake", "real1", "real2"]
-            )
+            correct_order = timing_analysis.get("correct_send_order", ["fake", "real1", "real2"])
 
             fix = CodeFix(
                 fix_id=f"order_fix_{len(fixes) + 1}",
@@ -532,10 +524,7 @@ class FixGenerator:
 
         split_pos = 3  # Default from zapret
         for evidence in cause.evidence:
-            if (
-                evidence.type == "split_position_mismatch"
-                and "zapret_split_pos" in evidence.data
-            ):
+            if evidence.type == "split_position_mismatch" and "zapret_split_pos" in evidence.data:
                 split_pos = evidence.data["zapret_split_pos"]
 
         fix = CodeFix(
@@ -559,10 +548,7 @@ class FixGenerator:
 
         fooling_methods = ["badsum", "badseq"]  # Default from zapret
         for evidence in cause.evidence:
-            if (
-                evidence.type == "fooling_method_mismatch"
-                and "zapret_fooling" in evidence.data
-            ):
+            if evidence.type == "fooling_method_mismatch" and "zapret_fooling" in evidence.data:
                 fooling_methods = evidence.data["zapret_fooling"]
 
         fix = CodeFix(
@@ -582,9 +568,7 @@ class FixGenerator:
 
     def _generate_checksum_fixes(self, cause: RootCause) -> List[CodeFix]:
         """Generate checksum-related fixes."""
-        return self.create_checksum_corruption_fix(
-            {"fake_packets_have_bad_checksum": False}
-        )
+        return self.create_checksum_corruption_fix({"fake_packets_have_bad_checksum": False})
 
     def _generate_timing_fixes(self, cause: RootCause) -> List[CodeFix]:
         """Generate timing-related fixes."""
@@ -746,23 +730,17 @@ def test_sequence_fix_regression():
         return {
             "total_fixes": len(self.generated_fixes),
             "fix_types": {
-                fix_type.value: len(
-                    [f for f in self.generated_fixes if f.fix_type == fix_type]
-                )
+                fix_type.value: len([f for f in self.generated_fixes if f.fix_type == fix_type])
                 for fix_type in FixType
             },
             "risk_levels": {
-                risk.value: len(
-                    [f for f in self.generated_fixes if f.risk_level == risk]
-                )
+                risk.value: len([f for f in self.generated_fixes if f.risk_level == risk])
                 for risk in RiskLevel
             },
             "high_confidence_fixes": [
                 f.fix_id for f in self.generated_fixes if f.confidence >= 0.8
             ],
             "critical_fixes": [
-                f.fix_id
-                for f in self.generated_fixes
-                if f.risk_level == RiskLevel.CRITICAL
+                f.fix_id for f in self.generated_fixes if f.risk_level == RiskLevel.CRITICAL
             ],
         }

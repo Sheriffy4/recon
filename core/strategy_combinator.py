@@ -238,9 +238,7 @@ class StrategyCombinator:
                     and other_comp.attack_type == "ttl_manipulation"
                 ):
                     if comp_name != other_name:  # Different TTL components conflict
-                        conflicts.append(
-                            f"{comp_name} conflicts with {other_name} (TTL conflict)"
-                        )
+                        conflicts.append(f"{comp_name} conflicts with {other_name} (TTL conflict)")
 
                 # Check if components are compatible
                 if (
@@ -253,9 +251,7 @@ class StrategyCombinator:
                         and other_comp.attack_type
                         not in ["fooling", "ttl_manipulation", "parameter"]
                     ):
-                        conflicts.append(
-                            f"{comp_name} not compatible with {other_name}"
-                        )
+                        conflicts.append(f"{comp_name} not compatible with {other_name}")
 
             component_types.add(comp.attack_type)
 
@@ -266,9 +262,7 @@ class StrategyCombinator:
 
         return len(conflicts) == 0, conflicts
 
-    def combine_components(
-        self, component_names: List[str]
-    ) -> Optional[Dict[str, Any]]:
+    def combine_components(self, component_names: List[str]) -> Optional[Dict[str, Any]]:
         """
         Combine attack components into a single strategy.
 
@@ -300,9 +294,7 @@ class StrategyCombinator:
                     combined_params.update(comp.parameters)
                 else:
                     # Multiple main attacks - this shouldn't happen if compatibility check passed
-                    LOG.warning(
-                        f"Multiple main attack types: {main_attack}, {comp.attack_type}"
-                    )
+                    LOG.warning(f"Multiple main attack types: {main_attack}, {comp.attack_type}")
                     return None
 
             # Collect fooling methods
@@ -326,9 +318,7 @@ class StrategyCombinator:
         LOG.info(f"Combined strategy: {strategy}")
         return strategy
 
-    def get_predefined_combination(
-        self, combination_name: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_predefined_combination(self, combination_name: str) -> Optional[Dict[str, Any]]:
         """
         Get a predefined combination by name.
 
@@ -504,10 +494,7 @@ class StrategyCombinator:
             strategy = self.combine_components(components)
             if strategy:
                 confidence = max(
-                    [
-                        technique_confidences.get(t, 0.5)
-                        for t in rule_recommendations[:3]
-                    ]
+                    [technique_confidences.get(t, 0.5) for t in rule_recommendations[:3]]
                 )
                 combination_name = f"rule_based_{primary_attack}_{confidence:.2f}"
                 suggestions.append((combination_name, strategy))
@@ -545,9 +532,7 @@ class StrategyCombinator:
 
         return unique_suggestions
 
-    def create_custom_combination(
-        self, base_attack: str, **kwargs
-    ) -> Optional[Dict[str, Any]]:
+    def create_custom_combination(self, base_attack: str, **kwargs) -> Optional[Dict[str, Any]]:
         """
         Create a custom combination with specified parameters.
 

@@ -143,15 +143,11 @@ class RealEffectivenessTester:
         """Stub for RST TTL capture (not implemented yet)."""
         return None
 
-    async def _get_normal_response_ttl(
-        self, server_ip: str, port: int
-    ) -> Optional[int]:
+    async def _get_normal_response_ttl(self, server_ip: str, port: int) -> Optional[int]:
         """Stub for normal TTL estimation (not implemented yet)."""
         return None
 
-    async def _check_sni_consistency(
-        self, domain: str, port: int = 443
-    ) -> Optional[bool]:
+    async def _check_sni_consistency(self, domain: str, port: int = 443) -> Optional[bool]:
         """
         Check if SNI blocking is consistent across different SNI values.
 
@@ -183,9 +179,7 @@ class RealEffectivenessTester:
             self.logger.debug(f"Failed to check SNI consistency for {domain}: {e}")
             return None
 
-    async def _test_sni_variant(
-        self, domain: str, sni_hostname: str, port: int
-    ) -> bool:
+    async def _test_sni_variant(self, domain: str, sni_hostname: str, port: int) -> bool:
         """
         Test connection with specific SNI hostname.
 
@@ -210,17 +204,13 @@ class RealEffectivenessTester:
             ctx.verify_mode = ssl.CERT_NONE
 
             # Connect with specific SNI
-            with socket.create_connection(
-                (server_ip, port), timeout=self.timeout
-            ) as sock:
+            with socket.create_connection((server_ip, port), timeout=self.timeout) as sock:
                 with ctx.wrap_socket(sock, server_hostname=sni_hostname) as ssl_sock:
                     # Connection successful
                     return True
 
         except Exception as e:
-            self.logger.debug(
-                f"SNI test failed for {domain} with SNI {sni_hostname}: {e}"
-            )
+            self.logger.debug(f"SNI test failed for {domain} with SNI {sni_hostname}: {e}")
             return False
 
     async def _detect_http2_support(
@@ -249,24 +239,16 @@ class RealEffectivenessTester:
             connector = aiohttp.TCPConnector(ssl=ssl_context)
             timeout = aiohttp.ClientTimeout(total=5)
 
-            async with aiohttp.ClientSession(
-                connector=connector, timeout=timeout
-            ) as session:
+            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
                 url = f"https://{domain}/"
                 async with session.get(url) as response:
                     # Check if HTTP/2 was negotiated
                     version = getattr(response, "version", None)
-                    if (
-                        version
-                        and hasattr(version, "major")
-                        and hasattr(version, "minor")
-                    ):
+                    if version and hasattr(version, "major") and hasattr(version, "minor"):
                         http2_supported = version.major == 2
                     else:
                         # Fallback: check via headers or other indicators
-                        http2_supported = "HTTP/2" in str(
-                            response.headers.get("server", "")
-                        )
+                        http2_supported = "HTTP/2" in str(response.headers.get("server", ""))
 
                     frame_analysis = {
                         "version_negotiated": (
@@ -304,9 +286,7 @@ class RealEffectivenessTester:
                 alt_svc = response.headers.get("alt-svc", "")
 
                 quic_indicators = ["h3", "quic", "h3-29", "h3-27"]
-                quic_supported = any(
-                    indicator in alt_svc.lower() for indicator in quic_indicators
-                )
+                quic_supported = any(indicator in alt_svc.lower() for indicator in quic_indicators)
 
                 quic_analysis = {
                     "alt_svc_header": alt_svc,
@@ -319,9 +299,7 @@ class RealEffectivenessTester:
                     import re
 
                     version_matches = re.findall(r"h3-(\d+)", alt_svc)
-                    quic_analysis["quic_versions"] = [
-                        f"h3-{v}" for v in version_matches
-                    ]
+                    quic_analysis["quic_versions"] = [f"h3-{v}" for v in version_matches]
                     if not quic_analysis["quic_versions"] and "h3" in alt_svc:
                         quic_analysis["quic_versions"] = ["h3"]
 
@@ -442,9 +420,7 @@ class RealEffectivenessTester:
 
         return timing_patterns
 
-    async def collect_extended_metrics(
-        self, domain: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def collect_extended_metrics(self, domain: str, port: int = 443) -> Dict[str, Any]:
         """
         Collect comprehensive extended metrics for fingerprint enhancement.
 
@@ -468,19 +444,13 @@ class RealEffectivenessTester:
 
         try:
             # Collect RST TTL distance
-            metrics["rst_ttl_distance"] = await self._measure_rst_ttl_distance(
-                domain, port
-            )
+            metrics["rst_ttl_distance"] = await self._measure_rst_ttl_distance(domain, port)
 
             # Check SNI consistency
-            metrics["sni_consistency_blocked"] = await self._check_sni_consistency(
-                domain, port
-            )
+            metrics["sni_consistency_blocked"] = await self._check_sni_consistency(domain, port)
 
             # Detect protocol support
-            http2_support, http2_analysis = await self._detect_http2_support(
-                domain, port
-            )
+            http2_support, http2_analysis = await self._detect_http2_support(domain, port)
             metrics["http2_support"] = http2_support
             metrics["http2_frame_analysis"] = http2_analysis
 
@@ -493,9 +463,7 @@ class RealEffectivenessTester:
             metrics["ech_analysis"] = ech_analysis
 
             # Collect timing patterns
-            metrics["response_timing_patterns"] = await self._collect_timing_patterns(
-                domain, port
-            )
+            metrics["response_timing_patterns"] = await self._collect_timing_patterns(domain, port)
 
             # Perform baseline test to get block type classification
             baseline_result = await self.test_baseline(domain, port)
@@ -577,9 +545,7 @@ class RealEffectivenessTester:
             force_close=True,
         )
         timeout = aiohttp.ClientTimeout(total=self.timeout)
-        self._session = aiohttp.ClientSession(
-            timeout=timeout, connector=connector, headers=HEADERS
-        )
+        self._session = aiohttp.ClientSession(timeout=timeout, connector=connector, headers=HEADERS)
         return self._session
 
     async def _http_get(
@@ -637,9 +603,7 @@ class RealEffectivenessTester:
         """
         start_time = time.time()
         attack_name = attack_result.technique_used or "unknown"
-        self.logger.info(
-            f"Testing attack '{attack_name}' on {len(sites)} sites in parallel."
-        )
+        self.logger.info(f"Testing attack '{attack_name}' on {len(sites)} sites in parallel.")
         all_ips = set()
         domain_to_ip = {}
         for site in sites:
@@ -650,8 +614,7 @@ class RealEffectivenessTester:
         if not all_ips:
             self.logger.error("Could not resolve any IPs for the site group.")
             return {
-                site: BypassResult(domain=site, success=False, error="DNS Error")
-                for site in sites
+                site: BypassResult(domain=site, success=False, error="DNS Error") for site in sites
             }
         self.set_pinned_dns_map(domain_to_ip)
         engine = None
@@ -664,9 +627,7 @@ class RealEffectivenessTester:
                     "Failed to start the bypass engine in recipe mode for group test."
                 )
             await asyncio.sleep(1.5)
-            self.logger.debug(
-                f"Bypass engine started for {len(all_ips)} IPs. Testing sites..."
-            )
+            self.logger.debug(f"Bypass engine started for {len(all_ips)} IPs. Testing sites...")
             tasks = []
             for site in sites:
                 protocol = "https" if port in [443, 8443] else "http"
@@ -677,9 +638,7 @@ class RealEffectivenessTester:
             for i, site in enumerate(sites):
                 res = http_results[i]
                 if isinstance(res, Exception):
-                    final_results[site] = BypassResult(
-                        domain=site, success=False, error=str(res)
-                    )
+                    final_results[site] = BypassResult(domain=site, success=False, error=str(res))
                     continue
                 content, headers, status_code, error = res
                 block_type = self._analyze_response(status_code, content, headers)
@@ -698,21 +657,14 @@ class RealEffectivenessTester:
                 )
             return final_results
         except Exception as e:
-            self.logger.error(
-                f"Group bypass test failed with an exception: {e}", exc_info=False
-            )
-            return {
-                site: BypassResult(domain=site, success=False, error=str(e))
-                for site in sites
-            }
+            self.logger.error(f"Group bypass test failed with an exception: {e}", exc_info=False)
+            return {site: BypassResult(domain=site, success=False, error=str(e)) for site in sites}
         finally:
             if engine and engine.is_running:
                 engine.stop()
             self.clear_pinned_ips()
 
-    async def _perform_test(
-        self, domain: str, port: int, is_baseline: bool
-    ) -> EffectivenessResult:
+    async def _perform_test(self, domain: str, port: int, is_baseline: bool) -> EffectivenessResult:
         """Общая логика для выполнения HTTP-теста."""
         if not self._session:
             raise RuntimeError("Tester must be used within an 'async with' context.")
@@ -811,9 +763,7 @@ class RealEffectivenessTester:
                 error=f"Recipe generation failed: {attack_result.error_message or 'Unknown reason'}",
             )
         if not attack_result.has_segments():
-            self.logger.warning(
-                f"Bypass test for {domain} skipped: attack recipe is empty."
-            )
+            self.logger.warning(f"Bypass test for {domain} skipped: attack recipe is empty.")
             return BypassResult(
                 domain=domain,
                 success=False,
@@ -856,9 +806,7 @@ class RealEffectivenessTester:
             engine = create_best_engine(
                 engine_override=self.engine_override, config=self.engine_config
             )
-            if not engine.start_with_segments_recipe(
-                {target_ip}, attack_result.segments
-            ):
+            if not engine.start_with_segments_recipe({target_ip}, attack_result.segments):
                 raise RuntimeError("Failed to start the bypass engine in recipe mode.")
             await asyncio.sleep(1.5)
             self.logger.debug(
@@ -949,9 +897,7 @@ class RealEffectivenessTester:
                     await asyncio.sleep(delay_ms / 1000.0)
                 writer.write(segment_data)
                 await writer.drain()
-            response_data = await asyncio.wait_for(
-                reader.read(4096), timeout=self.timeout
-            )
+            response_data = await asyncio.wait_for(reader.read(4096), timeout=self.timeout)
             latency_ms = (time.time() - start_time) * 1000
             success = len(response_data) > 0
             block_type = BlockType.NONE if success else BlockType.TIMEOUT
@@ -996,9 +942,7 @@ class RealEffectivenessTester:
         """Test a single site (used for concurrent testing)."""
         protocol = "https" if port == 443 else "http"
         url = (
-            f"{protocol}://{domain}:{port}/"
-            if port not in (80, 443)
-            else f"{protocol}://{domain}/"
+            f"{protocol}://{domain}:{port}/" if port not in (80, 443) else f"{protocol}://{domain}/"
         )
         start_time = time.time()
         try:
@@ -1098,9 +1042,7 @@ class RealEffectivenessTester:
     def _classify_error(self, error: Exception) -> BlockType:
         error_str = str(error).lower()
         # Сначала явные протокольные признаки
-        if "tls alert" in error_str or (
-            "ssl" in error_str and "handshake" in error_str
-        ):
+        if "tls alert" in error_str or ("ssl" in error_str and "handshake" in error_str):
             return BlockType.TLS_ALERT
         if "icmp" in error_str or "unreach" in error_str:
             return BlockType.ICMP_UNREACH
@@ -1117,12 +1059,7 @@ class RealEffectivenessTester:
         if not content:
             return ""
         try:
-            return (
-                content[:max_len]
-                .decode("utf-8", errors="ignore")
-                .replace("\n", " ")
-                .strip()
-            )
+            return content[:max_len].decode("utf-8", errors="ignore").replace("\n", " ").strip()
         except:
             return ""
 
@@ -1145,12 +1082,7 @@ class RealEffectivenessTester:
             improvement_type = "access_gained"
         elif baseline.success and bypass.success:
             if bypass.latency_ms < baseline.latency_ms * 0.9:
-                score = (
-                    0.5
-                    + (baseline.latency_ms - bypass.latency_ms)
-                    / baseline.latency_ms
-                    * 0.5
-                )
+                score = 0.5 + (baseline.latency_ms - bypass.latency_ms) / baseline.latency_ms * 0.5
                 improvement_type = "latency_improved"
             else:
                 score = 0.2
@@ -1190,9 +1122,7 @@ class RealEffectivenessTester:
             force_close=True,
         )
         timeout = aiohttp.ClientTimeout(total=self.timeout)
-        self._session = aiohttp.ClientSession(
-            timeout=timeout, connector=connector, headers=HEADERS
-        )
+        self._session = aiohttp.ClientSession(timeout=timeout, connector=connector, headers=HEADERS)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -1233,9 +1163,7 @@ class RealEffectivenessTester:
                         latency_ms=100.0,
                         technique_used=attack_name or "unknown",
                     )
-                bypass_result = await self.test_with_bypass(
-                    domain, port, test_attack_result
-                )
+                bypass_result = await self.test_with_bypass(domain, port, test_attack_result)
                 results[domain] = bypass_result
             except Exception as e:
                 LOG.error(f"Error testing {attack_name} on {domain}: {e}")

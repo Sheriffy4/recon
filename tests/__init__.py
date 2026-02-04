@@ -1,1 +1,1 @@
-"""Test package for recon DPI tool."""
+# Tests package

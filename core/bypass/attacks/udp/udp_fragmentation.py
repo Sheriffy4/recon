@@ -55,11 +55,7 @@ class UDPFragmentationAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "fragment_size": 64,
-            "fragment_order": "normal",
-            "overlap_fragments": False
-        }
+        return {"fragment_size": 64, "fragment_order": "normal", "overlap_fragments": False}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute UDP fragmentation attack."""

@@ -379,9 +379,7 @@ class WorkflowConfigManager:
         else:
             raise ValueError(f"Unknown template type: {template_type}")
 
-    def save_template(
-        self, template_type: str = "basic", name: str = "template"
-    ) -> str:
+    def save_template(self, template_type: str = "basic", name: str = "template") -> str:
         """
         Save a configuration template to file
 
@@ -437,9 +435,7 @@ def create_full_config(
     if domains:
         overrides["target_domains"] = domains
 
-    return manager.create_config_from_preset(
-        "full", recon_pcap, zapret_pcap, **overrides
-    )
+    return manager.create_config_from_preset("full", recon_pcap, zapret_pcap, **overrides)
 
 
 def create_safe_config(recon_pcap: str, zapret_pcap: str) -> WorkflowConfig:

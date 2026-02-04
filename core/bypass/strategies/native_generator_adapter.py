@@ -33,12 +33,8 @@ class NativeStrategyGeneratorAdapter(IStrategyGenerator):
         kb["fooling_methods"] = ["badsum"]
         return kb
 
-    def generate_strategies(
-        self, count: int = 20, use_parameter_ranges: bool = True
-    ) -> List[Dict]:
+    def generate_strategies(self, count: int = 20, use_parameter_ranges: bool = True) -> List[Dict]:
         kb = self._kb_from_fp()
         # Можно обогатить telemetry_hint из внешних источников (если интерфейс их подаст)
-        cands = self.native.generate(
-            kb_recs=kb, telemetry_hint=self.telemetry_hint, count=count
-        )
+        cands = self.native.generate(kb_recs=kb, telemetry_hint=self.telemetry_hint, count=count)
         return cands

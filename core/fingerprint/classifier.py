@@ -63,8 +63,7 @@ class UltimateDPIClassifier:
                 ),
                 (lambda fp: fp.zero_rtt_blocked is True, "0-RTT blocked", 0.04),
                 (
-                    lambda fp: hasattr(fp, "rst_ttl_distance")
-                    and (fp.rst_ttl_distance or 0) > 10,
+                    lambda fp: hasattr(fp, "rst_ttl_distance") and (fp.rst_ttl_distance or 0) > 10,
                     "High RST TTL distance",
                     0.08,
                 ),
@@ -133,8 +132,7 @@ class UltimateDPIClassifier:
                     0.09,
                 ),
                 (
-                    lambda fp: hasattr(fp, "rst_ttl_distance")
-                    and (fp.rst_ttl_distance or 0) > 15,
+                    lambda fp: hasattr(fp, "rst_ttl_distance") and (fp.rst_ttl_distance or 0) > 15,
                     "Very high RST TTL distance",
                     0.05,
                 ),
@@ -209,8 +207,7 @@ class UltimateDPIClassifier:
                 (lambda fp: fp.websocket_blocked is True, "WebSocket blocked", 0.09),
                 (lambda fp: 120 <= (fp.rst_ttl or 0) <= 128, "RST TTL near 128", 0.04),
                 (
-                    lambda fp: hasattr(fp, "http2_support")
-                    and fp.http2_support is True,
+                    lambda fp: hasattr(fp, "http2_support") and fp.http2_support is True,
                     "HTTP/2 support detected",
                     0.04,
                 ),
@@ -246,8 +243,7 @@ class UltimateDPIClassifier:
                     0.1,
                 ),
                 (
-                    lambda fp: fp.tls_version_sensitivity
-                    in ["blocks_tls12", "blocks_tls13"],
+                    lambda fp: fp.tls_version_sensitivity in ["blocks_tls12", "blocks_tls13"],
                     "TLS version sensitive",
                     0.1,
                 ),
@@ -385,10 +381,7 @@ class UltimateDPIClassifier:
         sig_classification = self._signature_classify(fp)
         if self.ml_enabled and self.is_model_fitted:
             ml_classification = self._ml_classify(fp)
-            if (
-                ml_classification
-                and ml_classification.confidence > sig_classification.confidence
-            ):
+            if ml_classification and ml_classification.confidence > sig_classification.confidence:
                 LOG.info(
                     f"ML override: {sig_classification.dpi_type} → {ml_classification.dpi_type}"
                 )
@@ -447,18 +440,14 @@ class UltimateDPIClassifier:
                 dpi_type=dpi_type,
                 vendor=sig["vendor"],
                 family=(
-                    sig["family"].value
-                    if hasattr(sig["family"], "value")
-                    else str(sig["family"])
+                    sig["family"].value if hasattr(sig["family"], "value") else str(sig["family"])
                 ),
                 confidence=confidence,
                 classification_method="signature",
                 classification_reasons=reasons,
             )
             if len(matches) > 1:
-                classification.alternative_classifications = [
-                    (m[0], m[1]) for m in matches[1:4]
-                ]
+                classification.alternative_classifications = [(m[0], m[1]) for m in matches[1:4]]
             return classification
         return DPIClassification(
             dpi_type="Unknown",
@@ -490,9 +479,7 @@ class UltimateDPIClassifier:
                     confidence=confidence,
                     classification_method="ml",
                     classification_reasons=["ML model prediction"],
-                    ml_features={
-                        name: value for name, value in zip(self.feature_names, features)
-                    },
+                    ml_features={name: value for name, value in zip(self.feature_names, features)},
                 )
         except Exception as e:
             LOG.error(f"ML classification failed: {e}")
@@ -564,9 +551,7 @@ class UltimateDPIClassifier:
         features.append(self._encode_tls_sensitivity(fp.tls_version_sensitivity))
         features.append(self._encode_ipv6_handling(fp.ipv6_handling))
         features.append(self._encode_tcp_keepalive(fp.tcp_keepalive_handling))
-        features.append(
-            self._encode_baseline_block_type(getattr(fp, "baseline_block_type", None))
-        )
+        features.append(self._encode_baseline_block_type(getattr(fp, "baseline_block_type", None)))
         features.append(
             self._encode_primary_block_method(getattr(fp, "primary_block_method", None))
         )
@@ -574,25 +559,19 @@ class UltimateDPIClassifier:
         if timing_patterns:
             jitter_measurements = timing_patterns.get("jitter_measurements", [])
             avg_jitter = (
-                sum(jitter_measurements) / len(jitter_measurements)
-                if jitter_measurements
-                else -1
+                sum(jitter_measurements) / len(jitter_measurements) if jitter_measurements else -1
             )
             features.append(avg_jitter)
             connection_times = timing_patterns.get("connection_times", [])
             avg_connection_time = (
-                sum(connection_times) / len(connection_times)
-                if connection_times
-                else -1
+                sum(connection_times) / len(connection_times) if connection_times else -1
             )
             features.append(avg_connection_time)
         else:
             features.extend([-1, -1])
         content_indicators = getattr(fp, "content_filtering_indicators", {})
         active_filters = (
-            sum((1 for v in content_indicators.values() if v))
-            if content_indicators
-            else 0
+            sum((1 for v in content_indicators.values() if v)) if content_indicators else 0
         )
         features.append(active_filters)
         return np.array(features)
@@ -700,9 +679,7 @@ class UltimateDPIClassifier:
         if os.path.exists(model_path):
             try:
                 self.ml_model = joblib.load(model_path)
-                self.feature_names = joblib.load(
-                    model_path.replace(".pkl", "_features.pkl")
-                )
+                self.feature_names = joblib.load(model_path.replace(".pkl", "_features.pkl"))
                 self.is_model_fitted = True
                 LOG.info("Loaded pre-trained ML model")
             except Exception as e:
@@ -714,9 +691,7 @@ class UltimateDPIClassifier:
     def _train_new_model(self):
         """Train new ML model (placeholder - needs training data)"""
         LOG.info("Training new ML model...")
-        self.ml_model = RandomForestClassifier(
-            n_estimators=100, max_depth=10, random_state=42
-        )
+        self.ml_model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
         self.feature_names = (
             [
                 "rst_ttl",
@@ -749,9 +724,7 @@ class UltimateDPIClassifier:
             X = [features]
             y = [actual_dpi_type]
             if hasattr(self.ml_model, "partial_fit"):
-                self.ml_model.partial_fit(
-                    X, y, classes=list(self.DPI_SIGNATURES.keys())
-                )
+                self.ml_model.partial_fit(X, y, classes=list(self.DPI_SIGNATURES.keys()))
                 self.is_model_fitted = True
             LOG.info(f"Updated ML model with feedback: {actual_dpi_type}")
         except Exception as e:

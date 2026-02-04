@@ -105,9 +105,7 @@ class BackgroundTaskManager:
 
         # Cancel all tasks
         if self.loop and not self.loop.is_closed():
-            future = asyncio.run_coroutine_threadsafe(
-                self._cancel_all_tasks(), self.loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self._cancel_all_tasks(), self.loop)
             try:
                 future.result(timeout=timeout)
             except Exception as e:
@@ -136,9 +134,7 @@ class BackgroundTaskManager:
             return False
 
         try:
-            future = asyncio.run_coroutine_threadsafe(
-                self._schedule_task_async(config), self.loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self._schedule_task_async(config), self.loop)
             return future.result(timeout=5.0)
         except Exception as e:
             LOG.error(f"Failed to schedule task {config.name}: {e}")
@@ -158,9 +154,7 @@ class BackgroundTaskManager:
             return False
 
         try:
-            future = asyncio.run_coroutine_threadsafe(
-                self._cancel_task_async(task_name), self.loop
-            )
+            future = asyncio.run_coroutine_threadsafe(self._cancel_task_async(task_name), self.loop)
             return future.result(timeout=5.0)
         except Exception as e:
             LOG.error(f"Failed to cancel task {task_name}: {e}")

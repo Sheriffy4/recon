@@ -302,17 +302,14 @@ class ProductionConfigManager:
 
         # Validate SSL configuration
         if self.config.ssl_cert_path and not os.path.exists(self.config.ssl_cert_path):
-            errors.append(
-                f"SSL certificate file not found: {self.config.ssl_cert_path}"
-            )
+            errors.append(f"SSL certificate file not found: {self.config.ssl_cert_path}")
 
         if self.config.ssl_key_path and not os.path.exists(self.config.ssl_key_path):
             errors.append(f"SSL key file not found: {self.config.ssl_key_path}")
 
         if errors:
             raise ValueError(
-                "Configuration validation failed:\n"
-                + "\n".join(f"- {error}" for error in errors)
+                "Configuration validation failed:\n" + "\n".join(f"- {error}" for error in errors)
             )
 
     def save_config(self, output_file: Optional[str] = None):
@@ -392,9 +389,7 @@ def create_sample_config() -> ProductionConfig:
             password="CHANGE_ME",
             ssl_mode="require",
         ),
-        redis=RedisConfig(
-            host="redis.example.com", port=6379, password="CHANGE_ME", ssl=True
-        ),
+        redis=RedisConfig(host="redis.example.com", port=6379, password="CHANGE_ME", ssl=True),
         security=SecurityConfig(
             secret_key="CHANGE_ME_TO_RANDOM_STRING",
             jwt_secret="CHANGE_ME_TO_RANDOM_STRING",
@@ -431,12 +426,8 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Production Configuration Manager")
-    parser.add_argument(
-        "--create-sample", action="store_true", help="Create sample configuration"
-    )
-    parser.add_argument(
-        "--validate", action="store_true", help="Validate configuration"
-    )
+    parser.add_argument("--create-sample", action="store_true", help="Create sample configuration")
+    parser.add_argument("--validate", action="store_true", help="Validate configuration")
     parser.add_argument("--config-file", help="Configuration file path")
     parser.add_argument("--output", help="Output file for sample configuration")
 

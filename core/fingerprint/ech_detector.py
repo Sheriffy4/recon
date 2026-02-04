@@ -272,9 +272,7 @@ class ECHDetector:
             res["ech_blocked"] = True
         return res
 
-    async def probe_http3(
-        self, host: str, port: int = 443, timeout: float = 1.5
-    ) -> bool:
+    async def probe_http3(self, host: str, port: int = 443, timeout: float = 1.5) -> bool:
         """
         Проверка поддержки HTTP/3:
         - Если установлен aioquic — выполняем короткий h3‑handshake

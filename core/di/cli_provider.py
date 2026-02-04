@@ -61,12 +61,8 @@ class CLIServiceProvider:
                 builder.set_mode(DIMode.PRODUCTION)
             builder.apply_cli_args(self.args)
             self._typed_config = builder.build()
-            self.container = ServiceFactory.create_container_from_typed_config(
-                self._typed_config
-            )
-            self._logger.info(
-                f"Initialized DI container for CLI (mode: {self._typed_config.mode})"
-            )
+            self.container = ServiceFactory.create_container_from_typed_config(self._typed_config)
+            self._logger.info(f"Initialized DI container for CLI (mode: {self._typed_config.mode})")
         except Exception as e:
             self._logger.error(f"Failed to initialize DI container: {e}")
             self._initialize_fallback_container()
@@ -126,9 +122,7 @@ class CLIServiceProvider:
         try:
             return self.container.resolve(service_type)
         except Exception as e:
-            self._logger.error(
-                f"Failed to resolve service {service_type.__name__}: {e}"
-            )
+            self._logger.error(f"Failed to resolve service {service_type.__name__}: {e}")
             raise RuntimeError(f"Service resolution failed: {service_type.__name__}")
 
     async def resolve_service_async(self, service_type: type):
@@ -138,16 +132,10 @@ class CLIServiceProvider:
         try:
             return await self.container.resolve_async(service_type)
         except Exception as e:
-            self._logger.error(
-                f"Failed to resolve service {service_type.__name__} async: {e}"
-            )
-            raise RuntimeError(
-                f"Async service resolution failed: {service_type.__name__}"
-            )
+            self._logger.error(f"Failed to resolve service {service_type.__name__} async: {e}")
+            raise RuntimeError(f"Async service resolution failed: {service_type.__name__}")
 
-    def create_services_for_domain(
-        self, domain: str, domain_ip: str, port: int
-    ) -> Dict[str, Any]:
+    def create_services_for_domain(self, domain: str, domain_ip: str, port: int) -> Dict[str, Any]:
         """
         Create domain-specific services.
 

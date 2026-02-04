@@ -100,18 +100,14 @@ class ServiceIntegrationManager:
                     service_strategy = self._convert_to_service_strategy(
                         fingerprint_hash, strategy_data
                     )
-                    if service_strategy and self._validate_strategy_data(
-                        service_strategy
-                    ):
+                    if service_strategy and self._validate_strategy_data(service_strategy):
                         strategies[fingerprint_hash] = service_strategy
                         self._update_domain_mapping(service_strategy)
                         LOG.debug(
                             f"Loaded strategy for fingerprint {fingerprint_hash}: {service_strategy.attack_name}"
                         )
                     else:
-                        LOG.warning(
-                            f"Skipping invalid strategy for fingerprint {fingerprint_hash}"
-                        )
+                        LOG.warning(f"Skipping invalid strategy for fingerprint {fingerprint_hash}")
 
                 except Exception as e:
                     LOG.error(f"Error processing strategy {fingerprint_hash}: {e}")
@@ -122,9 +118,7 @@ class ServiceIntegrationManager:
             self.last_load_time = current_time
             self.load_errors.clear()
 
-            LOG.info(
-                f"Successfully loaded {len(strategies)} strategies from {self.strategy_file}"
-            )
+            LOG.info(f"Successfully loaded {len(strategies)} strategies from {self.strategy_file}")
             return strategies
 
         except json.JSONDecodeError as e:
@@ -196,9 +190,7 @@ class ServiceIntegrationManager:
             parameters = {}
             if "task" in strategy_data and isinstance(strategy_data["task"], dict):
                 parameters.update(strategy_data["task"].get("params", {}))
-            if "metadata" in strategy_data and isinstance(
-                strategy_data["metadata"], dict
-            ):
+            if "metadata" in strategy_data and isinstance(strategy_data["metadata"], dict):
                 parameters.update(strategy_data["metadata"])
 
             # Create ServiceStrategy object
@@ -234,9 +226,7 @@ class ServiceIntegrationManager:
         try:
             # Check required fields
             if not strategy.attack_name or strategy.attack_name == "unknown":
-                LOG.warning(
-                    f"Strategy {strategy.fingerprint_hash} has invalid attack name"
-                )
+                LOG.warning(f"Strategy {strategy.fingerprint_hash} has invalid attack name")
                 return False
 
             # Check success rate
@@ -247,10 +237,7 @@ class ServiceIntegrationManager:
                 return False
 
             # Check latency (if bypass is effective, latency should be reasonable)
-            if (
-                strategy.bypass_effective
-                and strategy.avg_latency_ms > self.max_latency_ms
-            ):
+            if strategy.bypass_effective and strategy.avg_latency_ms > self.max_latency_ms:
                 LOG.warning(
                     f"Strategy {strategy.fingerprint_hash} has high latency: {strategy.avg_latency_ms}ms"
                 )
@@ -265,9 +252,7 @@ class ServiceIntegrationManager:
 
             # Check domains
             if not strategy.domains:
-                LOG.warning(
-                    f"Strategy {strategy.fingerprint_hash} has no associated domains"
-                )
+                LOG.warning(f"Strategy {strategy.fingerprint_hash} has no associated domains")
                 return False
 
             # Mark as validated
@@ -378,9 +363,7 @@ class ServiceIntegrationManager:
                 self.load_strategies_for_service()
 
             total_strategies = len(self.loaded_strategies)
-            validated_strategies = sum(
-                1 for s in self.loaded_strategies.values() if s.validated
-            )
+            validated_strategies = sum(1 for s in self.loaded_strategies.values() if s.validated)
             effective_strategies = sum(
                 1 for s in self.loaded_strategies.values() if s.bypass_effective
             )
@@ -390,8 +373,7 @@ class ServiceIntegrationManager:
             avg_latency = 0.0
             if self.loaded_strategies:
                 avg_success_rate = (
-                    sum(s.success_rate for s in self.loaded_strategies.values())
-                    / total_strategies
+                    sum(s.success_rate for s in self.loaded_strategies.values()) / total_strategies
                 )
                 avg_latency = (
                     sum(s.avg_latency_ms for s in self.loaded_strategies.values())

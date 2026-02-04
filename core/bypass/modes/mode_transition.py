@@ -114,9 +114,7 @@ class ModeTransitionManager:
             timestamp=time.time(),
             metadata=metadata or {},
         )
-        self.logger.info(
-            f"Starting transition from {current_mode} to {target_mode}: {reason}"
-        )
+        self.logger.info(f"Starting transition from {current_mode} to {target_mode}: {reason}")
         try:
             self._change_state(TransitionState.PREPARING)
             self._prepare_transition(context)
@@ -124,9 +122,7 @@ class ModeTransitionManager:
             self._execute_transition(context)
             self._change_state(TransitionState.VALIDATING)
             if not self._validate_transition(context):
-                raise ModeTransitionError(
-                    current_mode, target_mode, "Transition validation failed"
-                )
+                raise ModeTransitionError(current_mode, target_mode, "Transition validation failed")
             self._change_state(TransitionState.COMPLETED)
             self.transition_history.append(context)
             self.logger.info(f"Successfully transitioned to {target_mode}")

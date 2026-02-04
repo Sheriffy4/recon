@@ -64,8 +64,8 @@ from .strategy_validator import (
     TestDomain,
     DomainSelector,
 )
-from .analysis_reporter import (
-    AnalysisReporter,
+from .analysis_reporter import AnalysisReporter
+from .report_models import (
     ReportFormat,
     ExecutiveSummary,
     AnalysisReport,
@@ -73,6 +73,7 @@ from .analysis_reporter import (
     VisualizationType,
 )
 from .visualization_helper import VisualizationHelper, VisualizationData
+
 # from .regression_tester import (
 #     RegressionTester,
 #     RegressionTest,
@@ -91,6 +92,36 @@ from .strategy_management_integration import (
 from .historical_data_integration import (
     HistoricalDataIntegration,
     create_historical_data_integration,
+)
+
+# Intelligent PCAP Analyzer (refactored modules)
+from .intelligent_pcap_analyzer import (
+    IntelligentPCAPAnalyzer,
+    PCAPAnalysisResult,
+    BlockingType,
+    DPIBehavior,
+    analyze_pcap_file,
+    batch_analyze_pcap_files,
+)
+from .detectors import (
+    RSTInjectionDetector,
+    TLSHandshakeAnalyzer,
+    SNIFilteringDetector,
+    FragmentationAnalyzer,
+    TimeoutDetector,
+)
+from .signature_extractor import DPISignatureExtractor, DPISignature
+from .flow_analyzer import FlowAnalyzer, FlowAnalysis, PacketAnalysis
+from .blocking_analyzer import BlockingAnalyzer
+from .analysis_strategies import AnalysisContext, AnalysisStrategyFactory
+from .result_serializer import ResultSerializer, save_result, load_result
+from .deprecation import deprecated, deprecated_class, deprecated_parameter
+from .performance_optimizer import (
+    ResultCache,
+    PerformanceMonitor as OptimizerPerformanceMonitor,
+    ParallelFlowProcessor,
+    get_global_cache,
+    get_global_monitor,
 )
 
 # Error handling and recovery
@@ -116,7 +147,7 @@ from .graceful_degradation import (
 )
 from .diagnostics import (
     DiagnosticChecker,
-    PerformanceMonitor,
+    PerformanceMonitor as DiagnosticsPerformanceMonitor,
     DebugLogger,
     SystemMetrics,
     PerformanceProfile,
@@ -127,6 +158,11 @@ from .diagnostics import (
     run_system_diagnostics,
     debug_operation,
 )
+
+# Backward-compatible choice: `PerformanceMonitor` refers to diagnostics monitor (as before,
+# because the diagnostics import previously overwrote the optimizer one).
+PerformanceMonitor = DiagnosticsPerformanceMonitor
+
 from .logging_config import (
     setup_logging,
     get_logger,
@@ -209,6 +245,39 @@ __all__ = [
     "create_strategy_management_integration",
     "HistoricalDataIntegration",
     "create_historical_data_integration",
+    # Intelligent PCAP Analyzer
+    "IntelligentPCAPAnalyzer",
+    "PCAPAnalysisResult",
+    "BlockingType",
+    "DPIBehavior",
+    "analyze_pcap_file",
+    "batch_analyze_pcap_files",
+    "RSTInjectionDetector",
+    "TLSHandshakeAnalyzer",
+    "SNIFilteringDetector",
+    "FragmentationAnalyzer",
+    "TimeoutDetector",
+    "DPISignatureExtractor",
+    "DPISignature",
+    "FlowAnalyzer",
+    "FlowAnalysis",
+    "PacketAnalysis",
+    "BlockingAnalyzer",
+    "AnalysisContext",
+    "AnalysisStrategyFactory",
+    "ResultSerializer",
+    "save_result",
+    "load_result",
+    "deprecated",
+    "deprecated_class",
+    "deprecated_parameter",
+    "ResultCache",
+    "OptimizerPerformanceMonitor",
+    "DiagnosticsPerformanceMonitor",
+    "PerformanceMonitor",
+    "ParallelFlowProcessor",
+    "get_global_cache",
+    "get_global_monitor",
     # Error handling and recovery
     "AnalysisError",
     "PCAPParsingError",
@@ -229,7 +298,6 @@ __all__ = [
     "parse_pcap_with_fallback",
     # Diagnostics
     "DiagnosticChecker",
-    "PerformanceMonitor",
     "DebugLogger",
     "SystemMetrics",
     "PerformanceProfile",

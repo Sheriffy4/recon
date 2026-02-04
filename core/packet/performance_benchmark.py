@@ -231,9 +231,7 @@ class PacketPerformanceBenchmark:
             payload=b"Test payload data",
         )
 
-        compat_packet = self.scapy_compat.IP(dst="192.168.1.1") / self.scapy_compat.TCP(
-            dport=80
-        )
+        compat_packet = self.scapy_compat.IP(dst="192.168.1.1") / self.scapy_compat.TCP(dport=80)
 
         # Бенчмарк побайтовой сериализации
         result_raw = await self._benchmark_operation(
@@ -431,9 +429,7 @@ class PacketPerformanceBenchmark:
             # Сравнение производительности
             if raw_result and compat_result:
                 time_speedup = compat_result.avg_time / raw_result.avg_time
-                memory_ratio = raw_result.memory_peak / max(
-                    compat_result.memory_peak, 1
-                )
+                memory_ratio = raw_result.memory_peak / max(compat_result.memory_peak, 1)
 
                 print("\n  📊 Сравнение:")
                 print(f"    Ускорение по времени: {time_speedup:.2f}x")

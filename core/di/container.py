@@ -104,9 +104,7 @@ class DIContainer:
             return self.resolve(service_type)
         except Exception as e:
             self._last_error = str(e)
-            self._logger.warning(
-                f"Resolve failed for {self._get_service_name(service_type)}: {e}"
-            )
+            self._logger.warning(f"Resolve failed for {self._get_service_name(service_type)}: {e}")
             if fallback_factory:
                 self._logger.info("Using fallback factory for service")
                 return fallback_factory()
@@ -114,9 +112,7 @@ class DIContainer:
 
     def restart_container(self) -> None:
         """Перезапуск контейнера без потери регистраций: очищает синглтоны/скоупы и сбрасывает состояние."""
-        self._logger.info(
-            "Restarting DI container (instances will be recreated on next resolve)"
-        )
+        self._logger.info("Restarting DI container (instances will be recreated on next resolve)")
         self._singletons.clear()
         self._scoped_instances.clear()
         self._building_stack.clear()
@@ -224,9 +220,7 @@ class DIContainer:
 
         # Validate registration
         if instance is not None and lifetime != ServiceLifetime.SINGLETON:
-            raise DIError(
-                f"Instance can only be provided for singleton services: {service_name}"
-            )
+            raise DIError(f"Instance can only be provided for singleton services: {service_name}")
 
         if factory is None and implementation_type is None and instance is None:
             # Use service_type as implementation if it's concrete
@@ -289,9 +283,7 @@ class DIContainer:
                 return self._resolve_service(service_name)
             except Exception as ee:
                 self._last_error = str(ee)
-                self._logger.error(
-                    f"Resolve failed after restart for {service_name}: {ee}"
-                )
+                self._logger.error(f"Resolve failed after restart for {service_name}: {ee}")
                 raise
 
     async def resolve_async(self, service_type: Type[T]) -> T:
@@ -320,9 +312,7 @@ class DIContainer:
                 return await self._resolve_service_async(service_name)
             except Exception as ee:
                 self._last_error = str(ee)
-                self._logger.error(
-                    f"Async resolve failed after restart for {service_name}: {ee}"
-                )
+                self._logger.error(f"Async resolve failed after restart for {service_name}: {ee}")
                 raise
 
     def _resolve_service(self, service_name: str) -> Any:
@@ -424,9 +414,7 @@ class DIContainer:
 
         if descriptor.factory is not None:
             # Resolve factory dependencies
-            factory_args = await self._resolve_dependencies_async(
-                descriptor.dependencies
-            )
+            factory_args = await self._resolve_dependencies_async(descriptor.dependencies)
             result = descriptor.factory(*factory_args)
             if asyncio.iscoroutine(result):
                 return await result
@@ -434,9 +422,7 @@ class DIContainer:
 
         if descriptor.implementation_type is not None:
             # Resolve constructor dependencies
-            constructor_args = await self._resolve_dependencies_async(
-                descriptor.dependencies
-            )
+            constructor_args = await self._resolve_dependencies_async(descriptor.dependencies)
             return descriptor.implementation_type(*constructor_args)
 
         raise DIError(f"Cannot create instance for service: {descriptor.service_type}")
@@ -445,9 +431,7 @@ class DIContainer:
         """Resolve list of dependencies synchronously."""
         return [self._resolve_service(dep_name) for dep_name in dependency_names]
 
-    async def _resolve_dependencies_async(
-        self, dependency_names: List[str]
-    ) -> List[Any]:
+    async def _resolve_dependencies_async(self, dependency_names: List[str]) -> List[Any]:
         """Resolve list of dependencies asynchronously."""
         tasks = [self._resolve_service_async(dep_name) for dep_name in dependency_names]
         return await asyncio.gather(*tasks)
@@ -523,9 +507,7 @@ class DIContainer:
         return {
             "service_type": descriptor.service_type.__name__,
             "implementation_type": (
-                descriptor.implementation_type.__name__
-                if descriptor.implementation_type
-                else None
+                descriptor.implementation_type.__name__ if descriptor.implementation_type else None
             ),
             "lifetime": descriptor.lifetime.value,
             "has_factory": descriptor.factory is not None,

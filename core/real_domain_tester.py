@@ -48,9 +48,7 @@ try:
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
-    Progress = SpinnerColumn = TextColumn = BarColumn = TaskProgressColumn = Console = (
-        None
-    )
+    Progress = SpinnerColumn = TextColumn = BarColumn = TaskProgressColumn = Console = None
 
 
 logger = logging.getLogger(__name__)
@@ -206,9 +204,7 @@ class RealDomainTester:
             max_workers: Maximum number of parallel workers
         """
         self.execution_config = execution_config or ExecutionConfig()
-        self.enable_pcap_validation = (
-            enable_pcap_validation and PCAP_VALIDATOR_AVAILABLE
-        )
+        self.enable_pcap_validation = enable_pcap_validation and PCAP_VALIDATOR_AVAILABLE
         self.dns_cache_ttl = dns_cache_ttl
         self.dns_timeout = dns_timeout
         self.max_workers = max_workers
@@ -297,9 +293,7 @@ class RealDomainTester:
                             domains.append(domain)
                     else:
                         invalid_domains.append((line_num, domain))
-                        self.logger.warning(
-                            f"Invalid domain at line {line_num}: {domain}"
-                        )
+                        self.logger.warning(f"Invalid domain at line {line_num}: {domain}")
 
         except Exception as e:
             raise IOError(f"Failed to read sites file: {e}")
@@ -514,9 +508,7 @@ class RealDomainTester:
             )
 
         except Exception as e:
-            self.logger.error(
-                f"Attack execution failed for {domain}: {e}", exc_info=True
-            )
+            self.logger.error(f"Attack execution failed for {domain}: {e}", exc_info=True)
             return DomainTestResult(
                 domain=domain,
                 ip=ip,
@@ -654,14 +646,10 @@ class RealDomainTester:
                 TaskProgressColumn(),
                 console=self.console,
             ) as progress:
-                task = progress.add_task(
-                    "[cyan]Testing domains...", total=len(test_tasks)
-                )
+                task = progress.add_task("[cyan]Testing domains...", total=len(test_tasks))
 
                 for domain, attack, params in test_tasks:
-                    progress.update(
-                        task, description=f"[cyan]Testing {domain} with {attack}..."
-                    )
+                    progress.update(task, description=f"[cyan]Testing {domain} with {attack}...")
 
                     result = self.test_domain_with_attack(domain, attack, params)
                     results.append(result)
@@ -671,9 +659,7 @@ class RealDomainTester:
             # Simple progress logging
             total = len(test_tasks)
             for idx, (domain, attack, params) in enumerate(test_tasks, 1):
-                self.logger.info(
-                    f"Progress: {idx}/{total} - Testing {domain} with {attack}"
-                )
+                self.logger.info(f"Progress: {idx}/{total} - Testing {domain} with {attack}")
 
                 result = self.test_domain_with_attack(domain, attack, params)
                 results.append(result)
@@ -769,9 +755,7 @@ class RealDomainTester:
                         )
 
                     except Exception as e:
-                        self.logger.error(
-                            f"Task failed for {domain}/{attack}: {e}", exc_info=True
-                        )
+                        self.logger.error(f"Task failed for {domain}/{attack}: {e}", exc_info=True)
 
                         results.append(
                             DomainTestResult(
@@ -863,9 +847,7 @@ class RealDomainTester:
             domain_stats = report.get_domain_stats()
             for domain, stats in sorted(domain_stats.items()):
                 success_rate = (
-                    (stats["successful"] / stats["total"] * 100)
-                    if stats["total"] > 0
-                    else 0
+                    (stats["successful"] / stats["total"] * 100) if stats["total"] > 0 else 0
                 )
                 f.write(f"\n{domain}:\n")
                 f.write(f"  Total Tests:    {stats['total']}\n")
@@ -883,9 +865,7 @@ class RealDomainTester:
             attack_stats = report.get_attack_stats()
             for attack, stats in sorted(attack_stats.items()):
                 success_rate = (
-                    (stats["successful"] / stats["total"] * 100)
-                    if stats["total"] > 0
-                    else 0
+                    (stats["successful"] / stats["total"] * 100) if stats["total"] > 0 else 0
                 )
                 f.write(f"\n{attack}:\n")
                 f.write(f"  Total Tests:    {stats['total']}\n")
@@ -945,9 +925,7 @@ class RealDomainTester:
                 f"[bold]Duration:[/bold] {report.duration:.2f}s"
             )
 
-            self.console.print(
-                Panel(summary_text, title="Test Summary", border_style="cyan")
-            )
+            self.console.print(Panel(summary_text, title="Test Summary", border_style="cyan"))
 
             # Domain statistics table
             domain_stats = report.get_domain_stats()
@@ -961,9 +939,7 @@ class RealDomainTester:
 
                 for domain, stats in sorted(domain_stats.items()):
                     success_rate = (
-                        (stats["successful"] / stats["total"] * 100)
-                        if stats["total"] > 0
-                        else 0
+                        (stats["successful"] / stats["total"] * 100) if stats["total"] > 0 else 0
                     )
                     table.add_row(
                         domain,
@@ -987,9 +963,7 @@ class RealDomainTester:
 
                 for attack, stats in sorted(attack_stats.items()):
                     success_rate = (
-                        (stats["successful"] / stats["total"] * 100)
-                        if stats["total"] > 0
-                        else 0
+                        (stats["successful"] / stats["total"] * 100) if stats["total"] > 0 else 0
                     )
                     table.add_row(
                         attack,

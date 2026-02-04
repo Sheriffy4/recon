@@ -144,22 +144,16 @@ class LearningMemoryIntegration(AdvancedAttack):
                 self.error_handler = get_error_handler()
             except Exception as e:
                 LOG.warning(f"Error handler not available: {e}")
-        LOG.info(
-            f"Enhanced Learning Memory Integration initialized: {self.config.name}"
-        )
+        LOG.info(f"Enhanced Learning Memory Integration initialized: {self.config.name}")
 
-    async def execute(
-        self, target: str, context: AttackContext
-    ) -> AdvancedAttackResult:
+    async def execute(self, target: str, context: AttackContext) -> AdvancedAttackResult:
         """Execute enhanced learning memory attack with pattern recognition and prediction."""
         LOG.info(f"Executing enhanced learning memory attack on {target}")
         start_time = time.time()
         try:
             fingerprint_hash = await self._generate_fingerprint_hash(target, context)
             historical_data = await self._retrieve_historical_data(fingerprint_hash)
-            pattern_result = await self._analyze_patterns(
-                fingerprint_hash, historical_data
-            )
+            pattern_result = await self._analyze_patterns(fingerprint_hash, historical_data)
             prediction_result = await self._generate_predictive_recommendations(
                 fingerprint_hash, context, historical_data, pattern_result
             )
@@ -197,14 +191,9 @@ class LearningMemoryIntegration(AdvancedAttack):
                     error_context = ErrorContext(
                         attack_name=self.config.name, target=target, operation="execute"
                     )
-                    error = create_execution_error(
-                        str(e), self.config.name, error_context, e
-                    )
+                    error = create_execution_error(str(e), self.config.name, error_context, e)
                     recovery_result = await self.error_handler.handle_error(error)
-                    if (
-                        recovery_result.success
-                        and recovery_result.action.value == "retry"
-                    ):
+                    if recovery_result.success and recovery_result.action.value == "retry":
                         return await self._retry_with_fallback(target, context)
                 except Exception as error_handling_error:
                     LOG.error(f"Error handling failed: {error_handling_error}")
@@ -262,9 +251,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                 except Exception as e:
                     LOG.debug(f"Failed to get database stats: {e}")
             if self.state.total_records > 0:
-                learning_effectiveness = (
-                    self.state.successful_records / self.state.total_records
-                )
+                learning_effectiveness = self.state.successful_records / self.state.total_records
                 base_metrics["learning_effectiveness"] = learning_effectiveness
             else:
                 base_metrics["learning_effectiveness"] = 0.0
@@ -273,9 +260,7 @@ class LearningMemoryIntegration(AdvancedAttack):
             LOG.error(f"Failed to get learning memory metrics: {e}")
             return {"error": str(e)}
 
-    async def _generate_fingerprint_hash(
-        self, target: str, context: AttackContext
-    ) -> str:
+    async def _generate_fingerprint_hash(self, target: str, context: AttackContext) -> str:
         """Generate consistent fingerprint hash for target and context."""
         try:
             fingerprint_data = {
@@ -291,13 +276,11 @@ class LearningMemoryIntegration(AdvancedAttack):
             return hashlib.sha256(sorted_data.encode()).hexdigest()[:16]
         except Exception as e:
             LOG.error(f"Failed to generate fingerprint hash: {e}")
-            return hashlib.md5(
-                f"{target}_{context.dpi_signature.dpi_type}".encode()
-            ).hexdigest()[:16]
+            return hashlib.md5(f"{target}_{context.dpi_signature.dpi_type}".encode()).hexdigest()[
+                :16
+            ]
 
-    async def _retrieve_historical_data(
-        self, fingerprint_hash: str
-    ) -> Optional[Dict[str, Any]]:
+    async def _retrieve_historical_data(self, fingerprint_hash: str) -> Optional[Dict[str, Any]]:
         """Retrieve historical learning data for fingerprint."""
         if not self.learning_memory:
             return None
@@ -319,9 +302,7 @@ class LearningMemoryIntegration(AdvancedAttack):
             LOG.error(f"Failed to retrieve historical data: {e}")
             return None
 
-    async def _enhance_ml_prediction(
-        self, ml_prediction, historical_data: Dict[str, Any]
-    ):
+    async def _enhance_ml_prediction(self, ml_prediction, historical_data: Dict[str, Any]):
         """Enhance ML prediction with historical learning data."""
         try:
             enhanced_confidence = ml_prediction.confidence
@@ -343,7 +324,9 @@ class LearningMemoryIntegration(AdvancedAttack):
                     self.primary_strategy = original_prediction.primary_strategy
                     self.fallback_strategies = original_prediction.fallback_strategies
                     self.confidence = enhanced_confidence
-                    self.reasoning = f"{original_prediction.reasoning} (Enhanced with historical data)"
+                    self.reasoning = (
+                        f"{original_prediction.reasoning} (Enhanced with historical data)"
+                    )
                     self.predicted_success_rate = min(
                         1.0,
                         original_prediction.predicted_success_rate
@@ -387,10 +370,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                 LOG.debug(
                     f"Selected strategy from historical learning: {strategy['base_strategy']}"
                 )
-            elif (
-                ml_prediction
-                and ml_prediction.confidence > self.prediction_confidence_threshold
-            ):
+            elif ml_prediction and ml_prediction.confidence > self.prediction_confidence_threshold:
                 strategy.update(
                     {
                         "base_strategy": ml_prediction.primary_strategy,
@@ -399,9 +379,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                         "source": "ml_prediction",
                     }
                 )
-                LOG.debug(
-                    f"Selected strategy from ML prediction: {strategy['base_strategy']}"
-                )
+                LOG.debug(f"Selected strategy from ML prediction: {strategy['base_strategy']}")
             elif historical_data and ml_prediction:
                 historical_weight = historical_data.get("success_rate", 0.0) * 0.7
                 ml_weight = ml_prediction.confidence * 0.3
@@ -450,9 +428,7 @@ class LearningMemoryIntegration(AdvancedAttack):
         )
         start_time = time.time()
         try:
-            success, effectiveness = await self._simulate_strategy_execution(
-                strategy, context
-            )
+            success, effectiveness = await self._simulate_strategy_execution(strategy, context)
             latency = (time.time() - start_time) * 1000
             ml_feedback = MLFeedback(
                 attack_name=self.config.name,
@@ -522,9 +498,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                 base_effectiveness = max(0.1, base_effectiveness * 0.7)
             import random
 
-            effectiveness = max(
-                0.0, min(1.0, base_effectiveness + random.uniform(-0.1, 0.1))
-            )
+            effectiveness = max(0.0, min(1.0, base_effectiveness + random.uniform(-0.1, 0.1)))
             success = effectiveness > 0.5
             await asyncio.sleep(0.1)
             return (success, effectiveness)
@@ -592,13 +566,9 @@ class LearningMemoryIntegration(AdvancedAttack):
         try:
             parameters = {
                 "confidence": ml_prediction.confidence,
-                "predicted_success_rate": getattr(
-                    ml_prediction, "predicted_success_rate", 0.5
-                ),
+                "predicted_success_rate": getattr(ml_prediction, "predicted_success_rate", 0.5),
                 "reasoning": getattr(ml_prediction, "reasoning", ""),
-                "fallback_strategies": getattr(
-                    ml_prediction, "fallback_strategies", []
-                ),
+                "fallback_strategies": getattr(ml_prediction, "fallback_strategies", []),
             }
             return parameters
         except Exception as e:
@@ -659,9 +629,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                     AdaptationSuggestion(
                         parameter="prediction_confidence_threshold",
                         current_value=self.prediction_confidence_threshold,
-                        suggested_value=min(
-                            0.9, self.prediction_confidence_threshold * 1.05
-                        ),
+                        suggested_value=min(0.9, self.prediction_confidence_threshold * 1.05),
                         reason="High effectiveness allows for higher confidence threshold",
                         confidence=0.8,
                     )
@@ -695,9 +663,7 @@ class LearningMemoryIntegration(AdvancedAttack):
         except Exception as e:
             LOG.error(f"Failed to apply learning adaptation {suggestion}: {e}")
 
-    async def _get_learning_history(
-        self, fingerprint_hash: str
-    ) -> Optional[Dict[str, Any]]:
+    async def _get_learning_history(self, fingerprint_hash: str) -> Optional[Dict[str, Any]]:
         """Get learning history from database."""
         if not self.learning_memory:
             return None
@@ -880,9 +846,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                 expected_effectiveness = historical_data.get("best_effectiveness", 0.5)
             if pattern_result.confidence > self.pattern_confidence_threshold:
                 if pattern_result.pattern_type == "consistent_success":
-                    recommended_strategy = pattern_result.pattern_data[
-                        "most_common_attack"
-                    ]
+                    recommended_strategy = pattern_result.pattern_data["most_common_attack"]
                     confidence = min(1.0, confidence * 1.2)
                     reasoning += " (Enhanced by consistent success pattern)"
                     expected_effectiveness = pattern_result.predicted_success_rate
@@ -900,23 +864,22 @@ class LearningMemoryIntegration(AdvancedAttack):
                         ml_weight = 0.4
                         historical_weight = 0.6
                         combined_confidence = (
-                            confidence * historical_weight
-                            + ml_prediction.confidence * ml_weight
+                            confidence * historical_weight + ml_prediction.confidence * ml_weight
                         )
                         if ml_prediction.confidence > confidence:
                             recommended_strategy = ml_prediction.primary_strategy
                             confidence = combined_confidence
-                            reasoning += f" (Enhanced by ML prediction: {ml_prediction.confidence:.2f})"
+                            reasoning += (
+                                f" (Enhanced by ML prediction: {ml_prediction.confidence:.2f})"
+                            )
                             expected_effectiveness = (
                                 expected_effectiveness * historical_weight
                                 + ml_prediction.predicted_success_rate * ml_weight
                             )
                 except Exception as e:
                     LOG.debug(f"ML prediction enhancement failed: {e}")
-            adaptation_suggestions = (
-                self._generate_adaptation_suggestions_from_patterns(
-                    pattern_result, historical_data, context
-                )
+            adaptation_suggestions = self._generate_adaptation_suggestions_from_patterns(
+                pattern_result, historical_data, context
             )
             return PredictiveRecommendation(
                 target_signature=fingerprint_hash,
@@ -967,9 +930,7 @@ class LearningMemoryIntegration(AdvancedAttack):
 
             class EnhancedPrediction:
 
-                def __init__(
-                    self, original_prediction, enhanced_confidence, pattern_data
-                ):
+                def __init__(self, original_prediction, enhanced_confidence, pattern_data):
                     self.primary_strategy = original_prediction.primary_strategy
                     self.fallback_strategies = original_prediction.fallback_strategies
                     self.confidence = enhanced_confidence
@@ -1010,9 +971,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                 strategy.update(
                     {
                         "base_strategy": prediction_result.recommended_strategy,
-                        "parameters": self._extract_parameters_from_prediction(
-                            prediction_result
-                        ),
+                        "parameters": self._extract_parameters_from_prediction(prediction_result),
                         "confidence": prediction_result.confidence,
                         "source": "predictive_recommendation",
                         "reasoning": prediction_result.reasoning,
@@ -1037,10 +996,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                 LOG.debug(
                     f"Selected strategy from historical learning: {strategy['base_strategy']}"
                 )
-            elif (
-                ml_prediction
-                and ml_prediction.confidence > self.prediction_confidence_threshold
-            ):
+            elif ml_prediction and ml_prediction.confidence > self.prediction_confidence_threshold:
                 strategy.update(
                     {
                         "base_strategy": ml_prediction.primary_strategy,
@@ -1049,9 +1005,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                         "source": "ml_prediction",
                     }
                 )
-                LOG.debug(
-                    f"Selected strategy from ML prediction: {strategy['base_strategy']}"
-                )
+                LOG.debug(f"Selected strategy from ML prediction: {strategy['base_strategy']}")
             if pattern_result.confidence > self.pattern_confidence_threshold:
                 optimized_params = self._optimize_parameters_with_patterns(
                     strategy["parameters"], pattern_result
@@ -1085,9 +1039,7 @@ class LearningMemoryIntegration(AdvancedAttack):
         except Exception:
             return "unknown"
 
-    def _analyze_parameter_patterns(
-        self, strategies: List[StrategyRecord]
-    ) -> Dict[str, Any]:
+    def _analyze_parameter_patterns(self, strategies: List[StrategyRecord]) -> Dict[str, Any]:
         """Analyze parameter patterns in strategy records."""
         try:
             parameter_analysis = defaultdict(list)
@@ -1115,9 +1067,7 @@ class LearningMemoryIntegration(AdvancedAttack):
             LOG.error(f"Parameter pattern analysis failed: {e}")
             return {}
 
-    def _analyze_timing_patterns(
-        self, strategies: List[StrategyRecord]
-    ) -> Dict[str, Any]:
+    def _analyze_timing_patterns(self, strategies: List[StrategyRecord]) -> Dict[str, Any]:
         """Analyze timing patterns in strategy records."""
         try:
             latencies = [s.latency_ms for s in strategies]
@@ -1130,9 +1080,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                 "total_records": len(strategies),
             }
             if len(timestamps) > 5:
-                time_diffs = [
-                    timestamps[i] - timestamps[i - 1] for i in range(1, len(timestamps))
-                ]
+                time_diffs = [timestamps[i] - timestamps[i - 1] for i in range(1, len(timestamps))]
                 timing_analysis["avg_time_between_attempts"] = np.mean(time_diffs)
                 timing_analysis["time_pattern"] = (
                     "regular" if np.std(time_diffs) < 100 else "irregular"
@@ -1303,9 +1251,7 @@ class LearningMemoryIntegration(AdvancedAttack):
                     ["continue_improvement", "accelerate_learning", "monitor_progress"]
                 )
             elif pattern_result.pattern_type == "declining":
-                suggestions.extend(
-                    ["change_strategy", "increase_exploration", "reset_parameters"]
-                )
+                suggestions.extend(["change_strategy", "increase_exploration", "reset_parameters"])
             if historical_data:
                 success_rate = historical_data.get("success_rate", 0.5)
                 if success_rate < 0.3:

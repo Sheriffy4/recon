@@ -28,9 +28,7 @@ class TCPAnalyzer:
         self.logger = logging.getLogger(__name__)
         self.is_available = SCAPY_AVAILABLE
 
-    async def analyze_tcp_behavior(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def analyze_tcp_behavior(self, target: str, port: int = 443) -> Dict[str, Any]:
         """
         Main method to analyze TCP-specific DPI behavior.
         Returns a dictionary, which will be converted to the model by the adapter.
@@ -103,9 +101,7 @@ class TCPAnalyzer:
             self.logger.error(f"Async send/recv wrapper failed: {e}")
             return None
 
-    async def _probe_rst_injection(
-        self, result: TCPAnalysisResult, target_ip: str, port: int
-    ):
+    async def _probe_rst_injection(self, result: TCPAnalysisResult, target_ip: str, port: int):
         """Analyzes RST injection."""
         response = await self._async_send_recv(
             IP(dst=target_ip) / TCP(dport=port, flags="S"), timeout=self.timeout
@@ -132,9 +128,7 @@ class TCPAnalyzer:
         response = await self._async_send_recv(syn_packet, timeout=self.timeout)
         end_time = time.perf_counter()
 
-        if (
-            response and response.haslayer(TCP) and response.getlayer(TCP).flags & 18
-        ):  # SYN-ACK
+        if response and response.haslayer(TCP) and response.getlayer(TCP).flags & 18:  # SYN-ACK
             result.syn_ack_to_client_hello_delta = (end_time - start_time) * 1000
             tcp_layer = response[TCP]
             result.window_size = tcp_layer.window
@@ -149,9 +143,7 @@ class TCPAnalyzer:
             if "Timestamp" in response_options:
                 result.timestamps_enabled = True
 
-    async def _probe_fragmentation(
-        self, result: TCPAnalysisResult, target_ip: str, port: int
-    ):
+    async def _probe_fragmentation(self, result: TCPAnalysisResult, target_ip: str, port: int):
         """Analyzes DPI vulnerability to TCP payload fragmentation attacks."""
         try:
             # This probe doesn't use Scapy for network I/O, so it's safer.
@@ -170,9 +162,7 @@ class TCPAnalyzer:
                 )
             except socket.timeout:
                 connection_blocked = True
-                self.logger.debug(
-                    f"Fragmentation probe: Connection timeout to {target_ip}:{port}"
-                )
+                self.logger.debug(f"Fragmentation probe: Connection timeout to {target_ip}:{port}")
             except (ConnectionRefusedError, OSError) as e:
                 connection_blocked = True
                 self.logger.debug(

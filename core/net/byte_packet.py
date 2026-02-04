@@ -227,9 +227,7 @@ class UDPPacket(Packet):
         )
 
     def serialize(self) -> bytes:
-        header = struct.pack(
-            "!HHHH", self.src_port, self.dst_port, self.length, self.checksum
-        )
+        header = struct.pack("!HHHH", self.src_port, self.dst_port, self.length, self.checksum)
         return header + self.payload
 
     def clone(self) -> "UDPPacket":

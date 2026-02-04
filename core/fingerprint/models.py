@@ -149,9 +149,7 @@ class Fingerprint:
     websocket_blocked: Optional[bool] = None
     grpc_blocked: Optional[bool] = None
     ssh_blocked: Optional[bool] = None
-    vpn_detection: Dict[str, bool] = field(
-        default_factory=dict
-    )  # openvpn, wireguard, ipsec
+    vpn_detection: Dict[str, bool] = field(default_factory=dict)  # openvpn, wireguard, ipsec
     certificate_validation: Optional[bool] = None  # Added for completeness
 
     # === Classification Results ===
@@ -176,9 +174,7 @@ class Fingerprint:
 
     def update_from_result(self, result_status: str):
         """Update fingerprint based on attack result"""
-        self.session_history[result_status] = (
-            self.session_history.get(result_status, 0) + 1
-        )
+        self.session_history[result_status] = self.session_history.get(result_status, 0) + 1
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
@@ -259,9 +255,7 @@ class EnhancedFingerprint(Fingerprint):
     http_fingerprint: Optional[str] = None
 
     # === Historical Data ===
-    technique_history: Dict[str, List[Tuple[datetime, bool]]] = field(
-        default_factory=dict
-    )
+    technique_history: Dict[str, List[Tuple[datetime, bool]]] = field(default_factory=dict)
     performance_metrics: Dict[str, List[float]] = field(default_factory=dict)
 
     # === Network Topology ===
@@ -275,17 +269,11 @@ class EnhancedFingerprint(Fingerprint):
 
     # === NEW: Extended DPI Analysis Features (Requirements 6.1, 6.2) ===
     # RST TTL distance analysis
-    rst_ttl_distance: Optional[int] = (
-        None  # Difference between response TTL and RST TTL
-    )
-    baseline_block_type: Optional[str] = (
-        None  # 'RST', 'TIMEOUT', 'CONTENT', 'CONNECTION_REFUSED'
-    )
+    rst_ttl_distance: Optional[int] = None  # Difference between response TTL and RST TTL
+    baseline_block_type: Optional[str] = None  # 'RST', 'TIMEOUT', 'CONTENT', 'CONNECTION_REFUSED'
 
     # SNI consistency analysis
-    sni_consistency_blocked: Optional[bool] = (
-        None  # Whether SNI consistency checks block traffic
-    )
+    sni_consistency_blocked: Optional[bool] = None  # Whether SNI consistency checks block traffic
 
     # Response timing patterns for behavioral analysis
     response_timing_patterns: Dict[str, List[float]] = field(
@@ -303,26 +291,18 @@ class EnhancedFingerprint(Fingerprint):
     http2_frame_analysis: Dict[str, Any] = field(
         default_factory=dict
     )  # Frame-level analysis results
-    http2_hpack_sensitivity: Optional[bool] = (
-        None  # Sensitivity to HPACK header compression
-    )
+    http2_hpack_sensitivity: Optional[bool] = None  # Sensitivity to HPACK header compression
 
     # QUIC/HTTP3 specific features
     quic_support: Optional[bool] = None  # Whether QUIC is supported
-    quic_version_support: List[str] = field(
-        default_factory=list
-    )  # Supported QUIC versions
+    quic_version_support: List[str] = field(default_factory=list)  # Supported QUIC versions
     quic_connection_id_handling: Optional[str] = None  # How Connection IDs are handled
-    quic_packet_coalescing_support: Optional[bool] = (
-        None  # Support for packet coalescing
-    )
+    quic_packet_coalescing_support: Optional[bool] = None  # Support for packet coalescing
 
     # TLS 1.3 ECH (Encrypted Client Hello) features
     ech_support: Optional[bool] = None  # Whether ECH is supported
     ech_grease_handling: Optional[str] = None  # How GREASE values are handled
-    ech_fragmentation_sensitivity: Optional[bool] = (
-        None  # Sensitivity to ECH fragmentation
-    )
+    ech_fragmentation_sensitivity: Optional[bool] = None  # Sensitivity to ECH fragmentation
 
     # === NEW: Advanced Behavioral Indicators ===
     # Primary blocking method classification
@@ -332,9 +312,7 @@ class EnhancedFingerprint(Fingerprint):
     connection_timeout_ms: Optional[int] = None  # Typical connection timeout
 
     # Timing attack sensitivity
-    timing_attack_vulnerable: Optional[bool] = (
-        None  # Vulnerable to timing-based attacks
-    )
+    timing_attack_vulnerable: Optional[bool] = None  # Vulnerable to timing-based attacks
 
     reassembly_buffer_size: Optional[int] = None
     reassembly_timeout_ms: Optional[int] = None
@@ -480,28 +458,16 @@ class DPIBehaviorProfile:
     # Advanced DPI behavioral indicators
     stateful_connection_limit: Optional[int] = None  # Max tracked connections
     packet_reordering_tolerance: Optional[bool] = None  # Handles out-of-order packets
-    fragmentation_reassembly_timeout: Optional[int] = (
-        None  # Fragment reassembly timeout
-    )
+    fragmentation_reassembly_timeout: Optional[int] = None  # Fragment reassembly timeout
 
     # Content analysis capabilities
-    deep_packet_inspection_depth: Optional[int] = (
-        None  # How deep into payload DPI looks
-    )
-    pattern_matching_engine: Optional[str] = (
-        None  # 'regex', 'aho-corasick', 'hyperscan', 'custom'
-    )
-    content_caching_behavior: Optional[str] = (
-        None  # 'none', 'headers', 'partial', 'full'
-    )
+    deep_packet_inspection_depth: Optional[int] = None  # How deep into payload DPI looks
+    pattern_matching_engine: Optional[str] = None  # 'regex', 'aho-corasick', 'hyperscan', 'custom'
+    content_caching_behavior: Optional[str] = None  # 'none', 'headers', 'partial', 'full'
 
     # Evasion resistance patterns
-    anti_evasion_techniques: List[str] = field(
-        default_factory=list
-    )  # Known anti-evasion methods
-    learning_adaptation_detected: Optional[bool] = (
-        None  # Whether DPI adapts to evasion attempts
-    )
+    anti_evasion_techniques: List[str] = field(default_factory=list)  # Known anti-evasion methods
+    learning_adaptation_detected: Optional[bool] = None  # Whether DPI adapts to evasion attempts
     honeypot_detection: Optional[bool] = None  # Whether DPI uses honeypot techniques
 
     # === Weakness Analysis ===
@@ -515,13 +481,9 @@ class DPIBehaviorProfile:
         # Technique effectiveness analysis
         for technique, effectiveness in self.evasion_effectiveness.items():
             if effectiveness > 0.8:
-                weaknesses.append(
-                    f"Highly vulnerable to {technique} ({effectiveness:.0%})"
-                )
+                weaknesses.append(f"Highly vulnerable to {technique} ({effectiveness:.0%})")
             elif effectiveness > 0.6:
-                weaknesses.append(
-                    f"Moderately vulnerable to {technique} ({effectiveness:.0%})"
-                )
+                weaknesses.append(f"Moderately vulnerable to {technique} ({effectiveness:.0%})")
 
         # Packet size vulnerability
         if self.packet_size_sensitivity:
@@ -579,12 +541,8 @@ class DPIBehaviorProfile:
             self.evasion_effectiveness.items(), key=lambda x: x[1], reverse=True
         )
 
-        strategy["primary_techniques"] = [
-            t[0] for t in sorted_techniques[:3] if t[1] > 0.6
-        ]
-        strategy["secondary_techniques"] = [
-            t[0] for t in sorted_techniques[3:6] if t[1] > 0.4
-        ]
+        strategy["primary_techniques"] = [t[0] for t in sorted_techniques[:3] if t[1] > 0.6]
+        strategy["secondary_techniques"] = [t[0] for t in sorted_techniques[3:6] if t[1] > 0.4]
 
         # Timing recommendations
         if self.peak_hours:
@@ -594,9 +552,7 @@ class DPIBehaviorProfile:
         # Parameter tuning based on sensitivities
         if self.packet_size_sensitivity:
             optimal_sizes = [
-                size
-                for size, rate in self.packet_size_sensitivity.items()
-                if rate > 0.7
+                size for size, rate in self.packet_size_sensitivity.items() if rate > 0.7
             ]
             if optimal_sizes:
                 strategy["parameter_tuning"]["optimal_packet_size"] = optimal_sizes[0]
@@ -604,8 +560,7 @@ class DPIBehaviorProfile:
         # Calculate overall success probability
         if strategy["primary_techniques"]:
             primary_rates = [
-                self.evasion_effectiveness.get(t, 0)
-                for t in strategy["primary_techniques"]
+                self.evasion_effectiveness.get(t, 0) for t in strategy["primary_techniques"]
             ]
             strategy["success_probability"] = max(primary_rates)
 

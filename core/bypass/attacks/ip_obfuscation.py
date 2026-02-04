@@ -18,7 +18,7 @@ LOG = logging.getLogger(__name__)
 
 class BaseIPObfuscationAttack(BaseAttack):
     """Базовый класс для IP и обфускационных атак."""
-    
+
     # Mark as abstract to skip metaclass validation
     __abstractmethods__ = frozenset()
 
@@ -78,7 +78,7 @@ class BaseIPObfuscationAttack(BaseAttack):
     required_params=[],
     optional_params={"ttl": 64},
     aliases=["ttl_manipulation", "ip_ttl"],
-    description="IP Time To Live (TTL) manipulation for DPI evasion"
+    description="IP Time To Live (TTL) manipulation for DPI evasion",
 )
 class IPTTLManipulationAttack(BaseIPObfuscationAttack):
     """Манипуляция IP TTL для обхода DPI."""
@@ -99,7 +99,7 @@ class IPTTLManipulationAttack(BaseIPObfuscationAttack):
     required_params=[],
     optional_params={"ip_id": None},
     aliases=["id_manipulation", "ip_id"],
-    description="IP Identification field manipulation for DPI evasion"
+    description="IP Identification field manipulation for DPI evasion",
 )
 class IPIDManipulationAttack(BaseIPObfuscationAttack):
     """Манипуляция IP ID для обхода DPI."""
@@ -120,7 +120,7 @@ class IPIDManipulationAttack(BaseIPObfuscationAttack):
     required_params=[],
     optional_params={"chunk_size": 100, "delay_ms": 10},
     aliases=["timing_obfusc", "timing_evasion"],
-    description="Timing pattern obfuscation for timing-based DPI evasion"
+    description="Timing pattern obfuscation for timing-based DPI evasion",
 )
 class TimingObfuscationAttack(BaseIPObfuscationAttack):
     """Обфускация timing patterns для обхода timing-based DPI."""
@@ -144,11 +144,7 @@ class TimingObfuscationAttack(BaseIPObfuscationAttack):
                     offset,
                     {
                         "delay_ms": delay_ms if offset > 0 else 0,
-                        "flags": (
-                            0x18
-                            if offset + chunk_size >= len(context.payload)
-                            else 0x10
-                        ),
+                        "flags": (0x18 if offset + chunk_size >= len(context.payload) else 0x10),
                     },
                 )
             )
@@ -164,28 +160,28 @@ def register_ip_obfuscation_attacks():
     # Manual registration as fallback if decorators don't work
     from .attack_registry import get_attack_registry, register_attack, RegistrationPriority
     from .metadata import AttackCategories
-    
+
     registry = get_attack_registry()
-    
+
     # Define attacks to register manually
     attacks_to_register = [
         ("ip_ttl_manipulation", IPTTLManipulationAttack, ["ttl_manipulation", "ip_ttl"]),
         ("ip_id_manipulation", IPIDManipulationAttack, ["id_manipulation", "ip_id"]),
         ("timing_obfuscation", TimingObfuscationAttack, ["timing_obfusc", "timing_evasion"]),
     ]
-    
+
     # Register each attack manually if not already registered
     for attack_name, attack_class, aliases in attacks_to_register:
         if attack_name not in registry.attacks:
             try:
                 # Determine category based on attack name
-                if attack_name.startswith('ip_'):
+                if attack_name.startswith("ip_"):
                     category = AttackCategories.IP
-                elif 'timing' in attack_name:
+                elif "timing" in attack_name:
                     category = AttackCategories.TIMING
                 else:
                     category = AttackCategories.PAYLOAD
-                
+
                 # Apply the decorator manually
                 decorated_class = register_attack(
                     name=attack_name,
@@ -194,7 +190,7 @@ def register_ip_obfuscation_attacks():
                     required_params=[],
                     optional_params={},
                     aliases=aliases,
-                    description=f"{attack_name.replace('_', ' ').title()} attack"
+                    description=f"{attack_name.replace('_', ' ').title()} attack",
                 )(attack_class)
                 LOG.debug(f"Manually registered {attack_name}")
             except Exception as e:

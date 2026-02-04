@@ -192,18 +192,13 @@ class SandboxMonitor:
                         violation.description, violation.violation_type, self.attack_id
                     )
 
-    def record_network_operation(
-        self, operation: str, destination: str, port: int
-    ) -> None:
+    def record_network_operation(self, operation: str, destination: str, port: int) -> None:
         """Record a network operation."""
         with self._lock:
             if not self._monitoring:
                 return
             self._counters["network_operations"] += 1
-            if (
-                self._counters["network_operations"]
-                > self.constraints.max_network_operations
-            ):
+            if self._counters["network_operations"] > self.constraints.max_network_operations:
                 violation = SandboxViolation(
                     violation_type="network_operations_limit",
                     description=f"Too many network operations: {self._counters['network_operations']} > {self.constraints.max_network_operations}",
@@ -252,10 +247,7 @@ class SandboxMonitor:
                 raise SandboxViolationError(
                     violation.description, violation.violation_type, self.attack_id
                 )
-            if (
-                self.constraints.allowed_ports
-                and port not in self.constraints.allowed_ports
-            ):
+            if self.constraints.allowed_ports and port not in self.constraints.allowed_ports:
                 violation = SandboxViolation(
                     violation_type="unauthorized_port",
                     description=f"Connection to unauthorized port: {port}",
@@ -268,9 +260,7 @@ class SandboxMonitor:
                     severity="medium",
                 )
                 self.violations.append(violation)
-                LOG.warning(
-                    f"Attack {self.attack_id} connected to unauthorized port {port}"
-                )
+                LOG.warning(f"Attack {self.attack_id} connected to unauthorized port {port}")
 
     def record_thread_creation(self) -> None:
         """Record thread creation."""
@@ -378,9 +368,7 @@ class AttackSandbox:
             )
             return violations
 
-    def add_violation_callback(
-        self, callback: Callable[[SandboxViolation], None]
-    ) -> None:
+    def add_violation_callback(self, callback: Callable[[SandboxViolation], None]) -> None:
         """Add callback for sandbox violations."""
         self._violation_callbacks.append(callback)
 
@@ -401,9 +389,7 @@ class AttackSandbox:
         finally:
             violations = self.remove_monitor(attack_id)
             if violations and any((v.severity == "critical" for v in violations)):
-                critical_violations = [
-                    v for v in violations if v.severity == "critical"
-                ]
+                critical_violations = [v for v in violations if v.severity == "critical"]
                 raise SandboxViolationError(
                     f"Critical sandbox violations detected: {len(critical_violations)} violations",
                     "critical_violations",
@@ -424,16 +410,12 @@ class AttackSandbox:
 
                 ip = ipaddress.ip_address(context.dst_ip)
                 if ip.is_loopback or ip.is_private:
-                    LOG.warning(
-                        f"Attack targeting private/loopback address: {context.dst_ip}"
-                    )
+                    LOG.warning(f"Attack targeting private/loopback address: {context.dst_ip}")
                 if context.dst_ip in monitor.constraints.forbidden_destinations:
                     validation_errors.append(f"Target IP {context.dst_ip} is forbidden")
             except ValueError:
                 if context.dst_ip in monitor.constraints.forbidden_destinations:
-                    validation_errors.append(
-                        f"Target destination {context.dst_ip} is forbidden"
-                    )
+                    validation_errors.append(f"Target destination {context.dst_ip} is forbidden")
         if context.dst_port:
             if context.dst_port in monitor.constraints.forbidden_ports:
                 validation_errors.append(f"Target port {context.dst_port} is forbidden")
@@ -441,13 +423,9 @@ class AttackSandbox:
                 monitor.constraints.allowed_ports
                 and context.dst_port not in monitor.constraints.allowed_ports
             ):
-                validation_errors.append(
-                    f"Target port {context.dst_port} is not in allowed ports"
-                )
+                validation_errors.append(f"Target port {context.dst_port} is not in allowed ports")
         if context.payload and len(context.payload) > 64 * 1024:
-            validation_errors.append(
-                f"Payload too large: {len(context.payload)} bytes > 64KB"
-            )
+            validation_errors.append(f"Payload too large: {len(context.payload)} bytes > 64KB")
         if validation_errors:
             raise AttackValidationError(
                 f"Attack validation failed: {'; '.join(validation_errors)}",
@@ -455,9 +433,7 @@ class AttackSandbox:
                 getattr(attack, "id", "unknown"),
             )
 
-    def _validate_attack_parameters(
-        self, attack: BaseAttack, context: AttackContext
-    ) -> List[str]:
+    def _validate_attack_parameters(self, attack: BaseAttack, context: AttackContext) -> List[str]:
         """Validate attack parameters for safety."""
         errors = []
         if hasattr(attack, "params") and attack.params:
@@ -475,13 +451,9 @@ class AttackSandbox:
                     ]
                     for pattern in dangerous_patterns:
                         if pattern in value:
-                            errors.append(
-                                f"Dangerous pattern '{pattern}' in parameter '{key}'"
-                            )
+                            errors.append(f"Dangerous pattern '{pattern}' in parameter '{key}'")
                 if isinstance(value, (int, float)) and value > 1000000:
-                    errors.append(
-                        f"Parameter '{key}' has excessively large value: {value}"
-                    )
+                    errors.append(f"Parameter '{key}' has excessively large value: {value}")
         if context.params:
             for key, value in context.params.items():
                 if isinstance(value, str) and len(value) > 10000:
@@ -490,9 +462,7 @@ class AttackSandbox:
                     )
         return errors
 
-    def validate_attack_result(
-        self, result: AttackResult, monitor: SandboxMonitor
-    ) -> None:
+    def validate_attack_result(self, result: AttackResult, monitor: SandboxMonitor) -> None:
         """Validate attack result format and content."""
         if not monitor.constraints.validate_output_format:
             return
@@ -517,9 +487,7 @@ class AttackSandbox:
                 else:
                     payload_data, seq_offset, options = segment
                     if not isinstance(payload_data, bytes):
-                        validation_errors.append(
-                            f"Segment {i} payload_data must be bytes"
-                        )
+                        validation_errors.append(f"Segment {i} payload_data must be bytes")
                     if len(payload_data) > 64 * 1024:
                         validation_errors.append(
                             f"Segment {i} payload too large: {len(payload_data)} bytes"
@@ -565,9 +533,7 @@ class AttackSandbox:
                 try:
                     monitor.stop_monitoring()
                 except Exception as e:
-                    LOG.error(
-                        f"Error stopping sandbox monitor {monitor.attack_id}: {e}"
-                    )
+                    LOG.error(f"Error stopping sandbox monitor {monitor.attack_id}: {e}")
             self._active_monitors.clear()
             LOG.warning(f"Emergency stopped {count} sandbox monitors")
             return count

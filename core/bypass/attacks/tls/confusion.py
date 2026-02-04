@@ -15,6 +15,7 @@ from core.bypass.attacks.base import (
 )
 from core.bypass.attacks.attack_registry import register_attack
 
+
 @register_attack
 class ProtocolConfusionAttack(BaseAttack):
     """
@@ -46,10 +47,7 @@ class ProtocolConfusionAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "fake_protocol": "smtp",
-            "custom_header": b"HELLO\r\n"
-        }
+        return {"fake_protocol": "smtp", "custom_header": b"HELLO\r\n"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute protocol confusion attack."""
@@ -123,9 +121,7 @@ class TLSVersionConfusionAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "fake_version": b"\x03\x00"
-        }
+        return {"fake_version": b"\x03\x00"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS version confusion attack."""
@@ -151,9 +147,7 @@ class TLSVersionConfusionAttack(BaseAttack):
                 data_transmitted=True,
                 metadata={
                     "fake_version": fake_version.hex(),
-                    "original_version": (
-                        payload[1:3].hex() if len(payload) >= 3 else None
-                    ),
+                    "original_version": (payload[1:3].hex() if len(payload) >= 3 else None),
                     "segments": segments if context.engine_type != "local" else None,
                 },
             )
@@ -193,9 +187,7 @@ class TLSContentTypeConfusionAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "fake_content_type": 23
-        }
+        return {"fake_content_type": 23}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute TLS content type confusion attack."""

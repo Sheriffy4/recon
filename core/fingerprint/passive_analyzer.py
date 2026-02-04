@@ -51,9 +51,7 @@ class PassiveDPIAnalyzer:
         self.timeout = timeout
         self.logger = logging.getLogger(__name__)
 
-    async def analyze_blocking_method(
-        self, target: str, port: int = 443
-    ) -> PassiveAnalysisResult:
+    async def analyze_blocking_method(self, target: str, port: int = 443) -> PassiveAnalysisResult:
         """
         Determine blocking method WITHOUT successful connection.
 

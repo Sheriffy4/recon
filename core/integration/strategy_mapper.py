@@ -50,9 +50,7 @@ class StrategyMapper:
         try:
             strategy_name = strategy.get("name", "unknown")
             strategy_type = strategy.get("type", "unknown")
-            LOG.debug(
-                f"Mapping legacy strategy: {strategy_name} (type: {strategy_type})"
-            )
+            LOG.debug(f"Mapping legacy strategy: {strategy_name} (type: {strategy_type})")
             mappings = self._try_direct_mapping(strategy)
             if mappings:
                 return mappings
@@ -66,9 +64,7 @@ class StrategyMapper:
         except Exception as e:
             raise StrategyMappingError(f"Failed to map strategy {strategy}: {e}")
 
-    def convert_parameters(
-        self, legacy_params: Dict[str, Any], attack_name: str
-    ) -> Dict[str, Any]:
+    def convert_parameters(self, legacy_params: Dict[str, Any], attack_name: str) -> Dict[str, Any]:
         """
         Convert legacy parameters to AttackContext format.
 
@@ -124,9 +120,7 @@ class StrategyMapper:
         elif protocol == "icmp":
             alternatives.extend(["icmp_data_tunneling", "icmp_timestamp_tunneling"])
         alternatives = list(set(alternatives))[:5]
-        LOG.info(
-            f"Suggested {len(alternatives)} alternatives for failed strategy: {alternatives}"
-        )
+        LOG.info(f"Suggested {len(alternatives)} alternatives for failed strategy: {alternatives}")
         return alternatives
 
     def _load_default_mappings(self):
@@ -234,32 +228,18 @@ class StrategyMapper:
 
     def _init_parameter_converters(self):
         """Initialize parameter converters for specific attacks."""
-        self.parameter_converters["tcp_basic_segmentation"] = (
-            self._convert_tcp_segmentation_params
-        )
-        self.parameter_converters["tcp_random_segmentation"] = (
-            self._convert_tcp_segmentation_params
-        )
-        self.parameter_converters["tcp_flag_manipulation"] = (
-            self._convert_tcp_manipulation_params
-        )
-        self.parameter_converters["ip_basic_fragmentation"] = (
-            self._convert_ip_fragmentation_params
-        )
-        self.parameter_converters["ip_random_fragmentation"] = (
-            self._convert_ip_fragmentation_params
-        )
+        self.parameter_converters["tcp_basic_segmentation"] = self._convert_tcp_segmentation_params
+        self.parameter_converters["tcp_random_segmentation"] = self._convert_tcp_segmentation_params
+        self.parameter_converters["tcp_flag_manipulation"] = self._convert_tcp_manipulation_params
+        self.parameter_converters["ip_basic_fragmentation"] = self._convert_ip_fragmentation_params
+        self.parameter_converters["ip_random_fragmentation"] = self._convert_ip_fragmentation_params
         self.parameter_converters["tls_record_split"] = self._convert_tls_params
         self.parameter_converters["http_header_case"] = self._convert_http_params
         self.parameter_converters["http_method_case"] = self._convert_http_params
-        self.parameter_converters["payload_xor_encryption"] = (
-            self._convert_payload_params
-        )
+        self.parameter_converters["payload_xor_encryption"] = self._convert_payload_params
         LOG.debug(f"Initialized {len(self.parameter_converters)} parameter converters")
 
-    def _try_direct_mapping(
-        self, strategy: Dict[str, Any]
-    ) -> Optional[List[AttackMapping]]:
+    def _try_direct_mapping(self, strategy: Dict[str, Any]) -> Optional[List[AttackMapping]]:
         """Try direct strategy name mapping."""
         strategy_name = strategy.get("name", "")
         strategy_type = strategy.get("type", "")
@@ -269,9 +249,7 @@ class StrategyMapper:
             return [self.mapping_rules[strategy_type]]
         return None
 
-    def _try_pattern_mapping(
-        self, strategy: Dict[str, Any]
-    ) -> Optional[List[AttackMapping]]:
+    def _try_pattern_mapping(self, strategy: Dict[str, Any]) -> Optional[List[AttackMapping]]:
         """Try pattern-based mapping."""
         strategy_name = strategy.get("name", "").lower()
         strategy_type = strategy.get("type", "").lower()
@@ -291,9 +269,7 @@ class StrategyMapper:
         mappings = [m for m in mappings if m is not None]
         return mappings if mappings else None
 
-    def _try_fallback_mapping(
-        self, strategy: Dict[str, Any]
-    ) -> Optional[List[AttackMapping]]:
+    def _try_fallback_mapping(self, strategy: Dict[str, Any]) -> Optional[List[AttackMapping]]:
         """Try fallback mapping based on protocol."""
         protocol = strategy.get("protocol", "tcp").lower()
         fallback_mappings = {
@@ -344,9 +320,7 @@ class StrategyMapper:
                 converted[new_key] = params[old_key]
         return converted
 
-    def _convert_tcp_segmentation_params(
-        self, params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _convert_tcp_segmentation_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Convert TCP segmentation parameters."""
         converted = {}
         if "size" in params:
@@ -357,9 +331,7 @@ class StrategyMapper:
             converted["segment_count"] = int(params["parts"])
         return converted
 
-    def _convert_tcp_manipulation_params(
-        self, params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _convert_tcp_manipulation_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Convert TCP manipulation parameters."""
         converted = {}
         if "flags" in params:
@@ -370,9 +342,7 @@ class StrategyMapper:
             converted["sequence_number"] = int(params["seq"])
         return converted
 
-    def _convert_ip_fragmentation_params(
-        self, params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _convert_ip_fragmentation_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Convert IP fragmentation parameters."""
         converted = {}
         if "size" in params:

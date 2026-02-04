@@ -171,9 +171,7 @@ class LearningMemory:
 
                 self._connection.commit()
                 self._initialized = True
-                self.logger.info(
-                    f"Learning memory database initialized at {self.storage_path}"
-                )
+                self.logger.info(f"Learning memory database initialized at {self.storage_path}")
 
             except Exception as e:
                 self.logger.error(f"Failed to initialize learning memory database: {e}")
@@ -312,9 +310,7 @@ class LearningMemory:
                 self.logger.error(f"Failed to save learning result: {e}")
                 return False
 
-    async def load_learning_history(
-        self, fingerprint_hash: str
-    ) -> Optional[LearningHistory]:
+    async def load_learning_history(self, fingerprint_hash: str) -> Optional[LearningHistory]:
         """
         Load learning history for a specific fingerprint.
 

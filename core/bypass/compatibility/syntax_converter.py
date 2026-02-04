@@ -167,9 +167,7 @@ class SyntaxConverter:
 
     def _parse_source_config(
         self, config: str, tool: ExternalTool
-    ) -> Optional[
-        Union[ZapretConfig, GoodbyeDPIConfig, ByeByeDPIConfig, Dict[str, Any]]
-    ]:
+    ) -> Optional[Union[ZapretConfig, GoodbyeDPIConfig, ByeByeDPIConfig, Dict[str, Any]]]:
         """Parse source configuration based on tool type."""
         try:
             if tool == ExternalTool.ZAPRET:
@@ -181,32 +179,20 @@ class SyntaxConverter:
             elif tool == ExternalTool.NATIVE:
                 import json
 
-                return (
-                    json.loads(config)
-                    if config.strip().startswith("{")
-                    else {"raw": config}
-                )
+                return json.loads(config) if config.strip().startswith("{") else {"raw": config}
             else:
                 return None
         except Exception as e:
             self.logger.error(f"Failed to parse {tool.value} config: {e}")
             return None
 
-    def _to_native_format(
-        self, parsed_config: Any, source_tool: ExternalTool
-    ) -> Dict[str, Any]:
+    def _to_native_format(self, parsed_config: Any, source_tool: ExternalTool) -> Dict[str, Any]:
         """Convert parsed configuration to native format."""
-        if source_tool == ExternalTool.ZAPRET and hasattr(
-            parsed_config, "to_native_format"
-        ):
+        if source_tool == ExternalTool.ZAPRET and hasattr(parsed_config, "to_native_format"):
             return parsed_config.to_native_format()
-        elif source_tool == ExternalTool.GOODBYEDPI and hasattr(
-            parsed_config, "to_native_format"
-        ):
+        elif source_tool == ExternalTool.GOODBYEDPI and hasattr(parsed_config, "to_native_format"):
             return parsed_config.to_native_format()
-        elif source_tool == ExternalTool.BYEBYEDPI and hasattr(
-            parsed_config, "to_native_format"
-        ):
+        elif source_tool == ExternalTool.BYEBYEDPI and hasattr(parsed_config, "to_native_format"):
             return parsed_config.to_native_format()
         elif source_tool == ExternalTool.NATIVE:
             return parsed_config
@@ -239,9 +225,7 @@ class SyntaxConverter:
         parameters = native_config.get("parameters", {})
         zapret_parts = []
         if "desync_methods" in parameters and parameters["desync_methods"]:
-            zapret_parts.append(
-                f"--dpi-desync={','.join(parameters['desync_methods'])}"
-            )
+            zapret_parts.append(f"--dpi-desync={','.join(parameters['desync_methods'])}")
         elif attack_type in self.native_to_zapret:
             methods = self.native_to_zapret[attack_type].split(",")
             zapret_parts.append(f"--dpi-desync={','.join(methods)}")
@@ -263,11 +247,7 @@ class SyntaxConverter:
             zapret_parts.append(f"--dpi-desync-split-seqovl={parameters['seqovl']}")
         if "window_size" in parameters and parameters["window_size"]:
             zapret_parts.append(f"--wssize={parameters['window_size']}")
-        if (
-            "repeats" in parameters
-            and parameters["repeats"]
-            and (parameters["repeats"] != 1)
-        ):
+        if "repeats" in parameters and parameters["repeats"] and (parameters["repeats"] != 1):
             zapret_parts.append(f"--dpi-desync-repeats={parameters['repeats']}")
         fooling_methods = parameters.get("fooling_methods", [])
         if fooling_methods:
@@ -358,13 +338,8 @@ class SyntaxConverter:
                 f"Some parameters may not be supported in {target_tool.value}: {', '.join(lost_params)}"
             )
         attack_type = native_config.get("attack_type", "")
-        if (
-            target_tool == ExternalTool.ZAPRET
-            and attack_type not in self.native_to_zapret
-        ):
-            warnings.append(
-                f"Attack type '{attack_type}' may not have direct zapret equivalent"
-            )
+        if target_tool == ExternalTool.ZAPRET and attack_type not in self.native_to_zapret:
+            warnings.append(f"Attack type '{attack_type}' may not have direct zapret equivalent")
         return warnings
 
     def batch_convert(
@@ -398,9 +373,7 @@ class SyntaxConverter:
         }
 
 
-def convert_to_native(
-    config: str, source_tool: Optional[ExternalTool] = None
-) -> ConversionResult:
+def convert_to_native(config: str, source_tool: Optional[ExternalTool] = None) -> ConversionResult:
     """Convert any external tool config to native format."""
     converter = SyntaxConverter()
     return converter.convert(config, ExternalTool.NATIVE, source_tool)
@@ -409,14 +382,10 @@ def convert_to_native(
 def convert_zapret_to_goodbyedpi(zapret_config: str) -> ConversionResult:
     """Convert zapret config to goodbyedpi format."""
     converter = SyntaxConverter()
-    return converter.convert(
-        zapret_config, ExternalTool.GOODBYEDPI, ExternalTool.ZAPRET
-    )
+    return converter.convert(zapret_config, ExternalTool.GOODBYEDPI, ExternalTool.ZAPRET)
 
 
 def convert_goodbyedpi_to_zapret(goodbyedpi_config: str) -> ConversionResult:
     """Convert goodbyedpi config to zapret format."""
     converter = SyntaxConverter()
-    return converter.convert(
-        goodbyedpi_config, ExternalTool.ZAPRET, ExternalTool.GOODBYEDPI
-    )
+    return converter.convert(goodbyedpi_config, ExternalTool.ZAPRET, ExternalTool.GOODBYEDPI)

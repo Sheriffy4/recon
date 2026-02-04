@@ -118,9 +118,7 @@ class FingerprintIntegrator:
                 LOG.error(f"Advanced fingerprinting failed for {domain}: {e}")
         return self._create_basic_result(domain, target_ip)
 
-    async def _run_advanced_fingerprinting(
-        self, domain: str, target_ip: str
-    ) -> FingerprintResult:
+    async def _run_advanced_fingerprinting(self, domain: str, target_ip: str) -> FingerprintResult:
         """Run advanced fingerprinting using the full engine."""
         LOG.info(f"Running advanced fingerprinting for {domain} ({target_ip})")
         fingerprint = await self.fingerprint_engine.create_comprehensive_fingerprint(
@@ -149,14 +147,10 @@ class FingerprintIntegrator:
             pass
         cache_key = f"{domain}_{target_ip}"
         self.cache[cache_key] = (result, time.time())
-        LOG.info(
-            f"Advanced fingerprinting completed for {domain}: DPI type = {result.dpi_type}"
-        )
+        LOG.info(f"Advanced fingerprinting completed for {domain}: DPI type = {result.dpi_type}")
         return result
 
-    def _extract_fingerprint_data(
-        self, fingerprint: EnhancedFingerprint
-    ) -> Dict[str, Any]:
+    def _extract_fingerprint_data(self, fingerprint: EnhancedFingerprint) -> Dict[str, Any]:
         """Extract relevant data from fingerprint for strategy selection."""
         data = {}
         if hasattr(fingerprint, "supports_ip_frag"):
@@ -180,12 +174,7 @@ class FingerprintIntegrator:
         if any((cdn in domain.lower() for cdn in ["cloudflare", "akamai", "fastly"])):
             dpi_type = "cdn_edge"
             confidence = 0.7
-        elif any(
-            (
-                provider in domain.lower()
-                for provider in ["google", "microsoft", "amazon"]
-            )
-        ):
+        elif any((provider in domain.lower() for provider in ["google", "microsoft", "amazon"])):
             dpi_type = "cloud_security"
             confidence = 0.6
         elif target_ip.startswith("10.") or target_ip.startswith("192.168."):
@@ -207,9 +196,7 @@ class FingerprintIntegrator:
             timestamp=datetime.now(),
         )
 
-    def get_cached_fingerprint(
-        self, domain: str, target_ip: str
-    ) -> Optional[FingerprintResult]:
+    def get_cached_fingerprint(self, domain: str, target_ip: str) -> Optional[FingerprintResult]:
         """Get cached fingerprint result if available."""
         cache_key = f"{domain}_{target_ip}"
         if cache_key in self.cache:
@@ -234,9 +221,7 @@ class FingerprintIntegrator:
             )
             success = AsyncOperationWrapper.schedule_background_task(config)
             if success:
-                LOG.debug(
-                    f"Started background fingerprinting for {domain} ({target_ip})"
-                )
+                LOG.debug(f"Started background fingerprinting for {domain} ({target_ip})")
             else:
                 LOG.error(f"Failed to schedule background fingerprinting for {domain}")
         except Exception as e:

@@ -4,9 +4,33 @@
 """
 
 from .raw_packet_engine import RawPacketEngine
-from .raw_pcap_reader import RawPCAPReader, PCAPHeader, PCAPPacketHeader, read_pcap, iterate_pcap
-from .scapy_compatibility import ScapyCompatibilityLayer
-from .migration_tool import ScapyMigrationTool
+
+# Optional submodules (may be absent in some deployments/builds).
+try:
+    from .raw_pcap_reader import (
+        RawPCAPReader,
+        PCAPHeader,
+        PCAPPacketHeader,
+        read_pcap,
+        iterate_pcap,
+    )
+except Exception:  # pragma: no cover
+    RawPCAPReader = None
+    PCAPHeader = None
+    PCAPPacketHeader = None
+    read_pcap = None
+    iterate_pcap = None
+
+try:
+    from .scapy_compatibility import ScapyCompatibilityLayer
+except Exception:  # pragma: no cover
+    ScapyCompatibilityLayer = None
+
+try:
+    from .migration_tool import ScapyMigrationTool
+except Exception:  # pragma: no cover
+    ScapyMigrationTool = None
+
 from .modifier import PacketModifier
 from .packet_models import (
     ProtocolType,

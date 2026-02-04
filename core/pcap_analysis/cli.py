@@ -113,12 +113,8 @@ Examples:
             default=0,
             help="Increase verbosity (use -vv for debug)",
         )
-        parser.add_argument(
-            "--quiet", "-q", action="store_true", help="Suppress progress output"
-        )
-        parser.add_argument(
-            "--output-dir", "-o", type=str, help="Output directory for results"
-        )
+        parser.add_argument("--quiet", "-q", action="store_true", help="Suppress progress output")
+        parser.add_argument("--output-dir", "-o", type=str, help="Output directory for results")
         parser.add_argument("--config", "-c", type=str, help="Configuration file path")
         parser.add_argument(
             "--help-topic",
@@ -161,9 +157,7 @@ Examples:
         )
 
         # Batch command
-        batch_parser = subparsers.add_parser(
-            "batch", help="Batch process multiple comparisons"
-        )
+        batch_parser = subparsers.add_parser("batch", help="Batch process multiple comparisons")
         batch_parser.add_argument("config_file", help="Batch configuration JSON file")
         batch_parser.add_argument(
             "--parallel", "-p", type=int, default=1, help="Number of parallel processes"
@@ -227,16 +221,12 @@ Examples:
 
             # Step 5: Pattern recognition
             progress.start_step(4, "Recognizing DPI evasion patterns...")
-            patterns = await pattern_recognizer.recognize_patterns(
-                comparison_result, differences
-            )
+            patterns = await pattern_recognizer.recognize_patterns(comparison_result, differences)
             progress.complete_step(4, f"Recognized {len(patterns)} patterns")
 
             # Step 6: Root cause analysis
             progress.start_step(5, "Analyzing failure root causes...")
-            root_causes = await root_cause_analyzer.analyze_failure_causes(
-                differences, patterns
-            )
+            root_causes = await root_cause_analyzer.analyze_failure_causes(differences, patterns)
             progress.complete_step(5, f"Identified {len(root_causes)} root causes")
 
             # Step 7: Generate fixes
@@ -249,8 +239,8 @@ Examples:
                 progress.start_step(7, "Starting interactive review...")
 
                 # Review differences
-                approved_differences, diff_results = (
-                    self.difference_review.review_differences(differences)
+                approved_differences, diff_results = self.difference_review.review_differences(
+                    differences
                 )
                 differences = approved_differences
 
@@ -277,9 +267,7 @@ Examples:
                             applied_fixes.append(fix)
                             self.logger.info(f"Applied fix: {fix.description}")
                         except Exception as e:
-                            self.logger.error(
-                                f"Failed to apply fix {fix.description}: {e}"
-                            )
+                            self.logger.error(f"Failed to apply fix {fix.description}: {e}")
 
                 progress.complete_step(8, f"Applied {len(applied_fixes)} fixes")
             else:
@@ -452,9 +440,7 @@ Examples:
             validator = StrategyValidator()
             test_domains = args.test_domains or ["x.com", "example.com"]
 
-            print(
-                f"Validating {len(fixes)} fixes against {len(test_domains)} domains..."
-            )
+            print(f"Validating {len(fixes)} fixes against {len(test_domains)} domains...")
 
             validation_results = []
             for fix in fixes:

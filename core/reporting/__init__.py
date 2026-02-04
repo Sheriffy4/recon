@@ -1,23 +1,9 @@
 """
-Enhanced Reporting System
+Zapret Reporting Module
 
-Provides comprehensive reporting capabilities for DPI bypass analysis.
+Handles generation of DPI bypass analysis reports.
 """
 
-from core.reporting.enhanced_reporter import (
-    EnhancedReporter,
-    DPIAnalysisReport,
-    StrategyEffectivenessReport,
-    SystemPerformanceReport,
-    ComprehensiveReport,
-    ConfidenceLevel,
-)
+from .zapret_reporter import ZapretReporter
 
-__all__ = [
-    "EnhancedReporter",
-    "DPIAnalysisReport",
-    "StrategyEffectivenessReport",
-    "SystemPerformanceReport",
-    "ComprehensiveReport",
-    "ConfidenceLevel",
-]
+__all__ = ["ZapretReporter"]

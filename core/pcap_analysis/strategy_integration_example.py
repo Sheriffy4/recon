@@ -44,9 +44,7 @@ class IntegratedPCAPAnalyzer:
         try:
             # Step 1: Compare PCAP files at packet level
             print(f"Comparing PCAP files for {domain}...")
-            packet_comparison = self.pcap_comparator.compare_pcaps(
-                recon_pcap, zapret_pcap
-            )
+            packet_comparison = self.pcap_comparator.compare_pcaps(recon_pcap, zapret_pcap)
             results["packet_comparison"] = packet_comparison
 
             # Step 2: Extract strategies from both PCAP files
@@ -68,9 +66,7 @@ class IntegratedPCAPAnalyzer:
             results["strategy_comparison"] = strategy_comparison
 
             # Step 4: Generate recommendations
-            recommendations = self._generate_recommendations(
-                packet_comparison, strategy_comparison
-            )
+            recommendations = self._generate_recommendations(packet_comparison, strategy_comparison)
             results["recommendations"] = recommendations
 
             # Step 5: Summary
@@ -78,9 +74,7 @@ class IntegratedPCAPAnalyzer:
             print(f"- Packet similarity: {packet_comparison.similarity_score:.2f}")
             print(f"- Strategy similarity: {strategy_comparison.similarity_score:.2f}")
             print(f"- Strategy compatible: {strategy_comparison.is_compatible}")
-            print(
-                f"- Critical differences: {len(strategy_comparison.get_critical_differences())}"
-            )
+            print(f"- Critical differences: {len(strategy_comparison.get_critical_differences())}")
             print(f"- Recommendations: {len(recommendations)}")
 
             return results

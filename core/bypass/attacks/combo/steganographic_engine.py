@@ -45,9 +45,7 @@ class SteganographicConfig:
     header_fields: List[str] = field(
         default_factory=lambda: ["user_agent", "accept", "cache_control"]
     )
-    protocol_extensions: List[str] = field(
-        default_factory=lambda: ["x-forwarded-for", "x-real-ip"]
-    )
+    protocol_extensions: List[str] = field(default_factory=lambda: ["x-forwarded-for", "x-real-ip"])
 
 
 @dataclass
@@ -99,9 +97,7 @@ class SteganographicEngine(ABC):
         pass
 
     @abstractmethod
-    def extract_data(
-        self, packet_data: bytes, context: Dict[str, Any]
-    ) -> Optional[bytes]:
+    def extract_data(self, packet_data: bytes, context: Dict[str, Any]) -> Optional[bytes]:
         """Extract embedded data from packet."""
         pass
 
@@ -189,9 +185,7 @@ class LSBSteganographicEngine(SteganographicEngine):
             self.update_stats(False, 0, 0.0)
             return packet_data, 0
 
-    def extract_data(
-        self, packet_data: bytes, context: Dict[str, Any]
-    ) -> Optional[bytes]:
+    def extract_data(self, packet_data: bytes, context: Dict[str, Any]) -> Optional[bytes]:
         """Extract data using LSB technique."""
         try:
             extracted_bits = []
@@ -268,9 +262,7 @@ class TimingChannelSteganographicEngine(SteganographicEngine):
             self.update_stats(False, 0, 0.0)
             return packet_data, 0
 
-    def extract_data(
-        self, packet_data: bytes, context: Dict[str, Any]
-    ) -> Optional[bytes]:
+    def extract_data(self, packet_data: bytes, context: Dict[str, Any]) -> Optional[bytes]:
         """Extract data from timing channel."""
         try:
             if "timing_modifications" not in context:
@@ -318,9 +310,7 @@ class HeaderModificationSteganographicEngine(SteganographicEngine):
     def can_embed_in_packet(self, packet_data: bytes, context: Dict[str, Any]) -> bool:
         """Check if packet has modifiable headers."""
         # Check if packet contains HTTP headers
-        return (
-            b"HTTP/" in packet_data or b"GET " in packet_data or b"POST " in packet_data
-        )
+        return b"HTTP/" in packet_data or b"GET " in packet_data or b"POST " in packet_data
 
     def embed_data(
         self, packet_data: bytes, data_to_embed: bytes, context: Dict[str, Any]
@@ -333,9 +323,7 @@ class HeaderModificationSteganographicEngine(SteganographicEngine):
             # Find header lines to modify
             header_indices = []
             for i, line in enumerate(lines):
-                if ":" in line and any(
-                    field in line.lower() for field in self.header_fields
-                ):
+                if ":" in line and any(field in line.lower() for field in self.header_fields):
                     header_indices.append(i)
 
             if not header_indices:
@@ -370,9 +358,7 @@ class HeaderModificationSteganographicEngine(SteganographicEngine):
             self.update_stats(False, 0, 0.0)
             return packet_data, 0
 
-    def extract_data(
-        self, packet_data: bytes, context: Dict[str, Any]
-    ) -> Optional[bytes]:
+    def extract_data(self, packet_data: bytes, context: Dict[str, Any]) -> Optional[bytes]:
         """Extract data from header modifications."""
         try:
             packet_str = packet_data.decode("utf-8", errors="ignore")
@@ -381,9 +367,7 @@ class HeaderModificationSteganographicEngine(SteganographicEngine):
             extracted_data = bytearray()
 
             for line in lines:
-                if ":" in line and any(
-                    field in line.lower() for field in self.header_fields
-                ):
+                if ":" in line and any(field in line.lower() for field in self.header_fields):
                     key, value = line.split(":", 1)
                     # Extract data from header value
                     extracted_byte = self._extract_from_header_value(value.strip())
@@ -425,9 +409,7 @@ class MultiLayerSteganographicEngine(SteganographicEngine):
         super().__init__(config)
         self.engines = {
             SteganographicMethod.LSB_PAYLOAD: LSBSteganographicEngine(config),
-            SteganographicMethod.TIMING_CHANNEL: TimingChannelSteganographicEngine(
-                config
-            ),
+            SteganographicMethod.TIMING_CHANNEL: TimingChannelSteganographicEngine(config),
             SteganographicMethod.HEADER_MODIFICATION: HeaderModificationSteganographicEngine(
                 config
             ),
@@ -441,8 +423,7 @@ class MultiLayerSteganographicEngine(SteganographicEngine):
     def can_embed_in_packet(self, packet_data: bytes, context: Dict[str, Any]) -> bool:
         """Check if any embedding method can be used."""
         return any(
-            engine.can_embed_in_packet(packet_data, context)
-            for engine in self.engines.values()
+            engine.can_embed_in_packet(packet_data, context) for engine in self.engines.values()
         )
 
     def embed_data(
@@ -477,9 +458,7 @@ class MultiLayerSteganographicEngine(SteganographicEngine):
             self.update_stats(False, 0, 0.0)
             return packet_data, 0
 
-    def extract_data(
-        self, packet_data: bytes, context: Dict[str, Any]
-    ) -> Optional[bytes]:
+    def extract_data(self, packet_data: bytes, context: Dict[str, Any]) -> Optional[bytes]:
         """Extract data from multiple layers."""
         try:
             extracted_data = bytearray()
@@ -510,15 +489,11 @@ class SteganographicManager:
         self.config = config or SteganographicConfig()
         self.engines = {
             SteganographicMethod.LSB_PAYLOAD: LSBSteganographicEngine(self.config),
-            SteganographicMethod.TIMING_CHANNEL: TimingChannelSteganographicEngine(
-                self.config
-            ),
+            SteganographicMethod.TIMING_CHANNEL: TimingChannelSteganographicEngine(self.config),
             SteganographicMethod.HEADER_MODIFICATION: HeaderModificationSteganographicEngine(
                 self.config
             ),
-            SteganographicMethod.MULTI_LAYER: MultiLayerSteganographicEngine(
-                self.config
-            ),
+            SteganographicMethod.MULTI_LAYER: MultiLayerSteganographicEngine(self.config),
         }
         self.active_engine = self.engines[self.config.method]
 
@@ -582,9 +557,7 @@ class SteganographicManager:
 
             # Calculate result metrics
             total_payload_size = sum(len(packet) for packet, _ in packet_sequence)
-            efficiency = (
-                total_embedded / total_payload_size if total_payload_size > 0 else 0.0
-            )
+            efficiency = total_embedded / total_payload_size if total_payload_size > 0 else 0.0
 
             # Estimate detection risk based on embedding method and efficiency
             detection_risk = self._estimate_detection_risk(efficiency, packets_modified)
@@ -636,9 +609,7 @@ class SteganographicManager:
             LOG.error(f"Steganographic extraction failed: {e}")
             return None
 
-    def _estimate_detection_risk(
-        self, efficiency: float, packets_modified: int
-    ) -> float:
+    def _estimate_detection_risk(self, efficiency: float, packets_modified: int) -> float:
         """Estimate the risk of steganographic detection."""
         # Base risk on embedding method
         base_risk = {

@@ -447,9 +447,7 @@ class TrainingDataGenerator:
             ]
         )
 
-    def generate_synthetic_variations(
-        self, base_examples: int = 5
-    ) -> List[TrainingExample]:
+    def generate_synthetic_variations(self, base_examples: int = 5) -> List[TrainingExample]:
         """
         Generate synthetic variations of existing examples.
 
@@ -502,9 +500,7 @@ class TrainingDataGenerator:
                 new_metrics[key] = not new_metrics[key]
 
         # Reduce confidence slightly for synthetic examples
-        new_confidence = max(
-            0.1, base_example.confidence - np.random.uniform(0.05, 0.15)
-        )
+        new_confidence = max(0.1, base_example.confidence - np.random.uniform(0.05, 0.15))
 
         return TrainingExample(
             dpi_type=base_example.dpi_type,
@@ -657,9 +653,7 @@ class FeatureEngineer:
                 }
 
         self.is_fitted = True
-        LOG.info(
-            f"Feature engineering pipeline fitted on {len(training_data)} examples"
-        )
+        LOG.info(f"Feature engineering pipeline fitted on {len(training_data)} examples")
 
     def transform(self, metrics: Dict[str, Any]) -> Dict[str, float]:
         """
@@ -704,9 +698,7 @@ class FeatureEngineer:
 
                     # Min-max normalization
                     if stats["max"] > stats["min"]:
-                        minmax = (float(value) - stats["min"]) / (
-                            stats["max"] - stats["min"]
-                        )
+                        minmax = (float(value) - stats["min"]) / (stats["max"] - stats["min"])
                     else:
                         minmax = 0.0
                     engineered_features[f"{feature}_minmax"] = minmax
@@ -821,9 +813,7 @@ class FeatureEngineer:
             "esni_support",
             "ecn_support",
         ]
-        tech_count = sum(
-            1 for indicator in tech_indicators if metrics.get(indicator) is True
-        )
+        tech_count = sum(1 for indicator in tech_indicators if metrics.get(indicator) is True)
         derived["technology_support"] = tech_count / len(tech_indicators)
 
         return derived

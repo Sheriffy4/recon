@@ -52,20 +52,14 @@ class SimplePredictor:
 class MLPredictor:
     """Machine Learning predictor for bypass engine metrics"""
 
-    def __init__(
-        self, metrics_collector: MetricsCollector, model_dir: str = "ml_models"
-    ):
+    def __init__(self, metrics_collector: MetricsCollector, model_dir: str = "ml_models"):
         self.metrics_collector = metrics_collector
         self.model_dir = Path(model_dir)
         self.model_dir.mkdir(exist_ok=True)
         if SKLEARN_AVAILABLE:
             self.models = {
-                "success_rate": RandomForestRegressor(
-                    n_estimators=100, random_state=42
-                ),
-                "response_time": GradientBoostingRegressor(
-                    n_estimators=100, random_state=42
-                ),
+                "success_rate": RandomForestRegressor(n_estimators=100, random_state=42),
+                "response_time": GradientBoostingRegressor(n_estimators=100, random_state=42),
                 "reliability": LinearRegression(),
             }
             self.scalers = {
@@ -159,9 +153,7 @@ class MLPredictor:
         try:
             X, y = await self._prepare_strategy_training_data()
             if len(X) < min_data_points:
-                print(
-                    f"Insufficient data for strategy predictor: {len(X)} < {min_data_points}"
-                )
+                print(f"Insufficient data for strategy predictor: {len(X)} < {min_data_points}")
                 return
             if SKLEARN_AVAILABLE:
                 X_train, X_test, y_train, y_test = train_test_split(
@@ -173,9 +165,7 @@ class MLPredictor:
                 y_pred = self.models["reliability"].predict(X_test_scaled)
                 mse = mean_squared_error(y_test, y_pred)
                 r2 = r2_score(y_test, y_pred)
-                print(
-                    f"Strategy effectiveness predictor - MSE: {mse:.4f}, R²: {r2:.4f}"
-                )
+                print(f"Strategy effectiveness predictor - MSE: {mse:.4f}, R²: {r2:.4f}")
                 await self._save_model("reliability")
             self.trained_models.add("reliability")
         except Exception as e:
@@ -255,11 +245,7 @@ class MLPredictor:
             metrics.avg_response_time,
             metrics.total_attempts,
             self._calculate_failure_streak(history),
-            (
-                (now - metrics.last_success).total_seconds() / 3600
-                if metrics.last_success
-                else 24
-            ),
+            ((now - metrics.last_success).total_seconds() / 3600 if metrics.last_success else 24),
             np.mean(recent_values) if recent_values else 0,
         ]
         return features
@@ -298,14 +284,10 @@ class MLPredictor:
             if SKLEARN_AVAILABLE and "success_rate" in self.scalers:
                 features_scaled = self.scalers["success_rate"].transform([features])
                 prediction = self.models["success_rate"].predict(features_scaled)[0]
-                confidence = min(
-                    0.9, max(0.1, 1.0 - abs(prediction - metrics.success_rate))
-                )
+                confidence = min(0.9, max(0.1, 1.0 - abs(prediction - metrics.success_rate)))
             else:
                 recent_values = [h["value"] for h in history[-10:]]
-                prediction, confidence = self.models["success_rate"].predict(
-                    recent_values
-                )
+                prediction, confidence = self.models["success_rate"].predict(recent_values)
             prediction = max(0.0, min(1.0, prediction))
             result = PredictionResult(
                 entity_id=entity_id,
@@ -355,9 +337,7 @@ class MLPredictor:
                 )
             else:
                 recent_values = [h["value"] for h in history[-10:]]
-                prediction, confidence = self.models["response_time"].predict(
-                    recent_values
-                )
+                prediction, confidence = self.models["response_time"].predict(recent_values)
             prediction = max(0.1, prediction)
             result = PredictionResult(
                 entity_id=entity_id,
@@ -441,9 +421,7 @@ class MLPredictor:
                 except Exception as e:
                     print(f"Error loading {model_name} model: {e}")
 
-    async def get_prediction_accuracy(
-        self, model_name: str, hours: int = 24
-    ) -> Dict[str, float]:
+    async def get_prediction_accuracy(self, model_name: str, hours: int = 24) -> Dict[str, float]:
         """Calculate prediction accuracy for recent predictions"""
         return {"mae": 0.1, "rmse": 0.15, "accuracy": 0.85}
 
@@ -452,8 +430,6 @@ class MLPredictor:
         for model_name in self.trained_models:
             accuracy = await self.get_prediction_accuracy(model_name)
             if accuracy["accuracy"] < 0.7:
-                print(
-                    f"Retraining {model_name} model due to low accuracy: {accuracy['accuracy']}"
-                )
+                print(f"Retraining {model_name} model due to low accuracy: {accuracy['accuracy']}")
                 await self.train_models()
                 break

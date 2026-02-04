@@ -124,9 +124,7 @@ class EngineValidator:
             },
         }
 
-    def validate_engine_type(
-        self, engine_type: Union[str, EngineType]
-    ) -> ValidationResult:
+    def validate_engine_type(self, engine_type: Union[str, EngineType]) -> ValidationResult:
         """
         Validate if an engine type is supported and available.
 
@@ -321,9 +319,7 @@ class EngineValidator:
             )
         return result
 
-    def check_permissions(
-        self, engine_type: Union[str, EngineType]
-    ) -> ValidationResult:
+    def check_permissions(self, engine_type: Union[str, EngineType]) -> ValidationResult:
         """
         Check if current user has required permissions for engine type.
 
@@ -362,9 +358,7 @@ class EngineValidator:
                     )
         return result
 
-    def validate_dependencies(
-        self, engine_type: Union[str, EngineType]
-    ) -> ValidationResult:
+    def validate_dependencies(self, engine_type: Union[str, EngineType]) -> ValidationResult:
         """
         Validate dependencies for a specific engine type.
 

@@ -44,9 +44,7 @@ class ImportManager:
             return fallback
 
     @classmethod
-    def safe_import_from(
-        cls, module_name: str, item_name: str, fallback: Any = None
-    ) -> Any:
+    def safe_import_from(cls, module_name: str, item_name: str, fallback: Any = None) -> Any:
         """
         Safely import an item from a module.
 
@@ -85,18 +83,10 @@ class ImportManager:
         imports = {}
 
         # Import AttackStatus and related classes
-        imports["AttackStatus"] = cls.safe_import_from(
-            "core.bypass.attacks.base", "AttackStatus"
-        )
-        imports["AttackResult"] = cls.safe_import_from(
-            "core.bypass.attacks.base", "AttackResult"
-        )
-        imports["AttackContext"] = cls.safe_import_from(
-            "core.bypass.attacks.base", "AttackContext"
-        )
-        imports["BlockType"] = cls.safe_import_from(
-            "core.bypass.attacks.base", "BlockType"
-        )
+        imports["AttackStatus"] = cls.safe_import_from("core.bypass.attacks.base", "AttackStatus")
+        imports["AttackResult"] = cls.safe_import_from("core.bypass.attacks.base", "AttackResult")
+        imports["AttackContext"] = cls.safe_import_from("core.bypass.attacks.base", "AttackContext")
+        imports["BlockType"] = cls.safe_import_from("core.bypass.attacks.base", "BlockType")
 
         # Log any missing imports
         missing = [k for k, v in imports.items() if v is None]

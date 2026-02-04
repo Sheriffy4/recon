@@ -78,9 +78,7 @@ class CLIIntegration:
                 try:
                     evolutionary_searcher = self.provider.get_evolutionary_searcher()
                 except Exception as e:
-                    self._logger.warning(
-                        f"Failed to resolve evolutionary searcher: {e}"
-                    )
+                    self._logger.warning(f"Failed to resolve evolutionary searcher: {e}")
             closed_loop_manager = None
             if hasattr(self.args, "closed_loop") and self.args.closed_loop:
                 try:
@@ -147,9 +145,7 @@ class CLIIntegration:
             Dictionary of configured services for the domain
         """
         if not self.services:
-            raise RuntimeError(
-                "Services not initialized. Call initialize_services() first."
-            )
+            raise RuntimeError("Services not initialized. Call initialize_services() first.")
         try:
             from core.fingerprint.models import ProbeConfig
 
@@ -171,15 +167,11 @@ class CLIIntegration:
                 "result_processor": self.services.result_processor,
             }
             if self.services.closed_loop_manager:
-                domain_services["closed_loop_manager"] = (
-                    self.services.closed_loop_manager
-                )
+                domain_services["closed_loop_manager"] = self.services.closed_loop_manager
             self._logger.debug(f"Created domain-specific services for {domain}")
             return domain_services
         except Exception as e:
-            self._logger.error(
-                f"Failed to create domain-specific services for {domain}: {e}"
-            )
+            self._logger.error(f"Failed to create domain-specific services for {domain}: {e}")
             raise
 
     async def create_strategy_generator_for_fingerprint(
@@ -195,13 +187,9 @@ class CLIIntegration:
             raise RuntimeError("Services not initialized")
         try:
             attack_registry = self.provider.container.resolve(AttackRegistry)
-            domain_strategies = self.provider.container.resolve(
-                DomainSpecificStrategies
-            )
+            domain_strategies = self.provider.container.resolve(DomainSpecificStrategies)
             strategy_predictor = self.provider.container.resolve(StrategyPredictor)
-            parameter_optimizer = self.provider.container.resolve(
-                DynamicParameterOptimizer
-            )
+            parameter_optimizer = self.provider.container.resolve(DynamicParameterOptimizer)
             if hasattr(self.args, "no_ml") and self.args.no_ml:
                 # В режиме без ML возвращаем нативный (ε-greedy/UCT-подобный) генератор
                 strategy_generator = NativeStrategyGeneratorAdapter(
@@ -218,15 +206,11 @@ class CLIIntegration:
                 fingerprint_dict=fingerprint_dict,
                 history=[],
                 max_strategies=self.args.count,
-                enable_ml_prediction=(
-                    not self.args.no_ml if hasattr(self.args, "no_ml") else True
-                ),
+                enable_ml_prediction=(not self.args.no_ml if hasattr(self.args, "no_ml") else True),
             )
             return strategy_generator
         except Exception as e:
-            self._logger.error(
-                f"Failed to create strategy generator for fingerprint: {e}"
-            )
+            self._logger.error(f"Failed to create strategy generator for fingerprint: {e}")
             raise
 
     async def create_effectiveness_tester_for_optimization(
@@ -248,9 +232,7 @@ class CLIIntegration:
                 max_retries=1,
             )
         except Exception as e:
-            self._logger.error(
-                f"Failed to create optimization effectiveness tester: {e}"
-            )
+            self._logger.error(f"Failed to create optimization effectiveness tester: {e}")
             raise
 
     def get_container_info(self) -> Dict[str, Any]:

@@ -84,9 +84,7 @@ class CriticalDifference:
     evidence: List[Evidence] = field(default_factory=list)
 
     # Context information
-    packet_indices: List[int] = field(
-        default_factory=list
-    )  # Indices of affected packets
+    packet_indices: List[int] = field(default_factory=list)  # Indices of affected packets
     connection_key: Optional[str] = None
     timestamp_range: Optional[tuple] = None
 
@@ -98,9 +96,7 @@ class CriticalDifference:
     # Metadata
     detection_method: str = "automatic"
     tags: List[str] = field(default_factory=list)
-    related_differences: List[str] = field(
-        default_factory=list
-    )  # IDs of related differences
+    related_differences: List[str] = field(default_factory=list)  # IDs of related differences
 
     def __post_init__(self):
         """Post-initialization validation and processing."""

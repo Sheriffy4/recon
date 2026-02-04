@@ -67,13 +67,9 @@ class RobustDNSHandler:
                     )
                     return result.ip
                 else:
-                    LOG.debug(
-                        f"Failed to resolve {domain} via {result.method}: {result.error}"
-                    )
+                    LOG.debug(f"Failed to resolve {domain} via {result.method}: {result.error}")
             except Exception as e:
-                LOG.warning(
-                    f"DNS resolution method {method.__name__} failed for {domain}: {e}"
-                )
+                LOG.warning(f"DNS resolution method {method.__name__} failed for {domain}: {e}")
                 continue
         LOG.error(f"All DNS resolution methods failed for domain: {domain}")
         return None
@@ -88,8 +84,7 @@ class RobustDNSHandler:
         results = {}
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_domain = {
-                executor.submit(self.resolve_with_fallback, domain): domain
-                for domain in domains
+                executor.submit(self.resolve_with_fallback, domain): domain for domain in domains
             }
             for future in as_completed(future_to_domain):
                 domain = future_to_domain[future]
@@ -97,9 +92,7 @@ class RobustDNSHandler:
                     ip = future.result()
                     results[domain] = ip
                 except Exception as e:
-                    LOG.error(
-                        f"Exception during concurrent resolution of {domain}: {e}"
-                    )
+                    LOG.error(f"Exception during concurrent resolution of {domain}: {e}")
                     results[domain] = None
         return results
 
@@ -120,16 +113,9 @@ class RobustDNSHandler:
                 LOG.warning(f"Invalid IP format for {domain}: {ip}")
                 return False
             return True
-        if (
-            addr.is_private
-            or addr.is_loopback
-            or addr.is_multicast
-            or addr.is_unspecified
-        ):
+        if addr.is_private or addr.is_loopback or addr.is_multicast or addr.is_unspecified:
             if not domain.endswith((".local", ".lan", ".internal", ".test")):
-                LOG.warning(
-                    f"Suspicious private/loopback IP {ip} for public domain {domain}"
-                )
+                LOG.warning(f"Suspicious private/loopback IP {ip} for public domain {domain}")
                 return False
         return True
 
@@ -218,9 +204,7 @@ class RobustDNSHandler:
         """Resolve via getaddrinfo (most comprehensive)."""
         start_time = time.time()
         try:
-            addr_info = socket.getaddrinfo(
-                domain, 443, socket.AF_INET, socket.SOCK_STREAM
-            )
+            addr_info = socket.getaddrinfo(domain, 443, socket.AF_INET, socket.SOCK_STREAM)
             if addr_info:
                 ip = addr_info[0][4][0]
                 latency_ms = (time.time() - start_time) * 1000

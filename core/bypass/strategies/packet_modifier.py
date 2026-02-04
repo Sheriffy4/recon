@@ -1,4 +1,4 @@
-﻿"""
+"""
 Packet modification component for DPI strategy system.
 
 This module implements packet splitting, TCP segment creation, and sequence number management
@@ -51,9 +51,7 @@ class PacketModifier(IPacketModifier):
             raise PacketTooSmallError(0, self.min_packet_size, "packet splitting")
 
         if len(packet) < self.min_packet_size:
-            raise PacketTooSmallError(
-                len(packet), self.min_packet_size, "packet splitting"
-            )
+            raise PacketTooSmallError(len(packet), self.min_packet_size, "packet splitting")
 
         if not positions:
             # No split positions, return original packet
@@ -90,9 +88,7 @@ class PacketModifier(IPacketModifier):
 
         # Ensure we have at least one part
         if not parts:
-            logger.warning(
-                "Split operation resulted in no parts, returning original packet"
-            )
+            logger.warning("Split operation resulted in no parts, returning original packet")
             return [packet]
 
         # Validate split result
@@ -103,9 +99,7 @@ class PacketModifier(IPacketModifier):
         )
         return parts
 
-    def _validate_split_positions(
-        self, packet: bytes, positions: List[int]
-    ) -> List[int]:
+    def _validate_split_positions(self, packet: bytes, positions: List[int]) -> List[int]:
         """
         Validate split positions and return only valid ones.
 
@@ -124,9 +118,7 @@ class PacketModifier(IPacketModifier):
                 if self._is_position_valid(packet_size, position):
                     valid_positions.append(position)
                 else:
-                    logger.debug(
-                        f"Invalid split position {position} for packet size {packet_size}"
-                    )
+                    logger.debug(f"Invalid split position {position} for packet size {packet_size}")
             except Exception as e:
                 logger.warning(f"Error validating position {position}: {e}")
 
@@ -184,9 +176,7 @@ class PacketModifier(IPacketModifier):
         # Check that we have the expected number of parts
         expected_parts = len(positions) + 1
         if len(parts) != expected_parts:
-            logger.warning(
-                f"Expected {expected_parts} parts but got {len(parts)} parts"
-            )
+            logger.warning(f"Expected {expected_parts} parts but got {len(parts)} parts")
 
         # Check that no part is empty
         for i, part in enumerate(parts):
@@ -197,9 +187,7 @@ class PacketModifier(IPacketModifier):
                     f"Split resulted in empty part at index {i}",
                 )
 
-    def create_tcp_segments(
-        self, original_packet: bytes, parts: List[bytes]
-    ) -> List[bytes]:
+    def create_tcp_segments(self, original_packet: bytes, parts: List[bytes]) -> List[bytes]:
         """
         Create TCP segments from packet parts.
 
@@ -227,14 +215,10 @@ class PacketModifier(IPacketModifier):
 
         try:
             # Parse original packet to extract headers
-            ip_header, tcp_header, original_payload = self._parse_packet_headers(
-                original_packet
-            )
+            ip_header, tcp_header, original_payload = self._parse_packet_headers(original_packet)
 
             if not ip_header or not tcp_header:
-                logger.warning(
-                    "Could not parse original packet headers, returning parts as-is"
-                )
+                logger.warning("Could not parse original packet headers, returning parts as-is")
                 return parts
 
             tcp_segments = []

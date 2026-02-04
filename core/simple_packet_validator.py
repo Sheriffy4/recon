@@ -21,6 +21,9 @@ import socket
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
+# Import shared checksum utilities
+from core.validation.checksum_utils import calculate_tcp_checksum, validate_tcp_checksum
+
 
 class SimplePacketValidator:
     """
@@ -209,9 +212,7 @@ class SimplePacketValidator:
                         )
                         result["passed"] = False
                     else:
-                        result["details"].append(
-                            f"✓ Packet {i+1} seq correct: {next_pkt['seq']}"
-                        )
+                        result["details"].append(f"✓ Packet {i+1} seq correct: {next_pkt['seq']}")
 
         else:
             # Generic validation - just check packets are sequential
@@ -259,9 +260,7 @@ class SimplePacketValidator:
             return result
 
         fooling = params.get("fooling", [])
-        has_badsum = (
-            "badsum" in fooling if isinstance(fooling, list) else fooling == "badsum"
-        )
+        has_badsum = "badsum" in fooling if isinstance(fooling, list) else fooling == "badsum"
 
         # Separate fake and real packets
         fake_packets = [p for p in packets if self._is_fake_packet(p)]
@@ -276,9 +275,7 @@ class SimplePacketValidator:
                     )
                     result["passed"] = False
                 else:
-                    result["details"].append(
-                        f"✓ Fake packet {i} has bad checksum as expected"
-                    )
+                    result["details"].append(f"✓ Fake packet {i} has bad checksum as expected")
 
             # Validate real packets have good checksums
             for i, pkt in enumerate(real_packets):
@@ -346,9 +343,7 @@ class SimplePacketValidator:
                     )
                     result["passed"] = False
                 else:
-                    result["details"].append(
-                        f"✓ Fake packet {i} TTL correct: {pkt['ttl']}"
-                    )
+                    result["details"].append(f"✓ Fake packet {i} TTL correct: {pkt['ttl']}")
 
             # Validate real packets have normal TTL
             for i, pkt in enumerate(real_packets):
@@ -357,9 +352,7 @@ class SimplePacketValidator:
                         f"Real packet {i} has unusual TTL: {pkt['ttl']} (expected 64, 128, or 255)"
                     )
                 else:
-                    result["details"].append(
-                        f"✓ Real packet {i} TTL normal: {pkt['ttl']}"
-                    )
+                    result["details"].append(f"✓ Real packet {i} TTL normal: {pkt['ttl']}")
 
         elif expected_ttl is not None:
             # For non-fake attacks, check if TTL matches parameter
@@ -418,9 +411,7 @@ class SimplePacketValidator:
                         break
 
                     # Parse packet header
-                    ts_sec, ts_usec, caplen, origlen = struct.unpack(
-                        f"{endian}IIII", packet_header
-                    )
+                    ts_sec, ts_usec, caplen, origlen = struct.unpack(f"{endian}IIII", packet_header)
                     timestamp = ts_sec + ts_usec / 1000000.0
 
                     # Read packet data
@@ -444,9 +435,7 @@ class SimplePacketValidator:
 
         return packets
 
-    def _parse_packet(
-        self, raw_data: bytes, index: int, timestamp: float
-    ) -> Optional[Dict]:
+    def _parse_packet(self, raw_data: bytes, index: int, timestamp: float) -> Optional[Dict]:
         """
         Parse raw packet data into dictionary.
 
@@ -512,9 +501,7 @@ class SimplePacketValidator:
             tcp_header_len = ((tcp_data[12] >> 4) & 0xF) * 4
 
             # Payload
-            payload = (
-                tcp_data[tcp_header_len:] if tcp_header_len < len(tcp_data) else b""
-            )
+            payload = tcp_data[tcp_header_len:] if tcp_header_len < len(tcp_data) else b""
 
             # Validate checksum
             checksum_valid = self._validate_tcp_checksum(
@@ -544,11 +531,9 @@ class SimplePacketValidator:
                 print(f"Error parsing packet {index}: {e}")
             return None
 
-    def _validate_tcp_checksum(
-        self, ip_header: bytes, tcp_header: bytes, payload: bytes
-    ) -> bool:
+    def _validate_tcp_checksum(self, ip_header: bytes, tcp_header: bytes, payload: bytes) -> bool:
         """
-        Validate TCP checksum.
+        Validate TCP checksum (delegated to checksum_utils).
 
         Args:
             ip_header: IP header bytes
@@ -558,36 +543,11 @@ class SimplePacketValidator:
         Returns:
             True if checksum is valid
         """
-        try:
-            # Extract source and destination IPs
-            src_ip = ip_header[12:16]
-            dst_ip = ip_header[16:20]
-
-            # Build pseudo header
-            pseudo_header = src_ip + dst_ip
-            pseudo_header += struct.pack(">BBH", 0, 6, len(tcp_header) + len(payload))
-
-            # Zero out checksum field in TCP header for calculation
-            tcp_header_copy = bytearray(tcp_header)
-            tcp_header_copy[16:18] = b"\x00\x00"
-
-            # Combine all parts
-            data = pseudo_header + bytes(tcp_header_copy) + payload
-
-            # Calculate checksum
-            calculated_checksum = self._calculate_checksum(data)
-
-            # Get original checksum
-            original_checksum = struct.unpack(">H", tcp_header[16:18])[0]
-
-            return calculated_checksum == original_checksum
-
-        except Exception:
-            return False
+        return validate_tcp_checksum(ip_header, tcp_header, payload)
 
     def _calculate_checksum(self, data: bytes) -> int:
         """
-        Calculate Internet checksum.
+        Calculate Internet checksum (delegated to checksum_utils).
 
         Args:
             data: Data to checksum
@@ -595,24 +555,7 @@ class SimplePacketValidator:
         Returns:
             Checksum value
         """
-        # Pad data to even length
-        if len(data) % 2 == 1:
-            data += b"\x00"
-
-        # Sum all 16-bit words
-        checksum = 0
-        for i in range(0, len(data), 2):
-            word = (data[i] << 8) + data[i + 1]
-            checksum += word
-
-        # Add carry bits
-        while checksum >> 16:
-            checksum = (checksum & 0xFFFF) + (checksum >> 16)
-
-        # One's complement
-        checksum = ~checksum & 0xFFFF
-
-        return checksum
+        return calculate_tcp_checksum(data)
 
     def _is_fake_packet(self, packet: Dict) -> bool:
         """

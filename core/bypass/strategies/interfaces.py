@@ -164,9 +164,7 @@ class IPacketModifier(ABC):
         pass
 
     @abstractmethod
-    def create_tcp_segments(
-        self, original_packet: bytes, parts: List[bytes]
-    ) -> List[bytes]:
+    def create_tcp_segments(self, original_packet: bytes, parts: List[bytes]) -> List[bytes]:
         """
         Create TCP segments from packet parts.
 

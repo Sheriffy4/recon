@@ -29,7 +29,6 @@ class DripFeedAttack(BaseAttack):
     or that timeout on slow connections.
     """
 
-
     @property
     def required_params(self) -> list:
         return []

@@ -6,7 +6,7 @@ with complete metadata specification and various usage patterns.
 """
 
 from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
-from core.bypass.attacks.metadata import AttackCategories, AttackMetadata
+from core.bypass.attacks.metadata import AttackCategories
 from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, AttackStatus
 
 
@@ -16,19 +16,14 @@ from core.bypass.attacks.base import BaseAttack, AttackContext, AttackResult, At
     category=AttackCategories.TCP,
     priority=RegistrationPriority.NORMAL,
     required_params=["split_pos"],
-    optional_params={
-        "ttl": 3,
-        "fooling": ["badsum"],
-        "delay_ms": 0.0,
-        "window_size": 65535
-    },
+    optional_params={"ttl": 3, "fooling": ["badsum"], "delay_ms": 0.0, "window_size": 65535},
     aliases=["adv_tcp_split", "enhanced_split"],
-    description="Advanced TCP splitting with configurable parameters and timing control"
+    description="Advanced TCP splitting with configurable parameters and timing control",
 )
 class AdvancedTCPSplitAttack(BaseAttack):
     """
     Advanced TCP packet splitting attack with enhanced control.
-    
+
     This attack splits TCP packets at specified positions with optional
     timing delays and TCP window manipulation for improved evasion.
     """
@@ -47,36 +42,28 @@ class AdvancedTCPSplitAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "ttl": 3,
-            "fooling": ["badsum"],
-            "delay_ms": 0.0,
-            "window_size": 65535
-        }
+        return {"ttl": 3, "fooling": ["badsum"], "delay_ms": 0.0, "window_size": 65535}
 
     def execute(self, context: AttackContext) -> AttackResult:
         split_pos = context.params.get("split_pos", len(context.payload) // 2)
         ttl = context.params.get("ttl", 3)
         delay_ms = context.params.get("delay_ms", 0.0)
-        
+
         # Split payload
         part1 = context.payload[:split_pos]
         part2 = context.payload[split_pos:]
-        
+
         # Create segments with options
-        segments = [
-            (part1, 0, {"ttl": ttl}),
-            (part2, len(part1), {"delay_ms": delay_ms})
-        ]
-        
+        segments = [(part1, 0, {"ttl": ttl}), (part2, len(part1), {"delay_ms": delay_ms})]
+
         result = AttackResult(
             status=AttackStatus.SUCCESS,
             technique_used=self.name,
             packets_sent=2,
-            bytes_sent=len(context.payload)
+            bytes_sent=len(context.payload),
         )
         result.segments = segments
-        
+
         return result
 
 
@@ -104,29 +91,22 @@ class SimpleDisorderAttack(BaseAttack):
     def execute(self, context: AttackContext) -> AttackResult:
         split_pos = context.params.get("split_pos", len(context.payload) // 2)
         ack_first = context.params.get("ack_first", False)
-        
+
         part1 = context.payload[:split_pos]
         part2 = context.payload[split_pos:]
-        
+
         # Reorder segments
         if ack_first:
             segments = [
                 (part2, len(part1), {"flags": 0x10}),  # ACK first
-                (part1, 0, {"flags": 0x18})            # PSH+ACK second
+                (part1, 0, {"flags": 0x18}),  # PSH+ACK second
             ]
         else:
-            segments = [
-                (part2, len(part1), {}),
-                (part1, 0, {})
-            ]
-        
-        result = AttackResult(
-            status=AttackStatus.SUCCESS,
-            technique_used=self.name,
-            packets_sent=2
-        )
+            segments = [(part2, len(part1), {}), (part1, 0, {})]
+
+        result = AttackResult(status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=2)
         result.segments = segments
-        
+
         return result
 
 
@@ -140,15 +120,15 @@ class SimpleDisorderAttack(BaseAttack):
         "sni_position": "auto",
         "fake_sni": None,
         "record_fragmentation": True,
-        "timing_jitter": False
+        "timing_jitter": False,
     },
     aliases=["sni_frag", "tls_fragment"],
-    description="TLS SNI fragmentation with record-level splitting"
+    description="TLS SNI fragmentation with record-level splitting",
 )
 class TLSSNIFragmentationAttack(BaseAttack):
     """
     Fragments TLS ClientHello at SNI extension boundary.
-    
+
     This attack specifically targets the Server Name Indication (SNI)
     extension in TLS ClientHello messages, fragmenting the packet
     to evade SNI-based blocking.
@@ -172,7 +152,7 @@ class TLSSNIFragmentationAttack(BaseAttack):
             "sni_position": "auto",
             "fake_sni": None,
             "record_fragmentation": True,
-            "timing_jitter": False
+            "timing_jitter": False,
         }
 
     @property
@@ -182,33 +162,29 @@ class TLSSNIFragmentationAttack(BaseAttack):
     def execute(self, context: AttackContext) -> AttackResult:
         fragment_size = context.params.get("fragment_size", 64)
         sni_position = context.params.get("sni_position", "auto")
-        
+
         # Find SNI position if auto
         if sni_position == "auto":
             sni_position = self._find_sni_position(context.payload)
-        
+
         # Fragment at SNI boundary
-        segments = self._create_tls_fragments(
-            context.payload, sni_position, fragment_size
-        )
-        
+        segments = self._create_tls_fragments(context.payload, sni_position, fragment_size)
+
         result = AttackResult(
-            status=AttackStatus.SUCCESS,
-            technique_used=self.name,
-            packets_sent=len(segments)
+            status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=len(segments)
         )
         result.segments = segments
-        
+
         return result
 
     def _find_sni_position(self, payload: bytes) -> int:
         """
         Find SNI extension position in TLS ClientHello.
-        
+
         DEPRECATED: Use SNIManipulator.find_sni_position() instead.
         """
         from core.bypass.sni.manipulator import SNIManipulator
-        
+
         sni_pos = SNIManipulator.find_sni_position(payload)
         if sni_pos:
             return sni_pos.sni_value_start
@@ -217,32 +193,32 @@ class TLSSNIFragmentationAttack(BaseAttack):
     def _create_tls_fragments(self, payload: bytes, sni_pos: int, fragment_size: int) -> list:
         """
         Create TLS record fragments.
-        
+
         Uses SNIManipulator for proper SNI detection.
         """
         from core.bypass.sni.manipulator import SNIManipulator
-        
+
         segments = []
-        
+
         # Use SNIManipulator to find proper SNI position if not provided
         if sni_pos == len(payload) // 2:  # Fallback position
             sni_position = SNIManipulator.find_sni_position(payload)
             if sni_position:
                 sni_pos = sni_position.sni_value_start
-        
+
         # Fragment before SNI
         if sni_pos > 0:
             pre_sni = payload[:sni_pos]
             for i in range(0, len(pre_sni), fragment_size):
-                chunk = pre_sni[i:i + fragment_size]
+                chunk = pre_sni[i : i + fragment_size]
                 segments.append((chunk, i, {}))
-        
+
         # Fragment SNI and after
         post_sni = payload[sni_pos:]
         for i in range(0, len(post_sni), fragment_size):
-            chunk = post_sni[i:i + fragment_size]
+            chunk = post_sni[i : i + fragment_size]
             segments.append((chunk, sni_pos + i, {}))
-        
+
         return segments
 
 
@@ -255,14 +231,14 @@ class TLSSNIFragmentationAttack(BaseAttack):
     optional_params={
         "case_pattern": "random",
         "header_order_shuffle": False,
-        "add_dummy_headers": True
+        "add_dummy_headers": True,
     },
-    aliases=["http_case", "header_evasion"]
+    aliases=["http_case", "header_evasion"],
 )
 class HTTPHeaderCaseEvasionAttack(BaseAttack):
     """
     HTTP header case manipulation for DPI evasion.
-    
+
     Modifies HTTP header capitalization and order to evade
     signature-based detection systems.
     """
@@ -281,11 +257,7 @@ class HTTPHeaderCaseEvasionAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "case_pattern": "random",
-            "header_order_shuffle": False,
-            "add_dummy_headers": True
-        }
+        return {"case_pattern": "random", "header_order_shuffle": False, "add_dummy_headers": True}
 
     @property
     def supported_protocols(self) -> list:
@@ -293,41 +265,41 @@ class HTTPHeaderCaseEvasionAttack(BaseAttack):
 
     def execute(self, context: AttackContext) -> AttackResult:
         case_pattern = context.params.get("case_pattern", "random")
-        
+
         # Modify HTTP headers
         modified_payload = self._modify_http_headers(context.payload, case_pattern)
-        
+
         result = AttackResult(
             status=AttackStatus.SUCCESS,
             technique_used=self.name,
             modified_payload=modified_payload,
-            packets_sent=1
+            packets_sent=1,
         )
-        
+
         return result
 
     def _modify_http_headers(self, payload: bytes, case_pattern: str) -> bytes:
         """Modify HTTP header case."""
         # Simplified implementation
-        payload_str = payload.decode('utf-8', errors='ignore')
-        
+        payload_str = payload.decode("utf-8", errors="ignore")
+
         if case_pattern == "random":
             import random
+
             # Randomly capitalize headers
-            lines = payload_str.split('\r\n')
+            lines = payload_str.split("\r\n")
             for i, line in enumerate(lines):
-                if ':' in line and i > 0:  # Skip request line
-                    header, value = line.split(':', 1)
+                if ":" in line and i > 0:  # Skip request line
+                    header, value = line.split(":", 1)
                     # Random case for header name
-                    header = ''.join(
-                        c.upper() if random.choice([True, False]) else c.lower()
-                        for c in header
+                    header = "".join(
+                        c.upper() if random.choice([True, False]) else c.lower() for c in header
                     )
                     lines[i] = f"{header}:{value}"
-            
-            payload_str = '\r\n'.join(lines)
-        
-        return payload_str.encode('utf-8')
+
+            payload_str = "\r\n".join(lines)
+
+        return payload_str.encode("utf-8")
 
 
 # Example 5: Payload-level attack
@@ -336,17 +308,13 @@ class HTTPHeaderCaseEvasionAttack(BaseAttack):
     category=AttackCategories.PAYLOAD,
     priority=RegistrationPriority.NORMAL,
     required_params=["xor_key"],
-    optional_params={
-        "key_rotation": False,
-        "preserve_headers": True,
-        "chunk_size": 0
-    },
-    aliases=["xor_obfuscation", "payload_xor"]
+    optional_params={"key_rotation": False, "preserve_headers": True, "chunk_size": 0},
+    aliases=["xor_obfuscation", "payload_xor"],
 )
 class XORPayloadObfuscationAttack(BaseAttack):
     """
     XOR-based payload obfuscation attack.
-    
+
     Applies XOR encryption to payload data to evade
     content-based DPI detection.
     """
@@ -365,39 +333,31 @@ class XORPayloadObfuscationAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "key_rotation": False,
-            "preserve_headers": True,
-            "chunk_size": 0
-        }
+        return {"key_rotation": False, "preserve_headers": True, "chunk_size": 0}
 
     def execute(self, context: AttackContext) -> AttackResult:
         xor_key = context.params.get("xor_key")
         if not xor_key:
             return AttackResult(
-                status=AttackStatus.INVALID_PARAMS,
-                error_message="xor_key parameter is required"
+                status=AttackStatus.INVALID_PARAMS, error_message="xor_key parameter is required"
             )
-        
+
         # Apply XOR obfuscation
         obfuscated_payload = self._xor_encrypt(context.payload, xor_key)
-        
+
         result = AttackResult(
             status=AttackStatus.SUCCESS,
             technique_used=self.name,
             modified_payload=obfuscated_payload,
-            packets_sent=1
+            packets_sent=1,
         )
-        
+
         return result
 
     def _xor_encrypt(self, data: bytes, key: str) -> bytes:
         """Apply XOR encryption with string key."""
-        key_bytes = key.encode('utf-8')
-        return bytes([
-            data[i] ^ key_bytes[i % len(key_bytes)]
-            for i in range(len(data))
-        ])
+        key_bytes = key.encode("utf-8")
+        return bytes([data[i] ^ key_bytes[i % len(key_bytes)] for i in range(len(data))])
 
 
 # Example 6: Function-based registration (alternative to class-based)
@@ -405,34 +365,31 @@ class XORPayloadObfuscationAttack(BaseAttack):
     name="simple_ttl_manipulation",
     category=AttackCategories.IP,
     required_params=["ttl_value"],
-    optional_params={"apply_to_all": True}
+    optional_params={"apply_to_all": True},
 )
 def simple_ttl_manipulation(context: AttackContext) -> list:
     """
     Simple TTL manipulation function.
-    
+
     Sets custom TTL value for packet transmission.
     """
     ttl_value = context.params.get("ttl_value", 64)
     apply_to_all = context.params.get("apply_to_all", True)
-    
+
     if apply_to_all:
         # Apply TTL to entire payload
         return [(context.payload, 0, {"ttl": ttl_value})]
     else:
         # Apply TTL only to first segment
         mid = len(context.payload) // 2
-        return [
-            (context.payload[:mid], 0, {"ttl": ttl_value}),
-            (context.payload[mid:], mid, {})
-        ]
+        return [(context.payload[:mid], 0, {"ttl": ttl_value}), (context.payload[mid:], mid, {})]
 
 
 # Example 7: Parameterless decorator (uses class name)
 @register_attack
 class AutoNamedAttack(BaseAttack):
     """Attack with automatically determined name from class name."""
-    
+
     @property
     def name(self) -> str:
         return "auto_named"
@@ -450,10 +407,7 @@ class AutoNamedAttack(BaseAttack):
         return {}
 
     def execute(self, context: AttackContext) -> AttackResult:
-        return AttackResult(
-            status=AttackStatus.SUCCESS,
-            technique_used=self.name
-        )
+        return AttackResult(status=AttackStatus.SUCCESS, technique_used=self.name)
 
 
 # Example 8: High-priority core attack (for primitives.py style attacks)
@@ -462,18 +416,14 @@ class AutoNamedAttack(BaseAttack):
     category=AttackCategories.TCP,
     priority=RegistrationPriority.CORE,  # Cannot be overridden
     required_params=["split_pos"],
-    optional_params={
-        "fake_ttl": 3,
-        "fooling_methods": ["badsum"],
-        "fake_data": None
-    },
+    optional_params={"fake_ttl": 3, "fooling_methods": ["badsum"], "fake_data": None},
     aliases=["fakeddisorder", "fake_disorder"],
-    description="Core fake disorder implementation from primitives.py"
+    description="Core fake disorder implementation from primitives.py",
 )
 class CoreFakeDisorderAttack(BaseAttack):
     """
     Core fake disorder attack implementation.
-    
+
     This is the canonical implementation that cannot be overridden
     by external attacks due to CORE priority.
     """
@@ -492,32 +442,26 @@ class CoreFakeDisorderAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "fake_ttl": 3,
-            "fooling_methods": ["badsum"],
-            "fake_data": None
-        }
+        return {"fake_ttl": 3, "fooling_methods": ["badsum"], "fake_data": None}
 
     def execute(self, context: AttackContext) -> AttackResult:
         # Implementation would call primitives.py
         from core.bypass.techniques.primitives import BypassTechniques
-        
+
         split_pos = context.params.get("split_pos")
         fake_ttl = context.params.get("fake_ttl", 3)
         fooling_methods = context.params.get("fooling_methods", ["badsum"])
-        
+
         techniques = BypassTechniques()
         segments = techniques.apply_fakeddisorder(
             context.payload, split_pos, fake_ttl, fooling_methods
         )
-        
+
         result = AttackResult(
-            status=AttackStatus.SUCCESS,
-            technique_used=self.name,
-            packets_sent=len(segments)
+            status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=len(segments)
         )
         result.segments = segments
-        
+
         return result
 
 
@@ -531,14 +475,14 @@ class CoreFakeDisorderAttack(BaseAttack):
         "techniques": ["split", "timing", "ttl"],
         "split_pos": None,
         "delay_ms": 10.0,
-        "ttl_value": 3
+        "ttl_value": 3,
     },
-    aliases=["combo_evasion", "layered_attack"]
+    aliases=["combo_evasion", "layered_attack"],
 )
 class MultiLayerEvasionAttack(BaseAttack):
     """
     Multi-layer evasion combining multiple techniques.
-    
+
     Applies multiple evasion techniques in sequence for
     enhanced bypass effectiveness.
     """
@@ -561,25 +505,23 @@ class MultiLayerEvasionAttack(BaseAttack):
             "techniques": ["split", "timing", "ttl"],
             "split_pos": None,
             "delay_ms": 10.0,
-            "ttl_value": 3
+            "ttl_value": 3,
         }
 
     def execute(self, context: AttackContext) -> AttackResult:
         techniques = context.params.get("techniques", ["split", "timing"])
-        
+
         segments = [(context.payload, 0, {})]  # Start with original payload
-        
+
         # Apply each technique
         for technique in techniques:
             segments = self._apply_technique(segments, technique, context.params)
-        
+
         result = AttackResult(
-            status=AttackStatus.SUCCESS,
-            technique_used=self.name,
-            packets_sent=len(segments)
+            status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=len(segments)
         )
         result.segments = segments
-        
+
         return result
 
     def _apply_technique(self, segments: list, technique: str, params: dict) -> list:
@@ -595,7 +537,7 @@ class MultiLayerEvasionAttack(BaseAttack):
                 else:
                     new_segments.append((payload, offset, options))
             return new_segments
-        
+
         elif technique == "timing":
             # Add timing delays
             delay_ms = params.get("delay_ms", 10.0)
@@ -606,7 +548,7 @@ class MultiLayerEvasionAttack(BaseAttack):
                     new_options["delay_ms"] = delay_ms
                 new_segments.append((payload, offset, new_options))
             return new_segments
-        
+
         elif technique == "ttl":
             # Add TTL manipulation
             ttl_value = params.get("ttl_value", 3)
@@ -616,7 +558,7 @@ class MultiLayerEvasionAttack(BaseAttack):
                 new_options["ttl"] = ttl_value
                 new_segments.append((payload, offset, new_options))
             return new_segments
-        
+
         return segments
 
 
@@ -627,12 +569,12 @@ class MultiLayerEvasionAttack(BaseAttack):
     priority=RegistrationPriority.LOW,
     required_params=[],
     optional_params={"legacy_param": "default_value"},
-    description="Example of wrapping legacy attack code"
+    description="Example of wrapping legacy attack code",
 )
 class LegacyWrapperAttack(BaseAttack):
     """
     Example of wrapping legacy attack implementations.
-    
+
     This shows how to integrate existing attack code that doesn't
     follow the new BaseAttack interface.
     """
@@ -657,39 +599,47 @@ class LegacyWrapperAttack(BaseAttack):
         try:
             # Call legacy attack function (example)
             # legacy_result = some_legacy_attack_function(context.payload, **context.params)
-            
+
             # Convert legacy result to new format
             result = AttackResult(
-                status=AttackStatus.SUCCESS,
-                technique_used=self.name,
-                packets_sent=1
+                status=AttackStatus.SUCCESS, technique_used=self.name, packets_sent=1
             )
-            
+
             # If legacy function returns modified payload
             # result.modified_payload = legacy_result
-            
+
             return result
-            
+
         except Exception as e:
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=f"Legacy attack failed: {e}",
-                technique_used=self.name
+                technique_used=self.name,
             )
 
 
 if __name__ == "__main__":
     # Example usage and testing
     from core.bypass.attacks.attack_registry import get_attack_registry
-    
+
     registry = get_attack_registry()
-    
+
     print("Registered attacks from examples:")
     for attack_name in registry.list_attacks():
-        if any(example in attack_name for example in [
-            "advanced_tcp_split", "simple_disorder", "tls_sni_fragmentation",
-            "http_header_case", "xor_payload", "simple_ttl", "auto_named",
-            "core_fakeddisorder", "multi_layer", "legacy_wrapper"
-        ]):
+        if any(
+            example in attack_name
+            for example in [
+                "advanced_tcp_split",
+                "simple_disorder",
+                "tls_sni_fragmentation",
+                "http_header_case",
+                "xor_payload",
+                "simple_ttl",
+                "auto_named",
+                "core_fakeddisorder",
+                "multi_layer",
+                "legacy_wrapper",
+            ]
+        ):
             metadata = registry.get_attack_metadata(attack_name)
             print(f"  - {attack_name}: {metadata.description if metadata else 'No metadata'}")

@@ -147,9 +147,7 @@ class SafetyController:
         self.config = config or SafetyConfiguration()
         config_errors = self.config.validate()
         if config_errors:
-            raise ValueError(
-                f"Invalid safety configuration: {', '.join(config_errors)}"
-            )
+            raise ValueError(f"Invalid safety configuration: {', '.join(config_errors)}")
         self.resource_manager = (
             ResourceManager(self.config.resource_limits)
             if self.config.enable_resource_monitoring
@@ -179,11 +177,7 @@ class SafetyController:
 
     def _setup_callbacks(self) -> None:
         """Setup callbacks between safety components."""
-        if (
-            self.sandbox
-            and self.emergency_stop_manager
-            and self.config.auto_stop_on_violations
-        ):
+        if self.sandbox and self.emergency_stop_manager and self.config.auto_stop_on_violations:
 
             def on_sandbox_violation(violation):
                 if violation.severity == "critical":
@@ -267,9 +261,7 @@ class SafetyController:
                 record.sandbox_monitor = True
                 LOG.debug(f"Started sandbox monitoring for {attack_id}")
             if self.emergency_stop_manager:
-                emergency_controller = self.emergency_stop_manager.create_controller(
-                    attack_id
-                )
+                emergency_controller = self.emergency_stop_manager.create_controller(attack_id)
                 record.emergency_stop = True
                 LOG.debug(f"Created emergency stop controller for {attack_id}")
             start_time = time.time()
@@ -282,18 +274,14 @@ class SafetyController:
                         stop_info["reason"],
                         attack_id,
                     )
-                LOG.info(
-                    f"Executing attack {attack_id} with timeout {execution_timeout}s"
-                )
+                LOG.info(f"Executing attack {attack_id} with timeout {execution_timeout}s")
                 result_container = [None]
                 exception_container = [None]
 
                 def execute_with_monitoring():
                     try:
                         if resource_monitor:
-                            resource_monitor.record_network_activity(
-                                1, len(context.payload)
-                            )
+                            resource_monitor.record_network_activity(1, len(context.payload))
                         if sandbox_monitor:
                             sandbox_monitor.record_network_operation(
                                 "execute", context.dst_ip, context.dst_port
@@ -303,9 +291,7 @@ class SafetyController:
                     except Exception as e:
                         exception_container[0] = e
 
-                execution_thread = threading.Thread(
-                    target=execute_with_monitoring, daemon=True
-                )
+                execution_thread = threading.Thread(target=execute_with_monitoring, daemon=True)
                 execution_thread.start()
                 execution_thread.join(timeout=execution_timeout)
                 if execution_thread.is_alive():
@@ -335,25 +321,20 @@ class SafetyController:
                 record.duration_seconds = execution_time
                 record.error_message = str(e)
                 record.success = False
-                LOG.error(
-                    f"Attack {attack_id} execution failed after {execution_time:.2f}s: {e}"
-                )
+                LOG.error(f"Attack {attack_id} execution failed after {execution_time:.2f}s: {e}")
                 raise
             execution_time = time.time() - start_time
             record.duration_seconds = execution_time
             record.result = result
             record.success = (
-                isinstance(result, AttackResult)
-                and result.status == AttackStatus.SUCCESS
+                isinstance(result, AttackResult) and result.status == AttackStatus.SUCCESS
             )
             LOG.info(
                 f"Attack {attack_id} execution completed in {execution_time:.2f}s: {(result.status if result else 'No result')}"
             )
             if self.config.enable_post_validation and result:
                 LOG.debug(f"Running post-execution validation for {attack_id}")
-                post_validation = self.validator.validate_post_execution(
-                    attack, context, result
-                )
+                post_validation = self.validator.validate_post_execution(attack, context, result)
                 record.post_validation = post_validation
                 if (
                     not post_validation.is_safe_to_execute()
@@ -384,20 +365,14 @@ class SafetyController:
                     violations = self.sandbox.remove_monitor(attack_id)
                     if violations:
                         record.sandbox_violations = len(violations)
-                        LOG.warning(
-                            f"Attack {attack_id} had {len(violations)} sandbox violations"
-                        )
+                        LOG.warning(f"Attack {attack_id} had {len(violations)} sandbox violations")
                 if emergency_controller:
                     self.emergency_stop_manager.remove_controller(attack_id)
             except Exception as cleanup_error:
-                LOG.error(
-                    f"Error during safety cleanup for {attack_id}: {cleanup_error}"
-                )
+                LOG.error(f"Error during safety cleanup for {attack_id}: {cleanup_error}")
             record.end_time = datetime.now()
             if record.duration_seconds == 0.0:
-                record.duration_seconds = (
-                    record.end_time - record.start_time
-                ).total_seconds()
+                record.duration_seconds = (record.end_time - record.start_time).total_seconds()
             with self._lock:
                 self._active_executions.pop(attack_id, None)
                 self._execution_history.append(record)
@@ -457,9 +432,7 @@ class SafetyController:
         """
         return self.validator.validate_pre_execution(attack, context)
 
-    def emergency_stop_attack(
-        self, attack_id: str, reason: str = "Manual stop"
-    ) -> bool:
+    def emergency_stop_attack(self, attack_id: str, reason: str = "Manual stop") -> bool:
         """
         Trigger emergency stop for a specific attack.
 
@@ -520,15 +493,11 @@ class SafetyController:
             "components": {},
         }
         if self.resource_manager:
-            status["components"][
-                "resource_manager"
-            ] = self.resource_manager.get_system_status()
+            status["components"]["resource_manager"] = self.resource_manager.get_system_status()
         if self.sandbox:
             status["components"]["sandbox"] = self.sandbox.get_violation_summary()
         if self.emergency_stop_manager:
-            status["components"][
-                "emergency_stop"
-            ] = self.emergency_stop_manager.get_status()
+            status["components"]["emergency_stop"] = self.emergency_stop_manager.get_status()
         if self.validator:
             status["components"]["validator"] = self.validator.get_statistics()
         return status
@@ -545,21 +514,13 @@ class SafetyController:
         """
         config_errors = new_config.validate()
         if config_errors:
-            raise ValueError(
-                f"Invalid safety configuration: {', '.join(config_errors)}"
-            )
+            raise ValueError(f"Invalid safety configuration: {', '.join(config_errors)}")
         with self._lock:
             old_config = self.config
             self.config = new_config
-            if (
-                self.resource_manager
-                and old_config.resource_limits != new_config.resource_limits
-            ):
+            if self.resource_manager and old_config.resource_limits != new_config.resource_limits:
                 self.resource_manager.update_default_limits(new_config.resource_limits)
-            if (
-                self.validator
-                and old_config.validation_level != new_config.validation_level
-            ):
+            if self.validator and old_config.validation_level != new_config.validation_level:
                 self.validator.set_validation_level(new_config.validation_level)
             LOG.info("Safety configuration updated")
 
@@ -569,19 +530,15 @@ class SafetyController:
             stats = self._stats.copy()
             if self._execution_history:
                 successful = sum((1 for r in self._execution_history if r.success))
-                avg_duration = sum(
-                    (r.duration_seconds for r in self._execution_history)
-                ) / len(self._execution_history)
+                avg_duration = sum((r.duration_seconds for r in self._execution_history)) / len(
+                    self._execution_history
+                )
                 total_violations = sum(
-                    (
-                        r.resource_violations + r.sandbox_violations
-                        for r in self._execution_history
-                    )
+                    (r.resource_violations + r.sandbox_violations for r in self._execution_history)
                 )
                 stats.update(
                     {
-                        "history_success_rate": successful
-                        / len(self._execution_history),
+                        "history_success_rate": successful / len(self._execution_history),
                         "average_execution_time": avg_duration,
                         "total_safety_violations": total_violations,
                     }

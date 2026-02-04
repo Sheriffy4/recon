@@ -49,17 +49,12 @@ class TCPSegmentManipulator:
         pos = 0
         while pos < len(payload):
             if config.randomize_sizes:
-                size = random.randint(
-                    config.min_size, min(config.max_size, len(payload) - pos)
-                )
+                size = random.randint(config.min_size, min(config.max_size, len(payload) - pos))
             else:
                 size = min(config.max_size, len(payload) - pos)
             segment = payload[pos : pos + size]
             segments.append(segment)
-            if (
-                random.random() < config.duplicate_chance
-                and len(segment) > config.overlap_size
-            ):
+            if random.random() < config.duplicate_chance and len(segment) > config.overlap_size:
                 overlap = segment[-config.overlap_size :]
                 segments.append(overlap)
             pos += size
@@ -73,9 +68,7 @@ class TCPSegmentManipulator:
         packets = []
         seq_num = tcp_packet.seq_num
         for i, segment in enumerate(segments):
-            tcp_segment = self.create_segment(
-                tcp_packet, seq_num, segment, config.preserve_options
-            )
+            tcp_segment = self.create_segment(tcp_packet, seq_num, segment, config.preserve_options)
             ip_segment = IPv4Packet(
                 src_addr=ip_packet.src_addr,
                 dst_addr=ip_packet.dst_addr,

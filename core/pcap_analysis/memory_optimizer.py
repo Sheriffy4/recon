@@ -81,15 +81,11 @@ class MemoryOptimizer:
             "after_rss_mb": after_stats.rss_mb,
         }
 
-    def optimize_packet_storage(
-        self, packets: List[PacketInfo]
-    ) -> "OptimizedPacketStorage":
+    def optimize_packet_storage(self, packets: List[PacketInfo]) -> "OptimizedPacketStorage":
         """Optimize packet storage to reduce memory usage."""
         return OptimizedPacketStorage(packets, self)
 
-    def create_memory_mapped_storage(
-        self, packets: List[PacketInfo]
-    ) -> "MemoryMappedStorage":
+    def create_memory_mapped_storage(self, packets: List[PacketInfo]) -> "MemoryMappedStorage":
         """Create memory-mapped storage for large packet collections."""
         return MemoryMappedStorage(packets, self)
 
@@ -177,9 +173,7 @@ class OptimizedPacketStorage:
                 else:
                     total_compressed += len(original_data)
 
-        compression_ratio = (
-            (total_compressed / total_original) if total_original > 0 else 1.0
-        )
+        compression_ratio = (total_compressed / total_original) if total_original > 0 else 1.0
         logger.debug(f"Payload compression ratio: {compression_ratio:.2f}")
 
         return compressed_payloads
@@ -224,17 +218,13 @@ class OptimizedPacketStorage:
         packet_indices = self._indexed_packets[index_key].get(ip, [])
         return [self._deduplicated_packets[i] for i in packet_indices]
 
-    def get_packets_by_port_pair(
-        self, src_port: int, dst_port: int
-    ) -> List[PacketInfo]:
+    def get_packets_by_port_pair(self, src_port: int, dst_port: int) -> List[PacketInfo]:
         """Get packets by port pair."""
         port_pair = f"{src_port}-{dst_port}"
         packet_indices = self._indexed_packets["by_port_pair"].get(port_pair, [])
         return [self._deduplicated_packets[i] for i in packet_indices]
 
-    def get_packets_in_time_range(
-        self, start_time: float, end_time: float
-    ) -> List[PacketInfo]:
+    def get_packets_in_time_range(self, start_time: float, end_time: float) -> List[PacketInfo]:
         """Get packets within a time range."""
         result = []
         start_bucket = int(start_time)
@@ -383,9 +373,7 @@ class MemoryEfficientComparator:
         self.optimizer = MemoryOptimizer(enable_aggressive_gc=True)
         self.memory_limit_mb = memory_limit_mb
 
-    def compare_large_pcaps(
-        self, recon_pcap: str, zapret_pcap: str
-    ) -> ComparisonResult:
+    def compare_large_pcaps(self, recon_pcap: str, zapret_pcap: str) -> ComparisonResult:
         """Compare large PCAP files using memory optimization."""
         logger.info("Starting memory-efficient PCAP comparison")
 
@@ -412,9 +400,7 @@ class MemoryEfficientComparator:
             # Check memory usage
             stats = self.optimizer.get_memory_stats()
             if stats.rss_mb > self.memory_limit_mb:
-                logger.warning(
-                    f"Memory limit exceeded ({stats.rss_mb:.1f}MB), forcing GC"
-                )
+                logger.warning(f"Memory limit exceeded ({stats.rss_mb:.1f}MB), forcing GC")
                 self.optimizer.force_garbage_collection()
 
         # Load zapret packets in chunks
@@ -426,9 +412,7 @@ class MemoryEfficientComparator:
             # Check memory usage
             stats = self.optimizer.get_memory_stats()
             if stats.rss_mb > self.memory_limit_mb:
-                logger.warning(
-                    f"Memory limit exceeded ({stats.rss_mb:.1f}MB), forcing GC"
-                )
+                logger.warning(f"Memory limit exceeded ({stats.rss_mb:.1f}MB), forcing GC")
                 self.optimizer.force_garbage_collection()
 
         # Optimize storage

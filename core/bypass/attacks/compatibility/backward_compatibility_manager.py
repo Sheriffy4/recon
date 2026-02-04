@@ -84,21 +84,13 @@ class BackwardCompatibilityManager:
         migration_complexity = self._assess_migration_complexity(attack)
         if not has_segments_support:
             if has_legacy_support:
-                recommendations.append(
-                    "Consider migrating to segments for better performance"
-                )
-                recommendations.append(
-                    "Current legacy implementation will continue to work"
-                )
+                recommendations.append("Consider migrating to segments for better performance")
+                recommendations.append("Current legacy implementation will continue to work")
             else:
                 issues.append("Attack has no segments or legacy support")
-                recommendations.append(
-                    "Urgent migration required to segments architecture"
-                )
+                recommendations.append("Urgent migration required to segments architecture")
         if has_segments_support and has_legacy_support:
-            recommendations.append(
-                "Attack supports both modes - consider removing legacy code"
-            )
+            recommendations.append("Attack supports both modes - consider removing legacy code")
         if has_segments_support and has_legacy_support:
             recommended_mode = CompatibilityMode.HYBRID
         elif has_segments_support:
@@ -129,15 +121,14 @@ class BackwardCompatibilityManager:
                 connection_id="compatibility_test",
             )
             result = attack.execute(test_context)
-            if hasattr(result, "_segments") and result._segments:
+            # Check segments property (reads from metadata["segments"])
+            if result.segments:
                 return True
             if result.metadata.get("supports_segments", False):
                 return True
             return False
         except Exception as e:
-            self.logger.debug(
-                f"Segments support check failed for {attack.__class__.__name__}: {e}"
-            )
+            self.logger.debug(f"Segments support check failed for {attack.__class__.__name__}: {e}")
             return False
 
     def _check_legacy_support(self, attack: BaseAttack) -> bool:
@@ -156,9 +147,7 @@ class BackwardCompatibilityManager:
                 return True
             return False
         except Exception as e:
-            self.logger.debug(
-                f"Legacy support check failed for {attack.__class__.__name__}: {e}"
-            )
+            self.logger.debug(f"Legacy support check failed for {attack.__class__.__name__}: {e}")
             return False
 
     def _assess_migration_complexity(self, attack: BaseAttack) -> str:
@@ -217,6 +206,27 @@ class BackwardCompatibilityManager:
         else:
             raise RuntimeError(f"Attack {attack_name} has no compatible execution mode")
 
+    def _extract_segments(self, result: AttackResult) -> list:
+        """Unified segments extraction across schema variants."""
+        if result is None:
+            return []
+        segs = result.segments
+        if segs:
+            return list(segs)
+        mp = getattr(result, "modified_payload", None)
+        if isinstance(mp, (bytes, bytearray)) and mp:
+            return [(bytes(mp), 0, {})]
+        return []
+
+    def _attach_segments(self, result: AttackResult, segments: list) -> None:
+        """
+        Attach segments in a maximally compatible way:
+        - unified: result.segments property (stores into metadata["segments"])
+        """
+        if result is None:
+            return
+        result.segments = segments
+
     def _execute_segments_mode(
         self, attack: BaseAttack, context: AttackContext, stats: Dict[str, int]
     ) -> AttackResult:
@@ -224,10 +234,11 @@ class BackwardCompatibilityManager:
         stats["segments_attempts"] += 1
         try:
             result = attack.execute(context)
-            if not hasattr(result, "_segments") or not result._segments:
-                raise RuntimeError(
-                    "Attack claimed segments support but returned no segments"
-                )
+            segs = self._extract_segments(result)
+            if not segs:
+                raise RuntimeError("Attack claimed segments support but returned no segments")
+            # Normalize schema: always expose as result.segments + keep legacy mirrors.
+            self._attach_segments(result, segs)
             stats["segments_successes"] += 1
             return result
         except Exception as e:
@@ -241,11 +252,14 @@ class BackwardCompatibilityManager:
         stats["legacy_attempts"] += 1
         try:
             result = attack.execute(context)
-            if not hasattr(result, "_segments") or not result._segments:
+            if not self._extract_segments(result):
                 if hasattr(result, "modified_payload") and result.modified_payload:
-                    result._segments = [(result.modified_payload, 0, {})]
+                    self._attach_segments(result, [(result.modified_payload, 0, {})])
                 else:
-                    result._segments = [(context.payload, 0, {})]
+                    self._attach_segments(result, [(context.payload, 0, {})])
+            else:
+                # Normalize even if segments already exist in non-preferred place
+                self._attach_segments(result, self._extract_segments(result))
             stats["legacy_successes"] += 1
             return result
         except Exception as e:
@@ -264,9 +278,7 @@ class BackwardCompatibilityManager:
             try:
                 return self._execute_segments_mode(attack, context, stats)
             except Exception as e:
-                self.logger.warning(
-                    f"Segments execution failed, falling back to legacy: {e}"
-                )
+                self.logger.warning(f"Segments execution failed, falling back to legacy: {e}")
                 stats["fallback_used"] += 1
         if report.has_legacy_support:
             return self._execute_legacy_mode(attack, context, stats)
@@ -278,25 +290,13 @@ class BackwardCompatibilityManager:
         """Get compatibility and fallback statistics."""
         total_attacks = len(self._compatibility_cache)
         segments_supported = sum(
-            (
-                1
-                for report in self._compatibility_cache.values()
-                if report.has_segments_support
-            )
+            (1 for report in self._compatibility_cache.values() if report.has_segments_support)
         )
         legacy_supported = sum(
-            (
-                1
-                for report in self._compatibility_cache.values()
-                if report.has_legacy_support
-            )
+            (1 for report in self._compatibility_cache.values() if report.has_legacy_support)
         )
         migration_required = sum(
-            (
-                1
-                for report in self._compatibility_cache.values()
-                if report.migration_required
-            )
+            (1 for report in self._compatibility_cache.values() if report.migration_required)
         )
         return {
             "total_attacks_analyzed": total_attacks,
@@ -402,18 +402,14 @@ class BackwardCompatibilityManager:
                     )
                     validation_results["failed_tests"] += 1
                     continue
-                if not hasattr(result, "_segments") or not result._segments:
-                    validation_results["warnings"].append(
-                        f"Test {i}: No segments generated"
-                    )
+                if not result.segments:
+                    validation_results["warnings"].append(f"Test {i}: No segments generated")
                 if execution_time > 0.1:
                     validation_results["warnings"].append(
                         f"Test {i}: Slow execution ({execution_time:.3f}s)"
                     )
                 validation_results["passed_tests"] += 1
-                validation_results["performance_metrics"][
-                    f"test_{i}_time"
-                ] = execution_time
+                validation_results["performance_metrics"][f"test_{i}_time"] = execution_time
             except Exception as e:
                 validation_results["errors"].append(f"Test {i}: Exception - {str(e)}")
                 validation_results["failed_tests"] += 1
@@ -428,9 +424,7 @@ class BackwardCompatibilityManager:
 compatibility_manager = BackwardCompatibilityManager()
 
 
-def ensure_backward_compatibility(
-    attack: BaseAttack, context: AttackContext
-) -> AttackResult:
+def ensure_backward_compatibility(attack: BaseAttack, context: AttackContext) -> AttackResult:
     """
     Convenience function to execute attack with backward compatibility.
 

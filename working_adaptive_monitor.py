@@ -164,10 +164,9 @@ class WorkingAdaptiveMonitor:
         if not REQUESTS_AVAILABLE:
             return False, 0, "Requests недоступен"
         
+        start_mono = time.monotonic()
         try:
             url = f"https://{site}"
-            
-            start_time = time.time()
             
             response = requests.get(
                 url,
@@ -179,7 +178,7 @@ class WorkingAdaptiveMonitor:
                 }
             )
             
-            response_time = (time.time() - start_time) * 1000
+            response_time = (time.monotonic() - start_mono) * 1000.0
             
             # Любой HTTP ответ считаем успехом
             is_accessible = response.status_code in [200, 301, 302, 304, 403, 404]
@@ -187,15 +186,15 @@ class WorkingAdaptiveMonitor:
             return is_accessible, response_time, f"HTTP {response.status_code}"
             
         except requests.exceptions.Timeout:
-            response_time = (time.time() - start_time) * 1000
+            response_time = (time.monotonic() - start_mono) * 1000.0
             return False, response_time, "TIMEOUT"
         
         except requests.exceptions.ConnectionError as e:
-            response_time = (time.time() - start_time) * 1000
+            response_time = (time.monotonic() - start_mono) * 1000.0
             return False, response_time, f"CONNECTION_ERROR"
         
         except Exception as e:
-            response_time = (time.time() - start_time) * 1000 if 'start_time' in locals() else 0
+            response_time = (time.monotonic() - start_mono) * 1000.0
             return False, response_time, f"ERROR: {str(e)[:100]}"
     
     def test_site_with_bypass(self, site: str, strategy: Dict, timeout: int = 15) -> Tuple[bool, float, str]:
@@ -232,7 +231,7 @@ class WorkingAdaptiveMonitor:
             # Запускаем bypass engine с параметрами
             # (это упрощенная версия, в реальности нужна более сложная интеграция)
             
-            start_time = time.time()
+            start_mono = time.monotonic()
             
             # Тестируем соединение
             url = f"https://{site}"
@@ -247,14 +246,14 @@ class WorkingAdaptiveMonitor:
                 }
             )
             
-            response_time = (time.time() - start_time) * 1000
+            response_time = (time.monotonic() - start_mono) * 1000.0
             
             is_accessible = response.status_code in [200, 301, 302, 304, 403, 404]
             
             return is_accessible, response_time, f"BYPASS_HTTP_{response.status_code}"
             
         except Exception as e:
-            response_time = (time.time() - start_time) * 1000 if 'start_time' in locals() else 0
+            response_time = (time.monotonic() - start_mono) * 1000.0
             logger.error(f"Ошибка тестирования с bypass: {e}")
             return False, response_time, f"BYPASS_ERROR: {str(e)[:100]}"
     
@@ -690,6 +689,13 @@ class WorkingAdaptiveMonitor:
                 
                 if not is_valid:
                     logger.warning(f"Invalid attack combination for {site}, but saving anyway")
+
+                # If strategy implies fake+fragmentation, force integrated execution on runtime side.
+                # This prevents naive sequential fake+split from duplicating the full payload.
+                # These keys are internal and will be consumed by AttackDispatcher's integrated path.
+                if "fake" in attacks and ("split" in attacks or "multisplit" in attacks):
+                    params["_use_unified_dispatcher"] = True
+                    params["_combo_attacks"] = attacks
                 
                 # Определяем тип стратегии для domain_rules
                 strategy_type = strategy.get("attack_type", "disorder")
@@ -706,7 +712,7 @@ class WorkingAdaptiveMonitor:
                 
                 # Validate attack combination before saving
                 from core.bypass.engine.attack_combination_validator import AttackCombinationValidator
-                validator = AttackCombinationValidator()
+                validator = AttackCombinationValidator(execution_model="integrated")
                 validation_result = validator.validate_combination(attacks)
                 
                 if not validation_result.valid:

@@ -292,9 +292,7 @@ class EnhancedDPIDetector:
 
         return rules
 
-    def detect_dpi_system(
-        self, network_data: Dict[str, Any]
-    ) -> Optional[EnhancedDPISignature]:
+    def detect_dpi_system(self, network_data: Dict[str, Any]) -> Optional[EnhancedDPISignature]:
         """
         Detect DPI system from network analysis data.
 
@@ -316,10 +314,7 @@ class EnhancedDPIDetector:
         for rule in self.detection_rules:
             confidence = self._evaluate_detection_rule(signature, rule)
 
-            if (
-                confidence >= rule.minimum_confidence
-                and confidence > highest_confidence
-            ):
+            if confidence >= rule.minimum_confidence and confidence > highest_confidence:
                 highest_confidence = confidence
                 best_match = rule
 
@@ -357,9 +352,7 @@ class EnhancedDPIDetector:
 
         return signature
 
-    def _extract_enhanced_signature(
-        self, network_data: Dict[str, Any]
-    ) -> EnhancedDPISignature:
+    def _extract_enhanced_signature(self, network_data: Dict[str, Any]) -> EnhancedDPISignature:
         """Extract enhanced DPI signature from network data"""
 
         signature = EnhancedDPISignature(
@@ -378,85 +371,43 @@ class EnhancedDPIDetector:
         signature.rst_distance = network_data.get("rst_distance", 0)
 
         # Extract modern markers
-        signature.tls_fingerprint_blocking = self._detect_tls_fingerprint_blocking(
-            network_data
-        )
-        signature.ja3_fingerprint_detected = self._detect_ja3_fingerprinting(
-            network_data
-        )
-        signature.ja3s_fingerprint_detected = self._detect_ja3s_fingerprinting(
-            network_data
-        )
+        signature.tls_fingerprint_blocking = self._detect_tls_fingerprint_blocking(network_data)
+        signature.ja3_fingerprint_detected = self._detect_ja3_fingerprinting(network_data)
+        signature.ja3s_fingerprint_detected = self._detect_ja3s_fingerprinting(network_data)
         signature.http2_frame_analysis = self._detect_http2_analysis(network_data)
         signature.quic_connection_id_tracking = self._detect_quic_tracking(network_data)
-        signature.encrypted_sni_blocking = self._detect_encrypted_sni_blocking(
-            network_data
-        )
-        signature.certificate_transparency_monitoring = self._detect_ct_monitoring(
-            network_data
-        )
+        signature.encrypted_sni_blocking = self._detect_encrypted_sni_blocking(network_data)
+        signature.certificate_transparency_monitoring = self._detect_ct_monitoring(network_data)
 
         # Extract behavioral markers
-        signature.connection_pattern_analysis = self._detect_connection_patterns(
-            network_data
-        )
-        signature.timing_correlation_detection = self._detect_timing_correlation(
-            network_data
-        )
-        signature.traffic_flow_analysis = self._detect_traffic_flow_analysis(
-            network_data
-        )
-        signature.statistical_anomaly_detection = self._detect_statistical_anomalies(
-            network_data
-        )
-        signature.machine_learning_classification = self._detect_ml_classification(
-            network_data
-        )
+        signature.connection_pattern_analysis = self._detect_connection_patterns(network_data)
+        signature.timing_correlation_detection = self._detect_timing_correlation(network_data)
+        signature.traffic_flow_analysis = self._detect_traffic_flow_analysis(network_data)
+        signature.statistical_anomaly_detection = self._detect_statistical_anomalies(network_data)
+        signature.machine_learning_classification = self._detect_ml_classification(network_data)
 
         # Extract cloud-specific markers
         signature.cdn_edge_detection = self._detect_cdn_edge(network_data)
-        signature.load_balancer_fingerprinting = self._detect_load_balancer(
-            network_data
-        )
+        signature.load_balancer_fingerprinting = self._detect_load_balancer(network_data)
         signature.geo_blocking_patterns = self._detect_geo_blocking(network_data)
-        signature.rate_limiting_sophistication = self._assess_rate_limiting(
-            network_data
-        )
+        signature.rate_limiting_sophistication = self._assess_rate_limiting(network_data)
 
         # Extract enterprise markers
-        signature.application_layer_inspection = self._detect_app_layer_inspection(
-            network_data
-        )
-        signature.protocol_anomaly_detection = self._detect_protocol_anomalies(
-            network_data
-        )
-        signature.threat_intelligence_integration = self._detect_threat_intel(
-            network_data
-        )
-        signature.zero_day_detection_capability = self._detect_zero_day_capability(
-            network_data
-        )
+        signature.application_layer_inspection = self._detect_app_layer_inspection(network_data)
+        signature.protocol_anomaly_detection = self._detect_protocol_anomalies(network_data)
+        signature.threat_intelligence_integration = self._detect_threat_intel(network_data)
+        signature.zero_day_detection_capability = self._detect_zero_day_capability(network_data)
 
         # Extract performance markers
         signature.processing_latency_ms = network_data.get("processing_latency_ms", 0.0)
-        signature.throughput_impact_percentage = network_data.get(
-            "throughput_impact", 0.0
-        )
+        signature.throughput_impact_percentage = network_data.get("throughput_impact", 0.0)
         signature.cpu_usage_correlation = network_data.get("cpu_correlation", 0.0)
 
         # Extract evasion resistance markers
-        signature.obfuscation_detection = self._detect_obfuscation_resistance(
-            network_data
-        )
-        signature.tunnel_detection_capability = self._detect_tunnel_detection(
-            network_data
-        )
-        signature.encryption_analysis_depth = self._assess_encryption_analysis(
-            network_data
-        )
-        signature.steganography_detection = self._detect_steganography_capability(
-            network_data
-        )
+        signature.obfuscation_detection = self._detect_obfuscation_resistance(network_data)
+        signature.tunnel_detection_capability = self._detect_tunnel_detection(network_data)
+        signature.encryption_analysis_depth = self._assess_encryption_analysis(network_data)
+        signature.steganography_detection = self._detect_steganography_capability(network_data)
 
         return signature
 
@@ -543,35 +494,25 @@ class EnhancedDPIDetector:
 
     def _detect_tls_fingerprint_blocking(self, data: Dict[str, Any]) -> bool:
         """Detect TLS fingerprint-based blocking"""
-        return data.get("tls_fingerprint_analysis", False) or data.get(
-            "ja3_blocking", False
-        )
+        return data.get("tls_fingerprint_analysis", False) or data.get("ja3_blocking", False)
 
     def _detect_ja3_fingerprinting(self, data: Dict[str, Any]) -> bool:
         """Detect JA3 fingerprinting"""
-        return (
-            data.get("ja3_detected", False)
-            or "ja3" in str(data.get("tls_analysis", "")).lower()
-        )
+        return data.get("ja3_detected", False) or "ja3" in str(data.get("tls_analysis", "")).lower()
 
     def _detect_ja3s_fingerprinting(self, data: Dict[str, Any]) -> bool:
         """Detect JA3S fingerprinting"""
         return (
-            data.get("ja3s_detected", False)
-            or "ja3s" in str(data.get("tls_analysis", "")).lower()
+            data.get("ja3s_detected", False) or "ja3s" in str(data.get("tls_analysis", "")).lower()
         )
 
     def _detect_http2_analysis(self, data: Dict[str, Any]) -> bool:
         """Detect HTTP/2 frame analysis"""
-        return data.get("http2_inspection", False) or data.get(
-            "h2_frame_analysis", False
-        )
+        return data.get("http2_inspection", False) or data.get("h2_frame_analysis", False)
 
     def _detect_quic_tracking(self, data: Dict[str, Any]) -> bool:
         """Detect QUIC connection ID tracking"""
-        return data.get("quic_tracking", False) or data.get(
-            "quic_connection_analysis", False
-        )
+        return data.get("quic_tracking", False) or data.get("quic_connection_analysis", False)
 
     def _detect_encrypted_sni_blocking(self, data: Dict[str, Any]) -> bool:
         """Detect encrypted SNI blocking"""
@@ -579,21 +520,15 @@ class EnhancedDPIDetector:
 
     def _detect_ct_monitoring(self, data: Dict[str, Any]) -> bool:
         """Detect Certificate Transparency monitoring"""
-        return data.get("ct_monitoring", False) or data.get(
-            "certificate_analysis", False
-        )
+        return data.get("ct_monitoring", False) or data.get("certificate_analysis", False)
 
     def _detect_connection_patterns(self, data: Dict[str, Any]) -> bool:
         """Detect connection pattern analysis"""
-        return data.get("pattern_analysis", False) or data.get(
-            "behavioral_analysis", False
-        )
+        return data.get("pattern_analysis", False) or data.get("behavioral_analysis", False)
 
     def _detect_timing_correlation(self, data: Dict[str, Any]) -> bool:
         """Detect timing correlation analysis"""
-        return data.get("timing_analysis", False) or data.get(
-            "latency_correlation", False
-        )
+        return data.get("timing_analysis", False) or data.get("latency_correlation", False)
 
     def _detect_traffic_flow_analysis(self, data: Dict[str, Any]) -> bool:
         """Detect traffic flow analysis"""
@@ -601,9 +536,7 @@ class EnhancedDPIDetector:
 
     def _detect_statistical_anomalies(self, data: Dict[str, Any]) -> bool:
         """Detect statistical anomaly detection"""
-        return data.get("anomaly_detection", False) or data.get(
-            "statistical_analysis", False
-        )
+        return data.get("anomaly_detection", False) or data.get("statistical_analysis", False)
 
     def _detect_ml_classification(self, data: Dict[str, Any]) -> bool:
         """Detect machine learning classification"""
@@ -620,9 +553,7 @@ class EnhancedDPIDetector:
 
     def _detect_geo_blocking(self, data: Dict[str, Any]) -> bool:
         """Detect geo-blocking patterns"""
-        return data.get("geo_blocking", False) or data.get(
-            "location_based_blocking", False
-        )
+        return data.get("geo_blocking", False) or data.get("location_based_blocking", False)
 
     def _assess_rate_limiting(self, data: Dict[str, Any]) -> int:
         """Assess rate limiting sophistication (0-5 scale)"""
@@ -641,9 +572,7 @@ class EnhancedDPIDetector:
 
     def _detect_protocol_anomalies(self, data: Dict[str, Any]) -> bool:
         """Detect protocol anomaly detection"""
-        return data.get("protocol_anomalies", False) or data.get(
-            "protocol_validation", False
-        )
+        return data.get("protocol_anomalies", False) or data.get("protocol_validation", False)
 
     def _detect_threat_intel(self, data: Dict[str, Any]) -> bool:
         """Detect threat intelligence integration"""
@@ -651,15 +580,11 @@ class EnhancedDPIDetector:
 
     def _detect_zero_day_capability(self, data: Dict[str, Any]) -> bool:
         """Detect zero-day detection capability"""
-        return data.get("zero_day_detection", False) or data.get(
-            "unknown_threat_detection", False
-        )
+        return data.get("zero_day_detection", False) or data.get("unknown_threat_detection", False)
 
     def _detect_obfuscation_resistance(self, data: Dict[str, Any]) -> bool:
         """Detect obfuscation detection capability"""
-        return data.get("obfuscation_detection", False) or data.get(
-            "evasion_detection", False
-        )
+        return data.get("obfuscation_detection", False) or data.get("evasion_detection", False)
 
     def _detect_tunnel_detection(self, data: Dict[str, Any]) -> bool:
         """Detect tunnel detection capability"""
@@ -687,9 +612,7 @@ class EnhancedDPIDetector:
         stats = self.detection_stats.copy()
 
         if stats["total_detections"] > 0:
-            stats["success_rate"] = (
-                stats["successful_identifications"] / stats["total_detections"]
-            )
+            stats["success_rate"] = stats["successful_identifications"] / stats["total_detections"]
         else:
             stats["success_rate"] = 0.0
 
@@ -707,10 +630,7 @@ class EnhancedDPIDetector:
         new_patterns = []
 
         for signature in self.pattern_history:
-            if (
-                signature.dpi_type == ModernDPIType.UNKNOWN
-                and signature.confidence == 0.0
-            ):
+            if signature.dpi_type == ModernDPIType.UNKNOWN and signature.confidence == 0.0:
                 if self._is_potential_new_pattern(signature):
                     pattern_data = {
                         "signature_id": signature.signature_id,
@@ -722,12 +642,8 @@ class EnhancedDPIDetector:
                             "behavioral_analysis": signature.connection_pattern_analysis,
                             "advanced_evasion_detection": signature.obfuscation_detection,
                         },
-                        "suggested_classification": self._suggest_classification(
-                            signature
-                        ),
-                        "recommended_strategies": self._recommend_strategies_for_pattern(
-                            signature
-                        ),
+                        "suggested_classification": self._suggest_classification(signature),
+                        "recommended_strategies": self._recommend_strategies_for_pattern(signature),
                     }
                     new_patterns.append(pattern_data)
 
@@ -738,31 +654,21 @@ class EnhancedDPIDetector:
 
         if signature.cdn_edge_detection and signature.load_balancer_fingerprinting:
             return "cloud_based_dpi"
-        elif (
-            signature.machine_learning_classification
-            and signature.statistical_anomaly_detection
-        ):
+        elif signature.machine_learning_classification and signature.statistical_anomaly_detection:
             return "ai_powered_dpi"
-        elif (
-            signature.application_layer_inspection
-            and signature.threat_intelligence_integration
-        ):
+        elif signature.application_layer_inspection and signature.threat_intelligence_integration:
             return "enterprise_dpi"
         elif signature.geo_blocking_patterns:
             return "national_dpi"
         else:
             return "unknown_advanced_dpi"
 
-    def _recommend_strategies_for_pattern(
-        self, signature: EnhancedDPISignature
-    ) -> List[str]:
+    def _recommend_strategies_for_pattern(self, signature: EnhancedDPISignature) -> List[str]:
         """Recommend bypass strategies for detected pattern"""
         strategies = []
 
         # Base strategies
-        strategies.append(
-            "--dpi-desync=fake --dpi-desync-ttl=4 --dpi-desync-fooling=badsum"
-        )
+        strategies.append("--dpi-desync=fake --dpi-desync-ttl=4 --dpi-desync-fooling=badsum")
 
         # Add specific strategies based on detected capabilities
         if signature.tls_fingerprint_blocking:
@@ -776,9 +682,7 @@ class EnhancedDPIDetector:
             )
 
         if signature.timing_correlation_detection:
-            strategies.append(
-                "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-delay=random"
-            )
+            strategies.append("--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-delay=random")
 
         if signature.obfuscation_detection:
             strategies.append(
@@ -868,9 +772,7 @@ async def test_enhanced_dpi_detector():
         LOG.info(f"\nNew patterns found: {len(new_patterns)}")
         for pattern in new_patterns:
             LOG.info(f"  Pattern ID: {pattern['signature_id']}")
-            LOG.info(
-                f"  Suggested classification: {pattern['suggested_classification']}"
-            )
+            LOG.info(f"  Suggested classification: {pattern['suggested_classification']}")
 
 
 if __name__ == "__main__":

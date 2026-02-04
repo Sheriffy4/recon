@@ -7,7 +7,6 @@ to ensure their theoretical and practical correctness.
 """
 
 import sys
-import struct
 import logging
 from typing import Dict, Any
 from pathlib import Path
@@ -16,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 try:
-    from scapy.all import rdpcap, IP, TCP, wrpcap, Packet
+    import scapy.all  # noqa: F401
 
     SCAPY_AVAILABLE = True
 except ImportError:
@@ -24,16 +23,28 @@ except ImportError:
     print("Warning: Scapy not available. PCAP analysis will be limited.")
 
 from core.bypass.techniques.primitives import BypassTechniques
+from core.bypass.techniques.primitives_validators import (
+    validate_segment_count,
+    validate_fake_segment,
+    validate_real_segment,
+    validate_overlap_offsets,
+    validate_fooling_options,
+)
+from core.bypass.techniques.pcap_analyzer import compare_pcap_files
+from core.bypass.techniques.fooling_testers import (
+    create_mock_tcp_packet,
+    test_badsum_fooling,
+    test_md5sig_fooling,
+)
+from core.bypass.techniques.pcap_generator import generate_test_pcaps
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
 class PrimitivesAuditor:
-    """Auditor for attack primitives validation."""
+    """Orchestrates attack primitives validation."""
 
     def __init__(self):
         self.results = {}
@@ -41,12 +52,12 @@ class PrimitivesAuditor:
             b"GET / HTTP/1.1\r\nHost: example.com\r\nUser-Agent: Mozilla/5.0\r\n\r\n"
         )
         self.tls_payload = (
-            b"\x16\x03\x01\x00\xf4"  # TLS Record Header (Content Type: Handshake, Version: TLS 1.0, Length: 244)
-            b"\x01\x00\x00\xf0"  # Handshake Header (Type: Client Hello, Length: 240)
+            b"\x16\x03\x01\x00\xf4"  # TLS Record Header
+            b"\x01\x00\x00\xf0"  # Handshake Header
             b"\x03\x03"  # Version: TLS 1.2
-            + b"\x00" * 32  # Random (32 bytes)
+            + b"\x00" * 32  # Random
             + b"\x00"  # Session ID Length
-            + b"\x00\x02\x13\x01"  # Cipher Suites Length + Cipher Suites
+            + b"\x00\x02\x13\x01"  # Cipher Suites
             + b"\x01\x00"  # Compression Methods
             + b"\x00\x00"  # Extensions Length
         )
@@ -75,7 +86,7 @@ class PrimitivesAuditor:
 
         # PCAP comparison if available
         if SCAPY_AVAILABLE:
-            pcap_result = self._compare_fakeddisorder_pcap()
+            pcap_result = compare_pcap_files()
             results["pcap_comparison"] = pcap_result
 
         return results
@@ -96,30 +107,26 @@ class PrimitivesAuditor:
         issues = []
 
         # Validate segment count
-        if len(segments) != 2:
-            issues.append(f"Expected 2 segments, got {len(segments)}")
+        issues.extend(validate_segment_count(segments, 2))
 
         # Validate fake segment
         if len(segments) >= 1:
-            fake_payload, fake_offset, fake_opts = segments[0]
-            if not fake_opts.get("is_fake", False):
-                issues.append("First segment should be fake")
-            if fake_opts.get("ttl") != 64:
-                issues.append(f"Expected TTL=64, got {fake_opts.get('ttl')}")
-            if fake_offset != 0:
-                issues.append(f"Expected fake offset=0, got {fake_offset}")
-            if fake_payload != self.test_payload[:10]:
-                issues.append("Fake payload doesn't match expected content")
+            issues.extend(
+                validate_fake_segment(
+                    segments[0],
+                    expected_ttl=64,
+                    expected_offset=0,
+                    expected_payload=self.test_payload[:10],
+                )
+            )
 
         # Validate real segment
         if len(segments) >= 2:
-            real_payload, real_offset, real_opts = segments[1]
-            if real_opts.get("is_fake", True):
-                issues.append("Second segment should be real")
-            if real_offset != 10:
-                issues.append(f"Expected real offset=10, got {real_offset}")
-            if real_payload != self.test_payload[10:]:
-                issues.append("Real payload doesn't match expected content")
+            issues.extend(
+                validate_real_segment(
+                    segments[1], expected_offset=10, expected_payload=self.test_payload[10:]
+                )
+            )
 
         return {
             "name": test_name,
@@ -144,26 +151,13 @@ class PrimitivesAuditor:
         issues = []
 
         # Validate segment count
-        if len(segments) != 2:
-            issues.append(f"Expected 2 segments, got {len(segments)}")
+        issues.extend(validate_segment_count(segments, 2))
 
         # Validate overlap logic
         if len(segments) >= 2:
-            fake_payload, fake_offset, fake_opts = segments[0]
-            real_payload, real_offset, real_opts = segments[1]
-
-            # Check offsets for overlap
-            expected_fake_offset = 20 - 5  # split_pos - overlap_size
-            expected_real_offset = 20
-
-            if fake_offset != expected_fake_offset:
-                issues.append(
-                    f"Expected fake offset={expected_fake_offset}, got {fake_offset}"
-                )
-            if real_offset != expected_real_offset:
-                issues.append(
-                    f"Expected real offset={expected_real_offset}, got {real_offset}"
-                )
+            issues.extend(
+                validate_overlap_offsets(segments[0], segments[1], split_pos=20, overlap_size=5)
+            )
 
         return {
             "name": test_name,
@@ -188,15 +182,8 @@ class PrimitivesAuditor:
         issues = []
 
         if len(segments) >= 1:
-            fake_payload, fake_offset, fake_opts = segments[0]
-
-            # Check fooling options
-            if not fake_opts.get("corrupt_tcp_checksum", False):
-                issues.append("badsum fooling not applied")
-            if not fake_opts.get("add_md5sig_option", False):
-                issues.append("md5sig fooling not applied")
-            if not fake_opts.get("corrupt_sequence", False):
-                issues.append("badseq fooling not applied")
+            _, _, fake_opts = segments[0]
+            issues.extend(validate_fooling_options(fake_opts, ["badsum", "md5sig", "badseq"]))
 
         return {
             "name": test_name,
@@ -221,29 +208,19 @@ class PrimitivesAuditor:
         )
 
         if len(segments1) != 1:
-            issues.append(
-                "Should return single segment when split_pos >= payload length"
-            )
+            issues.append("Should return single segment when split_pos >= payload length")
         elif segments1[0][2].get("is_fake", True):
-            issues.append(
-                "Single segment should not be fake when split_pos >= payload length"
-            )
+            issues.append("Single segment should not be fake when split_pos >= payload length")
 
         # Test 2: overlap_size > split_pos
         segments2 = BypassTechniques.apply_fakeddisorder(
-            payload=self.test_payload,
-            split_pos=10,
-            overlap_size=15,  # > split_pos
-            fake_ttl=64,
+            payload=self.test_payload, split_pos=10, overlap_size=15, fake_ttl=64
         )
 
         if len(segments2) >= 1:
             fake_offset = segments2[0][1]
-            # Should clamp overlap to split_pos, so offset should be 0
             if fake_offset != 0:
-                issues.append(
-                    f"Overlap clamping failed: expected offset=0, got {fake_offset}"
-                )
+                issues.append(f"Overlap clamping failed: expected offset=0, got {fake_offset}")
 
         # Test 3: negative overlap_size
         segments3 = BypassTechniques.apply_fakeddisorder(
@@ -252,107 +229,12 @@ class PrimitivesAuditor:
 
         if len(segments3) >= 1:
             fake_offset = segments3[0][1]
-            # Should clamp to 0
             if fake_offset != 0:
                 issues.append(
                     f"Negative overlap handling failed: expected offset=0, got {fake_offset}"
                 )
 
         return {"name": test_name, "issues": issues, "passed": len(issues) == 0}
-
-    def _compare_fakeddisorder_pcap(self) -> Dict[str, Any]:
-        """Compare fakeddisorder implementation with zapret PCAP."""
-        logger.info("  Comparing with zapret PCAP...")
-
-        zapret_pcap = Path("zapret.pcap")
-        recon_pcap = Path("out2.pcap")
-
-        if not zapret_pcap.exists():
-            return {"error": "zapret.pcap not found"}
-
-        if not recon_pcap.exists():
-            return {"error": "out2.pcap not found"}
-
-        try:
-            zapret_packets = rdpcap(str(zapret_pcap))
-            recon_packets = rdpcap(str(recon_pcap))
-
-            # Analyze packet structure differences
-            analysis = self._analyze_packet_differences(zapret_packets, recon_packets)
-            return analysis
-
-        except Exception as e:
-            return {"error": f"PCAP analysis failed: {str(e)}"}
-
-    def _analyze_packet_differences(
-        self, zapret_packets, recon_packets
-    ) -> Dict[str, Any]:
-        """Analyze differences between zapret and recon packets."""
-        differences = {
-            "ip_header_diffs": [],
-            "tcp_header_diffs": [],
-            "tcp_options_diffs": [],
-            "timing_diffs": [],
-            "checksum_diffs": [],
-        }
-
-        # Find TLS handshake packets for comparison
-        zapret_tls = [p for p in zapret_packets if TCP in p and p[TCP].dport == 443]
-        recon_tls = [p for p in recon_packets if TCP in p and p[TCP].dport == 443]
-
-        if not zapret_tls or not recon_tls:
-            return {"error": "No TLS packets found for comparison"}
-
-        # Compare first few packets
-        for i in range(min(3, len(zapret_tls), len(recon_tls))):
-            z_pkt = zapret_tls[i]
-            r_pkt = recon_tls[i]
-
-            # IP header comparison
-            if IP in z_pkt and IP in r_pkt:
-                z_ip = z_pkt[IP]
-                r_ip = r_pkt[IP]
-
-                if z_ip.id != r_ip.id:
-                    differences["ip_header_diffs"].append(
-                        f"Packet {i}: IP ID differs (zapret: {z_ip.id}, recon: {r_ip.id})"
-                    )
-
-                if z_ip.flags != r_ip.flags:
-                    differences["ip_header_diffs"].append(
-                        f"Packet {i}: IP flags differ (zapret: {z_ip.flags}, recon: {r_ip.flags})"
-                    )
-
-                if z_ip.ttl != r_ip.ttl:
-                    differences["ip_header_diffs"].append(
-                        f"Packet {i}: TTL differs (zapret: {z_ip.ttl}, recon: {r_ip.ttl})"
-                    )
-
-            # TCP header comparison
-            if TCP in z_pkt and TCP in r_pkt:
-                z_tcp = z_pkt[TCP]
-                r_tcp = r_pkt[TCP]
-
-                if z_tcp.window != r_tcp.window:
-                    differences["tcp_header_diffs"].append(
-                        f"Packet {i}: Window size differs (zapret: {z_tcp.window}, recon: {r_tcp.window})"
-                    )
-
-                if z_tcp.flags != r_tcp.flags:
-                    differences["tcp_header_diffs"].append(
-                        f"Packet {i}: TCP flags differ (zapret: {z_tcp.flags}, recon: {r_tcp.flags})"
-                    )
-
-                # TCP options comparison
-                z_options = getattr(z_tcp, "options", [])
-                r_options = getattr(r_tcp, "options", [])
-
-                if len(z_options) != len(r_options):
-                    differences["tcp_options_diffs"].append(
-                        f"Packet {i}: TCP options count differs (zapret: {len(z_options)}, recon: {len(r_options)})"
-                    )
-
-        return differences
 
     def audit_multisplit_seqovl(self) -> Dict[str, Any]:
         """Validate multisplit and seqovl attacks."""
@@ -379,9 +261,7 @@ class PrimitivesAuditor:
         # Test 1: Basic multisplit
         segments = BypassTechniques.apply_multisplit(self.test_payload, [10, 20, 30])
 
-        if (
-            len(segments) != 4
-        ):  # Should create 4 segments: [0:10], [10:20], [20:30], [30:]
+        if len(segments) != 4:  # Should create 4 segments
             issues.append(f"Expected 4 segments, got {len(segments)}")
 
         # Validate segment boundaries
@@ -407,12 +287,6 @@ class PrimitivesAuditor:
         if len(segments_empty) != 1:
             issues.append("Empty positions should return single segment")
 
-        # Test 3: Out of bounds positions
-        segments_oob = BypassTechniques.apply_multisplit(
-            self.test_payload, [5, len(self.test_payload) + 10]
-        )
-        # Should ignore out of bounds positions
-
         return {"name": "multisplit", "issues": issues, "passed": len(issues) == 0}
 
     def _test_seqovl(self) -> Dict[str, Any]:
@@ -421,9 +295,7 @@ class PrimitivesAuditor:
 
         issues = []
 
-        segments = BypassTechniques.apply_seqovl(
-            self.test_payload, split_pos=10, overlap_size=5
-        )
+        segments = BypassTechniques.apply_seqovl(self.test_payload, split_pos=10, overlap_size=5)
 
         if len(segments) != 2:
             issues.append(f"Expected 2 segments, got {len(segments)}")
@@ -438,7 +310,7 @@ class PrimitivesAuditor:
 
             # Second segment should be overlap + part1 at negative offset
             part1_payload, part1_offset = segments[1]
-            expected_part1 = b"\x00" * 5 + self.test_payload[:10]  # overlap + part1
+            expected_part1 = b"\x00" * 5 + self.test_payload[:10]
             if part1_payload != expected_part1:
                 issues.append("Second segment (part1 with overlap) payload mismatch")
             if part1_offset != -5:
@@ -453,116 +325,17 @@ class PrimitivesAuditor:
         results = {"badsum_test": None, "md5sig_test": None, "issues": []}
 
         # Create a mock packet for testing
-        mock_packet = self._create_mock_tcp_packet()
+        mock_packet = create_mock_tcp_packet()
 
         # Test badsum fooling
-        badsum_result = self._test_badsum_fooling(mock_packet.copy())
+        badsum_result = test_badsum_fooling(mock_packet.copy())
         results["badsum_test"] = badsum_result
 
         # Test md5sig fooling
-        md5sig_result = self._test_md5sig_fooling(mock_packet.copy())
+        md5sig_result = test_md5sig_fooling(mock_packet.copy())
         results["md5sig_test"] = md5sig_result
 
         return results
-
-    def _create_mock_tcp_packet(self) -> bytearray:
-        """Create a mock TCP packet for testing."""
-        # Simplified IP + TCP header
-        ip_header = bytearray(
-            [
-                0x45,  # Version + IHL
-                0x00,  # ToS
-                0x00,
-                0x3C,  # Total Length
-                0x00,
-                0x00,  # ID
-                0x40,
-                0x00,  # Flags + Fragment Offset
-                0x40,  # TTL
-                0x06,  # Protocol (TCP)
-                0x00,
-                0x00,  # Header Checksum
-                0xC0,
-                0xA8,
-                0x01,
-                0x01,  # Source IP
-                0xC0,
-                0xA8,
-                0x01,
-                0x02,  # Dest IP
-            ]
-        )
-
-        tcp_header = bytearray(
-            [
-                0x04,
-                0xD2,  # Source Port
-                0x01,
-                0xBB,  # Dest Port
-                0x00,
-                0x00,
-                0x00,
-                0x01,  # Seq Number
-                0x00,
-                0x00,
-                0x00,
-                0x00,  # Ack Number
-                0x50,
-                0x18,  # Data Offset + Flags
-                0x20,
-                0x00,  # Window Size
-                0x00,
-                0x00,  # Checksum (will be modified)
-                0x00,
-                0x00,  # Urgent Pointer
-            ]
-        )
-
-        return ip_header + tcp_header
-
-    def _test_badsum_fooling(self, packet: bytearray) -> Dict[str, Any]:
-        """Test badsum fooling method."""
-        logger.info("  Testing badsum fooling...")
-
-        original_checksum = struct.unpack("!H", packet[36:38])[
-            0
-        ]  # TCP checksum position
-
-        modified_packet = BypassTechniques.apply_badsum_fooling(packet)
-        new_checksum = struct.unpack("!H", modified_packet[36:38])[0]
-
-        issues = []
-        if new_checksum != 0xDEAD:
-            issues.append(f"Expected checksum 0xDEAD, got 0x{new_checksum:04X}")
-
-        return {
-            "name": "badsum_fooling",
-            "original_checksum": f"0x{original_checksum:04X}",
-            "new_checksum": f"0x{new_checksum:04X}",
-            "issues": issues,
-            "passed": len(issues) == 0,
-        }
-
-    def _test_md5sig_fooling(self, packet: bytearray) -> Dict[str, Any]:
-        """Test md5sig fooling method."""
-        logger.info("  Testing md5sig fooling...")
-
-        original_checksum = struct.unpack("!H", packet[36:38])[0]
-
-        modified_packet = BypassTechniques.apply_md5sig_fooling(packet)
-        new_checksum = struct.unpack("!H", modified_packet[36:38])[0]
-
-        issues = []
-        if new_checksum != 0xBEEF:
-            issues.append(f"Expected checksum 0xBEEF, got 0x{new_checksum:04X}")
-
-        return {
-            "name": "md5sig_fooling",
-            "original_checksum": f"0x{original_checksum:04X}",
-            "new_checksum": f"0x{new_checksum:04X}",
-            "issues": issues,
-            "passed": len(issues) == 0,
-        }
 
     def audit_other_attacks(self) -> Dict[str, Any]:
         """Audit other attacks (tlsrec_split, wssize_limit)."""
@@ -589,15 +362,12 @@ class PrimitivesAuditor:
         # Test with valid TLS record
         result = BypassTechniques.apply_tlsrec_split(self.tls_payload, split_pos=10)
 
-        # Should return modified payload with split TLS records
         if result == self.tls_payload:
             issues.append("TLS record was not split")
 
         # Test with invalid payload (should return unchanged)
         invalid_payload = b"Not a TLS record"
-        result_invalid = BypassTechniques.apply_tlsrec_split(
-            invalid_payload, split_pos=5
-        )
+        result_invalid = BypassTechniques.apply_tlsrec_split(invalid_payload, split_pos=5)
 
         if result_invalid != invalid_payload:
             issues.append("Invalid payload should be returned unchanged")
@@ -616,9 +386,7 @@ class PrimitivesAuditor:
         issues = []
 
         # Test with window size 10
-        segments = BypassTechniques.apply_wssize_limit(
-            self.test_payload, window_size=10
-        )
+        segments = BypassTechniques.apply_wssize_limit(self.test_payload, window_size=10)
 
         expected_segments = len(self.test_payload) // 10
         if len(self.test_payload) % 10 != 0:
@@ -636,14 +404,10 @@ class PrimitivesAuditor:
                 )
 
             if offset != i * 10:
-                issues.append(
-                    f"Segment {i} offset mismatch: expected {i * 10}, got {offset}"
-                )
+                issues.append(f"Segment {i} offset mismatch: expected {i * 10}, got {offset}")
 
         # Test with window size 1
-        segments_1 = BypassTechniques.apply_wssize_limit(
-            self.test_payload, window_size=1
-        )
+        segments_1 = BypassTechniques.apply_wssize_limit(self.test_payload, window_size=1)
         if len(segments_1) != len(self.test_payload):
             issues.append(
                 f"Window size 1 should create {len(self.test_payload)} segments, got {len(segments_1)}"
@@ -658,112 +422,7 @@ class PrimitivesAuditor:
         if not SCAPY_AVAILABLE:
             return {"error": "Scapy not available for PCAP generation"}
 
-        results = {}
-
-        try:
-            # Generate fakeddisorder PCAP
-            fakeddisorder_pcap = self._generate_fakeddisorder_pcap()
-            results["fakeddisorder_pcap"] = fakeddisorder_pcap
-
-            # Generate multisplit PCAP
-            multisplit_pcap = self._generate_multisplit_pcap()
-            results["multisplit_pcap"] = multisplit_pcap
-
-            # Generate seqovl PCAP
-            seqovl_pcap = self._generate_seqovl_pcap()
-            results["seqovl_pcap"] = seqovl_pcap
-
-        except Exception as e:
-            results["error"] = f"PCAP generation failed: {str(e)}"
-
-        return results
-
-    def _generate_fakeddisorder_pcap(self) -> str:
-        """Generate PCAP demonstrating fakeddisorder attack."""
-        from scapy.all import IP, TCP, wrpcap
-
-        packets = []
-
-        # Simulate fakeddisorder attack
-        segments = BypassTechniques.apply_fakeddisorder(
-            payload=self.test_payload,
-            split_pos=20,
-            overlap_size=5,
-            fake_ttl=1,
-            fooling_methods=["badsum"],
-        )
-
-        base_seq = 1000
-
-        for i, (payload, offset, opts) in enumerate(segments):
-            pkt = (
-                IP(dst="192.168.1.100", ttl=opts.get("ttl", 64))
-                / TCP(
-                    dport=443, seq=base_seq + offset, flags=opts.get("tcp_flags", 0x18)
-                )
-                / payload
-            )
-
-            # Apply fooling if specified
-            if opts.get("corrupt_tcp_checksum"):
-                pkt[TCP].chksum = 0xDEAD
-
-            packets.append(pkt)
-
-        pcap_path = "test_fakeddisorder.pcap"
-        wrpcap(pcap_path, packets)
-
-        return pcap_path
-
-    def _generate_multisplit_pcap(self) -> str:
-        """Generate PCAP demonstrating multisplit attack."""
-        from scapy.all import IP, TCP, wrpcap
-
-        packets = []
-
-        segments = BypassTechniques.apply_multisplit(self.test_payload, [10, 20, 30])
-
-        base_seq = 2000
-
-        for payload, offset in segments:
-            pkt = (
-                IP(dst="192.168.1.100")
-                / TCP(dport=443, seq=base_seq + offset, flags=0x18)
-                / payload
-            )
-
-            packets.append(pkt)
-
-        pcap_path = "test_multisplit.pcap"
-        wrpcap(pcap_path, packets)
-
-        return pcap_path
-
-    def _generate_seqovl_pcap(self) -> str:
-        """Generate PCAP demonstrating seqovl attack."""
-        from scapy.all import IP, TCP, wrpcap
-
-        packets = []
-
-        segments = BypassTechniques.apply_seqovl(
-            self.test_payload, split_pos=15, overlap_size=5
-        )
-
-        base_seq = 3000
-
-        for payload, offset in segments:
-            pkt = (
-                IP(dst="192.168.1.100")
-                / TCP(dport=443, seq=base_seq + offset, flags=0x18)
-                / payload
-            )
-
-            packets.append(pkt)
-
-        pcap_path = "test_seqovl.pcap"
-        wrpcap(pcap_path, packets)
-
-        return pcap_path
+        return generate_test_pcaps(self.test_payload)
 
     def run_full_audit(self) -> Dict[str, Any]:
         """Run complete audit of all primitives."""
@@ -780,6 +439,17 @@ class PrimitivesAuditor:
         }
 
         # Generate summary
+        summary = self._generate_summary(audit_results)
+        audit_results["summary"] = summary
+
+        logger.info(
+            f"✅ Audit completed: {summary['passed_tests']}/{summary['total_tests']} tests passed"
+        )
+
+        return audit_results
+
+    def _generate_summary(self, audit_results: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate summary statistics from audit results."""
         total_tests = 0
         passed_tests = 0
         all_issues = []
@@ -805,22 +475,16 @@ class PrimitivesAuditor:
                                 if "issues" in item:
                                     all_issues.extend(item["issues"])
 
-        audit_results["summary"] = {
+        return {
             "total_tests": total_tests,
             "passed_tests": passed_tests,
             "failed_tests": total_tests - passed_tests,
-            "success_rate": (
-                f"{(passed_tests/total_tests*100):.1f}%" if total_tests > 0 else "0%"
-            ),
+            "success_rate": f"{(passed_tests/total_tests*100):.1f}%" if total_tests > 0 else "0%",
             "total_issues": len(all_issues),
             "critical_issues": [
                 issue for issue in all_issues if "TTL" in issue or "checksum" in issue
             ],
         }
-
-        logger.info(f"✅ Audit completed: {passed_tests}/{total_tests} tests passed")
-
-        return audit_results
 
 
 def main():
@@ -836,7 +500,7 @@ def main():
         json.dump(results, f, indent=2)
 
     print("\n📊 Audit Results Summary:")
-    print(f"Total Tests: {results['summary']['total_tests']}")
+    print(f"Total: {results['summary']['total_tests']}")
     print(f"Passed: {results['summary']['passed_tests']}")
     print(f"Failed: {results['summary']['failed_tests']}")
     print(f"Success Rate: {results['summary']['success_rate']}")

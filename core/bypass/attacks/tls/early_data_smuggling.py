@@ -13,6 +13,7 @@ from core.bypass.attacks.base import (
 import config
 from core.bypass.attacks.attack_registry import register_attack
 
+
 @register_attack
 class EarlyDataSmugglingAttack(BaseAttack):
     """
@@ -41,19 +42,14 @@ class EarlyDataSmugglingAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "smuggled_data": None,
-            "tls_version": b"\x03\x04"
-        }
+        return {"smuggled_data": None, "tls_version": b"\x03\x04"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute the Early Data Smuggling attack."""
         start_time = time.time()
         try:
             domain = context.domain or "example.com"
-            smuggled_payload = f"GET / HTTP/1.1\r\nHost: {domain}\r\n\r\n".encode(
-                "utf-8"
-            )
+            smuggled_payload = f"GET / HTTP/1.1\r\nHost: {domain}\r\n\r\n".encode("utf-8")
             from core.protocols.tls import TLSHandler
 
             tls_handler = TLSHandler(tls_template=config.TLS_CLIENT_HELLO_TEMPLATE)

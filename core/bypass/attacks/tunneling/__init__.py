@@ -11,9 +11,4 @@ from . import protocol_tunneling
 from . import quic_fragmentation
 from . import dns_tunneling_legacy
 
-__all__ = [
-    'icmp_tunneling',
-    'protocol_tunneling',
-    'quic_fragmentation',
-    'dns_tunneling_legacy'
-]
+__all__ = ["icmp_tunneling", "protocol_tunneling", "quic_fragmentation", "dns_tunneling_legacy"]

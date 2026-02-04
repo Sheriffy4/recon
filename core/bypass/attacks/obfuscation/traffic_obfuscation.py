@@ -3,11 +3,22 @@ Traffic Pattern Obfuscation Attacks
 
 Advanced traffic pattern obfuscation techniques that modify packet timing,
 sizes, and flow characteristics to evade behavioral DPI analysis.
+
+This module provides four main attack classes:
+- TrafficPatternObfuscationAttack: Modifies traffic patterns (timing, size, burst, flow mimicry)
+- PacketSizeObfuscationAttack: Normalizes, randomizes, or fragments packet sizes
+- TimingObfuscationAttack: Applies jitter, exponential, burst, or rhythm-breaking timing
+- FlowObfuscationAttack: Creates bidirectional, multi-connection, or session-splitting flows
+
+The implementation delegates complex logic to specialized utility modules:
+- padding_utils: Padding generation strategies
+- calculation_utils: Size and delay calculations
+- flow_patterns: Flow pattern generators
+- timing_strategies: Timing obfuscation strategies
 """
 
 import time
 import random
-import asyncio
 from typing import List, Dict, Any, Tuple
 from core.bypass.attacks.attack_registry import register_attack
 from core.bypass.attacks.base import (
@@ -15,6 +26,18 @@ from core.bypass.attacks.base import (
     AttackContext,
     AttackResult,
     AttackStatus,
+)
+from core.bypass.attacks.obfuscation.padding_utils import (
+    generate_padding,
+    generate_realistic_padding,
+)
+from core.bypass.attacks.obfuscation.calculation_utils import ObfuscationCalculator
+from core.bypass.attacks.obfuscation.flow_patterns import FlowPatternGenerator
+from core.bypass.attacks.obfuscation.timing_strategies import TimingStrategy
+from core.bypass.attacks.obfuscation.segment_schema import (
+    make_segment,
+    next_seq_offset,
+    normalize_segments,
 )
 
 
@@ -51,7 +74,6 @@ class TrafficPatternObfuscationAttack(BaseAttack):
     def optional_params(self) -> Dict[str, Any]:
         return {}
 
-
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute traffic pattern obfuscation attack."""
         start_time = time.time()
@@ -65,7 +87,10 @@ class TrafficPatternObfuscationAttack(BaseAttack):
             )
             packets_sent = len(obfuscated_segments)
             bytes_sent = sum((len(seg[0]) for seg in obfuscated_segments))
-            total_delay = sum((seg[1] for seg in obfuscated_segments))
+            total_delay = sum(
+                ((seg[2] or {}).get("delay_ms", 0) if len(seg) > 2 else 0)
+                for seg in obfuscated_segments
+            )
             latency = (time.time() - start_time) * 1000
             return AttackResult(
                 status=AttackStatus.SUCCESS,
@@ -86,12 +111,23 @@ class TrafficPatternObfuscationAttack(BaseAttack):
                     "segments": obfuscated_segments,
                 },
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
+            # Handle parameter validation and data structure errors
             return AttackResult(
                 status=AttackStatus.ERROR,
-                error_message=str(e),
+                error_message=f"Parameter error: {str(e)}",
                 latency_ms=(time.time() - start_time) * 1000,
                 technique_used="traffic_pattern_obfuscation",
+                metadata={"error_type": type(e).__name__},
+            )
+        except Exception as e:
+            # Catch-all for unexpected errors
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=f"Unexpected error: {str(e)}",
+                latency_ms=(time.time() - start_time) * 1000,
+                technique_used="traffic_pattern_obfuscation",
+                metadata={"error_type": type(e).__name__},
             )
 
     async def _apply_pattern_obfuscation(
@@ -105,9 +141,9 @@ class TrafficPatternObfuscationAttack(BaseAttack):
         elif strategy == "burst_shaping":
             return await self._apply_burst_shaping(payload, intensity)
         elif strategy == "flow_mimicry":
-            return await self._apply_flow_mimicry(payload, mimic_app, intensity)
+            return await self._apply_flow_mimicry(payload, mimic_app)
         elif strategy == "mixed":
-            return await self._apply_mixed_obfuscation(payload, intensity, mimic_app)
+            return await self._apply_mixed_obfuscation(payload, intensity)
         else:
             raise ValueError(f"Invalid obfuscation_strategy: {strategy}")
 
@@ -115,66 +151,81 @@ class TrafficPatternObfuscationAttack(BaseAttack):
         self, payload: bytes, intensity: str
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply timing randomization obfuscation."""
+        if not payload:
+            return []
         segments = []
-        chunk_size = self._get_chunk_size(intensity)
+        seq_offset = 0
+        chunk_size = ObfuscationCalculator.get_chunk_size(intensity)
         for i in range(0, len(payload), chunk_size):
             chunk = payload[i : i + chunk_size]
-            base_delay = self._get_base_delay(intensity)
-            jitter = self._calculate_jitter(intensity)
-            delay = max(1, int(base_delay + jitter))
-            await asyncio.sleep(delay / 1000.0)
+            base_delay = ObfuscationCalculator.get_base_delay(intensity)
+            jitter = ObfuscationCalculator.calculate_jitter(intensity)
+            delay = max(0, int(base_delay + jitter))
             segments.append(
-                (
+                make_segment(
                     chunk,
-                    delay,
-                    {
-                        "obfuscation_type": "timing_randomization",
-                        "base_delay": base_delay,
-                        "jitter": jitter,
-                        "chunk_index": i // chunk_size,
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="timing_randomization",
+                    base_delay=base_delay,
+                    jitter=jitter,
+                    chunk_index=i // chunk_size,
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(chunk))
         return segments
 
     async def _apply_size_padding(
         self, payload: bytes, intensity: str
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply size padding obfuscation."""
+        if not payload:
+            return []
         segments = []
-        chunk_size = self._get_chunk_size(intensity)
+        seq_offset = 0
+        chunk_size = ObfuscationCalculator.get_chunk_size(intensity)
         for i in range(0, len(payload), chunk_size):
             chunk = payload[i : i + chunk_size]
-            padding_size = self._calculate_padding_size(len(chunk), intensity)
-            padding = self._generate_realistic_padding(padding_size)
+            padding_size = ObfuscationCalculator.calculate_padding_size(len(chunk), intensity)
+            padding = generate_realistic_padding(padding_size)
             padded_chunk = chunk + padding
             delay = random.randint(10, 50)
-            await asyncio.sleep(delay / 1000.0)
             segments.append(
-                (
+                make_segment(
                     padded_chunk,
-                    delay,
-                    {
-                        "obfuscation_type": "size_padding",
-                        "original_size": len(chunk),
-                        "padding_size": padding_size,
-                        "padded_size": len(padded_chunk),
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="size_padding",
+                    original_size=len(chunk),
+                    padding_size=padding_size,
+                    padded_size=len(padded_chunk),
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(padded_chunk))
         return segments
 
     async def _apply_burst_shaping(
         self, payload: bytes, intensity: str
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply burst shaping obfuscation."""
+        if not payload:
+            return []
         segments = []
+        seq_offset = 0
         burst_config = self._get_burst_config(intensity)
         burst_size = burst_config["burst_size"]
         burst_interval = burst_config["burst_interval"]
         inter_burst_delay = burst_config["inter_burst_delay"]
-        chunk_size = (
-            len(payload) // burst_size if len(payload) > burst_size else len(payload)
+        chunk_size = max(
+            1, (len(payload) // burst_size) if len(payload) > burst_size else len(payload)
         )
         for burst_index in range(burst_size):
             start_pos = burst_index * chunk_size
@@ -186,27 +237,34 @@ class TrafficPatternObfuscationAttack(BaseAttack):
                 delay = 0
             else:
                 delay = inter_burst_delay + random.randint(-10, 10)
-            await asyncio.sleep(delay / 1000.0)
             segments.append(
-                (
+                make_segment(
                     chunk,
-                    delay,
-                    {
-                        "obfuscation_type": "burst_shaping",
-                        "burst_index": burst_index,
-                        "burst_size": burst_size,
-                        "inter_burst_delay": inter_burst_delay,
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="burst_shaping",
+                    burst_index=burst_index,
+                    burst_size=burst_size,
+                    burst_interval=burst_interval,
+                    inter_burst_delay=inter_burst_delay,
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(chunk))
         return segments
 
     async def _apply_flow_mimicry(
-        self, payload: bytes, mimic_app: str, intensity: str
+        self, payload: bytes, mimic_app: str
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply flow mimicry obfuscation."""
+        if not payload:
+            return []
         flow_pattern = self._get_flow_pattern(mimic_app)
         segments = []
+        seq_offset = 0
         pattern_chunks = flow_pattern["chunk_sizes"]
         pattern_delays = flow_pattern["delays"]
         payload_pos = 0
@@ -216,60 +274,69 @@ class TrafficPatternObfuscationAttack(BaseAttack):
             actual_chunk_size = min(chunk_size, len(payload) - payload_pos)
             chunk = payload[payload_pos : payload_pos + actual_chunk_size]
             if len(chunk) < chunk_size:
-                padding = self._generate_realistic_padding(chunk_size - len(chunk))
+                padding = generate_realistic_padding(chunk_size - len(chunk))
                 chunk = chunk + padding
             actual_delay = delay + random.randint(-delay // 4, delay // 4)
-            await asyncio.sleep(actual_delay / 1000.0)
             segments.append(
-                (
+                make_segment(
                     chunk,
-                    actual_delay,
-                    {
-                        "obfuscation_type": "flow_mimicry",
-                        "mimic_application": mimic_app,
-                        "pattern_index": i,
-                        "expected_size": chunk_size,
-                        "actual_size": len(chunk),
-                    },
+                    seq_offset,
+                    delay_ms=actual_delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="flow_mimicry",
+                    mimic_application=mimic_app,
+                    pattern_index=i,
+                    expected_size=chunk_size,
+                    actual_size=len(chunk),
                 )
             )
             payload_pos += actual_chunk_size
+            seq_offset = next_seq_offset(seq_offset, len(chunk))
         if payload_pos < len(payload):
             remaining = payload[payload_pos:]
             delay = random.randint(50, 200)
-            await asyncio.sleep(delay / 1000.0)
             segments.append(
-                (
+                make_segment(
                     remaining,
-                    delay,
-                    {
-                        "obfuscation_type": "flow_mimicry",
-                        "mimic_application": mimic_app,
-                        "pattern_index": "overflow",
-                        "remaining_data": True,
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="flow_mimicry",
+                    mimic_application=mimic_app,
+                    pattern_index="overflow",
+                    remaining_data=True,
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(remaining))
         return segments
 
     async def _apply_mixed_obfuscation(
-        self, payload: bytes, intensity: str, mimic_app: str
+        self, payload: bytes, intensity: str
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply mixed obfuscation techniques."""
+        if not payload:
+            return []
         segments = []
+        seq_offset = 0
         techniques = ["timing", "padding", "burst"]
-        chunk_size = self._get_chunk_size(intensity)
+        chunk_size = ObfuscationCalculator.get_chunk_size(intensity)
         for i in range(0, len(payload), chunk_size):
             chunk = payload[i : i + chunk_size]
             technique = random.choice(techniques)
             if technique == "timing":
-                delay = self._get_base_delay(intensity) + self._calculate_jitter(
+                delay = ObfuscationCalculator.get_base_delay(
                     intensity
-                )
+                ) + ObfuscationCalculator.calculate_jitter(intensity)
                 obfuscated_chunk = chunk
             elif technique == "padding":
-                padding_size = self._calculate_padding_size(len(chunk), intensity)
-                padding = self._generate_realistic_padding(padding_size)
+                padding_size = ObfuscationCalculator.calculate_padding_size(len(chunk), intensity)
+                padding = generate_realistic_padding(padding_size)
                 obfuscated_chunk = chunk + padding
                 delay = random.randint(20, 80)
             else:
@@ -278,62 +345,24 @@ class TrafficPatternObfuscationAttack(BaseAttack):
                     delay = 0
                 else:
                     delay = random.randint(100, 300)
-            await asyncio.sleep(delay / 1000.0)
+            delay = max(0, int(delay))
             segments.append(
-                (
+                make_segment(
                     obfuscated_chunk,
-                    delay,
-                    {
-                        "obfuscation_type": "mixed",
-                        "technique_used": technique,
-                        "chunk_index": i // chunk_size,
-                        "intensity": intensity,
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="mixed",
+                    technique_used=technique,
+                    chunk_index=i // chunk_size,
+                    intensity=intensity,
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(obfuscated_chunk))
         return segments
-
-    def _get_chunk_size(self, intensity: str) -> int:
-        """Get chunk size based on intensity."""
-        sizes = {
-            "low": random.randint(200, 500),
-            "medium": random.randint(100, 300),
-            "high": random.randint(50, 150),
-        }
-        return sizes.get(intensity, 200)
-
-    def _get_base_delay(self, intensity: str) -> int:
-        """Get base delay based on intensity."""
-        delays = {
-            "low": random.randint(10, 50),
-            "medium": random.randint(20, 100),
-            "high": random.randint(50, 200),
-        }
-        return delays.get(intensity, 50)
-
-    def _calculate_jitter(self, intensity: str) -> int:
-        """Calculate timing jitter."""
-        jitter_ranges = {"low": (-5, 5), "medium": (-20, 20), "high": (-50, 50)}
-        min_jitter, max_jitter = jitter_ranges.get(intensity, (-10, 10))
-        return random.randint(min_jitter, max_jitter)
-
-    def _calculate_padding_size(self, original_size: int, intensity: str) -> int:
-        """Calculate padding size."""
-        padding_ratios = {"low": 0.1, "medium": 0.3, "high": 0.5}
-        ratio = padding_ratios.get(intensity, 0.2)
-        return int(original_size * ratio) + random.randint(10, 50)
-
-    def _generate_realistic_padding(self, size: int) -> bytes:
-        """Generate realistic padding data."""
-        if size <= 0:
-            return b""
-        patterns = [
-            b"\x00" * size,
-            bytes([random.randint(0, 255) for _ in range(size)]),
-            (b"PADDING" * (size // 7 + 1))[:size],
-            b" " * size,
-        ]
-        return random.choice(patterns)
 
     def _get_burst_config(self, intensity: str) -> Dict[str, int]:
         """Get burst configuration."""
@@ -400,7 +429,6 @@ class PacketSizeObfuscationAttack(BaseAttack):
     def optional_params(self) -> Dict[str, Any]:
         return {}
 
-
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute packet size obfuscation attack."""
         start_time = time.time()
@@ -433,18 +461,33 @@ class PacketSizeObfuscationAttack(BaseAttack):
                     "segments": obfuscated_segments,
                 },
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
+            # Handle parameter validation and data structure errors
             return AttackResult(
                 status=AttackStatus.ERROR,
-                error_message=str(e),
+                error_message=f"Parameter error: {str(e)}",
                 latency_ms=(time.time() - start_time) * 1000,
                 technique_used="packet_size_obfuscation",
+                metadata={"error_type": type(e).__name__},
+            )
+        except Exception as e:
+            # Catch-all for unexpected errors
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=f"Unexpected error: {str(e)}",
+                latency_ms=(time.time() - start_time) * 1000,
+                technique_used="packet_size_obfuscation",
+                metadata={"error_type": type(e).__name__},
             )
 
     async def _apply_size_obfuscation(
         self, payload: bytes, strategy: str, target_size: int, variance: float
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply size obfuscation based on strategy."""
+        if not payload:
+            return []
+        target_size = self._sanitize_positive_int(target_size, default=1200)
+        variance = self._sanitize_variance(variance, default=0.1)
         if strategy == "normalize":
             return await self._normalize_packet_sizes(payload, target_size, variance)
         elif strategy == "randomize":
@@ -456,36 +499,57 @@ class PacketSizeObfuscationAttack(BaseAttack):
         else:
             return await self._normalize_packet_sizes(payload, target_size, variance)
 
+    @staticmethod
+    def _sanitize_positive_int(value: Any, default: int) -> int:
+        try:
+            iv = int(value)
+            return iv if iv > 0 else int(default)
+        except (TypeError, ValueError):
+            return int(default)
+
+    @staticmethod
+    def _sanitize_variance(value: Any, default: float) -> float:
+        try:
+            fv = float(value)
+        except (TypeError, ValueError):
+            fv = float(default)
+        # Clamp to sane bounds to avoid negative/zero packet sizes.
+        return max(0.0, min(0.95, fv))
+
     async def _normalize_packet_sizes(
         self, payload: bytes, target_size: int, variance: float
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Normalize all packets to similar sizes."""
         segments = []
+        seq_offset = 0
         for i in range(0, len(payload), target_size):
             chunk = payload[i : i + target_size]
             size_variation = int(target_size * variance * (random.random() - 0.5) * 2)
-            actual_target = target_size + size_variation
+            actual_target = max(1, target_size + size_variation)
             if len(chunk) < actual_target:
                 padding_size = actual_target - len(chunk)
-                padding = self._generate_size_padding(padding_size)
+                padding = generate_padding(padding_size, strategy="auto")
                 normalized_chunk = chunk + padding
             else:
                 normalized_chunk = chunk
             delay = random.randint(10, 50)
-            await asyncio.sleep(delay / 1000.0)
             segments.append(
-                (
+                make_segment(
                     normalized_chunk,
-                    delay,
-                    {
-                        "obfuscation_type": "normalize",
-                        "original_size": len(chunk),
-                        "target_size": actual_target,
-                        "final_size": len(normalized_chunk),
-                        "padding_added": len(normalized_chunk) - len(chunk),
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="normalize",
+                    original_size=len(chunk),
+                    target_size=actual_target,
+                    final_size=len(normalized_chunk),
+                    padding_added=len(normalized_chunk) - len(chunk),
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(normalized_chunk))
         return segments
 
     async def _randomize_packet_sizes(
@@ -493,32 +557,38 @@ class PacketSizeObfuscationAttack(BaseAttack):
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Randomize packet sizes within a range."""
         segments = []
-        min_size = int(base_size * (1 - variance))
-        max_size = int(base_size * (1 + variance))
+        seq_offset = 0
+        base_size = self._sanitize_positive_int(base_size, default=1200)
+        variance = self._sanitize_variance(variance, default=0.1)
+        min_size = max(1, int(base_size * (1 - variance)))
+        max_size = max(min_size, int(base_size * (1 + variance)))
         pos = 0
         while pos < len(payload):
             chunk_size = random.randint(min_size, max_size)
             chunk = payload[pos : pos + chunk_size]
             if len(chunk) < chunk_size and pos + len(chunk) == len(payload):
                 padding_size = random.randint(0, chunk_size - len(chunk))
-                padding = self._generate_size_padding(padding_size)
+                padding = generate_padding(padding_size, strategy="auto")
                 randomized_chunk = chunk + padding
             else:
                 randomized_chunk = chunk
             delay = random.randint(5, 30)
-            await asyncio.sleep(delay / 1000.0)
             segments.append(
-                (
+                make_segment(
                     randomized_chunk,
-                    delay,
-                    {
-                        "obfuscation_type": "randomize",
-                        "expected_size": chunk_size,
-                        "actual_size": len(randomized_chunk),
-                        "position": pos,
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="randomize",
+                    expected_size=chunk_size,
+                    actual_size=len(randomized_chunk),
+                    position=pos,
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(randomized_chunk))
             pos += len(chunk)
         return segments
 
@@ -527,72 +597,60 @@ class PacketSizeObfuscationAttack(BaseAttack):
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Fragment packets into smaller sizes."""
         segments = []
+        seq_offset = 0
+        fragment_size = self._sanitize_positive_int(fragment_size, default=1200)
         for i in range(0, len(payload), fragment_size):
             fragment = payload[i : i + fragment_size]
             delay = random.randint(1, 10)
-            await asyncio.sleep(delay / 1000.0)
             segments.append(
-                (
+                make_segment(
                     fragment,
-                    delay,
-                    {
-                        "obfuscation_type": "fragment",
-                        "fragment_index": i // fragment_size,
-                        "fragment_size": len(fragment),
-                        "is_last_fragment": i + fragment_size >= len(payload),
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="fragment",
+                    fragment_index=i // fragment_size,
+                    fragment_size=len(fragment),
+                    is_last_fragment=(i + fragment_size >= len(payload)),
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(fragment))
         return segments
 
-    async def _pad_to_mtu(
-        self, payload: bytes
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+    async def _pad_to_mtu(self, payload: bytes) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Pad packets to MTU size."""
         mtu_size = 1500
         segments = []
+        seq_offset = 0
         for i in range(0, len(payload), mtu_size):
             chunk = payload[i : i + mtu_size]
             if len(chunk) < mtu_size:
                 padding_size = mtu_size - len(chunk)
-                padding = self._generate_size_padding(padding_size)
+                padding = generate_padding(padding_size, strategy="auto")
                 mtu_chunk = chunk + padding
             else:
                 mtu_chunk = chunk
             delay = random.randint(15, 40)
-            await asyncio.sleep(delay / 1000.0)
             segments.append(
-                (
+                make_segment(
                     mtu_chunk,
-                    delay,
-                    {
-                        "obfuscation_type": "pad_to_mtu",
-                        "original_size": len(chunk),
-                        "mtu_size": mtu_size,
-                        "padding_added": len(mtu_chunk) - len(chunk),
-                    },
+                    seq_offset,
+                    delay_ms=delay,
+                    protocol="tcp",
+                    segment_index=len(segments),
+                    segment_kind="data",
+                    direction="c2s",
+                    obfuscation_type="pad_to_mtu",
+                    original_size=len(chunk),
+                    mtu_size=mtu_size,
+                    padding_added=len(mtu_chunk) - len(chunk),
                 )
             )
+            seq_offset = next_seq_offset(seq_offset, len(mtu_chunk))
         return segments
-
-    def _generate_size_padding(self, size: int) -> bytes:
-        """Generate padding for size obfuscation."""
-        if size <= 0:
-            return b""
-        strategies = ["zero", "random", "pattern", "http_like"]
-        strategy = random.choice(strategies)
-        if strategy == "zero":
-            return b"\x00" * size
-        elif strategy == "random":
-            return bytes([random.randint(0, 255) for _ in range(size)])
-        elif strategy == "pattern":
-            pattern = b"ABCDEFGH"
-            return (pattern * (size // len(pattern) + 1))[:size]
-        else:
-            http_padding = (
-                b"X-Padding: " + b"x" * (size - 11) if size > 11 else b"x" * size
-            )
-            return http_padding[:size]
 
 
 @register_attack
@@ -628,7 +686,6 @@ class TimingObfuscationAttack(BaseAttack):
     def optional_params(self) -> Dict[str, Any]:
         return {}
 
-
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute timing obfuscation attack."""
         start_time = time.time()
@@ -642,7 +699,10 @@ class TimingObfuscationAttack(BaseAttack):
             )
             packets_sent = len(obfuscated_segments)
             bytes_sent = sum((len(seg[0]) for seg in obfuscated_segments))
-            total_delay = sum((seg[1] for seg in obfuscated_segments))
+            total_delay = sum(
+                ((seg[2] or {}).get("delay_ms", 0) if len(seg) > 2 else 0)
+                for seg in obfuscated_segments
+            )
             latency = (time.time() - start_time) * 1000
             return AttackResult(
                 status=AttackStatus.SUCCESS,
@@ -657,144 +717,79 @@ class TimingObfuscationAttack(BaseAttack):
                     "base_delay": base_delay,
                     "jitter_range": jitter_range,
                     "total_delay_ms": total_delay,
-                    "average_delay": (
-                        total_delay / packets_sent if packets_sent > 0 else 0
-                    ),
+                    "average_delay": (total_delay / packets_sent if packets_sent > 0 else 0),
                     "segments": obfuscated_segments,
                 },
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
+            # Handle parameter validation and data structure errors
             return AttackResult(
                 status=AttackStatus.ERROR,
-                error_message=str(e),
+                error_message=f"Parameter error: {str(e)}",
                 latency_ms=(time.time() - start_time) * 1000,
                 technique_used="timing_obfuscation",
+                metadata={"error_type": type(e).__name__},
+            )
+        except Exception as e:
+            # Catch-all for unexpected errors
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=f"Unexpected error: {str(e)}",
+                latency_ms=(time.time() - start_time) * 1000,
+                technique_used="timing_obfuscation",
+                metadata={"error_type": type(e).__name__},
             )
 
     async def _apply_timing_obfuscation(
         self, payload: bytes, strategy: str, base_delay: int, jitter_range: int
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply timing obfuscation based on strategy."""
+        if not payload:
+            return []
+        # Protect downstream strategies from invalid params (e.g., base_delay=0 -> expovariate error)
+        try:
+            base_delay = max(1, int(base_delay))
+        except (TypeError, ValueError):
+            base_delay = 1
+        try:
+            jitter_range = max(0, int(jitter_range))
+        except (TypeError, ValueError):
+            jitter_range = 0
         if strategy == "jitter":
-            return await self._apply_jitter_timing(payload, base_delay, jitter_range)
+            return normalize_segments(
+                await TimingStrategy.apply_jitter_timing(payload, base_delay, jitter_range),
+                treat_second_as="seq_offset",
+                protocol="tcp",
+                attack=self.name,
+            )
         elif strategy == "exponential":
-            return await self._apply_exponential_timing(payload, base_delay)
+            return normalize_segments(
+                await TimingStrategy.apply_exponential_timing(payload, base_delay),
+                treat_second_as="seq_offset",
+                protocol="tcp",
+                attack=self.name,
+            )
         elif strategy == "burst":
-            return await self._apply_burst_timing(payload, base_delay)
+            return normalize_segments(
+                await TimingStrategy.apply_burst_timing(payload, base_delay),
+                treat_second_as="seq_offset",
+                protocol="tcp",
+                attack=self.name,
+            )
         elif strategy == "rhythm_break":
-            return await self._apply_rhythm_breaking(payload, base_delay, jitter_range)
+            return normalize_segments(
+                await TimingStrategy.apply_rhythm_breaking(payload, base_delay, jitter_range),
+                treat_second_as="seq_offset",
+                protocol="tcp",
+                attack=self.name,
+            )
         else:
-            return await self._apply_jitter_timing(payload, base_delay, jitter_range)
-
-    async def _apply_jitter_timing(
-        self, payload: bytes, base_delay: int, jitter_range: int
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Apply jitter-based timing obfuscation."""
-        segments = []
-        chunk_size = random.randint(100, 300)
-        for i in range(0, len(payload), chunk_size):
-            chunk = payload[i : i + chunk_size]
-            jitter = random.randint(-jitter_range, jitter_range)
-            delay = max(1, base_delay + jitter)
-            await asyncio.sleep(delay / 1000.0)
-            segments.append(
-                (
-                    chunk,
-                    delay,
-                    {
-                        "timing_type": "jitter",
-                        "base_delay": base_delay,
-                        "jitter": jitter,
-                        "final_delay": delay,
-                    },
-                )
+            return normalize_segments(
+                await TimingStrategy.apply_jitter_timing(payload, base_delay, jitter_range),
+                treat_second_as="seq_offset",
+                protocol="tcp",
+                attack=self.name,
             )
-        return segments
-
-    async def _apply_exponential_timing(
-        self, payload: bytes, base_delay: int
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Apply exponential timing distribution."""
-        segments = []
-        chunk_size = random.randint(150, 400)
-        for i in range(0, len(payload), chunk_size):
-            chunk = payload[i : i + chunk_size]
-            delay = int(random.expovariate(1.0 / base_delay))
-            delay = max(1, min(delay, base_delay * 5))
-            await asyncio.sleep(delay / 1000.0)
-            segments.append(
-                (
-                    chunk,
-                    delay,
-                    {
-                        "timing_type": "exponential",
-                        "base_delay": base_delay,
-                        "calculated_delay": delay,
-                    },
-                )
-            )
-        return segments
-
-    async def _apply_burst_timing(
-        self, payload: bytes, base_delay: int
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Apply burst timing patterns."""
-        segments = []
-        burst_size = random.randint(3, 6)
-        burst_delay = base_delay * 3
-        chunk_size = (
-            len(payload) // burst_size if len(payload) > burst_size else len(payload)
-        )
-        for i in range(0, len(payload), chunk_size):
-            chunk = payload[i : i + chunk_size]
-            burst_index = i // chunk_size
-            if burst_index % burst_size == 0:
-                delay = burst_delay + random.randint(-10, 10)
-            else:
-                delay = random.randint(5, 15)
-            await asyncio.sleep(delay / 1000.0)
-            segments.append(
-                (
-                    chunk,
-                    delay,
-                    {
-                        "timing_type": "burst",
-                        "burst_index": burst_index,
-                        "burst_size": burst_size,
-                        "is_burst_start": burst_index % burst_size == 0,
-                    },
-                )
-            )
-        return segments
-
-    async def _apply_rhythm_breaking(
-        self, payload: bytes, base_delay: int, jitter_range: int
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Apply rhythm-breaking timing patterns."""
-        segments = []
-        chunk_size = random.randint(80, 250)
-        rhythm_pattern = [1.0, 0.5, 2.0, 0.3, 1.5, 0.8, 2.5]
-        for i in range(0, len(payload), chunk_size):
-            chunk = payload[i : i + chunk_size]
-            pattern_index = i // chunk_size % len(rhythm_pattern)
-            rhythm_multiplier = rhythm_pattern[pattern_index]
-            jitter = random.randint(-jitter_range // 2, jitter_range // 2)
-            delay = max(1, int(base_delay * rhythm_multiplier) + jitter)
-            await asyncio.sleep(delay / 1000.0)
-            segments.append(
-                (
-                    chunk,
-                    delay,
-                    {
-                        "timing_type": "rhythm_break",
-                        "pattern_index": pattern_index,
-                        "rhythm_multiplier": rhythm_multiplier,
-                        "jitter": jitter,
-                        "final_delay": delay,
-                    },
-                )
-            )
-        return segments
 
 
 @register_attack
@@ -816,9 +811,7 @@ class FlowObfuscationAttack(BaseAttack):
 
     @property
     def description(self) -> str:
-        return (
-            "Modifies traffic flow characteristics to evade flow-based fingerprinting"
-        )
+        return "Modifies traffic flow characteristics to evade flow-based fingerprinting"
 
     @property
     def supported_protocols(self) -> List[str]:
@@ -831,7 +824,6 @@ class FlowObfuscationAttack(BaseAttack):
     @property
     def optional_params(self) -> Dict[str, Any]:
         return {}
-
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute flow obfuscation attack."""
@@ -864,12 +856,23 @@ class FlowObfuscationAttack(BaseAttack):
                     "segments": obfuscated_segments,
                 },
             )
-        except Exception as e:
+        except (ValueError, TypeError, KeyError) as e:
+            # Handle parameter validation and data structure errors
             return AttackResult(
                 status=AttackStatus.ERROR,
-                error_message=str(e),
+                error_message=f"Parameter error: {str(e)}",
                 latency_ms=(time.time() - start_time) * 1000,
                 technique_used="flow_obfuscation",
+                metadata={"error_type": type(e).__name__},
+            )
+        except Exception as e:
+            # Catch-all for unexpected errors
+            return AttackResult(
+                status=AttackStatus.ERROR,
+                error_message=f"Unexpected error: {str(e)}",
+                latency_ms=(time.time() - start_time) * 1000,
+                technique_used="flow_obfuscation",
+                metadata={"error_type": type(e).__name__},
             )
 
     async def _apply_flow_obfuscation(
@@ -881,153 +884,17 @@ class FlowObfuscationAttack(BaseAttack):
         context: AttackContext,
     ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """Apply flow obfuscation based on strategy."""
+        if not payload:
+            return []
         if strategy == "bidirectional":
-            return await self._create_bidirectional_flow(
-                payload, fake_responses, context
-            )
+            segs = await FlowPatternGenerator.create_bidirectional_flow(payload, fake_responses)
         elif strategy == "multi_connection":
-            return await self._create_multi_connection_flow(payload, pattern, context)
+            segs = await FlowPatternGenerator.create_multi_connection_flow(payload)
         elif strategy == "session_splitting":
-            return await self._create_session_splitting_flow(payload, context)
+            segs = await FlowPatternGenerator.create_session_splitting_flow(payload)
         else:
-            return await self._create_bidirectional_flow(
-                payload, fake_responses, context
-            )
-
-    async def _create_bidirectional_flow(
-        self, payload: bytes, fake_responses: bool, context: AttackContext
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Create bidirectional flow pattern."""
-        segments = []
-        chunk_size = random.randint(200, 500)
-        for i in range(0, len(payload), chunk_size):
-            chunk = payload[i : i + chunk_size]
-            delay = random.randint(10, 50)
-            await asyncio.sleep(delay / 1000.0)
-            segments.append(
-                (
-                    chunk,
-                    delay,
-                    {
-                        "flow_type": "bidirectional",
-                        "direction": "client_to_server",
-                        "chunk_index": i // chunk_size,
-                    },
-                )
-            )
-            if fake_responses:
-                response_size = random.randint(50, 200)
-                fake_response = self._generate_fake_server_response(response_size)
-                delay = random.randint(20, 100)
-                await asyncio.sleep(delay / 1000.0)
-                segments.append(
-                    (
-                        fake_response,
-                        delay,
-                        {
-                            "flow_type": "bidirectional",
-                            "direction": "server_to_client",
-                            "is_fake_response": True,
-                            "response_size": response_size,
-                        },
-                    )
-                )
-        return segments
-
-    async def _create_multi_connection_flow(
-        self, payload: bytes, pattern: str, context: AttackContext
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Create multi-connection flow pattern."""
-        segments = []
-        num_connections = random.randint(2, 4)
-        connection_chunks = []
-        chunk_size = len(payload) // num_connections
-        for i in range(num_connections):
-            start = i * chunk_size
-            end = start + chunk_size if i < num_connections - 1 else len(payload)
-            connection_chunks.append(payload[start:end])
-        max_chunks = max((len(chunk) // 100 + 1 for chunk in connection_chunks))
-        for chunk_index in range(max_chunks):
-            for conn_id, conn_data in enumerate(connection_chunks):
-                start_pos = chunk_index * 100
-                if start_pos < len(conn_data):
-                    end_pos = min(start_pos + 100, len(conn_data))
-                    data_chunk = conn_data[start_pos:end_pos]
-                    delay = random.randint(5, 30)
-                    await asyncio.sleep(delay / 1000.0)
-                    segments.append(
-                        (
-                            data_chunk,
-                            delay,
-                            {
-                                "flow_type": "multi_connection",
-                                "connection_id": conn_id,
-                                "chunk_index": chunk_index,
-                                "total_connections": num_connections,
-                            },
-                        )
-                    )
-        return segments
-
-    async def _create_session_splitting_flow(
-        self, payload: bytes, context: AttackContext
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Create session splitting flow pattern."""
-        segments = []
-        num_sessions = random.randint(2, 3)
-        session_size = len(payload) // num_sessions
-        for session_id in range(num_sessions):
-            start = session_id * session_size
-            end = (
-                start + session_size if session_id < num_sessions - 1 else len(payload)
-            )
-            session_data = payload[start:end]
-            if session_id > 0:
-                gap_delay = random.randint(200, 500)
-                await asyncio.sleep(gap_delay / 1000.0)
-                segments.append(
-                    (
-                        b"",
-                        gap_delay,
-                        {
-                            "flow_type": "session_splitting",
-                            "is_session_gap": True,
-                            "session_id": session_id,
-                        },
-                    )
-                )
-            chunk_size = random.randint(150, 300)
-            for i in range(0, len(session_data), chunk_size):
-                chunk = session_data[i : i + chunk_size]
-                delay = random.randint(10, 40)
-                await asyncio.sleep(delay / 1000.0)
-                segments.append(
-                    (
-                        chunk,
-                        delay,
-                        {
-                            "flow_type": "session_splitting",
-                            "session_id": session_id,
-                            "chunk_in_session": i // chunk_size,
-                            "is_session_data": True,
-                        },
-                    )
-                )
-        return segments
-
-    def _generate_fake_server_response(self, size: int) -> bytes:
-        """Generate fake server response data."""
-        response_types = ["http_ok", "json_response", "binary_data"]
-        response_type = random.choice(response_types)
-        if response_type == "http_ok":
-            response = (
-                b"HTTP/1.1 200 OK\r\nContent-Length: "
-                + str(size - 50).encode()
-                + b"\r\n\r\n"
-            )
-            response += b"x" * (size - len(response))
-        elif response_type == "json_response":
-            response = b'{"status":"ok","data":"' + b"x" * (size - 20) + b'"}'
-        else:
-            response = bytes([random.randint(0, 255) for _ in range(size)])
-        return response[:size]
+            segs = await FlowPatternGenerator.create_bidirectional_flow(payload, fake_responses)
+        # Ensure attack/protocol/segment_index are present even if generators evolve.
+        return normalize_segments(
+            segs, treat_second_as="seq_offset", protocol="tcp", attack=self.name
+        )

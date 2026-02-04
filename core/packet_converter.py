@@ -26,22 +26,23 @@ except ImportError:
 class PacketConverter:
     """Convert various packet formats to unified PacketInfo."""
 
+    @staticmethod
+    def _safe_int(value: Any) -> Any:
+        try:
+            return int(value)
+        except Exception:
+            return value
+
     def _build_packet_info(
         packet: "pydivert.Packet", protocol_specific_data: Dict[str, Any]
     ) -> PacketInfo:
         """Вспомогательный метод для создания объекта PacketInfo, чтобы избежать дублирования."""
-        ttl = (
-            packet.ipv4.ttl
-            if packet.ipv4
-            else packet.ipv6.hop_limit if packet.ipv6 else 64
-        )
+        ttl = packet.ipv4.ttl if packet.ipv4 else packet.ipv6.hop_limit if packet.ipv6 else 64
         base_data = {
             "src_ip": packet.src_addr,
             "dst_ip": packet.dst_addr,
             "direction": (
-                PacketDirection.OUTBOUND
-                if packet.is_outbound
-                else PacketDirection.INBOUND
+                PacketDirection.OUTBOUND if packet.is_outbound else PacketDirection.INBOUND
             ),
             "ip_ttl": ttl,
             "raw_data": bytes(packet.raw),
@@ -90,14 +91,10 @@ class PacketConverter:
                 "src_ip": packet.src_addr,
                 "dst_ip": packet.dst_addr,
                 "direction": (
-                    PacketDirection.OUTBOUND
-                    if packet.is_outbound
-                    else PacketDirection.INBOUND
+                    PacketDirection.OUTBOUND if packet.is_outbound else PacketDirection.INBOUND
                 ),
                 "ip_ttl": (
-                    packet.ipv4.ttl
-                    if packet.ipv4
-                    else packet.ipv6.hop_limit if packet.ipv6 else 64
+                    packet.ipv4.ttl if packet.ipv4 else packet.ipv6.hop_limit if packet.ipv6 else 64
                 ),
                 "raw_data": bytes(packet.raw),
                 "interface": packet.interface,
@@ -112,9 +109,7 @@ class PacketConverter:
         except Exception as e:
             import logging
 
-            logging.getLogger("PacketConverter").error(
-                f"Error converting PyDivert packet: {e}"
-            )
+            logging.getLogger("PacketConverter").error(f"Error converting PyDivert packet: {e}")
             return None
 
     @staticmethod
@@ -126,6 +121,9 @@ class PacketConverter:
             if not packet.haslayer("IP"):
                 return None
             ip_layer = packet["IP"]
+            ip_raw = bytes(ip_layer)
+            ip_hlen = int(getattr(ip_layer, "ihl", 5) or 5) * 4
+            ip_options = ip_raw[20:ip_hlen] if ip_hlen > 20 and len(ip_raw) >= ip_hlen else b""
             if packet.haslayer("TCP"):
                 protocol = ProtocolType.TCP
                 tcp_layer = packet["TCP"]
@@ -136,16 +134,19 @@ class PacketConverter:
                 tcp_flags = PacketConverter._scapy_flags_to_string(tcp_layer.flags)
                 tcp_window = tcp_layer.window
                 tcp_urgent = tcp_layer.urgptr
-                tcp_options = bytes(tcp_layer.options) if tcp_layer.options else None
+                # Scapy TCP.options is usually a list; bytes(list) can raise TypeError.
+                tcp_raw = bytes(tcp_layer)
+                tcp_hlen = int(getattr(tcp_layer, "dataofs", 5) or 5) * 4
+                tcp_options = (
+                    tcp_raw[20:tcp_hlen] if tcp_hlen > 20 and len(tcp_raw) >= tcp_hlen else b""
+                )
                 payload = bytes(packet["Raw"]) if packet.haslayer("Raw") else b""
             elif packet.haslayer("UDP"):
                 protocol = ProtocolType.UDP
                 udp_layer = packet["UDP"]
                 src_port = udp_layer.sport
                 dst_port = udp_layer.dport
-                tcp_seq = tcp_ack = tcp_flags = tcp_window = tcp_urgent = (
-                    tcp_options
-                ) = None
+                tcp_seq = tcp_ack = tcp_flags = tcp_window = tcp_urgent = tcp_options = None
                 payload = bytes(packet["Raw"]) if packet.haslayer("Raw") else b""
             else:
                 return None
@@ -156,8 +157,8 @@ class PacketConverter:
                 ip_version=ip_layer.version,
                 ip_ttl=ip_layer.ttl,
                 ip_id=ip_layer.id,
-                ip_flags=ip_layer.flags,
-                ip_options=bytes(ip_layer.options) if ip_layer.options else b"",
+                ip_flags=PacketConverter._safe_int(ip_layer.flags),
+                ip_options=ip_options,
                 src_port=src_port,
                 dst_port=dst_port,
                 protocol=protocol,

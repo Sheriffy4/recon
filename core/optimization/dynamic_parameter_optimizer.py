@@ -93,9 +93,7 @@ class DynamicParameterOptimizer:
                         )
                         return self._parameter_ranges[category].copy()
                 except Exception as e:
-                    self.logger.warning(
-                        f"Could not instantiate attack {attack_name}: {e}"
-                    )
+                    self.logger.warning(f"Could not instantiate attack {attack_name}: {e}")
         except ImportError:
             self.logger.warning("AttackRegistry not available, using default ranges")
         self.logger.info(f"Using default parameter ranges for {attack_name}")
@@ -131,9 +129,7 @@ class DynamicParameterOptimizer:
         try:
             param_ranges = self.generate_parameter_ranges(attack_name)
             if not param_ranges:
-                raise ValueError(
-                    f"No parameter ranges defined for attack {attack_name}"
-                )
+                raise ValueError(f"No parameter ranges defined for attack {attack_name}")
             best_params = {}
             best_effectiveness = 0.0
             parameter_history = []
@@ -164,9 +160,7 @@ class DynamicParameterOptimizer:
                     )
                     break
                 try:
-                    effectiveness = await self._test_parameters(
-                        attack_name, params, context
-                    )
+                    effectiveness = await self._test_parameters(attack_name, params, context)
                     parameter_history.append(params.copy())
                     effectiveness_history.append(effectiveness)
                     if effectiveness > best_effectiveness:
@@ -177,9 +171,7 @@ class DynamicParameterOptimizer:
                         )
                         if effectiveness >= convergence_threshold:
                             convergence_iteration = iteration
-                            self.logger.info(
-                                f"Convergence reached at iteration {iteration}"
-                            )
+                            self.logger.info(f"Convergence reached at iteration {iteration}")
                             break
                 except Exception as e:
                     self.logger.error(f"Error testing parameters {params}: {e}")
@@ -253,17 +245,11 @@ class DynamicParameterOptimizer:
             domain = context.domain or "example.com"
             port = context.dst_port or 443
             baseline = await self.effectiveness_tester.test_baseline(domain, port)
-            bypass = await self.effectiveness_tester.test_with_bypass(
-                domain, port, attack_result
-            )
-            effectiveness = await self.effectiveness_tester.compare_results(
-                baseline, bypass
-            )
+            bypass = await self.effectiveness_tester.test_with_bypass(domain, port, attack_result)
+            effectiveness = await self.effectiveness_tester.compare_results(baseline, bypass)
             return effectiveness.effectiveness_score
         except Exception as e:
-            self.logger.error(
-                f"Error testing parameters {parameters} for {attack_name}: {e}"
-            )
+            self.logger.error(f"Error testing parameters {parameters} for {attack_name}: {e}")
             return 0.0
 
     def _generate_grid_search_combinations(
@@ -309,21 +295,15 @@ class DynamicParameterOptimizer:
         """Generate parameter combinations using Bayesian optimization."""
         combinations = []
         random_count = min(5, max_combinations // 4)
-        combinations.extend(
-            self._generate_random_search_combinations(param_ranges, random_count)
-        )
+        combinations.extend(self._generate_random_search_combinations(param_ranges, random_count))
         if attack_name in self._optimization_history:
             history = self._optimization_history[attack_name]
-            for result in sorted(
-                history, key=lambda x: x.best_effectiveness, reverse=True
-            )[:3]:
+            for result in sorted(history, key=lambda x: x.best_effectiveness, reverse=True)[:3]:
                 base_params = result.optimal_parameters
                 for _ in range((max_combinations - random_count) // 3):
                     if len(combinations) >= max_combinations:
                         break
-                    varied_params = self._create_parameter_variation(
-                        base_params, param_ranges
-                    )
+                    varied_params = self._create_parameter_variation(base_params, param_ranges)
                     combinations.append(varied_params)
         while len(combinations) < max_combinations:
             params = {}
@@ -342,9 +322,7 @@ class DynamicParameterOptimizer:
         """Generate parameter combinations using evolutionary algorithm."""
         population_size = min(10, max_combinations // 2)
         generations = max_combinations // population_size
-        population = self._generate_random_search_combinations(
-            param_ranges, population_size
-        )
+        population = self._generate_random_search_combinations(param_ranges, population_size)
         all_combinations = population.copy()
         for generation in range(generations):
             if len(all_combinations) >= max_combinations:
@@ -360,8 +338,7 @@ class DynamicParameterOptimizer:
             elite = [population[i] for i in sorted_indices[:elite_count]]
             new_population = elite.copy()
             while (
-                len(new_population) < population_size
-                and len(all_combinations) < max_combinations
+                len(new_population) < population_size and len(all_combinations) < max_combinations
             ):
                 parent1, parent2 = random.sample(elite, 2)
                 child = self._crossover_parameters(parent1, parent2, param_ranges)
@@ -407,14 +384,10 @@ class DynamicParameterOptimizer:
             return random.choice([True, False])
         elif param_range.type == "int":
             if param_range.min_value is not None and param_range.max_value is not None:
-                return random.randint(
-                    int(param_range.min_value), int(param_range.max_value)
-                )
+                return random.randint(int(param_range.min_value), int(param_range.max_value))
         elif param_range.type == "float":
             if param_range.min_value is not None and param_range.max_value is not None:
-                return round(
-                    random.uniform(param_range.min_value, param_range.max_value), 2
-                )
+                return round(random.uniform(param_range.min_value, param_range.max_value), 2)
         return param_range.default
 
     def _create_parameter_variation(
@@ -422,9 +395,7 @@ class DynamicParameterOptimizer:
     ) -> Dict[str, Any]:
         """Create a variation of base parameters."""
         varied_params = base_params.copy()
-        params_to_vary = random.sample(
-            list(param_ranges.keys()), min(2, len(param_ranges))
-        )
+        params_to_vary = random.sample(list(param_ranges.keys()), min(2, len(param_ranges)))
         for param_name in params_to_vary:
             if param_name in param_ranges:
                 param_range = param_ranges[param_name]
@@ -459,17 +430,13 @@ class DynamicParameterOptimizer:
         child = {}
         for param_name in param_ranges.keys():
             if param_name in parent1 and param_name in parent2:
-                child[param_name] = random.choice(
-                    [parent1[param_name], parent2[param_name]]
-                )
+                child[param_name] = random.choice([parent1[param_name], parent2[param_name]])
             elif param_name in parent1:
                 child[param_name] = parent1[param_name]
             elif param_name in parent2:
                 child[param_name] = parent2[param_name]
             else:
-                child[param_name] = self._sample_parameter_value(
-                    param_ranges[param_name]
-                )
+                child[param_name] = self._sample_parameter_value(param_ranges[param_name])
         return child
 
     def _mutate_parameters(
@@ -478,9 +445,7 @@ class DynamicParameterOptimizer:
         """Mutate parameters."""
         mutated = params.copy()
         param_to_mutate = random.choice(list(param_ranges.keys()))
-        mutated[param_to_mutate] = self._sample_parameter_value(
-            param_ranges[param_to_mutate]
-        )
+        mutated[param_to_mutate] = self._sample_parameter_value(param_ranges[param_to_mutate])
         return mutated
 
     def _initialize_parameter_ranges(self) -> Dict[str, Dict[str, ParameterRange]]:
@@ -513,17 +478,13 @@ class DynamicParameterOptimizer:
             "padding_size": ParameterRange(
                 "padding_size", "int", min_value=4, max_value=32, step=4, default=8
             ),
-            "split_pos": ParameterRange(
-                "split_pos", "int", min_value=1, max_value=10, default=3
-            ),
+            "split_pos": ParameterRange("split_pos", "int", min_value=1, max_value=10, default=3),
         }
         ranges["tcp_timing"] = {
             "delay_ms": ParameterRange(
                 "delay_ms", "int", min_value=10, max_value=500, step=10, default=50
             ),
-            "burst_size": ParameterRange(
-                "burst_size", "int", min_value=1, max_value=10, default=3
-            ),
+            "burst_size": ParameterRange("burst_size", "int", min_value=1, max_value=10, default=3),
             "jitter_range": ParameterRange(
                 "jitter_range", "int", min_value=5, max_value=100, step=5, default=20
             ),
@@ -536,20 +497,14 @@ class DynamicParameterOptimizer:
                 choices=["badsum", "badseq", "md5sig"],
                 default="badsum",
             ),
-            "repeats": ParameterRange(
-                "repeats", "int", min_value=1, max_value=5, default=1
-            ),
+            "repeats": ParameterRange("repeats", "int", min_value=1, max_value=5, default=1),
         }
         ranges["ip"] = {
             "fragment_size": ParameterRange(
                 "fragment_size", "int", min_value=8, max_value=1024, step=8, default=64
             ),
-            "ttl_value": ParameterRange(
-                "ttl_value", "int", min_value=1, max_value=255, default=64
-            ),
-            "tos_value": ParameterRange(
-                "tos_value", "int", min_value=0, max_value=255, default=0
-            ),
+            "ttl_value": ParameterRange("ttl_value", "int", min_value=1, max_value=255, default=64),
+            "tos_value": ParameterRange("tos_value", "int", min_value=0, max_value=255, default=0),
         }
         ranges["tls"] = {
             "record_size": ParameterRange(
@@ -678,9 +633,7 @@ class DynamicParameterOptimizer:
             ),
         }
         ranges["default"] = {
-            "split_pos": ParameterRange(
-                "split_pos", "int", min_value=1, max_value=10, default=3
-            ),
+            "split_pos": ParameterRange("split_pos", "int", min_value=1, max_value=10, default=3),
             "ttl": ParameterRange("ttl", "int", min_value=1, max_value=15, default=5),
             "delay_ms": ParameterRange(
                 "delay_ms", "int", min_value=10, max_value=200, step=10, default=50
@@ -724,6 +677,4 @@ class DynamicParameterOptimizer:
             self._optimization_history.pop(attack_name, None)
         else:
             self._optimization_history.clear()
-        self.logger.info(
-            f"Cleared optimization history for {attack_name or 'all attacks'}"
-        )
+        self.logger.info(f"Cleared optimization history for {attack_name or 'all attacks'}")

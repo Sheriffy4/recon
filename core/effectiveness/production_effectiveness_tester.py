@@ -52,9 +52,7 @@ class ProductionEffectivenessTester:
         try:
             import requests  # type: ignore
         except Exception as e:
-            return TestOutcome(
-                success=False, latency_ms=0.0, error=f"requests not available: {e}"
-            )
+            return TestOutcome(success=False, latency_ms=0.0, error=f"requests not available: {e}")
 
         scheme = "https" if https else "http"
         url = f"{scheme}://{domain}"
@@ -65,9 +63,7 @@ class ProductionEffectivenessTester:
             ok = (
                 200 <= resp.status_code < 500
             )  # считать подключение успешным при любом ответе сервера
-            return TestOutcome(
-                success=ok, latency_ms=latency, status_code=resp.status_code
-            )
+            return TestOutcome(success=ok, latency_ms=latency, status_code=resp.status_code)
         except Exception as e:
             latency = (time.perf_counter() - start) * 1000.0
             return TestOutcome(success=False, latency_ms=latency, error=str(e))
@@ -128,22 +124,15 @@ class ProductionEffectivenessTester:
         self._append_history(report)
 
         trend = self._compute_trend()
-        if (
-            trend.get("success_rate") is not None
-            and trend["success_rate"] < self.alert_threshold
-        ):
+        if trend.get("success_rate") is not None and trend["success_rate"] < self.alert_threshold:
             LOG.warning(
                 f"Effectiveness degrading: success_rate={trend['success_rate']:.2f} < threshold={self.alert_threshold:.2f}"
             )
 
-        LOG.info(
-            f"Effectiveness test verdict for {domain}: {verdict} ({reason or 'n/a'})"
-        )
+        LOG.info(f"Effectiveness test verdict for {domain}: {verdict} ({reason or 'n/a'})")
         return report
 
-    def _derive_verdict(
-        self, baseline: TestOutcome, bypass: TestOutcome
-    ) -> (str, Optional[str]):
+    def _derive_verdict(self, baseline: TestOutcome, bypass: TestOutcome) -> (str, Optional[str]):
         # Отдельная проверка базовой коннективности
         if baseline.success:
             # Если baseline работает, то цель обхода — не ухудшить

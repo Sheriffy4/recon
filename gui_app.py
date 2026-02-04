@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Импорты из вашего проекта
 try:
-    from core.adaptive_engine import AdaptiveEngine
+    from core.adaptive_refactored.facade import AdaptiveEngine
     from core.strategy_evaluator import StrategyEvaluator
     from core.domain_manager import DomainManager
     CORE_AVAILABLE = True

@@ -684,105 +684,79 @@ async def main():
     """Main CLI entry point."""
     parser = create_parser()
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
-        return
-    
-    # Initialize CLI
+        return 0
+
     cli = EnhancedStrategyCLI()
     cli.setup_logging(args.log_level)
-    
+
     try:
-        # Route commands
-        if args.command == 'config':
-            if args.config_command == 'load':
-                await cli.cmd_config_load(args)
-            elif args.config_command == 'validate':
-                await cli.cmd_config_validate(args)
-            elif args.config_command == 'migrate':
-                await cli.cmd_config_migrate(args)
-            elif args.config_command == 'optimize':
-                await cli.cmd_config_optimize(args)
-            elif args.config_command == 'backup':
-                await cli.cmd_config_backup(args)
+        if args.command == "config":
+            if args.config_command == "load":
+                return 0 if await cli.cmd_config_load(args) else 1
+            elif args.config_command == "validate":
+                return 0 if await cli.cmd_config_validate(args) else 1
+            elif args.config_command == "migrate":
+                return 0 if await cli.cmd_config_migrate(args) else 1
+            elif args.config_command == "optimize":
+                return 0 if await cli.cmd_config_optimize(args) else 1
+            elif args.config_command == "backup":
+                return 0 if await cli.cmd_config_backup(args) else 1
             else:
                 parser.print_help()
-        
-        elif args.command == 'strategy':
-            if args.strategy_command == 'add':
-                await cli.cmd_strategy_add(args)
-            elif args.strategy_command == 'remove':
-                await cli.cmd_strategy_remove(args)
-            elif args.strategy_command == 'list':
-                await cli.cmd_strategy_list(args)
-            elif args.strategy_command == 'test':
-                await cli.cmd_strategy_test(args)
-            elif args.strategy_command == 'benchmark':
-                await cli.cmd_strategy_benchmark(args)
+                return 2
+
+        elif args.command == "strategy":
+            if args.strategy_command == "add":
+                return 0 if await cli.cmd_strategy_add(args) else 1
+            elif args.strategy_command == "remove":
+                return 0 if await cli.cmd_strategy_remove(args) else 1
+            elif args.strategy_command == "list":
+                return 0 if await cli.cmd_strategy_list(args) else 1
+            elif args.strategy_command == "test":
+                return 0 if await cli.cmd_strategy_test(args) else 1
+            elif args.strategy_command == "benchmark":
+                return 0 if await cli.cmd_strategy_benchmark(args) else 1
             else:
                 parser.print_help()
-        
-        elif args.command == 'pcap':
-            if args.pcap_command == 'analyze':
-                await cli.cmd_pcap_analyze(args)
-            elif args.pcap_command == 'monitor':
-                await cli.cmd_pcap_monitor(args)
+                return 2
+
+        elif args.command == "pcap":
+            if args.pcap_command == "analyze":
+                return 0 if await cli.cmd_pcap_analyze(args) else 1
+            elif args.pcap_command == "monitor":
+                return 0 if await cli.cmd_pcap_monitor(args) else 1
             else:
                 parser.print_help()
-        
-        elif args.command == 'twitter-optimize':
-            await cli.cmd_twitter_optimize(args)
-        
-        elif args.command == 'help':
-            if args.help_command == 'wildcards':
+                return 2
+
+        elif args.command == "twitter-optimize":
+            return 0 if await cli.cmd_twitter_optimize(args) else 1
+
+        elif args.command == "help":
+            if args.help_command == "wildcards":
                 await cli.cmd_help_wildcards(args)
+                return 0
             else:
                 parser.print_help()
-        
-    except Exception as e:
-        console.print(f"[red]✗[/red] Command failed: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
+                return 2
 
-
-if __name__ == '__main__':
-    asyncio.run(main())
-    
-    except Exception as e:
-        console.print(f"[red]✗[/red] Command failed: {e}")
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-
-
-if __name__ == '__main__':
-    asyncio.run(main())monitor':
-                await cli.cmd_pcap_monitor(args)
-            else:
-                parser.print_help()
-        
-        elif args.command == 'twitter-optimize':
-            await cli.cmd_twitter_optimize(args)
-        
-        elif args.command == 'help':
-            if args.help_command == 'wildcards':
-                await cli.cmd_help_wildcards(args)
-            else:
-                parser.print_help()
-        
         else:
             parser.print_help()
-    
+            return 2
+
     except KeyboardInterrupt:
-        console.print("\n[yellow]Operation cancelled by user[/yellow]")
+        console.print("\nOperation cancelled by user")
+        return 130
     except Exception as e:
-        console.print(f"[red]✗[/red] Command failed: {e}")
-        if args.verbose:
+        console.print(f"Command failed: {e}")
+        if getattr(args, "verbose", False):
             import traceback
             traceback.print_exc()
+        return 1
 
 
-if __name__ == '__main__':
-    asyncio.run(main())
+if __name__ == "__main__":
+    raise SystemExit(asyncio.run(main()))

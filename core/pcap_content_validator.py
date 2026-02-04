@@ -131,9 +131,7 @@ class PCAPContentValidator:
         pcap_file = Path(pcap_file)
 
         if not pcap_file.exists():
-            result = PCAPValidationResult(
-                passed=False, pcap_file=pcap_file, packet_count=0
-            )
+            result = PCAPValidationResult(passed=False, pcap_file=pcap_file, packet_count=0)
             result.add_issue(
                 ValidationIssue(
                     severity="error",
@@ -150,9 +148,7 @@ class PCAPContentValidator:
         try:
             packets = rdpcap(str(pcap_file))
         except Exception as e:
-            result = PCAPValidationResult(
-                passed=False, pcap_file=pcap_file, packet_count=0
-            )
+            result = PCAPValidationResult(passed=False, pcap_file=pcap_file, packet_count=0)
             result.add_issue(
                 ValidationIssue(
                     severity="error",
@@ -186,9 +182,7 @@ class PCAPContentValidator:
         if "expected_ttl" in attack_spec:
             self._validate_ttl(packets, result, attack_spec)
 
-        if "expected_flags" in attack_spec or attack_spec.get(
-            "validate_flag_combinations"
-        ):
+        if "expected_flags" in attack_spec or attack_spec.get("validate_flag_combinations"):
             self._validate_tcp_flags(packets, result, attack_spec)
 
         # Add packet details
@@ -213,9 +207,7 @@ class PCAPContentValidator:
         expected_count = attack_spec.get("expected_packet_count")
 
         if expected_count is None:
-            result.add_warning(
-                "No expected packet count specified, skipping validation"
-            )
+            result.add_warning("No expected packet count specified, skipping validation")
             return
 
         actual_count = len(packets)
@@ -234,9 +226,7 @@ class PCAPContentValidator:
         else:
             self.logger.debug(f"Packet count validation passed: {actual_count} packets")
 
-    def _validate_sequence_numbers(
-        self, packets: List[Packet], result: PCAPValidationResult
-    ):
+    def _validate_sequence_numbers(self, packets: List[Packet], result: PCAPValidationResult):
         """
         Validate TCP sequence number progression.
 
@@ -330,9 +320,7 @@ class PCAPContentValidator:
         """
         expected_bad = attack_spec.get("expected_bad_checksums", False)
 
-        tcp_packets = [
-            (idx, p) for idx, p in enumerate(packets) if TCP in p and IP in p
-        ]
+        tcp_packets = [(idx, p) for idx, p in enumerate(packets) if TCP in p and IP in p]
 
         if not tcp_packets:
             result.add_warning("No TCP packets found for checksum validation")
@@ -407,15 +395,11 @@ class PCAPContentValidator:
                     recalc_tcp_chksum = (
                         pkt_copy[TCP].chksum if hasattr(pkt_copy[TCP], "chksum") else 0
                     )
-                    recalc_ip_chksum = (
-                        pkt_copy[IP].chksum if hasattr(pkt_copy[IP], "chksum") else 0
-                    )
+                    recalc_ip_chksum = pkt_copy[IP].chksum if hasattr(pkt_copy[IP], "chksum") else 0
 
                     # Compare with original (if not zero)
                     if tcp_chksum != 0 and tcp_chksum != recalc_tcp_chksum:
-                        invalid_tcp_checksums.append(
-                            (idx, tcp_chksum, recalc_tcp_chksum)
-                        )
+                        invalid_tcp_checksums.append((idx, tcp_chksum, recalc_tcp_chksum))
 
                         result.add_issue(
                             ValidationIssue(
@@ -444,9 +428,7 @@ class PCAPContentValidator:
 
                 except Exception as e:
                     # If recalculation fails, log but don't fail validation
-                    self.logger.debug(
-                        f"Could not recalculate checksum for packet {idx}: {e}"
-                    )
+                    self.logger.debug(f"Could not recalculate checksum for packet {idx}: {e}")
 
         # Check if we expected bad checksums but didn't find any
         if expected_bad and bad_tcp_checksum_count == 0 and bad_ip_checksum_count == 0:
@@ -462,9 +444,7 @@ class PCAPContentValidator:
             )
 
         # Check if we found bad checksums when we didn't expect them
-        if not expected_bad and (
-            bad_tcp_checksum_count > 0 or bad_ip_checksum_count > 0
-        ):
+        if not expected_bad and (bad_tcp_checksum_count > 0 or bad_ip_checksum_count > 0):
             result.add_issue(
                 ValidationIssue(
                     severity="warning",
@@ -711,9 +691,7 @@ class PCAPContentValidator:
 
         return self.validate_pcap(pcap_file, attack_spec)
 
-    def _build_attack_spec(
-        self, attack_name: str, attack_params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _build_attack_spec(self, attack_name: str, attack_params: Dict[str, Any]) -> Dict[str, Any]:
         """Build attack specification for validation."""
         spec: Dict[str, Any] = {"validate_sequence": True}
 

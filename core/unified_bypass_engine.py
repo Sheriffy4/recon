@@ -6,6 +6,7 @@ This module provides a unified wrapper around the existing BypassEngine
 that ensures identical behavior between testing mode and service mode.
 """
 
+from contextlib import contextmanager
 import logging
 import threading
 import time
@@ -13,15 +14,15 @@ import sys
 import subprocess
 from typing import Dict, Any, Set, Optional, List, Union, Tuple
 from dataclasses import dataclass
-from pathlib import Path
 import asyncio
 import aiohttp
 import socket
 import ssl
 from urllib.parse import urlparse
+from pathlib import Path
 import hashlib
-from collections import defaultdict
 import random
+import json
 
 # Import the new unified loader and its exceptions
 from .unified_strategy_loader import (
@@ -32,11 +33,23 @@ from .unified_strategy_loader import (
 
 # Import existing engine and related components
 from .bypass.engine.base_engine import WindowsBypassEngine, EngineConfig
-from .bypass.engine.service_wrapper import BypassEngineService, ServiceConfig
+from core.bypass.validation.validator import StrategyResultValidator
 
 
 # Fallbacks and optional imports from the original file
 def synthesize_strategy_fallback(ctx):
+    """Fallback strategy synthesizer when core.strategy_synthesizer is not available.
+
+    Args:
+        ctx: Attack context (currently unused - placeholder for future implementation)
+
+    Returns:
+        None (no strategy synthesis available)
+
+    TODO: Implement context-aware strategy synthesis or remove ctx parameter if not needed
+    """
+    # ctx parameter is intentionally unused - this is a placeholder fallback
+    _ = ctx  # Explicitly mark as intentionally unused
     return None
 
 
@@ -52,51 +65,23 @@ except (ImportError, ModuleNotFoundError):
 
 MODERN_BYPASS_ENGINE_AVAILABLE = False
 BypassStrategy = Any
+DPIFingerprint = Any  # Type hint placeholder
+
+# Try to import advanced fingerprinting types for type hints
 try:
-    from core.bypass.attacks.attack_registry import AttackRegistry
-    from core.bypass.strategies.pool_management import (
-        StrategyPoolManager,
-        BypassStrategy,
-    )
-    from core.bypass.modes.mode_controller import ModeController, OperationMode
-    from core.bypass.validation.reliability_validator import ReliabilityValidator
-    from core.bypass.protocols.multi_port_handler import MultiPortHandler
-
-    MODERN_BYPASS_ENGINE_AVAILABLE = True
-except ImportError:
-    OperationMode = Any
-
-try:
-    # Placeholder for future CDN ASN knowledge base import
-    CdnAsnKnowledgeBase = None
-except Exception:
-    CdnAsnKnowledgeBase = None
-
-from core.bypass.types import BlockType
-
-ADVANCED_FINGERPRINTING_AVAILABLE = False
-try:
-    from core.fingerprint.advanced_fingerprinter import (
-        AdvancedFingerprinter,
-        FingerprintingConfig,
-    )
-    from core.fingerprint.advanced_models import (
-        DPIFingerprint,
-        DPIType,
-        FingerprintingError,
-    )
-
-    ADVANCED_FINGERPRINTING_AVAILABLE = True
+    from core.fingerprint.advanced_models import DPIFingerprint
 except ImportError:
     pass
 
 ECH_AVAILABLE = False
 try:
-    from core.fingerprint.ech_detector import ECHDetector
-
+    # Placeholder for ECH availability check
+    # TODO: Add actual ECH import/check when available
     ECH_AVAILABLE = True
-except Exception:
-    pass
+except (ImportError, ModuleNotFoundError, AttributeError) as e:
+    LOG.debug(f"ECH not available: {e}")
+except Exception as e:
+    LOG.warning(f"Unexpected error checking ECH availability: {e}")
 
 LOG = logging.getLogger("unified_engine")
 HEADERS = {
@@ -122,17 +107,49 @@ BROWSER_CIPHER_LIST = (
 
 class UnifiedBypassEngineError(Exception):
     """Raised when UnifiedBypassEngine operations fail."""
+
     pass
+
+
+@dataclass(frozen=True)
+class AccessibilityTestCacheKey:
+    """Cache key for accessibility test results.
+
+    Uses frozen dataclass to ensure immutability and proper hashing.
+    This prevents cache key collisions that could return wrong test results.
+    """
+
+    target_ip: str
+    domain: Optional[str]
+    timeout: float
+    strategy_hash: str = ""
+
+
+@dataclass
+class AccessibilityTestCacheEntry:
+    """Cache entry for accessibility test results."""
+
+    result: Tuple[bool, str]
+    timestamp: float
+    test_count: int = 1  # Number of times this test was performed
+
+
+# Import CurlCommandValidator from unified validators module
+from core.unified.validators import CurlCommandValidator
 
 
 @dataclass
 class UnifiedEngineConfig:
     """Configuration for the unified bypass engine."""
+
     debug: bool = True
     force_override: bool = True
     enable_diagnostics: bool = True
     log_all_strategies: bool = True
     track_forced_override: bool = True
+    tls_partial_success: bool = (
+        False  # Treat TLS handshake success as partial success when HTTP fails
+    )
 
 
 class UnifiedBypassEngine:
@@ -140,6 +157,21 @@ class UnifiedBypassEngine:
     High-level orchestrator engine that uses the new unified loading and parsing system.
     This class replaces the old HybridEngine.
     """
+
+    # ---- Standardized status strings (do NOT change externally visible values) ----
+    STATUS_TRANSLATION_FAILED = "TRANSLATION_FAILED"
+    STATUS_VALIDATION_FAILED = "VALIDATION_FAILED"
+    STATUS_UNKNOWN = "UNKNOWN"
+
+    # High-level outcomes
+    STATUS_ALL_SITES_WORKING = "ALL_SITES_WORKING"
+    STATUS_PARTIAL_SUCCESS = "PARTIAL_SUCCESS"
+    STATUS_TLS_ONLY_PARTIAL = "TLS_ONLY_PARTIAL"
+
+    # Per-site outcomes (existing semantics)
+    SITE_WORKING = "WORKING"
+    SITE_ERROR = "ERROR"
+    SITE_DNS_ERROR = "DNS_ERROR"
 
     def __init__(
         self,
@@ -150,6 +182,17 @@ class UnifiedBypassEngine:
         enable_enhanced_tracking: bool = False,
         enable_online_optimization: bool = False,
     ):
+        # Import initialization helpers
+        from .unified_bypass_engine_init import (
+            init_modern_bypass_components,
+            init_advanced_fingerprinting,
+            init_monitoring_components,
+            init_cache_and_validation,
+            init_knowledge_base,
+            init_stats_and_state,
+        )
+
+        # Basic configuration
         self.config = config or UnifiedEngineConfig()
         self.logger = LOG
         self.debug = self.config.debug
@@ -159,87 +202,476 @@ class UnifiedBypassEngine:
 
         # Initialize the new unified strategy loader
         self.strategy_loader = UnifiedStrategyLoader(debug=self.config.debug)
+        self._validator = StrategyResultValidator(logger=self.logger)
+
+        # Проверяем наличие curl при старте
+        self._curl_available = self._verify_curl_http2_support_at_startup()
 
         # Initialize underlying low-level engine
         engine_config = EngineConfig(debug=self.config.debug)
         self.engine = WindowsBypassEngine(engine_config)
 
-        # --- Migrated from HybridEngine.__init__ ---
-        self.modern_bypass_enabled = (
-            enable_modern_bypass and MODERN_BYPASS_ENGINE_AVAILABLE
+        # Target domain for discovery isolation (best-effort, set automatically)
+        self._target_domain: Optional[str] = None
+
+        # Initialize modern bypass components
+        modern_components = init_modern_bypass_components(
+            enable_modern_bypass, verbosity, self.debug, self.logger
         )
-        if self.modern_bypass_enabled:
-            try:
-                self.attack_registry = AttackRegistry()
-                self.pool_manager = StrategyPoolManager()
-                self.mode_controller = ModeController()
-                self.reliability_validator = ReliabilityValidator()
-                self.multi_port_handler = MultiPortHandler()
-                self.logger.info(
-                    "Modern bypass engine components initialized successfully"
-                )
-            except Exception as e:
-                self.logger.error(f"Failed to initialize modern bypass engine: {e}")
-                self.modern_bypass_enabled = False
-        else:
-            self.attack_registry = None
-            self.pool_manager = None
-            self.mode_controller = None
-            self.reliability_validator = None
-            self.multi_port_handler = None
+        self.modern_bypass_enabled = modern_components.enabled
+        self.attack_registry = modern_components.attack_registry
+        self.pool_manager = modern_components.pool_manager
+        self.mode_controller = modern_components.mode_controller
+        self.reliability_validator = modern_components.reliability_validator
+        self.multi_port_handler = modern_components.multi_port_handler
 
-        self.advanced_fingerprinting_enabled = (
-            enable_advanced_fingerprinting and ADVANCED_FINGERPRINTING_AVAILABLE
+        # Initialize advanced fingerprinting
+        fingerprint_components = init_advanced_fingerprinting(
+            enable_advanced_fingerprinting, self.logger
         )
-        if self.advanced_fingerprinting_enabled:
-            try:
-                fingerprint_config = FingerprintingConfig(
-                    cache_ttl=3600,
-                    enable_ml=True,
-                    enable_cache=True,
-                    timeout=15.0,
-                    fallback_on_error=True,
-                )
-                self.advanced_fingerprinter = AdvancedFingerprinter(
-                    config=fingerprint_config
-                )
-                self.logger.info("Advanced fingerprinting initialized successfully")
-            except Exception as e:
-                self.logger.error(f"Failed to initialize advanced fingerprinting: {e}")
-                self.advanced_fingerprinting_enabled = False
-                self.advanced_fingerprinter = None
-        else:
-            self.advanced_fingerprinter = None
+        self.advanced_fingerprinting_enabled = fingerprint_components.enabled
+        self.advanced_fingerprinter = fingerprint_components.fingerprinter
 
-        self.fingerprint_stats = defaultdict(int)
-        self.bypass_stats = defaultdict(int)
-        self.knowledge_base = CdnAsnKnowledgeBase() if CdnAsnKnowledgeBase else None
+        # Initialize knowledge base
+        self.knowledge_base = init_knowledge_base()
 
+        # Initialize stats and state
+        (
+            self.fingerprint_stats,
+            self.bypass_stats,
+            self._strategy_applications,
+            self._forced_override_count,
+        ) = init_stats_and_state()
+
+        # Initialize runtime state
         self._start_time = None
+        self._start_time_mono: Optional[float] = None
         self._running = False
         self._lock = threading.Lock()
-
-        # FIX: Initialize missing attributes
-        self._strategy_applications = {}
-        self._forced_override_count = 0
-        self._last_test_port = None  # ✅ FIX: For PCAP analysis tracking
-
-        self.logger.info("🚀 UnifiedBypassEngine (Orchestrator) initialized.")
-        
-        # Runtime filtering state - shared between testing and service modes
+        self._last_test_port = None
         self._runtime_filtering_enabled = False
         self._runtime_filter_config = None
-        
-        # Task 15: Verify curl HTTP/2 support at startup
-        self._verify_curl_http2_support_at_startup()
 
-    def _ensure_engine_task(
-        self, strategy: Union[str, Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+        # Initialize cache and validation
+        (
+            self._accessibility_cache,
+            self._cache_lock,
+            self._cache_ttl,
+            self._curl_command_validator,
+        ) = init_cache_and_validation(self.logger, CurlCommandValidator)
+
+        # Initialize monitoring and diagnostics
+        (
+            self._metrics_collector,
+            self._diagnostics,
+            self._logging_config,
+            self._accessibility_logger,
+        ) = init_monitoring_components(verbosity, self.logger)
+
+        self.logger.info("🚀 UnifiedBypassEngine (Orchestrator) initialized.")
+
+    @contextmanager
+    def _engine_session(
+        self,
+        *,
+        target_ips: Set[str],
+        strategy_map: Dict[str, Any],
+        strategy_override: Optional[Dict[str, Any]],
+        reset_telemetry: bool,
+        join_timeout: float = 1.0,
+    ):
+        """
+        Internal context manager to ensure consistent engine lifecycle:
+        start -> (user work) -> stop -> best-effort join.
+
+        Does not change any public interfaces, only removes duplicated/buggy patterns.
+        """
+        thread = None
+        try:
+            thread = self.engine.start(
+                target_ips=target_ips,
+                strategy_map=strategy_map,
+                strategy_override=strategy_override,
+                reset_telemetry=reset_telemetry,
+            )
+            yield thread
+        finally:
+            try:
+                self.engine.stop()
+            except (RuntimeError, AttributeError) as e:
+                self.logger.debug(f"Engine stop error (expected during cleanup): {e}")
+            except Exception as e:
+                self.logger.warning(f"Unexpected error stopping engine: {e}")
+            if thread is not None:
+                try:
+                    if hasattr(thread, "is_alive") and thread.is_alive():
+                        thread.join(timeout=float(join_timeout))
+                except (RuntimeError, ValueError) as e:
+                    self.logger.debug(f"Thread join error (expected): {e}")
+                except Exception as e:
+                    self.logger.warning(f"Unexpected error joining thread: {e}")
+
+    def _standardize_timing_fields(self, result: Dict[str, Any], start_mono: float) -> None:
+        """
+        Ensure common timing keys exist across different testing paths.
+
+        Delegates to core.unified.result_normalizers.standardize_timing_fields.
+        This wrapper maintains the method interface for backward compatibility.
+        """
+        from core.unified.result_normalizers import standardize_timing_fields
+
+        standardize_timing_fields(result, start_mono)
+
+    def _standardize_http_fields(
+        self,
+        result: Dict[str, Any],
+        *,
+        http_code_raw: Any,
+        http_code: int,
+    ) -> None:
+        """
+        Ensure common HTTP keys exist across different testing paths.
+
+        Delegates to core.unified.result_normalizers.standardize_http_fields.
+        This wrapper maintains the method interface for backward compatibility.
+        """
+        from core.unified.result_normalizers import standardize_http_fields
+
+        standardize_http_fields(result, http_code_raw=http_code_raw, http_code=http_code)
+
+    def _coerce_http_code(self, http_code_raw: Any) -> Tuple[int, str]:
+        """
+        Convert raw http code from different sources (curl/tls-client/etc) into:
+          (code_int, code_str)
+
+        Delegates to core.unified.result_normalizers.coerce_http_code.
+        This wrapper maintains the method interface for backward compatibility.
+        """
+        from core.unified.result_normalizers import coerce_http_code
+
+        return coerce_http_code(http_code_raw)
+
+    @dataclass
+    class _CurlTransportResult:
+        """
+        Internal normalized curl subprocess result.
+        Additive utility: does not affect public interfaces.
+        """
+
+        cmd: List[str]
+        returncode: int
+        stdout: str
+        stderr: str
+        http_code_raw: str
+        http_code_int: int
+        http_success: bool
+        ok: bool
+        error: Optional[str] = None
+        method: str = "curl_subprocess"
+
+    def _run_curl_subprocess(
+        self,
+        cmd: List[str],
+        *,
+        timeout: float,
+        validate: Optional[callable] = None,
+        validation_any: bool = False,
+    ) -> "_CurlTransportResult":
+        """
+        Internal: run curl command and normalize output.
+        - Always enforces timeout.
+        - Always parses http_code from stdout (curl -w "%{http_code}" pattern).
+        - Does not decide DPI-bypass success beyond basic HTTP-code validity.
+        """
+        if validate:
+            ok, reason = (
+                validate(cmd)
+                if not validation_any
+                else self._curl_command_validator.validate_curl_command_any(cmd)
+            )
+            if not ok:
+                return self._CurlTransportResult(
+                    cmd=cmd,
+                    returncode=-1,
+                    stdout="",
+                    stderr="",
+                    http_code_raw="",
+                    http_code_int=0,
+                    http_success=False,
+                    ok=False,
+                    error=f"curl command validation failed: {reason}",
+                )
+
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=float(timeout) + 2.0)
+        except subprocess.TimeoutExpired:
+            return self._CurlTransportResult(
+                cmd=cmd,
+                returncode=-2,
+                stdout="",
+                stderr=f"curl timeout after {timeout}s",
+                http_code_raw="",
+                http_code_int=0,
+                http_success=False,
+                ok=False,
+                error=f"curl timeout after {timeout}s",
+            )
+        except FileNotFoundError:
+            return self._CurlTransportResult(
+                cmd=cmd,
+                returncode=-3,
+                stdout="",
+                stderr="curl not found",
+                http_code_raw="",
+                http_code_int=0,
+                http_success=False,
+                ok=False,
+                error="curl not found",
+            )
+        except (OSError, PermissionError) as e:
+            return self._CurlTransportResult(
+                cmd=cmd,
+                returncode=-4,
+                stdout="",
+                stderr=f"OS error: {e}",
+                http_code_raw="",
+                http_code_int=0,
+                http_success=False,
+                ok=False,
+                error=f"curl OS error: {e}",
+            )
+        except Exception as e:
+            self.logger.warning(f"Unexpected curl subprocess error: {e}")
+            return self._CurlTransportResult(
+                cmd=cmd,
+                returncode=-5,
+                stdout="",
+                stderr=str(e),
+                http_code_raw="",
+                http_code_int=0,
+                http_success=False,
+                ok=False,
+                error=f"curl unexpected error: {e}",
+            )
+
+        stdout = res.stdout or ""
+        stderr = res.stderr or ""
+        raw = stdout.strip()
+        code_int, code_str = self._coerce_http_code(raw)
+        http_success = bool(100 <= code_int < 600)
+        ok = (res.returncode == 0) and http_success
+
+        return self._CurlTransportResult(
+            cmd=cmd,
+            returncode=int(getattr(res, "returncode", -1)),
+            stdout=stdout,
+            stderr=stderr,
+            http_code_raw=code_str,
+            http_code_int=code_int,
+            http_success=http_success,
+            ok=ok,
+            error=(
+                None
+                if ok
+                else (stderr.strip() or ("Invalid/Empty Status Code" if raw else "Curl failed"))
+            ),
+        )
+
+    def _apply_http_tls_policy(
+        self,
+        *,
+        validation: Any,
+        http_success: bool,
+        http_code: int,
+        tls_ok: bool,
+        tls_evidence: Optional[str],
+        tls_counts_as_success: bool,
+        warn_prefix: str = "",
+    ) -> Tuple[Any, bool]:
+        """
+        Unified decision logic:
+          - If TLS ok and HTTP fails: can become TLS_ONLY_PARTIAL (if tls_counts_as_success)
+          - If TLS ok and HTTP ok: TLS_HANDSHAKE_SUCCESS
+          - If HTTP ok and no TLS evidence: HTTP_ONLY_SUCCESS (low confidence)
+          - Else: fail
+
+        Returns (validation, final_success)
+        """
+        try:
+            if tls_ok:
+                if http_success:
+                    try:
+                        validation.success = True
+                        validation.status = "TLS_HANDSHAKE_SUCCESS"
+                        validation.error = None
+                        validation.confidence = max(
+                            float(getattr(validation, "confidence", 0.0)), 0.8
+                        )
+                        validation.reasoning = f"TLS evidence + HTTP success. Evidence: {tls_evidence}. HTTP code: {http_code}."
+                    except Exception:
+                        pass
+                    return validation, True
+
+                # TLS ok but HTTP fail
+                if tls_counts_as_success:
+                    try:
+                        validation.success = True
+                        validation.status = self.STATUS_TLS_ONLY_PARTIAL
+                        validation.error = None
+                        validation.confidence = max(
+                            float(getattr(validation, "confidence", 0.0)), 0.6
+                        )
+                        validation.reasoning = f"TLS evidence detected - DPI bypass likely succeeded. Evidence: {tls_evidence}. HTTP code: {http_code}."
+                    except Exception:
+                        pass
+                    return validation, True
+
+                # TLS ok but does not count as success (policy disabled)
+                return validation, bool(http_success)
+
+            # No TLS evidence
+            if http_success:
+                # Count as success but lower confidence
+                try:
+                    if not getattr(validation, "success", False):
+                        validation.success = True
+                    validation.status = getattr(validation, "status", None) or "HTTP_ONLY_SUCCESS"
+                    validation.confidence = max(float(getattr(validation, "confidence", 0.0)), 0.5)
+                except Exception:
+                    pass
+                if warn_prefix:
+                    self.logger.warning(
+                        "%sHTTP success (%s) but no TLS evidence - bypass may not have been applied",
+                        warn_prefix,
+                        http_code,
+                    )
+                return validation, True
+
+            # Neither HTTP nor TLS
+            try:
+                validation.success = False
+            except Exception:
+                pass
+            return validation, False
+        except Exception:
+            # safest fallback: follow HTTP
+            return validation, bool(http_success)
+
+    def _derive_final_status(
+        self,
+        *,
+        validation_status: Optional[str],
+        validation_success: bool,
+        total_sites: int,
+        successful_count: int,
+        http_success: bool,
+        tls_ok: bool,
+    ) -> str:
+        """
+        Unified final status selection for multi-site test paths.
+        Additive: uses existing strings (no breaking changes).
+        """
+        # If validator says failure -> report its status verbatim if available
+        if not validation_success:
+            return validation_status or self.STATUS_VALIDATION_FAILED
+
+        if total_sites > 0 and successful_count >= total_sites:
+            return self.STATUS_ALL_SITES_WORKING
+
+        # Preserve TLS-only partial signal when enabled by policy
+        if (not http_success) and tls_ok and self._tls_partial_success_enabled():
+            return self.STATUS_TLS_ONLY_PARTIAL
+
+        if successful_count > 0:
+            return self.STATUS_PARTIAL_SUCCESS
+
+        # Degenerate case: no sites succeeded but validator allowed success
+        return validation_status or self.STATUS_PARTIAL_SUCCESS
+
+    def _attach_test_details_to_telemetry(
+        self,
+        telemetry: Dict[str, Any],
+        *,
+        context: str,
+        details: Dict[str, Any],
+    ) -> None:
+        """
+        Additive: attaches structured test details into telemetry without changing
+        any public return interfaces.
+        """
+        try:
+            if not isinstance(telemetry, dict):
+                return
+            root = telemetry.setdefault("unified_engine_test_details", {})
+            ctx = root.setdefault(str(context), {})
+            # merge (do not drop existing keys)
+            for k, v in (details or {}).items():
+                if k not in ctx:
+                    ctx[k] = v
+        except Exception:
+            pass
+
+    def _log_decision_trace(
+        self,
+        *,
+        context: str,
+        http_success: bool,
+        http_code: int,
+        http_code_raw: Optional[str],
+        tls_ok: bool,
+        tls_evidence: Optional[Any],
+        tls_policy_enabled: bool,
+        validation_success: bool,
+        validation_status: Optional[str],
+        final_success: bool,
+        extra: Optional[Dict[str, Any]] = None,
+        level: str = "warning",
+    ) -> None:
+        """
+        Compressed, uniform decision trace logging for Observ/Style.
+        Best-effort: must never throw.
+        """
+        try:
+            payload = {
+                "ctx": context,
+                "http_ok": bool(http_success),
+                "http_code": int(http_code or 0),
+                "http_raw": (http_code_raw or ""),
+                "tls_ok": bool(tls_ok),
+                "tls_policy": bool(tls_policy_enabled),
+                "validation_ok": bool(validation_success),
+                "validation_status": validation_status,
+                "final_success": bool(final_success),
+            }
+            if extra:
+                payload.update(extra)
+
+            msg = (
+                "DECISION_TRACE "
+                f"ctx={payload.get('ctx')} "
+                f"http_ok={payload.get('http_ok')} "
+                f"http_code={payload.get('http_code')} "
+                f"tls_ok={payload.get('tls_ok')} "
+                f"tls_policy={payload.get('tls_policy')} "
+                f"validation_ok={payload.get('validation_ok')} "
+                f"validation_status={payload.get('validation_status')} "
+                f"final_success={payload.get('final_success')}"
+            )
+
+            log_fn = getattr(self.logger, level, None) or self.logger.warning
+            log_fn(msg)
+            # Put evidence/details into debug to avoid noise
+            self.logger.debug("DECISION_TRACE_DETAILS %r", payload)
+            if tls_evidence is not None:
+                self.logger.debug("DECISION_TRACE_TLS_EVIDENCE %r", tls_evidence)
+        except Exception:
+            pass
+
+    def _ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """
         REFACTORED: Uses the new UnifiedStrategyLoader for parsing and normalization.
         This is now the single source of truth for strategy processing.
-        
+
         Task 11: Integrates ComboAttackBuilder to build attack recipes (Requirements 2.1, 2.5, 2.6)
         """
         try:
@@ -252,28 +684,28 @@ class UnifiedBypassEngine:
 
             # КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Применяем совместимость с тестовым режимом
             engine_task = self._ensure_testing_mode_compatibility(engine_task)
-            
+
             # Task 11: Build attack recipe using ComboAttackBuilder (Requirements 2.1, 2.5, 2.6)
             try:
                 from core.strategy.combo_builder import ComboAttackBuilder
-                
+
                 attacks = normalized_strategy.attacks
-                params = engine_task.get('params', {})
-                
+                params = engine_task.get("params", {})
+
                 if attacks and len(attacks) > 0:
                     # Build recipe to validate compatibility and get proper ordering
                     builder = ComboAttackBuilder()
                     recipe = builder.build_recipe(attacks, params)
-                    
+
                     # Add recipe to engine task for use by attack dispatcher
-                    engine_task['recipe'] = recipe
-                    
+                    engine_task["recipe"] = recipe
+
                     self.logger.debug(
                         f"✅ Built attack recipe: {' → '.join(s.attack_type for s in recipe.steps)}"
                     )
                 else:
-                    self.logger.warning(f"No attacks in strategy, skipping recipe build")
-                    
+                    self.logger.warning("No attacks in strategy, skipping recipe build")
+
             except ValueError as e:
                 # Incompatible combination detected (Requirement 2.6)
                 self.logger.error(f"❌ Incompatible attack combination: {e}")
@@ -283,16 +715,16 @@ class UnifiedBypassEngine:
                 # ComboAttackBuilder not available - continue without recipe
                 self.logger.warning("ComboAttackBuilder not available, continuing without recipe")
             except Exception as e:
-                self.logger.warning(f"Failed to build attack recipe: {e}, continuing without recipe")
+                self.logger.warning(
+                    f"Failed to build attack recipe: {e}, continuing without recipe"
+                )
 
             return engine_task
         except (StrategyLoadError, StrategyValidationError) as e:
             self.logger.error(f"Failed to process strategy: '{strategy}'. Error: {e}")
             return None
         except Exception as e:
-            self.logger.error(
-                f"Unexpected error processing strategy: '{strategy}'. Error: {e}"
-            )
+            self.logger.error(f"Unexpected error processing strategy: '{strategy}'. Error: {e}")
             return None
 
     def _task_to_str(self, task: Dict[str, Any]) -> str:
@@ -320,6 +752,57 @@ class UnifiedBypassEngine:
             )
         )
 
+    def _tls_partial_success_enabled(self) -> bool:
+        """
+        Enable TLS-only partial success mode via:
+          1) config flag UnifiedEngineConfig.tls_partial_success
+          2) env var BYPASS_TLS_PARTIAL_SUCCESS=1/true/yes/on
+        """
+        try:
+            import os
+
+            env = os.getenv("BYPASS_TLS_PARTIAL_SUCCESS", "").strip().lower()
+            if env in ("1", "true", "yes", "on"):
+                return True
+        except Exception:
+            pass
+        return bool(getattr(self.config, "tls_partial_success", False))
+
+    def _detect_tls_handshake_success(
+        self, telemetry: Dict[str, Any], target_ip: str
+    ) -> Tuple[bool, str]:
+        """
+        Best-effort TLS handshake success detection from engine telemetry.
+        Returns (tls_ok, evidence).
+        """
+        try:
+            # Global counters (depending on telemetry format)
+            serverhellos = telemetry.get("serverhellos", telemetry.get("server_hellos", 0)) or 0
+            clienthellos = telemetry.get("clienthellos", telemetry.get("client_hellos", 0)) or 0
+
+            per = (
+                (telemetry.get("per_target") or {}).get(target_ip)
+                if isinstance(telemetry.get("per_target"), dict)
+                else None
+            )
+            last_outcome = per.get("last_outcome") if isinstance(per, dict) else None
+
+            if last_outcome == "ok":
+                return True, f"per_target[{target_ip}].last_outcome=ok"
+
+            if serverhellos > 0 and clienthellos > 0:
+                return True, f"serverhellos={serverhellos}, clienthellos={clienthellos}"
+
+            if serverhellos > 0:
+                return True, f"serverhellos={serverhellos}"
+
+            return (
+                False,
+                f"serverhellos={serverhellos}, clienthellos={clienthellos}, last_outcome={last_outcome}",
+            )
+        except Exception as e:
+            return False, f"telemetry parse error: {e}"
+
     async def _test_sites_connectivity(
         self,
         sites: List[str],
@@ -334,236 +817,176 @@ class UnifiedBypassEngine:
     ) -> Dict[str, Tuple[str, str, float, int]]:
         """
         Test site connectivity using tls-client with Chrome fingerprint.
-        
-        CRITICAL FIX: Uses tls-client library to generate browser-like ClientHello (~1400 bytes).
-        This ensures testing parity with production where browsers generate large ClientHello.
-        
-        tls-client emulates Chrome's TLS fingerprint including:
-        - All Chrome cipher suites
-        - GREASE extensions
-        - Proper extension ordering
-        - ~1400 byte ClientHello size
         """
         results = {}
         semaphore = asyncio.Semaphore(max_concurrent)
-        
-        # Timeout presets
+
         timeout_presets = {
             "fast": 15.0,
             "balanced": 25.0,
             "slow": 40.0,
         }
-        timeout = total_timeout if total_timeout is not None else timeout_presets.get(timeout_profile, 25.0)
-        
-        # Check tls-client availability
+        timeout = (
+            total_timeout
+            if total_timeout is not None
+            else timeout_presets.get(timeout_profile, 25.0)
+        )
+
         tls_client_available = self._check_tls_client_available()
         if not tls_client_available:
-            self.logger.warning("⚠️ tls-client not available, falling back to aiohttp (may cause false negatives due to small ClientHello)")
+            self.logger.warning("⚠️ tls-client not available, falling back to aiohttp")
             return await self._test_sites_connectivity_aiohttp(
-                sites, dns_cache, max_concurrent, retries, backoff_base,
-                timeout_profile, connect_timeout, sock_read_timeout, total_timeout
+                sites,
+                dns_cache,
+                max_concurrent,
+                retries,
+                backoff_base,
+                timeout_profile,
+                connect_timeout,
+                sock_read_timeout,
+                total_timeout,
             )
-        
+
         async def test_site_with_tls_client(site: str) -> Tuple[str, Tuple[str, str, float, int]]:
-            """Test a single site using tls-client with Chrome fingerprint."""
             async with semaphore:
                 hostname = urlparse(site).hostname or site
                 ip_used = dns_cache.get(hostname, "N/A")
-                
+
                 if ip_used == "N/A":
-                    self.logger.warning(f"No IP found for {hostname} in DNS cache")
                     return (site, ("ERROR", "N/A", 0.0, 0))
-                
+
                 attempt = 0
                 while True:
                     start_time = time.time()
-                    
                     try:
-                        # Run tls-client request in executor (it's synchronous)
                         loop = asyncio.get_running_loop()
                         result = await loop.run_in_executor(
-                            None,
-                            lambda: self._tls_client_request(hostname, ip_used, timeout)
+                            None, lambda: self._tls_client_request(hostname, ip_used, timeout)
                         )
-                        
                         latency = (time.time() - start_time) * 1000
-                        
+
                         if result["success"]:
                             http_code = result.get("status_code", 200)
-                            self.logger.info(f"✅ {hostname}: HTTP {http_code} ({latency:.1f}ms) [tls-client Chrome]")
+                            self.logger.info(
+                                f"✅ {hostname}: HTTP {http_code} ({latency:.1f}ms) [tls-client]"
+                            )
                             return (site, ("WORKING", ip_used, latency, http_code))
-                        
-                        # Check error type
+
                         error = result.get("error", "").lower()
-                        if "connection reset" in error or "reset by peer" in error:
-                            self.logger.warning(f"❌ {hostname}: Connection reset (RST)")
-                            return (site, ("RST", ip_used, latency, 0))
-                        
-                        if "timeout" in error or "timed out" in error:
-                            if attempt < retries:
-                                delay = backoff_base * (2**attempt) + random.uniform(0.0, 0.2)
-                                self.logger.info(f"⏳ Retrying {hostname} after {delay:.2f}s")
-                                await asyncio.sleep(delay)
-                                attempt += 1
-                                continue
-                            self.logger.warning(f"❌ {hostname}: Timeout")
-                            return (site, ("TIMEOUT", ip_used, latency, 0))
-                        
-                        if "could not resolve" in error or "dns" in error:
-                            self.logger.warning(f"❌ {hostname}: DNS resolution failed")
-                            return (site, ("ERROR", ip_used, latency, 0))
-                        
-                        # Other error - retry if possible
-                        if attempt < retries:
+                        # Treat all errors as DPI blocks initially
+                        if attempt < retries and "timeout" in error:
                             delay = backoff_base * (2**attempt) + random.uniform(0.0, 0.2)
-                            self.logger.info(f"⏳ Retrying {hostname} after {delay:.2f}s (error: {error})")
                             await asyncio.sleep(delay)
                             attempt += 1
                             continue
-                        
-                        self.logger.warning(f"❌ {hostname}: Error - {error}")
+
                         return (site, ("ERROR", ip_used, latency, 0))
-                        
-                    except Exception as e:
+
+                    except Exception:
                         latency = (time.time() - start_time) * 1000
-                        self.logger.debug(f"❌ {hostname}: Exception - {e}")
-                        if attempt < retries:
-                            delay = backoff_base * (2**attempt) + random.uniform(0.0, 0.2)
-                            await asyncio.sleep(delay)
-                            attempt += 1
-                            continue
                         return (site, ("ERROR", ip_used, latency, 0))
-        
-        # Test all sites concurrently
+
         tasks = [test_site_with_tls_client(site) for site in sites]
         task_results = await asyncio.gather(*tasks)
-        
         for site, result_tuple in task_results:
             results[site] = result_tuple
-        
         return results
-    
+
     def _check_tls_client_available(self) -> bool:
         """Check if tls-client library is available."""
         try:
-            import tls_client
+            import tls_client  # noqa: F401
+
             return True
         except ImportError:
             return False
-    
+
     def _tls_client_request(self, hostname: str, ip: str, timeout: float) -> Dict[str, Any]:
         """
-        Make HTTP request using tls-client with Chrome fingerprint.
-        
-        This generates a browser-like ClientHello (~1400 bytes) which is critical
-        for accurate DPI bypass testing.
-        
-        Args:
-            hostname: Target hostname
-            ip: Target IP address (for DNS override)
-            timeout: Request timeout in seconds
-            
-        Returns:
-            Dict with success, status_code, error fields
+        Strict HTTP request check.
+        Only returns success if a valid HTTP status code is received.
         """
         try:
             import tls_client
-            
-            # Create session with Chrome 120 fingerprint
-            # This generates ~1400 byte ClientHello with all Chrome extensions
+
             session = tls_client.Session(
-                client_identifier="chrome_120",
-                random_tls_extension_order=True
+                client_identifier="chrome_120", random_tls_extension_order=True
             )
-            
-            # Build URL
             url = f"https://{hostname}/"
-            
-            # Make request
-            # Note: tls-client doesn't support --resolve like curl,
-            # but WinDivert intercepts based on IP, so DNS resolution
-            # happens normally and WinDivert catches the packet
+
+            # Request with strict timeout
             response = session.get(
-                url,
-                headers=HEADERS,
-                timeout_seconds=int(timeout),
-                allow_redirects=True
+                url, headers=HEADERS, timeout_seconds=int(timeout), allow_redirects=True
             )
-            
-            return {
-                "success": True,
-                "status_code": response.status_code,
-                "error": None
-            }
-            
+
+            # STRICT VALIDATION: Must have a valid HTTP status code
+            # 403, 404, 500 are considered SUCCESS because it means we bypassed the DPI
+            if response.status_code and 100 <= int(response.status_code) < 600:
+                self.logger.debug(f"HTTP {response.status_code} received from {hostname}")
+                return {"success": True, "status_code": response.status_code, "error": None}
+            else:
+                self.logger.warning(
+                    f"❌ Invalid status code {response.status_code} from {hostname}"
+                )
+                return {"success": False, "status_code": 0, "error": "Invalid/Empty Status Code"}
+
         except Exception as e:
-            error_msg = str(e).lower()
-            return {
-                "success": False,
-                "status_code": 0,
-                "error": str(e)
-            }
-    
+            return {"success": False, "status_code": 0, "error": str(e)}
+
+    def _resolve_curl_executable(self) -> str:
+        """
+        Resolve curl executable path with HTTP/2 support.
+
+        Delegates to core.curl.command_builder.resolve_curl_executable.
+        This wrapper maintains the method interface for backward compatibility.
+
+        Returns:
+            str: Path to curl executable
+        """
+        from core.curl.command_builder import resolve_curl_executable
+
+        return resolve_curl_executable()
+
     def _verify_curl_http2_support_at_startup(self):
         """Verify curl is installed and supports HTTP/2 at engine startup."""
         try:
-            if sys.platform == "win32":
-                local_curl = Path(__file__).parent.parent.parent / "curl.exe"
-                if local_curl.exists():
-                    result = subprocess.run(
-                        [str(local_curl), "--version"],
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
-                    if "HTTP2" in result.stdout:
-                        self.logger.info(f"✅ Local curl.exe with HTTP/2 found: {local_curl}")
-                        return True
-            
-            # Fall back to system curl
-            curl_executable = "curl.exe" if sys.platform == "win32" else "curl"
+            curl_executable = self._resolve_curl_executable()
             result = subprocess.run(
-                [curl_executable, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                [curl_executable, "--version"], capture_output=True, text=True, timeout=5
             )
-            
-            if "HTTP2" in result.stdout:
-                self.logger.info("✅ System curl with HTTP/2 support detected")
+
+            if result.returncode == 0 and "HTTP2" in (result.stdout or ""):
+                self.logger.info(f"✅ curl with HTTP/2 support detected: {curl_executable}")
                 return True
             else:
                 self.logger.error("❌ CRITICAL: curl does not support HTTP/2")
                 return False
-                
+
         except Exception as e:
             self.logger.error(f"❌ Error checking curl: {e}")
             return False
-    
+
     async def _check_curl_http2_support(self) -> bool:
         """Check if curl is available and supports HTTP/2 (async version)."""
         try:
-            curl_executable = "curl.exe" if sys.platform == "win32" else "curl"
-            result = subprocess.run(
-                [curl_executable, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+            curl_executable = self._resolve_curl_executable()
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(
+                None,
+                lambda: subprocess.run(
+                    [curl_executable, "--version"], capture_output=True, text=True, timeout=5
+                ),
             )
-            return "HTTP2" in result.stdout
+            return result.returncode == 0 and "HTTP2" in (result.stdout or "")
         except Exception:
             return False
-    
+
     def _is_rst_error_from_stderr(self, stderr: str) -> bool:
         """Check if stderr indicates RST packet."""
-        rst_indicators = [
-            "connection reset",
-            "reset by peer",
-            "broken pipe",
-            "connection aborted"
-        ]
-        return any(indicator in stderr for indicator in rst_indicators)
-    
+        rst_indicators = ("connection reset", "reset by peer", "broken pipe", "connection aborted")
+        s = (stderr or "").lower()
+        return any(indicator in s for indicator in rst_indicators)
+
     async def _test_sites_connectivity_aiohttp(
         self,
         sites: List[str],
@@ -578,7 +1001,7 @@ class UnifiedBypassEngine:
     ) -> Dict[str, Tuple[str, str, float, int]]:
         """
         Fallback: Test site connectivity using aiohttp (legacy method).
-        
+
         WARNING: This generates small ClientHello (~517 bytes) which may cause
         false negatives with DPI that blocks small ClientHello packets.
         """
@@ -672,9 +1095,7 @@ class UnifiedBypassEngine:
                         if self._is_rst_error(e):
                             return (site, ("RST", ip_used, latency, 0))
                         if attempt < retries:
-                            delay = backoff_base * (2**attempt) + random.uniform(
-                                0.0, 0.2
-                            )
+                            delay = backoff_base * (2**attempt) + random.uniform(0.0, 0.2)
                             await asyncio.sleep(delay)
                             attempt += 1
                             continue
@@ -714,20 +1135,67 @@ class UnifiedBypassEngine:
     ) -> Dict[str, Tuple[str, str, float, int]]:
         """
         Проверяет базовую доступность сайтов без обхода (baseline).
-        
+
         Отправляет TLS ClientHello, чтобы спровоцировать DPI и зафиксировать,
         как он ведёт себя без стратегий обхода.
-        
+
         Использует тот же механизм _test_sites_connectivity, что и стратегии,
         но без запуска движка обхода.
-        
+
         Returns:
             mapping site -> (status, ip_used, latency_ms, http_code)
         """
         self.logger.info("Testing baseline connectivity with DNS cache (no bypass)...")
         return await self._test_sites_connectivity(test_sites, dns_cache)
-    
 
+    async def _perform_reliable_check(
+        self, url: str, target_ip: str, timeout: float
+    ) -> Tuple[bool, int, str]:
+        """
+        Выполняет проверку соединения, гарантируя использование target_ip.
+        Использует curl --resolve для предотвращения DNS утечек.
+        """
+        parsed = urlparse(url)
+        domain = parsed.hostname
+        port = parsed.port or 443
+
+        if not domain:
+            return False, 0, f"Invalid URL (no hostname): {url}"
+
+        if not self._curl_available:
+            # Fallback на aiohttp с кастомным резолвером (менее надежно для TLS fingerprint)
+            return await self._perform_aiohttp_check(url, target_ip, timeout)
+
+        # Используем централизованный builder, чтобы URL всегда был последним
+        # (иначе curl_validators.validate_url_parameter() провалится).
+        cmd = self._build_resolve_curl_command(
+            target_ip=target_ip,
+            domain=domain,
+            timeout=timeout,
+            url=url,
+            include_ciphers=False,
+            tlsv1_2=False,
+            enhanced_headers=False,
+        )
+
+        try:
+            # Запускаем в executor, чтобы не блокировать loop
+            loop = asyncio.get_running_loop()
+            transport = await loop.run_in_executor(
+                None,
+                lambda: self._run_curl_subprocess(
+                    cmd,
+                    timeout=float(timeout) + 5.0,
+                    validate=self._curl_command_validator.validate_curl_command,
+                ),
+            )
+
+            if transport.http_success:
+                return True, int(transport.http_code_int), "OK"
+            return False, 0, transport.error or (transport.stderr or "Curl failed")
+
+        except Exception as e:
+            return False, 0, str(e)
 
     async def execute_strategy_real_world(
         self,
@@ -744,142 +1212,188 @@ class UnifiedBypassEngine:
         enable_online_optimization: bool = False,
         engine_override: Optional[str] = None,
         strategy_id: Optional[str] = None,
-    ) -> Union[Tuple[str, int, int, float], Tuple[str, int, int, float, Dict, Dict]]:
-        """
-        Execute a strategy in real-world conditions and test connectivity.
-        
-        CRITICAL: This method uses tls-client library with Chrome fingerprint
-        for all connectivity tests to ensure browser-like ClientHello packets
-        (~500-600 bytes) are generated. This prevents false negatives in strategy
-        testing where DPI blocks small ClientHello from Python SSL (~277 bytes).
-        
-        The method:
-        1. Starts the bypass engine with the strategy
-        2. Tests connectivity using tls-client (via _test_sites_connectivity)
-        3. Returns success rate and telemetry
-        
-        Requirements: 11.1, 11.4, 11.5, 12.1
-        
-        Args:
-            strategy: Strategy configuration (string or dict)
-            test_sites: List of sites to test
-            target_ips: Set of target IP addresses
-            dns_cache: DNS resolution cache
-            target_port: Target port (default 443)
-            initial_ttl: Initial TTL value
-            fingerprint: Optional DPI fingerprint
-            return_details: Whether to return detailed results
-            prefer_retry_on_timeout: Whether to retry on timeout
-            warmup_ms: Warmup delay in milliseconds
-            enable_online_optimization: Enable online optimization
-            engine_override: Optional engine override
-            strategy_id: Strategy ID for operation logging (Task 11.4)
-            
-        Returns:
-            Tuple of (status, successful_count, total_count, avg_latency)
-            or with details: (status, successful_count, total_count, avg_latency, results, telemetry)
-        """
+    ) -> Any:
 
-        # REFACTORED: Use the new unified parsing method
+        # 1. Подготовка стратегии (как раньше)
         engine_task = self._ensure_engine_task(strategy)
-        
-        # Task 11.4: Add strategy_id to engine_task for operation logging
-        if strategy_id and engine_task:
-            engine_task['_strategy_id'] = strategy_id
         if not engine_task:
-            self.logger.error(
-                f"Could not translate strategy to a valid engine task: {strategy}"
-            )
-            if return_details:
-                return ("TRANSLATION_FAILED", 0, len(test_sites), 0.0, {}, {})
-            return ("TRANSLATION_FAILED", 0, len(test_sites), 0.0)
-
-        # The low-level engine is now an internal detail
-        bypass_engine = self.engine
-
-        strategy_map = {"default": engine_task}
-        bypass_thread = None
-        try:
-            # The unified loader ensures the task has forced override flags,
-            # so we can use the strategy_override path for consistent behavior.
-            bypass_thread = bypass_engine.start(
-                target_ips=target_ips,
-                strategy_map=strategy_map,
-                strategy_override=engine_task,
-            )
-        except Exception as e:
-            self.logger.error(f"Engine failed to start: {e}", exc_info=self.debug)
-            if return_details:
-                return ("ENGINE_START_FAILED", 0, len(test_sites), 0.0, {}, {})
-            return ("ENGINE_START_FAILED", 0, len(test_sites), 0.0)
-
-        try:
-            # ИСПРАВЛЕНИЕ: Wait for WinDivert to fully initialize before testing
-            # Without this delay, curl may start before WinDivert is ready to intercept packets
-            warmup_delay = warmup_ms / 1000.0 if warmup_ms is not None else 3.0  # Увеличено с 2.0 до 3.0
-            self.logger.info(f"⏳ Waiting {warmup_delay}s for WinDivert initialization...")
-            await asyncio.sleep(warmup_delay)
-            self.logger.info("✅ WinDivert ready, starting connectivity tests")
-
-            results = await self._test_sites_connectivity(
-                test_sites, dns_cache, retries=(2 if prefer_retry_on_timeout else 0)
+            if not return_details:
+                return (self.STATUS_TRANSLATION_FAILED, 0, len(test_sites), 0.0)
+            # Keep return shape consistent with success-path when return_details=True
+            empty_results = {
+                site: (self.STATUS_TRANSLATION_FAILED, "N/A", 0.0, 0) for site in (test_sites or [])
+            }
+            return (
+                self.STATUS_TRANSLATION_FAILED,
+                0,
+                len(test_sites or []),
+                0.0,
+                empty_results,
+                {},
             )
 
-            successful_count = sum(
-                1 for status, _, _, _ in results.values() if status == "WORKING"
-            )
-            successful_latencies = [
-                latency
-                for status, _, latency, _ in results.values()
-                if status == "WORKING"
-            ]
-            avg_latency = (
-                sum(successful_latencies) / len(successful_latencies)
-                if successful_latencies
-                else 0.0
+        # 2. Запуск движка (унифицированный lifecycle)
+        with self._engine_session(
+            target_ips=target_ips,
+            strategy_map={"default": engine_task},
+            strategy_override=engine_task,
+            reset_telemetry=True,
+            join_timeout=1.0,
+        ):
+            # Warmup
+            await asyncio.sleep(2.0)
+
+            # 3. Тестирование (ИСПРАВЛЕНО)
+            results = {}
+            site_details: Dict[str, Dict[str, Any]] = {}
+            successful_count = 0
+            latencies = []
+
+            for site in test_sites:
+                parsed = urlparse(
+                    site if site.startswith(("http://", "https://")) else f"https://{site}"
+                )
+                domain = parsed.hostname or site
+                # Берем IP из кэша или target_ips (если один)
+                target_ip = dns_cache.get(domain)
+                if not target_ip and len(target_ips) == 1:
+                    target_ip = list(target_ips)[0]
+
+                if not target_ip:
+                    results[site] = (self.SITE_DNS_ERROR, "N/A", 0.0, 0)
+                    site_details[site] = {
+                        "site": site,
+                        "domain": domain,
+                        "ip": None,
+                        "error": "DNS_ERROR",
+                    }
+                    continue
+
+                start_t = time.time()
+                # Используем надежный чек через curl --resolve
+                success, code, err = await self._perform_reliable_check(site, target_ip, 15.0)
+                latency = (time.time() - start_t) * 1000
+
+                if success:
+                    results[site] = (self.SITE_WORKING, target_ip, latency, int(code or 0))
+                    successful_count += 1
+                    latencies.append(latency)
+                else:
+                    results[site] = (self.SITE_ERROR, target_ip, latency, 0)
+
+                site_details[site] = {
+                    "site": site,
+                    "domain": domain,
+                    "ip": target_ip,
+                    "latency_ms": latency,
+                    "http_code": int(code or 0) if success else 0,
+                    "http_success": bool(success),
+                    "error": None if success else (err or "ERROR"),
+                }
+
+            # 4. ВАЛИДАЦИЯ (Используем новый класс)
+            telemetry = self.engine.get_telemetry_snapshot()
+
+            # Определяем общий успех HTTP
+            http_success = successful_count > 0
+            # Берем код первого успешного или 0
+            first_code = next((r[3] for r in results.values() if r[3] > 0), 0)
+
+            strategy_name = self._task_to_str(engine_task)
+
+            # ВЫЗОВ ВАЛИДАТОРА
+            validation = self._validator.validate(
+                http_success=http_success,
+                http_code=first_code,
+                telemetry=telemetry,
+                strategy_name=strategy_name,
             )
 
-            if successful_count == 0:
-                result_status = "NO_SITES_WORKING"
-            elif successful_count == len(test_sites):
-                result_status = "ALL_SITES_WORKING"
-            else:
-                result_status = "PARTIAL_SUCCESS"
+            # TLS evidence via telemetry (optional policy)
+            try:
+                target_ip_for_tls = next(iter(target_ips)) if target_ips else None
+            except Exception:
+                target_ip_for_tls = None
+            tls_ok, tls_evidence = (False, None)
+            if target_ip_for_tls:
+                tls_ok, tls_evidence = self._detect_tls_handshake_success(
+                    telemetry, target_ip_for_tls
+                )
 
-            self.logger.info(
-                f"Test result: {successful_count}/{len(test_sites)} sites working, avg latency: {avg_latency:.1f}ms"
+            validation, final_success = self._apply_http_tls_policy(
+                validation=validation,
+                http_success=bool(http_success),
+                http_code=int(first_code or 0),
+                tls_ok=bool(tls_ok),
+                tls_evidence=tls_evidence,
+                tls_counts_as_success=self._tls_partial_success_enabled(),
+                warn_prefix="[real_world] ",
             )
 
-            telemetry = (
-                bypass_engine.get_telemetry_snapshot()
-                if hasattr(bypass_engine, "get_telemetry_snapshot")
-                else {}
+            # Additive details into telemetry (do not break return shapes)
+            self._attach_test_details_to_telemetry(
+                telemetry,
+                context="real_world",
+                details={
+                    "sites": site_details,
+                    "tls": {
+                        "ok": bool(tls_ok),
+                        "evidence": tls_evidence,
+                        "policy_enabled": bool(self._tls_partial_success_enabled()),
+                        "target_ip": target_ip_for_tls,
+                    },
+                },
             )
+
+            # Uniform decision trace (compressed)
+            self._log_decision_trace(
+                context="real_world",
+                http_success=bool(http_success),
+                http_code=int(first_code or 0),
+                http_code_raw=str(first_code or ""),
+                tls_ok=bool(tls_ok),
+                tls_evidence=tls_evidence,
+                tls_policy_enabled=bool(self._tls_partial_success_enabled()),
+                validation_success=bool(getattr(validation, "success", False)),
+                validation_status=getattr(validation, "status", None),
+                final_success=bool(final_success),
+                extra={
+                    "successful_sites": int(successful_count),
+                    "total_sites": int(len(test_sites or [])),
+                },
+                level="warning",
+            )
+
+            # Apply failure status per site if validator/policy says no
+            if not final_success or not validation.success:
+                successful_count = 0
+                # Обновляем статусы сайтов на причину провала валидации
+                for site in results:
+                    orig = results[site]
+                    results[site] = (validation.status, orig[1], orig[2], 0)
+
+            final_status = self._derive_final_status(
+                validation_status=getattr(validation, "status", None),
+                validation_success=bool(getattr(validation, "success", False))
+                and bool(final_success),
+                total_sites=len(test_sites or []),
+                successful_count=int(successful_count),
+                http_success=bool(http_success),
+                tls_ok=bool(tls_ok),
+            )
+
+            avg_latency = sum(latencies) / len(latencies) if latencies else 0.0
 
             if return_details:
                 return (
-                    result_status,
+                    final_status,
                     successful_count,
                     len(test_sites),
                     avg_latency,
                     results,
                     telemetry,
                 )
-            return (result_status, successful_count, len(test_sites), avg_latency)
-        except Exception as e:
-            self.logger.error(
-                f"Error during real-world testing: {e}", exc_info=self.debug
-            )
-            if return_details:
-                return ("REAL_WORLD_ERROR", 0, len(test_sites), 0.0, {}, {})
-            return ("REAL_WORLD_ERROR", 0, len(test_sites), 0.0)
-        finally:
-            if bypass_engine and bypass_thread:
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(
-                    None,
-                    lambda: (bypass_engine.stop(), bypass_thread.join(timeout=2.0)),
-                )
+            return (final_status, successful_count, len(test_sites), avg_latency)
 
     def start(
         self,
@@ -903,6 +1417,7 @@ class UnifiedBypassEngine:
         with self._lock:
             self._running = True
             self._start_time = time.time()
+            self._start_time_mono = time.monotonic()
 
         self.logger.info(
             f"🚀 Starting UnifiedBypassEngine with {len(target_ips)} targets and {len(strategy_map)} strategies"
@@ -920,9 +1435,11 @@ class UnifiedBypassEngine:
                 self.strategy_loader.validate_strategy(normalized_strategy)
 
                 # Create forced override (CRITICAL)
-                forced_config = self.strategy_loader.create_forced_override(
-                    normalized_strategy
-                )
+                forced_config = self.strategy_loader.create_forced_override(normalized_strategy)
+                forced_config = self._normalize_strategy_dict(forced_config)
+
+                # IMPORTANT: ensure parity with testing-mode processing
+                forced_config = self._ensure_testing_mode_compatibility(forced_config)
 
                 normalized_strategy_map[key] = forced_config
 
@@ -937,33 +1454,26 @@ class UnifiedBypassEngine:
                 continue
 
         # Handle strategy override
-        processed_override = None
-        if strategy_override:
-            try:
-                if isinstance(strategy_override, (str, dict)):
-                    normalized_override = self.strategy_loader.load_strategy(
-                        strategy_override
-                    )
-                    processed_override = self.strategy_loader.create_forced_override(
-                        normalized_override
-                    )
-                    self.logger.info(
-                        f"🔥 Strategy override applied: {normalized_override.type}"
-                    )
-                else:
-                    processed_override = strategy_override
-                    self.logger.info(
-                        f"🔥 Raw strategy override applied: {strategy_override}"
-                    )
-            except Exception as e:
-                self.logger.error(f"❌ Failed to process strategy override: {e}")
-                processed_override = None
+        from core.strategy.strategy_override_processor import validate_and_process_strategy_override
 
-        # Ensure runtime filtering configuration is applied before starting
-        if self._runtime_filtering_enabled and self._runtime_filter_config:
-            self.engine.enable_runtime_filtering(self._runtime_filter_config)
-            self.logger.info("Applied runtime filtering configuration for testing mode")
-        
+        processed_override, success = validate_and_process_strategy_override(
+            self.strategy_loader,
+            strategy_override,
+            self.engine,
+            self._runtime_filtering_enabled,
+            self._runtime_filter_config,
+            self.logger,
+            mode="testing",
+        )
+
+        # Parity: normalize and apply compatibility to override too
+        if isinstance(processed_override, dict):
+            processed_override = self._normalize_strategy_dict(processed_override)
+            processed_override = self._ensure_testing_mode_compatibility(processed_override)
+
+        if not success:
+            self.logger.warning("⚠️ Strategy override or filtering setup had issues")
+
         # Start the underlying engine with processed strategies
         thread = self.engine.start(
             target_ips=target_ips,
@@ -991,29 +1501,27 @@ class UnifiedBypassEngine:
         self.logger.info("🚀 Starting UnifiedBypassEngine in service mode")
 
         # Process strategy override if provided
-        processed_override = None
-        if strategy_override:
-            try:
-                normalized_override = self.strategy_loader.load_strategy(
-                    strategy_override
-                )
-                processed_override = self.strategy_loader.create_forced_override(
-                    normalized_override
-                )
-                self.logger.info(
-                    f"🔥 Service mode strategy override: {normalized_override.type}"
-                )
-            except Exception as e:
-                self.logger.error(f"❌ Failed to process service mode override: {e}")
+        from core.strategy.strategy_override_processor import validate_and_process_strategy_override
 
-        # Ensure runtime filtering configuration is applied before starting
-        if self._runtime_filtering_enabled and self._runtime_filter_config:
-            self.engine.enable_runtime_filtering(self._runtime_filter_config)
-            self.logger.info("Applied runtime filtering configuration for service mode")
-        
-        return self.engine.start_with_config(
-            config, strategy_override=processed_override
+        processed_override, success = validate_and_process_strategy_override(
+            self.strategy_loader,
+            strategy_override,
+            self.engine,
+            self._runtime_filtering_enabled,
+            self._runtime_filter_config,
+            self.logger,
+            mode="service",
         )
+
+        # Parity: normalize + compatibility for service override as well
+        if isinstance(processed_override, dict):
+            processed_override = self._normalize_strategy_dict(processed_override)
+            processed_override = self._ensure_testing_mode_compatibility(processed_override)
+
+        if not success:
+            self.logger.warning("⚠️ Service mode override or filtering setup had issues")
+
+        return self.engine.start_with_config(config, strategy_override=processed_override)
 
     def stop(self):
         """Stop the unified bypass engine."""
@@ -1026,99 +1534,99 @@ class UnifiedBypassEngine:
         # Log final statistics
         if self.config.track_forced_override:
             self._log_final_statistics()
-    
+
     def enable_runtime_filtering(self, filter_config: Optional[Dict[str, Any]] = None) -> bool:
         """
         Enable runtime packet filtering for both testing and service modes.
-        
+
         Args:
             filter_config: Optional filter configuration dict with 'mode' and 'domains'
-            
+
         Returns:
             True if runtime filtering was enabled successfully
         """
         try:
             # Store configuration for consistency across modes
             self._runtime_filter_config = filter_config
-            
+
             # Enable runtime filtering in the underlying engine
             success = self.engine.enable_runtime_filtering(filter_config)
-            
+
             if success:
                 self._runtime_filtering_enabled = True
                 self.logger.info("Runtime filtering enabled for all modes")
             else:
                 self.logger.error("Failed to enable runtime filtering")
-            
+
             return success
-            
+
         except Exception as e:
             self.logger.error(f"Error enabling runtime filtering: {e}")
             return False
-    
+
     def disable_runtime_filtering(self) -> bool:
         """
         Disable runtime packet filtering for both testing and service modes.
-        
+
         Returns:
             True if runtime filtering was disabled successfully
         """
         try:
             # Disable runtime filtering in the underlying engine
             success = self.engine.disable_runtime_filtering()
-            
+
             if success:
                 self._runtime_filtering_enabled = False
                 self._runtime_filter_config = None
                 self.logger.info("Runtime filtering disabled for all modes")
             else:
                 self.logger.error("Failed to disable runtime filtering")
-            
+
             return success
-            
+
         except Exception as e:
             self.logger.error(f"Error disabling runtime filtering: {e}")
             return False
-    
+
     def update_runtime_filter_config(self, filter_config: Dict[str, Any]) -> bool:
         """
         Update runtime filter configuration for both testing and service modes.
-        
+
         Args:
             filter_config: Filter configuration dict with 'mode' and 'domains'
-            
+
         Returns:
             True if configuration was updated successfully
         """
         try:
             # Store configuration for consistency
             self._runtime_filter_config = filter_config
-            
+
             # Update configuration in the underlying engine
             success = self.engine.update_runtime_filter_config(filter_config)
-            
+
             if success:
                 self.logger.info("Runtime filter configuration updated for all modes")
             else:
                 self.logger.error("Failed to update runtime filter configuration")
-            
+
             return success
-            
+
         except Exception as e:
             self.logger.error(f"Error updating runtime filter configuration: {e}")
             return False
-    
+
     def get_runtime_filtering_status(self) -> Dict[str, Any]:
         """
         Get current runtime filtering status and configuration.
-        
+
         Returns:
             Dictionary with runtime filtering status information
         """
         return {
-            'enabled': self._runtime_filtering_enabled,
-            'config': self._runtime_filter_config,
-            'engine_stats': getattr(self.engine, '_runtime_filter', {})
+            "enabled": self._runtime_filtering_enabled,
+            "config": self._runtime_filter_config,
+            "engine_stats": getattr(self.engine, "_runtime_filter", {}),
         }
 
     def apply_strategy(
@@ -1132,9 +1640,7 @@ class UnifiedBypassEngine:
         """
         try:
             # Load and normalize strategy
-            self.logger.debug(
-                f"Loading strategy for {target_ip} ({domain or 'no domain'})"
-            )
+            self.logger.debug(f"Loading strategy for {target_ip} ({domain or 'no domain'})")
             normalized_strategy = self.strategy_loader.load_strategy(strategy_input)
 
             # Validate strategy
@@ -1142,12 +1648,8 @@ class UnifiedBypassEngine:
             self.strategy_loader.validate_strategy(normalized_strategy)
 
             # Create forced override (CRITICAL)
-            self.logger.debug(
-                f"Creating forced override for {normalized_strategy.type}"
-            )
-            forced_config = self.strategy_loader.create_forced_override(
-                normalized_strategy
-            )
+            self.logger.debug(f"Creating forced override for {normalized_strategy.type}")
+            forced_config = self.strategy_loader.create_forced_override(normalized_strategy)
 
             # CRITICAL: Ensure forced override parameters match testing mode exactly
             self.logger.debug("Ensuring testing mode compatibility")
@@ -1184,9 +1686,7 @@ class UnifiedBypassEngine:
                     f"🎯 Applied FORCED OVERRIDE strategy to {target_ip}: {normalized_strategy.type}"
                 )
                 self.logger.info(f"   Parameters: {forced_config.get('params', {})}")
-                self.logger.info(
-                    f"   no_fallbacks: {forced_config.get('no_fallbacks', False)}"
-                )
+                self.logger.info(f"   no_fallbacks: {forced_config.get('no_fallbacks', False)}")
                 self.logger.info(f"   forced: {forced_config.get('forced', False)}")
 
             return True
@@ -1209,104 +1709,62 @@ class UnifiedBypassEngine:
             return False
 
     # --- START OF FINAL FIX ---
-    def _ensure_testing_mode_compatibility(
-        self, forced_config: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _normalize_strategy_dict(self, strategy_dict: Any) -> Any:
         """
-        Ensures that the strategy configuration is 100% identical to how it would be
-        processed in the service mode, preventing discrepancies.
-        This is the final fix to unify behavior.
+        Internal helper: normalize strategy dictionary for backward compatibility.
+
+        Delegates to core.unified.validators.normalize_strategy_dict for the actual
+        normalization logic. This wrapper maintains the method interface for
+        backward compatibility.
+
+        Args:
+            strategy_dict: Strategy dictionary to normalize
+
+        Returns:
+            Normalized strategy dictionary
         """
-        config = forced_config.copy()
-        params = config.get("params", {}).copy()
-        attack_type = (config.get("type") or "").lower()
+        from core.unified.validators import normalize_strategy_dict
 
-        # 1) Принудительные флаги
-        config["no_fallbacks"] = True
-        config["forced"] = True
+        # First apply the unified normalization
+        normalized = normalize_strategy_dict(strategy_dict)
 
-        # 2) fooling -> list
-        if "fooling" in params:
-            fool = params["fooling"]
-            if isinstance(fool, str):
-                if fool.lower() in ("none", ""):
-                    params["fooling"] = []
-                else:
-                    params["fooling"] = [
-                        x.strip() for x in fool.split(",") if x.strip()
-                    ]
-            elif not isinstance(fool, (list, tuple)):
-                params["fooling"] = [str(fool)]
+        # Then apply legacy params/parameters compatibility
+        if not isinstance(normalized, dict):
+            return normalized
 
-        # 3) fake_ttl: используем ttl/autottl; по умолчанию 3 для fakeddisorder
-        if attack_type in (
-            "fakeddisorder",
-            "fake",
-            "disorder",
-            "multidisorder",
-            "disorder2",
-            "seqovl",
-        ):
-            if (
-                "fake_ttl" not in params
-                and "ttl" in params
-                and params["ttl"] is not None
-            ):
-                params["fake_ttl"] = params["ttl"]
-            elif "fake_ttl" not in params and "autottl" not in params:
-                params["fake_ttl"] = 3  # Default to 3 for consistency
+        d = normalized
+        params = d.get("params")
+        parameters = d.get("parameters")
 
-        # 4) split_pos
-        if "split_pos" in params and params["split_pos"] is not None:
-            from core.bypass.engine.base_engine import safe_split_pos_conversion
+        # Promote parameters -> params (engine/unified loader convention)
+        if params is None and isinstance(parameters, dict):
+            d = d.copy()
+            d["params"] = parameters
+            params = d["params"]
 
-            sp_val = params["split_pos"]
-            if isinstance(sp_val, list) and sp_val:
-                sp_val = sp_val[0]
-            params["split_pos"] = safe_split_pos_conversion(sp_val, 3)
+        # Keep parameters mirror for older callers
+        if parameters is None and isinstance(params, dict):
+            d = d.copy()
+            d["parameters"] = params
 
-        # 5) КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: overlap_size для fakeddisorder
-        # Для атаки fakeddisorder, overlap_size ДОЛЖЕН быть 0, чтобы активировать
-        # правильную 'disorder' логику в primitives.py. Удаляем все мешающие параметры.
-        if attack_type == "fakeddisorder":
-            # Принудительно очищаем все параметры, которые могут сбить fakeddisorder с толку
-            params["overlap_size"] = 0
-            params.pop("split_seqovl", None)
-            params.pop("split_count", None)
-            # Убеждаемся, что используется правильная логика disorder
-            self.logger.debug(
-                "✅ FAKEDDISORDER SANITIZED: Removed split_seqovl/split_count, set overlap_size=0"
-            )
-        elif attack_type in ("disorder", "disorder2", "multidisorder"):
-            params["overlap_size"] = 0
-            params.pop("split_seqovl", None)
-            self.logger.debug(
-                f"Sanitized for '{attack_type}': overlap_size forced to 0."
-            )
-        elif attack_type == "seqovl":
-            ovl_raw = params.get("overlap_size", params.get("split_seqovl", 336))
-            try:
-                params["overlap_size"] = int(ovl_raw)
-            except (ValueError, TypeError):
-                params["overlap_size"] = 336
+        return d
 
-        # 6) низкоуровневые дефолты
-        if "repeats" in params:
-            try:
-                params["repeats"] = max(1, min(int(params["repeats"]), 10))
-            except (ValueError, TypeError):
-                params["repeats"] = 1
-        if "tcp_flags" not in params:
-            params["tcp_flags"] = {"psh": True, "ack": True}
-        if "window_div" not in params:
-            params["window_div"] = 8 if "disorder" in attack_type else 2
-        if "ipid_step" not in params:
-            params["ipid_step"] = 2048
+    def _ensure_testing_mode_compatibility(self, forced_config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ensure strategy configuration is compatible with testing mode.
 
-        config["params"] = params
-        if self.config.debug:
-            self.logger.debug(f"✅ Testing‑compat for '{attack_type}': {params}")
-        return config
+        Delegates to core.testing.testing_mode_adapter.ensure_testing_mode_compatibility.
+        This wrapper maintains the method interface for backward compatibility.
+
+        Args:
+            forced_config: Strategy configuration dictionary
+
+        Returns:
+            Modified configuration dictionary with testing mode compatibility
+        """
+        from core.testing.testing_mode_adapter import ensure_testing_mode_compatibility
+
+        return ensure_testing_mode_compatibility(forced_config, logger=self.logger)
 
     # --- END OF FINAL FIX ---
 
@@ -1325,14 +1783,14 @@ class UnifiedBypassEngine:
         2. Применяет ее с принудительным переопределением (forced override).
         3. Симулирует попытку соединения для проверки результата с использованием curl.
         4. Возвращает детальный словарь с результатами теста.
-        
+
         CRITICAL: This method uses curl with HTTP/2 support to generate browser-like
         ClientHello packets (~1400 bytes) for accurate DPI bypass testing. This ensures
         testing mode parity with production mode where browsers generate large ClientHello.
-        
+
         Without HTTP/2, curl generates small ClientHello (~458 bytes) which causes false
         negatives in strategy testing as DPI easily blocks small ClientHello packets.
-        
+
         Requirements: 11.1, 11.4, 11.5, 12.1
 
         Args:
@@ -1344,117 +1802,188 @@ class UnifiedBypassEngine:
         Returns:
             Словарь с результатами теста, включая 'success', 'latency' и 'error' (в случае неудачи).
         """
-        test_start = time.time()
+        from core.testing.connection_tester import (
+            prepare_strategy_for_testing,
+            apply_strategy_to_engine,
+            reset_engine_to_production_mode,
+            build_test_result,
+            build_error_result,
+            track_strategy_application,
+        )
+
+        test_start_wall = time.time()
+        test_start = time.monotonic()
 
         try:
-            # Шаг 1: Загрузка и нормализация стратегии (как в режиме тестирования)
-            normalized_strategy = self.strategy_loader.load_strategy(strategy_input)
-
-            # Шаг 2: Валидация стратегии (как в режиме тестирования)
-            self.strategy_loader.validate_strategy(normalized_strategy)
-
-            # Шаг 3: Создание конфигурации принудительного переопределения (КРИТИЧЕСКИ ВАЖНО)
-            forced_config = self.strategy_loader.create_forced_override(
-                normalized_strategy
+            # Steps 1-3: Prepare strategy for testing
+            normalized_strategy, forced_config = prepare_strategy_for_testing(
+                self.strategy_loader,
+                strategy_input,
+                self._ensure_testing_mode_compatibility,
+                self.logger,
             )
-            forced_config = self._ensure_testing_mode_compatibility(forced_config)
 
             self.logger.info(
                 f"🧪 Testing strategy like testing mode: {normalized_strategy.type} for {target_ip}"
             )
 
-            # Шаг 4: Применение стратегии к движку с принудительным переопределением
-            self.engine.set_strategy_override(forced_config)
-            
-            # Set testing mode for packet sender (Requirement 9.1)
-            if hasattr(self.engine, '_packet_sender') and self.engine._packet_sender:
-                self.engine._packet_sender.set_mode("testing")
-                self.logger.debug("📊 Set PacketSender to TESTING mode")
+            # Step 4: Apply strategy to engine and get baseline telemetry
+            baseline_telemetry = apply_strategy_to_engine(self.engine, forced_config, self.logger)
 
-            # Получение базовой телеметрии для сравнения
-            baseline_telemetry = self.engine.get_telemetry_snapshot()
-
-            # Шаг 5: Симуляция попытки соединения для проверки обхода
-            # <<< НАЧАЛО ИЗМЕНЕНИЙ: Теперь получаем и статус, и причину >>>
+            # Step 5: Simulate connection attempt to verify bypass
             test_success, reason = self._simulate_testing_mode_connection(
                 target_ip, domain, timeout
             )
-            # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
 
-            # Получение итоговой телеметрии
+            # Get final telemetry
             final_telemetry = self.engine.get_telemetry_snapshot()
 
-            # Расчет длительности теста
-            test_duration = time.time() - test_start
+            # Calculate test duration
+            test_duration = time.monotonic() - test_start
 
-            # Шаг 6: Формирование словаря с результатами
-            result = {
-                "success": test_success,
-                "strategy_type": normalized_strategy.type,
-                "strategy_params": forced_config.get("params", {}),
-                "target_ip": target_ip,
-                "domain": domain,
-                "test_duration_ms": test_duration * 1000,
-                "forced_override": True,
-                "no_fallbacks": forced_config.get("no_fallbacks", False),
-                "telemetry_delta": self._calculate_telemetry_delta(
-                    baseline_telemetry, final_telemetry
-                ),
-                "timestamp": test_start,
-            }
+            # Step 6: Build result dictionary
+            result = build_test_result(
+                test_success,
+                reason,
+                normalized_strategy,
+                forced_config,
+                target_ip,
+                domain,
+                test_duration,
+                timeout,
+                baseline_telemetry,
+                final_telemetry,
+                self._calculate_telemetry_delta,
+                test_start_wall,
+            )
 
-            # <<< НАЧАЛО ИЗМЕНЕНИЙ: Если тест не прошел, добавляем причину в результат >>>
-            if not test_success:
-                result["error"] = reason
-            # <<< КОНЕЦ ИЗМЕНЕНИЙ >>>
-
-            # Трекинг и логирование результатов теста
-            with self._lock:
-                key = domain or target_ip
-                if key not in self._strategy_applications:
-                    self._strategy_applications[key] = []
-                self._strategy_applications[key].append(
-                    {
-                        "strategy_type": normalized_strategy.type,
-                        "timestamp": test_start,
-                        "forced_override": True,
-                        "test_mode": True,
-                        "success": test_success,
-                    }
-                )
+            # Track and log test results
+            track_strategy_application(
+                self._strategy_applications,
+                self._lock,
+                domain,
+                target_ip,
+                normalized_strategy,
+                test_start,
+                test_success,
+            )
 
             if self.config.log_all_strategies:
                 status = "SUCCESS" if test_success else "FAILED"
                 self.logger.info(
                     f"🧪 Testing mode test {status}: {normalized_strategy.type} for {target_ip}"
                 )
-            
+
             # Reset to production mode after test (Requirement 9.1)
-            if hasattr(self.engine, '_packet_sender') and self.engine._packet_sender:
-                self.engine._packet_sender.set_mode("production")
-                self.logger.debug("📊 Reset PacketSender to PRODUCTION mode")
+            reset_engine_to_production_mode(self.engine, self.logger)
 
             return result
 
         except Exception as e:
             self.logger.error(f"❌ Testing mode test failed for {target_ip}: {e}")
-            
-            # Reset to production mode on error (Requirement 9.1)
-            if hasattr(self.engine, '_packet_sender') and self.engine._packet_sender:
-                self.engine._packet_sender.set_mode("production")
-                self.logger.debug("📊 Reset PacketSender to PRODUCTION mode (after error)")
-            
-            return {
-                "success": False,
-                "error": str(e),
-                "target_ip": target_ip,
-                "domain": domain,
-                "test_duration_ms": (time.time() - test_start) * 1000,
-                "timestamp": test_start,
-            }
-    
 
-    
+            # Reset to production mode on error (Requirement 9.1)
+            reset_engine_to_production_mode(self.engine, self.logger)
+
+            return build_error_result(e, target_ip, domain, test_start, timeout, test_start_wall)
+
+    def _build_direct_curl_command(
+        self,
+        domain: str,
+        timeout: float,
+        *,
+        http2: bool = True,
+        insecure: bool = True,
+        silent: bool = True,
+        output_devnull: bool = True,
+        writeout: str = "%{http_code}",
+        include_ciphers: bool = False,
+        enhanced_headers: bool = False,
+        port_override: Optional[int] = None,
+        path: str = "/",
+    ) -> List[str]:
+        """
+        Centralized curl command builder for direct URL checks (no --resolve).
+        Used only in fallback paths where we can't bind to a specific IP.
+        """
+        from core.curl.command_builder import build_direct_curl_command
+
+        domain_part, port = self._parse_domain_and_port(domain)
+        if port_override is not None:
+            port = int(port_override)
+
+        url = self._build_url(domain_part, port, path=path)
+        curl_executable = self._resolve_curl_executable()
+        user_agent = (
+            self._get_enhanced_user_agent() if enhanced_headers else HEADERS.get("User-Agent", "")
+        )
+
+        return build_direct_curl_command(
+            curl_executable,
+            url,
+            timeout,
+            user_agent,
+            http2=http2,
+            include_ciphers=include_ciphers,
+            enhanced_headers=enhanced_headers,
+            insecure=insecure,
+            silent=silent,
+            output_devnull=output_devnull,
+            writeout=writeout,
+        )
+
+    def _build_resolve_curl_command(
+        self,
+        target_ip: str,
+        domain: str,
+        timeout: float,
+        *,
+        url: Optional[str] = None,
+        http2: bool = True,
+        insecure: bool = True,
+        silent: bool = True,
+        output_devnull: bool = True,
+        writeout: str = "%{http_code}",
+        include_ciphers: bool = False,
+        tlsv1_2: bool = False,
+        enhanced_headers: bool = False,
+        port_override: Optional[int] = None,
+    ) -> List[str]:
+        """
+        Centralized curl command builder for *resolve-based* connectivity checks.
+        Keeps behavior consistent across testing/service paths.
+        Internal helper: does not change public interfaces.
+        """
+        from core.curl.command_builder import build_resolve_curl_command
+
+        domain_part, port = self._parse_domain_and_port(domain)
+        if port_override is not None:
+            port = int(port_override)
+
+        final_url = url if url else self._build_url(domain_part, port, path="/")
+        curl_executable = self._resolve_curl_executable()
+        user_agent = (
+            self._get_enhanced_user_agent() if enhanced_headers else HEADERS.get("User-Agent", "")
+        )
+
+        return build_resolve_curl_command(
+            curl_executable,
+            target_ip,
+            domain_part,
+            port,
+            final_url,
+            timeout,
+            user_agent,
+            http2=http2,
+            tlsv1_2=tlsv1_2,
+            include_ciphers=include_ciphers,
+            enhanced_headers=enhanced_headers,
+            insecure=insecure,
+            silent=silent,
+            output_devnull=output_devnull,
+            writeout=writeout,
+        )
+
     def _run_curl_test(
         self, target_ip: str, domain: Optional[str], timeout: float
     ) -> Tuple[bool, str]:
@@ -1464,50 +1993,32 @@ class UnifiedBypassEngine:
         """
         if not domain:
             return False, "Domain required for curl test"
-        
+
         try:
-            # Use local curl.exe with HTTP/2 support (in project root)
-            import os
-            curl_path = os.path.join(os.getcwd(), 'curl.exe')
-            if not os.path.exists(curl_path):
-                curl_path = 'curl'  # Fallback to system curl
-            
-            # Build curl command
-            curl_cmd = [
-                curl_path,
-                '--resolve', f'{domain}:443:{target_ip}',
-                '--http2',
-                '--ciphers', BROWSER_CIPHER_LIST,  # ✅ INFLATE CLIENT HELLO
-                '-H', f"User-Agent: {HEADERS['User-Agent']}",
-                '-k',  # Allow insecure
-                '-m', str(int(timeout)),
-                '-s',  # Silent
-                '-o', 'nul' if sys.platform == 'win32' else '/dev/null',
-                '-w', '%{http_code}',
-                f'https://{domain}/'
-            ]
-            
-            self.logger.debug(f"Running curl: {' '.join(curl_cmd)}")
-            
-            # Run curl
-            result = subprocess.run(
-                curl_cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout + 5
+            curl_cmd = self._build_resolve_curl_command(
+                target_ip=target_ip,
+                domain=domain,
+                timeout=timeout,
+                include_ciphers=True,  # keep old behavior (inflate ClientHello)
+                tlsv1_2=False,  # old _run_curl_test did not force TLS1.2
+                enhanced_headers=False,  # keep old behavior (minimal headers)
             )
-            
-            # Check result
-            if result.returncode == 0:
-                http_code = result.stdout.strip()
-                if http_code and http_code != '000':
-                    return True, f"HTTP {http_code}"
-                else:
-                    return False, "curl succeeded but no HTTP response"
-            else:
-                stderr = result.stderr.strip() if result.stderr else "unknown error"
-                return False, f"curl failed: returncode={result.returncode}, {stderr}"
-                
+
+            self.logger.debug(f"Running curl: {' '.join(curl_cmd)}")
+
+            transport = self._run_curl_subprocess(
+                curl_cmd,
+                timeout=float(timeout) + 5.0,
+                validate=self._curl_command_validator.validate_curl_command,
+            )
+            if transport.http_success:
+                return True, f"HTTP {transport.http_code_raw}"
+            return (
+                False,
+                transport.error
+                or f"curl failed: returncode={transport.returncode}, {transport.stderr.strip()}",
+            )
+
         except subprocess.TimeoutExpired:
             return False, f"curl timeout after {timeout}s"
         except FileNotFoundError:
@@ -1521,125 +2032,672 @@ class UnifiedBypassEngine:
         """
         Симулирует попытку соединения для проверки работоспособности стратегии.
         Использует локальный curl с HTTP/2 для генерации правильного ClientHello.
+
+        Enhanced with fallback testing mechanisms and intelligent retry logic:
+        1. Primary: curl with HTTP/2 support for browser-like ClientHello
+        2. Fallback 1: TCP socket connectivity testing
+        3. Fallback 2: Python requests library for HTTP testing
+
+        Features intelligent retry mechanism for intermittent failures and
+        adaptive timeout calculation based on domain type.
+
+        Task 6 enhancements:
+        - Result caching for repeated identical tests
+        - Deterministic decision logic to ensure consistency
+        - Curl command validation for reliability
+
+        Requirements: 3.3, 3.4, 4.1, 5.1, 5.2, 5.3, 5.4, 5.5
         """
-        # Проверка поддержки перехвата движком
-        engine_supports_interception = (
-            hasattr(self.engine, 'start') and 
-            hasattr(self.engine, 'stop')
+        from core.validation.curl_response_analyzer import (
+            CurlResponseAnalyzer,
+            FallbackTestingManager,
         )
-        
+        from core.monitoring.accessibility_metrics import TestMethod, TestResult
+
+        # Task 9: Track total test time for metrics
+        test_start = time.time()
+
+        # Task 6: Check cache for repeated identical tests
+        cache_key = AccessibilityTestCacheKey(
+            target_ip,
+            domain,
+            timeout,
+            strategy_hash=self._get_current_strategy_hash(),
+        )
+        cached_result = self._get_cached_result(cache_key)
+        if cached_result is not None:
+            is_accessible, reason = cached_result
+            self.logger.info(f"🔄 Using cached result for {target_ip}:{domain} - {reason}")
+
+            # Task 9: Record cache hit metric
+            self._metrics_collector.record_test(
+                target_ip=target_ip,
+                domain=domain,
+                method=TestMethod.CACHED,
+                result=TestResult.SUCCESS if is_accessible else TestResult.FAILURE,
+                duration_ms=0.0,  # Cache hits are instant
+                error_reason=None if is_accessible else reason,
+                cache_hit=True,
+            )
+
+            return is_accessible, f"[CACHED] {reason}"
+
+        # Initialize analyzers
+        analyzer = CurlResponseAnalyzer(logger=self.logger)
+        fallback_manager = FallbackTestingManager(logger=self.logger)
+
+        # Calculate adaptive timeout based on domain type
+        adaptive_timeout = self._calculate_adaptive_timeout(domain, timeout)
+        self.logger.debug(f"Using adaptive timeout: {adaptive_timeout}s (base: {timeout}s)")
+
+        # Intelligent retry configuration
+        max_retries = 2  # Total of 3 attempts (initial + 2 retries)
+        retry_delay_base = 1.0  # Base delay between retries in seconds
+        retry_backoff_multiplier = 2.0  # Exponential backoff multiplier
+
+        # Проверка поддержки перехвата движком
+        engine_supports_interception = hasattr(self.engine, "start") and hasattr(
+            self.engine, "stop"
+        )
+
         # Проверка, запущен ли уже WinDivert
         was_running = False
         if engine_supports_interception:
-            was_running = getattr(self.engine, '_running', False)
-        
-        sock = None
+            was_running = getattr(self.engine, "_running", False)
+
         try:
-            import socket
-            
             # Запуск WinDivert если нужно
             if engine_supports_interception and not was_running:
                 self.logger.info("🔧 Starting WinDivert interception for testing mode")
                 try:
                     target_ips = {target_ip}
                     strategy_map = {}
+                    # CRITICAL: do NOT pass strategy_override=None, it clears the already set override.
+                    current_override = getattr(self.engine, "strategy_override", None)
                     self.engine.start(
                         target_ips=target_ips,
                         strategy_map=strategy_map,
                         reset_telemetry=False,
-                        strategy_override=None
+                        strategy_override=current_override,
                     )
-                    time.sleep(0.5) # Даем время на инициализацию
+                    time.sleep(0.5)  # Даем время на инициализацию
                 except Exception as e:
                     self.logger.error(f"❌ Failed to start WinDivert: {e}")
                     # Продолжаем, но стратегии могут не примениться
 
-            # Шаг 1: Проверка TCP (быстрая)
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(timeout)
-            try:
-                sock.connect((target_ip, 443))
-                sock.close()
-                sock = None
-            except Exception as e:
-                return False, f"TCP connection failed: {e}"
-
-            # Шаг 2: Проверка TLS через curl (основная)
+            # Primary method: curl with HTTP/2 support with intelligent retry
             if domain:
-                try:
-                    import subprocess
-                    from pathlib import Path
-                    
-                    # Ищем локальный curl.exe
-                    curl_executable = "curl"
-                    if sys.platform == "win32":
-                        local_curl = Path(__file__).parent.parent.parent / "curl.exe"
-                        if local_curl.exists():
-                            curl_executable = str(local_curl)
-                        else:
-                            cwd_curl = Path("curl.exe")
-                            if cwd_curl.exists():
-                                curl_executable = str(cwd_curl)
-                            else:
-                                curl_executable = "curl.exe"
-                    
-                    # Формируем команду curl
-                    curl_cmd = [
-                        curl_executable,
-                        "--resolve", f"{domain}:443:{target_ip}",
-                        "--http2", 
-                        "--tlsv1.2",
-                        "--ciphers", BROWSER_CIPHER_LIST,  # ✅ INFLATE CLIENT HELLO
-                        "-H", f"User-Agent: {HEADERS['User-Agent']}",
-                        "-k",
-                        "-m", str(int(timeout)),
-                        "-s",
-                        "-o", "nul" if sys.platform == "win32" else "/dev/null",
-                        "-w", "%{http_code}",
-                        f"https://{domain}/"
-                    ]
-                    
-                    self.logger.debug(f"🌐 Executing curl: {' '.join(curl_cmd)}")
-                    
-                    result = subprocess.run(
-                        curl_cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=timeout + 2
-                    )
-                    
-                    http_code = result.stdout.strip()
-                    
-                    if http_code and http_code.isdigit() and int(http_code) > 0:
-                        return True, f"curl success: HTTP {http_code}"
-                    
-                    stderr = result.stderr.lower() if result.stderr else ""
-                    if "ssl" in stderr or "tls" in stderr:
-                        if "certificate" in stderr and "verify" in stderr:
-                             return True, "curl: TLS established (cert error ignored)"
-                    
-                    return False, f"curl failed (code {result.returncode}): {stderr[:100]}"
-                    
-                except Exception as e:
-                    self.logger.error(f"Curl execution error: {e}")
-                    return False, f"Curl error: {e}"
+                curl_start_time = time.time()
+                curl_success, curl_reason = self._execute_curl_with_retry(
+                    target_ip,
+                    domain,
+                    adaptive_timeout,
+                    max_retries,
+                    retry_delay_base,
+                    retry_backoff_multiplier,
+                    analyzer,
+                )
+                curl_duration_ms = (time.time() - curl_start_time) * 1000
+
+                # Task 9: Record curl test metrics
+                self._metrics_collector.record_test(
+                    target_ip=target_ip,
+                    domain=domain,
+                    method=TestMethod.CURL,
+                    result=TestResult.SUCCESS if curl_success else TestResult.FAILURE,
+                    duration_ms=curl_duration_ms,
+                    error_reason=None if curl_success else curl_reason,
+                    cache_hit=False,
+                )
+
+                if curl_success:
+                    self.logger.info(f"✅ curl success: {curl_reason}")
+                    # Task 6: Cache the result for consistency
+                    result = (True, f"curl: {curl_reason}")
+                    self._cache_result(cache_key, result)
+                    return result
+                else:
+                    self.logger.warning(f"⚠️ curl failed after retries: {curl_reason}")
+                    # Continue to fallback methods
+
+            # Fallback 1: TCP socket connectivity testing with retry
+            self.logger.info("🔄 Falling back to TCP socket connectivity test")
+            tcp_start_time = time.time()
+            tcp_success, tcp_reason = self._execute_tcp_with_retry(
+                fallback_manager,
+                target_ip,
+                443,
+                adaptive_timeout,
+                max_retries,
+                retry_delay_base,
+                retry_backoff_multiplier,
+            )
+            tcp_duration_ms = (time.time() - tcp_start_time) * 1000
+
+            # Task 9: Record TCP test metrics
+            self._metrics_collector.record_test(
+                target_ip=target_ip,
+                domain=domain,
+                method=TestMethod.TCP_SOCKET,
+                result=TestResult.SUCCESS if tcp_success else TestResult.FAILURE,
+                duration_ms=tcp_duration_ms,
+                error_reason=None if tcp_success else tcp_reason,
+                cache_hit=False,
+            )
+
+            if tcp_success:
+                self.logger.info(f"✅ TCP fallback success: {tcp_reason}")
+                # Task 6: Cache the result for consistency
+                result = (True, f"TCP fallback: {tcp_reason}")
+                self._cache_result(cache_key, result)
+                return result
             else:
-                return True, "TCP connection successful (no domain)"
+                self.logger.warning(f"⚠️ TCP fallback failed: {tcp_reason}")
+
+            # Fallback 2: Python requests library with retry (if domain available)
+            if domain:
+                self.logger.info("🔄 Falling back to Python requests library test")
+                requests_start_time = time.time()
+                requests_success, requests_reason = self._execute_requests_with_retry(
+                    fallback_manager,
+                    domain,
+                    adaptive_timeout,
+                    max_retries,
+                    retry_delay_base,
+                    retry_backoff_multiplier,
+                )
+                requests_duration_ms = (time.time() - requests_start_time) * 1000
+
+                # Task 9: Record requests test metrics
+                self._metrics_collector.record_test(
+                    target_ip=target_ip,
+                    domain=domain,
+                    method=TestMethod.REQUESTS,
+                    result=TestResult.SUCCESS if requests_success else TestResult.FAILURE,
+                    duration_ms=requests_duration_ms,
+                    error_reason=None if requests_success else requests_reason,
+                    cache_hit=False,
+                )
+
+                if requests_success:
+                    self.logger.info(f"✅ Requests fallback success: {requests_reason}")
+                    # Task 6: Cache the result for consistency
+                    result = (True, f"Requests fallback: {requests_reason}")
+                    self._cache_result(cache_key, result)
+                    return result
+                else:
+                    self.logger.warning(f"⚠️ Requests fallback failed: {requests_reason}")
+
+            # All methods failed
+            self.logger.error("❌ All testing methods failed - site appears blocked")
+            result = (
+                False,
+                "All testing methods failed: curl, TCP socket, and requests all failed",
+            )
+
+            # Task 9: Record final failure metrics
+            total_duration_ms = (time.time() - test_start) * 1000
+            self._metrics_collector.record_test(
+                target_ip=target_ip,
+                domain=domain,
+                method=TestMethod.CURL,  # Primary method that was attempted
+                result=TestResult.ERROR,
+                duration_ms=total_duration_ms,
+                error_reason="All testing methods failed",
+                cache_hit=False,
+            )
+
+            # Task 6: Cache the result for consistency
+            self._cache_result(cache_key, result)
+            return result
 
         except Exception as e:
-            return False, f"Unexpected error: {e}"
+            self.logger.error(f"❌ Unexpected error in testing mode connection: {e}")
+            result = (False, f"Unexpected error: {e}")
+
+            # Task 6: Cache the result for consistency
+            self._cache_result(cache_key, result)
+            return result
         finally:
             # Останавливаем WinDivert если мы его запускали
             if engine_supports_interception and not was_running:
                 try:
                     self.engine.stop()
-                except:
+                except Exception:  # Ignore errors during cleanup
                     pass
-            if sock:
-                try:
-                    sock.close()
-                except:
-                    pass
+
+    def _calculate_adaptive_timeout(self, domain: Optional[str], base_timeout: float) -> float:
+        """
+        Calculate adaptive timeout based on domain type and characteristics.
+
+        CDN-hosted websites and certain domain patterns get longer timeouts
+        to account for additional latency and processing time.
+
+        Args:
+            domain: Domain name to analyze (None for IP-only tests)
+            base_timeout: Base timeout value
+
+        Returns:
+            float: Adaptive timeout value
+
+        Requirements: 4.1
+        """
+        # Ensure minimum timeout of 5 seconds for all cases
+        if not domain:
+            # IP-only tests use base timeout but enforce minimum
+            return max(5.0, min(60.0, base_timeout))
+
+        domain_lower = domain.lower()
+
+        # CDN patterns that typically need longer timeouts
+        cdn_patterns = [
+            "cdn",
+            "cloudflare",
+            "cloudfront",
+            "fastly",
+            "akamai",
+            "jsdelivr",
+            "unpkg",
+            "cdnjs",
+            "bootstrapcdn",
+            "googleapis",
+            "gstatic",
+            "googlevideo",
+            "youtube",
+            "ytimg",
+        ]
+
+        # High-latency domain patterns
+        high_latency_patterns = [
+            ".ru",
+            ".cn",
+            ".jp",
+            ".kr",
+            ".au",
+            ".br",
+            ".in",
+            "mail.ru",
+            "yandex",
+            "vk.com",
+            "ok.ru",
+        ]
+
+        # Check for CDN patterns
+        is_cdn = any(pattern in domain_lower for pattern in cdn_patterns)
+
+        # Check for high-latency patterns
+        is_high_latency = any(pattern in domain_lower for pattern in high_latency_patterns)
+
+        # Calculate multiplier
+        multiplier = 1.0
+
+        if is_cdn:
+            multiplier *= 1.5  # 50% longer for CDN domains
+            self.logger.debug(f"CDN domain detected: {domain}, applying 1.5x timeout multiplier")
+
+        if is_high_latency:
+            multiplier *= 1.3  # 30% longer for high-latency domains
+            self.logger.debug(
+                f"High-latency domain detected: {domain}, applying 1.3x timeout multiplier"
+            )
+
+        # Ensure minimum timeout of 5 seconds and maximum of 60 seconds
+        adaptive_timeout = max(5.0, min(60.0, base_timeout * multiplier))
+
+        if adaptive_timeout != base_timeout:
+            self.logger.info(
+                f"Adaptive timeout for {domain}: {adaptive_timeout}s (base: {base_timeout}s, multiplier: {multiplier:.1f}x)"
+            )
+
+        return adaptive_timeout
+
+    def _execute_curl_with_retry(
+        self,
+        target_ip: str,
+        domain: str,
+        timeout: float,
+        max_retries: int,
+        retry_delay_base: float,
+        retry_backoff_multiplier: float,
+        analyzer: "CurlResponseAnalyzer",
+    ) -> Tuple[bool, str]:
+        """
+        Execute curl command with intelligent retry mechanism for intermittent failures.
+
+        Implements exponential backoff for retries and handles CDN-specific response
+        patterns and delays.
+
+        Args:
+            target_ip: Target IP address
+            domain: Domain name
+            timeout: Timeout for each attempt
+            max_retries: Maximum number of retry attempts
+            retry_delay_base: Base delay between retries
+            retry_backoff_multiplier: Multiplier for exponential backoff
+            analyzer: CurlResponseAnalyzer instance
+
+        Returns:
+            Tuple[bool, str]: (success, reason)
+
+        Requirements: 3.3, 5.2
+        """
+        from core.retry.retry_executor import execute_subprocess_with_retry
+
+        curl_executable = self._resolve_curl_executable()
+        # Enhanced curl command construction (keeps existing behavior for this path)
+        curl_cmd = self._build_enhanced_curl_command(curl_executable, target_ip, domain, timeout)
+
+        # Task 6: Validate curl command construction for reliability
+        is_valid, validation_reason = self._curl_command_validator.validate_curl_command(curl_cmd)
+        if not is_valid:
+            self.logger.error(f"❌ Curl command validation failed: {validation_reason}")
+            return False, f"Curl command validation failed: {validation_reason}"
+
+        # Use generic retry executor for subprocess
+        return execute_subprocess_with_retry(
+            build_command=lambda: curl_cmd,
+            max_retries=max_retries,
+            retry_delay_base=retry_delay_base,
+            retry_backoff_multiplier=retry_backoff_multiplier,
+            timeout=timeout,
+            analyze_response=analyzer.analyze_response,
+            is_retryable_error=self._is_retryable_error,
+            logger=self.logger,
+            operation_name="curl",
+        )
+
+    def _build_enhanced_curl_command(
+        self, curl_executable: str, target_ip: str, domain: str, timeout: float
+    ) -> list:
+        """
+        Build enhanced curl command with IPv6, custom port, wildcard domain, and User-Agent support.
+
+        Enhancements:
+        - IPv6 address support with proper bracketing
+        - Custom port handling for non-standard configurations
+        - Wildcard domain resolution (uses resolved domain)
+        - Proper User-Agent headers for realistic requests
+
+        Args:
+            curl_executable: Path to curl executable
+            target_ip: Target IP address (IPv4 or IPv6)
+            domain: Domain name (may include port)
+            timeout: Request timeout
+
+        Returns:
+            list: Complete curl command arguments
+
+        Requirements: 3.5, 4.2, 4.3, 4.4, 4.5
+        """
+        # Keep signature, but route through centralized builder for parity.
+        # IMPORTANT: preserve existing behavior for this method:
+        # - http2 on
+        # - tlsv1.2 forced
+        # - include ciphers
+        # - enhanced headers
+        curl_cmd = self._build_resolve_curl_command(
+            target_ip=target_ip,
+            domain=domain,
+            timeout=timeout,
+            include_ciphers=True,
+            tlsv1_2=True,
+            enhanced_headers=True,
+        )
+
+        self.logger.debug(f"🔧 Enhanced curl command: {' '.join(curl_cmd)}")
+        return curl_cmd
+
+    def _parse_domain_and_port(self, domain: str) -> tuple:
+        """
+        Parse domain and port from domain string.
+
+        Delegates to core.curl.command_builder.parse_domain_and_port.
+        This wrapper maintains the method interface for backward compatibility.
+
+        Args:
+            domain: Domain string (may include port)
+
+        Returns:
+            tuple: (domain_part, port)
+
+        Requirements: 4.2
+        """
+        from core.curl.command_builder import parse_domain_and_port
+
+        return parse_domain_and_port(domain, logger=self.logger)
+
+    def _format_ip_for_resolve(self, ip: str) -> str:
+        """
+        Format IP address for curl --resolve parameter.
+
+        IPv6 addresses may need special formatting for curl.
+
+        Args:
+            ip: IP address (IPv4 or IPv6)
+
+        Returns:
+            str: Formatted IP address for --resolve
+
+        Requirements: 3.5
+        """
+        import ipaddress
+
+        try:
+            # Try to parse as IPv6
+            ipaddress.IPv6Address(ip)
+            # IPv6 address - curl --resolve handles IPv6 without brackets
+            return ip
+        except ipaddress.AddressValueError:
+            try:
+                # Try to parse as IPv4
+                ipaddress.IPv4Address(ip)
+                return ip
+            except ipaddress.AddressValueError:
+                # Not a valid IP address, return as-is
+                self.logger.warning(f"Invalid IP address format: {ip}")
+                return ip
+
+    def _build_url(self, domain: str, port: int, path: str = "/") -> str:
+        """
+        Build URL with proper port handling.
+
+        Delegates to core.curl.command_builder.build_url.
+        This wrapper maintains the method interface for backward compatibility.
+
+        Args:
+            domain: Domain name
+            port: Port number
+            path: URL path (default: "/")
+
+        Returns:
+            str: Complete URL
+
+        Requirements: 4.2, 4.4, 4.5
+        """
+        from core.curl.command_builder import build_url
+
+        return build_url(domain, port, path)
+
+    def _get_enhanced_user_agent(self) -> str:
+        """
+        Get enhanced User-Agent header for realistic requests.
+
+        Delegates to core.curl.command_builder.get_enhanced_user_agent.
+        This wrapper maintains the method interface for backward compatibility.
+
+        Returns:
+            str: Enhanced User-Agent string
+
+        Requirements: 4.4
+        """
+        from core.curl.command_builder import get_enhanced_user_agent
+
+        return get_enhanced_user_agent()
+
+    def _is_retryable_error(self, stderr: str, reason: str) -> bool:
+        """
+        Determine if an error is retryable (intermittent) or permanent.
+
+        Retryable errors include timeouts, temporary network issues, and
+        CDN-related delays. Non-retryable errors include DNS failures,
+        connection refused, and certificate issues.
+
+        Args:
+            stderr: Standard error from curl
+            reason: Analyzed reason from CurlResponseAnalyzer
+
+        Returns:
+            bool: True if error should be retried
+
+        Requirements: 3.3, 5.2
+        """
+        if not stderr and not reason:
+            return False
+
+        stderr_lower = (stderr or "").lower()
+        reason_lower = (reason or "").lower()
+
+        # Retryable error patterns (intermittent failures)
+        retryable_patterns = [
+            "timeout",
+            "timed out",
+            "connection timeout",
+            "temporary failure",
+            "try again",
+            "network unreachable",
+            "operation timed out",
+            "recv failure",
+            "send failure",
+            "ssl connect error",
+            "ssl handshake timeout",
+            "partial file",
+            "transfer closed",
+            "empty reply",
+        ]
+
+        # Non-retryable error patterns (permanent failures)
+        non_retryable_patterns = [
+            "connection refused",
+            "host not found",
+            "couldn't resolve host",
+            "name resolution failed",
+            "dns",
+            "certificate verify failed",
+            "ssl certificate problem",
+            "no route to host",
+        ]
+
+        # Check for non-retryable patterns first (higher priority)
+        for pattern in non_retryable_patterns:
+            if pattern in stderr_lower or pattern in reason_lower:
+                return False
+
+        # Check for retryable patterns
+        for pattern in retryable_patterns:
+            if pattern in stderr_lower or pattern in reason_lower:
+                return True
+
+        # Default to non-retryable for unknown errors
+        return False
+
+    def _execute_tcp_with_retry(
+        self,
+        fallback_manager: "FallbackTestingManager",
+        target_ip: str,
+        port: int,
+        timeout: float,
+        max_retries: int,
+        retry_delay_base: float,
+        retry_backoff_multiplier: float,
+    ) -> Tuple[bool, str]:
+        """
+        Execute TCP connectivity test with retry logic.
+
+        Args:
+            fallback_manager: FallbackTestingManager instance
+            target_ip: Target IP address
+            port: Target port
+            timeout: Timeout for each attempt
+            max_retries: Maximum retry attempts
+            retry_delay_base: Base delay between retries
+            retry_backoff_multiplier: Exponential backoff multiplier
+
+        Returns:
+            Tuple[bool, str]: (success, reason)
+        """
+        from core.retry.retry_executor import execute_with_retry
+
+        def tcp_operation():
+            return fallback_manager.test_tcp_connectivity(target_ip, port, timeout)
+
+        def is_retryable_tcp_error(reason: str) -> bool:
+            # TCP timeouts are retryable, connection refused is not
+            return "timeout" in reason.lower()
+
+        return execute_with_retry(
+            operation=tcp_operation,
+            max_retries=max_retries,
+            retry_delay_base=retry_delay_base,
+            retry_backoff_multiplier=retry_backoff_multiplier,
+            is_retryable_error=is_retryable_tcp_error,
+            logger=self.logger,
+            operation_name="TCP test",
+        )
+
+    def _execute_requests_with_retry(
+        self,
+        fallback_manager: "FallbackTestingManager",
+        domain: str,
+        timeout: float,
+        max_retries: int,
+        retry_delay_base: float,
+        retry_backoff_multiplier: float,
+    ) -> Tuple[bool, str]:
+        """
+        Execute requests library test with retry logic.
+
+        Args:
+            fallback_manager: FallbackTestingManager instance
+            domain: Domain name
+            timeout: Timeout for each attempt
+            max_retries: Maximum retry attempts
+            retry_delay_base: Base delay between retries
+            retry_backoff_multiplier: Exponential backoff multiplier
+
+        Returns:
+            Tuple[bool, str]: (success, reason)
+        """
+        from core.retry.retry_executor import execute_with_retry
+
+        def requests_operation():
+            return fallback_manager.test_with_requests(domain, timeout)
+
+        return execute_with_retry(
+            operation=requests_operation,
+            max_retries=max_retries,
+            retry_delay_base=retry_delay_base,
+            retry_backoff_multiplier=retry_backoff_multiplier,
+            is_retryable_error=self._is_retryable_requests_error,
+            logger=self.logger,
+            operation_name="Requests test",
+        )
+
+    def _is_retryable_requests_error(self, reason: str) -> bool:
+        """
+        Determine if a requests library error is retryable.
+
+        Delegates to core.retry.retry_executor.is_retryable_requests_error.
+        This wrapper maintains the method interface for backward compatibility.
+
+        Args:
+            reason: Error reason from requests test
+
+        Returns:
+            bool: True if error should be retried
+        """
+        from core.retry.retry_executor import is_retryable_requests_error
+
+        return is_retryable_requests_error(reason)
 
     def test_forced_override(
         self,
@@ -1665,14 +2723,13 @@ class UnifiedBypassEngine:
             "errors": [],
             "warnings": [],
             "steps_completed": [],
-            "timestamp": time.time(),
+            "timestamp": time.time(),  # wall clock
         }
+        test_start_mono = time.monotonic()
 
         try:
             # Шаг 1: Загрузка стратегии
-            self.logger.info(
-                f"[TEST] Step 1/6: Loading strategy for {domain or target_ip}"
-            )
+            self.logger.info(f"[TEST] Step 1/6: Loading strategy for {domain or target_ip}")
             normalized_strategy = self.strategy_loader.load_strategy(strategy_input)
             result["steps_completed"].append("strategy_loaded")
             result["strategy_type"] = normalized_strategy.type
@@ -1685,9 +2742,7 @@ class UnifiedBypassEngine:
 
             # Шаг 3: Создание forced override
             self.logger.info("[TEST] Step 3/6: Creating forced override")
-            forced_config = self.strategy_loader.create_forced_override(
-                normalized_strategy
-            )
+            forced_config = self.strategy_loader.create_forced_override(normalized_strategy)
             result["steps_completed"].append("forced_override_created")
             result["forced_config"] = forced_config
 
@@ -1713,12 +2768,12 @@ class UnifiedBypassEngine:
 
             # Шаг 6: Тест подключения
             self.logger.info("[TEST] Step 6/6: Testing connection")
-            connection_start = time.time()
+            connection_start = time.monotonic()
             # ИСПРАВЛЕНИЕ: Увеличен таймаут с 5.0 до 15.0 секунд для CDN
-            connection_success = self._simulate_testing_mode_connection(
+            connection_success, connection_reason = self._simulate_testing_mode_connection(
                 target_ip, domain, 15.0
             )
-            connection_duration = time.time() - connection_start
+            connection_duration = time.monotonic() - connection_start
 
             result["steps_completed"].append("connection_tested")
             result["connection_success"] = connection_success
@@ -1742,9 +2797,7 @@ class UnifiedBypassEngine:
             result["traceback"] = traceback.format_exc()
 
             failed_step = (
-                result["steps_completed"][-1]
-                if result["steps_completed"]
-                else "initialization"
+                result["steps_completed"][-1] if result["steps_completed"] else "initialization"
             )
             self.logger.error(f"[TEST] ❌ Failed at step: {failed_step}")
             self.logger.error(f"[TEST] Error: {error_msg}")
@@ -1755,7 +2808,7 @@ class UnifiedBypassEngine:
         if result["warnings"]:
             self.logger.warning(f"[TEST] Warnings: {', '.join(result['warnings'])}")
 
-        result["test_duration_ms"] = (time.time() - result["timestamp"]) * 1000
+        result["test_duration_ms"] = (time.monotonic() - test_start_mono) * 1000
         return result
 
     def _calculate_telemetry_delta(
@@ -1763,6 +2816,7 @@ class UnifiedBypassEngine:
     ) -> Dict[str, Any]:
         """
         Calculate the difference between baseline and final telemetry.
+        Delegates to core.unified.telemetry.calculate_telemetry_delta.
 
         Args:
             baseline: Baseline telemetry snapshot
@@ -1771,47 +2825,21 @@ class UnifiedBypassEngine:
         Returns:
             Dict with telemetry differences
         """
-        try:
-            delta = {}
+        from core.unified.telemetry import calculate_telemetry_delta
 
-            # Calculate aggregate differences
-            baseline_agg = baseline.get("aggregate", {})
-            final_agg = final.get("aggregate", {})
-
-            delta["segments_sent"] = final_agg.get(
-                "segments_sent", 0
-            ) - baseline_agg.get("segments_sent", 0)
-            delta["fake_packets_sent"] = final_agg.get(
-                "fake_packets_sent", 0
-            ) - baseline_agg.get("fake_packets_sent", 0)
-            delta["modified_packets_sent"] = final_agg.get(
-                "modified_packets_sent", 0
-            ) - baseline_agg.get("modified_packets_sent", 0)
-
-            return delta
-
-        except Exception as e:
-            self.logger.warning(f"Failed to calculate telemetry delta: {e}")
-            return {}
+        return calculate_telemetry_delta(baseline, final, logger=self.logger)
 
     def enable_debug_mode(self):
         """Enable comprehensive debug logging."""
-        self.config.debug = True
-        self.config.enable_diagnostics = True
-        self.config.log_all_strategies = True
-        self.config.track_forced_override = True
+        from core.unified.telemetry import logging_enable_debug_mode
 
-        self.logger.setLevel(logging.DEBUG)
-        self.logger.info("🔍 Debug mode enabled - comprehensive logging active")
+        logging_enable_debug_mode(self, logger=self.logger)
 
     def disable_debug_mode(self):
         """Disable debug logging (keep essential logs only)."""
-        self.config.debug = False
-        self.config.enable_diagnostics = False
-        self.config.log_all_strategies = False
+        from core.unified.telemetry import logging_disable_debug_mode
 
-        self.logger.setLevel(logging.INFO)
-        self.logger.info("🔇 Debug mode disabled - essential logging only")
+        logging_disable_debug_mode(self, logger=self.logger)
 
     def log_strategy_application(
         self,
@@ -1873,89 +2901,34 @@ class UnifiedBypassEngine:
     def get_diagnostics_report(self) -> Dict[str, Any]:
         """
         Generate comprehensive diagnostics report.
+        Delegates to core.unified.telemetry.get_diagnostics_report.
 
         Returns:
             Dict with detailed diagnostics information
         """
-        with self._lock:
-            uptime = time.time() - self._start_time if self._start_time else 0
+        from core.unified.telemetry import get_diagnostics_report
 
-            # Calculate strategy type distribution
-            strategy_types = {}
-            for applications in self._strategy_applications.values():
-                for app in applications:
-                    strategy_type = app.get("strategy_type", "unknown")
-                    strategy_types[strategy_type] = (
-                        strategy_types.get(strategy_type, 0) + 1
-                    )
-
-            # Calculate success rates
-            total_tests = 0
-            successful_tests = 0
-            for applications in self._strategy_applications.values():
-                for app in applications:
-                    if "success" in app:
-                        total_tests += 1
-                        if app["success"]:
-                            successful_tests += 1
-
-            success_rate = (
-                (successful_tests / total_tests * 100) if total_tests > 0 else 0
-            )
-
-        # Get engine telemetry
-        engine_telemetry = self.get_telemetry_snapshot()
-
-        report = {
-            "unified_engine_diagnostics": {
-                "uptime_seconds": uptime,
-                "running": self._running,
-                "forced_override_count": self._forced_override_count,
-                "strategy_applications_count": sum(
-                    len(apps) for apps in self._strategy_applications.values()
-                ),
-                "unique_targets": len(self._strategy_applications),
-                "strategy_type_distribution": strategy_types,
-                "test_success_rate": success_rate,
-                "total_tests": total_tests,
-                "successful_tests": successful_tests,
-                "configuration": {
-                    "force_override": self.config.force_override,
-                    "enable_diagnostics": self.config.enable_diagnostics,
-                    "log_all_strategies": self.config.log_all_strategies,
-                    "track_forced_override": self.config.track_forced_override,
-                    "debug": self.config.debug,
-                },
-            },
-            "engine_telemetry": engine_telemetry,
-            "timestamp": time.time(),
-        }
-
-        return report
+        return get_diagnostics_report(
+            lock=self._lock,
+            start_time=self._start_time,
+            running=self._running,
+            forced_override_count=self._forced_override_count,
+            strategy_applications=self._strategy_applications,
+            config=self.config,
+            get_telemetry_snapshot_func=self.get_telemetry_snapshot,
+            logger=self.logger,
+        )
 
     def log_diagnostics_summary(self):
-        """Log a summary of diagnostics information."""
-        report = self.get_diagnostics_report()
-        diag = report["unified_engine_diagnostics"]
+        """
+        Log a summary of diagnostics information.
+        Delegates to core.unified.telemetry.log_diagnostics_summary.
+        """
+        from core.unified.telemetry import log_diagnostics_summary
 
-        self.logger.info("📊 UnifiedBypassEngine Diagnostics Summary:")
-        self.logger.info(f"   Uptime: {diag['uptime_seconds']:.2f} seconds")
-        self.logger.info(f"   Running: {diag['running']}")
-        self.logger.info(f"   Forced Overrides: {diag['forced_override_count']}")
-        self.logger.info(
-            f"   Strategy Applications: {diag['strategy_applications_count']}"
+        log_diagnostics_summary(
+            get_diagnostics_report_func=self.get_diagnostics_report, logger=self.logger
         )
-        self.logger.info(f"   Unique Targets: {diag['unique_targets']}")
-
-        if diag["total_tests"] > 0:
-            self.logger.info(
-                f"   Test Success Rate: {diag['test_success_rate']:.1f}% ({diag['successful_tests']}/{diag['total_tests']})"
-            )
-
-        if diag["strategy_type_distribution"]:
-            self.logger.info("   Strategy Types Used:")
-            for strategy_type, count in diag["strategy_type_distribution"].items():
-                self.logger.info(f"     {strategy_type}: {count}")
 
     def validate_forced_override_behavior(self) -> Dict[str, Any]:
         """
@@ -1984,9 +2957,7 @@ class UnifiedBypassEngine:
 
         # Check configuration consistency
         if not self.config.force_override:
-            validation_results["issues"].append(
-                "force_override is disabled in configuration"
-            )
+            validation_results["issues"].append("force_override is disabled in configuration")
 
         # Log validation results
         if validation_results["issues"]:
@@ -2027,9 +2998,7 @@ class UnifiedBypassEngine:
             self.logger.error(f"❌ Failed to export diagnostics: {e}")
             return False
 
-    def monitor_forced_override_effectiveness(
-        self, duration_seconds: int = 60
-    ) -> Dict[str, Any]:
+    def monitor_forced_override_effectiveness(self, duration_seconds: int = 60) -> Dict[str, Any]:
         """
         Monitor forced override effectiveness over a time period.
 
@@ -2039,9 +3008,7 @@ class UnifiedBypassEngine:
         Returns:
             Dict with monitoring results
         """
-        self.logger.info(
-            f"🔍 Starting forced override monitoring for {duration_seconds} seconds"
-        )
+        self.logger.info(f"🔍 Starting forced override monitoring for {duration_seconds} seconds")
 
         start_time = time.time()
         start_telemetry = self.get_telemetry_snapshot()
@@ -2058,9 +3025,7 @@ class UnifiedBypassEngine:
         monitoring_results = {
             "monitoring_duration": end_time - start_time,
             "forced_overrides_during_period": end_override_count - start_override_count,
-            "telemetry_delta": self._calculate_telemetry_delta(
-                start_telemetry, end_telemetry
-            ),
+            "telemetry_delta": self._calculate_telemetry_delta(start_telemetry, end_telemetry),
             "average_overrides_per_minute": (end_override_count - start_override_count)
             / (duration_seconds / 60),
             "monitoring_start": start_time,
@@ -2068,9 +3033,7 @@ class UnifiedBypassEngine:
         }
 
         self.logger.info("📊 Forced Override Monitoring Results:")
-        self.logger.info(
-            f"   Duration: {monitoring_results['monitoring_duration']:.2f} seconds"
-        )
+        self.logger.info(f"   Duration: {monitoring_results['monitoring_duration']:.2f} seconds")
         self.logger.info(
             f"   Forced Overrides: {monitoring_results['forced_overrides_during_period']}"
         )
@@ -2087,6 +3050,7 @@ class UnifiedBypassEngine:
     ) -> Dict[str, bool]:
         """
         Apply multiple strategies in bulk with forced override.
+        Delegates to core.strategy.bulk_operations.apply_strategies_bulk.
 
         This method processes a strategy map (like service mode) but ensures
         all strategies are applied with forced override (like testing mode).
@@ -2098,61 +3062,25 @@ class UnifiedBypassEngine:
         Returns:
             Dict mapping keys to success status
         """
-        results = {}
+        from core.strategy.bulk_operations import apply_strategies_bulk
 
-        self.logger.info(
-            f"🚀 Applying {len(strategy_map)} strategies in bulk with forced override"
+        # Create mutable references for tracking
+        forced_override_count_ref = {"count": self._forced_override_count}
+
+        results = apply_strategies_bulk(
+            strategy_map=strategy_map,
+            target_ips=target_ips,
+            strategy_loader=self.strategy_loader,
+            ensure_testing_mode_compatibility_func=self._ensure_testing_mode_compatibility,
+            lock=self._lock,
+            forced_override_count_ref=forced_override_count_ref,
+            strategy_applications_ref=self._strategy_applications,
+            config=self.config,
+            logger=self.logger,
         )
 
-        for key, strategy_input in strategy_map.items():
-            try:
-                # Skip if target_ips filter is provided and key is not in it
-                if target_ips and key not in target_ips and key != "default":
-                    continue
-
-                # Load and normalize strategy
-                normalized_strategy = self.strategy_loader.load_strategy(strategy_input)
-
-                # Validate strategy
-                self.strategy_loader.validate_strategy(normalized_strategy)
-
-                # Create forced override (CRITICAL)
-                forced_config = self.strategy_loader.create_forced_override(
-                    normalized_strategy
-                )
-
-                # Ensure testing mode compatibility
-                forced_config = self._ensure_testing_mode_compatibility(forced_config)
-
-                # Track application
-                with self._lock:
-                    self._forced_override_count += 1
-                    if key not in self._strategy_applications:
-                        self._strategy_applications[key] = []
-                    self._strategy_applications[key].append(
-                        {
-                            "strategy_type": normalized_strategy.type,
-                            "timestamp": time.time(),
-                            "forced_override": True,
-                            "bulk_application": True,
-                        }
-                    )
-
-                results[key] = True
-
-                if self.config.log_all_strategies:
-                    self.logger.info(
-                        f"✅ Bulk applied forced strategy for {key}: {normalized_strategy.type}"
-                    )
-
-            except Exception as e:
-                self.logger.error(f"❌ Failed to apply bulk strategy for {key}: {e}")
-                results[key] = False
-
-        successful = sum(1 for success in results.values() if success)
-        self.logger.info(
-            f"📊 Bulk application complete: {successful}/{len(results)} strategies applied successfully"
-        )
+        # Update counter from reference
+        self._forced_override_count = forced_override_count_ref["count"]
 
         return results
 
@@ -2171,9 +3099,9 @@ class UnifiedBypassEngine:
             self.strategy_loader.validate_strategy(normalized_strategy)
 
             # Create forced override (CRITICAL)
-            forced_config = self.strategy_loader.create_forced_override(
-                normalized_strategy
-            )
+            forced_config = self.strategy_loader.create_forced_override(normalized_strategy)
+            forced_config = self._normalize_strategy_dict(forced_config)
+            forced_config = self._ensure_testing_mode_compatibility(forced_config)
 
             # Apply to engine
             self.engine.set_strategy_override(forced_config)
@@ -2197,48 +3125,42 @@ class UnifiedBypassEngine:
     def get_telemetry_snapshot(self) -> Dict[str, Any]:
         """
         Get comprehensive telemetry data including unified engine metrics.
+        Delegates to core.unified.telemetry.get_telemetry_snapshot.
 
         Returns:
             Dictionary containing telemetry data
         """
-        # Get base telemetry from underlying engine
-        base_telemetry = self.engine.get_telemetry_snapshot()
+        from core.unified.telemetry import get_telemetry_snapshot
 
-        # Add unified engine specific metrics
-        with self._lock:
-            unified_metrics = {
-                "unified_engine": {
-                    "forced_override_count": self._forced_override_count,
-                    "strategy_applications": dict(self._strategy_applications),
-                    "running": self._running,
-                    "uptime_seconds": (
-                        time.time() - self._start_time if self._start_time else 0
-                    ),
-                    "config": {
-                        "force_override": self.config.force_override,
-                        "enable_diagnostics": self.config.enable_diagnostics,
-                        "debug": self.config.debug,
-                    },
-                }
-            }
-
-        # Merge telemetry data
-        base_telemetry.update(unified_metrics)
-        return base_telemetry
+        return get_telemetry_snapshot(
+            engine=self.engine,
+            lock=self._lock,
+            forced_override_count=self._forced_override_count,
+            strategy_applications=self._strategy_applications,
+            running=self._running,
+            start_time_mono=self._start_time_mono,
+            start_time=self._start_time,
+            config=self.config,
+        )
 
     def report_high_level_outcome(self, target_ip: str, success: bool):
         """
         Report high-level outcome for a target.
+        Delegates to core.unified.telemetry.report_high_level_outcome.
 
         Args:
             target_ip: Target IP address
             success: Whether the connection was successful
         """
-        self.engine.report_high_level_outcome(target_ip, success)
+        from core.unified.telemetry import report_high_level_outcome
 
-        if self.config.enable_diagnostics:
-            outcome = "SUCCESS" if success else "FAILURE"
-            self.logger.debug(f"📊 High-level outcome for {target_ip}: {outcome}")
+        report_high_level_outcome(
+            engine=self.engine,
+            target_ip=target_ip,
+            success=success,
+            config=self.config,
+            logger=self.logger,
+        )
 
     def get_strategy_loader(self) -> UnifiedStrategyLoader:
         """
@@ -2290,88 +3212,19 @@ class UnifiedBypassEngine:
     ) -> List[str]:
         """
         Enhance strategies using the modern attack registry.
+        Delegates to core.strategy.enhancement.enhance_strategies_with_registry.
         """
-        if not self.attack_registry:
-            # Нормализуем на случай, если сюда попали dict
-            return [
-                s if isinstance(s, str) else self._task_to_str(s) for s in strategies
-            ]
+        from core.strategy.enhancement import enhance_strategies_with_registry
 
-        normalized_in: List[str] = [
-            s if isinstance(s, str) else self._task_to_str(s) for s in strategies
-        ]
-        enhanced_strategies: List[str] = []
-
-        # Fast fingerprint-based templates
-        if fingerprint:
-            if getattr(fingerprint, "rst_injection_detected", False):
-                enhanced_strategies.extend(
-                    [
-                        "--dpi-desync=fake --dpi-desync-ttl=1 --dpi-desync-fooling=badsum",
-                        "--dpi-desync=fake --dpi-desync-ttl=2 --dpi-desync-fooling=badsum,badseq",
-                    ]
-                )
-            if getattr(fingerprint, "tcp_window_manipulation", False):
-                enhanced_strategies.append(
-                    "--dpi-desync=multisplit --dpi-desync-split-count=3 --dpi-desync-split-seqovl=10"
-                )
-            if getattr(fingerprint, "http_header_filtering", False):
-                enhanced_strategies.append(
-                    "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-fooling=badsum"
-                )
-            if getattr(fingerprint, "dns_hijacking_detected", False):
-                enhanced_strategies.append(
-                    "--dns-over-https=on --dpi-desync=fake --dpi-desync-ttl=2"
-                )
-            try:
-                sni_sens = fingerprint.raw_metrics.get("sni_sensitivity", {})
-                if sni_sens.get("likely") or sni_sens.get("confirmed"):
-                    enhanced_strategies.extend(
-                        [
-                            "--dpi-desync=split --dpi-desync-split-pos=midsld",
-                            "--dpi-desync=fake,split --dpi-desync-split-pos=midsld --dpi-desync-ttl=1",
-                            "--dpi-desync=fake,disorder --dpi-desync-split-pos=midsld --dpi-desync-ttl=2",
-                        ]
-                    )
-                quic_blocked = fingerprint.raw_metrics.get("quic_probe", {}).get(
-                    "blocked"
-                )
-                if quic_blocked:
-                    enhanced_strategies.append(
-                        "--filter-udp=443 --dpi-desync=fake,disorder --dpi-desync-ttl=1"
-                    )
-            except Exception:
-                pass
-
-        available_attacks = self.attack_registry.list_attacks(enabled_only=True)
-        LOG.info(f"Found {len(available_attacks)} available attacks in registry")
-
-        for strategy in normalized_in:
-            enhanced_strategy = self._enhance_single_strategy(
-                strategy, available_attacks, fingerprint
-            )
-            if enhanced_strategy:
-                enhanced_strategies.append(enhanced_strategy)
-
-        if fingerprint and available_attacks:
-            try:
-                registry_strategies = self._generate_registry_strategies(
-                    available_attacks, fingerprint, domain, port
-                )
-                enhanced_strategies.extend(registry_strategies)
-            except Exception as e:
-                LOG.debug(f"Registry strategy generation failed: {e}")
-
-        seen = set()
-        unique_strategies = []
-        for strategy in enhanced_strategies + normalized_in:
-            if strategy not in seen:
-                seen.add(strategy)
-                unique_strategies.append(strategy)
-        LOG.info(
-            f"Enhanced {len(strategies)} strategies to {len(unique_strategies)} registry-optimized strategies"
+        return enhance_strategies_with_registry(
+            strategies=strategies,
+            fingerprint=fingerprint,
+            domain=domain,
+            port=port,
+            attack_registry=self.attack_registry,
+            task_to_str_func=self._task_to_str,
+            logger=self.logger,
         )
-        return unique_strategies
 
     def _enhance_single_strategy(
         self,
@@ -2379,1059 +3232,604 @@ class UnifiedBypassEngine:
         available_attacks: List[str],
         fingerprint: Optional[DPIFingerprint],
     ) -> Optional[str]:
-        """Enhance a single strategy using registry information."""
-        return strategy
-
-    async def test_strategies_hybrid(
-        self,
-        strategies: List[Union[str, Dict[str, Any]]],
-        test_sites: List[str],
-        ips: Set[str],
-        dns_cache: Dict[str, str],
-        port: int,
-        domain: str,
-        fast_filter: bool = True,
-        initial_ttl: Optional[int] = None,
-        enable_fingerprinting: bool = True,
-        use_modern_engine: bool = True,
-        capturer: Optional[Any] = None,
-        telemetry_full: bool = False,
-        # --- Online optimization hooks ---
-        optimization_callback: Optional[callable] = None,
-        strategy_evaluation_mode: bool = False,
-        engine_override: Optional[str] = None,
-        fingerprint: Optional[DPIFingerprint] = None,
-    ) -> List[Dict]:
         """
-        Гибридное тестирование стратегий с продвинутым фингерпринтингом DPI:
-        - optimization_callback: функция, вызываемая после каждого теста сайта для онлайн-оптимизации
-        - strategy_evaluation_mode: если True, возвращает только необработанные данные о производительности
-        1. Выполняет фингерпринтинг DPI для целевого домена
-        2. Адаптирует стратегии под обнаруженный тип DPI
-        3. Использует современный движок обхода если доступен
-        4. Проводит реальное тестирование с помощью BypassEngine
+        Enhance a single strategy using registry information.
+        Delegates to core.strategy.enhancement.enhance_single_strategy.
         """
-        results = []
-        use_modern = use_modern_engine and self.modern_bypass_enabled
-        if use_modern:
-            self.bypass_stats["modern_engine_tests"] += 1
-            LOG.info("Using modern bypass engine for strategy testing")
-        else:
-            self.bypass_stats["legacy_engine_tests"] += 1
-            LOG.info("Using legacy bypass engine for strategy testing")
-        if use_modern and self.pool_manager:
-            existing_strategy = self.pool_manager.get_strategy_for_domain(domain, port)
-            if existing_strategy:
-                LOG.info(f"Found existing pool strategy for {domain}:{port}")
-                pool_strategy_str = existing_strategy.to_zapret_format()
-                if pool_strategy_str not in strategies:
-                    strategies.insert(0, pool_strategy_str)
+        from core.strategy.enhancement import enhance_single_strategy
 
-        if (
-            enable_fingerprinting
-            and self.advanced_fingerprinting_enabled
-            and not fingerprint
-        ):
-            try:
-                LOG.info(f"Performing DPI fingerprinting for {domain}:{port}")
-                fingerprint = await self.advanced_fingerprinter.fingerprint_target(
-                    domain, port
-                )
-                if fingerprint:
-                    self.fingerprint_stats["fingerprint_aware_tests"] += 1
-                    LOG.info(
-                        f"DPI fingerprint obtained: {self._get_dpi_type_value(fingerprint)} (confidence: {self._get_fingerprint_confidence(fingerprint):.2f}, reliability: {self._get_fingerprint_reliability(fingerprint):.2f})"
-                    )
-                else:
-                    LOG.warning(
-                        "DPI fingerprinting failed, proceeding with standard testing"
-                    )
-                    self.fingerprint_stats["fallback_tests"] += 1
-            except Exception as e:
-                LOG.error(f"DPI fingerprinting error: {e}")
-                self.fingerprint_stats["fingerprint_failures"] += 1
-                self.fingerprint_stats["fallback_tests"] += 1
-                # Анализ PCAP даже при неудачном фингерпринтинге
-                if capturer and self.enhanced_tracking:
-                    capturer.trigger_pcap_analysis(force=True)
-                else:
-                    self.fingerprint_stats["fallback_tests"] += 1
-        elif fingerprint:
-            LOG.info(
-                f"Using pre-computed DPI fingerprint: {self._get_dpi_type_value(fingerprint)} (confidence: {self._get_fingerprint_confidence(fingerprint):.2f})"
-            )
-
-        # Knowledge init: derive CDN/ASN profile for primary domain
-        cdn = None
-        asn = None
-        kb_profile = {}
-        primary_ip = dns_cache.get(domain) if dns_cache else None
-        kb_recs: Dict[str, Any] = {}
-        if self.knowledge_base and primary_ip:
-            try:
-                # Новая интеграция с KB: используем get_recommendations(ip)
-                if hasattr(self.knowledge_base, "get_recommendations"):
-                    kb_recs = self.knowledge_base.get_recommendations(primary_ip) or {}
-                    cdn = kb_recs.get("cdn")
-                    LOG.info(f"KB: recommendations for {primary_ip}: {kb_recs}")
-                else:
-                    # совместимость, если есть иной API (не ожидается)
-                    LOG.debug("Knowledge base without get_recommendations, skipping")
-            except Exception as e:
-                LOG.debug(f"KB identify failed: {e}")
-
-        # QUIC/ECH detection (fast) to auto-prepend QUIC strategies
-        quic_signals = {
-            "ech_present": False,
-            "quic_ping_ok": False,
-            "http3_support": False,
-        }
-        if ECH_AVAILABLE:
-            try:
-                det = ECHDetector(dns_timeout=1.0)
-                ech = await det.detect_ech_dns(domain)
-                quic_signals["ech_present"] = bool(ech and ech.get("ech_present"))
-                quic = await det.probe_quic(domain, port, timeout=0.5)
-                quic_signals["quic_ping_ok"] = bool(quic and quic.get("success"))
-                http3_ok = await det.probe_http3(domain, port, timeout=1.2)
-                quic_signals["http3_support"] = bool(http3_ok)
-                LOG.info(f"QUIC/ECH signals for {domain}: {quic_signals}")
-            except Exception as e:
-                LOG.debug(f"QUIC/ECH detection failed: {e}")
-
-        # <<< FIX: Correctly instantiate AttackContext with dst_ip >>>
-        synthesized = None
-        if synthesize_strategy and AttackContext:
-            try:
-                ctx = AttackContext(
-                    domain=domain,
-                    dst_ip=primary_ip,  # Pass the resolved IP here
-                    port=port,
-                    fingerprint=fingerprint,
-                    cdn=cdn,
-                    asn=asn,
-                    kb_profile=kb_profile or kb_recs,
-                )
-                synthesized = synthesize_strategy(ctx)
-            except Exception as e:
-                LOG.debug(f"Strategy synthesis failed: {e}")
-        else:
-            if not synthesize_strategy:
-                LOG.debug(
-                    "Strategy synthesis not available (synthesize_strategy is None/fallback)"
-                )
-            if not AttackContext:
-                LOG.debug("Strategy synthesis not available (AttackContext is None)")
-        # <<< END FIX >>>
-
-        base: List[Union[str, Dict[str, Any]]] = strategies[:]  # сохранить тип
-        # Рабочие списки
-        dict_only = [s for s in base if isinstance(s, dict)]
-        str_only = [s for s in base if isinstance(s, str)]
-
-        # Для ветки с реестром/адаптацией работаем только со строками, dict добавим как есть
-        strategies_to_test: List[Union[str, Dict[str, Any]]] = []
-        if use_modern and self.attack_registry:
-            if str_only:
-                boosted = self._enhance_strategies_with_registry(
-                    str_only, fingerprint, domain, port
-                )
-                strategies_to_test = dict_only + boosted
-                self.bypass_stats["attack_registry_queries"] += 1
-            else:
-                strategies_to_test = dict_only
-        elif fingerprint:
-            adapted = self._adapt_strategies_for_fingerprint(str_only, fingerprint)
-            strategies_to_test = dict_only + adapted
-            LOG.info(f"Using {len(strategies_to_test)} fingerprint-adapted strategies")
-        else:
-            strategies_to_test = base
-            LOG.info(
-                f"Using {len(strategies_to_test)} standard strategies (no fingerprint)"
-            )
-
-        # synthesized dict — prepend
-        if synthesized and isinstance(synthesized, dict):
-            merged = [synthesized] + strategies_to_test
-            uniq, seen = [], set()
-            for s in merged:
-                key = s if isinstance(s, str) else self._task_to_str(s)
-                if key not in seen:
-                    seen.add(key)
-                    uniq.append(s)
-            strategies_to_test = uniq
-
-        # Препенд рекомендаций KB: dict для современного движка + строка для совместимости
-        if kb_recs:
-            try:
-                split_pos = kb_recs.get("split_pos")
-                overlap_size = kb_recs.get("overlap_size")
-                fool = kb_recs.get("fooling_methods") or []
-                if isinstance(fool, str):
-                    fool = [x.strip() for x in fool.split(",") if x.strip()]
-                kb_dict = {
-                    "type": "fakeddisorder",
-                    "params": {
-                        "fooling": fool if fool else ["badsum"],
-                        "split_pos": (
-                            int(split_pos) if isinstance(split_pos, int) else 76
-                        ),
-                        "overlap_size": 0,  # критично: без перекрытия
-                        "ttl": 3,
-                    },
-                }
-                kb_str = (
-                    f"--dpi-desync=fake,disorder "
-                    f"--dpi-desync-fooling={','.join(fool) if fool else 'badsum'} "
-                    f"--dpi-desync-split-pos={kb_dict['params']['split_pos']} "
-                    f"--dpi-desync-ttl=3"
-                )
-                merged = [kb_dict, kb_str] + strategies_to_test
-                uniq, seen = [], set()
-                for s in merged:
-                    key = s if isinstance(s, str) else self._task_to_str(s)
-                    if key not in seen:
-                        seen.add(key)
-                        uniq.append(s)
-                strategies_to_test = uniq
-                LOG.info("KB‑recommended strategies prepended")
-            except Exception as e:
-                LOG.debug(f"Failed to prepend KB recommendations: {e}")
-
-        # Auto-prepend QUIC fragmentation strategies if signals say QUIC/HTTP3/ECH
-        try:
-            if (
-                quic_signals.get("quic_ping_ok")
-                or quic_signals.get("http3_support")
-                or quic_signals.get("ech_present")
-            ):
-                frag_size = 300
-                if kb_profile and kb_profile.get("optimal_fragment_size"):
-                    frag_size = int(kb_profile["optimal_fragment_size"])
-                quic_strats: List[Dict[str, Any]] = [
-                    {
-                        "type": "quic_fragmentation",
-                        "params": {
-                            "fragment_size": frag_size,
-                            "add_version_negotiation": True,
-                        },
-                    },
-                    {
-                        "type": "quic_fragmentation",
-                        "params": {"fragment_size": max(200, frag_size - 100)},
-                    },
-                ]
-                # prepend unique
-                seen_keys = set()
-
-                def _key(s):
-                    return (
-                        s
-                        if isinstance(s, str)
-                        else (
-                            s.get("type"),
-                            tuple(sorted((s.get("params") or {}).items())),
-                        )
-                    )
-
-                merged = []
-                for s in quic_strats + strategies_to_test:
-                    k = _key(s)
-                    if k in seen_keys:
-                        continue
-                    seen_keys.add(k)
-                    merged.append(s)
-                strategies_to_test = merged
-                LOG.info("QUIC fragmentation strategies prepended")
-        except Exception as e:
-            LOG.debug(f"Prepend QUIC strategies failed: {e}")
-
-        if not strategies_to_test:
-            # fallback: если ничего не осталось
-            strategies_to_test = base or [
-                "--dpi-desync=fake,disorder --dpi-desync-split-pos=3 --dpi-desync-ttl=3"
-            ]
-            LOG.warning(
-                f"No strategies after optimization, falling back to {len(strategies_to_test)}"
-            )
-
-        LOG.info(
-            f"Начинаем реальное тестирование {len(strategies_to_test)} стратегий с помощью BypassEngine..."
-        )
-        for i, strategy in enumerate(strategies_to_test):
-            pretty = (
-                strategy if isinstance(strategy, str) else self._task_to_str(strategy)
-            )
-            sid = hashlib.sha1(str(pretty).encode("utf-8")).hexdigest()[:12]
-            LOG.info(f"--> Тест {i + 1}/{len(strategies_to_test)}: {pretty}")
-            if capturer:
-                try:
-                    capturer.mark_strategy_start(sid)
-                except Exception:
-                    pass
-            ret = await self.execute_strategy_real_world(
-                strategy,
-                test_sites,
-                ips,
-                dns_cache,
-                port,
-                initial_ttl,
-                fingerprint,
-                prefer_retry_on_timeout=(i < 2),
-                return_details=True,
-                enable_online_optimization=self.enable_online_optimization,
-                engine_override=engine_override,
-            )
-            engine_telemetry = {}
-            if len(ret) == 6:
-                (
-                    result_status,
-                    successful_count,
-                    total_count,
-                    avg_latency,
-                    site_results,
-                    engine_telemetry,
-                ) = ret
-            elif len(ret) == 5:
-                (
-                    result_status,
-                    successful_count,
-                    total_count,
-                    avg_latency,
-                    site_results,
-                ) = ret
-            else:
-                result_status, successful_count, total_count, avg_latency = ret
-                site_results = {}
-
-            if capturer:
-                try:
-                    capturer.mark_strategy_end(sid)
-                except Exception:
-                    pass
-            success_rate = successful_count / total_count if total_count > 0 else 0.0
-
-            tel_sum = {}
-            if engine_telemetry:
-                aggr = engine_telemetry.get("aggregate", {})
-                tel_sum = {
-                    "segments_sent": aggr.get("segments_sent", 0),
-                    "fake_packets_sent": aggr.get("fake_packets_sent", 0),
-                    "CH": engine_telemetry.get("clienthellos", 0),
-                    "SH": engine_telemetry.get("serverhellos", 0),
-                    "RST": engine_telemetry.get("rst_count", 0),
-                }
-            # --- START OF FIX: Add detailed site_results to the final result object ---
-            result_data = {
-                "strategy_id": sid,
-                "strategy": pretty,
-                "result_status": result_status,
-                "successful_sites": successful_count,
-                "total_sites": total_count,
-                "success_rate": success_rate,
-                "avg_latency_ms": avg_latency,
-                "fingerprint_used": fingerprint is not None,
-                "dpi_type": (
-                    fingerprint.dpi_type.value
-                    if (fingerprint and hasattr(fingerprint.dpi_type, "value"))
-                    else (str(fingerprint.dpi_type) if fingerprint else None)
-                ),
-                "dpi_confidence": fingerprint.confidence if fingerprint else None,
-                "engine_telemetry": tel_sum,
-                "site_results": site_results,  # Pass the detailed results up
-            }
-            # --- END OF FIX ---
-            if telemetry_full and engine_telemetry:
-                result_data["engine_telemetry_full"] = engine_telemetry
-
-            results.append(result_data)
-            # Пишем результат по каждому домену в KB
-            try:
-                if self.knowledge_base and site_results:
-                    for site, (st, ip_used, lat_ms, _http) in site_results.items():
-                        dname = urlparse(site).hostname or site
-                        self.knowledge_base.update_with_result(
-                            domain=dname,
-                            ip=ip_used or "",
-                            strategy={"raw": pretty},
-                            success=(st == "WORKING"),
-                            block_type=(
-                                BlockType.NONE if st == "WORKING" else BlockType.TIMEOUT
-                            ),
-                            latency_ms=float(lat_ms or 0.0),
-                        )
-            except Exception as e:
-                LOG.debug(f"KB update failed: {e}")
-            if success_rate > 0:
-                LOG.info(
-                    f"✓ Успех: {success_rate:.0%} ({successful_count}/{total_count}), задержка: {avg_latency:.1f}ms"
-                )
-            else:
-                LOG.info(
-                    f"✗ Провал: ни один сайт не заработал. Причина: {result_status}"
-                )
-            if tel_sum:
-                # Печатаем чуть расширенную сводку
-                LOG.info(
-                    f"   Telemetry: SegsSent={tel_sum.get('segments_sent',0)} FakesSent={tel_sum.get('fake_packets_sent',0)} CH={tel_sum.get('CH',0)} SH={tel_sum.get('SH',0)} RST={tel_sum.get('RST',0)}"
-                )
-        if results:
-            if fingerprint:
-                results.sort(
-                    key=lambda x: (
-                        x.get("success_rate", 0.0),
-                        -x.get("avg_latency_ms", 0.0),
-                        1 if x.get("fingerprint_used") else 0,
-                    ),
-                    reverse=True,
-                )
-            else:
-                results.sort(
-                    key=lambda x: (
-                        x.get("success_rate", 0.0),
-                        -x.get("avg_latency_ms", 0.0),
-                    ),
-                    reverse=True,
-                )
-        if results and fingerprint:
-            LOG.info(
-                f"Strategy testing completed with DPI fingerprint: {self._get_dpi_type_value(fingerprint)} (confidence: {self._get_fingerprint_confidence(fingerprint):.2f})"
-            )
-
-        # ==== NEW: Enhanced tracking auto-analysis and second pass ====
-        try:
-            if (
-                self.enhanced_tracking
-                and capturer
-                and hasattr(capturer, "analyze_pcap_file")
-            ):
-                cap_path = getattr(capturer, "pcap_file", None)
-                cap_metrics = capturer.analyze_pcap_file(cap_path)
-                if self.knowledge_base and isinstance(cap_metrics, dict):
-                    total_ch = sum(
-                        m.get("tls_clienthellos", 0) for m in cap_metrics.values()
-                    )
-                    total_sh = sum(
-                        m.get("tls_serverhellos", 0) for m in cap_metrics.values()
-                    )
-                    ratio = total_sh / total_ch if total_ch > 0 else 0.0
-                    primary_ip = dns_cache.get(domain)
-                    if domain and primary_ip:
-                        self.knowledge_base.update_quic_metrics(
-                            domain, primary_ip, ratio
-                        )
-
-                self._merge_capture_metrics_into_results(
-                    results, cap_metrics if isinstance(cap_metrics, dict) else {}
-                )
-                # Update KB QUIC score
-                try:
-                    if self.knowledge_base and isinstance(cap_metrics, dict):
-                        # simple aggregate score per domain: use first test_sites domain
-                        dname = (
-                            urlparse(test_sites[0]).hostname if test_sites else domain
-                        ) or domain
-                        sc = 0.0
-                        for m in cap_metrics.values():
-                            sc = max(sc, float(m.get("success_score", 0.0)))
-                        if hasattr(self.knowledge_base, "domain_quic_scores"):
-                            self.knowledge_base.domain_quic_scores[dname] = sc
-                except Exception as e:
-                    LOG.debug(f"KB QUIC update failed: {e}")
-
-                # Генерация доп. стратегий на основе PCAP
-                extra = self._suggest_strategies_from_pcap(
-                    cap_metrics if isinstance(cap_metrics, dict) else {}, fingerprint
-                )
-                # Дедупликация
-                already = {r.get("strategy") for r in results}
-                extra = [s for s in extra if s not in already]
-
-                # full-pool booster
-                try:
-                    booster = self._boost_with_full_pool(fingerprint)
-                    already = {r.get("strategy") for r in results}
-                    booster = [s for s in booster if s not in already]
-                    if booster:
-                        LOG.info(
-                            f"Full-pool booster added {len(booster)} strategies for second pass"
-                        )
-                        extra.extend([s for s in booster if s not in extra])
-                except Exception as e:
-                    LOG.debug(f"Full-pool booster failed: {e}")
-
-                if extra:
-                    LOG.info(
-                        f"Enhanced tracking generated {len(extra)} additional strategies for second pass"
-                    )
-                    for i, strategy in enumerate(extra[:6]):
-                        pretty = (
-                            strategy
-                            if isinstance(strategy, str)
-                            else self._task_to_str(strategy)
-                        )
-                        LOG.info(
-                            f"--> [2nd pass] {i + 1}/{min(6, len(extra))}: {pretty}"
-                        )
-                        if capturer:
-                            try:
-                                capturer.mark_strategy_start(str(strategy))
-                            except Exception:
-                                pass
-                        ret = await self.execute_strategy_real_world(
-                            strategy,
-                            test_sites,
-                            ips,
-                            dns_cache,
-                            port,
-                            initial_ttl,
-                            fingerprint,
-                            prefer_retry_on_timeout=True,  # агрессивнее ретраи для 2го прохода
-                            return_details=True,
-                            enable_online_optimization=self.enable_online_optimization,
-                            engine_override=engine_override,
-                        )
-                        if len(ret) == 5:
-                            (
-                                result_status,
-                                successful_count,
-                                total_count,
-                                avg_latency,
-                                site_results,
-                            ) = ret
-                        else:
-                            (
-                                result_status,
-                                successful_count,
-                                total_count,
-                                avg_latency,
-                            ) = ret
-                            site_results = {}
-                        if capturer:
-                            try:
-                                capturer.mark_strategy_end(str(strategy))
-                            except Exception:
-                                pass
-                        success_rate = (
-                            successful_count / total_count if total_count > 0 else 0.0
-                        )
-                        result_data = {
-                            "strategy": pretty,
-                            "result_status": result_status,
-                            "successful_sites": successful_count,
-                            "total_sites": total_count,
-                            "success_rate": success_rate,
-                            "avg_latency_ms": avg_latency,
-                            "fingerprint_used": fingerprint is not None,
-                            "dpi_type": (
-                                fingerprint.dpi_type.value
-                                if (
-                                    fingerprint
-                                    and hasattr(fingerprint.dpi_type, "value")
-                                )
-                                else (
-                                    str(fingerprint.dpi_type) if fingerprint else None
-                                )
-                            ),
-                            "dpi_confidence": (
-                                fingerprint.confidence if fingerprint else None
-                            ),
-                        }
-                        results.append(result_data)
-                    # Пересортировка после добавления
-                    if results:
-                        if fingerprint:
-                            results.sort(
-                                key=lambda x: (
-                                    x.get("success_rate", 0.0),
-                                    -x.get("avg_latency_ms", 0.0),
-                                    1 if x.get("fingerprint_used") else 0,
-                                ),
-                                reverse=True,
-                            )
-                        else:
-                            results.sort(
-                                key=lambda x: (
-                                    x.get("success_rate", 0.0),
-                                    -x.get("avg_latency_ms", 0.0),
-                                ),
-                                reverse=True,
-                            )
-        except Exception as e:
-            LOG.debug(f"Enhanced tracking second pass failed: {e}")
-
-        # Сохраняем обновленную базу знаний (если используется)
-        if self.knowledge_base and any(r.get("success_rate", 0) > 0 for r in results):
-            try:
-                self.knowledge_base.save()
-                LOG.info(
-                    "Knowledge base updated and saved after successful strategy tests"
-                )
-            except Exception as e:
-                LOG.error(f"Failed to save knowledge base: {e}")
-
-        return results
-
-
-
-    def _log_final_statistics(self):
-        """Log final statistics when stopping."""
-        with self._lock:
-            uptime = time.time() - self._start_time if self._start_time else 0
-
-        self.logger.info("📊 UnifiedBypassEngine Final Statistics:")
-        self.logger.info(f"   Uptime: {uptime:.2f} seconds")
-        self.logger.info(f"   Forced overrides applied: {self._forced_override_count}")
-        self.logger.info(f"   Strategies tracked: {len(self._strategy_applications)}")
-
-        if self.config.debug and self._strategy_applications:
-            self.logger.debug("   Strategy applications by target:")
-            for target, applications in self._strategy_applications.items():
-                self.logger.debug(f"     {target}: {len(applications)} applications")
-
-    def _get_dpi_type_value(self, fingerprint):
-        """Safely get DPI type value from fingerprint."""
-        if not fingerprint:
-            return None
-
-        dpi_type = getattr(fingerprint, "dpi_type", None)
-        if not dpi_type:
-            return None
-
-        # If it has a .value attribute (enum), use it
-        if hasattr(dpi_type, "value"):
-            return dpi_type.value
-
-        # Otherwise, it's probably already a string
-        return str(dpi_type)
-
-    def _get_fingerprint_confidence(self, fingerprint):
-        """Safely get confidence value from fingerprint."""
-        if not fingerprint:
-            return 0.0
-
-        confidence = getattr(fingerprint, "confidence", 0.0)
-        try:
-            return float(confidence)
-        except (TypeError, ValueError):
-            return 0.0
-
-    def _get_fingerprint_reliability(self, fingerprint):
-        """Safely get reliability score from fingerprint."""
-        if not fingerprint:
-            return 0.0
-
-        reliability = getattr(fingerprint, "reliability_score", 0.0)
-        try:
-            return float(reliability)
-        except (TypeError, ValueError):
-            return 0.0
+        return enhance_single_strategy(strategy, available_attacks, fingerprint)
 
     def test_strategy_as_service(
-        self,
-        target_ip: str,
-        strategy_input: Union[str, Dict[str, Any]],
-        domain: Optional[str] = None,
-        timeout: float = 30.0,
-        verification_mode: bool = False,
-    ) -> Dict[str, Any]:
+        self, target_ip: str, strategy_input: Any, domain: str = None, **kwargs
+    ):
         """
-        Test strategy using service-like approach (real-world conditions).
-        
-        Основная идея:
-        1. Нормализуем и валидируем стратегию.
-        2. Приводим её к engine_task (как в execute_strategy_real_world).
-        3. Запускаем движок обхода + WinDivert.
-        4. Тестируем реальное соединение (через execute_strategy_real_world),
-           которое внутри использует tls-client / aiohttp для генерации
-           браузероподобного ClientHello.
-        5. Собираем статус, HTTP-код, задержку и телеметрию.
-        
-        Если метод вызывается из уже работающего event loop,
-        используются синхронные fallback-тесты с _test_with_curl_http2_sync().
+        Безопасный метод для вызова из CLI (синхронный или асинхронный контекст).
         """
-        start_ts = time.monotonic()
-        domain = domain or target_ip
+        # Нормализация стратегии
+        engine_task = self._ensure_engine_task(strategy_input)
+        if not engine_task:
+            return {"success": False, "error": "Invalid strategy"}
 
-        self.logger.info(
-            "🧪 Testing strategy as SERVICE: %s for %s", strategy_input, target_ip
+        # Обертка для запуска в отдельном потоке, если мы уже в loop
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # Мы внутри async loop (например, в режиме auto)
+            # Нельзя использовать asyncio.run, и нельзя блокировать loop
+            # Используем ThreadPoolExecutor для изоляции теста
+            from concurrent.futures import ThreadPoolExecutor
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self._run_sync_test_isolated, target_ip, engine_task, domain
+                )
+                return future.result()
+        else:
+            # Мы в чистом sync контексте (обычный CLI)
+            return self._run_sync_test_isolated(target_ip, engine_task, domain)
+
+    async def test_strategy(self, domain: str, strategy) -> "TestResult":
+        """
+        Async method for testing strategy - adapter for new architecture.
+
+        Args:
+            domain: Domain to test
+            strategy: Strategy object with name and parameters
+
+        Returns:
+            TestResult object
+        """
+        start_mono = time.monotonic()
+        try:
+            import socket
+
+            # Resolve domain to IP
+            try:
+                target_ip = socket.gethostbyname(domain)
+            except Exception as e:
+                # Import TestResult from new architecture
+                from core.adaptive_refactored.models import TestResult, TestMode
+
+                return TestResult(
+                    success=False,
+                    strategy=strategy,
+                    domain=domain,
+                    execution_time=0.0,
+                    error=f"DNS resolution failed: {e}",
+                    test_mode=TestMode.DISCOVERY,
+                )
+
+            # Convert strategy to dict format
+            # Support both old format (name as attack type) and new format (attack_combination)
+            attack_combination = getattr(strategy, "attack_combination", None)
+            if attack_combination:
+                # New format: use attack_combination
+                if isinstance(attack_combination, list) and len(attack_combination) > 0:
+                    attack_type = (
+                        attack_combination[0]
+                        if len(attack_combination) == 1
+                        else ",".join(attack_combination)
+                    )
+                    attacks = attack_combination if len(attack_combination) > 1 else None
+                else:
+                    attack_type = "fake"
+                    attacks = None
+            else:
+                # Old format: fallback to name
+                attack_type = getattr(strategy, "name", "unknown")
+                attacks = None
+
+            params = getattr(strategy, "parameters", {}) or {}
+            strategy_dict = self._normalize_strategy_dict(
+                {"type": attack_type, "params": params, "parameters": params}
+            )
+
+            # Add attacks field for combo strategies
+            if attacks:
+                strategy_dict["attacks"] = attacks
+
+            # Run test using existing service method
+            result = self.test_strategy_as_service(target_ip, strategy_dict, domain)
+
+            # Import TestResult from new architecture
+            from core.adaptive_refactored.models import TestResult, TestMode
+
+            return TestResult(
+                success=result.get("success", False),
+                strategy=strategy,
+                domain=domain,
+                execution_time=time.monotonic() - start_mono,
+                error=result.get("error"),
+                test_mode=TestMode.DISCOVERY,
+            )
+
+        except Exception as e:
+            # Import TestResult from new architecture
+            from core.adaptive_refactored.models import TestResult, TestMode
+
+            return TestResult(
+                success=False,
+                strategy=strategy,
+                domain=domain,
+                execution_time=0.0,
+                error=f"Test execution failed: {e}",
+                test_mode=TestMode.DISCOVERY,
+            )
+
+    def is_available(self) -> bool:
+        """Check if bypass engine is available for testing."""
+        return self.engine is not None
+
+    def _run_sync_test_isolated(self, target_ip: str, strategy: Dict, domain: str):
+        """
+        Изолированный синхронный тест. Запускает движок, делает curl, останавливает движок.
+        """
+        import subprocess
+        from pathlib import Path
+
+        overall_start = time.monotonic()
+
+        # 1. Start Engine
+        self.engine.start(
+            target_ips={target_ip},
+            strategy_map={"default": strategy},
+            strategy_override=strategy,
+            reset_telemetry=True,
         )
 
-        # Task 11.4: Start operation logging if in verification mode
-        strategy_id: Optional[str] = None
-        if verification_mode:
-            try:
-                from core.operation_logger import get_operation_logger
-
-                operation_logger = get_operation_logger()
-                if isinstance(strategy_input, dict):
-                    strategy_name = strategy_input.get("type", "unknown")
-                else:
-                    strategy_name = str(strategy_input)
-
-                strategy_id = operation_logger.start_strategy_log(
-                    strategy_name=strategy_name,
-                    domain=domain,
-                    metadata={"target_ip": target_ip},
-                )
-                self.logger.info(
-                    "📝 Started operation logging: strategy_id=%s",
-                    strategy_id[:8],
-                )
-            except Exception as e:
-                self.logger.warning("⚠️ Failed to start operation logging: %s", e)
-
         try:
-            # 1. Load and validate strategy
-            normalized_strategy = self.strategy_loader.load_strategy(strategy_input)
-            self.logger.debug(
-                "📋 Normalized strategy params: %s", normalized_strategy.params
-            )
-            self.strategy_loader.validate_strategy(normalized_strategy)
+            time.sleep(2.0)  # Warmup
 
-            # 2. Build engine_task (в формате low-level движка)
-            engine_task = normalized_strategy.to_engine_format()
-            self.logger.debug(
-                "📋 Engine task params: %s", engine_task.get("params")
-            )
-            self.logger.info("✅ Strategy loaded: %s", engine_task.get("type"))
+            # --- NEW: detect TLS ServerHello during this attempt (DPI-bypass success signal) ---
+            from core.bypass.monitoring.tls_serverhello_detector import TLSServerHelloDetector
 
-            # 3. Prepare test sites and DNS cache
-            test_site = f"https://{domain}"
-            test_sites = [test_site]
-            target_ips_set = {target_ip}
-            dns_cache = {domain: target_ip}
+            detector = TLSServerHelloDetector(logger=self.logger)
+            sh_state = {"ok": False, "evidence": None}
 
-            # 4. Запускаем реальное тестирование
+            # IMPORTANT: avoid using stale flow from previous attempts
             try:
-                # Если мы уже в event loop → нельзя использовать asyncio.run()
-                try:
-                    asyncio.get_running_loop()
-                    # В event loop: используем синхронный fallback через curl/tls-client
-                    self.logger.warning(
-                        "Already in event loop, using synchronous fallback for service test"
-                    )
-                    return self._test_with_curl_http2_sync(
-                        domain=domain,
-                        timeout=max(timeout - 2.0, 5.0),
-                        target_ip=target_ip,
-                        strategy=engine_task,
-                    )
-                except RuntimeError:
-                    # Нет event loop → безопасно использовать asyncio.run()
-                    result = asyncio.run(
-                        self.execute_strategy_real_world(
-                            strategy=engine_task,
-                            test_sites=test_sites,
-                            target_ips=target_ips_set,
-                            dns_cache=dns_cache,
-                            warmup_ms=2000.0,  # 2s warmup for WinDivert
-                            return_details=True,
-                            strategy_id=strategy_id,
-                        )
-                    )
+                setattr(self.engine, "_last_processed_flow", None)
+            except Exception:
+                pass
 
-                status, successful, total, avg_latency, results, telemetry = result
-                response_time = time.monotonic() - start_ts
+            stop_event = threading.Event()
+            ready_event = threading.Event()
 
-                # Check if test succeeded
-                success = successful > 0
-                error = None if success else "No sites working"
-
-                site_result = results.get(
-                    test_site, ("ERROR", target_ip, 0.0, 0)
+            def _sh_worker():
+                ok, ev = detector.wait(
+                    target_ip=target_ip,
+                    timeout_s=12.0,
+                    target_port=443,
+                    expected_dst_port=None,  # do not pre-filter (we correlate after curl)
+                    stop_event=stop_event,
+                    ready_event=ready_event,
                 )
-                site_status, site_ip, site_latency, http_code = site_result
+                sh_state["ok"] = bool(ok)
+                sh_state["evidence"] = ev
 
-                self.logger.info(
-                    "✅ Service test complete: success=%s, http_code=%s, latency=%.1f ms",
-                    success,
-                    http_code,
-                    site_latency,
+            sh_thread = threading.Thread(target=_sh_worker, daemon=True)
+            sh_thread.start()
+
+            # CRITICAL: Wait for detector to be ready before starting curl
+            # ServerHello arrives ~100-200ms after ClientHello, so detector MUST be listening first
+            self.logger.info("⏳ Waiting for ServerHello detector to be ready...")
+            if ready_event.wait(timeout=2.0):
+                self.logger.info("✅ ServerHello detector is ready, starting curl")
+            else:
+                self.logger.warning("⚠️ ServerHello detector not ready after 2s, proceeding anyway")
+
+            # 2. Run Curl (Sync) with full diagnostics
+            cmd = [
+                *self._build_resolve_curl_command(
+                    target_ip=target_ip,
+                    domain=domain,
+                    timeout=10.0,
+                    include_ciphers=True,
+                    tlsv1_2=False,  # preserve old behavior for this path
+                    enhanced_headers=False,  # preserve old behavior (minimal headers)
+                )
+            ]
+
+            self.logger.info("🌐 curl cmd: %s", " ".join(cmd))
+
+            ok, reason = self._curl_command_validator.validate_curl_command(cmd)
+            if not ok:
+                raise RuntimeError(f"curl command validation failed: {reason}")
+
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            http_code_raw = (res.stdout or "").strip()
+            stderr_raw = (res.stderr or "").strip()
+            returncode = int(getattr(res, "returncode", -1))
+
+            # STRICT: valid HTTP code is 100..599 (curl uses 000 for failure)
+            code = int(http_code_raw) if http_code_raw.isdigit() else 0
+            http_success = 100 <= code < 600
+
+            # Save curl diagnostics into result (and also log on failures)
+            result = {
+                "curl": {
+                    "cmd": cmd,
+                    "returncode": returncode,
+                    "http_code_raw": http_code_raw,
+                    "stderr": stderr_raw[:2000],  # cap to avoid massive logs
+                }
+            }
+
+            if not http_success:
+                self.logger.warning(
+                    "❌ curl failed: returncode=%s http_code=%r stderr=%r",
+                    returncode,
+                    http_code_raw,
+                    stderr_raw[:400],
                 )
 
-                # Retransmission count from telemetry / engine
-                retransmission_count = 0
-                if telemetry and isinstance(telemetry, dict):
-                    retransmission_count = telemetry.get(
-                        "total_retransmissions_detected", 0
-                    )
-                elif hasattr(self, "_retransmission_count"):
-                    retransmission_count = getattr(
-                        self, "_retransmission_count", 0
-                    )
+            # Stop detector ASAP to avoid interfering with next attempts
+            try:
+                stop_event.set()
+            except Exception:
+                pass
 
-                return {
-                    "success": success,
-                    "error": error,
-                    "response_time": response_time,
-                    "clienthello_size": 1400,  # приблизительный размер с TLS-клиентом/HTTP2
-                    "method": "service_based",
-                    "http_code": http_code,
-                    "latency": site_latency,
-                    "site_status": site_status,
-                    "retransmission_count": retransmission_count,
-                }
+            # Wait a short moment for detector to finish after curl
+            try:
+                sh_thread.join(timeout=1.5)
+            except Exception:
+                pass
+            result["tls_serverhello"] = {"ok": sh_state["ok"], "evidence": sh_state["evidence"]}
 
-            except Exception as e:
-                self.logger.error("❌ Service-based test failed: %s", e)
-                return {
-                    "success": False,
-                    "error": f"Service-based test failed: {e}",
-                    "response_time": time.monotonic() - start_ts,
-                    "method": "service_failed",
-                }
+            # === NEW: correlate ServerHello with the actual attacked flow ===
+            flow = None
+            try:
+                flow = getattr(self.engine, "_last_processed_flow", None)
+            except Exception:
+                flow = None
+            result["observed_flow"] = flow
+            try:
+                expected_port = (
+                    int(flow.get("src_port"))
+                    if isinstance(flow, dict) and flow.get("src_port") is not None
+                    else None
+                )
+            except Exception:
+                expected_port = None
+            try:
+                ev = sh_state["evidence"] or {}
+                ev_port = ev.get("dst_port")
+                result["serverhello_matches_flow"] = bool(
+                    expected_port is not None
+                    and ev_port is not None
+                    and int(ev_port) == int(expected_port)
+                )
+            except Exception:
+                result["serverhello_matches_flow"] = None
 
-        except (StrategyLoadError, StrategyValidationError) as e:
-            self.logger.error("❌ Strategy validation failed: %s", e)
-            return {
-                "success": False,
-                "error": f"Strategy validation failed: {e}",
-                "response_time": time.monotonic() - start_ts,
-                "method": "validation_failed",
-            }
-        except Exception as e:
-            self.logger.error("❌ Unexpected error: %s", e, exc_info=True)
-            return {
-                "success": False,
-                "error": f"Unexpected error: {e}",
-                "response_time": time.monotonic() - start_ts,
-                "method": "error",
-            }
-        finally:
-            # Task 11.4: End operation logging
-            if strategy_id:
-                try:
-                    from core.operation_logger import get_operation_logger
+            # 3. Validate
+            telemetry = self.engine.get_telemetry_snapshot()
+            validation = self._validator.validate(
+                http_success=http_success,
+                http_code=code,
+                telemetry=telemetry,
+                strategy_name=str(strategy.get("type")),
+            )
 
-                    operation_logger = get_operation_logger()
-                    operation_logger.end_strategy_log(strategy_id, save_to_file=True)
+            # Prefer real on-wire evidence
+            tls_ok = bool(sh_state["ok"])
+            tls_evidence = sh_state["evidence"]
+
+            # Check correlation (but don't zero out tls_ok if correlation is unknown)
+            match = result.get("serverhello_matches_flow")
+            if match is False:  # Only if explicitly False, not None
+                self.logger.warning("⚠️ ServerHello detected but doesn't match flow - ignoring")
+                tls_ok = False
+
+            result["tls_handshake"] = {"ok": tls_ok, "evidence": tls_evidence}
+
+            # DIAGNOSTIC LOG: Show all decision factors
+            tls_partial_enabled = self._tls_partial_success_enabled()
+            self.logger.warning(
+                "🔍 DECISION FACTORS: http_success=%s code=%s validation.success(before)=%s "
+                "tls_ok=%s tls_partial_enabled=%s serverhello_matches_flow=%r",
+                http_success,
+                code,
+                validation.success,
+                tls_ok,
+                tls_partial_enabled,
+                result.get("serverhello_matches_flow", None),
+            )
+
+            # CRITICAL FIX: ServerHello detection is PRIMARY success criterion
+            # Hard rule: success = http_success OR tls_ok (no config gate!)
+            # If ServerHello detected, bypass succeeded at TLS level (DPI was bypassed)
+            # HTTP failures after successful TLS handshake are application-level issues
+
+            if tls_ok:
+                # TLS handshake succeeded - DPI bypass SUCCESSFUL!
+                if not http_success:
                     self.logger.info(
-                        "📝 Ended operation logging: strategy_id=%s",
-                        strategy_id[:8],
+                        "✅ TLS ServerHello detected - DPI bypass SUCCESSFUL! "
+                        "(HTTP failed: code=%s) Evidence: %s",
+                        code or http_code_raw,
+                        tls_evidence,
                     )
-                except Exception as e:
-                    self.logger.warning(
-                        "⚠️ Failed to end operation logging: %s", e
+                    validation.success = True
+                    validation.status = "TLS_ONLY_PARTIAL"
+                    validation.error = None
+                    validation.confidence = 0.6
+                    validation.reasoning = (
+                        f"TLS ServerHello detected - DPI bypass confirmed. "
+                        f"Evidence: {tls_evidence}. HTTP code: {code or http_code_raw}."
                     )
-    
+                else:
+                    # Both TLS and HTTP succeeded - perfect!
+                    self.logger.info("✅ Full success: TLS ServerHello + HTTP %s", code)
+                    validation.success = True
+                    validation.status = "TLS_HANDSHAKE_SUCCESS"
+                    validation.error = None
+                    validation.confidence = 0.8
+                    validation.reasoning = f"TLS ServerHello + HTTP success. Evidence: {tls_evidence}. HTTP code: {code}."
+            elif http_success:
+                # HTTP success without ServerHello - suspicious but count as success
+                self.logger.warning(
+                    "⚠️ HTTP success (%s) but no ServerHello detected - bypass may not have been applied",
+                    code,
+                )
+                if not validation.success:
+                    validation.success = True
+                    validation.status = "HTTP_ONLY_SUCCESS"
+                    validation.confidence = 0.5
+            else:
+                # No TLS handshake and no HTTP success - clear failure
+                self.logger.warning(
+                    "❌ No TLS ServerHello detected and HTTP failed (code=%s) - DPI likely blocked",
+                    code or http_code_raw,
+                )
+                validation.success = False
+
+            # Hard rule: success if EITHER http_success OR tls_ok
+            final_success = bool(http_success or tls_ok)
+
+            # DIAGNOSTIC LOG: Show final decision
+            self.logger.error(
+                "### FINAL RESULT: SUCCESS=%r TLS_OK=%r HTTP_OK=%r validation.success=%r ###",
+                final_success,
+                tls_ok,
+                http_success,
+                validation.success,
+            )
+
+            # Build return dict
+            result.update(
+                {
+                    "success": final_success,  # Hard rule: http OR tls
+                    "http_success": http_success,
+                    "http_code": code if (100 <= code < 600) else 0,
+                    "http_code_raw": http_code_raw,
+                    "curl_returncode": returncode,
+                    "curl_stderr": stderr_raw[:2000],
+                    "partial_success": bool(tls_ok and not http_success),
+                    "error": validation.error,
+                    "status": validation.status,
+                    "validation_success": bool(validation.success),
+                    "validation_status": getattr(validation, "status", None),
+                    "validation": getattr(validation, "to_dict", lambda: {})(),
+                    "telemetry": telemetry,
+                }
+            )
+
+            # Standardized timing fields (additive, keeps compatibility)
+            elapsed_ms = (time.monotonic() - overall_start) * 1000.0
+            result.setdefault("execution_time_ms", elapsed_ms)
+            result.setdefault("response_time_ms", elapsed_ms)
+            result.setdefault("latency_ms", elapsed_ms)
+
+            return result
+
+        finally:
+            self.engine.stop()
+
     def _test_with_curl_http2_sync(
-        self, 
-        domain: str, 
-        timeout: float,
-        target_ip: str,
-        strategy: Dict[str, Any]
+        self, domain: str, timeout: float, target_ip: str, strategy: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Synchronous fallback for testing with WinDivert + browser-like TLS
         when already in event loop.
         """
         start_time = time.monotonic()
-        
+
         try:
             # Start WinDivert service
             self.logger.info(f"🚀 Starting WinDivert service for {domain}...")
-            
+
             # Build strategy_map in the format expected by engine.start()
             # Format: {ip: strategy_dict}
             strategy_map = {target_ip: strategy}
             target_ips = {target_ip}
-            
+
             try:
                 # Start engine with correct parameters
                 # Task: Testing-Production Parity - use strategy_override to ensure test strategy is applied
                 self.engine.start(
                     target_ips=target_ips,
                     strategy_map=strategy_map,
-                    strategy_override=strategy  # Force the test strategy to be applied
+                    strategy_override=strategy,  # Force the test strategy to be applied
+                    reset_telemetry=True,  # CRITICAL: Reset counters for this test
                 )
                 self.logger.info("✅ WinDivert service started")
-                
+
                 # Wait for WinDivert to initialize
                 time.sleep(2.0)
                 self.logger.info("✅ WinDivert initialization complete")
-                
+
             except Exception as e:
                 self.logger.error(f"❌ Failed to start WinDivert service: {e}")
                 return {
-                    'success': False,
-                    'error': f'Failed to start WinDivert: {str(e)}',
-                    'response_time': time.monotonic() - start_time,
-                    'method': 'service_failed'
+                    "success": False,
+                    "error": f"Failed to start WinDivert: {str(e)}",
+                    "response_time": time.monotonic() - start_time,
+                    "method": "service_failed",
                 }
-            
+
             # Test with curl
             try:
                 # Ensure timeout is at least 5 seconds for curl
                 curl_timeout = max(timeout - 3.0, 10.0)
                 curl_result = self._test_with_curl_http2(domain, curl_timeout)
-                
+
                 # Stop WinDivert service
                 try:
                     self.engine.stop()
                     self.logger.info("✅ WinDivert service stopped")
                 except Exception as e:
                     self.logger.warning(f"⚠️ Error stopping WinDivert: {e}")
-                
+
                 response_time = time.monotonic() - start_time
-                
+
                 # Get retransmission count from engine
                 retransmission_count = 0
-                if hasattr(self, '_retransmission_count'):
+                if hasattr(self, "_retransmission_count"):
                     retransmission_count = self._retransmission_count
-                elif hasattr(self.engine, '_retransmission_count'):
+                elif hasattr(self.engine, "_retransmission_count"):
                     retransmission_count = self.engine._retransmission_count
-                
+
+                # CRITICAL FIX: Validate retransmissions
+                is_success = curl_result["success"]
+                error_msg = curl_result.get("error")
+                http_code = curl_result.get("http_code")
+
+                if retransmission_count > 1:
+                    self.logger.warning(
+                        f"⚠️ Sync test: High retransmission count ({retransmission_count}) detected."
+                    )
+                    is_success = False
+                    error_msg = f"High retransmissions: {retransmission_count}"
+                    http_code = 0  # Force invalid HTTP code
+
                 return {
-                    'success': curl_result['success'],
-                    'error': curl_result.get('error'),
-                    'response_time': response_time,
-                    'clienthello_size': curl_result.get('clienthello_size', 0),
-                    'method': 'curl_http2_sync',
-                    'http_code': curl_result.get('http_code'),
-                    'curl_output': curl_result.get('output', ''),
-                    'retransmission_count': retransmission_count  # Task 7.2: Include retransmissions for coordinator
+                    "success": is_success,
+                    "error": error_msg,
+                    "response_time": response_time,
+                    "response_time_ms": response_time * 1000.0,
+                    "execution_time_ms": response_time * 1000.0,
+                    "clienthello_size": curl_result.get("clienthello_size", 0),
+                    "method": "curl_http2_sync",
+                    "http_code": http_code,
+                    "curl_output": curl_result.get("output", ""),
+                    "retransmission_count": retransmission_count,  # Task 7.2: Include retransmissions for coordinator
                 }
-                
+
             except Exception as e:
                 # Make sure to stop WinDivert even if test fails
                 try:
                     self.engine.stop()
-                except:
+                except Exception:  # Ignore errors during cleanup
                     pass
-                
+
                 self.logger.error(f"❌ Curl test failed: {e}")
                 return {
-                    'success': False,
-                    'error': f'Curl test failed: {str(e)}',
-                    'response_time': time.monotonic() - start_time,
-                    'method': 'curl_http2_failed'
+                    "success": False,
+                    "error": f"Curl test failed: {str(e)}",
+                    "response_time": time.monotonic() - start_time,
+                    "response_time_ms": (time.monotonic() - start_time) * 1000.0,
+                    "execution_time_ms": (time.monotonic() - start_time) * 1000.0,
+                    "method": "curl_http2_failed",
                 }
-                
+
         except Exception as e:
             self.logger.error(f"❌ Sync test failed: {e}", exc_info=True)
             return {
-                'success': False,
-                'error': f'Sync test failed: {str(e)}',
-                'response_time': time.monotonic() - start_time,
-                'method': 'sync_failed'
+                "success": False,
+                "error": f"Sync test failed: {str(e)}",
+                "response_time": time.monotonic() - start_time,
+                "response_time_ms": (time.monotonic() - start_time) * 1000.0,
+                "execution_time_ms": (time.monotonic() - start_time) * 1000.0,
+                "method": "sync_failed",
             }
-    
+
     def _test_with_curl_http2(self, domain: str, timeout: float) -> Dict[str, Any]:
         """
-        Test connection using browser-like ClientHello via tls-client.
-        
-        CRITICAL:
-        - tls-client генерирует большой ClientHello (~1400 байт) с
-          настоящим TLS fingerprint (Chrome/Firefox).
-        - Если tls-client недоступен, используем requests (малый ClientHello,
-          возможны ложные «не работает»).
-        
-        Args:
-            domain: Target domain
-            timeout: Timeout in seconds
-        
-        Returns:
-            Dict with test results:
-                - success: bool
-                - http_code: str
-                - output: optional response preview
-                - error: optional error string
-                - clienthello_size: approximate ClientHello size in bytes
+        Strict curl test.
+        Must return a valid digit status code.
         """
-        self.logger.info(
-            "🌐 Testing with browser-like TLS handshake (tls-client) for %s", domain
-        )
-        import time as _time
-
-        start_ts = _time.monotonic()
-        url = f"https://{domain}"
-
-        # Основной путь: tls-client
+        self.logger.info("🌐 Testing with browser-like TLS handshake (tls-client) for %s", domain)
         try:
-            try:
-                import tls_client  # type: ignore[import]
+            # Try tls-client first (preferred)
+            return self._tls_client_request(domain, "0.0.0.0", timeout)
+        except ImportError:
+            pass
 
-                session = tls_client.Session(
-                    client_identifier="chrome_120",  # Chrome 120 fingerprint
-                    random_tls_extension_order=True,
-                )
-                self.logger.info(
-                    "   Using tls-client with Chrome 120 fingerprint"
-                )
+        # Fallback to curl subprocess
+        try:
+            import subprocess
 
-                response = session.get(url, timeout_seconds=int(timeout))
+            # NOTE: direct curl cannot guarantee IP binding, but we still try to keep
+            # the same TLS/ClientHello characteristics (HTTP/2 + large ciphers).
+            curl_cmd = self._build_direct_curl_command(
+                domain=domain,
+                timeout=timeout,
+                include_ciphers=True,
+                enhanced_headers=False,
+                path="/",
+            )
 
-                http_code = str(response.status_code)
-                # Any HTTP response means connection was established (DPI bypass worked)
-                # 4xx/5xx errors are still success - they mean we reached the server
-                # Only timeout/connection errors indicate DPI blocking
-                success = response.status_code >= 100 and response.status_code < 600
-
-                self.logger.info("   HTTP code: %s", http_code)
-                self.logger.info("   Success: %s", success)
-
-                return {
-                    "success": success,
-                    "http_code": http_code,
-                    "output": (response.text or "")[:500],
-                    "error": None,  # No error if we got any HTTP response
-                    "clienthello_size": 1400,  # ~Chrome ClientHello
-                }
-
-            except ImportError:
-                # Fallback: обычный requests с маленьким ClientHello
-                self.logger.warning(
-                    "tls-client not available, falling back to requests "
-                    "(small ClientHello, possible false negatives)"
-                )
-                import requests
-                import urllib3
-
-                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-                response = requests.get(url, timeout=timeout, verify=False)
-                http_code = str(response.status_code)
-                # Any HTTP response means connection was established (DPI bypass worked)
-                # 4xx/5xx errors are still success - they mean we reached the server
-                # Only timeout/connection errors indicate DPI blocking
-                success = response.status_code >= 100 and response.status_code < 600
-
-                self.logger.info("   HTTP code: %s", http_code)
-                self.logger.info("   Success: %s", success)
-
-                return {
-                    "success": success,
-                    "http_code": http_code,
-                    "output": (response.text or "")[:500],
-                    "error": None,  # No error if we got any HTTP response
-                    "clienthello_size": 300,  # малый ClientHello
-                }
-
-        except Exception as e:
-            error_msg = str(e)
-            self.logger.error("❌ Connection failed for %s: %s", domain, error_msg)
-
-            if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+            ok, reason = self._curl_command_validator.validate_curl_command_any(curl_cmd)
+            if not ok:
                 return {
                     "success": False,
-                    "error": "Timeout",
                     "http_code": "000",
-                    "clienthello_size": 0,
+                    "error": f"Curl cmd invalid: {reason}",
+                }
+
+            result = subprocess.run(curl_cmd, capture_output=True, text=True)
+            http_code = result.stdout.strip()
+
+            # STRICT VALIDATION
+            if http_code.isdigit() and 100 <= int(http_code) < 600:
+                return {"success": True, "http_code": http_code, "error": None}
+
+            # If cipher inflation caused issues, retry once without --ciphers (compat)
+            stderr_lower = (result.stderr or "").lower()
+            if result.returncode != 0 and any(
+                s in stderr_lower
+                for s in ("no cipher match", "unknown option", "unrecognized option")
+            ):
+                retry_cmd = self._build_direct_curl_command(
+                    domain=domain,
+                    timeout=timeout,
+                    include_ciphers=False,
+                    enhanced_headers=False,
+                    path="/",
+                )
+                ok2, reason2 = self._curl_command_validator.validate_curl_command_any(retry_cmd)
+                if not ok2:
+                    return {
+                        "success": False,
+                        "http_code": "000",
+                        "error": f"Curl cmd invalid (retry): {reason2}",
+                    }
+                retry_res = subprocess.run(retry_cmd, capture_output=True, text=True)
+                retry_code = (retry_res.stdout or "").strip()
+                if retry_code.isdigit() and 100 <= int(retry_code) < 600:
+                    return {"success": True, "http_code": retry_code, "error": None}
+                return {
+                    "success": False,
+                    "http_code": "000",
+                    "error": f"Curl failed (retry): {retry_res.stderr or retry_code}",
                 }
 
             return {
                 "success": False,
-                "error": error_msg,
                 "http_code": "000",
-                "clienthello_size": 0,
+                "error": f"Curl failed: {result.stderr or http_code}",
             }
-    
+        except Exception as e:
+            return {"success": False, "http_code": "000", "error": str(e)}
+
     def cleanup(self):
         """Очистка ресурсов, аналогично старому HybridEngine."""
-        if self.advanced_fingerprinter and hasattr(
-            self.advanced_fingerprinter, "executor"
-        ):
+        if self.advanced_fingerprinter and hasattr(self.advanced_fingerprinter, "executor"):
             try:
                 self.advanced_fingerprinter.executor.shutdown(wait=False)
                 self.logger.info("Advanced fingerprinter executor shut down.")
@@ -3447,27 +3845,443 @@ class UnifiedBypassEngine:
                     self.pool_manager.cleanup()
                 if self.mode_controller and hasattr(self.mode_controller, "cleanup"):
                     self.mode_controller.cleanup()
-                if self.reliability_validator and hasattr(
-                    self.reliability_validator, "cleanup"
-                ):
+                if self.reliability_validator and hasattr(self.reliability_validator, "cleanup"):
                     self.reliability_validator.cleanup()
-                if self.multi_port_handler and hasattr(
-                    self.multi_port_handler, "cleanup"
-                ):
+                if self.multi_port_handler and hasattr(self.multi_port_handler, "cleanup"):
                     self.multi_port_handler.cleanup()
-                self.logger.info(
-                    "Modern bypass engine components cleaned up successfully."
-                )
+                self.logger.info("Modern bypass engine components cleaned up successfully.")
             except Exception as e:
                 self.logger.error(f"Error during modern bypass components cleanup: {e}")
 
         self.logger.info("UnifiedBypassEngine cleanup complete.")
 
+    async def test_strategies_hybrid(
+        self,
+        strategies: List[Union[str, Dict[str, Any]]],
+        test_sites: List[str],
+        ips: Set[str] = None,
+        dns_cache: Dict[str, str] = None,
+        port: int = 443,
+        domain: str = None,
+        fast_filter: bool = True,
+        initial_ttl: Optional[int] = None,
+        enable_fingerprinting: bool = True,
+        telemetry_full: bool = False,
+        engine_override: Optional[str] = None,
+        capturer: Optional[Any] = None,
+        fingerprint: Optional[Any] = None,
+    ) -> List[Dict]:
+        """
+        Test strategies in hybrid mode with enhanced logging for CLI mode consistency.
+
+        This method implements Requirements 1.1, 1.4 from the log-pcap-validation spec:
+        - Ensures logged attacks match actual network packets
+        - All sent packets are properly logged with correct parameters
+
+        Args:
+            strategies: List of strategy strings or dictionaries to test
+            test_sites: List of sites to test against
+            ips: Set of IP addresses (optional, will resolve if not provided)
+            dns_cache: DNS resolution cache (optional)
+            port: Port to test (default 443)
+            domain: Primary domain for testing
+            fast_filter: Enable fast filtering
+            initial_ttl: Initial TTL value
+            enable_fingerprinting: Enable DPI fingerprinting
+            telemetry_full: Enable full telemetry
+            engine_override: Override engine type
+            capturer: Packet capturer instance
+            fingerprint: Pre-computed fingerprint
+
+        Returns:
+            List of test results with enhanced logging information
+        """
+        results = []
+
+        # Initialize DNS cache if not provided
+        if dns_cache is None:
+            dns_cache = {}
+        if ips is None:
+            ips = set()
+
+        self.logger.info(
+            f"🧪 CLI MODE: Testing {len(strategies)} strategies against {len(test_sites)} sites"
+        )
+        self.logger.info(f"   Port: {port}, Domain: {domain}")
+        self.logger.info("   Enhanced logging: ENABLED (Requirements 1.1, 1.4)")
+
+        # Enable testing mode to ensure consistent behavior with CLI
+        self.enable_testing_mode()
+
+        try:
+            for i, strategy_input in enumerate(strategies):
+                self.logger.info(f"📋 CLI MODE: Testing strategy {i+1}/{len(strategies)}")
+
+                # Parse strategy using the unified loader
+                try:
+                    if isinstance(strategy_input, str):
+                        strategy = self.strategy_loader.load_strategy(strategy_input)
+                        if strategy:
+                            strategy_dict = strategy.to_engine_format()
+                        else:
+                            self.logger.error(
+                                f"❌ CLI MODE: Failed to parse strategy: {strategy_input}"
+                            )
+                            continue
+                    else:
+                        strategy_dict = strategy_input
+
+                    # Log strategy details for CLI mode consistency
+                    strategy_type = strategy_dict.get("type", "unknown")
+                    attacks = strategy_dict.get("attacks", [])
+                    params = strategy_dict.get("params", {})
+
+                    self.logger.info(f"   Strategy type: {strategy_type}")
+                    self.logger.info(f"   Attacks: {attacks}")
+                    self.logger.info(f"   Parameters: {params}")
+
+                except Exception as e:
+                    self.logger.error(f"❌ CLI MODE: Strategy parsing failed: {e}")
+                    results.append(
+                        {
+                            "strategy": str(strategy_input),
+                            "success_rate": 0.0,
+                            "error": f"Strategy parsing failed: {e}",
+                            "sites_tested": 0,
+                            "sites_successful": 0,
+                        }
+                    )
+                    continue
+
+                # Test strategy against all sites
+                strategy_results = []
+                sites_successful = 0
+
+                for site in test_sites:
+                    self.logger.info(f"🌐 CLI MODE: Testing {site} with {strategy_type}")
+
+                    try:
+                        # Extract domain from site URL
+                        from urllib.parse import urlparse
+
+                        parsed = urlparse(
+                            site if site.startswith(("http://", "https://")) else f"https://{site}"
+                        )
+                        test_domain = parsed.hostname or site
+
+                        # Resolve IP if not in cache
+                        if test_domain not in dns_cache:
+                            try:
+                                import socket
+
+                                ip = socket.gethostbyname(test_domain)
+                                dns_cache[test_domain] = ip
+                                ips.add(ip)
+                                self.logger.info(f"   Resolved {test_domain} -> {ip}")
+                            except Exception as e:
+                                self.logger.warning(
+                                    f"   DNS resolution failed for {test_domain}: {e}"
+                                )
+                                continue
+
+                        target_ip = dns_cache[test_domain]
+
+                        # Test strategy using the service-like method for consistency
+                        test_result = self.test_strategy_as_service(
+                            target_ip=target_ip,
+                            strategy_input=strategy_dict,
+                            domain=test_domain,
+                            timeout=30.0,
+                        )
+
+                        success = test_result.get("success", False)
+                        latency = test_result.get("latency_ms", 0.0)
+
+                        if success:
+                            sites_successful += 1
+                            self.logger.info(
+                                f"   ✅ CLI MODE: {site} SUCCESS (latency: {latency:.1f}ms)"
+                            )
+                        else:
+                            error = test_result.get("error", "Unknown error")
+                            self.logger.info(f"   ❌ CLI MODE: {site} FAILED ({error})")
+
+                        strategy_results.append(
+                            {
+                                "site": site,
+                                "domain": test_domain,
+                                "ip": target_ip,
+                                "success": success,
+                                "latency_ms": latency,
+                                "error": test_result.get("error"),
+                            }
+                        )
+
+                    except Exception as e:
+                        self.logger.error(f"❌ CLI MODE: Test failed for {site}: {e}")
+                        strategy_results.append(
+                            {
+                                "site": site,
+                                "success": False,
+                                "error": str(e),
+                            }
+                        )
+
+                # Calculate success rate
+                success_rate = sites_successful / len(test_sites) if test_sites else 0.0
+
+                # Compile strategy result
+                strategy_result = {
+                    "strategy": strategy_dict,
+                    "strategy_string": str(strategy_input),
+                    "success_rate": success_rate,
+                    "sites_tested": len(test_sites),
+                    "sites_successful": sites_successful,
+                    "site_results": strategy_results,
+                    "latency_ms": sum(
+                        r.get("latency_ms", 0) for r in strategy_results if r.get("success")
+                    )
+                    / max(sites_successful, 1),
+                }
+
+                results.append(strategy_result)
+
+                self.logger.info(f"📊 CLI MODE: Strategy {strategy_type} completed")
+                self.logger.info(
+                    f"   Success rate: {success_rate:.1%} ({sites_successful}/{len(test_sites)})"
+                )
+
+        finally:
+            # Disable testing mode
+            self.disable_testing_mode()
+
+        self.logger.info(f"🏁 CLI MODE: All strategies tested, returning {len(results)} results")
+        return results
+
+    def _log_final_statistics(self):
+        """Log final statistics when stopping."""
+        with self._lock:
+            uptime = time.time() - self._start_time if self._start_time else 0
+
+            self.logger.info("📊 UnifiedBypassEngine Final Statistics:")
+            self.logger.info(f"   Uptime: {uptime:.2f} seconds")
+            self.logger.info(f"   Forced overrides applied: {self._forced_override_count}")
+            self.logger.info(f"   Strategies tracked: {len(self._strategy_applications)}")
+
+            if self.config.debug and self._strategy_applications:
+                self.logger.debug("   Strategy applications by target:")
+                for target, applications in self._strategy_applications.items():
+                    self.logger.debug(f"     {target}: {len(applications)} applications")
+
+    def enable_testing_mode(self):
+        """Enable testing mode to prevent domain rule substitution"""
+        from core.unified.telemetry import logging_enable_testing_mode
+
+        logging_enable_testing_mode(self, logger=self.logger)
+
+    def disable_testing_mode(self):
+        """Disable testing mode"""
+        from core.unified.telemetry import logging_disable_testing_mode
+
+        logging_disable_testing_mode(self, logger=self.logger)
+
+    def set_adaptive_test_session(self, active: bool = True):
+        """Set adaptive test session flag"""
+        self._adaptive_test_session = active
+        if active:
+            self.logger.info("🧪 Adaptive test session started - preventing strategy substitution")
+        else:
+            self.logger.info("🧪 Adaptive test session ended")
+
+    def _get_cached_result(
+        self, cache_key: AccessibilityTestCacheKey
+    ) -> Optional[Tuple[bool, str]]:
+        """
+        Get cached accessibility test result if still valid.
+
+        Implements result caching for repeated identical tests to ensure consistency.
+        Cache entries have a TTL to prevent stale results from affecting testing.
+
+        Args:
+            cache_key: Cache key containing test parameters
+
+        Returns:
+            Optional[Tuple[bool, str]]: Cached result if valid, None otherwise
+
+        Requirements: 5.1, 5.3
+        """
+        import time
+
+        with self._cache_lock:
+            if cache_key not in self._accessibility_cache:
+                return None
+
+            cache_entry = self._accessibility_cache[cache_key]
+            current_time = time.time()
+
+            # Check if cache entry is still valid (within TTL)
+            if current_time - cache_entry.timestamp > self._cache_ttl:
+                # Cache entry expired, remove it
+                del self._accessibility_cache[cache_key]
+                self.logger.debug(
+                    f"Cache entry expired for {cache_key.target_ip}:{cache_key.domain}"
+                )
+                return None
+
+            # Update test count for statistics
+            cache_entry.test_count += 1
+
+            self.logger.debug(
+                f"Cache hit for {cache_key.target_ip}:{cache_key.domain} "
+                f"(used {cache_entry.test_count} times, age: {current_time - cache_entry.timestamp:.1f}s)"
+            )
+
+            return cache_entry.result
+
+    def _cache_result(self, cache_key: AccessibilityTestCacheKey, result: Tuple[bool, str]) -> None:
+        """
+        Cache accessibility test result for consistency in repeated tests.
+
+        Implements deterministic decision logic by caching results of identical tests.
+        This ensures that the same test parameters always return the same result,
+        improving consistency and reliability.
+
+        Args:
+            cache_key: Cache key containing test parameters
+            result: Test result to cache
+
+        Requirements: 5.1, 5.3
+        """
+        import time
+
+        with self._cache_lock:
+            # Clean up expired entries periodically (every 10 new entries)
+            if len(self._accessibility_cache) % 10 == 0:
+                self._cleanup_expired_cache_entries()
+
+            # Store the new result
+            cache_entry = AccessibilityTestCacheEntry(
+                result=result, timestamp=time.time(), test_count=1
+            )
+
+            self._accessibility_cache[cache_key] = cache_entry
+
+            self.logger.debug(
+                f"Cached result for {cache_key.target_ip}:{cache_key.domain}: "
+                f"{'accessible' if result[0] else 'blocked'} - {result[1]}"
+            )
+
+    def _cleanup_expired_cache_entries(self) -> None:
+        """
+        Clean up expired cache entries to prevent memory leaks.
+
+        This method is called periodically to remove stale cache entries
+        that have exceeded their TTL.
+        """
+        import time
+
+        current_time = time.time()
+        expired_keys = []
+
+        for cache_key, cache_entry in self._accessibility_cache.items():
+            if current_time - cache_entry.timestamp > self._cache_ttl:
+                expired_keys.append(cache_key)
+
+        for key in expired_keys:
+            del self._accessibility_cache[key]
+
+        if expired_keys:
+            self.logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
+
+    def get_accessibility_cache_stats(self) -> dict:
+        """
+        Get statistics about the accessibility test cache.
+
+        Returns:
+            dict: Cache statistics including size, hit rate, etc.
+        """
+        with self._cache_lock:
+            total_tests = sum(entry.test_count for entry in self._accessibility_cache.values())
+            cache_entries = len(self._accessibility_cache)
+
+            return {
+                "cache_entries": cache_entries,
+                "total_tests_served": total_tests,
+                "cache_hit_rate": (total_tests - cache_entries) / max(total_tests, 1),
+                "cache_ttl_seconds": self._cache_ttl,
+            }
+
+        if self.config.debug and self._strategy_applications:
+            self.logger.debug("   Strategy applications by target:")
+            for target, applications in self._strategy_applications.items():
+                self.logger.debug(f"     {target}: {len(applications)} applications")
+
+    def enable_discovery_mode(self, domain: Optional[str] = None):
+        """
+        Enable discovery mode and automatically set target domain if provided.
+        Backward-compatible signature: domain is optional.
+        """
+        if domain:
+            self.set_target_domain(domain)
+        if hasattr(self.engine, "enable_discovery_mode"):
+            self.engine.enable_discovery_mode()
+            # Safety: push domain again after enabling mode
+            if getattr(self, "_target_domain", None):
+                try:
+                    self.engine.set_target_domain(self._target_domain)
+                except Exception:
+                    pass
+            self.logger.info("🔍 Discovery mode enabled in UnifiedBypassEngine")
+        else:
+            self.logger.warning("⚠️ Underlying bypass engine does not support discovery mode")
+
+    def set_target_domain(self, domain: str) -> None:
+        """
+        Set target domain for discovery isolation and propagate to low-level engine.
+        Safe to call multiple times.
+        """
+        if not domain:
+            return
+        self._target_domain = str(domain).strip().lower().rstrip(".")
+        if hasattr(self.engine, "set_target_domain"):
+            try:
+                self.engine.set_target_domain(self._target_domain)
+            except Exception as e:
+                self.logger.debug(f"Failed to propagate target domain to engine: {e}")
+
+    def _get_current_strategy_hash(self) -> str:
+        """Stable hash of current engine.strategy_override to make cache strategy-aware."""
+        try:
+            override = getattr(self.engine, "strategy_override", None)
+            if not override:
+                return ""
+            blob = json.dumps(override, sort_keys=True, ensure_ascii=False, default=str).encode(
+                "utf-8"
+            )
+            return hashlib.sha1(blob).hexdigest()[:12]
+        except Exception:
+            return ""
+
+    def disable_discovery_mode(self):
+        """Disable discovery mode - delegates to underlying bypass engine."""
+        from core.unified.telemetry import logging_disable_discovery_mode
+
+        logging_disable_discovery_mode(
+            self,
+            logger=self.logger,
+            delegate_to_attr="engine",
+            message="Discovery mode disabled in UnifiedBypassEngine",
+        )
+
+    def is_discovery_mode_active(self):
+        """Check if discovery mode is active - delegates to underlying bypass engine."""
+        from core.unified.validators import predicate_is_discovery_mode_active
+
+        return predicate_is_discovery_mode_active(self.engine)
+
 
 # Convenience functions for backward compatibility and ease of use
-def create_unified_engine(
-    debug: bool = True, force_override: bool = True
-) -> UnifiedBypassEngine:
+def create_unified_engine(debug: bool = True, force_override: bool = True) -> UnifiedBypassEngine:
     """
     Create a UnifiedBypassEngine with standard configuration.
 

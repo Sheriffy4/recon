@@ -103,9 +103,7 @@ class StrategyConfig:
             config.autottl = int(params["dpi-desync-autottl"])
 
         if "dpi-desync-fooling" in params:
-            config.fooling = [
-                f.strip() for f in params["dpi-desync-fooling"].split(",")
-            ]
+            config.fooling = [f.strip() for f in params["dpi-desync-fooling"].split(",")]
 
         if "dpi-desync-fake-tls" in params:
             config.fake_tls = params["dpi-desync-fake-tls"]
@@ -238,7 +236,9 @@ class StrategyDifference:
     def __post_init__(self):
         """Post-initialization processing."""
         if not self.fix_suggestion:
-            self.fix_suggestion = f"Change {self.parameter} from {self.recon_value} to {self.zapret_value}"
+            self.fix_suggestion = (
+                f"Change {self.parameter} from {self.recon_value} to {self.zapret_value}"
+            )
 
 
 @dataclass
@@ -258,22 +258,13 @@ class StrategyComparison:
             self.is_compatible = True
         else:
             # Calculate similarity based on number and severity of differences
-            critical_count = sum(
-                1 for d in self.differences if d.impact_level == "CRITICAL"
-            )
+            critical_count = sum(1 for d in self.differences if d.impact_level == "CRITICAL")
             high_count = sum(1 for d in self.differences if d.impact_level == "HIGH")
-            medium_count = sum(
-                1 for d in self.differences if d.impact_level == "MEDIUM"
-            )
+            medium_count = sum(1 for d in self.differences if d.impact_level == "MEDIUM")
             low_count = sum(1 for d in self.differences if d.impact_level == "LOW")
 
             # Weight differences by severity
-            penalty = (
-                critical_count * 0.4
-                + high_count * 0.3
-                + medium_count * 0.2
-                + low_count * 0.1
-            )
+            penalty = critical_count * 0.4 + high_count * 0.3 + medium_count * 0.2 + low_count * 0.1
             self.similarity_score = max(0.0, 1.0 - penalty)
 
             # Compatible if no critical differences

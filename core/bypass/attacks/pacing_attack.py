@@ -8,8 +8,7 @@ import logging
 from typing import List
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
 from core.bypass.attacks.base import BaseAttack
-from core.bypass.attacks.metadata import AttackMetadata, AttackCategories
-from core.bypass.attacks.attack_registry import register_attack
+from core.bypass.attacks.metadata import AttackCategories
 
 LOG = logging.getLogger(__name__)
 

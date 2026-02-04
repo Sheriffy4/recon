@@ -13,9 +13,7 @@ from core.bypass.performance.performance_models import OptimizationLevel
 class StrategyOptimizer:
     """Optimizes strategy selection algorithms for maximum effectiveness."""
 
-    def __init__(
-        self, optimization_level: OptimizationLevel = OptimizationLevel.BALANCED
-    ):
+    def __init__(self, optimization_level: OptimizationLevel = OptimizationLevel.BALANCED):
         self.optimization_level = optimization_level
         self.strategy_stats = defaultdict(
             lambda: {
@@ -84,9 +82,7 @@ class StrategyOptimizer:
             success_rate = stats["success_count"] / max(total_attempts, 1)
             avg_time = stats["total_time"] / max(total_attempts, 1)
             time_score = 1.0 / (1.0 + avg_time)
-            stability_score = self._calculate_stability_score(
-                stats["effectiveness_history"]
-            )
+            stability_score = self._calculate_stability_score(stats["effectiveness_history"])
             domain_bonus = self._get_domain_specific_bonus(strategy_id, domain)
             recency_bonus = self._get_recency_bonus(stats["last_used"])
             score = (
@@ -98,9 +94,7 @@ class StrategyOptimizer:
             )
             return score
         except Exception as e:
-            self.logger.error(
-                f"Error calculating strategy score for {strategy_id}: {e}"
-            )
+            self.logger.error(f"Error calculating strategy score for {strategy_id}: {e}")
             return 0.0
 
     def _calculate_stability_score(self, effectiveness_history: deque) -> float:
@@ -174,9 +168,7 @@ class StrategyOptimizer:
                 domain_stats["failure_count"] += 1
             total = domain_stats["success_count"] + domain_stats["failure_count"]
             domain_stats["success_rate"] = domain_stats["success_count"] / max(total, 1)
-            self.logger.debug(
-                f"Updated performance for strategy {strategy_id} on domain {domain}"
-            )
+            self.logger.debug(f"Updated performance for strategy {strategy_id} on domain {domain}")
         except Exception as e:
             self.logger.error(f"Error updating strategy performance: {e}")
 
@@ -262,9 +254,7 @@ class StrategyOptimizer:
         """Calculate average success rate across all strategies."""
         if not self.strategy_stats:
             return 0.8
-        total_success = sum(
-            (stats["success_count"] for stats in self.strategy_stats.values())
-        )
+        total_success = sum((stats["success_count"] for stats in self.strategy_stats.values()))
         total_attempts = sum(
             (
                 stats["success_count"] + stats["failure_count"]
@@ -277,9 +267,7 @@ class StrategyOptimizer:
         """Calculate average execution time across all strategies."""
         if not self.strategy_stats:
             return 1.0
-        total_time = sum(
-            (stats["total_time"] for stats in self.strategy_stats.values())
-        )
+        total_time = sum((stats["total_time"] for stats in self.strategy_stats.values()))
         total_attempts = sum(
             (
                 stats["success_count"] + stats["failure_count"]
@@ -296,9 +284,7 @@ class StrategyOptimizer:
         if avg_success_rate < 0.7:
             recommendations.append("Increase success_rate weight in optimization")
         if avg_execution_time > 2.0:
-            recommendations.append(
-                "Increase execution_time weight to prioritize faster strategies"
-            )
+            recommendations.append("Increase execution_time weight to prioritize faster strategies")
         if len(self.strategy_stats) > 50:
             recommendations.append("Consider pruning underperforming strategies")
         return recommendations

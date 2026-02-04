@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 """
 DifferenceDetector for identifying critical differences between recon and zapret PCAP files.
 """
 
 import logging
 from typing import List, Dict, Any, Optional, Tuple, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import statistics
+from statistics import StatisticsError
 from collections import defaultdict
+from collections import Counter
 
 from .packet_info import PacketInfo
 from .comparison_result import ComparisonResult
@@ -34,8 +38,8 @@ class DetectionConfig:
     confidence_decay_factor: float = 0.9
 
     # Impact assessment parameters
-    critical_packet_types: Set[str] = None
-    high_impact_categories: Set[DifferenceCategory] = None
+    critical_packet_types: Optional[Set[str]] = field(default=None)
+    high_impact_categories: Optional[Set[DifferenceCategory]] = field(default=None)
 
     def __post_init__(self):
         """Initialize default sets."""
@@ -62,6 +66,15 @@ class DifferenceDetector:
     to cause bypass failures and prioritizes them for fixing.
     """
 
+    @staticmethod
+    def _safe_mode(values: List[Any]) -> Optional[Any]:
+        if not values:
+            return None
+        try:
+            return statistics.mode(values)
+        except StatisticsError:
+            return Counter(values).most_common(1)[0][0]
+
     def __init__(self, config: Optional[DetectionConfig] = None):
         """Initialize the difference detector."""
         self.config = config or DetectionConfig()
@@ -75,9 +88,7 @@ class DifferenceDetector:
             "categories_detected": defaultdict(int),
         }
 
-    def detect_critical_differences(
-        self, comparison: ComparisonResult
-    ) -> List[CriticalDifference]:
+    def detect_critical_differences(self, comparison: ComparisonResult) -> List[CriticalDifference]:
         """
         Main entry point for detecting critical differences.
 
@@ -144,9 +155,7 @@ class DifferenceDetector:
             zapret_conn_packets = zapret_connections[conn_key]
 
             # Detect sequence number gaps
-            seq_diff = self._detect_sequence_gaps(
-                recon_conn_packets, zapret_conn_packets, conn_key
-            )
+            seq_diff = self._detect_sequence_gaps(recon_conn_packets, zapret_conn_packets, conn_key)
             if seq_diff:
                 differences.append(seq_diff)
 
@@ -159,9 +168,7 @@ class DifferenceDetector:
 
         return differences
 
-    def _detect_timing_differences(
-        self, comparison: ComparisonResult
-    ) -> List[CriticalDifference]:
+    def _detect_timing_differences(self, comparison: ComparisonResult) -> List[CriticalDifference]:
         """Detect critical timing differences between packet sequences."""
         differences = []
 
@@ -183,9 +190,7 @@ class DifferenceDetector:
             delay_diff_ms = abs(avg_recon_delay - avg_zapret_delay) * 1000
 
             if delay_diff_ms > self.config.timing_threshold_ms:
-                confidence = min(
-                    1.0, delay_diff_ms / (self.config.timing_threshold_ms * 10)
-                )
+                confidence = min(1.0, delay_diff_ms / (self.config.timing_threshold_ms * 10))
 
                 diff = CriticalDifference(
                     category=DifferenceCategory.TIMING,
@@ -205,9 +210,7 @@ class DifferenceDetector:
                     "timing_analysis",
                     f"Inter-packet delay analysis across {len(recon_delays)} packet pairs",
                     {
-                        "recon_delays_ms": [
-                            d * 1000 for d in recon_delays[:10]
-                        ],  # First 10
+                        "recon_delays_ms": [d * 1000 for d in recon_delays[:10]],  # First 10
                         "zapret_delays_ms": [d * 1000 for d in zapret_delays[:10]],
                         "difference_ms": delay_diff_ms,
                     },
@@ -244,9 +247,7 @@ class DifferenceDetector:
                 f"{ratio_diff:.1%} difference in bad checksum ratio",
                 recon_value=f"{recon_bad_ratio:.1%} bad checksums",
                 zapret_value=f"{zapret_bad_ratio:.1%} bad checksums",
-                impact_level=(
-                    ImpactLevel.HIGH if ratio_diff > 0.3 else ImpactLevel.MEDIUM
-                ),
+                impact_level=(ImpactLevel.HIGH if ratio_diff > 0.3 else ImpactLevel.MEDIUM),
                 confidence=confidence,
                 fix_priority=2 if ratio_diff > 0.3 else 4,
                 fix_complexity=FixComplexity.MODERATE,
@@ -269,9 +270,7 @@ class DifferenceDetector:
 
         return differences
 
-    def _detect_ttl_differences(
-        self, comparison: ComparisonResult
-    ) -> List[CriticalDifference]:
+    def _detect_ttl_differences(self, comparison: ComparisonResult) -> List[CriticalDifference]:
         """Detect critical TTL differences."""
         differences = []
 
@@ -290,18 +289,13 @@ class DifferenceDetector:
         zapret_fake_ttls = [p.ttl for p in zapret_packets if p.is_fake_packet()]
 
         if recon_fake_ttls and zapret_fake_ttls:
-            recon_fake_ttl = (
-                statistics.mode(recon_fake_ttls) if recon_fake_ttls else None
-            )
-            zapret_fake_ttl = (
-                statistics.mode(zapret_fake_ttls) if zapret_fake_ttls else None
-            )
+            recon_fake_ttl = self._safe_mode(recon_fake_ttls)
+            zapret_fake_ttl = self._safe_mode(zapret_fake_ttls)
 
             if (
-                recon_fake_ttl
-                and zapret_fake_ttl
-                and abs(recon_fake_ttl - zapret_fake_ttl)
-                >= self.config.ttl_difference_threshold
+                recon_fake_ttl is not None
+                and zapret_fake_ttl is not None
+                and abs(recon_fake_ttl - zapret_fake_ttl) >= self.config.ttl_difference_threshold
             ):
                 diff = CriticalDifference(
                     category=DifferenceCategory.TTL,
@@ -373,9 +367,7 @@ class DifferenceDetector:
 
         return differences
 
-    def _detect_payload_differences(
-        self, comparison: ComparisonResult
-    ) -> List[CriticalDifference]:
+    def _detect_payload_differences(self, comparison: ComparisonResult) -> List[CriticalDifference]:
         """Detect payload-related differences."""
         differences = []
 
@@ -414,9 +406,7 @@ class DifferenceDetector:
 
         return differences
 
-    def _detect_flag_differences(
-        self, comparison: ComparisonResult
-    ) -> List[CriticalDifference]:
+    def _detect_flag_differences(self, comparison: ComparisonResult) -> List[CriticalDifference]:
         """Detect TCP flag differences."""
         differences = []
 
@@ -428,8 +418,8 @@ class DifferenceDetector:
         zapret_flag_patterns = self._analyze_flag_patterns(zapret_packets)
 
         # Compare patterns
-        for flag_combo in set(recon_flag_patterns.keys()) | set(
-            zapret_flag_patterns.keys()
+        for flag_combo in sorted(
+            set(recon_flag_patterns.keys()) | set(zapret_flag_patterns.keys())
         ):
             recon_count = recon_flag_patterns.get(flag_combo, 0)
             zapret_count = zapret_flag_patterns.get(flag_combo, 0)
@@ -562,9 +552,7 @@ class DifferenceDetector:
 
     # Helper methods
 
-    def _group_by_connection(
-        self, packets: List[PacketInfo]
-    ) -> Dict[str, List[PacketInfo]]:
+    def _group_by_connection(self, packets: List[PacketInfo]) -> Dict[str, List[PacketInfo]]:
         """Group packets by connection key."""
         connections = defaultdict(list)
         for packet in packets:
@@ -675,7 +663,7 @@ class DifferenceDetector:
             # Infer TTL setting
             ttls = [p.ttl for p in fake_packets]
             if ttls:
-                strategy["ttl"] = statistics.mode(ttls)
+                strategy["ttl"] = self._safe_mode(ttls)
 
         # Infer split position from ClientHello analysis
         client_hellos = [p for p in packets if p.is_client_hello]
@@ -691,7 +679,7 @@ class DifferenceDetector:
         """Compare inferred strategies."""
         differences = {}
 
-        all_params = set(recon_strategy.keys()) | set(zapret_strategy.keys())
+        all_params = sorted(set(recon_strategy.keys()) | set(zapret_strategy.keys()))
 
         for param in all_params:
             recon_val = recon_strategy.get(param)

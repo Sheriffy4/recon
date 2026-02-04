@@ -58,14 +58,10 @@ class StrategyValidator:
             result.is_valid = False
             result.issues.append("Low trust score - validation failed")
         self.validation_cache[cache_key] = result
-        self.logger.info(
-            f"Strategy {strategy.id} validation complete: {result.trust_score:.2f}"
-        )
+        self.logger.info(f"Strategy {strategy.id} validation complete: {result.trust_score:.2f}")
         return result
 
-    async def _validate_security(
-        self, strategy: SharedStrategy, result: ValidationResult
-    ) -> float:
+    async def _validate_security(self, strategy: SharedStrategy, result: ValidationResult) -> float:
         """Validate strategy for security issues."""
         score = 1.0
         try:
@@ -200,9 +196,7 @@ class StrategyValidator:
                 return False
         return True
 
-    async def batch_validate(
-        self, strategies: List[SharedStrategy]
-    ) -> Dict[str, ValidationResult]:
+    async def batch_validate(self, strategies: List[SharedStrategy]) -> Dict[str, ValidationResult]:
         """Validate multiple strategies in parallel."""
         tasks = [self.validate_strategy(strategy) for strategy in strategies]
         results = await asyncio.gather(*tasks, return_exceptions=True)

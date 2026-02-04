@@ -21,7 +21,7 @@ async def force_adaptive_analysis(domain: str):
     print("=" * 60)
     
     # Импортируем компоненты
-    from core.adaptive_engine import AdaptiveEngine, AdaptiveConfig
+    from core.adaptive_refactored.facade import AdaptiveEngine, AdaptiveConfig
     
     # Создаем конфигурацию
     config = AdaptiveConfig(

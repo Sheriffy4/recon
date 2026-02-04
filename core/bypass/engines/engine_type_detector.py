@@ -187,9 +187,7 @@ class EngineTypeDetector:
         if not platform.system() == "Windows":
             result.missing_dependencies.append("Windows platform")
             result.warnings.append("PyDivert only works on Windows")
-            result.installation_hints.append(
-                "PyDivert requires Windows operating system"
-            )
+            result.installation_hints.append("PyDivert requires Windows operating system")
             return result
         try:
             import pydivert
@@ -204,16 +202,12 @@ class EngineTypeDetector:
         if not capabilities.is_admin:
             result.missing_dependencies.append("administrator privileges")
             result.warnings.append("PyDivert requires administrator privileges")
-            result.installation_hints.append(
-                "Run as administrator or with elevated privileges"
-            )
+            result.installation_hints.append("Run as administrator or with elevated privileges")
         if self._check_windivert_driver():
             self.logger.debug("WinDivert driver appears to be available")
         else:
             result.warnings.append("WinDivert driver status unclear")
-            result.installation_hints.append(
-                "Ensure WinDivert driver is properly installed"
-            )
+            result.installation_hints.append("Ensure WinDivert driver is properly installed")
         result.dependencies_met = len(result.missing_dependencies) == 0
         result.available = result.dependencies_met
         return result
@@ -234,9 +228,7 @@ class EngineTypeDetector:
             result.warnings.append(
                 "No specific external tools detected, but engine should work with any compatible tool"
             )
-            result.installation_hints.append(
-                "Consider installing zapret or other DPI bypass tools"
-            )
+            result.installation_hints.append("Consider installing zapret or other DPI bypass tools")
         else:
             result.warnings.append(f"Found external tools: {', '.join(tools_found)}")
         return result
@@ -252,14 +244,10 @@ class EngineTypeDetector:
         if not platform.system() == "Linux":
             result.missing_dependencies.append("Linux platform")
             result.warnings.append("Netfilter only works on Linux")
-            result.installation_hints.append(
-                "Netfilter requires Linux operating system"
-            )
+            result.installation_hints.append("Netfilter requires Linux operating system")
             return result
         if self._check_netfilter_support():
-            result.warnings.append(
-                "Netfilter support detected but engine not implemented yet"
-            )
+            result.warnings.append("Netfilter support detected but engine not implemented yet")
             result.missing_dependencies.append("netfilter engine implementation")
             result.installation_hints.append("Netfilter engine is not yet implemented")
         else:

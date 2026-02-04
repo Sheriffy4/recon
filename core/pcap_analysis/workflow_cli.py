@@ -70,9 +70,7 @@ Examples:
         "--no-auto-fix", action="store_true", help="Disable automatic fix application"
     )
 
-    parser.add_argument(
-        "--no-validation", action="store_true", help="Disable fix validation"
-    )
+    parser.add_argument("--no-validation", action="store_true", help="Disable fix validation")
 
     parser.add_argument(
         "--max-fix-attempts",
@@ -88,35 +86,23 @@ Examples:
         help="Validation timeout in seconds (default: 300)",
     )
 
-    parser.add_argument(
-        "--no-parallel", action="store_true", help="Disable parallel validation"
-    )
+    parser.add_argument("--no-parallel", action="store_true", help="Disable parallel validation")
 
-    parser.add_argument(
-        "--no-backup", action="store_true", help="Disable file backup before fixes"
-    )
+    parser.add_argument("--no-backup", action="store_true", help="Disable file backup before fixes")
 
     parser.add_argument(
         "--no-rollback", action="store_true", help="Disable rollback on fix failure"
     )
 
     # Output options
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Enable verbose logging"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
 
-    parser.add_argument(
-        "--quiet", "-q", action="store_true", help="Suppress non-error output"
-    )
+    parser.add_argument("--quiet", "-q", action="store_true", help="Suppress non-error output")
 
-    parser.add_argument(
-        "--json-output", action="store_true", help="Output results in JSON format"
-    )
+    parser.add_argument("--json-output", action="store_true", help="Output results in JSON format")
 
     # Interactive mode
-    parser.add_argument(
-        "--interactive", "-i", action="store_true", help="Run in interactive mode"
-    )
+    parser.add_argument("--interactive", "-i", action="store_true", help="Run in interactive mode")
 
     return parser
 
@@ -140,9 +126,7 @@ def create_config_from_args(args: argparse.Namespace) -> WorkflowConfig:
         return load_config_from_file(args.config)
 
     if not args.recon_pcap or not args.zapret_pcap:
-        print(
-            "Error: Both recon_pcap and zapret_pcap are required when not using --config"
-        )
+        print("Error: Both recon_pcap and zapret_pcap are required when not using --config")
         sys.exit(1)
 
     return WorkflowConfig(
@@ -338,9 +322,7 @@ async def main():
         # Run workflow
         if not args.quiet and not args.json_output:
             print("Starting automated PCAP comparison workflow...")
-            print(
-                "This may take several minutes depending on PCAP size and validation domains."
-            )
+            print("This may take several minutes depending on PCAP size and validation domains.")
             print()
 
         result = await run_automated_workflow(config)

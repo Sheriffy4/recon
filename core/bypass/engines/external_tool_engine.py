@@ -44,9 +44,7 @@ class ExternalToolEngine(BaseBypassEngine):
             raise RuntimeError(f"Tool {self.tool_name} not supported on {system}")
         if self.config.base_path:
             tool_path = (
-                Path(self.config.base_path)
-                / tool_config["path"]
-                / tool_config["executable"]
+                Path(self.config.base_path) / tool_config["path"] / tool_config["executable"]
             )
             if tool_path.exists():
                 return tool_path
@@ -56,9 +54,7 @@ class ExternalToolEngine(BaseBypassEngine):
         abs_path = Path(tool_config["path"]) / tool_config["executable"]
         if abs_path.exists():
             return abs_path
-        raise FileNotFoundError(
-            f"Tool executable not found: {tool_config['executable']}"
-        )
+        raise FileNotFoundError(f"Tool executable not found: {tool_config['executable']}")
 
     def _build_command(
         self, target_ips: Set[str], strategy_map: Dict[str, Dict[str, Any]]
@@ -92,9 +88,7 @@ class ExternalToolEngine(BaseBypassEngine):
             args.extend(strategy_string.split())
         return args
 
-    def start(
-        self, target_ips: Set[str], strategy_map: Dict[str, Dict[str, Any]]
-    ) -> bool:
+    def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict[str, Any]]) -> bool:
         """Start the external tool."""
         if self.is_running:
             self.logger.warning(f"{self.tool_name} already running")

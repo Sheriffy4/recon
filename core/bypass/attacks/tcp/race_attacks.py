@@ -65,7 +65,6 @@ class BadChecksumRaceAttack(BaseAttack):
     3. DPI may cache the fake packet and miss the real one
     """
 
-
     @property
     def required_params(self) -> list:
         return []
@@ -135,9 +134,7 @@ class BadChecksumRaceAttack(BaseAttack):
                 error_message=f"Bad checksum race attack failed: {str(e)}",
             )
 
-    def _create_fake_packet(
-        self, target_ip: str, target_port: int, payload: bytes
-    ) -> Any:
+    def _create_fake_packet(self, target_ip: str, target_port: int, payload: bytes) -> Any:
         """Create fake packet with corrupted checksum."""
         base_seq = random.randint(1000, 10000)
         fake_packet = (
@@ -155,22 +152,16 @@ class BadChecksumRaceAttack(BaseAttack):
             fake_packet[TCP].chksum = ~fake_packet[TCP].chksum & 65535
         return fake_packet
 
-    def _create_real_packet(
-        self, target_ip: str, target_port: int, payload: bytes
-    ) -> Any:
+    def _create_real_packet(self, target_ip: str, target_port: int, payload: bytes) -> Any:
         """Create real packet with correct checksum."""
         base_seq = random.randint(1000, 10000)
         real_packet = (
-            IP(dst=target_ip)
-            / TCP(dport=target_port, seq=base_seq, flags="PA")
-            / Raw(load=payload)
+            IP(dst=target_ip) / TCP(dport=target_port, seq=base_seq, flags="PA") / Raw(load=payload)
         )
         real_packet[TCP].chksum = None
         return real_packet
 
-    async def _execute_race_condition(
-        self, fake_packet: Any, real_packet: Any
-    ) -> Optional[Any]:
+    async def _execute_race_condition(self, fake_packet: Any, real_packet: Any) -> Optional[Any]:
         """Execute the race condition between fake and real packets."""
         response = None
         try:
@@ -252,9 +243,7 @@ class LowTTLPoisoningAttack(BaseAttack):
             target_ip = context.dst_ip
             target_port = context.dst_port
             payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-            poison_packets = self._create_poison_packets(
-                target_ip, target_port, payload
-            )
+            poison_packets = self._create_poison_packets(target_ip, target_port, payload)
             real_packet = self._create_real_packet(target_ip, target_port, payload)
             response = await self._execute_ttl_poisoning(poison_packets, real_packet)
             success = self._analyze_response(response)
@@ -275,9 +264,7 @@ class LowTTLPoisoningAttack(BaseAttack):
                 error_message=f"Low TTL poisoning attack failed: {str(e)}",
             )
 
-    def _create_poison_packets(
-        self, target_ip: str, target_port: int, payload: bytes
-    ) -> List[Any]:
+    def _create_poison_packets(self, target_ip: str, target_port: int, payload: bytes) -> List[Any]:
         """Create packets with low TTL values for cache poisoning."""
         poison_packets = []
         base_seq = random.randint(1000, 10000)
@@ -297,15 +284,11 @@ class LowTTLPoisoningAttack(BaseAttack):
             poison_packets.append(packet)
         return poison_packets
 
-    def _create_real_packet(
-        self, target_ip: str, target_port: int, payload: bytes
-    ) -> Any:
+    def _create_real_packet(self, target_ip: str, target_port: int, payload: bytes) -> Any:
         """Create real packet with normal TTL."""
         base_seq = random.randint(10000, 20000)
         real_packet = (
-            IP(dst=target_ip)
-            / TCP(dport=target_port, seq=base_seq, flags="PA")
-            / Raw(load=payload)
+            IP(dst=target_ip) / TCP(dport=target_port, seq=base_seq, flags="PA") / Raw(load=payload)
         )
         return real_packet
 
@@ -381,9 +364,7 @@ class CacheConfusionAttack(BaseAttack):
             target_ip = context.dst_ip
             target_port = context.dst_port
             payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-            competing_streams = self._create_competing_streams(
-                target_ip, target_port, payload
-            )
+            competing_streams = self._create_competing_streams(target_ip, target_port, payload)
             response = await self._execute_cache_confusion(competing_streams)
             success = self._analyze_response(response)
             all_packets = sum(competing_streams, [])
@@ -431,17 +412,13 @@ class CacheConfusionAttack(BaseAttack):
         streams.append(lowttl_stream)
         real_stream = []
         packet = (
-            IP(dst=target_ip)
-            / TCP(dport=target_port, seq=3000, flags="PA")
-            / Raw(load=payload)
+            IP(dst=target_ip) / TCP(dport=target_port, seq=3000, flags="PA") / Raw(load=payload)
         )
         real_stream.append(packet)
         streams.append(real_stream)
         return streams
 
-    async def _execute_cache_confusion(
-        self, competing_streams: List[List[Any]]
-    ) -> Optional[Any]:
+    async def _execute_cache_confusion(self, competing_streams: List[List[Any]]) -> Optional[Any]:
         """Execute simultaneous race conditions."""
         response = None
         try:
@@ -520,9 +497,7 @@ class MD5SigRaceAttack(BaseAttack):
             target_ip = context.dst_ip
             target_port = context.dst_port
             payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-            fake_packet = self._create_fake_packet_with_md5(
-                target_ip, target_port, payload
-            )
+            fake_packet = self._create_fake_packet_with_md5(target_ip, target_port, payload)
             real_packet = self._create_real_packet(target_ip, target_port, payload)
             response = await self._execute_race_condition(fake_packet, real_packet)
             success = self._analyze_response(response)
@@ -544,9 +519,7 @@ class MD5SigRaceAttack(BaseAttack):
                 error_message=f"MD5 signature race attack failed: {str(e)}",
             )
 
-    def _create_fake_packet_with_md5(
-        self, target_ip: str, target_port: int, payload: bytes
-    ) -> Any:
+    def _create_fake_packet_with_md5(self, target_ip: str, target_port: int, payload: bytes) -> Any:
         """Create fake packet with MD5 signature."""
         base_seq = random.randint(1000, 10000)
         fake_packet = (
@@ -558,21 +531,15 @@ class MD5SigRaceAttack(BaseAttack):
         fake_packet[TCP].options = [(19, fake_md5_hash)]
         return fake_packet
 
-    def _create_real_packet(
-        self, target_ip: str, target_port: int, payload: bytes
-    ) -> Any:
+    def _create_real_packet(self, target_ip: str, target_port: int, payload: bytes) -> Any:
         """Create real packet without MD5 signature."""
         base_seq = random.randint(1000, 10000)
         real_packet = (
-            IP(dst=target_ip)
-            / TCP(dport=target_port, seq=base_seq, flags="PA")
-            / Raw(load=payload)
+            IP(dst=target_ip) / TCP(dport=target_port, seq=base_seq, flags="PA") / Raw(load=payload)
         )
         return real_packet
 
-    async def _execute_race_condition(
-        self, fake_packet: Any, real_packet: Any
-    ) -> Optional[Any]:
+    async def _execute_race_condition(self, fake_packet: Any, real_packet: Any) -> Optional[Any]:
         """Execute the race condition between fake and real packets."""
         response = None
         try:

@@ -224,9 +224,7 @@ class DoHResolver:
     def get_cache_stats(self) -> Dict[str, Any]:
         """Returns cache statistics."""
         now = time.time()
-        valid_entries = sum(
-            1 for entry in self.cache.values() if entry["expires"] > now
-        )
+        valid_entries = sum(1 for entry in self.cache.values() if entry["expires"] > now)
         return {
             "total_entries": len(self.cache),
             "valid_entries": valid_entries,

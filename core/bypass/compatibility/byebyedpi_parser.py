@@ -189,9 +189,7 @@ class ByeByeDPIParser:
         # Extract active methods (after split positions)
         self._extract_active_methods(config)
 
-        self.logger.info(
-            f"Parsed ByeByeDPI config with {len(config.parameters)} parameters"
-        )
+        self.logger.info(f"Parsed ByeByeDPI config with {len(config.parameters)} parameters")
         return config
 
     def _parse_parameters(self, command: str, config: ByeByeDPIConfig):
@@ -202,9 +200,7 @@ class ByeByeDPIParser:
 
         for match in param_pattern.finditer(command):
             param_name = match.group(1)
-            param_value = match.group(2) or match.group(
-                3
-            )  # Either =value or space value
+            param_value = match.group(2) or match.group(3)  # Either =value or space value
 
             # Get parameter definition
             if param_name in self.parameter_defs:
@@ -212,9 +208,7 @@ class ByeByeDPIParser:
                 param_type = param_def.get("type", "unknown")
 
                 # Parse value based on type
-                parsed_value = self._parse_parameter_value(
-                    param_value, param_type, param_def
-                )
+                parsed_value = self._parse_parameter_value(param_value, param_type, param_def)
 
                 # Store parameter
                 config.parameters[param_name] = ByeByeDPIParameter(
@@ -256,9 +250,7 @@ class ByeByeDPIParser:
                 return value
 
         except (ValueError, TypeError) as e:
-            self.logger.warning(
-                f"Failed to parse parameter value '{value}' as {param_type}: {e}"
-            )
+            self.logger.warning(f"Failed to parse parameter value '{value}' as {param_type}: {e}")
             return value
 
     def _extract_active_methods(self, config: ByeByeDPIConfig):
@@ -281,9 +273,7 @@ class ByeByeDPIParser:
         if "split-pos" in config.parameters:
             positions = config.parameters["split-pos"].value
             if isinstance(positions, list):
-                config.split_positions = [
-                    pos for pos in positions if isinstance(pos, int)
-                ]
+                config.split_positions = [pos for pos in positions if isinstance(pos, int)]
             elif isinstance(positions, int):
                 config.split_positions = [positions]
 

@@ -344,13 +344,9 @@ class IntelligentStrategyGenerator:
             if self.fingerprinter:
                 # Use correct method name for fingerprinting
                 if hasattr(self.fingerprinter, "fingerprint_domain"):
-                    fingerprint_result = await self.fingerprinter.fingerprint_domain(
-                        target_domain
-                    )
+                    fingerprint_result = await self.fingerprinter.fingerprint_domain(target_domain)
                 elif hasattr(self.fingerprinter, "fingerprint"):
-                    fingerprint_result = await self.fingerprinter.fingerprint(
-                        target_domain, 443
-                    )
+                    fingerprint_result = await self.fingerprinter.fingerprint(target_domain, 443)
                 else:
                     LOG.warning("No suitable fingerprinting method found")
                     fingerprint_result = None
@@ -415,9 +411,7 @@ class IntelligentStrategyGenerator:
 
         # 7. Add PCAP-specific strategies if available
         if self.pcap_analysis_data and len(recommendations) < count:
-            pcap_strategies = self._generate_pcap_specific_strategies(
-                count - len(recommendations)
-            )
+            pcap_strategies = self._generate_pcap_specific_strategies(count - len(recommendations))
             recommendations.extend(pcap_strategies)
 
         # 8. Add historical best performers
@@ -428,9 +422,7 @@ class IntelligentStrategyGenerator:
             recommendations.extend(historical_strategies)
 
         # Sort by confidence and priority
-        recommendations.sort(
-            key=lambda x: (x.priority, x.confidence_score), reverse=True
-        )
+        recommendations.sort(key=lambda x: (x.priority, x.confidence_score), reverse=True)
 
         # Update statistics
         self.generation_stats["strategies_generated"] += len(recommendations)
@@ -504,16 +496,12 @@ class IntelligentStrategyGenerator:
         rst_triggers = self.pcap_analysis_data.rst_triggers
         if rst_triggers:
             insights["rst_trigger_count"] = len(rst_triggers)
-            insights["common_rst_patterns"] = self._extract_common_rst_patterns(
-                rst_triggers
-            )
+            insights["common_rst_patterns"] = self._extract_common_rst_patterns(rst_triggers)
 
         # Analyze fragmentation behavior
         frag_behavior = self.pcap_analysis_data.fragmentation_behavior
         if frag_behavior:
-            insights["fragmentation_vulnerable"] = frag_behavior.get(
-                "vulnerable", False
-            )
+            insights["fragmentation_vulnerable"] = frag_behavior.get("vulnerable", False)
             insights["fragmentation_filtered"] = frag_behavior.get("filtered", False)
 
         # Analyze timing patterns
@@ -524,9 +512,7 @@ class IntelligentStrategyGenerator:
 
         return insights
 
-    def _extract_common_rst_patterns(
-        self, rst_triggers: List[Dict[str, Any]]
-    ) -> List[str]:
+    def _extract_common_rst_patterns(self, rst_triggers: List[Dict[str, Any]]) -> List[str]:
         """Extract common patterns from RST triggers"""
         patterns = []
 
@@ -573,18 +559,14 @@ class IntelligentStrategyGenerator:
                 )
                 confidence_factors.append(dpi_confidence * 0.3)
 
-            fragmentation_handling = fingerprint_data.get(
-                "fragmentation_handling", "unknown"
-            )
+            fragmentation_handling = fingerprint_data.get("fragmentation_handling", "unknown")
             if fragmentation_handling == "vulnerable" and "multisplit" in strategy_name:
                 reasoning.append(
                     "DPI vulnerable to fragmentation - multisplit strategy recommended"
                 )
                 confidence_factors.append(0.2)
             elif fragmentation_handling == "filtered" and "multisplit" in strategy_name:
-                reasoning.append(
-                    "DPI filters fragmentation - multisplit strategy may fail"
-                )
+                reasoning.append("DPI filters fragmentation - multisplit strategy may fail")
                 risk_factors.append("Fragmentation filtering detected")
                 confidence_factors.append(-0.1)
 
@@ -601,9 +583,7 @@ class IntelligentStrategyGenerator:
 
             rst_count = historical_insights.get("rst_count", 0)
             if rst_count > 0:
-                reasoning.append(
-                    f"Historical RST injection detected ({rst_count} RSTs)"
-                )
+                reasoning.append(f"Historical RST injection detected ({rst_count} RSTs)")
                 risk_factors.append("RST injection risk")
 
         # PCAP analysis reasoning
@@ -623,9 +603,7 @@ class IntelligentStrategyGenerator:
                     optimization_hints.append("Consider SNI obfuscation techniques")
 
         # Rule engine reasoning
-        if rule_recommendations and any(
-            rec in strategy_name for rec in rule_recommendations
-        ):
+        if rule_recommendations and any(rec in strategy_name for rec in rule_recommendations):
             source_data.append("rules")
             reasoning.append("Strategy matches rule engine recommendations")
             confidence_factors.append(0.1)
@@ -673,9 +651,7 @@ class IntelligentStrategyGenerator:
         rst_triggers = self.pcap_analysis_data.rst_triggers
         if rst_triggers:
             # If SNI-based blocking detected, recommend SNI obfuscation
-            sni_blocks = [
-                t for t in rst_triggers if t.get("trigger_type") == "sni_detection"
-            ]
+            sni_blocks = [t for t in rst_triggers if t.get("trigger_type") == "sni_detection"]
             if sni_blocks:
                 strategy = IntelligentStrategyRecommendation(
                     strategy_name="pcap_sni_obfuscation",
@@ -721,9 +697,7 @@ class IntelligentStrategyGenerator:
                 strategy_name=f"historical_{strategy_desc[:20]}",
                 strategy_config=strategy_config,
                 confidence_score=success_rate,
-                reasoning=[
-                    f"Historically successful strategy (success rate: {success_rate:.2f})"
-                ],
+                reasoning=[f"Historically successful strategy (success rate: {success_rate:.2f})"],
                 expected_success_rate=success_rate * 0.9,  # Slightly conservative
                 priority=60,
                 source_data=["historical"],
@@ -786,9 +760,7 @@ if __name__ == "__main__":
         await generator.analyze_pcap("out2.pcap")
 
         # Generate strategies
-        strategies = await generator.generate_intelligent_strategies(
-            "example.com", count=5
-        )
+        strategies = await generator.generate_intelligent_strategies("example.com", count=5)
 
         print(f"Generated {len(strategies)} intelligent strategies:")
         for i, strategy in enumerate(strategies, 1):

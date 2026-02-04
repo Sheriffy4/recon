@@ -96,17 +96,13 @@ class StrategyGenerator:
                 if strategy["name"] in rec_map:
                     historical_success_rate = rec_map[strategy["name"]]
                     # Weighted average: 60% historical, 40% rule score
-                    strategy["estimated_score"] = (
-                        strategy["estimated_score"] * 0.4
-                    ) + (historical_success_rate * 0.6)
-                    strategy[
-                        "reason"
-                    ] += f", historical success: {historical_success_rate:.2f}"
+                    strategy["estimated_score"] = (strategy["estimated_score"] * 0.4) + (
+                        historical_success_rate * 0.6
+                    )
+                    strategy["reason"] += f", historical success: {historical_success_rate:.2f}"
 
         # 3. Sort by score
-        candidate_strategies.sort(
-            key=lambda x: x.get("estimated_score", 0), reverse=True
-        )
+        candidate_strategies.sort(key=lambda x: x.get("estimated_score", 0), reverse=True)
 
         # 4. Remove duplicates
         seen = set()

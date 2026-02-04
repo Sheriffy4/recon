@@ -19,9 +19,7 @@ class StaticResolver(AbstractResolver):
             # Fallback на системный резолвер, если домена нет в нашей карте
             # Это важно для обработки редиректов на другие домены
             try:
-                res = await asyncio.get_event_loop().getaddrinfo(
-                    host, port, family=family
-                )
+                res = await asyncio.get_event_loop().getaddrinfo(host, port, family=family)
                 return [
                     {
                         "hostname": host,

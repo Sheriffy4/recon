@@ -226,26 +226,19 @@ class ParameterMapper:
                     mapped_params[mapping.attack_param] = value
                 else:
                     # Pass through unmapped parameters
-                    self.logger.debug(
-                        f"No mapping for parameter '{test_param}', passing through"
-                    )
+                    self.logger.debug(f"No mapping for parameter '{test_param}', passing through")
                     mapped_params[test_param] = value
 
             # Add default values for missing required parameters
             for param_name, mapping in mappings.items():
-                if (
-                    mapping.attack_param not in mapped_params
-                    and mapping.default is not None
-                ):
+                if mapping.attack_param not in mapped_params and mapping.default is not None:
                     mapped_params[mapping.attack_param] = mapping.default
 
             self.logger.debug(f"Mapped parameters for {attack_name}: {mapped_params}")
             return mapped_params
 
         except Exception as e:
-            raise ParameterMappingError(
-                f"Failed to map parameters for {attack_name}: {e}"
-            )
+            raise ParameterMappingError(f"Failed to map parameters for {attack_name}: {e}")
 
     def _get_mappings(self, attack_name: str) -> Dict[str, ParameterMapping]:
         """Get parameter mappings for an attack."""
@@ -298,9 +291,7 @@ class ParameterMapper:
                 params[param_name] = {
                     "name": param_name,
                     "default": (
-                        param.default
-                        if param.default != inspect.Parameter.empty
-                        else None
+                        param.default if param.default != inspect.Parameter.empty else None
                     ),
                     "annotation": (
                         str(param.annotation)
@@ -351,9 +342,7 @@ class ParameterMapper:
             # Check for unknown parameters
             for param_name in params:
                 if param_name not in mappings:
-                    errors.append(
-                        f"Unknown parameter '{param_name}' for attack '{attack_name}'"
-                    )
+                    errors.append(f"Unknown parameter '{param_name}' for attack '{attack_name}'")
 
             # If attack class provided, validate against signature
             if attack_class:
@@ -362,9 +351,7 @@ class ParameterMapper:
 
                 for param_name in mapped_params:
                     if param_name not in sig_params:
-                        errors.append(
-                            f"Parameter '{param_name}' not in attack signature"
-                        )
+                        errors.append(f"Parameter '{param_name}' not in attack signature")
 
         except Exception as e:
             errors.append(f"Validation failed: {e}")
@@ -396,9 +383,7 @@ class ParameterMapper:
         else:
             self.TCP_ATTACK_MAPPINGS[attack_name] = param_mappings
 
-        self.logger.info(
-            f"Registered parameter mappings for {attack_name} ({category})"
-        )
+        self.logger.info(f"Registered parameter mappings for {attack_name} ({category})")
 
     def get_supported_attacks(self) -> List[str]:
         """Get list of attacks with parameter mappings."""

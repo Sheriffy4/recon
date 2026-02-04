@@ -44,9 +44,7 @@ def build_json_report(
             "stream": stream_label,
             "rst_index": rst_idx,
             "trigger_index": trig_idx,
-            "injected": bool(
-                get_first(t, ["is_injected", "dpi_injection", "injection"], False)
-            ),
+            "injected": bool(get_first(t, ["is_injected", "dpi_injection", "injection"], False)),
             "ttl_rst": get_first(t, ["rst_ttl", "ttl_rst", "rst_ttl_value"]),
             "expected_ttl": get_first(t, ["expected_ttl", "server_ttl"]),
             "ttl_difference": get_first(t, ["ttl_difference", "ttl_diff"]),
@@ -68,18 +66,14 @@ def build_json_report(
                 "ec_point_formats": tls.get("ec_point_formats") or [],
                 "ch_length": tls.get("ch_length"),
             },
-            "payload_preview_hex": (
-                assembled_payload[:64].hex() if assembled_payload else ""
-            ),
+            "payload_preview_hex": (assembled_payload[:64].hex() if assembled_payload else ""),
             "recommended_strategies": recs,
         }
         report["incidents"].append(incident)
 
     if report["incidents"]:
         pattern_analyzer = BlockingPatternAnalyzer()
-        report["statistical_analysis"] = pattern_analyzer.analyze_incidents(
-            report["incidents"]
-        )
+        report["statistical_analysis"] = pattern_analyzer.analyze_incidents(report["incidents"])
     return report
 
 
@@ -131,11 +125,7 @@ class RSTTriggerAnalyzer:
             flow = self.flows[flow_key]
 
             # 1. Определяем клиента и сервер по первому SYN
-            if (
-                flow["state"] == "INIT"
-                and packet[TCP].flags.S
-                and not packet[TCP].flags.A
-            ):
+            if flow["state"] == "INIT" and packet[TCP].flags.S and not packet[TCP].flags.A:
                 flow["state"] = "SYN_SENT"
                 flow["client_ip"], flow["client_port"] = src_ip, sport
                 flow["server_ip"], flow["server_port"] = dst_ip, dport
@@ -144,12 +134,8 @@ class RSTTriggerAnalyzer:
             if flow["state"] == "INIT":
                 continue
 
-            is_from_client = (
-                src_ip == flow["client_ip"] and sport == flow["client_port"]
-            )
-            is_from_server = (
-                src_ip == flow["server_ip"] and sport == flow["server_port"]
-            )
+            is_from_client = src_ip == flow["client_ip"] and sport == flow["client_port"]
+            is_from_server = src_ip == flow["server_ip"] and sport == flow["server_port"]
 
             # 2. Сохраняем TTL сервера из SYN-ACK
             if is_from_server and packet[TCP].flags.S and packet[TCP].flags.A:

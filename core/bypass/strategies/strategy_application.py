@@ -208,9 +208,7 @@ class EnhancedStrategySelector:
             return self._get_fallback_strategy(domain_analysis)
         scored_strategies = []
         for strategy in candidates:
-            score = self._score_strategy(
-                strategy, domain, port, domain_analysis, context
-            )
+            score = self._score_strategy(strategy, domain, port, domain_analysis, context)
             scored_strategies.append(score)
         scored_strategies.sort(key=lambda x: x.total_score, reverse=True)
         best_score = scored_strategies[0]
@@ -270,13 +268,9 @@ class EnhancedStrategySelector:
         LOG.info(
             f"Resolving strategy conflict for {domain} ({len(conflicting_strategies)} strategies)"
         )
-        methods = (
-            [resolution_method] if resolution_method else self.conflict_resolution_order
-        )
+        methods = [resolution_method] if resolution_method else self.conflict_resolution_order
         for method in methods:
-            resolved = self._apply_conflict_resolution(
-                domain, conflicting_strategies, method
-            )
+            resolved = self._apply_conflict_resolution(domain, conflicting_strategies, method)
             if resolved:
                 LOG.info(f"Conflict resolved using {method.value}: {resolved.id}")
                 return resolved
@@ -468,9 +462,7 @@ class EnhancedStrategySelector:
                 attack_count += 1
         return total_stability / attack_count if attack_count > 0 else 0.5
 
-    def _calculate_user_preference_score(
-        self, strategy: BypassStrategy, domain: str
-    ) -> float:
+    def _calculate_user_preference_score(self, strategy: BypassStrategy, domain: str) -> float:
         """Calculate user preference score."""
         user_pref = self.user_preferences.get(domain)
         if not user_pref:
@@ -478,9 +470,7 @@ class EnhancedStrategySelector:
         strategy_str = strategy.to_zapret_format()
         if strategy_str == user_pref.strategy:
             return 1.0
-        similarity = self._calculate_strategy_similarity(
-            strategy_str, user_pref.strategy
-        )
+        similarity = self._calculate_strategy_similarity(strategy_str, user_pref.strategy)
         return similarity * 0.8
 
     def _calculate_compatibility_score(
@@ -527,9 +517,7 @@ class EnhancedStrategySelector:
         union = params1.union(params2)
         return len(intersection) / len(union) if union else 0.0
 
-    def _find_similar_pools(
-        self, domain_analysis: DomainAnalysis
-    ) -> List[StrategyPool]:
+    def _find_similar_pools(self, domain_analysis: DomainAnalysis) -> List[StrategyPool]:
         """Find pools with similar domains."""
         similar_pools = []
         for pool in self.pool_manager.list_pools():
@@ -540,9 +528,7 @@ class EnhancedStrategySelector:
                     similarity_score += 1
                 if other_analysis.sld == domain_analysis.sld:
                     similarity_score += 2
-                common_tags = set(other_analysis.tags).intersection(
-                    set(domain_analysis.tags)
-                )
+                common_tags = set(other_analysis.tags).intersection(set(domain_analysis.tags))
                 similarity_score += len(common_tags)
             if similarity_score > 0:
                 similar_pools.append(pool)

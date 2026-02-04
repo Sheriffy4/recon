@@ -18,6 +18,7 @@ from core.bypass.attacks.base import (
 )
 from core.bypass.attacks.attack_registry import register_attack
 
+
 def encode_variable_length(value: int) -> bytes:
     """Encode integer in QUIC variable-length format."""
     if value < 64:
@@ -58,8 +59,7 @@ class QUICFragmentationAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'fragment_size': 1200, 'fragment_count': 3}
-
+        return {"fragment_size": 1200, "fragment_count": 3}
 
     def to_zapret_command(self, params: Optional[Dict[str, Any]] = None) -> str:
         params = params or {}
@@ -91,8 +91,7 @@ class QUICFragmentationAttack(BaseAttack):
         supported_versions_ext = b"\x00+"
         supported_versions_content = b"\x02\x03\x04"
         supported_versions_ext += (
-            struct.pack("!H", len(supported_versions_content))
-            + supported_versions_content
+            struct.pack("!H", len(supported_versions_content)) + supported_versions_content
         )
         extensions += supported_versions_ext
         quic_params_ext = b"\x009"
@@ -148,26 +147,12 @@ class QUICFragmentationAttack(BaseAttack):
             stream_offset = encode_variable_length(0)
             stream_length = encode_variable_length(len(payload_data))
             stream_frame = (
-                stream_frame_type
-                + stream_id
-                + stream_offset
-                + stream_length
-                + payload_data
+                stream_frame_type + stream_id + stream_offset + stream_length + payload_data
             )
             frames += stream_frame
         min_packet_size = 1200
         current_size = (
-            1
-            + 4
-            + 1
-            + dcid_len
-            + 1
-            + scid_len
-            + len(token_length)
-            + 2
-            + 4
-            + len(frames)
-            + 16
+            1 + 4 + 1 + dcid_len + 1 + scid_len + len(token_length) + 2 + 4 + len(frames) + 16
         )
         if current_size < min_packet_size:
             padding_size = min_packet_size - current_size
@@ -197,9 +182,7 @@ class QUICFragmentationAttack(BaseAttack):
             packet = bytes([header_byte]) + packet[1:]
         return packet
 
-    def _fragment_with_techniques(
-        self, payload: bytes, fragment_size: int
-    ) -> List[bytes]:
+    def _fragment_with_techniques(self, payload: bytes, fragment_size: int) -> List[bytes]:
         """
         Fragment payload with additional techniques from quic_bypass.
         """
@@ -236,13 +219,9 @@ class QUICFragmentationAttack(BaseAttack):
             fragment_size = context.params.get("fragment_size", 100)
             domain = context.domain or "example.com"
             use_coalescing = context.params.get("use_coalescing", False)
-            add_version_negotiation = context.params.get(
-                "add_version_negotiation", False
-            )
+            add_version_negotiation = context.params.get("add_version_negotiation", False)
             if context.payload:
-                full_quic_packet = self._create_quic_initial_packet(
-                    domain, context.payload
-                )
+                full_quic_packet = self._create_quic_initial_packet(domain, context.payload)
             else:
                 full_quic_packet = self._create_quic_initial_packet(domain)
             fragments = self._fragment_with_techniques(full_quic_packet, fragment_size)
@@ -255,10 +234,18 @@ class QUICFragmentationAttack(BaseAttack):
             segments = []
             if add_version_negotiation:
                 vn_packet = self._create_version_negotiation_packet()
-                segments.append((vn_packet, 0))
+                segments.append((vn_packet, 0, {"delay_ms": 0}))
+
+            seq_offset = 0
+            # If we added VN packet, advance seq_offset for stream-consistency
+            if segments:
+                seq_offset = (seq_offset + len(segments[0][0])) & 0xFFFFFFFF
+
             for i, fragment in enumerate(fragments):
                 delay = random.randint(0, 20) if i > 0 else 0
-                segments.append((fragment, delay))
+                segments.append((fragment, seq_offset, {"delay_ms": delay}))
+                seq_offset = (seq_offset + len(fragment)) & 0xFFFFFFFF
+
             total_bytes = sum((len(seg[0]) for seg in segments))
             packets_sent = len(segments)
             latency = (time.time() - start_time) * 1000

@@ -128,7 +128,9 @@ class Anomaly:
     def __post_init__(self):
         """Post-initialization processing."""
         if not self.fix_suggestion:
-            self.fix_suggestion = f"Adjust implementation to match expected behavior: {self.expected_behavior}"
+            self.fix_suggestion = (
+                f"Adjust implementation to match expected behavior: {self.expected_behavior}"
+            )
 
 
 class PatternRecognizer:
@@ -140,18 +142,14 @@ class PatternRecognizer:
 
         # Detection thresholds
         self.fake_ttl_threshold = self.config.get("fake_ttl_threshold", 5)
-        self.timing_anomaly_threshold = self.config.get(
-            "timing_anomaly_threshold", 0.1
-        )  # seconds
+        self.timing_anomaly_threshold = self.config.get("timing_anomaly_threshold", 0.1)  # seconds
         self.confidence_threshold = self.config.get("confidence_threshold", 0.7)
 
         # Pattern cache
         self._pattern_cache: Dict[str, List[EvasionPattern]] = {}
         self._anomaly_cache: Dict[str, List[Anomaly]] = {}
 
-    def recognize_dpi_evasion_patterns(
-        self, packets: List[PacketInfo]
-    ) -> List[EvasionPattern]:
+    def recognize_dpi_evasion_patterns(self, packets: List[PacketInfo]) -> List[EvasionPattern]:
         """Recognize DPI evasion patterns in packet sequence."""
         if not packets:
             return []
@@ -177,9 +175,7 @@ class PatternRecognizer:
 
         return patterns
 
-    def detect_fake_packet_patterns(
-        self, packets: List[PacketInfo]
-    ) -> List[FakePacketPattern]:
+    def detect_fake_packet_patterns(self, packets: List[PacketInfo]) -> List[FakePacketPattern]:
         """Detect fake packet patterns with specific characteristics."""
         fake_patterns = []
 
@@ -223,9 +219,7 @@ class PatternRecognizer:
 
         return fake_patterns
 
-    def detect_real_packet_patterns(
-        self, packets: List[PacketInfo]
-    ) -> List[PacketInfo]:
+    def detect_real_packet_patterns(self, packets: List[PacketInfo]) -> List[PacketInfo]:
         """Detect real packet patterns with correct characteristics."""
         real_packets = []
 
@@ -235,11 +229,7 @@ class PatternRecognizer:
                 packet.ttl > self.fake_ttl_threshold
                 and packet.checksum_valid
                 and packet.sequence_num > 0
-                and (
-                    packet.payload_length > 0
-                    or "SYN" in packet.flags
-                    or "FIN" in packet.flags
-                )
+                and (packet.payload_length > 0 or "SYN" in packet.flags or "FIN" in packet.flags)
             )
 
             if is_real:
@@ -261,9 +251,7 @@ class PatternRecognizer:
         anomalies.extend(self._detect_missing_patterns(recon_patterns, zapret_patterns))
 
         # Compare fake packet patterns
-        anomalies.extend(
-            self._detect_fake_packet_anomalies(recon_packets, zapret_packets)
-        )
+        anomalies.extend(self._detect_fake_packet_anomalies(recon_packets, zapret_packets))
 
         # Compare split patterns
         anomalies.extend(self._detect_split_anomalies(recon_packets, zapret_packets))
@@ -313,9 +301,7 @@ class PatternRecognizer:
 
         return roles
 
-    def identify_bypass_techniques(
-        self, patterns: List[EvasionPattern]
-    ) -> List[EvasionTechnique]:
+    def identify_bypass_techniques(self, patterns: List[EvasionPattern]) -> List[EvasionTechnique]:
         """Identify bypass techniques from detected patterns."""
         techniques = set()
 
@@ -349,33 +335,25 @@ class PatternRecognizer:
 
         # Check fooling method compliance
         if expected_strategy.fooling:
-            fooling_compliance = self._check_fooling_compliance(
-                packets, expected_strategy.fooling
-            )
+            fooling_compliance = self._check_fooling_compliance(packets, expected_strategy.fooling)
             compliance_score += fooling_compliance
             total_checks += 1
 
         # Check split position compliance
         if expected_strategy.split_pos:
-            split_compliance = self._check_split_compliance(
-                packets, expected_strategy.split_pos
-            )
+            split_compliance = self._check_split_compliance(packets, expected_strategy.split_pos)
             compliance_score += split_compliance
             total_checks += 1
 
         # Check strategy type compliance
         if expected_strategy.dpi_desync:
-            strategy_compliance = self._check_strategy_compliance(
-                packets, expected_strategy
-            )
+            strategy_compliance = self._check_strategy_compliance(packets, expected_strategy)
             compliance_score += strategy_compliance
             total_checks += 1
 
         return compliance_score / max(1, total_checks)
 
-    def _detect_ttl_manipulation(
-        self, packets: List[PacketInfo]
-    ) -> List[EvasionPattern]:
+    def _detect_ttl_manipulation(self, packets: List[PacketInfo]) -> List[EvasionPattern]:
         """Detect TTL manipulation patterns."""
         patterns = []
 
@@ -403,9 +381,7 @@ class PatternRecognizer:
 
         return patterns
 
-    def _detect_checksum_corruption(
-        self, packets: List[PacketInfo]
-    ) -> List[EvasionPattern]:
+    def _detect_checksum_corruption(self, packets: List[PacketInfo]) -> List[EvasionPattern]:
         """Detect checksum corruption patterns."""
         patterns = []
 
@@ -425,9 +401,7 @@ class PatternRecognizer:
 
         return patterns
 
-    def _detect_fake_packet_injection(
-        self, packets: List[PacketInfo]
-    ) -> List[EvasionPattern]:
+    def _detect_fake_packet_injection(self, packets: List[PacketInfo]) -> List[EvasionPattern]:
         """Detect fake packet injection patterns."""
         patterns = []
 
@@ -435,9 +409,7 @@ class PatternRecognizer:
         fake_packets = [fp.packet for fp in fake_patterns if fp.is_fake]
 
         if fake_packets:
-            confidence = statistics.mean(
-                [fp.confidence for fp in fake_patterns if fp.is_fake]
-            )
+            confidence = statistics.mean([fp.confidence for fp in fake_patterns if fp.is_fake])
 
             pattern = EvasionPattern(
                 technique=EvasionTechnique.FAKE_PACKET_INJECTION,
@@ -450,9 +422,7 @@ class PatternRecognizer:
 
         return patterns
 
-    def _detect_payload_splitting(
-        self, packets: List[PacketInfo]
-    ) -> List[EvasionPattern]:
+    def _detect_payload_splitting(self, packets: List[PacketInfo]) -> List[EvasionPattern]:
         """Detect payload splitting patterns."""
         patterns = []
 
@@ -462,9 +432,7 @@ class PatternRecognizer:
         for ch_packet in client_hello_packets:
             # Look for subsequent packets that might be split segments
             ch_index = packets.index(ch_packet)
-            subsequent_packets = packets[
-                ch_index : ch_index + 5
-            ]  # Look at next few packets
+            subsequent_packets = packets[ch_index : ch_index + 5]  # Look at next few packets
 
             # Check for split pattern
             split_segments = []
@@ -502,9 +470,7 @@ class PatternRecognizer:
 
         return patterns
 
-    def _detect_packet_disorder(
-        self, packets: List[PacketInfo]
-    ) -> List[EvasionPattern]:
+    def _detect_packet_disorder(self, packets: List[PacketInfo]) -> List[EvasionPattern]:
         """Detect packet disorder patterns."""
         patterns = []
 
@@ -552,16 +518,12 @@ class PatternRecognizer:
 
         return patterns
 
-    def _detect_sequence_manipulation(
-        self, packets: List[PacketInfo]
-    ) -> List[EvasionPattern]:
+    def _detect_sequence_manipulation(self, packets: List[PacketInfo]) -> List[EvasionPattern]:
         """Detect sequence number manipulation patterns."""
         patterns = []
 
         # Look for unusual sequence number patterns
-        zero_seq_packets = [
-            p for p in packets if p.sequence_num == 0 and p.payload_length > 0
-        ]
+        zero_seq_packets = [p for p in packets if p.sequence_num == 0 and p.payload_length > 0]
 
         if zero_seq_packets:
             confidence = min(1.0, len(zero_seq_packets) * 0.5)
@@ -577,9 +539,7 @@ class PatternRecognizer:
 
         return patterns
 
-    def _detect_timing_manipulation(
-        self, packets: List[PacketInfo]
-    ) -> List[EvasionPattern]:
+    def _detect_timing_manipulation(self, packets: List[PacketInfo]) -> List[EvasionPattern]:
         """Detect timing manipulation patterns."""
         patterns = []
 
@@ -638,9 +598,7 @@ class PatternRecognizer:
         missing_techniques = zapret_techniques - recon_techniques
 
         for technique in missing_techniques:
-            zapret_pattern = next(
-                p for p in zapret_patterns if p.technique == technique
-            )
+            zapret_pattern = next(p for p in zapret_patterns if p.technique == technique)
 
             anomaly = Anomaly(
                 anomaly_type=(
@@ -721,12 +679,8 @@ class PatternRecognizer:
 
         # Compare split positions
         if recon_split_patterns and zapret_split_patterns:
-            recon_split_pos = recon_split_patterns[0].parameters.get(
-                "split_position", 0
-            )
-            zapret_split_pos = zapret_split_patterns[0].parameters.get(
-                "split_position", 0
-            )
+            recon_split_pos = recon_split_patterns[0].parameters.get("split_position", 0)
+            zapret_split_pos = zapret_split_patterns[0].parameters.get("split_position", 0)
 
             if abs(recon_split_pos - zapret_split_pos) > 1:
                 anomaly = Anomaly(
@@ -821,14 +775,10 @@ class PatternRecognizer:
             fake_packets = [fp.packet for fp in fake_patterns if fp.is_fake]
 
             if fake_packets:
-                bad_checksum_count = sum(
-                    1 for p in fake_packets if not p.checksum_valid
-                )
+                bad_checksum_count = sum(1 for p in fake_packets if not p.checksum_valid)
                 compliance_score += bad_checksum_count / len(fake_packets)
             else:
-                compliance_score += (
-                    0.5  # Partial compliance if no fake packets detected
-                )
+                compliance_score += 0.5  # Partial compliance if no fake packets detected
 
         # Check for badseq compliance
         if "badseq" in fooling_methods:
@@ -840,9 +790,7 @@ class PatternRecognizer:
 
         return compliance_score / len(fooling_methods)
 
-    def _check_split_compliance(
-        self, packets: List[PacketInfo], expected_split_pos: int
-    ) -> float:
+    def _check_split_compliance(self, packets: List[PacketInfo], expected_split_pos: int) -> float:
         """Check compliance with split position."""
         split_patterns = self._detect_payload_splitting(packets)
 

@@ -143,9 +143,7 @@ class ToolDetector:
             best_score = 0.0
             best_features = []
 
-        self.logger.debug(
-            f"Tool detection: {best_tool.value} (confidence: {best_score:.2f})"
-        )
+        self.logger.debug(f"Tool detection: {best_tool.value} (confidence: {best_score:.2f})")
 
         return DetectionResult(
             tool=best_tool,

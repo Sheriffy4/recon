@@ -124,9 +124,8 @@ def compare_strategies():
     print("="*80)
     
     files = [
-        ('capture_pagead2_googlesyndication_com_1764871079.pcap', 'Режим поиска (WinDivert)'),
-        ('log3.pcap', 'Режим поиска (Wireshark)'),
-        ('log2.pcap', 'Режим службы'),
+        ('log2.pcap', 'Режим поиска (CLI)'),
+        ('log.pcap', 'Режим службы'),
     ]
     
     results = {}

@@ -53,13 +53,9 @@ class TimingMetricsCollector:
                     connection_time = (time.perf_counter() - connection_start) * 1000
                     connection_times.append(connection_time)
                     first_byte_start = time.perf_counter()
-                    writer.write(
-                        b"GET / HTTP/1.1\r\nHost: " + target.encode() + b"\r\n\r\n"
-                    )
+                    writer.write(b"GET / HTTP/1.1\r\nHost: " + target.encode() + b"\r\n\r\n")
                     await writer.drain()
-                    first_byte = await asyncio.wait_for(
-                        reader.read(1), timeout=adjusted_timeout
-                    )
+                    first_byte = await asyncio.wait_for(reader.read(1), timeout=adjusted_timeout)
                     first_byte_time = (time.perf_counter() - first_byte_start) * 1000
                     first_byte_times.append(first_byte_time)
                     total_time = (time.perf_counter() - start_time) * 1000
@@ -70,9 +66,7 @@ class TimingMetricsCollector:
                     break
                 except (asyncio.TimeoutError, ConnectionError, OSError) as e:
                     last_error = e
-                    self.logger.warning(
-                        f"Attempt {retry + 1}/{max_retries} failed: {e}"
-                    )
+                    self.logger.warning(f"Attempt {retry + 1}/{max_retries} failed: {e}")
                     if retry < max_retries - 1:
                         await asyncio.sleep(retry_delay * (retry + 1))
                     continue
@@ -88,12 +82,8 @@ class TimingMetricsCollector:
             jitter_ms = statistics.stdev(timing_data) if len(timing_data) > 1 else 0.0
         else:
             latency_ms = jitter_ms = 0.0
-        avg_connection_time = (
-            statistics.mean(connection_times) if connection_times else 0.0
-        )
-        avg_first_byte_time = (
-            statistics.mean(first_byte_times) if first_byte_times else 0.0
-        )
+        avg_connection_time = statistics.mean(connection_times) if connection_times else 0.0
+        avg_first_byte_time = statistics.mean(first_byte_times) if first_byte_times else 0.0
         self.timing_history.append(
             {"timestamp": time.time(), "latency_ms": latency_ms, "jitter_ms": jitter_ms}
         )
@@ -118,24 +108,17 @@ class TimingMetricsCollector:
         """Analyze timing trends from historical data"""
         if len(self.timing_history) < 2:
             return {}
-        recent_latencies = [
-            entry["latency_ms"] for entry in list(self.timing_history)[-10:]
-        ]
-        recent_jitters = [
-            entry["jitter_ms"] for entry in list(self.timing_history)[-10:]
-        ]
+        recent_latencies = [entry["latency_ms"] for entry in list(self.timing_history)[-10:]]
+        recent_jitters = [entry["jitter_ms"] for entry in list(self.timing_history)[-10:]]
         return {
             "latency_trend": (
-                "increasing"
-                if recent_latencies[-1] > recent_latencies[0]
-                else "decreasing"
+                "increasing" if recent_latencies[-1] > recent_latencies[0] else "decreasing"
             ),
             "jitter_trend": (
                 "increasing" if recent_jitters[-1] > recent_jitters[0] else "decreasing"
             ),
             "stability_score": (
-                1.0
-                - statistics.stdev(recent_latencies) / statistics.mean(recent_latencies)
+                1.0 - statistics.stdev(recent_latencies) / statistics.mean(recent_latencies)
                 if recent_latencies and statistics.mean(recent_latencies) > 0
                 else 0.0
             ),

@@ -32,9 +32,7 @@ class ReportingDashboard:
         self.reports_dir = Path("reports")
         self.reports_dir.mkdir(exist_ok=True)
 
-    async def generate_comprehensive_report(
-        self, time_period_hours: int = 24
-    ) -> AnalyticsReport:
+    async def generate_comprehensive_report(self, time_period_hours: int = 24) -> AnalyticsReport:
         """Generate comprehensive analytics report"""
         end_time = datetime.now()
         start_time = end_time - timedelta(hours=time_period_hours)
@@ -104,9 +102,7 @@ class ReportingDashboard:
                 total_successes / total_attempts if total_attempts > 0 else 0.0
             )
             response_times = [
-                m.avg_response_time
-                for m in attack_analytics.values()
-                if m.avg_response_time > 0
+                m.avg_response_time for m in attack_analytics.values() if m.avg_response_time > 0
             ]
             stats["avg_response_time"] = (
                 sum(response_times) / len(response_times) if response_times else 0.0
@@ -117,17 +113,13 @@ class ReportingDashboard:
                 "success_rate": best_attack[1].success_rate,
             }
         if strategy_analytics:
-            best_strategy = max(
-                strategy_analytics.items(), key=lambda x: x[1].success_rate
-            )
+            best_strategy = max(strategy_analytics.items(), key=lambda x: x[1].success_rate)
             stats["most_successful_strategy"] = {
                 "id": best_strategy[0],
                 "success_rate": best_strategy[1].success_rate,
             }
         if domain_analytics:
-            worst_domain = min(
-                domain_analytics.items(), key=lambda x: x[1].avg_success_rate
-            )
+            worst_domain = min(domain_analytics.items(), key=lambda x: x[1].avg_success_rate)
             stats["most_problematic_domain"] = {
                 "domain": worst_domain[1].domain,
                 "success_rate": worst_domain[1].avg_success_rate,
@@ -181,8 +173,7 @@ class ReportingDashboard:
         declining_trends = [
             trend
             for trend in performance_trends
-            if trend.trend_direction == TrendDirection.DECLINING
-            and trend.trend_strength > 0.5
+            if trend.trend_direction == TrendDirection.DECLINING and trend.trend_strength > 0.5
         ]
         if declining_trends:
             recommendations.append(
@@ -260,9 +251,7 @@ class ReportingDashboard:
         realtime_metrics = await self.metrics_collector.get_realtime_metrics()
         recent_trends = {}
         for metric_type in MetricType:
-            top_performers = await self.performance_tracker.get_top_performers(
-                metric_type, 5
-            )
+            top_performers = await self.performance_tracker.get_top_performers(metric_type, 5)
             recent_trends[metric_type.value] = top_performers
         recent_predictions = []
         attack_ids = list(self.metrics_collector.attack_metrics.keys())[:5]
@@ -366,9 +355,7 @@ class ReportingDashboard:
         self, entity_id: str, metric_type: MetricType, hours: int = 168
     ) -> Dict[str, Any]:
         """Generate detailed trend report for specific entity"""
-        trend = await self.performance_tracker.get_trend_data(
-            entity_id, metric_type, hours
-        )
+        trend = await self.performance_tracker.get_trend_data(entity_id, metric_type, hours)
         if not trend:
             return {"error": f"No trend data available for {entity_id}"}
         if metric_type == MetricType.SUCCESS_RATE:
@@ -388,26 +375,18 @@ class ReportingDashboard:
                 "current_value": trend.values[-1] if trend.values else None,
                 "min_value": min(trend.values) if trend.values else None,
                 "max_value": max(trend.values) if trend.values else None,
-                "avg_value": (
-                    sum(trend.values) / len(trend.values) if trend.values else None
-                ),
+                "avg_value": (sum(trend.values) / len(trend.values) if trend.values else None),
             },
             "prediction": (
                 {
-                    "predicted_value": (
-                        prediction.predicted_value if prediction else None
-                    ),
+                    "predicted_value": (prediction.predicted_value if prediction else None),
                     "confidence": prediction.confidence if prediction else None,
-                    "horizon_hours": (
-                        prediction.prediction_horizon if prediction else None
-                    ),
+                    "horizon_hours": (prediction.prediction_horizon if prediction else None),
                 }
                 if prediction
                 else None
             ),
-            "recommendations": await self._generate_entity_recommendations(
-                entity_id, trend
-            ),
+            "recommendations": await self._generate_entity_recommendations(entity_id, trend),
         }
         return report
 
@@ -434,9 +413,7 @@ class ReportingDashboard:
                 f"Performance improving for {entity_id} - maintain current configuration"
             )
         else:
-            recommendations.append(
-                f"Performance stable for {entity_id} - continue monitoring"
-            )
+            recommendations.append(f"Performance stable for {entity_id} - continue monitoring")
         return recommendations
 
     async def cleanup_old_reports(self, days: int = 30):

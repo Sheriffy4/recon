@@ -22,9 +22,7 @@ class PositionResolver:
     def __init__(self):
         self.logger = logger
 
-    def resolve_numeric_positions(
-        self, packet: bytes, positions: List[int]
-    ) -> List[int]:
+    def resolve_numeric_positions(self, packet: bytes, positions: List[int]) -> List[int]:
         """
         Resolve numeric positions for packet splitting.
 
@@ -47,18 +45,12 @@ class PositionResolver:
         for position in positions:
             if self.validate_position(packet, position):
                 valid_positions.append(position)
-                self.logger.debug(
-                    f"Position {position} is valid for packet size {packet_size}"
-                )
+                self.logger.debug(f"Position {position} is valid for packet size {packet_size}")
             else:
-                self.logger.warning(
-                    f"Position {position} is invalid for packet size {packet_size}"
-                )
+                self.logger.warning(f"Position {position} is invalid for packet size {packet_size}")
 
         if not valid_positions:
-            self.logger.warning(
-                f"No valid numeric positions found for packet size {packet_size}"
-            )
+            self.logger.warning(f"No valid numeric positions found for packet size {packet_size}")
 
         return sorted(valid_positions)
 
@@ -206,9 +198,7 @@ class PositionResolver:
 
             while offset < extensions_end and offset + 4 <= len(packet):
                 extension_type = struct.unpack(">H", packet[offset : offset + 2])[0]
-                extension_length = struct.unpack(">H", packet[offset + 2 : offset + 4])[
-                    0
-                ]
+                extension_length = struct.unpack(">H", packet[offset + 2 : offset + 4])[0]
 
                 # SNI extension type is 0x0000
                 if extension_type == 0x0000:
@@ -241,15 +231,11 @@ class PositionResolver:
             sni_position = self.resolve_sni_position(packet)
             if sni_position is not None:
                 all_positions.append(sni_position)
-                self.logger.debug(
-                    f"SNI position {sni_position} added with highest priority"
-                )
+                self.logger.debug(f"SNI position {sni_position} added with highest priority")
 
         # Handle numeric positions
         if config.numeric_positions:
-            numeric_positions = self.resolve_numeric_positions(
-                packet, config.numeric_positions
-            )
+            numeric_positions = self.resolve_numeric_positions(packet, config.numeric_positions)
             all_positions.extend(numeric_positions)
             self.logger.debug(f"Numeric positions {numeric_positions} added")
 

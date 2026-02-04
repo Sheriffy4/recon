@@ -99,9 +99,7 @@ class StrategyConfigManager:
         self.config_file = self.config_dir / self.DEFAULT_CONFIG_FILE
         self._config: Optional[StrategyConfiguration] = None
 
-    def load_configuration(
-        self, config_file: Optional[str] = None
-    ) -> StrategyConfiguration:
+    def load_configuration(self, config_file: Optional[str] = None) -> StrategyConfiguration:
         """
         Load strategy configuration from file with backward compatibility.
 
@@ -120,9 +118,7 @@ class StrategyConfigManager:
             config_path = self.config_file
 
         if not config_path.exists():
-            logger.warning(
-                f"Configuration file {config_path} not found, creating default"
-            )
+            logger.warning(f"Configuration file {config_path} not found, creating default")
             return self._create_default_configuration()
 
         try:
@@ -138,9 +134,7 @@ class StrategyConfigManager:
             elif version == "3.0":
                 config = self._parse_v3_config(raw_config)
             else:
-                raise ConfigurationError(
-                    f"Unsupported configuration version: {version}"
-                )
+                raise ConfigurationError(f"Unsupported configuration version: {version}")
 
             self._validate_configuration(config)
             self._config = config
@@ -179,9 +173,7 @@ class StrategyConfigManager:
 
         # Create backup if requested and file exists
         if create_backup and config_path.exists():
-            backup_path = config_path.with_suffix(
-                config_path.suffix + self.BACKUP_SUFFIX
-            )
+            backup_path = config_path.with_suffix(config_path.suffix + self.BACKUP_SUFFIX)
             try:
                 backup_path.write_bytes(config_path.read_bytes())
                 logger.info(f"Created backup: {backup_path}")
@@ -261,9 +253,7 @@ class StrategyConfigManager:
             self._config = self.load_configuration()
 
         return [
-            pattern
-            for pattern, rule in self._config.domain_strategies.items()
-            if rule.is_wildcard
+            pattern for pattern, rule in self._config.domain_strategies.items() if rule.is_wildcard
         ]
 
     def validate_strategy_syntax(self, strategy: str) -> bool:
@@ -315,9 +305,7 @@ class StrategyConfigManager:
 
         return config
 
-    def _convert_legacy_config(
-        self, raw_config: Dict[str, Any]
-    ) -> StrategyConfiguration:
+    def _convert_legacy_config(self, raw_config: Dict[str, Any]) -> StrategyConfiguration:
         """
         Convert legacy v2.0 configuration to v3.0 format.
 
@@ -384,9 +372,7 @@ class StrategyConfigManager:
         """
         config = StrategyConfiguration(
             version=raw_config.get("version", "3.0"),
-            strategy_priority=raw_config.get(
-                "strategy_priority", ["domain", "ip", "global"]
-            ),
+            strategy_priority=raw_config.get("strategy_priority", ["domain", "ip", "global"]),
             last_updated=raw_config.get("last_updated"),
         )
 
@@ -396,9 +382,7 @@ class StrategyConfigManager:
             if isinstance(strategy_data, str):
                 # Simple string format
                 metadata = StrategyMetadata()
-                rule = StrategyRule(
-                    pattern=pattern, strategy=strategy_data, metadata=metadata
-                )
+                rule = StrategyRule(pattern=pattern, strategy=strategy_data, metadata=metadata)
             else:
                 # Full format with metadata
                 metadata_data = strategy_data.get("metadata", {})
@@ -417,9 +401,7 @@ class StrategyConfigManager:
         for ip_pattern, strategy_data in ip_strategies.items():
             if isinstance(strategy_data, str):
                 metadata = StrategyMetadata()
-                rule = StrategyRule(
-                    pattern=ip_pattern, strategy=strategy_data, metadata=metadata
-                )
+                rule = StrategyRule(pattern=ip_pattern, strategy=strategy_data, metadata=metadata)
             else:
                 metadata_data = strategy_data.get("metadata", {})
                 metadata = StrategyMetadata(**metadata_data)
@@ -468,16 +450,12 @@ class StrategyConfigManager:
         # Validate strategy priority
         valid_priorities = {"domain", "ip", "global"}
         if not set(config.strategy_priority).issubset(valid_priorities):
-            raise ConfigurationError(
-                f"Invalid strategy priority: {config.strategy_priority}"
-            )
+            raise ConfigurationError(f"Invalid strategy priority: {config.strategy_priority}")
 
         # Validate domain strategies
         for pattern, rule in config.domain_strategies.items():
             if not rule.strategy.strip():
-                raise ConfigurationError(
-                    f"Empty strategy for domain pattern: {pattern}"
-                )
+                raise ConfigurationError(f"Empty strategy for domain pattern: {pattern}")
 
             if not self.validate_strategy_syntax(rule.strategy):
                 logger.warning(

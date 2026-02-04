@@ -40,9 +40,7 @@ class FlowManager:
         self._cleanup_timer = None
         self._start_cleanup_timer()
 
-    def register_flow(
-        self, flow_id: FlowId, key: str, strategy: Dict[str, Any]
-    ) -> bool:
+    def register_flow(self, flow_id: FlowId, key: str, strategy: Dict[str, Any]) -> bool:
         """
         Register a new flow.
 
@@ -58,9 +56,7 @@ class FlowManager:
             if flow_id in self._active_flows:
                 return False
 
-            self._flows[flow_id] = FlowInfo(
-                start_ts=time.time(), key=key, strategy=strategy
-            )
+            self._flows[flow_id] = FlowInfo(start_ts=time.time(), key=key, strategy=strategy)
             self._active_flows.add(flow_id)
 
             # Schedule individual cleanup

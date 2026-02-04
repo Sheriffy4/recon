@@ -169,9 +169,7 @@ class DPIEffectivenessValidator:
         Returns:
             EffectivenessResult with detailed metrics
         """
-        self.logger.info(
-            f"Validating {attack.__class__.__name__} against {target.name}"
-        )
+        self.logger.info(f"Validating {attack.__class__.__name__} against {target.name}")
 
         successful_tests = 0
         failed_tests = 0
@@ -182,11 +180,7 @@ class DPIEffectivenessValidator:
         for i in range(test_count):
             try:
                 # Create test context
-                test_url = (
-                    target.test_urls[i % len(target.test_urls)]
-                    if target.test_urls
-                    else "/"
-                )
+                test_url = target.test_urls[i % len(target.test_urls)] if target.test_urls else "/"
                 payload = self._create_test_payload(target, test_url)
 
                 context = AttackContext(
@@ -203,9 +197,7 @@ class DPIEffectivenessValidator:
                 # Test the attack result
                 if result.status == AttackStatus.SUCCESS:
                     # Simulate network test
-                    test_success, response_time = self._test_network_bypass(
-                        target, result, context
-                    )
+                    test_success, response_time = self._test_network_bypass(target, result, context)
 
                     response_times.append(response_time)
 
@@ -229,9 +221,7 @@ class DPIEffectivenessValidator:
         # Calculate metrics
         total_tests = successful_tests + failed_tests
         success_rate = successful_tests / total_tests if total_tests > 0 else 0.0
-        average_response_time = (
-            statistics.mean(response_times) if response_times else 0.0
-        )
+        average_response_time = statistics.mean(response_times) if response_times else 0.0
         error_rate = len(errors) / total_tests if total_tests > 0 else 0.0
 
         # Determine effectiveness level
@@ -285,8 +275,8 @@ class DPIEffectivenessValidator:
                 sock.connect((ip_address, target.port))
 
                 # Send test data (simulate attack segments)
-                if hasattr(result, "_segments") and result._segments:
-                    for payload, seq_offset, options in result._segments:
+                if result.segments:
+                    for payload, seq_offset, options in result.segments:
                         sock.send(payload[:100])  # Send first 100 bytes
 
                         # Respect timing delays
@@ -304,8 +294,7 @@ class DPIEffectivenessValidator:
                 # Check for blocking indicators
                 response_str = response.decode("utf-8", errors="ignore").lower()
                 blocked = any(
-                    block_indicator in response_str
-                    for block_indicator in target.expected_blocks
+                    block_indicator in response_str for block_indicator in target.expected_blocks
                 )
 
                 success = not blocked and len(response) > 0
@@ -324,23 +313,21 @@ class DPIEffectivenessValidator:
         response_time = time.time() - start_time
         return success, response_time
 
-    def _check_bypass_detection(
-        self, target: DPITestTarget, result: AttackResult
-    ) -> bool:
+    def _check_bypass_detection(self, target: DPITestTarget, result: AttackResult) -> bool:
         """Check if the bypass attempt was detected by the DPI system."""
         # This is a simplified detection check
         # In real scenarios, this would involve more sophisticated analysis
 
         # Check for suspicious patterns in attack result
-        if hasattr(result, "_segments") and result._segments:
-            segment_count = len(result._segments)
+        if result.segments:
+            segment_count = len(result.segments)
 
             # Too many segments might be suspicious
             if segment_count > 10:
                 return True
 
             # Check for unusual timing patterns
-            delays = [options.get("delay_ms", 0) for _, _, options in result._segments]
+            delays = [options.get("delay_ms", 0) for _, _, options in result.segments]
             if any(delay > 1000 for delay in delays):  # Delays > 1 second
                 return True
 
@@ -390,9 +377,7 @@ class DPIEffectivenessValidator:
         for attack in attacks:
             for target in targets:
                 try:
-                    result = self.validate_attack_effectiveness(
-                        attack, target, test_count
-                    )
+                    result = self.validate_attack_effectiveness(attack, target, test_count)
                     results.append(result)
                 except Exception as e:
                     self.logger.error(
@@ -402,23 +387,15 @@ class DPIEffectivenessValidator:
         # Calculate overall metrics
         total_tests = sum(r.total_tests for r in results)
         successful_tests = sum(r.successful_tests for r in results)
-        overall_success_rate = (
-            successful_tests / total_tests if total_tests > 0 else 0.0
-        )
+        overall_success_rate = successful_tests / total_tests if total_tests > 0 else 0.0
 
         # Generate performance metrics
         performance_metrics = {
             "total_validation_time": time.time() - start_time,
             "average_response_time": statistics.mean(
-                [
-                    r.average_response_time
-                    for r in results
-                    if r.average_response_time > 0
-                ]
+                [r.average_response_time for r in results if r.average_response_time > 0]
             ),
-            "effectiveness_distribution": self._calculate_effectiveness_distribution(
-                results
-            ),
+            "effectiveness_distribution": self._calculate_effectiveness_distribution(results),
             "target_performance": self._calculate_target_performance(results),
             "attack_performance": self._calculate_attack_performance(results),
         }
@@ -440,9 +417,7 @@ class DPIEffectivenessValidator:
         # Store in history
         self.validation_history.append(report)
 
-        self.logger.info(
-            f"Validation completed: {overall_success_rate:.1%} overall success rate"
-        )
+        self.logger.info(f"Validation completed: {overall_success_rate:.1%} overall success rate")
         return report
 
     def _calculate_effectiveness_distribution(
@@ -469,9 +444,7 @@ class DPIEffectivenessValidator:
                     "response_times": [],
                 }
 
-            target_metrics[result.target_name]["success_rates"].append(
-                result.success_rate
-            )
+            target_metrics[result.target_name]["success_rates"].append(result.success_rate)
             target_metrics[result.target_name]["response_times"].append(
                 result.average_response_time
             )
@@ -499,9 +472,7 @@ class DPIEffectivenessValidator:
                     "response_times": [],
                 }
 
-            attack_metrics[result.attack_name]["success_rates"].append(
-                result.success_rate
-            )
+            attack_metrics[result.attack_name]["success_rates"].append(result.success_rate)
             attack_metrics[result.attack_name]["response_times"].append(
                 result.average_response_time
             )
@@ -516,9 +487,7 @@ class DPIEffectivenessValidator:
 
         return attack_metrics
 
-    def _generate_recommendations(
-        self, results: List[EffectivenessResult]
-    ) -> List[str]:
+    def _generate_recommendations(self, results: List[EffectivenessResult]) -> List[str]:
         """Generate recommendations based on validation results."""
         recommendations = []
 
@@ -557,9 +526,7 @@ class DPIEffectivenessValidator:
             )
 
         # Analyze response times
-        response_times = [
-            r.average_response_time for r in results if r.average_response_time > 0
-        ]
+        response_times = [r.average_response_time for r in results if r.average_response_time > 0]
         if response_times:
             avg_response_time = statistics.mean(response_times)
             if avg_response_time > 5.0:  # More than 5 seconds
@@ -595,14 +562,11 @@ class DPIEffectivenessValidator:
             "native_success_rate": our_report.overall_success_rate,
             "zapret_success_rate": zapret_performance["overall_success_rate"],
             "improvement": (
-                our_report.overall_success_rate
-                / zapret_performance["overall_success_rate"]
+                our_report.overall_success_rate / zapret_performance["overall_success_rate"]
                 if zapret_performance["overall_success_rate"] > 0
                 else float("inf")
             ),
-            "native_avg_response_time": our_report.performance_metrics[
-                "average_response_time"
-            ],
+            "native_avg_response_time": our_report.performance_metrics["average_response_time"],
             "zapret_avg_response_time": zapret_performance["average_response_time"],
             "response_time_improvement": (
                 zapret_performance["average_response_time"]
@@ -610,9 +574,7 @@ class DPIEffectivenessValidator:
                 if our_report.performance_metrics["average_response_time"] > 0
                 else 1.0
             ),
-            "detailed_comparison": self._detailed_comparison(
-                our_report, zapret_performance
-            ),
+            "detailed_comparison": self._detailed_comparison(our_report, zapret_performance),
         }
 
         return comparison
@@ -654,12 +616,8 @@ class DPIEffectivenessValidator:
                 # Simulate response times (zapret typically slower due to less optimization)
                 response_times.extend([0.15, 0.18, 0.16, 0.17, 0.19])  # Simulated times
 
-        overall_success_rate = (
-            successful_tests / total_tests if total_tests > 0 else 0.0
-        )
-        average_response_time = (
-            statistics.mean(response_times) if response_times else 0.0
-        )
+        overall_success_rate = successful_tests / total_tests if total_tests > 0 else 0.0
+        average_response_time = statistics.mean(response_times) if response_times else 0.0
 
         return {
             "overall_success_rate": overall_success_rate,
@@ -680,9 +638,7 @@ class DPIEffectivenessValidator:
                 - zapret_performance["overall_success_rate"],
             },
             "performance_comparison": {
-                "native_response_time": our_report.performance_metrics[
-                    "average_response_time"
-                ],
+                "native_response_time": our_report.performance_metrics["average_response_time"],
                 "zapret_response_time": zapret_performance["average_response_time"],
                 "speedup": (
                     zapret_performance["average_response_time"]
@@ -697,22 +653,16 @@ class DPIEffectivenessValidator:
             "recommendations": our_report.recommendations,
         }
 
-    def generate_effectiveness_dashboard(
-        self, report: ValidationReport
-    ) -> Dict[str, Any]:
+    def generate_effectiveness_dashboard(self, report: ValidationReport) -> Dict[str, Any]:
         """Generate dashboard data for effectiveness visualization."""
         return {
             "summary": {
                 "overall_success_rate": report.overall_success_rate,
                 "total_attacks": report.total_attacks_tested,
                 "total_targets": report.total_targets_tested,
-                "validation_time": report.performance_metrics.get(
-                    "total_validation_time", 0
-                ),
+                "validation_time": report.performance_metrics.get("total_validation_time", 0),
             },
-            "effectiveness_chart": report.performance_metrics[
-                "effectiveness_distribution"
-            ],
+            "effectiveness_chart": report.performance_metrics["effectiveness_distribution"],
             "attack_performance": report.performance_metrics["attack_performance"],
             "target_performance": report.performance_metrics["target_performance"],
             "timeline": [

@@ -64,9 +64,7 @@ class PerformanceMonitor:
         self.error_counts: Dict[str, int] = defaultdict(int)
 
         # Performance tracking
-        self.operation_timings: Dict[str, deque] = defaultdict(
-            lambda: deque(maxlen=100)
-        )
+        self.operation_timings: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
         self.success_counts: Dict[str, int] = defaultdict(int)
         self.failure_counts: Dict[str, int] = defaultdict(int)
 
@@ -94,9 +92,7 @@ class PerformanceMonitor:
             target=self._monitoring_loop, args=(interval_seconds,), daemon=True
         )
         self._monitoring_thread.start()
-        self.logger.info(
-            f"Performance monitoring started with {interval_seconds}s interval"
-        )
+        self.logger.info(f"Performance monitoring started with {interval_seconds}s interval")
 
     def stop_monitoring(self):
         """Stop the monitoring thread."""
@@ -125,21 +121,15 @@ class PerformanceMonitor:
         now = time.time()
 
         # Calculate success rates
-        total_bypasses = sum(self.success_counts.values()) + sum(
-            self.failure_counts.values()
-        )
+        total_bypasses = sum(self.success_counts.values()) + sum(self.failure_counts.values())
         bypass_success_rate = (
-            sum(self.success_counts.values()) / total_bypasses
-            if total_bypasses > 0
-            else 0.0
+            sum(self.success_counts.values()) / total_bypasses if total_bypasses > 0 else 0.0
         )
 
         # Calculate fingerprint metrics
         fingerprint_timings = self.operation_timings.get("fingerprint", deque())
         avg_fingerprint_time = (
-            sum(fingerprint_timings) / len(fingerprint_timings)
-            if fingerprint_timings
-            else 0.0
+            sum(fingerprint_timings) / len(fingerprint_timings) if fingerprint_timings else 0.0
         )
 
         fingerprint_successes = self.success_counts.get("fingerprint", 0)
@@ -151,9 +141,7 @@ class PerformanceMonitor:
 
         # Calculate cache hit rate
         total_cache_requests = self.cache_hits + self.cache_misses
-        cache_hit_rate = (
-            self.cache_hits / total_cache_requests if total_cache_requests > 0 else 0.0
-        )
+        cache_hit_rate = self.cache_hits / total_cache_requests if total_cache_requests > 0 else 0.0
 
         # System metrics
         memory_info = self.process.memory_info()
@@ -346,9 +334,7 @@ class PerformanceMonitor:
             data = {
                 "export_timestamp": datetime.now().isoformat(),
                 "current_metrics": (
-                    asdict(self.get_current_metrics())
-                    if self.get_current_metrics()
-                    else None
+                    asdict(self.get_current_metrics()) if self.get_current_metrics() else None
                 ),
                 "component_summary": self.get_component_summary(),
                 "metrics_history": [asdict(m) for m in self.metrics_history],
@@ -386,9 +372,7 @@ class OperationTimer:
         success = exc_type is None
         error = str(exc_val) if exc_val else None
 
-        self.monitor.record_operation(
-            self.component, self.operation, duration_ms, success, error
-        )
+        self.monitor.record_operation(self.component, self.operation, duration_ms, success, error)
 
         return False  # Don't suppress exceptions
 

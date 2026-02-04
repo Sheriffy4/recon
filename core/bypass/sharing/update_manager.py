@@ -51,9 +51,7 @@ class UpdateManager:
                         enabled=source_data.get("enabled", True),
                     )
                     if source_data.get("last_sync"):
-                        source.last_sync = datetime.fromisoformat(
-                            source_data["last_sync"]
-                        )
+                        source.last_sync = datetime.fromisoformat(source_data["last_sync"])
                     self.trusted_sources[source.id] = source
             else:
                 self._create_default_config()
@@ -147,14 +145,10 @@ class UpdateManager:
     async def sync_source(self, source_id: str) -> SyncResult:
         """Synchronize strategies from a specific trusted source."""
         if source_id not in self.trusted_sources:
-            return SyncResult(
-                source_id=source_id, success=False, errors=["Source not found"]
-            )
+            return SyncResult(source_id=source_id, success=False, errors=["Source not found"])
         source = self.trusted_sources[source_id]
         if not source.enabled:
-            return SyncResult(
-                source_id=source_id, success=False, errors=["Source is disabled"]
-            )
+            return SyncResult(source_id=source_id, success=False, errors=["Source is disabled"])
         async with self.sync_lock:
             return await self._perform_sync(source)
 
@@ -173,9 +167,7 @@ class UpdateManager:
                     if not strategy:
                         continue
                     validation_result = await self.validator.validate_strategy(strategy)
-                    min_trust_score = self._get_min_trust_score_for_level(
-                        source.trust_level
-                    )
+                    min_trust_score = self._get_min_trust_score_for_level(source.trust_level)
                     if validation_result.trust_score < min_trust_score:
                         self.logger.warning(
                             f"Strategy {strategy.id} trust score too low: {validation_result.trust_score}"
@@ -202,9 +194,7 @@ class UpdateManager:
             self.logger.error(f"Sync with {source.name} failed: {e}")
         return result
 
-    async def _fetch_strategies_from_source(
-        self, source: TrustedSource
-    ) -> List[Dict[str, Any]]:
+    async def _fetch_strategies_from_source(self, source: TrustedSource) -> List[Dict[str, Any]]:
         """Fetch strategies from a trusted source URL."""
         try:
             timeout = aiohttp.ClientTimeout(total=30)
@@ -240,9 +230,7 @@ class UpdateManager:
                 target_isps=data.get("target_isps", []),
                 signature=data.get("signature"),
             )
-            if strategy.signature and (
-                not strategy.verify_signature(source.public_key)
-            ):
+            if strategy.signature and (not strategy.verify_signature(source.public_key)):
                 self.logger.warning(f"Invalid signature for strategy {strategy.id}")
                 return None
             return strategy

@@ -98,15 +98,11 @@ class ModelTrainer:
             List of training examples
         """
         LOG.info("Preparing training data...")
-        training_data = self.training_data_generator.get_training_data(
-            include_synthetic
-        )
+        training_data = self.training_data_generator.get_training_data(include_synthetic)
         validation_results = self.training_data_generator.validate_training_data()
         LOG.info(f"Training data validation: {validation_results}")
         if save_to_file:
-            self.training_data_generator.save_training_data(
-                save_to_file, include_synthetic
-            )
+            self.training_data_generator.save_training_data(save_to_file, include_synthetic)
         LOG.info(f"Prepared {len(training_data)} training examples")
         return training_data
 
@@ -146,9 +142,7 @@ class ModelTrainer:
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=random_state, stratify=y
             )
-        LOG.info(
-            f"Training set: {len(X_train)} examples, Test set: {len(X_test)} examples"
-        )
+        LOG.info(f"Training set: {len(X_train)} examples, Test set: {len(X_test)} examples")
         model = RandomForestClassifier(
             n_estimators=100,
             max_depth=10,
@@ -177,9 +171,7 @@ class ModelTrainer:
         self.ml_classifier.is_trained = True
         self.ml_classifier.save_model()
         self.evaluation_metrics = evaluation_metrics
-        LOG.info(
-            f"Model training completed with accuracy: {evaluation_metrics.accuracy:.3f}"
-        )
+        LOG.info(f"Model training completed with accuracy: {evaluation_metrics.accuracy:.3f}")
         return evaluation_metrics
 
     def _prepare_features_and_labels(
@@ -222,12 +214,8 @@ class ModelTrainer:
     ) -> ModelEvaluationMetrics:
         """Calculate comprehensive evaluation metrics."""
         accuracy = accuracy_score(y_test, y_pred)
-        precision_macro = precision_score(
-            y_test, y_pred, average="macro", zero_division=0
-        )
-        precision_micro = precision_score(
-            y_test, y_pred, average="micro", zero_division=0
-        )
+        precision_macro = precision_score(y_test, y_pred, average="macro", zero_division=0)
+        precision_micro = precision_score(y_test, y_pred, average="micro", zero_division=0)
         recall_macro = recall_score(y_test, y_pred, average="macro", zero_division=0)
         recall_micro = recall_score(y_test, y_pred, average="micro", zero_division=0)
         f1_macro = f1_score(y_test, y_pred, average="macro", zero_division=0)
@@ -236,9 +224,7 @@ class ModelTrainer:
         n_samples = len(X)
         actual_cv_folds = min(cv_folds, n_samples, min_class_count)
         if actual_cv_folds < 2:
-            LOG.warning(
-                "Not enough samples for cross-validation, using simple validation"
-            )
+            LOG.warning("Not enough samples for cross-validation, using simple validation")
             cv_scores = np.array([accuracy])
         else:
             try:
@@ -250,9 +236,7 @@ class ModelTrainer:
                 LOG.warning(f"Stratified CV failed: {e}, using simple CV")
                 from sklearn.model_selection import KFold
 
-                cv = KFold(
-                    n_splits=actual_cv_folds, shuffle=True, random_state=random_state
-                )
+                cv = KFold(n_splits=actual_cv_folds, shuffle=True, random_state=random_state)
                 cv_scores = cross_val_score(model, X, y, cv=cv, scoring="accuracy")
         cm = confusion_matrix(y_test, y_pred)
         report = classification_report(y_test, y_pred, zero_division=0)
@@ -293,17 +277,13 @@ class ModelTrainer:
             raise RuntimeError("Model not trained yet")
         if test_data is None:
             if self.evaluation_metrics is None:
-                raise RuntimeError(
-                    "No evaluation metrics available and no test data provided"
-                )
+                raise RuntimeError("No evaluation metrics available and no test data provided")
             return self.evaluation_metrics.to_dict()
         correct_predictions = 0
         total_predictions = 0
         predictions_by_class = {}
         for example in test_data:
-            predicted_type, confidence = self.ml_classifier.classify_dpi(
-                example["metrics"]
-            )
+            predicted_type, confidence = self.ml_classifier.classify_dpi(example["metrics"])
             actual_type = example["dpi_type"]
             total_predictions += 1
             if predicted_type == actual_type:
@@ -320,9 +300,7 @@ class ModelTrainer:
             )
         return {
             "overall_accuracy": (
-                correct_predictions / total_predictions
-                if total_predictions > 0
-                else 0.0
+                correct_predictions / total_predictions if total_predictions > 0 else 0.0
             ),
             "total_predictions": total_predictions,
             "correct_predictions": correct_predictions,
@@ -370,16 +348,10 @@ class ModelTrainer:
         return {
             "top_features": top_features,
             "total_features": len(self.evaluation_metrics.feature_importance),
-            "top_features_importance_sum": sum(
-                (importance for _, importance in top_features)
-            ),
+            "top_features_importance_sum": sum((importance for _, importance in top_features)),
             "feature_importance_distribution": {
-                "mean": np.mean(
-                    list(self.evaluation_metrics.feature_importance.values())
-                ),
-                "std": np.std(
-                    list(self.evaluation_metrics.feature_importance.values())
-                ),
+                "mean": np.mean(list(self.evaluation_metrics.feature_importance.values())),
+                "std": np.std(list(self.evaluation_metrics.feature_importance.values())),
                 "min": min(self.evaluation_metrics.feature_importance.values()),
                 "max": max(self.evaluation_metrics.feature_importance.values()),
             },
@@ -404,9 +376,7 @@ class ModelTrainer:
         report.append(
             f"  Mean CV Score: {metrics.cross_val_mean:.3f} ± {metrics.cross_val_std:.3f}"
         )
-        report.append(
-            f"  CV Scores: {[f'{score:.3f}' for score in metrics.cross_val_scores]}"
-        )
+        report.append(f"  CV Scores: {[f'{score:.3f}' for score in metrics.cross_val_scores]}")
         report.append("")
         report.append("PRECISION AND RECALL:")
         report.append(f"  Precision (Macro): {metrics.precision_macro:.3f}")
@@ -428,9 +398,7 @@ class ModelTrainer:
         report.append(metrics.classification_report)
         return "\n".join(report)
 
-    def quick_train_and_evaluate(
-        self, save_results: bool = True
-    ) -> ModelEvaluationMetrics:
+    def quick_train_and_evaluate(self, save_results: bool = True) -> ModelEvaluationMetrics:
         """
         Quick training and evaluation with default parameters.
 

@@ -123,9 +123,7 @@ class AttackMigrationUtility:
         payload_patterns = ["payload[", "split(", "chunk", "fragment"]
         for pattern in payload_patterns:
             if pattern in source_code:
-                analysis["complexity_indicators"].append(
-                    f"Payload operation: {pattern}"
-                )
+                analysis["complexity_indicators"].append(f"Payload operation: {pattern}")
 
     def _generate_migration_suggestions(self, analysis: Dict[str, Any]):
         """Generate specific migration suggestions based on analysis."""
@@ -207,9 +205,7 @@ class AttackMigrationUtility:
             complexity_score=complexity_score,
         )
 
-    def _generate_migrated_code(
-        self, attack_class: type, analysis: Dict[str, Any]
-    ) -> str:
+    def _generate_migrated_code(self, attack_class: type, analysis: Dict[str, Any]) -> str:
         """Generate migrated code template."""
         class_name = attack_class.__name__
         template = f'''#!/usr/bin/env python3\n"""\nMigrated {class_name} using segment-based architecture.\n\nThis attack has been migrated from the legacy modified_payload approach\nto the new segment-based architecture for better performance and flexibility.\n"""\n\nfrom typing import List, Tuple, Dict, Any\nfrom core.bypass.attacks.base import BaseAttack, AttackResult, AttackContext, AttackStatus\n\n\nclass {class_name}(BaseAttack):\n    """\n    Migrated {class_name} implementation.\n    \n    Migration notes:\n{self._format_migration_notes(analysis['migration_suggestions'])}\n    """\n    \n    def __init__(self, **kwargs):\n        super().__init__()\n        self.name = "{class_name.lower()}_migrated"\n        # TODO: Add configuration parameters from original implementation\n        \n    def execute(self, context: AttackContext) -> AttackResult:\n        """\n        Execute the attack using segment-based architecture.\n        \n        Args:\n            context: Attack context with target information\n            \n        Returns:\n            AttackResult with segments for execution\n        """\n        try:\n            # Validate context\n            is_valid, error = self.validate_context(context)\n            if not is_valid:\n                return AttackResult(\n                    status=AttackStatus.FAILED,\n                    error_message=error,\n                    metadata={{"attack_type": self.name}}\n                )\n            \n            # Generate segments based on original attack logic\n            segments = self._generate_segments(context)\n            \n            return AttackResult(\n                status=AttackStatus.SUCCESS,\n                _segments=segments,\n                metadata={{\n                    "attack_type": self.name,\n                    "segment_count": len(segments),\n                    "migration_version": "1.0"\n                }}\n            )\n            \n        except Exception as e:\n            return AttackResult(\n                status=AttackStatus.FAILED,\n                error_message=f"Attack execution failed: {{str(e)}}",\n                metadata={{"attack_type": self.name}}\n            )\n    \n    def _generate_segments(self, context: AttackContext) -> List[Tuple[bytes, int, Dict[str, Any]]]:\n        """\n        Generate segments based on original attack logic.\n        \n        TODO: Implement the core attack logic here based on the original implementation.\n        This is where you should convert the original modified_payload logic to segments.\n        """\n        segments = []\n        payload = context.payload\n        \n        # TODO: Replace this placeholder with actual migration logic\n        {self._generate_segment_logic(analysis)}\n        \n        return segments\n    \n    def validate_context(self, context: AttackContext) -> Tuple[bool, Optional[str]]:\n        """Validate attack context."""\n        if not context.payload:\n            return False, "Empty payload not supported"\n        \n        if len(context.payload) < 10:\n            return False, "Payload too small for effective attack"\n        \n        # TODO: Add specific validation logic from original implementation\n        \n        return True, None\n    \n    def estimate_effectiveness(self, context: AttackContext) -> float:\n        """Estimate attack effectiveness."""\n        # TODO: Implement effectiveness estimation based on original logic\n        return 0.7  # Placeholder value\n    \n    def get_required_capabilities(self) -> List[str]:\n        """Get required capabilities."""\n        return ["packet_construction", "timing_control"]\n    \n    def get_attack_info(self) -> Dict[str, Any]:\n        """Get attack information."""\n        return {{\n            "name": self.name,\n            "type": "migrated",\n            "description": "Migrated {class_name} using segment-based architecture",\n            "technique": "TODO: Add technique description",\n            "effectiveness": "medium",\n            "config": {{}},\n            "advantages": [\n                "Migrated to segment-based architecture",\n                "Better performance and flexibility",\n                "Compatible with new orchestration system"\n            ]\n        }}\n\n\n# Factory function for easy instantiation\ndef create_{class_name.lower()}_migrated(**kwargs) -> {class_name}:\n    """Create migrated {class_name} instance."""\n    return {class_name}(**kwargs)\n'''
@@ -233,9 +229,7 @@ class AttackMigrationUtility:
         else:
             return "# Basic segment generation - modify as needed\n        # Split payload into segments for processing\n        chunk_size = len(payload) // 3\n        for i in range(3):\n            start = i * chunk_size\n            end = start + chunk_size if i < 2 else len(payload)\n            chunk = payload[start:end]\n            segments.append((chunk, start, {}))"
 
-    def apply_migration_template(
-        self, template: MigrationTemplate, output_path: Path
-    ) -> bool:
+    def apply_migration_template(self, template: MigrationTemplate, output_path: Path) -> bool:
         """
         Apply a migration template to create a new migrated attack file.
 
@@ -280,8 +274,8 @@ class AttackMigrationUtility:
         }
         try:
             attack_instance = attack_class()
-            validation_results["interface_compliance"] = (
-                self._check_interface_compliance(attack_instance)
+            validation_results["interface_compliance"] = self._check_interface_compliance(
+                attack_instance
             )
             for i, context in enumerate(test_contexts):
                 test_result = self._run_validation_test(attack_instance, context, i)
@@ -295,8 +289,8 @@ class AttackMigrationUtility:
                 and validation_results["interface_compliance"]["compliant"]
             )
             if not validation_results["validation_passed"]:
-                validation_results["recommendations"] = (
-                    self._generate_validation_recommendations(validation_results)
+                validation_results["recommendations"] = self._generate_validation_recommendations(
+                    validation_results
                 )
         except Exception as e:
             validation_results["issues"].append(f"Validation error: {str(e)}")
@@ -318,9 +312,7 @@ class AttackMigrationUtility:
                 compliance["compliant"] = False
             else:
                 method = getattr(attack, method_name)
-                compliance["method_signatures"][method_name] = str(
-                    inspect.signature(method)
-                )
+                compliance["method_signatures"][method_name] = str(inspect.signature(method))
         return compliance
 
     def _run_validation_test(
@@ -342,33 +334,25 @@ class AttackMigrationUtility:
             result = attack.execute(context)
             test_result["execution_time"] = time.time() - start_time
             test_result["result_status"] = result.status
-            if hasattr(result, "_segments") and result._segments:
-                test_result["segments_count"] = len(result._segments)
+            if result.segments:
+                test_result["segments_count"] = len(result.segments)
             test_result["passed"] = result.status == AttackStatus.SUCCESS
         except Exception as e:
             test_result["error"] = str(e)
         return test_result
 
-    def _generate_validation_recommendations(
-        self, validation_results: Dict[str, Any]
-    ) -> List[str]:
+    def _generate_validation_recommendations(self, validation_results: Dict[str, Any]) -> List[str]:
         """Generate recommendations based on validation results."""
         recommendations = []
         if not validation_results["interface_compliance"]["compliant"]:
             missing = validation_results["interface_compliance"]["missing_methods"]
             recommendations.append(f"Implement missing methods: {', '.join(missing)}")
-        failed_tests = [
-            r for r in validation_results["test_results"] if not r["passed"]
-        ]
+        failed_tests = [r for r in validation_results["test_results"] if not r["passed"]]
         if failed_tests:
             recommendations.append(f"Fix {len(failed_tests)} failing test cases")
-        slow_tests = [
-            r for r in validation_results["test_results"] if r["execution_time"] > 0.1
-        ]
+        slow_tests = [r for r in validation_results["test_results"] if r["execution_time"] > 0.1]
         if slow_tests:
-            recommendations.append(
-                f"Optimize performance for {len(slow_tests)} slow tests"
-            )
+            recommendations.append(f"Optimize performance for {len(slow_tests)} slow tests")
         return recommendations
 
 

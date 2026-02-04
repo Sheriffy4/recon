@@ -197,9 +197,7 @@ class PerformanceConfigManager:
 
         try:
             with open(self.config_path, "r") as f:
-                if self.config_path.endswith(".yaml") or self.config_path.endswith(
-                    ".yml"
-                ):
+                if self.config_path.endswith(".yaml") or self.config_path.endswith(".yml"):
                     data = yaml.safe_load(f)
                 else:
                     data = json.load(f)
@@ -230,12 +228,8 @@ class PerformanceConfigManager:
             Path(self.config_path).parent.mkdir(parents=True, exist_ok=True)
 
             with open(self.config_path, "w") as f:
-                if self.config_path.endswith(".yaml") or self.config_path.endswith(
-                    ".yml"
-                ):
-                    yaml.dump(
-                        self.config.to_dict(), f, default_flow_style=False, indent=2
-                    )
+                if self.config_path.endswith(".yaml") or self.config_path.endswith(".yml"):
+                    yaml.dump(self.config.to_dict(), f, default_flow_style=False, indent=2)
                 else:
                     json.dump(self.config.to_dict(), f, indent=2)
 
@@ -309,14 +303,10 @@ def apply_environment_overrides(config: PerformanceConfig) -> PerformanceConfig:
 
     # Monitoring overrides
     if os.getenv("RECON_MONITORING_ENABLED"):
-        config.monitoring.enabled = (
-            os.getenv("RECON_MONITORING_ENABLED").lower() == "true"
-        )
+        config.monitoring.enabled = os.getenv("RECON_MONITORING_ENABLED").lower() == "true"
 
     if os.getenv("RECON_MONITORING_INTERVAL"):
-        config.monitoring.interval_seconds = float(
-            os.getenv("RECON_MONITORING_INTERVAL")
-        )
+        config.monitoring.interval_seconds = float(os.getenv("RECON_MONITORING_INTERVAL"))
 
     # Caching overrides
     if os.getenv("RECON_CACHE_ENABLED"):
@@ -327,20 +317,14 @@ def apply_environment_overrides(config: PerformanceConfig) -> PerformanceConfig:
 
     # Async overrides
     if os.getenv("RECON_MAX_CONCURRENT"):
-        config.async_ops.max_concurrent_operations = int(
-            os.getenv("RECON_MAX_CONCURRENT")
-        )
+        config.async_ops.max_concurrent_operations = int(os.getenv("RECON_MAX_CONCURRENT"))
 
     if os.getenv("RECON_OPERATION_TIMEOUT"):
-        config.async_ops.operation_timeout_seconds = float(
-            os.getenv("RECON_OPERATION_TIMEOUT")
-        )
+        config.async_ops.operation_timeout_seconds = float(os.getenv("RECON_OPERATION_TIMEOUT"))
 
     # Fingerprinting overrides
     if os.getenv("RECON_FINGERPRINT_TIMEOUT"):
-        config.fingerprinting.timeout_seconds = float(
-            os.getenv("RECON_FINGERPRINT_TIMEOUT")
-        )
+        config.fingerprinting.timeout_seconds = float(os.getenv("RECON_FINGERPRINT_TIMEOUT"))
 
     if os.getenv("RECON_FINGERPRINT_DEEP_ANALYSIS"):
         config.fingerprinting.analysis_levels["deep"] = (
@@ -349,9 +333,7 @@ def apply_environment_overrides(config: PerformanceConfig) -> PerformanceConfig:
 
     # Bypass engine overrides
     if os.getenv("RECON_BYPASS_TIMEOUT"):
-        config.bypass_engine.strategy_timeout_seconds = float(
-            os.getenv("RECON_BYPASS_TIMEOUT")
-        )
+        config.bypass_engine.strategy_timeout_seconds = float(os.getenv("RECON_BYPASS_TIMEOUT"))
 
     if os.getenv("RECON_PERFORMANCE_MODE"):
         mode = os.getenv("RECON_PERFORMANCE_MODE").lower()
@@ -429,9 +411,7 @@ PERFORMANCE_PRESETS = {
 }
 
 
-def apply_performance_preset(
-    config: PerformanceConfig, preset_name: str
-) -> PerformanceConfig:
+def apply_performance_preset(config: PerformanceConfig, preset_name: str) -> PerformanceConfig:
     """Apply a performance preset to configuration."""
     if preset_name not in PERFORMANCE_PRESETS:
         raise ValueError(

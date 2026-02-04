@@ -9,9 +9,7 @@ def normalize_zapret_string(s: str) -> str:
     - TTL should be in reasonable TCP range (2-10)
     """
     # multisplit with split-count < 3 is meaningless
-    if "--dpi-desync=multisplit" in s and re.search(
-        r"--dpi-desync-split-count=([0-2])", s
-    ):
+    if "--dpi-desync=multisplit" in s and re.search(r"--dpi-desync-split-count=([0-2])", s):
         return re.sub(
             r"--dpi-desync=multisplit.*",
             "--dpi-desync=fakedisorder --dpi-desync-split-pos=3",

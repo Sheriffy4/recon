@@ -22,7 +22,7 @@ LOG = logging.getLogger(__name__)
 
 class BaseTCPAdvancedAttack(BaseAttack):
     """Базовый класс для продвинутых TCP атак."""
-    
+
     # Mark as abstract to skip metaclass validation
     __abstractmethods__ = frozenset()
 
@@ -82,7 +82,7 @@ class BaseTCPAdvancedAttack(BaseAttack):
     required_params=[],
     optional_params={"window_size": 2048, "split_pos": None},
     aliases=["window_manipulation", "tcp_window"],
-    description="TCP window size manipulation for DPI evasion"
+    description="TCP window size manipulation for DPI evasion",
 )
 class TCPWindowManipulationAttack(BaseTCPAdvancedAttack):
     """
@@ -110,9 +110,7 @@ class TCPWindowManipulationAttack(BaseTCPAdvancedAttack):
         segments.append((part1, 0, {"window_size": window_size // 4, "flags": 0x10}))
 
         # Второй сегмент с нормальным окном
-        segments.append(
-            (part2, len(part1), {"window_size": window_size, "flags": 0x18})
-        )
+        segments.append((part2, len(part1), {"window_size": window_size, "flags": 0x18}))
 
         return segments
 
@@ -124,7 +122,7 @@ class TCPWindowManipulationAttack(BaseTCPAdvancedAttack):
     required_params=[],
     optional_params={"split_pos": None, "seq_offset": 1000},
     aliases=["sequence_manipulation", "tcp_seq"],
-    description="TCP sequence number manipulation for DPI evasion"
+    description="TCP sequence number manipulation for DPI evasion",
 )
 class TCPSequenceManipulationAttack(BaseTCPAdvancedAttack):
     """
@@ -162,7 +160,7 @@ class TCPSequenceManipulationAttack(BaseTCPAdvancedAttack):
     required_params=[],
     optional_params={"scale_factor": 7},
     aliases=["window_scaling", "tcp_wscale"],
-    description="TCP Window Scaling option manipulation for DPI evasion"
+    description="TCP Window Scaling option manipulation for DPI evasion",
 )
 class TCPWindowScalingAttack(BaseTCPAdvancedAttack):
     """
@@ -200,7 +198,7 @@ class TCPWindowScalingAttack(BaseTCPAdvancedAttack):
     required_params=[],
     optional_params={"urgent_offset": 10},
     aliases=["urgent_manipulation", "tcp_urgent"],
-    description="TCP Urgent Pointer manipulation for DPI evasion"
+    description="TCP Urgent Pointer manipulation for DPI evasion",
 )
 class UrgentPointerManipulationAttack(BaseTCPAdvancedAttack):
     """
@@ -239,7 +237,7 @@ class UrgentPointerManipulationAttack(BaseTCPAdvancedAttack):
     required_params=[],
     optional_params={"padding_size": 20},
     aliases=["options_padding", "tcp_pad"],
-    description="TCP options padding manipulation for DPI evasion"
+    description="TCP options padding manipulation for DPI evasion",
 )
 class TCPOptionsPaddingAttack(BaseTCPAdvancedAttack):
     """
@@ -268,7 +266,7 @@ class TCPOptionsPaddingAttack(BaseTCPAdvancedAttack):
     required_params=[],
     optional_params={"ts_ecr": 0},
     aliases=["timestamp_manipulation", "tcp_ts"],
-    description="TCP Timestamp option manipulation for DPI evasion"
+    description="TCP Timestamp option manipulation for DPI evasion",
 )
 class TCPTimestampManipulationAttack(BaseTCPAdvancedAttack):
     """
@@ -305,7 +303,7 @@ class TCPTimestampManipulationAttack(BaseTCPAdvancedAttack):
     required_params=[],
     optional_params={"min_window": 256, "chunk_size": 100},
     aliases=["wssize_limit", "tcp_window_limit"],
-    description="TCP window size limitation for DPI evasion"
+    description="TCP window size limitation for DPI evasion",
 )
 class TCPWindowSizeLimitAttack(BaseTCPAdvancedAttack):
     """
@@ -335,11 +333,7 @@ class TCPWindowSizeLimitAttack(BaseTCPAdvancedAttack):
                     offset,
                     {
                         "window_size": min_window,
-                        "flags": (
-                            0x18
-                            if offset + chunk_size >= len(context.payload)
-                            else 0x10
-                        ),
+                        "flags": (0x18 if offset + chunk_size >= len(context.payload) else 0x10),
                     },
                 )
             )
@@ -356,20 +350,36 @@ def register_tcp_advanced_attacks():
     # Manual registration as fallback if decorators don't work
     from .attack_registry import get_attack_registry, register_attack, RegistrationPriority
     from .metadata import AttackCategories
-    
+
     registry = get_attack_registry()
-    
+
     # Define attacks to register manually
     attacks_to_register = [
-        ("tcp_window_manipulation", TCPWindowManipulationAttack, ["window_manipulation", "tcp_window"]),
-        ("tcp_sequence_manipulation", TCPSequenceManipulationAttack, ["sequence_manipulation", "tcp_seq"]),
+        (
+            "tcp_window_manipulation",
+            TCPWindowManipulationAttack,
+            ["window_manipulation", "tcp_window"],
+        ),
+        (
+            "tcp_sequence_manipulation",
+            TCPSequenceManipulationAttack,
+            ["sequence_manipulation", "tcp_seq"],
+        ),
         ("tcp_window_scaling", TCPWindowScalingAttack, ["window_scaling", "tcp_wscale"]),
-        ("urgent_pointer_manipulation", UrgentPointerManipulationAttack, ["urgent_manipulation", "tcp_urgent"]),
+        (
+            "urgent_pointer_manipulation",
+            UrgentPointerManipulationAttack,
+            ["urgent_manipulation", "tcp_urgent"],
+        ),
         ("tcp_options_padding", TCPOptionsPaddingAttack, ["options_padding", "tcp_pad"]),
-        ("tcp_timestamp_manipulation", TCPTimestampManipulationAttack, ["timestamp_manipulation", "tcp_ts"]),
+        (
+            "tcp_timestamp_manipulation",
+            TCPTimestampManipulationAttack,
+            ["timestamp_manipulation", "tcp_ts"],
+        ),
         ("tcp_wssize_limit", TCPWindowSizeLimitAttack, ["wssize_limit", "tcp_window_limit"]),
     ]
-    
+
     # Register each attack manually if not already registered
     for attack_name, attack_class, aliases in attacks_to_register:
         if attack_name not in registry.attacks:
@@ -382,7 +392,7 @@ def register_tcp_advanced_attacks():
                     required_params=[],
                     optional_params={},
                     aliases=aliases,
-                    description=f"TCP {attack_name.replace('_', ' ').title()} attack"
+                    description=f"TCP {attack_name.replace('_', ' ').title()} attack",
                 )(attack_class)
                 LOG.debug(f"Manually registered {attack_name}")
             except Exception as e:

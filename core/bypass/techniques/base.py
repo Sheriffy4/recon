@@ -1,6 +1,7 @@
 """Base classes for bypass techniques."""
 
 import abc
+import logging
 from typing import List, Tuple, Optional, Any, Union
 import struct
 import random
@@ -31,9 +32,7 @@ class BaseTechnique(abc.ABC):
         if not packet_data:
             raise InvalidPacketError("Packet data is empty")
         if len(packet_data) < min_size:
-            raise InvalidPacketError(
-                f"Packet too small: {len(packet_data)} < {min_size}"
-            )
+            raise InvalidPacketError(f"Packet too small: {len(packet_data)} < {min_size}")
 
     @classmethod
     def extract_payload(cls, packet_data: bytes) -> bytes:
@@ -69,9 +68,7 @@ class SegmentationTechnique(BaseTechnique):
     category = "segmentation"
 
     @classmethod
-    def create_segments(
-        cls, payload: bytes, positions: List[int]
-    ) -> List[Tuple[bytes, int]]:
+    def create_segments(cls, payload: bytes, positions: List[int]) -> List[Tuple[bytes, int]]:
         """Create payload segments at specified positions.
 
         Returns:
@@ -101,6 +98,7 @@ class SegmentationTechnique(BaseTechnique):
     @classmethod
     def _find_midsld_position(cls, payload: bytes) -> int:
         """Find middle of second-level domain in TLS SNI."""
+        log = logging.getLogger(cls.__name__)
         try:
             pos = payload.find(b"\x00\x00")
             while pos != -1:
@@ -111,17 +109,11 @@ class SegmentationTechnique(BaseTechnique):
                         list_len = struct.unpack("!H", payload[pos + 4 : pos + 6])[0]
                         name_type = payload[pos + 6]
                         if name_type == 0:
-                            name_len = struct.unpack("!H", payload[pos + 7 : pos + 9])[
-                                0
-                            ]
+                            name_len = struct.unpack("!H", payload[pos + 7 : pos + 9])[0]
                             name_start = pos + 9
                             if name_start + name_len <= len(payload):
-                                domain_bytes = payload[
-                                    name_start : name_start + name_len
-                                ]
-                                domain_str = domain_bytes.decode(
-                                    "ascii", errors="ignore"
-                                )
+                                domain_bytes = payload[name_start : name_start + name_len]
+                                domain_str = domain_bytes.decode("ascii", errors="ignore")
                                 parts = domain_str.split(".")
                                 if len(parts) >= 2:
                                     sld = parts[-2]
@@ -129,8 +121,8 @@ class SegmentationTechnique(BaseTechnique):
                                     if sld_pos != -1:
                                         return name_start + sld_pos + len(sld) // 2
                 pos = payload.find(b"\x00\x00", pos + 1)
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("midsld position resolution failed: %s", e)
         return len(payload) // 2
 
 

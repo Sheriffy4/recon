@@ -1,0 +1,81 @@
+{
+  "ttl": {
+    "race_default": 3,
+    "normal_default": 64,
+    "low_ttl_value": 3
+  },
+  "split": {
+    "default_split_pos": 76,
+    "tls_split_pos": "sni",
+    "multisplit_split_pos": 1,
+    "multisplit_split_count": 4
+  },
+  "overlap": {
+    "default_overlap_size": 1,
+    "seqovl_overlap_size": 20
+  },
+  "repeats_default": 1,
+  "autottl_default": null,
+  "confidence_tuning": {
+    "high_threshold": 0.8,
+    "high_repeats": 2
+  },
+  "mapping": {
+    "base_type_rules": [
+      {
+        "type": "seqovl",
+        "match_exact": ["tcp_seqovl"],
+        "match_contains": ["seqovl"]
+      },
+      {
+        "type": "multidisorder",
+        "match_exact": ["tcp_multidisorder", "state_confusion_attacks"],
+        "match_contains": ["multidisorder", "state_confusion"]
+      },
+      {
+        "type": "multisplit",
+        "match_exact": ["tcp_multisplit", "ip_basic_fragmentation", "basic_fragmentation", "advanced_fragmentation"],
+        "match_contains": ["multisplit", "fragmentation"]
+      },
+      {
+        "type": "fakeddisorder",
+        "match_exact": ["tcp_fakeddisorder"],
+        "match_contains": ["fakeddisorder"]
+      }
+    ],
+    "param_override_rules": [
+      {
+        "match_exact": ["low_ttl_attacks", "tcp_fakeddisorder_low_ttl"],
+        "match_contains": ["low_ttl"],
+        "set": { "ttl": "$ttl.low_ttl_value", "fake_ttl": "$ttl.low_ttl_value" }
+      },
+      {
+        "match_exact": ["tls_record_split", "client_hello_fragmentation"],
+        "match_contains": ["tls_record_split", "client_hello"],
+        "set": { "split_pos": "$split.tls_split_pos" }
+      },
+      {
+        "match_exact": ["tcp_seqovl"],
+        "match_contains": ["seqovl"],
+        "set": { "overlap_size": "$overlap.seqovl_overlap_size" }
+      }
+    ],
+    "fooling_rules": [
+      {
+        "methods": ["badsum"],
+        "match_exact": ["badsum_fooling", "tcp_fakeddisorder_badsum"],
+        "match_contains": ["badsum"]
+      },
+      {
+        "methods": ["md5sig"],
+        "match_exact": ["md5sig_fooling"],
+        "match_contains": ["md5sig"]
+      },
+      {
+        "methods": ["badseq"],
+        "match_exact": ["sequence_manipulation"],
+        "match_contains": ["badseq"]
+      }
+    ]
+  }
+}

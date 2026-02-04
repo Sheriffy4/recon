@@ -37,7 +37,8 @@ class StrategyConverter:
         if not desync_match:
             return None
         
-        desync_types = desync_match.group(1).split(',')
+        # PARITY FIX: Normalize attacks - strip whitespace and lowercase
+        desync_types = [t.strip().lower() for t in desync_match.group(1).split(',') if t.strip()]
         
         # Определяем основной тип стратегии
         strategy_type = self._determine_strategy_type(desync_types)

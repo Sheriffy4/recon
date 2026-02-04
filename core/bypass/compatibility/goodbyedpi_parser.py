@@ -73,9 +73,7 @@ class GoodbyeDPIConfig:
                 "wrong_checksum": "wrong-chksum" in self.parameters,
                 "wrong_seq": "wrong-seq" in self.parameters,
                 "ip_id": (
-                    self.parameters.get("ip-id", {}).value
-                    if "ip-id" in self.parameters
-                    else None
+                    self.parameters.get("ip-id", {}).value if "ip-id" in self.parameters else None
                 ),
                 "blacklist": (
                     self.parameters.get("blacklist", {}).value
@@ -203,9 +201,7 @@ class GoodbyeDPIParser:
         # Extract fragment positions
         self._extract_fragment_positions(config)
 
-        self.logger.info(
-            f"Parsed GoodbyeDPI config with {len(config.parameters)} parameters"
-        )
+        self.logger.info(f"Parsed GoodbyeDPI config with {len(config.parameters)} parameters")
         return config
 
     def _parse_single_flags(self, command: str, config: GoodbyeDPIConfig):
@@ -271,9 +267,7 @@ class GoodbyeDPIParser:
                     )
             i += 1
 
-    def _parse_option_value(
-        self, value: Optional[str], option_def: Dict[str, Any]
-    ) -> Any:
+    def _parse_option_value(self, value: Optional[str], option_def: Dict[str, Any]) -> Any:
         """Parse option value based on its type."""
 
         option_type = option_def["type"]
@@ -290,9 +284,7 @@ class GoodbyeDPIParser:
                 return value
 
         except (ValueError, TypeError) as e:
-            self.logger.warning(
-                f"Failed to parse option value '{value}' as {option_type}: {e}"
-            )
+            self.logger.warning(f"Failed to parse option value '{value}' as {option_type}: {e}")
             return value
 
     def _extract_fragment_positions(self, config: GoodbyeDPIConfig):
@@ -335,10 +327,7 @@ class GoodbyeDPIParser:
                 issues.append(f"Fragment position {pos} must be positive")
 
         # Validate TTL values
-        if (
-            "set-ttl" in config.parameters
-            and config.parameters["set-ttl"].value is not None
-        ):
+        if "set-ttl" in config.parameters and config.parameters["set-ttl"].value is not None:
             ttl = config.parameters["set-ttl"].value
             if ttl < 1 or ttl > 255:
                 issues.append(f"TTL value {ttl} must be between 1 and 255")
@@ -374,8 +363,7 @@ class GoodbyeDPIParser:
     def list_all_flags(self) -> Dict[str, str]:
         """Get list of all supported flags with descriptions."""
         return {
-            flag: definition.get("description", "")
-            for flag, definition in self.flag_defs.items()
+            flag: definition.get("description", "") for flag, definition in self.flag_defs.items()
         }
 
     def list_all_options(self) -> Dict[str, str]:

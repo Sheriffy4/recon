@@ -50,28 +50,18 @@ class RequestStats:
     @property
     def success_rate(self) -> float:
         """Calculate success rate."""
-        return (
-            self.successful_requests / self.total_requests
-            if self.total_requests > 0
-            else 0.0
-        )
+        return self.successful_requests / self.total_requests if self.total_requests > 0 else 0.0
 
     @property
     def cache_hit_rate(self) -> float:
         """Calculate cache hit rate."""
         total_cache_requests = self.cache_hits + self.cache_misses
-        return (
-            self.cache_hits / total_cache_requests if total_cache_requests > 0 else 0.0
-        )
+        return self.cache_hits / total_cache_requests if total_cache_requests > 0 else 0.0
 
     @property
     def average_latency_ms(self) -> float:
         """Calculate average latency."""
-        return (
-            self.total_latency_ms / self.total_requests
-            if self.total_requests > 0
-            else 0.0
-        )
+        return self.total_latency_ms / self.total_requests if self.total_requests > 0 else 0.0
 
 
 class OptimizedHTTPClientPool:
@@ -167,9 +157,7 @@ class OptimizedHTTPClientPool:
                 if self._cleanup_task is None or self._cleanup_task.done():
                     self._cleanup_task = asyncio.create_task(self._periodic_cleanup())
 
-                LOG.debug(
-                    f"Created new HTTP session with {self.max_connections} max connections"
-                )
+                LOG.debug(f"Created new HTTP session with {self.max_connections} max connections")
 
         return self._session
 
@@ -234,9 +222,7 @@ class OptimizedHTTPClientPool:
             # Implement LRU eviction if cache is full
             if len(self._cache) >= self.max_cache_size:
                 # Remove oldest entry
-                oldest_key = min(
-                    self._cache.keys(), key=lambda k: self._cache[k].timestamp
-                )
+                oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k].timestamp)
                 del self._cache[oldest_key]
                 LOG.debug(f"Evicted cache entry: {oldest_key[:8]}...")
 
@@ -265,9 +251,7 @@ class OptimizedHTTPClientPool:
             Tuple of (response_data, headers, status_code)
         """
         start_time = time.time()
-        cache_key = (
-            self._generate_cache_key(method, url, **kwargs) if use_cache else None
-        )
+        cache_key = self._generate_cache_key(method, url, **kwargs) if use_cache else None
 
         # Check cache first
         if use_cache and cache_key:
@@ -363,17 +347,13 @@ class OptimizedHTTPClientPool:
                 await asyncio.sleep(60)  # Cleanup every minute
 
                 async with self._cache_lock:
-                    expired_keys = [
-                        key for key, entry in self._cache.items() if entry.is_expired
-                    ]
+                    expired_keys = [key for key, entry in self._cache.items() if entry.is_expired]
 
                     for key in expired_keys:
                         del self._cache[key]
 
                     if expired_keys:
-                        LOG.debug(
-                            f"Cleaned up {len(expired_keys)} expired cache entries"
-                        )
+                        LOG.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
 
             except asyncio.CancelledError:
                 break

@@ -83,9 +83,7 @@ class FingerprintCache:
                 if cached_hash == fp_hash
             ]
             ips_to_remove = [
-                ip
-                for ip, cached_hash in self.ip_to_fingerprint.items()
-                if cached_hash == fp_hash
+                ip for ip, cached_hash in self.ip_to_fingerprint.items() if cached_hash == fp_hash
             ]
             for domain in domains_to_remove:
                 self.domain_to_fingerprint.pop(domain, None)
@@ -125,9 +123,7 @@ class CLIWorkflowOptimizer:
     Optimizes CLI workflow to avoid duplication and improve performance.
     """
 
-    def __init__(
-        self, attack_adapter: AttackAdapter, result_processor: ResultProcessor
-    ):
+    def __init__(self, attack_adapter: AttackAdapter, result_processor: ResultProcessor):
         self.attack_adapter = attack_adapter
         self.result_processor = result_processor
         self.workflow_state: Optional[WorkflowState] = None
@@ -161,9 +157,7 @@ class CLIWorkflowOptimizer:
         """
         if not self.workflow_state:
             return (False, None)
-        cached_fp = self.workflow_state.fingerprint_cache.get_fingerprint_for_domain(
-            domain
-        )
+        cached_fp = self.workflow_state.fingerprint_cache.get_fingerprint_for_domain(domain)
         if cached_fp:
             LOG.debug(f"Found cached fingerprint for domain {domain}")
             return (True, cached_fp)
@@ -173,9 +167,7 @@ class CLIWorkflowOptimizer:
             return (True, cached_fp)
         return (False, None)
 
-    def cache_fingerprint_result(
-        self, domain: str, ip: str, fingerprint: EnhancedFingerprint
-    ):
+    def cache_fingerprint_result(self, domain: str, ip: str, fingerprint: EnhancedFingerprint):
         """
         Cache fingerprint result to avoid future duplication.
 
@@ -219,9 +211,7 @@ class CLIWorkflowOptimizer:
                     optimized_groups[fp_hash] = []
                 optimized_groups[fp_hash].extend(ip_domains)
                 for domain in ip_domains:
-                    self.workflow_state.fingerprint_cache.domain_to_fingerprint[
-                        domain
-                    ] = fp_hash
+                    self.workflow_state.fingerprint_cache.domain_to_fingerprint[domain] = fp_hash
                 LOG.debug(
                     f"Reused cached fingerprint {fp_hash} for {len(ip_domains)} domains with IP {ip}"
                 )
@@ -280,10 +270,7 @@ class CLIWorkflowOptimizer:
             if hasattr(fingerprint, "rst_injection") and fingerprint.rst_injection:
                 if "timing" in attack_name or "delay" in attack_name:
                     score += 0.2
-            if (
-                hasattr(fingerprint, "payload_inspection")
-                and fingerprint.payload_inspection
-            ):
+            if hasattr(fingerprint, "payload_inspection") and fingerprint.payload_inspection:
                 if "obfuscation" in attack_name or "encryption" in attack_name:
                     score += 0.2
             if hasattr(fingerprint, "http2_support") and fingerprint.http2_support:
@@ -293,12 +280,8 @@ class CLIWorkflowOptimizer:
                 if "quic" in attack_name:
                     score += 0.4
             attack_scores[attack_name] = score
-        optimized_order = sorted(
-            attack_names, key=lambda x: attack_scores.get(x, 0), reverse=True
-        )
-        LOG.debug(
-            f"Optimized attack testing order based on fingerprint: {optimized_order[:5]}..."
-        )
+        optimized_order = sorted(attack_names, key=lambda x: attack_scores.get(x, 0), reverse=True)
+        LOG.debug(f"Optimized attack testing order based on fingerprint: {optimized_order[:5]}...")
         return optimized_order
 
     def should_use_fast_mode(
@@ -320,9 +303,7 @@ class CLIWorkflowOptimizer:
             LOG.info(f"Using fast mode due to large domain count ({domain_count})")
             return True
         if time_budget_seconds and time_budget_seconds < 300:
-            LOG.info(
-                f"Using fast mode due to tight time budget ({time_budget_seconds}s)"
-            )
+            LOG.info(f"Using fast mode due to tight time budget ({time_budget_seconds}s)")
             return True
         if self.workflow_state.execution_mode in [ExecutionMode.SINGLE_STRATEGY]:
             return True
@@ -380,15 +361,9 @@ class CLIWorkflowOptimizer:
             "domain_groups": self.workflow_state.domain_groups.copy(),
             "optimization_results": self.workflow_state.optimization_results.copy(),
             "cache_statistics": {
-                "fingerprint_count": len(
-                    self.workflow_state.fingerprint_cache.fingerprints
-                ),
-                "domain_mappings": len(
-                    self.workflow_state.fingerprint_cache.domain_to_fingerprint
-                ),
-                "ip_mappings": len(
-                    self.workflow_state.fingerprint_cache.ip_to_fingerprint
-                ),
+                "fingerprint_count": len(self.workflow_state.fingerprint_cache.fingerprints),
+                "domain_mappings": len(self.workflow_state.fingerprint_cache.domain_to_fingerprint),
+                "ip_mappings": len(self.workflow_state.fingerprint_cache.ip_to_fingerprint),
             },
         }
 

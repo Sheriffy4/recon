@@ -6,6 +6,11 @@ from typing import List, Dict
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# Re-export DomainRuleRegistry for backward compatibility
+from core.bypass.engine.domain_rule_registry import DomainRuleRegistry
+
+__all__ = ["DomainManager", "DomainTestResult", "DomainRuleRegistry"]
+
 
 @dataclass
 class DomainTestResult:
@@ -66,8 +71,7 @@ class DomainManager:
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_domain = {
-                executor.submit(run_test_for_domain, domain): domain
-                for domain in self.domains
+                executor.submit(run_test_for_domain, domain): domain for domain in self.domains
             }
 
             for future in as_completed(future_to_domain):
@@ -96,8 +100,6 @@ class DomainManager:
             "success_rate": (success_count / total_tested) if total_tested else 0,
             "successful_domains_count": success_count,
             "total_domains": total_tested,
-            "median_latency_ms": (
-                statistics.median(latencies) if latencies else float("inf")
-            ),
+            "median_latency_ms": (statistics.median(latencies) if latencies else float("inf")),
             "successful_domains_list": successful_domains,
         }

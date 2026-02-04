@@ -42,7 +42,26 @@ def load_all_attacks():
         from core.bypass.attacks.attack_registry import get_attack_registry
 
         registry = get_attack_registry()
-        stats = {"total_attacks": len(registry.list_attacks())}
+        all_attacks = registry.list_attacks()
+        
+        # Collect categories
+        categories = set()
+        for attack_name in all_attacks:
+            try:
+                attack_class = registry.get_attack(attack_name)
+                if hasattr(attack_class, 'category'):
+                    cat = attack_class.category if callable(attack_class.category) else attack_class.category
+                    if isinstance(cat, property):
+                        # Skip property objects, we'll get category from instance later
+                        continue
+                    categories.add(str(cat))
+            except Exception:
+                pass
+        
+        stats = {
+            "total_attacks": len(all_attacks),
+            "categories": list(categories) if categories else ["unknown"]
+        }
 
         LOG.info(
             f"Attack loading complete: {stats['total_attacks']} attacks registered"

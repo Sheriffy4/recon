@@ -89,9 +89,7 @@ class AdvancedTLSProber:
         if not self.is_available:
             self.logger.warning("Scapy not available - advanced TLS probes disabled")
 
-    async def run_advanced_tls_probes(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def run_advanced_tls_probes(self, target: str, port: int = 443) -> Dict[str, Any]:
         """
         Run all advanced TLS/HTTP probes against the target.
 
@@ -114,9 +112,7 @@ class AdvancedTLSProber:
 
             # Run all probe categories
             await asyncio.gather(
-                self._probe_clienthello_size_sensitivity(
-                    result, target, target_ip, port
-                ),
+                self._probe_clienthello_size_sensitivity(result, target, target_ip, port),
                 self._probe_ech_support(result, target, target_ip, port),
                 self._probe_http2_support(result, target, target_ip, port),
                 self._probe_dirty_http_traffic(result, target, target_ip, port),
@@ -126,9 +122,7 @@ class AdvancedTLSProber:
                 f"Advanced TLS probes for {target}:{port} completed. ECH support detected: {result.ech_support_detected}"
             )
         except Exception as e:
-            self.logger.error(
-                f"Advanced TLS probes failed for {target}: {e}", exc_info=True
-            )
+            self.logger.error(f"Advanced TLS probes failed for {target}: {e}", exc_info=True)
 
         return result.to_dict()
 
@@ -181,9 +175,7 @@ class AdvancedTLSProber:
 
                             if response:
                                 # Check if it looks like a valid TLS response
-                                if (
-                                    len(response) >= 5 and response[0] == 0x16
-                                ):  # TLS Handshake
+                                if len(response) >= 5 and response[0] == 0x16:  # TLS Handshake
                                     size_results[size] = {
                                         "status": "success",
                                         "response_time": (end_time - start_time) * 1000,
@@ -217,9 +209,7 @@ class AdvancedTLSProber:
 
                 # Analyze results to find size limits
                 successful_sizes = [
-                    size
-                    for size, res in size_results.items()
-                    if res.get("status") == "success"
+                    size for size, res in size_results.items() if res.get("status") == "success"
                 ]
                 failed_sizes = [
                     size
@@ -239,9 +229,7 @@ class AdvancedTLSProber:
                         f"failures at {failed_sizes}"
                     )
                 elif not successful_sizes:
-                    self.logger.debug(
-                        "All ClientHello sizes failed - possible blocking"
-                    )
+                    self.logger.debug("All ClientHello sizes failed - possible blocking")
                 else:
                     self.logger.debug("No ClientHello size sensitivity detected")
 
@@ -278,9 +266,7 @@ class AdvancedTLSProber:
 
         # Padding extension to reach target size
         if padding_needed > 4:
-            padding_ext = struct.pack(
-                ">HH", 0x0015, padding_needed - 4
-            )  # Padding extension
+            padding_ext = struct.pack(">HH", 0x0015, padding_needed - 4)  # Padding extension
             padding_ext += b"\x00" * (padding_needed - 4)
             extensions += padding_ext
 
@@ -328,9 +314,7 @@ class AdvancedTLSProber:
 
                 # Test normal connection first
                 try:
-                    sock = socket.create_connection(
-                        (target_ip, port), timeout=self.timeout
-                    )
+                    sock = socket.create_connection((target_ip, port), timeout=self.timeout)
                     ssl_sock = context.wrap_socket(sock, server_hostname=target)
                     ssl_sock.close()
                     normal_connection_works = True
@@ -340,9 +324,7 @@ class AdvancedTLSProber:
                 # Test with ECH-like extension (simulated)
                 # Since real ECH requires complex crypto, we simulate the extension
                 try:
-                    clienthello_with_ech = self._create_clienthello_with_ech_extension(
-                        target
-                    )
+                    clienthello_with_ech = self._create_clienthello_with_ech_extension(target)
 
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(self.timeout)
@@ -357,16 +339,10 @@ class AdvancedTLSProber:
                             result.ech_support_detected = True
                         elif response[0] == 0x15:  # TLS Alert
                             # Check if it's an unsupported extension alert
-                            if (
-                                len(response) >= 7 and response[6] == 0x6E
-                            ):  # unsupported_extension
-                                result.ech_blocking_detected = (
-                                    False  # Server doesn't support ECH
-                                )
+                            if len(response) >= 7 and response[6] == 0x6E:  # unsupported_extension
+                                result.ech_blocking_detected = False  # Server doesn't support ECH
                             else:
-                                result.ech_blocking_detected = (
-                                    True  # DPI might be blocking
-                                )
+                                result.ech_blocking_detected = True  # DPI might be blocking
 
                 except Exception as e:
                     if normal_connection_works:
@@ -440,9 +416,7 @@ class AdvancedTLSProber:
                         context.verify_mode = ssl.CERT_NONE
                         context.set_alpn_protocols(["h2", "http/1.1"])
 
-                        sock = socket.create_connection(
-                            (target_ip, port), timeout=self.timeout
-                        )
+                        sock = socket.create_connection((target_ip, port), timeout=self.timeout)
                         ssl_sock = context.wrap_socket(sock, server_hostname=target)
 
                         # Check negotiated protocol
@@ -534,16 +508,12 @@ class AdvancedTLSProber:
                     "malformed_method": b"GETT / HTTP/1.1\r\nHost: "
                     + target.encode()
                     + b"\r\n\r\n",
-                    "invalid_version": b"GET / HTTP/2.0\r\nHost: "
-                    + target.encode()
-                    + b"\r\n\r\n",
+                    "invalid_version": b"GET / HTTP/2.0\r\nHost: " + target.encode() + b"\r\n\r\n",
                     "missing_host": b"GET / HTTP/1.1\r\n\r\n",
                     "extra_spaces": b"GET  /  HTTP/1.1 \r\nHost:  "
                     + target.encode()
                     + b" \r\n\r\n",
-                    "case_sensitive": b"get / http/1.1\r\nhost: "
-                    + target.encode()
-                    + b"\r\n\r\n",
+                    "case_sensitive": b"get / http/1.1\r\nhost: " + target.encode() + b"\r\n\r\n",
                     "long_uri": b"GET /"
                     + b"A" * 2000
                     + b" HTTP/1.1\r\nHost: "
@@ -574,25 +544,17 @@ class AdvancedTLSProber:
                                 # Analyze response
                                 if b"HTTP/" in response:
                                     if b"400" in response or b"Bad Request" in response:
-                                        result.dirty_http_tolerance[test_name] = (
-                                            "rejected_properly"
-                                        )
+                                        result.dirty_http_tolerance[test_name] = "rejected_properly"
                                     elif (
                                         b"200" in response
                                         or b"301" in response
                                         or b"302" in response
                                     ):
-                                        result.dirty_http_tolerance[test_name] = (
-                                            "accepted"
-                                        )
+                                        result.dirty_http_tolerance[test_name] = "accepted"
                                     else:
-                                        result.dirty_http_tolerance[test_name] = (
-                                            "unknown_response"
-                                        )
+                                        result.dirty_http_tolerance[test_name] = "unknown_response"
                                 else:
-                                    result.dirty_http_tolerance[test_name] = (
-                                        "non_http_response"
-                                    )
+                                    result.dirty_http_tolerance[test_name] = "non_http_response"
                             else:
                                 result.dirty_http_tolerance[test_name] = "no_response"
 
@@ -605,9 +567,7 @@ class AdvancedTLSProber:
                         time.sleep(0.1)  # Small delay between tests
 
                     except Exception as e:
-                        result.dirty_http_tolerance[test_name] = (
-                            f"error_{type(e).__name__}"
-                        )
+                        result.dirty_http_tolerance[test_name] = f"error_{type(e).__name__}"
                         self.logger.debug(f"Dirty HTTP test {test_name} failed: {e}")
 
                 # Analyze results for filtering patterns

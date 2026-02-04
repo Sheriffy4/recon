@@ -91,9 +91,7 @@ class EngineConfigManager:
             for engine_type in EngineType:
                 if engine_type.value == default_name:
                     return engine_type
-        available_profiles = [
-            profile for profile in self._profiles.values() if profile.enabled
-        ]
+        available_profiles = [profile for profile in self._profiles.values() if profile.enabled]
         if not available_profiles:
             return self._get_platform_default()
         available_profiles.sort(key=lambda p: p.priority, reverse=True)
@@ -119,9 +117,7 @@ class EngineConfigManager:
                 return {}
         profile = self._profiles.get(engine_type)
         if not profile:
-            self.logger.warning(
-                f"No configuration profile for engine: {engine_type.value}"
-            )
+            self.logger.warning(f"No configuration profile for engine: {engine_type.value}")
             return {}
         config = profile.default_config.copy()
         current_platform = platform.system()
@@ -136,9 +132,7 @@ class EngineConfigManager:
             config.update(self._config_overrides[override_key])
         return config
 
-    def get_engine_config_object(
-        self, engine_type: Union[str, EngineType]
-    ) -> EngineConfig:
+    def get_engine_config_object(self, engine_type: Union[str, EngineType]) -> EngineConfig:
         """
         Get EngineConfig object for a specific engine type.
 
@@ -155,9 +149,7 @@ class EngineConfigManager:
             base_path=config_dict.get("base_path"),
             tool_name=config_dict.get("tool_name"),
             packet_buffer_size=config_dict.get("packet_buffer_size", 65535),
-            max_concurrent_connections=config_dict.get(
-                "max_concurrent_connections", 1000
-            ),
+            max_concurrent_connections=config_dict.get("max_concurrent_connections", 1000),
             log_packets=config_dict.get("log_packets", False),
         )
 
@@ -195,9 +187,7 @@ class EngineConfigManager:
             if "max_concurrent_connections" in config:
                 max_conn = config["max_concurrent_connections"]
                 if not isinstance(max_conn, int) or max_conn <= 0:
-                    self.logger.error(
-                        "Max concurrent connections must be a positive integer"
-                    )
+                    self.logger.error("Max concurrent connections must be a positive integer")
                     return False
             if engine_type:
                 profile = self._profiles.get(engine_type)
@@ -208,9 +198,7 @@ class EngineConfigManager:
             self.logger.error(f"Configuration validation error: {e}")
             return False
 
-    def get_fallback_order(
-        self, preferred_engine: Optional[EngineType] = None
-    ) -> List[EngineType]:
+    def get_fallback_order(self, preferred_engine: Optional[EngineType] = None) -> List[EngineType]:
         """
         Get fallback order for engine types.
 
@@ -266,9 +254,7 @@ class EngineConfigManager:
             self._profiles[engine_type].priority = priority
             self.logger.info(f"Set priority for {engine_type.value}: {priority}")
         else:
-            self.logger.warning(
-                f"Cannot set priority for unknown engine: {engine_type.value}"
-            )
+            self.logger.warning(f"Cannot set priority for unknown engine: {engine_type.value}")
 
     def enable_engine(self, engine_type: EngineType, enabled: bool = True):
         """
@@ -363,9 +349,7 @@ class EngineConfigManager:
                         "default_config": profile.default_config,
                         "required_permissions": profile.required_permissions,
                         "dependencies": profile.dependencies,
-                        "fallback_engines": [
-                            fe.value for fe in profile.fallback_engines
-                        ],
+                        "fallback_engines": [fe.value for fe in profile.fallback_engines],
                         "platform_specific": profile.platform_specific,
                         "description": profile.description,
                     }
@@ -485,15 +469,11 @@ class EngineConfigManager:
                     if "default_config" in profile_data:
                         profile.default_config.update(profile_data["default_config"])
                     if "required_permissions" in profile_data:
-                        profile.required_permissions = profile_data[
-                            "required_permissions"
-                        ]
+                        profile.required_permissions = profile_data["required_permissions"]
                     if "dependencies" in profile_data:
                         profile.dependencies = profile_data["dependencies"]
                     if "platform_specific" in profile_data:
-                        profile.platform_specific.update(
-                            profile_data["platform_specific"]
-                        )
+                        profile.platform_specific.update(profile_data["platform_specific"])
                     if "description" in profile_data:
                         profile.description = profile_data["description"]
                     if "fallback_engines" in profile_data:

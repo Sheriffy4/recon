@@ -403,8 +403,6 @@ class GenericBrowsingProfile(TrafficProfile):
     def _create_http_packet(self, payload_chunk: bytes) -> bytes:
         """Create an HTTP-like packet."""
         header = (
-            b"HTTP/1.1 200 OK\r\nContent-Length: "
-            + str(len(payload_chunk)).encode()
-            + b"\r\n\r\n"
+            b"HTTP/1.1 200 OK\r\nContent-Length: " + str(len(payload_chunk)).encode() + b"\r\n\r\n"
         )
         return header + payload_chunk

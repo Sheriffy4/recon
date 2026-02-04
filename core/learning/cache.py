@@ -120,9 +120,7 @@ class AdaptiveLearningCache:
             self.strategy_records[key].update_performance(success_rate, avg_latency)
         else:
             self.strategy_records[key] = StrategyPerformanceRecord(
-                strategy=self._strategy_to_string(
-                    strategy
-                ),  # Store as string for record
+                strategy=self._strategy_to_string(strategy),  # Store as string for record
                 domain=domain,
                 ip=ip,
                 success_rate=success_rate,
@@ -170,9 +168,7 @@ class AdaptiveLearningCache:
             return record.success_rate * confidence
         return None
 
-    def get_domain_recommendations(
-        self, domain: str, top_n: int = 3
-    ) -> List[Tuple[str, float]]:
+    def get_domain_recommendations(self, domain: str, top_n: int = 3) -> List[Tuple[str, float]]:
         """Возвращает рекомендуемые типы стратегий для домена."""
         if domain in self.domain_patterns:
             patterns = self.domain_patterns[domain]
@@ -261,13 +257,9 @@ class AdaptiveLearningCache:
 
     def get_cache_stats(self) -> dict:
         """Возвращает статистику кэша."""
-        total_tests = sum(
-            record.test_count for record in self.strategy_records.values()
-        )
+        total_tests = sum(record.test_count for record in self.strategy_records.values())
         avg_success_rate = (
-            statistics.mean(
-                [record.success_rate for record in self.strategy_records.values()]
-            )
+            statistics.mean([record.success_rate for record in self.strategy_records.values()])
             if self.strategy_records
             else 0
         )

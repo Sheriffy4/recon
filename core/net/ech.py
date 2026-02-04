@@ -116,9 +116,7 @@ class ECHClientHello:
         enc_length = struct.unpack("!H", data[3:5])[0]
         encrypted_ch = data[5 : 5 + enc_length]
 
-        return cls(
-            config_id=config_id, cipher_suite=cipher_suite, encrypted_ch=encrypted_ch
-        )
+        return cls(config_id=config_id, cipher_suite=cipher_suite, encrypted_ch=encrypted_ch)
 
     def serialize(self) -> bytes:
         """Serialize ECH ClientHello to bytes"""

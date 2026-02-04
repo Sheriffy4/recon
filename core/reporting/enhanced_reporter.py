@@ -181,9 +181,7 @@ class EnhancedReporter:
 
         # Extract behavioral characteristics
         rst_ttl_distance = fingerprint_data.get("rst_ttl_distance")
-        response_timing_pattern = fingerprint_data.get(
-            "response_timing_pattern", "unknown"
-        )
+        response_timing_pattern = fingerprint_data.get("response_timing_pattern", "unknown")
         supports_http2 = fingerprint_data.get("http2_support")
         supports_quic = fingerprint_data.get("quic_support")
         supports_ech = fingerprint_data.get("ech_support")
@@ -197,9 +195,7 @@ class EnhancedReporter:
         )
 
         # Generate analysis notes
-        analysis_notes = self._generate_analysis_notes(
-            fingerprint_data, classification_result
-        )
+        analysis_notes = self._generate_analysis_notes(fingerprint_data, classification_result)
 
         return DPIAnalysisReport(
             domain=domain,
@@ -231,9 +227,7 @@ class EnhancedReporter:
         Returns:
             StrategyEffectivenessReport with effectiveness analysis
         """
-        self.logger.debug(
-            f"Generating effectiveness report for strategy: {strategy_name}"
-        )
+        self.logger.debug(f"Generating effectiveness report for strategy: {strategy_name}")
 
         if not test_results:
             return StrategyEffectivenessReport(
@@ -258,9 +252,7 @@ class EnhancedReporter:
         success_rate = successful_tests / total_tests if total_tests > 0 else 0.0
 
         # Calculate latency metrics
-        latencies = [
-            r.get("latency_ms", 0.0) for r in test_results if r.get("latency_ms")
-        ]
+        latencies = [r.get("latency_ms", 0.0) for r in test_results if r.get("latency_ms")]
         if latencies:
             avg_latency_ms = sum(latencies) / len(latencies)
             best_latency_ms = min(latencies)
@@ -343,14 +335,10 @@ class EnhancedReporter:
         )
 
         # Generate recommended commands
-        recommended_commands = self._generate_recommended_commands(
-            target_domain, best_strategies
-        )
+        recommended_commands = self._generate_recommended_commands(target_domain, best_strategies)
 
         # Generate troubleshooting tips
-        troubleshooting_tips = self._generate_troubleshooting_tips(
-            dpi_analysis, system_performance
-        )
+        troubleshooting_tips = self._generate_troubleshooting_tips(dpi_analysis, system_performance)
 
         # Calculate overall confidence
         overall_confidence, confidence_explanation = self._calculate_overall_confidence(
@@ -602,9 +590,7 @@ class EnhancedReporter:
         # Check for RST injection detection
         # >>> ИЗМЕНЕНИЕ: Добавляем `or 0` для безопасной обработки None <<<
         if (fingerprint_data.get("rst_ttl_distance") or 0) > 0:
-            vulnerabilities.append(
-                "RST injection detected - TTL manipulation effective"
-            )
+            vulnerabilities.append("RST injection detected - TTL manipulation effective")
 
         return vulnerabilities
 
@@ -619,9 +605,9 @@ class EnhancedReporter:
         confidence_factors.append(classification_confidence)
 
         # Data completeness
-        data_completeness = len(
-            [v for v in fingerprint_data.values() if v is not None]
-        ) / len(fingerprint_data)
+        data_completeness = len([v for v in fingerprint_data.values() if v is not None]) / len(
+            fingerprint_data
+        )
         confidence_factors.append(data_completeness)
 
         # Test result consistency
@@ -629,9 +615,7 @@ class EnhancedReporter:
             confidence_factors.append(0.8)  # We have baseline data
 
         avg_confidence = (
-            sum(confidence_factors) / len(confidence_factors)
-            if confidence_factors
-            else 0.0
+            sum(confidence_factors) / len(confidence_factors) if confidence_factors else 0.0
         )
         return self._score_to_confidence_level(avg_confidence)
 
@@ -642,14 +626,10 @@ class EnhancedReporter:
         notes = []
 
         if fingerprint_data.get("baseline_block_type") == "timeout":
-            notes.append(
-                "Target uses timeout-based blocking - timing attacks recommended"
-            )
+            notes.append("Target uses timeout-based blocking - timing attacks recommended")
 
         if fingerprint_data.get("baseline_block_type") == "rst":
-            notes.append(
-                "Target uses RST-based blocking - packet manipulation attacks recommended"
-            )
+            notes.append("Target uses RST-based blocking - packet manipulation attacks recommended")
 
         if classification_result.get("confidence", 0.0) < 0.5:
             notes.append(
@@ -672,20 +652,14 @@ class EnhancedReporter:
         if not test_results:
             return 0.0
 
-        success_rate = sum(1 for r in test_results if r.get("success", False)) / len(
-            test_results
-        )
+        success_rate = sum(1 for r in test_results if r.get("success", False)) / len(test_results)
 
         # Factor in consistency
-        latencies = [
-            r.get("latency_ms", 0.0) for r in test_results if r.get("latency_ms")
-        ]
+        latencies = [r.get("latency_ms", 0.0) for r in test_results if r.get("latency_ms")]
         if latencies and len(latencies) > 1:
             avg_latency = sum(latencies) / len(latencies)
             std_dev = self._calculate_std_dev(latencies)
-            consistency_factor = (
-                max(0.0, 1.0 - (std_dev / avg_latency)) if avg_latency > 0 else 0.0
-            )
+            consistency_factor = max(0.0, 1.0 - (std_dev / avg_latency)) if avg_latency > 0 else 0.0
         else:
             consistency_factor = 1.0
 
@@ -727,25 +701,19 @@ class EnhancedReporter:
 
         return recommendations
 
-    def _identify_strategy_limitations(
-        self, test_results: List[Dict[str, Any]]
-    ) -> List[str]:
+    def _identify_strategy_limitations(self, test_results: List[Dict[str, Any]]) -> List[str]:
         """Identify strategy limitations."""
         limitations = []
 
         if not test_results:
             return ["No test data available"]
 
-        success_rate = sum(1 for r in test_results if r.get("success", False)) / len(
-            test_results
-        )
+        success_rate = sum(1 for r in test_results if r.get("success", False)) / len(test_results)
 
         if success_rate < 0.5:
             limitations.append("Low success rate")
 
-        latencies = [
-            r.get("latency_ms", 0.0) for r in test_results if r.get("latency_ms")
-        ]
+        latencies = [r.get("latency_ms", 0.0) for r in test_results if r.get("latency_ms")]
         if latencies:
             avg_latency = sum(latencies) / len(latencies)
             if avg_latency > 5000:  # 5 seconds
@@ -823,9 +791,7 @@ class EnhancedReporter:
         tips = []
 
         if system_performance.processing_errors > 0:
-            tips.append(
-                "Check system permissions - run as Administrator/root if needed"
-            )
+            tips.append("Check system permissions - run as Administrator/root if needed")
 
         if dpi_analysis.blocking_method == "timeout":
             tips.append("Try strategies with shorter timeouts or faster execution")
@@ -856,20 +822,15 @@ class EnhancedReporter:
         }[dpi_analysis.analysis_confidence]
 
         confidence_factors.append(dpi_confidence_score)
-        explanations.append(
-            f"DPI analysis confidence: {dpi_analysis.analysis_confidence.value}"
-        )
+        explanations.append(f"DPI analysis confidence: {dpi_analysis.analysis_confidence.value}")
 
         # Strategy effectiveness confidence
         if best_strategies:
             strategy_confidence = sum(
-                dpi_confidence_score[s.reliability_confidence]
-                for s in best_strategies[:3]
+                dpi_confidence_score[s.reliability_confidence] for s in best_strategies[:3]
             ) / min(3, len(best_strategies))
             confidence_factors.append(strategy_confidence)
-            explanations.append(
-                f"Strategy reliability: {len(best_strategies)} strategies tested"
-            )
+            explanations.append(f"Strategy reliability: {len(best_strategies)} strategies tested")
 
         # System performance confidence
         if system_performance.total_domains_tested >= 1:
@@ -881,9 +842,7 @@ class EnhancedReporter:
 
         # Calculate overall
         overall_score = (
-            sum(confidence_factors) / len(confidence_factors)
-            if confidence_factors
-            else 0.0
+            sum(confidence_factors) / len(confidence_factors) if confidence_factors else 0.0
         )
         overall_confidence = self._score_to_confidence_level(overall_score)
 

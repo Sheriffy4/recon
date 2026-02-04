@@ -52,9 +52,7 @@ class TLSInfo:
                 0x14: "Finished",
             }
 
-            handshake_type = handshake_type_map.get(
-                payload[5], f"Unknown({payload[5]})"
-            )
+            handshake_type = handshake_type_map.get(payload[5], f"Unknown({payload[5]})")
 
             tls_info = cls(
                 version=version,
@@ -72,9 +70,7 @@ class TLSInfo:
             return None
 
     @classmethod
-    def _parse_client_hello(
-        cls, handshake_data: bytes, tls_info: "TLSInfo"
-    ) -> "TLSInfo":
+    def _parse_client_hello(cls, handshake_data: bytes, tls_info: "TLSInfo") -> "TLSInfo":
         """Parse ClientHello handshake data."""
         try:
             if len(handshake_data) < 38:
@@ -94,18 +90,16 @@ class TLSInfo:
                 return tls_info
 
             # Cipher suites length
-            cipher_suites_len = struct.unpack(
-                ">H", handshake_data[offset : offset + 2]
-            )[0]
+            cipher_suites_len = struct.unpack(">H", handshake_data[offset : offset + 2])[0]
             offset += 2
 
             # Parse cipher suites
             cipher_suites = []
             for i in range(0, cipher_suites_len, 2):
                 if offset + i + 2 <= len(handshake_data):
-                    cipher_suite = struct.unpack(
-                        ">H", handshake_data[offset + i : offset + i + 2]
-                    )[0]
+                    cipher_suite = struct.unpack(">H", handshake_data[offset + i : offset + i + 2])[
+                        0
+                    ]
                     cipher_suites.append(f"0x{cipher_suite:04x}")
 
             tls_info.cipher_suites = cipher_suites[:10]  # Limit to first 10
@@ -118,14 +112,10 @@ class TLSInfo:
 
                 # Parse extensions for SNI
                 if offset + 2 < len(handshake_data):
-                    extensions_len = struct.unpack(
-                        ">H", handshake_data[offset : offset + 2]
-                    )[0]
+                    extensions_len = struct.unpack(">H", handshake_data[offset : offset + 2])[0]
                     offset += 2
 
-                    sni = cls._extract_sni(
-                        handshake_data[offset : offset + extensions_len]
-                    )
+                    sni = cls._extract_sni(handshake_data[offset : offset + extensions_len])
                     if sni:
                         tls_info.sni = sni
 
@@ -141,9 +131,7 @@ class TLSInfo:
             offset = 0
             while offset + 4 < len(extensions_data):
                 ext_type = struct.unpack(">H", extensions_data[offset : offset + 2])[0]
-                ext_len = struct.unpack(">H", extensions_data[offset + 2 : offset + 4])[
-                    0
-                ]
+                ext_len = struct.unpack(">H", extensions_data[offset + 2 : offset + 4])[0]
 
                 if ext_type == 0x0000:  # Server Name extension
                     if offset + 4 + ext_len <= len(extensions_data):
@@ -153,9 +141,7 @@ class TLSInfo:
                             # Skip name type (1 byte) and name length (2 bytes)
                             name_len = struct.unpack(">H", sni_data[3:5])[0]
                             if len(sni_data) >= 5 + name_len:
-                                return sni_data[5 : 5 + name_len].decode(
-                                    "utf-8", errors="ignore"
-                                )
+                                return sni_data[5 : 5 + name_len].decode("utf-8", errors="ignore")
 
                 offset += 4 + ext_len
 
@@ -225,16 +211,22 @@ class PacketInfo:
                     self.is_client_hello = True
 
     @classmethod
-    def from_raw_packet(
-        cls, raw_data: bytes, timestamp: float
-    ) -> Optional["PacketInfo"]:
+    def from_raw_packet(cls, raw_data: bytes, timestamp: float) -> Optional["PacketInfo"]:
         """Create PacketInfo from raw packet data."""
         try:
-            if len(raw_data) < 34:  # Minimum Ethernet + IP + TCP
+            if len(raw_data) < 20:  # Minimum IPv4 header
                 return None
 
-            # Skip Ethernet header (14 bytes)
-            ip_data = raw_data[14:]
+            # Support both Ethernet-framed packets and "raw IP" payloads.
+            # Heuristic:
+            # - If first nibble looks like IPv4 (0x4), treat as raw IP.
+            # - Else assume Ethernet and skip 14 bytes.
+            if ((raw_data[0] >> 4) & 0xF) == 4:
+                ip_data = raw_data
+            else:
+                if len(raw_data) < 34:  # Minimum Ethernet + IP + TCP
+                    return None
+                ip_data = raw_data[14:]
 
             if len(ip_data) < 20:
                 return None
@@ -283,9 +275,7 @@ class PacketInfo:
             tcp_header_len = ((tcp_data[12] >> 4) & 0xF) * 4
 
             # Payload
-            payload = (
-                tcp_data[tcp_header_len:] if tcp_header_len < len(tcp_data) else b""
-            )
+            payload = tcp_data[tcp_header_len:] if tcp_header_len < len(tcp_data) else b""
 
             return cls(
                 timestamp=timestamp,
@@ -370,8 +360,13 @@ class PacketInfo:
             if hasattr(self, key):
                 packet_value = getattr(self, key)
                 if isinstance(value, list):
-                    if packet_value not in value:
-                        return False
+                    # If both are lists (e.g., filtering flags), require all requested items.
+                    if isinstance(packet_value, list):
+                        if not all(v in packet_value for v in value):
+                            return False
+                    else:
+                        if packet_value not in value:
+                            return False
                 elif packet_value != value:
                     return False
             elif key == "has_payload":

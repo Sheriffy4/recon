@@ -16,16 +16,10 @@ class BypassQualityAnalyzer:
         if rst_times and min(rst_times) < 0.1:
             patterns["timing_sensitive"] = True
 
-        if any(
-            r["task"]["type"] == "padencap" and r["result"] == "RST_RECEIVED"
-            for r in results
-        ):
+        if any(r["task"]["type"] == "padencap" and r["result"] == "RST_RECEIVED" for r in results):
             patterns["content_inspection"] = True
 
-        if any(
-            r["task"]["type"] == "baseline" and r["result"] == "RST_RECEIVED"
-            for r in results
-        ):
+        if any(r["task"]["type"] == "baseline" and r["result"] == "RST_RECEIVED" for r in results):
             patterns["fingerprint_detection"] = True
 
         combo_results = [r for r in results if "combo" in r["task"]["type"]]
@@ -39,10 +33,16 @@ class BypassQualityAnalyzer:
         if patterns["stateful_tracking"]:
             return "DPI is highly stateful. Try advanced multi-stage combos or application-layer tunneling (VPN/Tor)."
         if patterns["content_inspection"]:
-            return "DPI inspects TLS content. Focus on advanced encryption/obfuscation (ECH, padding)."
+            return (
+                "DPI inspects TLS content. Focus on advanced encryption/obfuscation (ECH, padding)."
+            )
         if patterns["timing_sensitive"]:
             return "DPI is timing-sensitive. Exploit this with precise micro-timing attacks (drip-feed)."
         if patterns["fingerprint_detection"]:
-            return "DPI detects static fingerprints. Use TLS fingerprint rotation and randomization."
+            return (
+                "DPI detects static fingerprints. Use TLS fingerprint rotation and randomization."
+            )
 
-        return "Consider application-layer tunneling (VPN, Shadowsocks, etc.) or QUIC-based methods."
+        return (
+            "Consider application-layer tunneling (VPN, Shadowsocks, etc.) or QUIC-based methods."
+        )

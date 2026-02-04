@@ -58,9 +58,7 @@ class UnifiedStrategySaver:
         Returns:
             Унифицированные стратегии {canonical_domain: strategy}
         """
-        self.logger.info(
-            f"Saving {len(strategies)} strategies with conflict resolution"
-        )
+        self.logger.info(f"Saving {len(strategies)} strategies with conflict resolution")
 
         # Добавить стратегии в resolver
         self.resolver.add_strategies_from_dict(strategies)
@@ -77,20 +75,10 @@ class UnifiedStrategySaver:
                 if canonical not in resolved:
                     resolved[canonical] = ResolvedStrategy(
                         canonical_domain=canonical,
-                        strategy=(
-                            data.get("strategy", "") if isinstance(data, dict) else data
-                        ),
+                        strategy=(data.get("strategy", "") if isinstance(data, dict) else data),
                         applies_to=[domain],
-                        latency_ms=(
-                            data.get("latency_ms", 0.0)
-                            if isinstance(data, dict)
-                            else 0.0
-                        ),
-                        confidence=(
-                            data.get("confidence", 1.0)
-                            if isinstance(data, dict)
-                            else 1.0
-                        ),
+                        latency_ms=(data.get("latency_ms", 0.0) if isinstance(data, dict) else 0.0),
+                        confidence=(data.get("confidence", 1.0) if isinstance(data, dict) else 1.0),
                     )
 
         # Экспортировать унифицированные стратегии

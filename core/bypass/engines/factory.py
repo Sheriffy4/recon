@@ -140,9 +140,7 @@ def create_engine_with_validation(
 
         return create_engine_enhanced(engine_type, config, **kwargs)
     except ImportError:
-        LOG.warning(
-            "Enhanced factory not available, falling back to original implementation"
-        )
+        LOG.warning("Enhanced factory not available, falling back to original implementation")
         if engine_type is None:
             return create_best_engine(config)
         if isinstance(engine_type, str):

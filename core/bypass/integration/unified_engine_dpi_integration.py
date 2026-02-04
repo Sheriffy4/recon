@@ -225,19 +225,13 @@ def integrate_dpi_with_unified_engine(engine, dpi_config: DPIConfig) -> None:
 
         # Add methods to the instance
         engine.apply_dpi_to_packet = (
-            lambda packet_data: engine._dpi_integration.process_outbound_packet(
-                packet_data
-            )
+            lambda packet_data: engine._dpi_integration.process_outbound_packet(packet_data)
         )
         engine.should_apply_dpi = (
-            lambda packet_data: engine._dpi_integration.should_apply_dpi_to_packet(
-                packet_data
-            )
+            lambda packet_data: engine._dpi_integration.should_apply_dpi_to_packet(packet_data)
         )
         engine.get_dpi_stats = lambda: engine._dpi_integration.get_dpi_statistics()
-        engine.update_dpi_config = (
-            lambda config: engine._dpi_integration.update_dpi_config(config)
-        )
+        engine.update_dpi_config = lambda config: engine._dpi_integration.update_dpi_config(config)
 
         logger.info("DPI integration added to UnifiedBypassEngine instance")
 

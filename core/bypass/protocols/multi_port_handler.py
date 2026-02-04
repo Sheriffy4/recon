@@ -447,9 +447,7 @@ class MultiPortHandler:
         """
         start_time = time.time()
         self.stats["strategies_applied"] += 1
-        self.logger.info(
-            f"Applying port-specific strategy '{strategy_id}' to {domain}:{port}"
-        )
+        self.logger.info(f"Applying port-specific strategy '{strategy_id}' to {domain}:{port}")
         try:
             port_strategy = self.get_port_strategy(port)
             selected_attacks = self._select_attacks_for_port(port, attacks or [])
@@ -471,9 +469,7 @@ class MultiPortHandler:
                     self.logger.error(f"Failed to apply attack {attack.id}: {e}")
                     continue
             test_result = await self._test_single_port(domain, port)
-            success = (
-                test_result.accessible and test_result.block_type == BlockType.NONE
-            )
+            success = test_result.accessible and test_result.block_type == BlockType.NONE
             if success:
                 self.stats["successful_bypasses"] += 1
             return BypassResult(
@@ -487,9 +483,7 @@ class MultiPortHandler:
                     "test_result": {
                         "accessible": test_result.accessible,
                         "block_type": (
-                            test_result.block_type.value
-                            if test_result.block_type
-                            else None
+                            test_result.block_type.value if test_result.block_type else None
                         ),
                         "response_time_ms": test_result.response_time_ms,
                     },
@@ -546,9 +540,7 @@ class MultiPortHandler:
                 test_results[80] = self.port_test_cache[cache_key_80]
             if cache_key_443 in self.port_test_cache:
                 test_results[443] = self.port_test_cache[cache_key_443]
-        accessible_ports = [
-            port for port, result in test_results.items() if result.accessible
-        ]
+        accessible_ports = [port for port, result in test_results.items() if result.accessible]
         if not accessible_ports:
             return self.HTTPS_PORT
         if self.HTTPS_PORT in accessible_ports:
@@ -601,9 +593,7 @@ class MultiPortHandler:
     def add_port_strategy(self, port: int, strategy: PortStrategy) -> None:
         """Add or update a port strategy configuration."""
         self.port_strategies[port] = strategy
-        self.logger.info(
-            f"Added port strategy for port {port}: {strategy.protocol_family.value}"
-        )
+        self.logger.info(f"Added port strategy for port {port}: {strategy.protocol_family.value}")
 
     def remove_port_strategy(self, port: int) -> bool:
         """Remove a port strategy configuration."""

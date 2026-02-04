@@ -148,9 +148,7 @@ class DetailedProgressReporter:
             print(f"\n✓ {final_message}")
             print(f"  Total time: {self._format_duration(total_duration)}")
         else:
-            print(
-                f"\r[100.00%] {final_message} (took {self._format_duration(total_duration)})"
-            )
+            print(f"\r[100.00%] {final_message} (took {self._format_duration(total_duration)})")
 
     def update_step_progress(self, sub_progress: float, message: str = ""):
         """Update progress within the current step."""
@@ -259,9 +257,7 @@ def create_analysis_progress() -> DetailedProgressReporter:
         ProgressStep("Compare", "Comparing packet sequences", 1.5, 15.0),
         ProgressStep("Analyze Strategies", "Analyzing strategy parameters", 1.0, 8.0),
         ProgressStep("Detect Differences", "Detecting critical differences", 1.5, 12.0),
-        ProgressStep(
-            "Pattern Recognition", "Recognizing DPI evasion patterns", 1.0, 10.0
-        ),
+        ProgressStep("Pattern Recognition", "Recognizing DPI evasion patterns", 1.0, 10.0),
         ProgressStep("Root Cause Analysis", "Analyzing failure root causes", 1.5, 15.0),
         ProgressStep("Generate Fixes", "Generating code fixes", 1.0, 8.0),
         ProgressStep("Validate", "Validating generated fixes", 2.0, 20.0),

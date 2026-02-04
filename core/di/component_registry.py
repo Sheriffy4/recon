@@ -29,9 +29,7 @@ class ISegmentPerformanceOptimizer:
 class IDPIEffectivenessValidator:
     """Interface for DPI effectiveness validation."""
 
-    def validate_attack_effectiveness(
-        self, attack_result: Any, baseline: Any
-    ) -> Dict[str, Any]:
+    def validate_attack_effectiveness(self, attack_result: Any, baseline: Any) -> Dict[str, Any]:
         """Validate attack effectiveness against baseline."""
         raise NotImplementedError
 
@@ -55,9 +53,7 @@ class IProperTestingMethodology:
 class IAttackAdapter:
     """Interface for attack adaptation."""
 
-    def execute_attack_by_name(
-        self, attack_name: str, context: Any, params: Dict[str, Any]
-    ) -> Any:
+    def execute_attack_by_name(self, attack_name: str, context: Any, params: Dict[str, Any]) -> Any:
         """Execute attack by name with given context and parameters."""
         raise NotImplementedError
 
@@ -150,9 +146,7 @@ class ComponentRegistry:
             self._registered_components["ISegmentPerformanceOptimizer"] = (
                 ISegmentPerformanceOptimizer
             )
-            self._registered_components["SegmentPerformanceOptimizer"] = (
-                SegmentPerformanceOptimizer
-            )
+            self._registered_components["SegmentPerformanceOptimizer"] = SegmentPerformanceOptimizer
             self.logger.debug("✅ Performance components registered")
         except ImportError as e:
             self.logger.warning(f"⚠️ Could not register performance components: {e}")
@@ -173,18 +167,10 @@ class ComponentRegistry:
                 DPIEffectivenessValidator,
             )
 
-            self.container.register_singleton(
-                IDPIEffectivenessValidator, DPIEffectivenessValidator
-            )
-            self.container.register_singleton(
-                DPIEffectivenessValidator, DPIEffectivenessValidator
-            )
-            self._registered_components["IDPIEffectivenessValidator"] = (
-                IDPIEffectivenessValidator
-            )
-            self._registered_components["DPIEffectivenessValidator"] = (
-                DPIEffectivenessValidator
-            )
+            self.container.register_singleton(IDPIEffectivenessValidator, DPIEffectivenessValidator)
+            self.container.register_singleton(DPIEffectivenessValidator, DPIEffectivenessValidator)
+            self._registered_components["IDPIEffectivenessValidator"] = IDPIEffectivenessValidator
+            self._registered_components["DPIEffectivenessValidator"] = DPIEffectivenessValidator
             self.logger.debug("✅ Validation components registered")
         except ImportError as e:
             self.logger.warning(f"⚠️ Could not register validation components: {e}")
@@ -193,9 +179,7 @@ class ComponentRegistry:
                 lambda container: MockDPIEffectivenessValidator(),
                 ServiceLifetime.SINGLETON,
             )
-            self._registered_components["IDPIEffectivenessValidator"] = (
-                IDPIEffectivenessValidator
-            )
+            self._registered_components["IDPIEffectivenessValidator"] = IDPIEffectivenessValidator
 
     def _register_testing_components(self) -> None:
         """Register testing methodology components."""
@@ -205,18 +189,10 @@ class ComponentRegistry:
                 ProperTestingMethodology,
             )
 
-            self.container.register_singleton(
-                IProperTestingMethodology, ProperTestingMethodology
-            )
-            self.container.register_singleton(
-                ProperTestingMethodology, ProperTestingMethodology
-            )
-            self._registered_components["IProperTestingMethodology"] = (
-                IProperTestingMethodology
-            )
-            self._registered_components["ProperTestingMethodology"] = (
-                ProperTestingMethodology
-            )
+            self.container.register_singleton(IProperTestingMethodology, ProperTestingMethodology)
+            self.container.register_singleton(ProperTestingMethodology, ProperTestingMethodology)
+            self._registered_components["IProperTestingMethodology"] = IProperTestingMethodology
+            self._registered_components["ProperTestingMethodology"] = ProperTestingMethodology
             self.logger.debug("✅ Testing components registered")
         except ImportError as e:
             self.logger.warning(f"⚠️ Could not register testing components: {e}")
@@ -225,9 +201,7 @@ class ComponentRegistry:
                 lambda container: MockProperTestingMethodology(),
                 ServiceLifetime.SINGLETON,
             )
-            self._registered_components["IProperTestingMethodology"] = (
-                IProperTestingMethodology
-            )
+            self._registered_components["IProperTestingMethodology"] = IProperTestingMethodology
 
     def _register_integration_components(self) -> None:
         """Register integration-related components."""
@@ -289,9 +263,7 @@ class ComponentRegistry:
                     engine.set_effectiveness_validator(effectiveness_validator)
                 return engine
             except Exception as e:
-                LOG.warning(
-                    f"Creating PacketProcessingEngine without DI dependencies: {e}"
-                )
+                LOG.warning(f"Creating PacketProcessingEngine without DI dependencies: {e}")
                 return PacketProcessingEngine()
 
         self.container.register_factory(
@@ -308,12 +280,8 @@ class ComponentRegistry:
         try:
             from ml.evolutionary_search import EvolutionarySearcher
 
-            self.container.register_singleton(
-                IEvolutionarySearcher, EvolutionarySearcher
-            )
-            self.container.register_singleton(
-                EvolutionarySearcher, EvolutionarySearcher
-            )
+            self.container.register_singleton(IEvolutionarySearcher, EvolutionarySearcher)
+            self.container.register_singleton(EvolutionarySearcher, EvolutionarySearcher)
             self._registered_components["IEvolutionarySearcher"] = IEvolutionarySearcher
             self._registered_components["EvolutionarySearcher"] = EvolutionarySearcher
             self.logger.debug("✅ ML components registered")
@@ -379,14 +347,10 @@ class ComponentRegistry:
                     validation_results["valid_components"] += 1
                 else:
                     validation_results["invalid_components"] += 1
-                    validation_results["validation_errors"].append(
-                        f"No service info for {name}"
-                    )
+                    validation_results["validation_errors"].append(f"No service info for {name}")
             except Exception as e:
                 validation_results["invalid_components"] += 1
-                validation_results["validation_errors"].append(
-                    f"Validation error for {name}: {e}"
-                )
+                validation_results["validation_errors"].append(f"Validation error for {name}: {e}")
         return validation_results
 
     def create_health_report(self) -> Dict[str, Any]:
@@ -472,9 +436,7 @@ class MockSegmentPerformanceOptimizer(ISegmentPerformanceOptimizer):
 class MockDPIEffectivenessValidator(IDPIEffectivenessValidator):
     """Mock implementation of IDPIEffectivenessValidator."""
 
-    def validate_attack_effectiveness(
-        self, attack_result: Any, baseline: Any
-    ) -> Dict[str, Any]:
+    def validate_attack_effectiveness(self, attack_result: Any, baseline: Any) -> Dict[str, Any]:
         """Mock validation."""
         return {"mock": True, "effectiveness_score": 0.5}
 
@@ -498,9 +460,7 @@ class MockProperTestingMethodology(IProperTestingMethodology):
 class MockAttackAdapter(IAttackAdapter):
     """Mock implementation of IAttackAdapter."""
 
-    def execute_attack_by_name(
-        self, attack_name: str, context: Any, params: Dict[str, Any]
-    ) -> Any:
+    def execute_attack_by_name(self, attack_name: str, context: Any, params: Dict[str, Any]) -> Any:
         """Mock attack execution."""
         return {"mock": True, "attack_name": attack_name, "status": "success"}
 

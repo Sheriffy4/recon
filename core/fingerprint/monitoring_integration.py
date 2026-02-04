@@ -189,9 +189,7 @@ class MonitoringIntegration:
         self.monitor.remove_target(domain, port)
         self.logger.info(f"Removed monitoring target: {domain}:{port}")
 
-    async def check_target_behavior(
-        self, domain: str, port: int = 443
-    ) -> Optional[DPIFingerprint]:
+    async def check_target_behavior(self, domain: str, port: int = 443) -> Optional[DPIFingerprint]:
         """
         Check behavior of specific target and return fingerprint
 
@@ -224,9 +222,7 @@ class MonitoringIntegration:
                 return DPIFingerprint.from_dict(target_status["current_fingerprint"])
             return None
         except Exception as e:
-            self.logger.error(
-                f"Error checking target behavior for {domain}:{port}: {e}"
-            )
+            self.logger.error(f"Error checking target behavior for {domain}:{port}: {e}")
             self.integration_stats["integration_errors"] += 1
             return None
 
@@ -243,9 +239,7 @@ class MonitoringIntegration:
             },
         }
 
-    def get_target_recommendations(
-        self, domain: str, port: int = 443
-    ) -> Dict[str, Any]:
+    def get_target_recommendations(self, domain: str, port: int = 443) -> Dict[str, Any]:
         """
         Get strategy recommendations for specific target
 
@@ -329,12 +323,8 @@ class MonitoringIntegration:
                     "integration": {
                         "handlers_registered": {
                             "alert_handlers": len(self.alert_handlers),
-                            "behavior_change_handlers": len(
-                                self.behavior_change_handlers
-                            ),
-                            "strategy_update_handlers": len(
-                                self.strategy_update_handlers
-                            ),
+                            "behavior_change_handlers": len(self.behavior_change_handlers),
+                            "strategy_update_handlers": len(self.strategy_update_handlers),
                         },
                         "stats": self.integration_stats.copy(),
                     },
@@ -416,9 +406,7 @@ def default_behavior_change_handler(
         )
     else:
         logger.info(f"🆕 New DPI target analyzed: {target}")
-        logger.info(
-            f"   DPI type: {new_fp.dpi_type.value} (confidence: {new_fp.confidence:.2f})"
-        )
+        logger.info(f"   DPI type: {new_fp.dpi_type.value} (confidence: {new_fp.confidence:.2f})")
 
 
 def default_strategy_update_handler(target: str, strategies: List[str]):

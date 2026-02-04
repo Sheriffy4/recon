@@ -120,9 +120,7 @@ class PlatformConfiguration:
 
     def get_subdomain_type(self, subdomain: str) -> SubdomainType:
         """Determine subdomain type based on patterns."""
-        sorted_patterns = sorted(
-            self.subdomain_patterns, key=lambda p: p.priority, reverse=True
-        )
+        sorted_patterns = sorted(self.subdomain_patterns, key=lambda p: p.priority, reverse=True)
         for pattern in sorted_patterns:
             if pattern.matches(subdomain):
                 return pattern.subdomain_type
@@ -146,9 +144,7 @@ class SubdomainStrategyHandler:
         self._initialize_platform_configs()
         self._load_configuration()
 
-    def get_strategy_for_subdomain(
-        self, domain: str, port: int = 443
-    ) -> Optional[BypassStrategy]:
+    def get_strategy_for_subdomain(self, domain: str, port: int = 443) -> Optional[BypassStrategy]:
         """
         Get the most appropriate strategy for a specific subdomain.
 
@@ -162,9 +158,7 @@ class SubdomainStrategyHandler:
         LOG.info(f"Getting strategy for subdomain: {domain}:{port}")
         if domain in self.subdomain_strategies:
             subdomain_strategy = self.subdomain_strategies[domain]
-            LOG.info(
-                f"Found specific strategy for {domain}: {subdomain_strategy.strategy.name}"
-            )
+            LOG.info(f"Found specific strategy for {domain}: {subdomain_strategy.strategy.name}")
             return subdomain_strategy.strategy
         platform = self._detect_platform(domain)
         subdomain_type = self._get_subdomain_type(domain, platform)
@@ -248,9 +242,7 @@ class SubdomainStrategyHandler:
         )
         return result
 
-    def auto_discover_subdomains(
-        self, base_domain: str, max_depth: int = 2
-    ) -> List[str]:
+    def auto_discover_subdomains(self, base_domain: str, max_depth: int = 2) -> List[str]:
         """
         Auto-discover subdomains for a base domain.
 
@@ -274,9 +266,7 @@ class SubdomainStrategyHandler:
         LOG.info(f"Auto-discovered {len(discovered)} subdomains for {base_domain}")
         return discovered
 
-    def get_subdomain_recommendations(
-        self, domain: str
-    ) -> List[Tuple[BypassStrategy, float]]:
+    def get_subdomain_recommendations(self, domain: str) -> List[Tuple[BypassStrategy, float]]:
         """
         Get strategy recommendations for a subdomain.
 
@@ -630,9 +620,7 @@ class SubdomainStrategyHandler:
                 "cdn_acceleration": True,
             },
         )
-        LOG.info(
-            "Initialized platform configurations for YouTube, Twitter, Instagram, and TikTok"
-        )
+        LOG.info("Initialized platform configurations for YouTube, Twitter, Instagram, and TikTok")
 
     def _detect_platform(self, domain: str) -> PlatformType:
         """Detect platform type from domain."""
@@ -669,9 +657,7 @@ class SubdomainStrategyHandler:
                 attacks=strategy.attacks.copy(),
                 parameters=strategy.parameters.copy(),
                 target_ports=(
-                    strategy.target_ports.copy()
-                    if hasattr(strategy, "target_ports")
-                    else [port]
+                    strategy.target_ports.copy() if hasattr(strategy, "target_ports") else [port]
                 ),
                 priority=strategy.priority if hasattr(strategy, "priority") else 1,
             )
@@ -765,9 +751,7 @@ class SubdomainStrategyHandler:
             if config_file.exists():
                 with open(config_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                for domain, strategy_data in data.get(
-                    "subdomain_strategies", {}
-                ).items():
+                for domain, strategy_data in data.get("subdomain_strategies", {}).items():
                     try:
                         strategy = BypassStrategy(
                             id=strategy_data["strategy"]["id"],
@@ -777,9 +761,7 @@ class SubdomainStrategyHandler:
                         )
                         subdomain_strategy = SubdomainStrategy(
                             subdomain=domain,
-                            subdomain_type=SubdomainType(
-                                strategy_data["subdomain_type"]
-                            ),
+                            subdomain_type=SubdomainType(strategy_data["subdomain_type"]),
                             platform=PlatformType(strategy_data["platform"]),
                             strategy=strategy,
                             success_rate=strategy_data.get("success_rate", 0.0),
@@ -825,9 +807,7 @@ class SubdomainStrategyHandler:
                     "notes": subdomain_strategy.notes,
                 }
                 if subdomain_strategy.last_tested:
-                    strategy_data["last_tested"] = (
-                        subdomain_strategy.last_tested.isoformat()
-                    )
+                    strategy_data["last_tested"] = subdomain_strategy.last_tested.isoformat()
                 data["subdomain_strategies"][domain] = strategy_data
             config_file = Path(self.config_path)
             config_file.parent.mkdir(parents=True, exist_ok=True)
@@ -847,13 +827,9 @@ class EnhancedPoolManager(StrategyPoolManager):
         super().__init__(config_path)
         self.subdomain_handler = SubdomainStrategyHandler(self)
 
-    def get_strategy_for_domain(
-        self, domain: str, port: int = 443
-    ) -> Optional[BypassStrategy]:
+    def get_strategy_for_domain(self, domain: str, port: int = 443) -> Optional[BypassStrategy]:
         """Enhanced domain strategy resolution with subdomain support."""
-        subdomain_strategy = self.subdomain_handler.get_strategy_for_subdomain(
-            domain, port
-        )
+        subdomain_strategy = self.subdomain_handler.get_strategy_for_subdomain(domain, port)
         if subdomain_strategy:
             return subdomain_strategy
         return super().get_strategy_for_domain(domain, port)
@@ -866,9 +842,7 @@ class EnhancedPoolManager(StrategyPoolManager):
         """Test subdomain strategy."""
         return self.subdomain_handler.test_subdomain_strategy(domain)
 
-    def get_subdomain_recommendations(
-        self, domain: str
-    ) -> List[Tuple[BypassStrategy, float]]:
+    def get_subdomain_recommendations(self, domain: str) -> List[Tuple[BypassStrategy, float]]:
         """Get subdomain strategy recommendations."""
         return self.subdomain_handler.get_subdomain_recommendations(domain)
 
@@ -908,8 +882,8 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
             "description": f"Test basic connectivity to {domain}",
             "ports": [80, 443],
             "timeout": 10,
-            "no_fallbacks": True, 
-            "forced": True
+            "no_fallbacks": True,
+            "forced": True,
         }
     )
     if platform == PlatformType.YOUTUBE:
@@ -920,8 +894,8 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
                     "description": "Test video streaming capability",
                     "test_urls": [f"https://{domain}/test_video"],
                     "expected_content_type": "video/*",
-                    "no_fallbacks": True, 
-                    "forced": True
+                    "no_fallbacks": True,
+                    "forced": True,
                 }
             )
     elif platform == PlatformType.TWITTER:
@@ -932,8 +906,8 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
                     "description": "Test image loading capability",
                     "test_urls": [f"https://{domain}/test_image.jpg"],
                     "expected_content_type": "image/*",
-                    "no_fallbacks": True, 
-                    "forced": True
+                    "no_fallbacks": True,
+                    "forced": True,
                 }
             )
     recommendations = handler.get_subdomain_recommendations(domain)
@@ -944,8 +918,8 @@ def suggest_subdomain_tests(domain: str) -> List[Dict[str, Any]]:
                 "description": f"Test {strategy.name} strategy",
                 "strategy": strategy,
                 "confidence": confidence,
-                "no_fallbacks": True, 
-                "forced": True
+                "no_fallbacks": True,
+                "forced": True,
             }
         )
     return tests

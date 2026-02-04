@@ -1,0 +1,280 @@
+[
+  {
+    "rule_id": "frag_vulnerable_001",
+    "name": "Fragmentation Vulnerable - Multisplit Priority",
+    "description": "If DPI is vulnerable to fragmentation, prioritize multisplit attacks",
+    "conditions": [
+      {
+        "field": "fragmentation_handling",
+        "condition": "equals",
+        "value": "vulnerable"
+      }
+    ],
+    "recommendations": [
+      "tcp_multisplit",
+      "tcp_multidisorder",
+      "ip_basic_fragmentation"
+    ],
+    "priority": 90,
+    "confidence_modifier": 1.2,
+    "enabled": true
+  },
+  {
+    "rule_id": "frag_filtered_001",
+    "name": "Fragmentation Filtered - Avoid Fragmentation",
+    "description": "If DPI filters fragmentation, avoid fragmentation-based attacks",
+    "conditions": [
+      {
+        "field": "fragmentation_handling",
+        "condition": "equals",
+        "value": "filtered"
+      }
+    ],
+    "recommendations": [
+      "tcp_fakeddisorder",
+      "payload_obfuscation",
+      "timing_manipulation"
+    ],
+    "priority": 85,
+    "confidence_modifier": 1.1,
+    "enabled": true
+  },
+  {
+    "rule_id": "checksum_bypass_001",
+    "name": "Bad Checksum Bypass",
+    "description": "If DPI doesn't validate checksums, use badsum fooling",
+    "conditions": [
+      {
+        "field": "checksum_validation",
+        "condition": "equals",
+        "value": false
+      }
+    ],
+    "recommendations": [
+      "badsum_fooling",
+      "tcp_fakeddisorder_badsum"
+    ],
+    "priority": 80,
+    "confidence_modifier": 1.15,
+    "enabled": true
+  },
+  {
+    "rule_id": "checksum_strict_001",
+    "name": "Strict Checksum Validation",
+    "description": "If DPI validates checksums strictly, avoid badsum attacks",
+    "conditions": [
+      {
+        "field": "checksum_validation",
+        "condition": "equals",
+        "value": true
+      }
+    ],
+    "recommendations": [
+      "tcp_multisplit",
+      "sequence_manipulation",
+      "timing_attacks"
+    ],
+    "priority": 75,
+    "confidence_modifier": 1.0,
+    "enabled": true
+  },
+  {
+    "rule_id": "stateful_dpi_001",
+    "name": "Stateful DPI Detection",
+    "description": "If DPI performs stateful inspection, use state confusion attacks",
+    "conditions": [
+      {
+        "field": "stateful_inspection",
+        "condition": "equals",
+        "value": true
+      }
+    ],
+    "recommendations": [
+      "tcp_seqovl",
+      "tcp_multidisorder",
+      "state_confusion_attacks"
+    ],
+    "priority": 85,
+    "confidence_modifier": 1.2,
+    "enabled": true
+  },
+  {
+    "rule_id": "ttl_sensitive_001",
+    "name": "TTL Sensitive DPI",
+    "description": "If DPI is sensitive to TTL, use low TTL attacks",
+    "conditions": [
+      {
+        "field": "ttl_sensitivity",
+        "condition": "equals",
+        "value": "high"
+      }
+    ],
+    "recommendations": [
+      "low_ttl_attacks",
+      "tcp_fakeddisorder_low_ttl"
+    ],
+    "priority": 70,
+    "confidence_modifier": 1.1,
+    "enabled": true
+  },
+  {
+    "rule_id": "tls_parser_weak_001",
+    "name": "Weak TLS Parser",
+    "description": "If DPI has weak TLS parsing, use TLS-specific attacks",
+    "conditions": [
+      {
+        "field": "tls_parser_quality",
+        "condition": "equals",
+        "value": "weak"
+      }
+    ],
+    "recommendations": [
+      "tls_record_split",
+      "client_hello_fragmentation",
+      "tls_extension_attacks"
+    ],
+    "priority": 80,
+    "confidence_modifier": 1.15,
+    "enabled": true
+  },
+  {
+    "rule_id": "http_filtering_001",
+    "name": "HTTP Content Filtering",
+    "description": "If DPI performs HTTP content filtering, use HTTP evasion",
+    "conditions": [
+      {
+        "field": "http_content_filtering",
+        "condition": "equals",
+        "value": true
+      }
+    ],
+    "recommendations": [
+      "http_header_manipulation",
+      "payload_encoding",
+      "http_tunneling"
+    ],
+    "priority": 75,
+    "confidence_modifier": 1.1,
+    "enabled": true
+  },
+  {
+    "rule_id": "roskomnadzor_001",
+    "name": "Roskomnadzor TSPU Specific",
+    "description": "Specific attacks for Roskomnadzor TSPU systems",
+    "conditions": [
+      {
+        "field": "dpi_type",
+        "condition": "equals",
+        "value": "roskomnadzor_tspu"
+      }
+    ],
+    "recommendations": [
+      "tcp_fakeddisorder",
+      "badsum_fooling",
+      "md5sig_fooling",
+      "low_ttl_attacks"
+    ],
+    "priority": 95,
+    "confidence_modifier": 1.3,
+    "enabled": true
+  },
+  {
+    "rule_id": "commercial_dpi_001",
+    "name": "Commercial DPI Systems",
+    "description": "Attacks effective against commercial DPI systems",
+    "conditions": [
+      {
+        "field": "dpi_type",
+        "condition": "equals",
+        "value": "commercial_dpi"
+      }
+    ],
+    "recommendations": [
+      "tcp_multisplit",
+      "advanced_fragmentation",
+      "timing_manipulation"
+    ],
+    "priority": 90,
+    "confidence_modifier": 1.2,
+    "enabled": true
+  },
+  {
+    "rule_id": "behavioral_analysis_001",
+    "name": "Behavioral Analysis Detection",
+    "description": "If DPI performs behavioral analysis, use pattern breaking",
+    "conditions": [
+      {
+        "field": "behavioral_analysis",
+        "condition": "equals",
+        "value": true
+      }
+    ],
+    "recommendations": [
+      "traffic_mimicry",
+      "pattern_randomization",
+      "multi_flow_correlation"
+    ],
+    "priority": 85,
+    "confidence_modifier": 1.1,
+    "enabled": true
+  },
+  {
+    "rule_id": "rate_limiting_001",
+    "name": "Rate Limiting Detection",
+    "description": "If rate limiting is detected, use distributed attacks",
+    "conditions": [
+      {
+        "field": "rate_limiting_detected",
+        "condition": "equals",
+        "value": true
+      }
+    ],
+    "recommendations": [
+      "distributed_attacks",
+      "timing_variation",
+      "connection_pooling"
+    ],
+    "priority": 70,
+    "confidence_modifier": 1.0,
+    "enabled": true
+  },
+  {
+    "rule_id": "fallback_001",
+    "name": "Generic Fallback",
+    "description": "Default recommendations when no specific patterns detected",
+    "conditions": [
+      {
+        "field": "confidence",
+        "condition": "less_than",
+        "value": 0.5
+      }
+    ],
+    "recommendations": [
+      "tcp_fakeddisorder",
+      "tcp_multisplit",
+      "basic_fragmentation"
+    ],
+    "priority": 30,
+    "confidence_modifier": 0.8,
+    "enabled": true
+  },
+  {
+    "rule_id": "high_confidence_001",
+    "name": "High Confidence Boost",
+    "description": "Boost recommendations when fingerprint confidence is high",
+    "conditions": [
+      {
+        "field": "confidence",
+        "condition": "greater_than",
+        "value": 0.8
+      }
+    ],
+    "recommendations": [
+      "advanced_attacks",
+      "multi_stage_attacks"
+    ],
+    "priority": 60,
+    "confidence_modifier": 1.3,
+    "enabled": true
+  }
+]

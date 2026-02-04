@@ -1,70 +1,100 @@
 # path: core/bypass/techniques/primitives.py
 # ULTIMATE CORRECTED VERSION - Best of both approaches
+# REFACTORED: Utilities extracted to primitives_utils.py (Step 1)
+# REFACTORED: Fooling methods deduplicated (Step 2)
+# REFACTORED: Payload generators extracted to payload_generators.py (Step 3)
+# REFACTORED: Factory methods extracted to attack_factories.py (Step 4)
+# REFACTORED: Core logic extracted to faked_disorder_core.py (Step 5)
+# REFACTORED: Advanced techniques extracted to advanced_techniques.py (Step 6)
 
 import struct
-import random
-import string
 import logging
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Any, Callable
+
+# Import utilities from new modules
+from .primitives_utils import (
+    gen_fake_sni,
+    split_payload,
+    create_segment_options,
+    normalize_positions,
+    handle_small_payload,
+    split_payload_with_pos,
+)
+from .payload_generators import PayloadGeneratorFactory
+from .attack_factories import FakedDisorderFactory
+from .faked_disorder_core import FakedDisorderCore, create_core_from_attack
+from .advanced_techniques import AdvancedTechniques
+from .bypass_helpers import (
+    log_attack_execution,
+    validate_payload_size,
+    create_fallback_segment,
+    validate_and_adjust_split_position,
+    build_segment_metadata,
+    calculate_fragment_delays,
+    optimize_fragment_positions,
+    create_fragment_list,
+)
 
 
-def _gen_fake_sni(original: Optional[str] = None, custom_sni: Optional[str] = None) -> str:
-    """
-    Generate fake SNI in zapret style.
-    
-    Args:
-        original: Original SNI (currently unused)
-        custom_sni: Custom SNI value to use instead of generating random
-        
-    Returns:
-        SNI value to use (custom if provided, otherwise random)
-    """
-    if custom_sni is not None:
-        return custom_sni
-    
-    label = "".join(
-        random.choices(string.ascii_lowercase + string.digits, k=random.randint(8, 14))
-    )
-    tld = random.choice(["edu", "com", "net", "org"])
-    return f"{label}.{tld}"
+# Backward compatibility: keep module-level function
+# Note: gen_fake_sni is now imported from primitives_utils
 
 
 class BypassTechniques:
     """
-    Библиотека примитивных техник обхода DPI в стиле zapret.
+    Library of primitive DPI bypass techniques in zapret style.
 
-    Основные принципы:
-    - Генерация "рецептов" - последовательностей TCP сегментов для отправки
-    - Каждый рецепт - список кортежей (данные, смещение, опции)
-    - Поддержка различных методов обмана DPI (fooling methods)
-    - Совместимость с zapret параметрами и логикой
+    This class provides low-level building blocks for DPI bypass attacks.
+    For high-level usage, prefer specialized attack classes like FakedDisorderAttack.
 
-    Типы атак:
-    1. Фейковые пакеты (fake*): Отправка ложных данных с низким TTL
-    2. Разделение (split/multisplit): Деление пакета на части
-    3. Изменение порядка (disorder): Отправка частей в неправильном порядке
-    4. Перекрытие (seqovl): Перекрытие TCP последовательностей
-    5. Race conditions: Гонка между фейковыми и реальными пакетами
+    Core Principles:
+    - Generates "recipes" - sequences of TCP segments to send
+    - Each recipe is a list of tuples: (data, seq_offset, options)
+    - Supports various DPI fooling methods
+    - Compatible with zapret parameters and logic
 
-    Методы обмана DPI:
-    - badsum: Неправильная TCP контрольная сумма
-    - badseq: Неправильный sequence number
+    Attack Types:
+    1. Fake packets (fake*): Send decoy data with low TTL
+    2. Splitting (split/multisplit): Divide packet into parts
+    3. Disorder: Send parts in wrong order
+    4. Sequence overlap (seqovl): Overlap TCP sequences
+    5. Race conditions: Race between fake and real packets
+
+    Fooling Methods:
+    - badsum: Incorrect TCP checksum
+    - badseq: Incorrect sequence number
     - md5sig: TCP MD5 signature option
-    - fakesni: Поддельное Server Name Indication
+    - fakesni: Fake Server Name Indication
 
-    Формат рецепта:
-    List[Tuple[bytes, int, Dict]] где:
-    - bytes: Данные сегмента
-    - int: Смещение в исходном payload (rel_seq)
-    - Dict: Опции сегмента (is_fake, ttl, tcp_flags, etc.)
+    Recipe Format:
+    List[Tuple[bytes, int, Dict]] where:
+    - bytes: Segment data
+    - int: Offset in original payload (rel_seq)
+    - Dict: Segment options (is_fake, ttl, tcp_flags, etc.)
+
+    Examples:
+        >>> # Simple disorder attack
+        >>> payload = b"GET / HTTP/1.1\\r\\nHost: example.com\\r\\n\\r\\n"
+        >>> recipe = BypassTechniques.apply_disorder(payload, split_pos=10)
+        >>> # Returns: [(part2, 10, opts), (part1, 0, opts)]
+
+        >>> # Fakeddisorder with custom TTL
+        >>> recipe = BypassTechniques.apply_fakeddisorder(
+        ...     payload, split_pos=20, fake_ttl=3, fooling_methods=["badsum"]
+        ... )
+        >>> # Returns: [(fake, 0, opts), (part2, 20, opts), (part1, 0, opts)]
+
+        >>> # For advanced usage, use FakedDisorderAttack class
+        >>> attack = FakedDisorderAttack.create_zapret_compatible()
+        >>> segments = attack.execute(payload)
 
     Note:
-        Это примитивная реализация для обратной совместимости.
-        Продвинутые атаки находятся в core/bypass/attacks/.
+        This is a primitive implementation for backward compatibility.
+        Advanced attacks are in core/bypass/attacks/.
     """
 
-    # Маркер версии для диагностики
-    API_VER = "primitives ULTIMATE-2025-10-17"
+    # API version marker for diagnostics
+    API_VER = "primitives ULTIMATE-2025-10-17-refactored"
 
     @staticmethod
     def _split_payload(
@@ -72,6 +102,9 @@ class BypassTechniques:
     ) -> Tuple[bytes, bytes]:
         """
         Shared payload splitting logic for all disorder family attacks.
+
+        REFACTORED: This is now a thin wrapper around primitives_utils.split_payload().
+        Kept for backward compatibility with existing code.
 
         This helper function provides consistent payload splitting with validation
         for disorder, disorder2, multidisorder, fakeddisorder, and related attacks.
@@ -95,49 +128,7 @@ class BypassTechniques:
             >>> part1  # b"Hello"
             >>> part2  # b" World"
         """
-        log = logging.getLogger("BypassTechniques")
-        payload_len = len(payload)
-
-        # Handle edge cases
-        if payload_len < 2:
-            if validate:
-                log.warning(
-                    f"Payload too small ({payload_len} bytes), returning as single part"
-                )
-                return payload, b""
-            else:
-                raise ValueError(
-                    f"Payload too small for splitting: {payload_len} bytes"
-                )
-
-        # Validate and adjust split position
-        if validate:
-            if split_pos <= 0:
-                log.warning(f"split_pos {split_pos} <= 0, adjusting to 1")
-                split_pos = 1
-            elif split_pos >= payload_len:
-                log.warning(
-                    f"split_pos {split_pos} >= payload size {payload_len}, adjusting to {
-                        payload_len - 1}"
-                )
-                split_pos = payload_len - 1
-        else:
-            if split_pos <= 0 or split_pos >= payload_len:
-                raise ValueError(
-                    f"Invalid split_pos {split_pos} for payload of length {payload_len}"
-                )
-
-        # Perform the split
-        part1 = payload[:split_pos]
-        part2 = payload[split_pos:]
-
-        log.debug(
-            f"Split payload: {payload_len}b → part1={
-                len(part1)}b, part2={
-                len(part2)}b at pos={split_pos}"
-        )
-
-        return part1, part2
+        return split_payload(payload, split_pos, validate)
 
     @staticmethod
     def _create_segment_options(
@@ -150,9 +141,12 @@ class BypassTechniques:
         tcp_options: Optional[bytes] = None,
         custom_sni: Optional[str] = None,
         **kwargs,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Shared segment options builder for all attacks.
+
+        REFACTORED: This is now a thin wrapper around primitives_utils.create_segment_options().
+        Kept for backward compatibility with existing code.
 
         This helper function provides consistent segment option creation
         with standardized fooling method handling across all attack types.
@@ -189,53 +183,34 @@ class BypassTechniques:
             ... )
             >>> opts["window_size_override"]  # 1
         """
-        # Start with base options
-        options = {"is_fake": is_fake, "tcp_flags": tcp_flags}
-
-        # Add TTL for fake segments
-        if is_fake and ttl is not None:
-            options["ttl"] = int(ttl)
-
-        # Add delay if specified
-        if delay_ms_after is not None:
-            options["delay_ms_after"] = int(delay_ms_after)
-
-        # Add window size override if specified
-        if window_size_override is not None:
-            options["window_size_override"] = int(window_size_override)
-
-        # Add TCP options if specified
-        if tcp_options is not None:
-            options["tcp_options"] = tcp_options
-
-        # Process fooling methods
-        if fooling_methods:
-            for method in fooling_methods:
-                if method == "badsum":
-                    options["corrupt_tcp_checksum"] = True
-                elif method == "badseq":
-                    # Use far-future sequence offset to avoid overlap with real packet
-                    # 0x10000000 (268,435,456 bytes) places fake packet far in future
-                    # This confuses DPI while remaining acceptable to legitimate servers
-                    options["seq_offset"] = 0x10000000
-                elif method == "md5sig":
-                    options["add_md5sig_option"] = True
-                elif method == "fakesni":
-                    # Use custom SNI if provided in kwargs, otherwise generate random
-                    custom_sni = kwargs.get("resolved_custom_sni")
-                    options["fooling_sni"] = _gen_fake_sni(custom_sni=custom_sni)
-
-        # Add any additional options
-        options.update(kwargs)
-
-        return options
+        opts = create_segment_options(
+            is_fake=is_fake,
+            ttl=ttl,
+            fooling_methods=fooling_methods,
+            tcp_flags=tcp_flags,
+            delay_ms_after=delay_ms_after,
+            window_size_override=window_size_override,
+            tcp_options=tcp_options,
+            custom_sni=custom_sni,
+            **kwargs,
+        )
+        # Back-compat + consistency:
+        # - many engines historically only looked at delay_ms
+        # - keep delay_ms_after for "after-send" semantics, but mirror to delay_ms if not provided
+        if isinstance(opts, dict) and "delay_ms_after" in opts and "delay_ms" not in opts:
+            try:
+                opts["delay_ms"] = float(opts.get("delay_ms_after") or 0.0)
+            except Exception:
+                opts["delay_ms"] = 0.0
+        return opts
 
     @staticmethod
-    def _normalize_positions(
-        positions: any, payload_len: int, validate: bool = True
-    ) -> List[int]:
+    def _normalize_positions(positions: Any, payload_len: int, validate: bool = True) -> List[int]:
         """
         Convert various position formats to List[int] and handle special values.
+
+        REFACTORED: This is now a thin wrapper around primitives_utils.normalize_positions().
+        Kept for backward compatibility with existing code.
 
         This helper function provides consistent position normalization
         for multisplit, multidisorder, and other position-based attacks.
@@ -270,84 +245,7 @@ class BypassTechniques:
             >>> # Mixed list
             >>> BypassTechniques._normalize_positions([1, "sni", 5], 100)  # [1, 5, 43]
         """
-        log = logging.getLogger("BypassTechniques")
-
-        # Handle None or empty input
-        if positions is None:
-            return []
-
-        # Convert to list if single value
-        if not isinstance(positions, (list, tuple)):
-            positions = [positions]
-
-        normalized = []
-
-        for pos in positions:
-            if isinstance(pos, int):
-                normalized.append(pos)
-            elif isinstance(pos, str):
-                # Handle special values
-                if pos == "sni":
-                    # TLS SNI extension typically starts at byte 43 in
-                    # ClientHello
-                    special_pos = 43
-                    if validate and special_pos >= payload_len:
-                        log.warning(
-                            f"SNI position {special_pos} >= payload length {payload_len}, using middle"
-                        )
-                        special_pos = payload_len // 2
-                    normalized.append(special_pos)
-                elif pos == "cipher":
-                    # TLS cipher suites typically start around byte 11 in
-                    # ClientHello
-                    special_pos = 11
-                    if validate and special_pos >= payload_len:
-                        log.warning(
-                            f"Cipher position {special_pos} >= payload length {payload_len}, using middle"
-                        )
-                        special_pos = payload_len // 2
-                    normalized.append(special_pos)
-                elif pos == "midsld":
-                    # Middle of payload
-                    special_pos = payload_len // 2
-                    normalized.append(special_pos)
-                else:
-                    log.warning(f"Unknown special position value: {pos}, ignoring")
-            else:
-                try:
-                    # Try to convert to int
-                    normalized.append(int(pos))
-                except (ValueError, TypeError):
-                    log.warning(f"Cannot convert position to int: {pos}, ignoring")
-
-        # Remove duplicates and sort
-        normalized = sorted(list(set(normalized)))
-
-        # Validate positions are within bounds
-        if validate:
-            valid_positions = []
-            for pos in normalized:
-                if pos <= 0:
-                    log.warning(f"Position {pos} <= 0, adjusting to 1")
-                    pos = 1
-                elif pos >= payload_len:
-                    log.warning(
-                        f"Position {pos} >= payload length {payload_len}, adjusting to {
-                            payload_len - 1}"
-                    )
-                    pos = payload_len - 1
-
-                # Only add if it's a valid split position
-                if 0 < pos < payload_len:
-                    valid_positions.append(pos)
-
-            normalized = sorted(list(set(valid_positions)))
-
-        log.debug(
-            f"Normalized positions: {positions} → {normalized} (payload_len={payload_len})"
-        )
-
-        return normalized
+        return normalize_positions(positions, payload_len, validate)
 
     @staticmethod
     def apply_fake_packet_race(
@@ -434,15 +332,12 @@ class BypassTechniques:
         """
         log = logging.getLogger("BypassTechniques")
 
-        if len(payload) < 2:
-            return [
-                (payload, 0, BypassTechniques._create_segment_options(is_fake=False))
-            ]
+        # Use helper for payload validation (Step 10: consolidate duplicate)
+        if not validate_payload_size(payload, min_size=2):
+            return create_fallback_segment(payload)
 
         # Use shared helper for payload splitting
-        part1, part2 = BypassTechniques._split_payload(
-            payload, split_pos, validate=True
-        )
+        part1, part2, sp = split_payload_with_pos(payload, split_pos, validate=True)
 
         # Use shared helper for segment options
         fool = fooling_methods if fooling_methods is not None else ["badsum"]
@@ -461,13 +356,13 @@ class BypassTechniques:
         log.info(
             f"✅ UNIFIED fakeddisorder: "
             f"fake_full_payload={len(fake_payload)}b@0 (ttl={fake_ttl}), "
-            f"real_part2={len(part2)}b@{split_pos}, "
+            f"real_part2={len(part2)}b@{sp}, "
             f"real_part1={len(part1)}b@0"
         )
 
         return [
             (fake_payload, 0, opts_fake),
-            (part2, split_pos, opts_real),
+            (part2, sp, opts_real),
             (part1, 0, opts_real),
         ]
 
@@ -480,7 +375,7 @@ class BypassTechniques:
         overlap_size: int,
         fake_ttl: int,
         fooling_methods: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ) -> List[Tuple[bytes, int, dict]]:
         """
         UPDATED Sequence Overlap (seqovl) attack - TCP sequence overlap with fixed calculation.
@@ -522,12 +417,27 @@ class BypassTechniques:
         """
         log = logging.getLogger("BypassTechniques")
 
-        if len(payload) < 2:
-            return [
-                (payload, 0, BypassTechniques._create_segment_options(is_fake=False))
-            ]
+        # Use helper for payload validation (Step 10: consolidate duplicate)
+        if not validate_payload_size(payload, min_size=2):
+            return create_fallback_segment(payload)
 
         # FIXED: Validate and adjust parameters with proper bounds checking
+        # Handle special string values that should have been resolved earlier
+        if isinstance(split_pos, str):
+            if split_pos.lower() == "random":
+                import random
+
+                split_pos = random.randint(1, max(1, len(payload) - 1))
+                log.warning(
+                    f"split_pos='random' was not resolved earlier, resolving now to {split_pos}"
+                )
+            else:
+                try:
+                    split_pos = int(split_pos)
+                except ValueError:
+                    log.warning(f"Invalid split_pos '{split_pos}', using default position")
+                    split_pos = len(payload) // 2
+
         sp = max(1, min(int(split_pos), len(payload) - 1))
 
         # FIXED: Validate overlap_size is reasonable and within bounds
@@ -582,44 +492,17 @@ class BypassTechniques:
         payload: bytes,
         positions: List[int],
         fooling: Optional[List[str]] = None,
-        fake_ttl: int = 1,
+        fake_ttl: int = 3,
     ) -> List[Tuple[bytes, int, dict]]:
         """
         UPDATED Multiple Disorder attack - optimized multi-fragment reordering.
-        
-        CRITICAL: This method is called with fooling parameter from attack handler.
 
-        Optimizations:
-        1. Uses shared helpers for consistent behavior
-        2. Optimized position generation for common cases
-        3. Enhanced fragment size validation
-        4. Improved performance for large payloads
+        REFACTORED: Uses bypass_helpers for common patterns (Step 7).
 
         "Maximum chaos" strategy:
         1. Small "poisoning" fake packet
-           - Contains only initial portion of data
-           - Size = minimum position from list
-           - Goal: make DPI think this is the complete packet
-
         2. Multiple real data fragmentation
-           - Payload split into fragments at positions
-           - Each fragment sent as separate TCP segment
-           - Positions automatically deduplicated and sorted
-
         3. Reverse order transmission (disorder)
-           - Fragments sent in reverse order
-           - Creates maximum confusion for DPI
-           - Server correctly reassembles using sequence numbers
-
-        OPTIMIZED position generation:
-        - Automatic position optimization for small payloads
-        - Fragment size validation (min 3 bytes per fragment)
-        - Intelligent fallback for edge cases
-
-        Advantages over simple disorder:
-        - More fragments = more DPI confusion
-        - Flexible position selection
-        - Effective against advanced DPI systems
 
         Args:
             payload: Original data to fragment and reorder
@@ -628,129 +511,79 @@ class BypassTechniques:
             fake_ttl: TTL for fake packet
 
         Returns:
-            Recipe with segments:
-            1. Small fake packet
-            2-N. Real fragments in reverse order
+            Recipe with segments: fake packet + real fragments in reverse order
         """
         log = logging.getLogger("BypassTechniques")
-        # CRITICAL: Handle fooling=None, fooling=[], fooling="none", and fooling=["none"]
-        import traceback
-        caller = traceback.extract_stack()[-2]
-        log.info(f"🔧 apply_multidisorder CALLED FROM: {caller.filename}:{caller.lineno} in {caller.name}")
-        log.info(f"🔧 apply_multidisorder: fooling INPUT={fooling}, type={type(fooling)}")
-        
+
+        # Validate payload size
+        if not validate_payload_size(payload, min_size=2):
+            return create_fallback_segment(payload)
+
+        # Normalize fooling methods
         if fooling is None:
-            fooling = ["badsum", "badseq"]  # Default fooling
-            log.info(f"🔧 apply_multidisorder: fooling was None, using default")
-        elif fooling == "none":
-            fooling = []  # No fooling - string "none"
-            log.info(f"🔧 apply_multidisorder: fooling='none' (string), disabling all fooling")
-        elif fooling == ["none"]:
-            fooling = []  # No fooling - list with "none"
-            log.info(f"🔧 apply_multidisorder: fooling=['none'] (list), disabling all fooling")
+            fooling = ["badsum", "badseq"]
+        elif fooling == "none" or fooling == ["none"]:
+            fooling = []
         elif isinstance(fooling, list) and "none" in fooling:
-            fooling = []  # No fooling - list containing "none"
-            log.info(f"🔧 apply_multidisorder: 'none' found in list, disabling all fooling")
+            fooling = []
         elif not isinstance(fooling, list):
             fooling = [fooling] if fooling else []
-            log.info(f"🔧 apply_multidisorder: converted to list: {fooling}")
-        
-        log.info(f"🔧 apply_multidisorder: fooling FINAL={fooling} (after normalization)")
 
-        # Use shared helper to normalize positions with optimization
+        log.debug(f"Fooling methods: {fooling}")
+
+        # Normalize and optimize positions
         normalized_positions = BypassTechniques._normalize_positions(
             positions, len(payload), validate=True
         )
-        
-        # CRITICAL DEBUG: Log normalized positions
-        log.info(f"🔍 apply_multidisorder: input_positions={positions}, normalized={normalized_positions}, payload_len={len(payload)}")
 
-        if not normalized_positions or len(payload) < 2:
-            log.warning(
-                "Multidisorder called with no valid positions, falling back to fakeddisorder."
-            )
+        if not normalized_positions:
+            log.warning("No valid positions, falling back to fakeddisorder")
             return BypassTechniques.apply_fakeddisorder(
                 payload, len(payload) // 2, fake_ttl, fooling
             )
 
-        # OPTIMIZATION: Filter positions to ensure reasonable fragment sizes
-        optimized_positions = []
-        min_fragment_size = 3  # Minimum bytes per fragment
+        # Optimize positions for reasonable fragment sizes
+        optimized_positions = optimize_fragment_positions(
+            normalized_positions, len(payload), min_fragment_size=3, max_fragments=8
+        )
 
-        for pos in sorted(normalized_positions):
-            if (
-                not optimized_positions
-                or pos - optimized_positions[-1] >= min_fragment_size
-            ):
-                optimized_positions.append(pos)
-
-        # Ensure we have at least one position
-        if not optimized_positions:
-            optimized_positions = [len(payload) // 2]
-            log.debug("No valid positions after optimization, using middle split")
-
-        # OPTIMIZATION: Limit number of fragments for performance
-        max_fragments = 8  # Reasonable limit for most cases
-        if len(optimized_positions) > max_fragments:
-            # Keep evenly distributed positions
-            step = len(optimized_positions) // max_fragments
-            optimized_positions = optimized_positions[::step][:max_fragments]
-            log.debug(f"Limited to {max_fragments} fragments for performance")
-
-        # 1. Create "poisoning" fake packet (optimized size)
-        fake_size = min(optimized_positions) if optimized_positions else 1
-        fake_size = max(1, min(fake_size, 64))  # Cap fake packet size
+        # Create fake packet
+        fake_size = max(1, min(min(optimized_positions), 64))
         fake_payload = payload[:fake_size]
 
-        # Use shared helper for segment options
         opts_fake = BypassTechniques._create_segment_options(
             is_fake=True,
             ttl=fake_ttl,
             fooling_methods=fooling,
-            delay_ms_after=2,  # Reduced delay for better performance
+            delay_ms_after=2,
         )
         segments = [(fake_payload, 0, opts_fake)]
 
-        # 2. OPTIMIZED: Create real fragments with validation
-        all_splits = sorted(list(set([0] + optimized_positions + [len(payload)])))
-        real_fragments = []
-        
-        # CRITICAL DEBUG: Log split points
-        log.info(f"🔍 Creating fragments: all_splits={all_splits}, payload_len={len(payload)}")
+        # Create real fragments
+        real_fragments = create_fragment_list(payload, optimized_positions)
 
-        for i in range(len(all_splits) - 1):
-            start, end = all_splits[i], all_splits[i + 1]
-            if start < end and end - start >= 1:  # Ensure non-empty fragments
-                fragment_data = payload[start:end]
-                real_fragments.append((fragment_data, start))
-                log.debug(f"🔍 Fragment {len(real_fragments)}: bytes[{start}:{end}] = {len(fragment_data)}b")
-        
-        log.info(f"🔍 Created {len(real_fragments)} real fragments from {len(all_splits)-1} split points")
-
-        # OPTIMIZATION: Skip multidisorder if we only have one fragment
         if len(real_fragments) <= 1:
-            log.warning(f"🔍 Only {len(real_fragments)} fragment(s) created from positions={optimized_positions}, all_splits={all_splits}, falling back to simple disorder")
+            log.warning("Only one fragment, falling back to simple disorder")
             return BypassTechniques.apply_disorder(payload, len(payload) // 2)
 
-        # 3. Add real fragments in REVERSE order with optimized timing
-        opts_real = BypassTechniques._create_segment_options(
-            is_fake=False, delay_ms_after=1  # Minimal delay between fragments
-        )
+        # Add fragments in reverse order
+        opts_real = BypassTechniques._create_segment_options(is_fake=False, delay_ms_after=1)
 
         for i, (data, offset) in enumerate(reversed(real_fragments)):
-            # Add metadata for debugging
             fragment_opts = opts_real.copy()
-            fragment_opts["fragment_index"] = len(real_fragments) - i - 1
-            fragment_opts["total_fragments"] = len(real_fragments)
-            fragment_opts["multidisorder_type"] = "optimized"
-
+            fragment_opts.update(
+                build_segment_metadata(
+                    len(real_fragments) - i - 1, len(real_fragments), "multidisorder_optimized"
+                )
+            )
             segments.append((data, offset, fragment_opts))
 
-        log.info(
-            f"✅ OPTIMIZED Multidisorder: "
-            f"fake_part={len(fake_payload)}b, "
-            f"{len(real_fragments)} fragments (positions={optimized_positions}), "
-            f"reverse_order=True"
+        log_attack_execution(
+            "Multidisorder",
+            len(payload),
+            segments,
+            positions=optimized_positions,
+            fragments=len(real_fragments),
         )
 
         return segments
@@ -762,40 +595,9 @@ class BypassTechniques:
         """
         UPDATED Multiple Split attack - optimized multi-fragment transmission.
 
-        Optimizations:
-        1. Uses shared helpers for consistent behavior
-        2. Optimized for single position case (most common)
-        3. Enhanced fragment validation and timing
-        4. Improved badsum race condition handling
+        REFACTORED: Uses bypass_helpers for common patterns (Step 7).
 
-        Clean fragmentation approach:
-        1. Split payload into fragments at specified positions
-        2. Send fragments in correct order (no disorder)
-        3. Each fragment as separate TCP segment with correct sequence number
-        4. Optional delays between segments for temporal separation
-
-        OPTIMIZED single position case:
-        - When only one position provided, uses simple two-segment split
-        - Reduced overhead and improved performance
-        - Maintains compatibility with existing code
-
-        Enhanced features:
-        - Automatic deduplication and sorting of positions
-        - Alternating TCP flags (ACK/PSH+ACK) for variety
-        - Optimized delays (1-5ms instead of 5-15ms)
-        - Enhanced "fragmented race" with badsum
-
-        Fragmented race (badsum):
-        - If fooling=["badsum"] specified
-        - First segment sent with incorrect checksum
-        - Creates race condition between corrupted and correct segments
-        - DPI may allow connection due to confusion
-
-        Differences from multidisorder:
-        - NO segment reordering
-        - NO fake packets
-        - Focus on temporal and structural separation
-        - Less aggressive approach, better compatibility
+        Clean fragmentation approach without disorder.
 
         Args:
             payload: Original data to fragment
@@ -807,15 +609,17 @@ class BypassTechniques:
         """
         log = logging.getLogger("BypassTechniques")
 
-        # Use shared helper to normalize positions with optimization
+        # Validate payload size
+        if not validate_payload_size(payload, min_size=2):
+            return create_fallback_segment(payload)
+
+        # Normalize positions
         normalized_positions = BypassTechniques._normalize_positions(
             positions, len(payload), validate=True
         )
 
         if not normalized_positions:
-            return [
-                (payload, 0, BypassTechniques._create_segment_options(is_fake=False))
-            ]
+            return create_fallback_segment(payload)
 
         fooling = fooling or []
 
@@ -824,84 +628,76 @@ class BypassTechniques:
             split_pos = normalized_positions[0]
             log.debug(f"Single position multisplit optimized: split_pos={split_pos}")
 
-            # Use shared helper for payload splitting
-            part1, part2 = BypassTechniques._split_payload(
-                payload, split_pos, validate=True
-            )
+            part1, part2, sp = split_payload_with_pos(payload, split_pos, validate=True)
 
-            # Create optimized two-segment split
             opts1 = BypassTechniques._create_segment_options(
-                is_fake=False,
-                tcp_flags=0x10,  # ACK only for first segment
-                delay_ms_after=1,  # Minimal delay
+                is_fake=False, tcp_flags=0x10, delay_ms_after=1
             )
-            opts2 = BypassTechniques._create_segment_options(
-                is_fake=False, tcp_flags=0x18  # PSH+ACK for second segment
-            )
+            opts2 = BypassTechniques._create_segment_options(is_fake=False, tcp_flags=0x18)
 
-            # Apply badsum to first segment if requested
+            segments = []
+
+            # Add fake packet if badsum requested
             if "badsum" in fooling:
-                opts1["corrupt_tcp_checksum"] = True
-                log.info("🔥 Single-position multisplit with badsum race enabled")
+                log.info("Adding FAKE packet with corrupted checksum before real segments")
+                fake_opts = BypassTechniques._create_segment_options(
+                    is_fake=True, tcp_flags=0x18, delay_ms_after=1
+                )
+                fake_opts["corrupt_tcp_checksum"] = True
+                fake_opts["ttl"] = 3
+                segments.append((part1, 0, fake_opts))
 
-            return [(part1, 0, opts1), (part2, split_pos, opts2)]
+            segments.extend([(part1, 0, opts1), (part2, sp, opts2)])
+            return segments
 
-        # OPTIMIZATION: Multi-position case with enhanced validation
-        flags_pattern = [0x10, 0x18]  # Alternate between ACK and PSH+ACK
+        # Multi-position case with enhanced validation
+        flags_pattern = [0x10, 0x18]
         segments = []
         all_positions = [0] + normalized_positions + [len(payload)]
 
         # Validate fragment sizes
-        min_fragment_size = 1
         valid_fragments = []
-
         for i in range(len(all_positions) - 1):
-            start_pos = all_positions[i]
-            end_pos = all_positions[i + 1]
-
-            if end_pos - start_pos >= min_fragment_size:
+            start_pos, end_pos = all_positions[i], all_positions[i + 1]
+            if end_pos - start_pos >= 1:
                 valid_fragments.append((start_pos, end_pos))
 
         if not valid_fragments:
             log.warning("No valid fragments after validation, using single segment")
-            return [
-                (payload, 0, BypassTechniques._create_segment_options(is_fake=False))
-            ]
+            return create_fallback_segment(payload)
 
         # Create segments with optimized timing
+        delays = calculate_fragment_delays(len(valid_fragments), base_delay_ms=1, max_delay_ms=5)
+
         for i, (start_pos, end_pos) in enumerate(valid_fragments):
             segment_data = payload[start_pos:end_pos]
             tcp_flags = flags_pattern[i % len(flags_pattern)]
 
-            # Build segment options using shared helper with optimized delays
             opts = BypassTechniques._create_segment_options(
-                is_fake=False, tcp_flags=tcp_flags
+                is_fake=False, tcp_flags=tcp_flags, delay_ms_after=delays[i]
             )
-
-            # OPTIMIZATION: Reduced delays for better performance (1-5ms
-            # instead of 5-15ms)
-            if i < len(valid_fragments) - 1:  # Not the last segment
-                opts["delay_ms_after"] = random.randint(1, 5)
-
-            # Add metadata for debugging
-            opts["fragment_index"] = i
-            opts["total_fragments"] = len(valid_fragments)
-            opts["multisplit_type"] = "optimized"
-
-            # Apply badsum to first segment if requested (enhanced race
-            # condition)
-            if i == 0 and "badsum" in fooling:
-                opts["corrupt_tcp_checksum"] = True
-                opts["badsum_race"] = True
-                log.info("🔥 Multi-position multisplit with badsum race enabled")
+            opts.update(build_segment_metadata(i, len(valid_fragments), "multisplit_optimized"))
 
             segments.append((segment_data, start_pos, opts))
 
-        log.info(
-            f"✅ OPTIMIZED Multisplit: "
-            f"{len(segments)} fragments, "
-            f"positions={normalized_positions}, "
-            f"badsum_race={'badsum' in fooling}"
+        # Add fake packet if badsum requested
+        if "badsum" in fooling and segments:
+            log.info("Adding FAKE packet with corrupted checksum before real segments")
+            first_segment_data = segments[0][0]
+            fake_opts = BypassTechniques._create_segment_options(
+                is_fake=True, tcp_flags=0x18, delay_ms_after=1
+            )
+            fake_opts["corrupt_tcp_checksum"] = True
+            fake_opts["ttl"] = 1
+            fake_opts["badsum_race"] = True
+            segments.insert(0, (first_segment_data, 0, fake_opts))
+
+        log_attack_execution(
+            "Multisplit",
+            len(payload),
+            segments,
+            positions=normalized_positions,
+            badsum_race="badsum" in fooling,
         )
 
         return segments
@@ -913,33 +709,9 @@ class BypassTechniques:
         """
         UPDATED Simple Disorder attack - reorder segments without fake packets.
 
-        Optimizations:
-        1. Uses shared helpers for consistent behavior
-        2. Optimized for common use cases (small payloads, typical split positions)
-        3. Enhanced validation and error handling
-        4. Improved logging for debugging
+        REFACTORED: Uses bypass_helpers for common patterns (Step 7).
 
-        Minimalist approach to DPI bypass:
-        1. Split payload into two parts at split_pos
-        2. Send part 2 (from split_pos to end) first
-        3. Send part 1 (from start to split_pos) second
-        4. Server reassembles correct order using sequence numbers
-
-        Differences from fakeddisorder:
-        - NO fake packet with low TTL
-        - Only real data in wrong order
-        - Less traffic, but may be less effective
-        - Suitable for simple DPI systems
-
-        TCP flags optimization:
-        - ack_first=False: First segment with PSH+ACK (0x18) - standard approach
-        - ack_first=True: First segment with ACK only (0x10) - for flag-sensitive DPI
-        - Second segment always PSH+ACK (0x18)
-
-        Common use cases:
-        - HTTP requests: split_pos=3-10 works well
-        - TLS ClientHello: split_pos=5-20 recommended
-        - Small payloads (<100 bytes): split_pos=payload_len//3
+        Minimalist approach: split payload and send in reverse order.
 
         Args:
             payload: Original data to split and reorder
@@ -951,97 +723,123 @@ class BypassTechniques:
         """
         log = logging.getLogger("BypassTechniques")
 
-        if len(payload) < 2:
-            return [
-                (payload, 0, BypassTechniques._create_segment_options(is_fake=False))
-            ]
+        # Validate payload size
+        if not validate_payload_size(payload, min_size=2):
+            return create_fallback_segment(payload)
 
-        # Use shared helper for payload splitting with validation
-        part1, part2 = BypassTechniques._split_payload(
-            payload, split_pos, validate=True
-        )
+        # Split payload
+        part1, part2, sp = split_payload_with_pos(payload, split_pos, validate=True)
 
-        # OPTIMIZATION: Skip disorder if one part is empty (edge case)
+        # Skip disorder if one part is empty
         if len(part1) == 0 or len(part2) == 0:
             log.warning(
-                f"Disorder skipped: one part empty (part1={
-                    len(part1)}, part2={
-                    len(part2)})"
+                f"Disorder skipped: one part empty (part1={len(part1)}, part2={len(part2)})"
             )
-            return [
-                (payload, 0, BypassTechniques._create_segment_options(is_fake=False))
-            ]
+            return create_fallback_segment(payload)
 
-        # OPTIMIZATION: For very small second parts, use different strategy
+        # Determine TCP flags
         if len(part2) < 3:
             log.debug(f"Small part2 ({len(part2)}b), using conservative flags")
             first_flags = 0x18  # Always use PSH+ACK for small parts
         else:
-            # Standard flag selection
-            first_flags = 0x10 if ack_first else 0x18  # ACK or PSH+ACK
+            first_flags = 0x10 if ack_first else 0x18
 
-        # Use shared helper for segment options with optimized timing
-        opts_real = BypassTechniques._create_segment_options(
-            is_fake=False, delay_ms_after=1  # Minimal delay for second segment
-        )
+        # Create segment options
         opts_first = BypassTechniques._create_segment_options(
-            is_fake=False,
-            tcp_flags=first_flags,
-            delay_ms_after=0,  # No delay for first segment
+            is_fake=False, tcp_flags=first_flags, delay_ms_after=0
         )
+        opts_first.update(build_segment_metadata(0, 2, "disorder", is_first_segment=True))
 
-        # OPTIMIZATION: Add metadata for debugging and monitoring
-        opts_first["disorder_type"] = "simple"
-        opts_first["is_first_segment"] = True
-        opts_real["disorder_type"] = "simple"
-        opts_real["is_second_segment"] = True
+        opts_second = BypassTechniques._create_segment_options(is_fake=False, delay_ms_after=1)
+        opts_second.update(build_segment_metadata(1, 2, "disorder", is_second_segment=True))
 
-        log.info(
-            f"✅ OPTIMIZED disorder: "
-            f"part2={len(part2)}b@{split_pos} (flags=0x{first_flags:02x}), "
-            f"part1={len(part1)}b@0 (ack_first={ack_first})"
+        log_attack_execution(
+            "Disorder",
+            len(payload),
+            [(part2, sp, opts_first), (part1, 0, opts_second)],
+            split_pos=split_pos,
+            ack_first=ack_first,
         )
 
         return [
-            (part2, split_pos, opts_first),
-            (part1, 0, opts_real),
+            (part2, sp, opts_first),
+            (part1, 0, opts_second),
         ]
 
     @staticmethod
     def apply_tlsrec_split(payload: bytes, split_pos: int = 5) -> bytes:
+        """
+        Split TLS record into two records at specified position.
+
+        This method splits a TLS record's content into two separate TLS records,
+        which can help bypass DPI systems that analyze TLS record boundaries.
+
+        Args:
+            payload: TLS record payload to split
+            split_pos: Position to split the record content (default: 5)
+
+        Returns:
+            Modified payload with split TLS records, or original payload if splitting fails
+
+        Note:
+            This method has robust error handling to ensure it never crashes,
+            returning the original payload if any error occurs during processing.
+        """
+        log = logging.getLogger("BypassTechniques")
+
         try:
+            # Validate payload size
             if not payload or len(payload) < 5:
-                return payload
-            if (
-                payload[0] != 0x16
-                or payload[1] != 0x03
-                or payload[2] not in (0x00, 0x01, 0x02, 0x03)
-            ):
+                log.debug("Payload too small for TLS record split")
                 return payload
 
+            # Validate TLS record header
+            if (
+                payload[0] != 0x16  # TLS Handshake
+                or payload[1] != 0x03  # TLS version major
+                or payload[2] not in (0x00, 0x01, 0x02, 0x03)  # TLS version minor
+            ):
+                log.debug("Not a valid TLS handshake record")
+                return payload
+
+            # Parse TLS record
             rec_len = int.from_bytes(payload[3:5], "big")
-            content = (
-                payload[5 : 5 + rec_len] if 5 + rec_len <= len(payload) else payload[5:]
-            )
+            content = payload[5 : 5 + rec_len] if 5 + rec_len <= len(payload) else payload[5:]
             tail = payload[5 + rec_len :] if 5 + rec_len <= len(payload) else b""
 
+            # Validate split position
             if split_pos < 1 or split_pos >= len(content):
+                log.debug(f"Invalid split position {split_pos} for content length {len(content)}")
                 return payload
 
+            # Split content
             part1, part2 = content[:split_pos], content[split_pos:]
             ver = payload[1:3]
 
+            # Create two TLS records
             rec1 = bytes([0x16]) + ver + len(part1).to_bytes(2, "big") + part1
             rec2 = bytes([0x16]) + ver + len(part2).to_bytes(2, "big") + part2
 
+            log.debug(
+                f"TLS record split: {len(payload)}b → {len(rec1)}b + {len(rec2)}b + {len(tail)}b"
+            )
             return rec1 + rec2 + tail
-        except Exception:
+
+        except (ValueError, IndexError, TypeError) as e:
+            # Specific exceptions for parsing/indexing errors
+            log.warning(f"TLS record split failed (parsing error): {e}")
+            return payload
+        except OverflowError as e:
+            # Handle integer overflow in to_bytes
+            log.warning(f"TLS record split failed (overflow): {e}")
+            return payload
+        except Exception as e:
+            # Catch-all for unexpected errors (should be rare)
+            log.error(f"Unexpected error in TLS record split: {type(e).__name__}: {e}")
             return payload
 
     @staticmethod
-    def apply_wssize_limit(
-        payload: bytes, window_size: int = 1
-    ) -> List[Tuple[bytes, int, dict]]:
+    def apply_wssize_limit(payload: bytes, window_size: int = 1) -> List[Tuple[bytes, int, dict]]:
         segments, pos = ([], 0)
         opts = {"is_fake": False, "tcp_flags": 0x18}
 
@@ -1054,95 +852,116 @@ class BypassTechniques:
         return segments
 
     @staticmethod
+    def _validate_promotion_inputs(
+        attack_name: str, new_handler: Callable[..., Any], reason: str, log: logging.Logger
+    ) -> bool:
+        """Validate promotion inputs. Returns True if valid."""
+        if not attack_name or not isinstance(attack_name, str):
+            log.error(f"Invalid attack_name: {attack_name}")
+            return False
+        if not callable(new_handler):
+            log.error(f"new_handler is not callable: {type(new_handler)}")
+            return False
+        if not reason or not isinstance(reason, str):
+            log.error(f"Invalid reason: {reason}")
+            return False
+        return True
+
+    @staticmethod
+    def _validate_performance_data(
+        performance_data: Optional[Dict[str, Any]], log: logging.Logger
+    ) -> Dict[str, Any]:
+        """Validate and normalize performance data."""
+        if not performance_data:
+            return {}
+        if not isinstance(performance_data, dict):
+            log.warning("performance_data should be a dictionary")
+            return {}
+
+        recommended_keys = ["improvement_percent", "test_cases", "success_rate"]
+        missing_keys = [k for k in recommended_keys if k not in performance_data]
+        if missing_keys:
+            log.warning(f"Missing recommended performance metrics: {missing_keys}")
+        return performance_data
+
+    @staticmethod
+    def _validate_handler_signature(new_handler: Callable[..., Any], log: logging.Logger) -> None:
+        """Validate new handler signature."""
+        import inspect
+
+        try:
+            sig = inspect.signature(new_handler)
+            param_names = list(sig.parameters.keys())
+            if not param_names:
+                log.warning("New handler has no parameters - may not be proper attack handler")
+            else:
+                log.debug(f"New handler signature: {param_names}")
+        except (ValueError, TypeError, AttributeError) as e:
+            log.warning(f"Could not inspect handler signature: {type(e).__name__}: {e}")
+
+    @staticmethod
+    def _log_promotion_success(
+        attack_name: str, reason: str, performance_data: Dict[str, Any], log: logging.Logger
+    ) -> None:
+        """Log successful promotion details."""
+        log.info(f"✅ Successfully promoted '{attack_name}' implementation")
+        log.info(f"   Reason: {reason}")
+        if performance_data:
+            if improvement := performance_data.get("improvement_percent"):
+                log.info(f"   Performance improvement: {improvement}%")
+            if success_rate := performance_data.get("success_rate"):
+                log.info("   New success rate: %.1f%%", float(success_rate) * 100.0)
+            if test_cases := performance_data.get("test_cases"):
+                log.info(f"   Tested on {test_cases} cases")
+
+    @staticmethod
     def promote_implementation(
         attack_name: str,
-        new_handler: callable,
+        new_handler: Callable[..., Any],
         reason: str,
-        performance_data: Optional[Dict[str, any]] = None,
+        performance_data: Optional[Dict[str, Any]] = None,
         require_confirmation: bool = True,
     ) -> bool:
         """
         Allows promoting a more advanced implementation from an external module
         to become the canonical handler for a core attack type.
 
+        REFACTORED: Extracted validation and logging to helper methods.
+
         This method integrates with the AttackRegistry promotion mechanism to
         replace existing attack implementations with more effective versions.
-        It should be used sparingly and only after thorough testing and
-        validation that the new implementation is more effective.
-
-        The promotion process:
-        1. Validates the attack exists in the registry
-        2. Validates the new handler is callable and properly structured
-        3. Optionally validates performance improvements
-        4. Creates comprehensive metadata for the new implementation
-        5. Uses the registry's promote_implementation method
-        6. Logs the promotion with detailed information
 
         Args:
             attack_name: Name of the attack to promote (e.g., "fakeddisorder", "seqovl")
-            new_handler: New handler function to use. Must have signature:
-                        handler(context: AttackContext) -> List[Tuple[bytes, int, Dict]]
-            reason: Justification for promotion (e.g., "30% better success rate on x.com")
-            performance_data: Optional performance metrics supporting the promotion.
-                            Should include keys like:
-                            - improvement_percent: float (e.g., 30.0 for 30% improvement)
-                            - test_cases: int (number of test cases used)
-                            - success_rate: float (0.0-1.0, new success rate)
-                            - baseline_time_ms: float (old execution time)
-                            - new_time_ms: float (new execution time)
-                            - tested_domains: List[str] (domains tested against)
+            new_handler: New handler function to use
+            reason: Justification for promotion
+            performance_data: Optional performance metrics (improvement_percent, test_cases, etc.)
             require_confirmation: Whether to require explicit confirmation for CORE attacks
 
         Returns:
             True if promotion successful, False otherwise
 
-        Raises:
-            ImportError: If AttackRegistry cannot be imported
-            ValueError: If attack_name is invalid or handler is not callable
-
         Examples:
-            # Promote a fakeddisorder implementation with performance data
-            success = BypassTechniques.promote_implementation(
-                "fakeddisorder",
-                my_improved_handler,
-                "Improved success rate on x.com from 85% to 95%",
-                {
-                    "improvement_percent": 11.8,
-                    "test_cases": 1000,
-                    "success_rate": 0.95,
-                    "baseline_time_ms": 1.2,
-                    "new_time_ms": 1.1,
-                    "tested_domains": ["x.com", "youtube.com", "facebook.com"]
-                }
-            )
-
-            # Simple promotion without performance data
-            success = BypassTechniques.promote_implementation(
-                "seqovl",
-                my_fixed_seqovl_handler,
-                "Fixed sequence overlap calculation bug"
-            )
+            >>> success = BypassTechniques.promote_implementation(
+            ...     "fakeddisorder",
+            ...     my_improved_handler,
+            ...     "Improved success rate on x.com from 85% to 95%",
+            ...     {"improvement_percent": 11.8, "test_cases": 1000}
+            ... )
         """
         log = logging.getLogger("BypassTechniques")
 
         # Validate inputs
-        if not attack_name or not isinstance(attack_name, str):
-            log.error(f"Invalid attack_name: {attack_name}")
+        if not BypassTechniques._validate_promotion_inputs(attack_name, new_handler, reason, log):
             return False
 
-        if not callable(new_handler):
-            log.error(f"new_handler is not callable: {type(new_handler)}")
-            return False
-
-        if not reason or not isinstance(reason, str):
-            log.error(f"Invalid reason: {reason}")
-            return False
+        # Validate performance data
+        performance_data = BypassTechniques._validate_performance_data(performance_data, log)
 
         try:
             # Import registry (lazy import to avoid circular dependencies)
             from ..attacks.attack_registry import get_attack_registry
-            from ..attacks.metadata import AttackMetadata, AttackCategories
-            from ..attacks.base import AttackContext
+            from ..attacks.metadata import AttackMetadata
 
             registry = get_attack_registry()
 
@@ -1152,33 +971,10 @@ class BypassTechniques:
                 log.error(f"Attack '{attack_name}' not found in registry")
                 return False
 
-            # Validate performance data if provided
-            if performance_data:
-                if not isinstance(performance_data, dict):
-                    log.warning("performance_data should be a dictionary")
-                    performance_data = {}
-                else:
-                    # Validate recommended metrics
-                    recommended_keys = [
-                        "improvement_percent",
-                        "test_cases",
-                        "success_rate",
-                    ]
-                    missing_keys = [
-                        k for k in recommended_keys if k not in performance_data
-                    ]
-                    if missing_keys:
-                        log.warning(
-                            f"Missing recommended performance metrics: {missing_keys}"
-                        )
-
             # Create enhanced metadata for the promoted implementation
-            # Preserve existing metadata but mark as promoted
             new_metadata = AttackMetadata(
-                name=f"{
-                    existing_metadata.name} (Promoted)",
-                description=f"{
-                    existing_metadata.description}\n\nPromoted implementation: {reason}",
+                name=f"{existing_metadata.name} (Promoted)",
+                description=f"{existing_metadata.description}\n\nPromoted: {reason}",
                 required_params=existing_metadata.required_params,
                 optional_params=existing_metadata.optional_params,
                 aliases=existing_metadata.aliases,
@@ -1186,21 +982,7 @@ class BypassTechniques:
             )
 
             # Validate the new handler signature
-            import inspect
-
-            try:
-                sig = inspect.signature(new_handler)
-                # Check if it looks like a proper attack handler
-                # Should accept context or similar parameters
-                param_names = list(sig.parameters.keys())
-                if not param_names:
-                    log.warning(
-                        "New handler has no parameters - this may not be a proper attack handler"
-                    )
-                else:
-                    log.debug(f"New handler signature: {param_names}")
-            except Exception as e:
-                log.warning(f"Could not inspect new handler signature: {e}")
+            BypassTechniques._validate_handler_signature(new_handler, log)
 
             # Attempt the promotion through the registry
             result = registry.promote_implementation(
@@ -1213,36 +995,15 @@ class BypassTechniques:
             )
 
             if result.success:
-                log.info(f"✅ Successfully promoted '{attack_name}' implementation")
-                log.info(f"   Reason: {reason}")
-                if performance_data:
-                    improvement = performance_data.get("improvement_percent")
-                    if improvement:
-                        log.info(f"   Performance improvement: {improvement}%")
-                    success_rate = performance_data.get("success_rate")
-                    if success_rate:
-                        log.info(
-                            f"   New success rate: {
-                                success_rate * 100:.1f}%"
-                        )
-                    test_cases = performance_data.get("test_cases")
-                    if test_cases:
-                        log.info(f"   Tested on {test_cases} cases")
-
+                BypassTechniques._log_promotion_success(attack_name, reason, performance_data, log)
                 # Log promotion history for audit trail
-                history = registry.get_promotion_history(attack_name)
-                if history:
+                if history := registry.get_promotion_history(attack_name):
                     log.debug(
-                        f"Promotion history for '{attack_name}': {
-                            len(history)} promotions"
+                        "Promotion history for '%s': %s promotions", attack_name, len(history)
                     )
-
                 return True
             else:
-                log.error(
-                    f"❌ Failed to promote '{attack_name}': {
-                        result.message}"
-                )
+                log.error("❌ Failed to promote '%s': %s", attack_name, result.message)
                 if result.conflicts:
                     for conflict in result.conflicts:
                         log.error(f"   Conflict: {conflict}")
@@ -1250,86 +1011,149 @@ class BypassTechniques:
 
         except ImportError as e:
             log.error(f"Failed to import AttackRegistry: {e}")
+            log.error("Make sure core.bypass.attacks.attack_registry is available")
+            return False
+        except AttributeError as e:
+            log.error(f"AttackRegistry API error: {e}")
+            log.error("Registry API may have changed - check compatibility")
             return False
         except Exception as e:
-            log.error(f"Unexpected error during promotion of '{attack_name}': {e}")
+            log.error(
+                f"Unexpected error during promotion of '{attack_name}': {type(e).__name__}: {e}"
+            )
+            log.exception("Full traceback:")
             return False
+
+    @staticmethod
+    def apply_checksum_fooling(packet_data: bytearray, checksum_value: int = 0xDEAD) -> bytearray:
+        """
+        Apply checksum fooling to packet data.
+
+        REFACTORED: Unified implementation replacing apply_badsum_fooling and apply_md5sig_fooling.
+
+        Args:
+            packet_data: Packet data to modify
+            checksum_value: Checksum value to use (default: 0xDEAD for badsum, 0xBEEF for md5sig)
+
+        Returns:
+            Modified packet data with corrupted checksum
+        """
+        ip_header_len = (packet_data[0] & 0x0F) * 4
+        tcp_checksum_pos = ip_header_len + 16
+        if len(packet_data) > tcp_checksum_pos + 1:
+            packet_data[tcp_checksum_pos : tcp_checksum_pos + 2] = struct.pack("!H", checksum_value)
+        return packet_data
 
     @staticmethod
     def apply_badsum_fooling(packet_data: bytearray) -> bytearray:
-        ip_header_len = (packet_data[0] & 0x0F) * 4
-        tcp_checksum_pos = ip_header_len + 16
-        if len(packet_data) > tcp_checksum_pos + 1:
-            packet_data[tcp_checksum_pos : tcp_checksum_pos + 2] = struct.pack(
-                "!H", 0xDEAD
-            )
-        return packet_data
+        """
+        Apply bad checksum fooling (0xDEAD).
+
+        DEPRECATED: This is now a thin wrapper around apply_checksum_fooling().
+        Kept for backward compatibility.
+        """
+        return BypassTechniques.apply_checksum_fooling(packet_data, checksum_value=0xDEAD)
 
     @staticmethod
     def apply_md5sig_fooling(packet_data: bytearray) -> bytearray:
-        ip_header_len = (packet_data[0] & 0x0F) * 4
-        tcp_checksum_pos = ip_header_len + 16
-        if len(packet_data) > tcp_checksum_pos + 1:
-            packet_data[tcp_checksum_pos : tcp_checksum_pos + 2] = struct.pack(
-                "!H", 0xBEEF
-            )
-        return packet_data
+        """
+        Apply MD5 signature fooling (0xBEEF).
+
+        DEPRECATED: This is now a thin wrapper around apply_checksum_fooling().
+        Kept for backward compatibility.
+        """
+        return BypassTechniques.apply_checksum_fooling(packet_data, checksum_value=0xBEEF)
 
 
 class FakedDisorderAttack:
     """
-    UNIFIED FakedDisorderAttack class combining best features from all variants.
+    Unified FakedDisorderAttack - the canonical fakeddisorder implementation.
 
-    This class consolidates the unique optimizations and features from:
-    1. fake_disorder_attack.py (Current/Fixed) - Special position handling, X.COM TTL fix
-    2. fake_disorder_attack_original.py (Comprehensive) - AutoTTL, multiple payloads, monitoring
-    3. fake_disorder_attack_fixed.py (Zapret-Compatible) - Zapret defaults, enhanced TLS
+    This class consolidates the best features from multiple variants:
+    - Zapret-compatible defaults and algorithm
+    - X.COM TTL fix for maximum effectiveness
+    - Special position resolution (sni, cipher, midsld)
+    - Multiple fake payload types (TLS, HTTP, QUIC, etc.)
+    - Repeats functionality for stubborn DPI
 
     Key Features:
-    - **Zapret-compatible defaults**: split_pos=76, split_seqovl=336, ttl=1
-    - **X.COM TTL fix**: Critical TTL limitation for fakeddisorder effectiveness
-    - **Special position support**: "sni", "cipher", "midsld" position resolution
-    - **Comprehensive AutoTTL**: Range testing with effectiveness evaluation
-    - **Multiple fake payloads**: TLS, HTTP, QUIC, WireGuard, DHT, and custom payloads
-    - **Advanced monitoring**: Attack result validation and bypass detection
-    - **Repeats functionality**: Multiple attack attempts with minimal delays
-    - **Enhanced error handling**: Robust validation and graceful degradation
+    - **Zapret defaults**: split_pos=76, split_seqovl=336, ttl=1
+    - **X.COM TTL fix**: TTL limited to 3 for effectiveness
+    - **Special positions**: "sni" (43), "cipher" (11), "midsld" (middle)
+    - **Fake payloads**: TLS, HTTP, QUIC, WireGuard, DHT, custom
+    - **Repeats**: Multiple attempts with minimal delays
 
-    This is the CANONICAL implementation that should be used instead of the
-    individual variant files. It provides the most effective and feature-complete
-    fakeddisorder implementation available.
+    Architecture:
+    - Lightweight facade pattern
+    - Core logic delegated to FakedDisorderCore
+    - Payload generation delegated to PayloadGeneratorFactory
+    - Maintains backward compatibility
+
+    Examples:
+        >>> # Zapret-compatible instance
+        >>> attack = FakedDisorderAttack.create_zapret_compatible()
+        >>> segments = attack.execute(tls_clienthello)
+        >>> # Returns: [(fake, 0, opts), (part2, seq, opts), (part1, 0, opts)]
+
+        >>> # X.COM optimized (with repeats=2)
+        >>> attack = FakedDisorderAttack.create_x_com_optimized()
+        >>> segments = attack.execute(tls_clienthello)
+        >>> # Returns 6 segments (3 original + 3 repeats)
+
+        >>> # Custom configuration
+        >>> attack = FakedDisorderAttack(
+        ...     split_pos="sni",
+        ...     ttl=2,
+        ...     fooling_methods=["badsum", "badseq"],
+        ...     fake_payload_type="PAYLOADTLS"
+        ... )
+        >>> segments = attack.execute(payload)
+
+    Factory Methods:
+    - create_zapret_compatible(): Exact zapret defaults
+    - create_x_com_optimized(): Tuned for X.COM (Twitter)
+    - create_instagram_optimized(): Tuned for Instagram
+
+    See Also:
+    - FakedDisorderCore: Core execution logic
+    - PayloadGeneratorFactory: Fake payload generation
+    - FakedDisorderFactory: Factory methods
     """
 
     def __init__(
         self,
-        split_pos: any = 76,  # Zapret default, supports int or special strings
-        split_seqovl: int = 336,  # Zapret default sequence overlap
-        ttl: int = 1,  # Zapret default TTL for fake packets
-        autottl: Optional[int] = None,  # AutoTTL range (1 to autottl)
-        repeats: int = 1,  # Number of attack attempts
-        fooling_methods: Optional[List[str]] = None,  # DPI fooling methods
-        fake_payload_type: str = "PAYLOADTLS",  # Type of fake payload
-        custom_fake_payload: Optional[bytes] = None,  # Custom fake payload
-        enable_monitoring: bool = False,  # Enable attack result monitoring
-        enable_injection: bool = False,  # Enable real packet injection
+        split_pos: Any = 76,
+        split_seqovl: int = 336,
+        ttl: int = 1,
+        autottl: Optional[int] = None,
+        repeats: int = 1,
+        fooling_methods: Optional[List[str]] = None,
+        fake_payload_type: str = "PAYLOADTLS",
+        custom_fake_payload: Optional[bytes] = None,
+        enable_monitoring: bool = False,
+        enable_injection: bool = False,
         **kwargs,
     ):
         """
-        Initialize unified FakedDisorderAttack with comprehensive configuration.
+        Initialize unified FakedDisorderAttack.
+
+        REFACTORED: Core logic delegated to FakedDisorderCore.
+        This class is now a lightweight facade for backward compatibility.
 
         Args:
-            split_pos: Split position for disorder (int or "sni"/"cipher"/"midsld")
-            split_seqovl: Sequence overlap size (zapret compatibility)
-            ttl: TTL for fake packets (will be limited by X.COM fix)
+            split_pos: Split position (int or "sni"/"cipher"/"midsld")
+            split_seqovl: Sequence overlap size (zapret: 336)
+            ttl: TTL for fake packets (zapret: 1)
             autottl: AutoTTL range testing (1 to autottl)
-            repeats: Number of attack attempts with minimal delays
+            repeats: Number of attack attempts
             fooling_methods: DPI fooling methods ["badsum", "badseq", "md5sig"]
-            fake_payload_type: Type of fake payload ("PAYLOADTLS", "HTTP", "QUIC", etc.)
+            fake_payload_type: Fake payload type ("PAYLOADTLS", "HTTP", "QUIC", etc.)
             custom_fake_payload: Custom fake payload bytes
-            enable_monitoring: Enable attack result monitoring and validation
-            enable_injection: Enable real packet injection with scapy
-            **kwargs: Additional parameters for compatibility
+            enable_monitoring: Enable monitoring (deprecated)
+            enable_injection: Enable injection (deprecated)
+            **kwargs: Additional parameters
         """
+        # Store configuration
         self.split_pos = split_pos
         self.split_seqovl = split_seqovl
         self.ttl = ttl
@@ -1340,78 +1164,26 @@ class FakedDisorderAttack:
         self.custom_fake_payload = custom_fake_payload
         self.enable_monitoring = enable_monitoring
         self.enable_injection = enable_injection
-
-        # Store additional parameters for compatibility
         self.kwargs = kwargs
 
-        # Initialize logger
+        # Initialize logger and core
         self.logger = logging.getLogger("FakedDisorderAttack")
+        self._core = create_core_from_attack(self)
+        self._core.validate_config()
 
-        # Validate configuration
-        self._validate_config()
+        # Log initialization
+        self.logger.info("🔧 Initialized FakedDisorderAttack")
+        self.logger.info(f"   pos={self.split_pos}, overlap={self.split_seqovl}, ttl={self.ttl}")
 
-        self.logger.info("🔧 Initialized UNIFIED FakedDisorderAttack")
-        self.logger.info(
-            f"   split_pos={
-                self.split_pos}, split_seqovl={
-                self.split_seqovl}"
-        )
-        self.logger.info(f"   ttl={self.ttl}, autottl={self.autottl}")
-        self.logger.info(
-            f"   fooling={
-                self.fooling_methods}, repeats={
-                self.repeats}"
-        )
+    def _validate_config(self) -> None:
+        """Validate configuration (delegates to core)."""
+        self._core.validate_config()
 
-    def _validate_config(self):
-        """Validate configuration parameters with comprehensive checks."""
-        # Validate split_seqovl
-        if not isinstance(self.split_seqovl, int) or self.split_seqovl < 0:
-            raise ValueError(
-                f"split_seqovl must be non-negative integer, got {self.split_seqovl}"
-            )
-
-        # Validate TTL range
-        if not isinstance(self.ttl, int) or self.ttl < 1 or self.ttl > 255:
-            raise ValueError(f"ttl must be between 1 and 255, got {self.ttl}")
-
-        # Validate autottl if specified
-        if self.autottl is not None:
-            if (
-                not isinstance(self.autottl, int)
-                or self.autottl < 1
-                or self.autottl > 10
-            ):
-                raise ValueError(
-                    f"autottl must be between 1 and 10, got {
-                        self.autottl}"
-                )
-
-        # Validate repeats
-        if not isinstance(self.repeats, int) or self.repeats < 1:
-            raise ValueError(f"repeats must be >= 1, got {self.repeats}")
-
-        # Validate fooling methods
-        valid_fooling = ["badseq", "badsum", "md5sig", "datanoack"]
-        for method in self.fooling_methods:
-            if method not in valid_fooling:
-                raise ValueError(
-                    f"Invalid fooling method: {method}. Valid: {valid_fooling}"
-                )
-
-    def execute(
-        self, payload: bytes, **context
-    ) -> List[Tuple[bytes, int, Dict[str, any]]]:
+    def execute(self, payload: bytes, **context: Any) -> List[Tuple[bytes, int, Dict[str, Any]]]:
         """
-        Execute unified fakeddisorder attack with all optimizations.
+        Execute fakeddisorder attack.
 
-        This method combines the best features from all variants:
-        1. Zapret-compatible core algorithm
-        2. X.COM TTL fix for maximum effectiveness
-        3. Special position resolution
-        4. Advanced fake payload generation
-        5. AutoTTL testing if enabled
-        6. Repeats functionality
+        REFACTORED: Delegates to FakedDisorderCore.
 
         Args:
             payload: Original packet data (usually TLS ClientHello)
@@ -1420,492 +1192,100 @@ class FakedDisorderAttack:
         Returns:
             List of segments: [(data, seq_offset, options), ...]
         """
-        try:
-            self.logger.info("🚀 Executing UNIFIED fakeddisorder attack")
-
-            if not payload:
-                raise ValueError("Empty payload provided")
-
-            # Step 1: Resolve split position (special position support from
-            # Current version)
-            resolved_split_pos = self._resolve_split_position(payload)
-
-            # Step 2: Generate fake payload (multiple types from Original
-            # version)
-            fake_payload = self._generate_fake_payload(payload, **context)
-
-            # Step 3: Calculate effective TTL (X.COM fix from Current version)
-            effective_ttl = self._calculate_effective_ttl()
-
-            # Step 4: Execute with AutoTTL if enabled (from Original version)
-            if self.autottl is not None and self.autottl > 1:
-                return self._execute_with_autottl(
-                    payload, fake_payload, resolved_split_pos, **context
-                )
-
-            # Step 5: Create segments using unified algorithm
-            segments = self._create_unified_segments(
-                payload, fake_payload, resolved_split_pos, effective_ttl
-            )
-
-            # Step 6: Apply repeats if configured (from Original version)
-            if self.repeats > 1:
-                segments = self._apply_repeats(segments)
-
-            # Step 7: Monitor results if enabled (from Original version)
-            if self.enable_monitoring:
-                self._monitor_attack_results(segments, **context)
-
-            self.logger.info(
-                f"✅ UNIFIED fakeddisorder: {
-                    len(segments)} segments generated"
-            )
-            return segments
-
-        except Exception as e:
-            self.logger.error(f"❌ UNIFIED fakeddisorder failed: {e}")
-            raise
+        return self._core.execute(
+            payload,
+            generate_fake_payload_func=self._generate_fake_payload,
+            create_segments_func=self._create_unified_segments,
+            apply_repeats_func=self._apply_repeats if self.repeats > 1 else None,
+            **context,
+        )
 
     def _resolve_split_position(self, payload: bytes) -> int:
-        """
-        Resolve split position with special value support (from Current version).
+        """Resolve split position (delegates to core)."""
+        return self._core.resolve_split_position(payload)
 
-        Special values:
-        - "sni": Position 43 (TLS SNI extension)
-        - "cipher": Position 11 (TLS cipher suites)
-        - "midsld": Middle of payload
-        - int: Direct position value
-        """
-        if isinstance(self.split_pos, str):
-            if self.split_pos == "sni":
-                # TLS SNI extension typically at position 43
-                pos = (
-                    min(43, len(payload) // 2)
-                    if len(payload) > 43
-                    else len(payload) // 2
-                )
-                self.logger.debug(f"🔍 SNI split position: {pos}")
-                return pos
-            elif self.split_pos == "cipher":
-                # TLS cipher suites typically at position 11
-                pos = (
-                    min(11, len(payload) // 2)
-                    if len(payload) > 11
-                    else len(payload) // 2
-                )
-                self.logger.debug(f"🔍 Cipher split position: {pos}")
-                return pos
-            elif self.split_pos == "midsld":
-                # Middle of payload
-                pos = len(payload) // 2
-                self.logger.debug(f"🔍 Mid-SLD split position: {pos}")
-                return pos
-            else:
-                self.logger.warning(
-                    f"⚠️ Unknown special position '{
-                        self.split_pos}', using middle"
-                )
-                return len(payload) // 2
-        else:
-            # Numeric position with validation
-            pos = int(self.split_pos)
-            if pos >= len(payload):
-                pos = len(payload) // 2
-                self.logger.warning(
-                    f"⚠️ Split position {
-                        self.split_pos} >= payload length, using {pos}"
-                )
-            return max(1, pos)
+    def _generate_fake_payload(self, original_payload: bytes, **context: Any) -> bytes:
+        """Generate fake payload (delegates to PayloadGeneratorFactory)."""
+        return PayloadGeneratorFactory.generate(
+            payload_type=self.fake_payload_type,
+            original_payload=original_payload,
+            custom_payload=self.custom_fake_payload,
+            **context,
+        )
 
     def _calculate_effective_ttl(self) -> int:
-        """
-        Calculate effective TTL with X.COM fix (CRITICAL from Current version).
+        """Calculate effective TTL (delegates to core)."""
+        return self._core.calculate_effective_ttl()
 
-        This is the CRITICAL optimization that makes fakeddisorder work on x.com.
-        The TTL must be limited to 3 or lower for maximum effectiveness.
-        """
-        if self.autottl is not None and self.autottl > 1:
-            # For AutoTTL, use effective range
-            effective_ttl = min(3, self.autottl)
-            self.logger.debug(
-                f"🔢 AutoTTL effective: {effective_ttl} from range 1-{self.autottl}"
-            )
-            return effective_ttl
-        else:
-            # CRITICAL X.COM FIX: Force TTL limitation for fakeddisorder
-            effective_ttl = min(3, self.ttl)
-            if effective_ttl != self.ttl:
-                self.logger.info(
-                    f"🔧 X.COM TTL fix: limited {
-                        self.ttl} → {effective_ttl}"
-                )
-            return effective_ttl
-
-    def _generate_fake_payload(self, original_payload: bytes, **context) -> bytes:
-        """
-        Generate fake payload with multiple type support (from Original version).
-
-        Supports comprehensive fake payload types:
-        - PAYLOADTLS: Enhanced TLS ClientHello
-        - HTTP: HTTP request with random elements
-        - QUIC: QUIC Initial packet
-        - WIREGUARD: WireGuard handshake
-        - DHT: BitTorrent DHT packet
-        - Custom: User-provided payload
-        """
-        if self.custom_fake_payload:
-            self.logger.debug("Using custom fake payload")
-            return self.custom_fake_payload
-
-        payload_type = self.fake_payload_type.upper()
-
-        if payload_type == "PAYLOADTLS" or payload_type == "TLS":
-            return self._generate_enhanced_tls_payload()
-        elif payload_type == "HTTP":
-            return self._generate_enhanced_http_payload()
-        elif payload_type == "QUIC":
-            return self._generate_quic_payload()
-        elif payload_type == "WIREGUARD":
-            return self._generate_wireguard_payload()
-        elif payload_type == "DHT":
-            return self._generate_dht_payload()
-        else:
-            # Auto-detect or default to TLS
-            if self._detect_tls(original_payload):
-                return self._generate_enhanced_tls_payload()
-            elif self._detect_http(original_payload):
-                return self._generate_enhanced_http_payload()
-            else:
-                return self._generate_enhanced_tls_payload()  # Default
-
+    # === DEPRECATED WRAPPER METHODS (one-liners for backward compatibility) ===
     def _generate_enhanced_tls_payload(self) -> bytes:
-        """Generate enhanced TLS ClientHello (from Fixed version)."""
-        # Enhanced TLS ClientHello with proper structure
-        tls_version = b"\x03\x03"  # TLS 1.2
-        random_bytes = bytes([random.randint(0, 255) for _ in range(32)])
-        session_id_len = b"\x00"  # No session ID
-
-        # Cipher suites (zapret-compatible)
-        cipher_suites = b"\x00\x2c"  # Length
-        cipher_suites += b"\x13\x01"  # TLS_AES_128_GCM_SHA256
-        cipher_suites += b"\x13\x02"  # TLS_AES_256_GCM_SHA384
-        cipher_suites += b"\xc0\x2f"  # TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-        cipher_suites += b"\xc0\x30"  # TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-        cipher_suites += b"\x00\x9e"  # TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-        cipher_suites += b"\x00\x9f"  # TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
-        cipher_suites += b"\xc0\x13"  # TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-        cipher_suites += b"\xc0\x14"  # TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-        cipher_suites += b"\x00\x33"  # TLS_DHE_RSA_WITH_AES_128_CBC_SHA
-        cipher_suites += b"\x00\x39"  # TLS_DHE_RSA_WITH_AES_256_CBC_SHA
-        cipher_suites += b"\x00\x2f"  # TLS_RSA_WITH_AES_128_CBC_SHA
-        cipher_suites += b"\x00\x35"  # TLS_RSA_WITH_AES_256_CBC_SHA
-
-        compression_methods = b"\x01\x00"  # No compression
-
-        # Extensions (critical for DPI bypass)
-        extensions = b""
-
-        # SNI extension
-        sni_ext = b"\x00\x00"  # Extension type: server_name
-        sni_data = b"\x00\x0e"  # Extension length
-        sni_data += b"\x00\x0c"  # Server name list length
-        sni_data += b"\x00"  # Name type: host_name
-        sni_data += b"\x00\x09"  # Name length
-        sni_data += b"google.com"  # Fake hostname
-        extensions += sni_ext + sni_data
-
-        # Supported Groups
-        groups_ext = b"\x00\x0a"  # Extension type
-        groups_data = b"\x00\x08"  # Extension length
-        groups_data += b"\x00\x06"  # Groups length
-        groups_data += b"\x00\x17"  # secp256r1
-        groups_data += b"\x00\x18"  # secp384r1
-        groups_data += b"\x00\x19"  # secp521r1
-        extensions += groups_ext + groups_data
-
-        # EC Point Formats
-        ec_ext = b"\x00\x0b"  # Extension type
-        ec_data = b"\x00\x02"  # Extension length
-        ec_data += b"\x01\x00"  # Uncompressed format
-        extensions += ec_ext + ec_data
-
-        extensions_len = len(extensions).to_bytes(2, "big")
-
-        # Assemble ClientHello
-        client_hello = tls_version + random_bytes + session_id_len
-        client_hello += (
-            cipher_suites + compression_methods + extensions_len + extensions
-        )
-
-        # Handshake header
-        handshake_type = b"\x01"  # ClientHello
-        handshake_len = len(client_hello).to_bytes(3, "big")
-        handshake = handshake_type + handshake_len + client_hello
-
-        # TLS Record header
-        record_type = b"\x16"  # Handshake
-        record_version = b"\x03\x01"  # TLS 1.0
-        record_len = len(handshake).to_bytes(2, "big")
-
-        return record_type + record_version + record_len + handshake
+        return PayloadGeneratorFactory.generate_enhanced_tls_payload()
 
     def _generate_enhanced_http_payload(self) -> bytes:
-        """Generate enhanced HTTP payload with randomization."""
-        methods = ["GET", "POST", "HEAD"]
-        paths = ["/", "/index.html", "/favicon.ico", "/robots.txt"]
-
-        method = random.choice(methods)
-        path = random.choice(paths)
-
-        http_request = (
-            f"{method} {path} HTTP/1.1\r\n"
-            f"Host: example{random.randint(1, 999)}.com\r\n"
-            "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n"
-            "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
-            "Accept-Language: en-US,en;q=0.5\r\n"
-            "Accept-Encoding: gzip, deflate\r\n"
-            "Connection: keep-alive\r\n"
-            "\r\n"
-        )
-        return http_request.encode("utf-8")
+        return PayloadGeneratorFactory.generate_enhanced_http_payload()
 
     def _generate_quic_payload(self) -> bytes:
-        """Generate QUIC Initial packet payload."""
-        quic_packet = bytearray()
-
-        # Header Form + Fixed Bit + Packet Type + Reserved + Packet Number
-        # Length
-        header_byte = 0b11000000  # Long header, Initial packet
-        quic_packet.append(header_byte)
-
-        # Version - QUIC v1
-        quic_packet.extend(b"\x00\x00\x00\x01")
-
-        # Connection IDs
-        dcid_len = 8
-        quic_packet.append(dcid_len)
-        quic_packet.extend(bytes([random.randint(0, 255) for _ in range(dcid_len)]))
-
-        scid_len = 8
-        quic_packet.append(scid_len)
-        quic_packet.extend(bytes([random.randint(0, 255) for _ in range(scid_len)]))
-
-        # Token Length and Length
-        quic_packet.append(0)  # No token
-        quic_packet.extend(b"\x40\x40")  # Length ~64
-
-        # Packet Number and Payload
-        quic_packet.append(0x01)
-        payload = bytes([random.randint(0, 255) for _ in range(63)])
-        quic_packet.extend(payload)
-
-        return bytes(quic_packet)
+        return PayloadGeneratorFactory.generate_quic_payload()
 
     def _generate_wireguard_payload(self) -> bytes:
-        """Generate WireGuard handshake payload."""
-        wg_packet = bytearray()
-
-        # Message Type - Handshake Initiation
-        wg_packet.append(1)
-        wg_packet.extend(b"\x00\x00\x00")  # Reserved
-
-        # Sender Index
-        sender_index = random.randint(0, 0xFFFFFFFF)
-        wg_packet.extend(sender_index.to_bytes(4, "little"))
-
-        # Ephemeral, Static, Timestamp (with random data)
-        wg_packet.extend(
-            bytes([random.randint(0, 255) for _ in range(32)])
-        )  # Ephemeral
-        wg_packet.extend(bytes([random.randint(0, 255) for _ in range(48)]))  # Static
-        wg_packet.extend(
-            bytes([random.randint(0, 255) for _ in range(28)])
-        )  # Timestamp
-
-        # MAC1 and MAC2
-        wg_packet.extend(bytes([random.randint(0, 255) for _ in range(16)]))  # MAC1
-        wg_packet.extend(bytes([random.randint(0, 255) for _ in range(16)]))  # MAC2
-
-        return bytes(wg_packet)
+        return PayloadGeneratorFactory.generate_wireguard_payload()
 
     def _generate_dht_payload(self) -> bytes:
-        """Generate BitTorrent DHT payload."""
-        dht_packet = bytearray()
-
-        # Transaction ID
-        transaction_id = random.randint(0, 0xFFFF)
-        dht_packet.extend(transaction_id.to_bytes(2, "big"))
-
-        # Bencode DHT ping query
-        node_id = bytes([random.randint(0, 255) for _ in range(20)])
-        query = f"d1:ad2:id20:{
-            node_id.decode('latin1')}e1:q4:ping1:t2:aa1:y1:qe"
-        dht_packet.extend(query.encode("latin1"))
-
-        return bytes(dht_packet)
+        return PayloadGeneratorFactory.generate_dht_payload()
 
     def _detect_tls(self, payload: bytes) -> bool:
-        """Detect if payload is TLS."""
-        return len(payload) > 5 and payload[0] == 0x16 and payload[1] == 0x03
+        return PayloadGeneratorFactory.detect_tls(payload)
 
     def _detect_http(self, payload: bytes) -> bool:
-        """Detect if payload is HTTP."""
-        return payload.startswith(b"GET ") or payload.startswith(b"POST ")
+        return PayloadGeneratorFactory.detect_http(payload)
 
     def _create_unified_segments(
         self, payload: bytes, fake_payload: bytes, split_pos: int, ttl: int
-    ) -> List[Tuple[bytes, int, Dict[str, any]]]:
-        """
-        Create segments using unified algorithm combining all optimizations.
-
-        This combines:
-        1. Zapret-compatible core logic (from Fixed version)
-        2. Proper sequence overlap handling (from all versions)
-        3. Optimized segment options (using shared helpers)
-        """
+    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+        """Create segments with zapret-compatible algorithm."""
         segments = []
+        part1, part2, sp = split_payload_with_pos(payload, split_pos, validate=True)
 
-        # Split real payload
-        part1, part2 = BypassTechniques._split_payload(
-            payload, split_pos, validate=True
+        # Fake packet
+        fake_opts = BypassTechniques._create_segment_options(
+            is_fake=True, ttl=ttl, fooling_methods=self.fooling_methods, delay_ms_after=0
         )
+        segments.append((fake_payload, 0, fake_opts))
 
-        # Create fake packet with optimized options
-        fake_options = BypassTechniques._create_segment_options(
-            is_fake=True,
-            ttl=ttl,
-            fooling_methods=self.fooling_methods,
-            delay_ms_after=0,  # No delay for fake packet
-        )
-        segments.append((fake_payload, 0, fake_options))
-
-        # Handle sequence overlap if configured
+        # Real segments with optional overlap
         if self.split_seqovl > 0 and len(part1) > 0 and len(part2) > 0:
-            # Zapret sequence overlap logic
-            actual_overlap = min(self.split_seqovl, len(part1), len(part2))
-            overlap_start_seq = split_pos - actual_overlap
+            overlap = min(self.split_seqovl, len(part1), len(part2))
+            overlap_seq = sp - overlap
+            self.logger.debug(f"🔄 Overlap: {overlap}b @ {overlap_seq}")
 
-            self.logger.debug(
-                f"🔄 Sequence overlap: size={actual_overlap}, start={overlap_start_seq}"
-            )
-
-            # Part2 with overlap (first real segment)
-            part2_options = BypassTechniques._create_segment_options(
-                is_fake=False, delay_ms_after=1  # Minimal delay
-            )
-            segments.append((part2, overlap_start_seq, part2_options))
-
-            # Part1 (second real segment, creates disorder)
-            part1_options = BypassTechniques._create_segment_options(
-                is_fake=False, delay_ms_after=0
-            )
-            segments.append((part1, 0, part1_options))
+            part2_opts = BypassTechniques._create_segment_options(is_fake=False, delay_ms_after=1)
+            part1_opts = BypassTechniques._create_segment_options(is_fake=False, delay_ms_after=0)
+            segments.extend([(part2, overlap_seq, part2_opts), (part1, 0, part1_opts)])
         else:
-            # Simple disorder without overlap
-            part2_options = BypassTechniques._create_segment_options(
-                is_fake=False, delay_ms_after=1
-            )
-            segments.append((part2, split_pos, part2_options))
-
-            part1_options = BypassTechniques._create_segment_options(is_fake=False)
-            segments.append((part1, 0, part1_options))
+            part2_opts = BypassTechniques._create_segment_options(is_fake=False, delay_ms_after=1)
+            part1_opts = BypassTechniques._create_segment_options(is_fake=False)
+            segments.extend([(part2, sp, part2_opts), (part1, 0, part1_opts)])
 
         return segments
 
-    def _execute_with_autottl(
-        self, payload: bytes, fake_payload: bytes, split_pos: int, **context
-    ) -> List[Tuple[bytes, int, Dict[str, any]]]:
-        """
-        Execute with comprehensive AutoTTL testing (from Original version).
-
-        Tests TTL values from 1 to autottl, evaluates effectiveness,
-        and stops on first highly effective TTL or when range is exhausted.
-        """
-        self.logger.info(f"🔢 AutoTTL testing: range 1-{self.autottl}")
-
-        best_segments = None
-        best_ttl = self.ttl
-        best_effectiveness = 0.0
-
-        for ttl in range(1, self.autottl + 1):
-            self.logger.debug(f"Testing TTL={ttl}/{self.autottl}")
-
-            # Create segments with specific TTL
-            test_segments = self._create_unified_segments(
-                payload, fake_payload, split_pos, ttl
-            )
-
-            # Evaluate effectiveness (simplified for now)
-            effectiveness = self._evaluate_ttl_effectiveness(ttl, test_segments)
-
-            if effectiveness > best_effectiveness:
-                best_segments = test_segments
-                best_ttl = ttl
-                best_effectiveness = effectiveness
-
-                # Stop on highly effective TTL
-                if effectiveness >= 0.9:
-                    self.logger.info(
-                        f"AutoTTL: Found highly effective TTL={ttl}, stopping"
-                    )
-                    break
-
-        self.logger.info(
-            f"AutoTTL complete: best TTL={best_ttl} (effectiveness={
-                best_effectiveness:.1%})"
-        )
-        return best_segments or self._create_unified_segments(
-            payload, fake_payload, split_pos, self.ttl
-        )
-
-    def _evaluate_ttl_effectiveness(self, ttl: int, segments: List) -> float:
-        """Evaluate TTL effectiveness (simplified scoring)."""
-        # Lower TTL values are generally more effective for fakeddisorder
-        base_effectiveness = 0.8 if ttl <= 3 else 0.6 if ttl <= 6 else 0.4
-
-        # Bonus for optimal TTL range
-        ttl_bonus = max(0.0, (10 - ttl) / 10 * 0.2)
-
-        return min(1.0, base_effectiveness + ttl_bonus)
-
     def _apply_repeats(
-        self, segments: List[Tuple[bytes, int, Dict[str, any]]]
-    ) -> List[Tuple[bytes, int, Dict[str, any]]]:
-        """Apply repeats functionality with minimal delays (from Original version)."""
+        self, segments: List[Tuple[bytes, int, Dict[str, Any]]]
+    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
+        """Apply repeats with minimal delays."""
         if self.repeats <= 1:
             return segments
 
-        repeated_segments = segments.copy()
-
+        repeated = segments.copy()
         for repeat_num in range(1, self.repeats):
-            for segment in segments:
-                payload, seq_offset, options = segment
-                repeat_options = options.copy()
+            for payload, seq_offset, options in segments:
+                opts = options.copy()
+                opts["delay_ms_after"] = options.get("delay_ms_after", 0) + repeat_num * 1.0
+                opts["repeat_num"] = repeat_num
+                opts["is_repeat"] = True
+                repeated.append((payload, seq_offset, opts))
 
-                # Add minimal delay for repeat
-                base_delay = options.get("delay_ms_after", 0)
-                repeat_delay = repeat_num * 1.0  # 1ms per repeat
-                repeat_options["delay_ms_after"] = base_delay + repeat_delay
-                repeat_options["repeat_num"] = repeat_num
-                repeat_options["is_repeat"] = True
-
-                repeated_segments.append((payload, seq_offset, repeat_options))
-
-        self.logger.debug(
-            f"Applied {
-                self.repeats} repeats with minimal delays"
-        )
-        return repeated_segments
-
-    def _monitor_attack_results(self, segments: List, **context):
-        """Monitor attack results if enabled (from Original version)."""
-        if not self.enable_monitoring:
-            return
-
-        # Simplified monitoring for now
-        self.logger.info(f"📊 Monitoring attack: {len(segments)} segments")
-        # In a full implementation, this would analyze packet capture data
-        # and determine bypass effectiveness
+        self.logger.debug(f"Applied {self.repeats} repeats")
+        return repeated
 
     @classmethod
     def create_zapret_compatible(
@@ -1919,15 +1299,16 @@ class FakedDisorderAttack:
         """
         Factory method to create zapret-compatible instance.
 
+        REFACTORED: This now delegates to FakedDisorderFactory.
+        Kept as classmethod for backward compatibility.
+
         Uses exact zapret defaults for maximum compatibility.
         """
-        return cls(
-            split_pos=split_pos,
+        return FakedDisorderFactory.create_zapret_compatible(
             split_seqovl=split_seqovl,
-            ttl=ttl,
             autottl=autottl,
-            fooling_methods=["badsum", "badseq"],
-            fake_payload_type="PAYLOADTLS",
+            ttl=ttl,
+            split_pos=split_pos,
             **kwargs,
         )
 
@@ -1936,34 +1317,22 @@ class FakedDisorderAttack:
         """
         Factory method optimized for X.COM (critical failing domain).
 
+        REFACTORED: This now delegates to FakedDisorderFactory.
+        Kept as classmethod for backward compatibility.
+
         Uses parameters specifically tuned for X.COM effectiveness.
         """
-        return cls(
-            split_pos="sni",  # SNI position for TLS
-            split_seqovl=400,  # Higher overlap for X.COM
-            ttl=3,  # X.COM TTL fix applied
-            autottl=3,
-            repeats=2,  # More attempts for stubborn DPI
-            fooling_methods=["badsum", "badseq"],
-            fake_payload_type="PAYLOADTLS",
-            **kwargs,
-        )
+        return FakedDisorderFactory.create_x_com_optimized(**kwargs)
 
     @classmethod
     def create_instagram_optimized(cls, **kwargs) -> "FakedDisorderAttack":
         """
         Factory method optimized for Instagram.
+
+        REFACTORED: This now delegates to FakedDisorderFactory.
+        Kept as classmethod for backward compatibility.
         """
-        return cls(
-            split_pos=60,
-            split_seqovl=250,
-            ttl=1,
-            autottl=2,
-            repeats=1,
-            fooling_methods=["badsum", "badseq"],
-            fake_payload_type="PAYLOADTLS",
-            **kwargs,
-        )
+        return FakedDisorderFactory.create_instagram_optimized(**kwargs)
 
     # === TCP WINDOW MANIPULATION TECHNIQUES ===
     # Migrated from tcp_fragmentation.py
@@ -1978,69 +1347,26 @@ class FakedDisorderAttack:
     ) -> List[Tuple[bytes, int, dict]]:
         """
         TCP window manipulation attack.
-        
+
+        REFACTORED: Delegates to AdvancedTechniques.
+        Kept as static method for backward compatibility.
+
         Manipulates TCP window size to force small segments and control flow.
         This technique can bypass DPI systems that rely on window size analysis.
-        
+
         Args:
             payload: Original data to fragment
             window_size: TCP window size override (small values force fragmentation)
             delay_ms: Delay between fragments in milliseconds
             fragment_count: Number of fragments to create
             fooling_methods: Optional DPI fooling methods
-            
+
         Returns:
             Recipe with fragments using window size manipulation
         """
-        log = logging.getLogger("BypassTechniques")
-        
-        if len(payload) < 2:
-            return [(payload, 0, BypassTechniques._create_segment_options(is_fake=False))]
-        
-        # Calculate fragment positions
-        fragment_size = len(payload) // fragment_count
-        if fragment_size < 1:
-            fragment_size = 1
-            fragment_count = len(payload)
-        
-        positions = []
-        for i in range(1, fragment_count):
-            pos = i * fragment_size
-            if pos < len(payload):
-                positions.append(pos)
-        
-        # Create fragments
-        segments = []
-        all_positions = [0] + positions + [len(payload)]
-        
-        for i in range(len(all_positions) - 1):
-            start_pos = all_positions[i]
-            end_pos = all_positions[i + 1]
-            fragment_data = payload[start_pos:end_pos]
-            
-            # Create segment options with window manipulation
-            options = BypassTechniques._create_segment_options(
-                is_fake=False,
-                tcp_flags=0x18,  # PSH+ACK
-                delay_ms_after=delay_ms if i < len(all_positions) - 2 else None,
-                window_size_override=window_size,
-            )
-            
-            # Apply fooling methods to first segment if specified
-            if i == 0 and fooling_methods:
-                for method in fooling_methods:
-                    if method == "badsum":
-                        options["corrupt_tcp_checksum"] = True
-                    elif method == "badseq":
-                        # Use far-future sequence offset to avoid overlap with real packet
-                        # 0x10000000 (268,435,456 bytes) places fake packet far in future
-                        # This confuses DPI while remaining acceptable to legitimate servers
-                        options["seq_offset"] = 0x10000000
-            
-            segments.append((fragment_data, start_pos, options))
-        
-        log.info(f"🪟 Window manipulation: {len(segments)} fragments, window_size={window_size}, delay={delay_ms}ms")
-        return segments
+        return AdvancedTechniques.apply_window_manipulation(
+            payload, window_size, delay_ms, fragment_count, fooling_methods
+        )
 
     @staticmethod
     def apply_tcp_options_modification(
@@ -2052,96 +1378,42 @@ class FakedDisorderAttack:
     ) -> List[Tuple[bytes, int, dict]]:
         """
         TCP options modification attack.
-        
+
+        REFACTORED: Delegates to AdvancedTechniques.
+        Kept as static method for backward compatibility.
+
         Modifies TCP options to evade DPI detection while fragmenting.
         Different option types can confuse DPI systems that analyze TCP headers.
-        
+
         Args:
             payload: Original data to split
             split_pos: Position to split the payload
             options_type: Type of TCP options to add ("mss", "window_scale", "timestamp", etc.)
             bad_checksum: Whether to corrupt TCP checksum
             fooling_methods: Optional DPI fooling methods
-            
+
         Returns:
             Recipe with TCP options modification
         """
-        log = logging.getLogger("BypassTechniques")
-        
-        if len(payload) < 2:
-            return [(payload, 0, BypassTechniques._create_segment_options(is_fake=False))]
-        
-        # Split payload
-        part1, part2 = BypassTechniques._split_payload(payload, split_pos, validate=True)
-        
-        # Create TCP options based on type
-        tcp_options = BypassTechniques._create_tcp_options(options_type)
-        
-        # Create segment options
-        opts1 = BypassTechniques._create_segment_options(
-            is_fake=False,
-            tcp_flags=0x18,  # PSH+ACK
-            fooling_methods=fooling_methods,
-            tcp_options=tcp_options,
+        return AdvancedTechniques.apply_tcp_options_modification(
+            payload, split_pos, options_type, bad_checksum, fooling_methods
         )
-        
-        opts2 = BypassTechniques._create_segment_options(
-            is_fake=False,
-            tcp_flags=0x18,  # PSH+ACK
-        )
-        
-        # Apply bad checksum if requested
-        if bad_checksum:
-            opts1["corrupt_tcp_checksum"] = True
-        
-        segments = [
-            (part1, 0, opts1),
-            (part2, split_pos, opts2),
-        ]
-        
-        log.info(f"🔧 TCP options modification: {options_type}, bad_checksum={bad_checksum}")
-        return segments
 
     @staticmethod
     def _create_tcp_options(options_type: str) -> bytes:
         """
         Create TCP options based on specified type.
-        
+
+        REFACTORED: Delegates to AdvancedTechniques.
+        Kept as static method for backward compatibility.
+
         Args:
             options_type: Type of TCP options to create
-            
+
         Returns:
             Raw TCP options bytes
         """
-        if options_type == "mss":
-            # Maximum Segment Size option
-            return struct.pack("!BBH", 2, 4, 1460)  # MSS = 1460
-
-        elif options_type == "window_scale":
-            # Window Scale option
-            return struct.pack("!BBB", 3, 3, 7)  # Scale factor = 7
-
-        elif options_type == "timestamp":
-            # Timestamp option
-            import time
-            return struct.pack("!BBII", 8, 10, int(time.time()), 0)
-
-        elif options_type == "sack_permitted":
-            # SACK Permitted option
-            return struct.pack("!BB", 4, 2)
-
-        elif options_type == "md5_signature":
-            # MD5 Signature option (fake)
-            fake_signature = b"\xde\xad\xbe\xef" * 4  # 16 bytes
-            return struct.pack("!BB", 19, 18) + fake_signature
-
-        elif options_type == "custom":
-            # Custom option for evasion
-            return struct.pack("!BB", 254, 4) + b"\x00\x00"  # Experimental option
-
-        else:
-            # Default: No-op padding
-            return b"\x01\x01\x01\x01"  # 4 bytes of NOP
+        return AdvancedTechniques.create_tcp_options(options_type)
 
     @staticmethod
     def apply_advanced_timing_control(
@@ -2153,53 +1425,100 @@ class FakedDisorderAttack:
     ) -> List[Tuple[bytes, int, dict]]:
         """
         Advanced timing control for segment transmission.
-        
+
+        REFACTORED: Delegates to AdvancedTechniques.
+        Kept as static method for backward compatibility.
+
         Provides precise control over timing between segments to evade
         temporal analysis by DPI systems.
-        
+
         Args:
             payload: Original data to split
             split_pos: Position to split the payload
             delays: List of delays in milliseconds for each segment
             jitter: Whether to add random jitter to delays
             fooling_methods: Optional DPI fooling methods
-            
+
         Returns:
             Recipe with advanced timing control
         """
-        log = logging.getLogger("BypassTechniques")
-        
-        if len(payload) < 2:
-            return [(payload, 0, BypassTechniques._create_segment_options(is_fake=False))]
-        
-        # Split payload
-        part1, part2 = BypassTechniques._split_payload(payload, split_pos, validate=True)
-        
-        # Default delays if not provided
-        if delays is None:
-            delays = [1.0, 2.0]  # Default delays in milliseconds
-        
-        # Add jitter if requested
-        if jitter:
-            import random
-            delays = [d + random.uniform(-0.5, 0.5) for d in delays]
-        
-        # Create segments with timing control
-        segments = []
-        parts = [part1, part2]
-        offsets = [0, split_pos]
-        
-        for i, (part, offset) in enumerate(zip(parts, offsets)):
-            delay = delays[i] if i < len(delays) else 0.0
-            
-            options = BypassTechniques._create_segment_options(
-                is_fake=False,
-                tcp_flags=0x18,  # PSH+ACK
-                fooling_methods=fooling_methods if i == 0 else None,
-                delay_ms_after=delay if i < len(parts) - 1 else None,
-            )
-            
-            segments.append((part, offset, options))
-        
-        log.info(f"⏱️ Advanced timing control: delays={delays}, jitter={jitter}")
-        return segments
+        return AdvancedTechniques.apply_advanced_timing_control(
+            payload, split_pos, delays, jitter, fooling_methods
+        )
+
+
+# ===== MODULE-LEVEL CONVENIENCE ALIASES =====
+# These provide convenient module-level access to commonly used methods
+# that are otherwise only available as class methods
+
+# Fooling methods (for backward compatibility and convenience)
+apply_checksum_fooling = BypassTechniques.apply_checksum_fooling
+apply_badsum_fooling = BypassTechniques.apply_badsum_fooling
+apply_md5sig_fooling = BypassTechniques.apply_md5sig_fooling
+
+
+# Public API exports for backward compatibility and advanced usage
+__all__ = [
+    # ===== MAIN CLASSES (STABLE API) =====
+    "BypassTechniques",  # Main bypass techniques class
+    "FakedDisorderAttack",  # Advanced fakeddisorder attack class
+    # ===== UTILITY FUNCTIONS (STABLE API) =====
+    # From primitives_utils.py (Step 1)
+    "gen_fake_sni",  # Generate fake SNI
+    "split_payload",  # Split payload at position
+    "create_segment_options",  # Create segment options dict
+    "normalize_positions",  # Normalize position specifications
+    "handle_small_payload",  # Handle small payload edge case
+    # ===== FOOLING METHODS (STABLE API) =====
+    # Unified method (Step 2)
+    "apply_checksum_fooling",  # Unified checksum fooling
+    # Legacy wrappers (DEPRECATED but kept for compatibility)
+    "apply_badsum_fooling",  # DEPRECATED: Use apply_checksum_fooling(data, 0xDEAD)
+    "apply_md5sig_fooling",  # DEPRECATED: Use apply_checksum_fooling(data, 0xBEEF)
+    # ===== ADVANCED COMPONENTS (FOR POWER USERS) =====
+    # From payload_generators.py (Step 3)
+    "PayloadGeneratorFactory",  # Factory for generating fake payloads
+    # From attack_factories.py (Step 4)
+    "FakedDisorderFactory",  # Factory for creating FakedDisorderAttack instances
+    # From faked_disorder_core.py (Step 5)
+    "FakedDisorderCore",  # Core logic for FakedDisorderAttack
+    "create_core_from_attack",  # Helper to create core from attack instance
+    # From advanced_techniques.py (Step 6)
+    "AdvancedTechniques",  # Advanced attack techniques
+    # From bypass_helpers.py (Step 7)
+    "validate_payload_size",  # Validate payload size
+    "create_fallback_segment",  # Create fallback segment
+    "validate_and_adjust_split_position",  # Validate split position
+    "build_segment_metadata",  # Build segment metadata
+    "calculate_fragment_delays",  # Calculate fragment delays
+    "optimize_fragment_positions",  # Optimize fragment positions
+    "create_fragment_list",  # Create fragment list
+    "log_attack_execution",  # Log attack execution
+]
+
+# ===== DEPRECATION NOTICES =====
+# The following deprecated methods have been removed in this version:
+# - _gen_fake_sni: Use gen_fake_sni() from primitives_utils instead
+# - _calculate_effective_ttl: Delegated to FakedDisorderCore
+# - _generate_enhanced_*_payload: Use PayloadGeneratorFactory methods instead
+# - _detect_tls, _detect_http: Use PayloadGeneratorFactory methods instead
+# - _execute_with_autottl: Removed (use dedicated AutoTTL strategy)
+# - _evaluate_ttl_effectiveness: Removed (use proper network testing)
+# - _monitor_attack_results: Removed (use dedicated monitoring system)
+#
+# Still deprecated but kept for backward compatibility:
+# - apply_badsum_fooling: Use apply_checksum_fooling(data, 0xDEAD) instead
+# - apply_md5sig_fooling: Use apply_checksum_fooling(data, 0xBEEF) instead
+
+# ===== MODULE ORGANIZATION =====
+# This module has been refactored into multiple specialized modules:
+# - primitives.py: Main facade with backward compatibility
+# - primitives_utils.py: Shared utility functions
+# - payload_generators.py: Fake payload generation
+# - attack_factories.py: Attack factory methods
+# - faked_disorder_core.py: Core FakedDisorderAttack logic
+# - advanced_techniques.py: Advanced attack techniques
+# - bypass_helpers.py: Common helper functions
+#
+# All modules are accessible through this main module for convenience.
+# Advanced users can import directly from submodules if needed.

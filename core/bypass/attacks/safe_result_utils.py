@@ -158,9 +158,7 @@ def create_timeout_result(
     )
 
 
-def create_invalid_params_result(
-    error_message: str, technique_used: str = "", **kwargs
-):
+def create_invalid_params_result(error_message: str, technique_used: str = "", **kwargs):
     """Create an invalid parameters AttackResult."""
     return safe_create_attack_result(
         status_name="INVALID_PARAMS",

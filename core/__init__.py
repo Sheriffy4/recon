@@ -37,7 +37,12 @@ from .simple_packet_validator import SimplePacketValidator
 
 # Strategy components
 from .strategy_combinator import StrategyCombinator
-from .strategy_comparator import StrategyComparator
+from .strategy_comparator import (
+    StrategyComparator,
+    StrategyComparatorTool,
+    DiscoveryModeCapture,
+    ServiceModeCapture,
+)
 
 __all__ = [
     # Unified components (primary interfaces)
@@ -58,5 +63,9 @@ __all__ = [
     "PacketValidator",
     "SimplePacketValidator",
     "StrategyCombinator",
+    # Strategy comparison (main classes)
     "StrategyComparator",
+    "StrategyComparatorTool",
+    "DiscoveryModeCapture",
+    "ServiceModeCapture",
 ]

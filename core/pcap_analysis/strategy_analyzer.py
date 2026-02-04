@@ -106,9 +106,7 @@ class StrategyAnalyzer:
 
         # Analyze each fake candidate
         for fake_idx, fake_packet in fake_candidates:
-            pattern = self._analyze_fake_disorder_sequence(
-                packets, fake_idx, fake_packet
-            )
+            pattern = self._analyze_fake_disorder_sequence(packets, fake_idx, fake_packet)
             if pattern:
                 return pattern
 
@@ -145,9 +143,7 @@ class StrategyAnalyzer:
             return None
 
         # Calculate split position and overlap
-        split_pos, overlap = self._calculate_split_and_overlap(
-            fake_packet, real_segments
-        )
+        split_pos, overlap = self._calculate_split_and_overlap(fake_packet, real_segments)
 
         if split_pos is None:
             return None
@@ -230,9 +226,7 @@ class StrategyAnalyzer:
 
         return methods
 
-    def _detect_split_pattern(
-        self, packets: List[PacketInfo]
-    ) -> Optional[Dict[str, Any]]:
+    def _detect_split_pattern(self, packets: List[PacketInfo]) -> Optional[Dict[str, Any]]:
         """Detect simple split pattern."""
         client_hello_packets = [p for p in packets if p.is_client_hello]
         if not client_hello_packets:
@@ -245,9 +239,7 @@ class StrategyAnalyzer:
 
         return None
 
-    def _detect_disorder_pattern(
-        self, packets: List[PacketInfo]
-    ) -> Optional[Dict[str, Any]]:
+    def _detect_disorder_pattern(self, packets: List[PacketInfo]) -> Optional[Dict[str, Any]]:
         """Detect disorder pattern."""
         # Look for out-of-order packets
         for i in range(1, len(packets)):
@@ -259,9 +251,7 @@ class StrategyAnalyzer:
 
         return None
 
-    def _calculate_confidence(
-        self, packets: List[PacketInfo], config: StrategyConfig
-    ) -> float:
+    def _calculate_confidence(self, packets: List[PacketInfo], config: StrategyConfig) -> float:
         """Calculate confidence score for detected strategy."""
         if not config.dpi_desync:
             return 0.0
@@ -302,8 +292,7 @@ class StrategyAnalyzer:
         if recon_config.split_pos != zapret_config.split_pos:
             impact = (
                 "CRITICAL"
-                if abs((recon_config.split_pos or 0) - (zapret_config.split_pos or 0))
-                > 2
+                if abs((recon_config.split_pos or 0) - (zapret_config.split_pos or 0)) > 2
                 else "HIGH"
             )
             differences.append(
@@ -352,8 +341,8 @@ class StrategyAnalyzer:
                 differences.append(
                     StrategyDifference(
                         parameter="fooling_missing",
-                        recon_value=list(recon_fooling),
-                        zapret_value=list(zapret_fooling),
+                        recon_value=sorted(recon_fooling),
+                        zapret_value=sorted(zapret_fooling),
                         impact_level="HIGH",
                         description=f"Missing fooling methods: {', '.join(missing_methods)}",
                     )
@@ -363,8 +352,8 @@ class StrategyAnalyzer:
                 differences.append(
                     StrategyDifference(
                         parameter="fooling_extra",
-                        recon_value=list(recon_fooling),
-                        zapret_value=list(zapret_fooling),
+                        recon_value=sorted(recon_fooling),
+                        zapret_value=sorted(zapret_fooling),
                         impact_level="MEDIUM",
                         description=f"Extra fooling methods: {', '.join(extra_methods)}",
                     )
@@ -405,9 +394,7 @@ class StrategyAnalyzer:
         # Validate split position
         if config.split_pos is not None:
             if config.split_pos < 1:
-                validation_result["errors"].append(
-                    f"Invalid split position: {config.split_pos}"
-                )
+                validation_result["errors"].append(f"Invalid split position: {config.split_pos}")
                 validation_result["valid"] = False
             elif config.split_pos > 100:
                 validation_result["warnings"].append(
@@ -439,7 +426,7 @@ class StrategyAnalyzer:
         ttl_values = [p.ttl for p in packets if p.ttl > 0]
         if ttl_values:
             params["ttl_range"] = (min(ttl_values), max(ttl_values))
-            params["unique_ttls"] = list(set(ttl_values))
+            params["unique_ttls"] = sorted(set(ttl_values))
 
         # Extract timing patterns
         if len(packets) > 1:
@@ -467,7 +454,7 @@ class StrategyAnalyzer:
         params["fake_packet_count"] = len(fake_packets)
 
         if fake_packets:
-            params["fake_packet_ttls"] = [p.ttl for p in fake_packets]
+            params["fake_packet_ttls"] = sorted(p.ttl for p in fake_packets)
             params["fake_packet_checksums"] = [p.checksum_valid for p in fake_packets]
 
         return params

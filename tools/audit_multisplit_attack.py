@@ -106,7 +106,7 @@ def find_call_sites():
     # Check CLI mode
     print("\n📍 CLI Mode (Testing):")
     try:
-        from core.adaptive_engine import AdaptiveEngine
+        from core.adaptive_refactored.facade import AdaptiveEngine
         import inspect
         source = inspect.getsource(AdaptiveEngine)
         

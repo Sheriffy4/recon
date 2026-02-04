@@ -149,9 +149,7 @@ class ProductionDeployer:
         """Deploy using Kubernetes."""
         try:
             # Check if kubectl is available
-            subprocess.run(
-                ["kubectl", "version", "--client"], check=True, capture_output=True
-            )
+            subprocess.run(["kubectl", "version", "--client"], check=True, capture_output=True)
 
             # Apply Kubernetes manifests
             k8s_dir = Path("recon/core/pcap_analysis/deployment/kubernetes")
@@ -317,9 +315,7 @@ WantedBy=multi-user.target
         try:
             import requests
 
-            response = requests.get(
-                f"http://{config.host}:{config.port}/health", timeout=10
-            )
+            response = requests.get(f"http://{config.host}:{config.port}/health", timeout=10)
             return response.status_code == 200
         except:
             return False
@@ -348,9 +344,7 @@ WantedBy=multi-user.target
             endpoints = ["/health", "/api/v1/status", "/api/v1/metrics"]
 
             for endpoint in endpoints:
-                response = requests.get(
-                    f"http://{config.host}:{config.port}{endpoint}", timeout=5
-                )
+                response = requests.get(f"http://{config.host}:{config.port}{endpoint}", timeout=5)
                 if response.status_code not in [
                     200,
                     404,
@@ -441,9 +435,7 @@ WantedBy=multi-user.target
 
 def main():
     """Main deployment script."""
-    parser = argparse.ArgumentParser(
-        description="PCAP Analysis System Production Deployment"
-    )
+    parser = argparse.ArgumentParser(description="PCAP Analysis System Production Deployment")
     parser.add_argument(
         "--type",
         choices=["docker", "kubernetes", "systemd"],
@@ -456,12 +448,8 @@ def main():
         action="store_true",
         help="Create sample configuration",
     )
-    parser.add_argument(
-        "--backup", action="store_true", help="Create backup before deployment"
-    )
-    parser.add_argument(
-        "--health-check-only", action="store_true", help="Run health checks only"
-    )
+    parser.add_argument("--backup", action="store_true", help="Create backup before deployment")
+    parser.add_argument("--health-check-only", action="store_true", help="Run health checks only")
 
     args = parser.parse_args()
 

@@ -74,9 +74,7 @@ class StrategyMetricsCollector:
                 "ip": c["ip"],
                 "data_transferred": c["sent"] + c["recv"],
                 "latency_ms": (
-                    (c["events"][-1][1] - c["events"][0][1]) * 1000
-                    if len(c["events"]) > 1
-                    else 0
+                    (c["events"][-1][1] - c["events"][0][1]) * 1000 if len(c["events"]) > 1 else 0
                 ),
             }
         return out
@@ -194,9 +192,7 @@ class EnhancedPacketCapturer:
         return windows
 
     # Offline analysis by time windows (for finished PCAPs)
-    def analyze_pcap_file(
-        self, pcap_file: Optional[str] = None
-    ) -> Dict[str, Dict[str, Any]]:
+    def analyze_pcap_file(self, pcap_file: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
         if not SCAPY_AVAILABLE:
             return {"error": "Scapy not available"}
         path = pcap_file or getattr(self, "pcap_file", "")
@@ -270,9 +266,7 @@ class EnhancedPacketCapturer:
 
 
 def _analyze_packets(pkts) -> Dict[str, Any]:
-    tls_clienthellos = tls_serverhellos = rst_packets = data_packets = total_bytes = (
-        syn_packets
-    ) = 0
+    tls_clienthellos = tls_serverhellos = rst_packets = data_packets = total_bytes = syn_packets = 0
     for pkt in pkts:
         if TCP in pkt:
             flags = pkt[TCP].flags

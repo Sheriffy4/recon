@@ -58,23 +58,25 @@ except ImportError:
 # CONSTANTS
 # ---------------------------------------------------------------------------
 
-PCAP_START_DELAY = 0.5          # seconds to let capture thread start
+PCAP_START_DELAY = 0.5  # seconds to let capture thread start
 CAPTURE_THREAD_JOIN_TIMEOUT = 2.0
-BATCH_DELAY = 0.5               # delay between batch attacks
-SNIFF_TIMEOUT_MARGIN = 1.0      # extra seconds over execution timeout
+BATCH_DELAY = 0.5  # delay between batch attacks
+SNIFF_TIMEOUT_MARGIN = 1.0  # extra seconds over execution timeout
 
 
 # ---------------------------------------------------------------------------
 # DATA CLASSES
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ExecutionConfig:
     """Configuration for attack execution."""
+
     capture_pcap: bool = True
     pcap_dir: Path = Path("test_pcaps")
     timeout: float = 5.0
-    target_ip: str = "1.1.1.1"   # Default test target
+    target_ip: str = "1.1.1.1"  # Default test target
     target_port: int = 443
     enable_bypass_engine: bool = True
     simulation_mode: bool = False  # If True, simulate without real network
@@ -83,6 +85,7 @@ class ExecutionConfig:
 @dataclass
 class ExecutionResult:
     """Result of attack execution."""
+
     success: bool
     pcap_file: Optional[Path] = None
     packets_sent: int = 0
@@ -107,6 +110,7 @@ class ExecutionResult:
 # ---------------------------------------------------------------------------
 # MAIN ENGINE
 # ---------------------------------------------------------------------------
+
 
 class AttackExecutionEngine:
     """
@@ -219,13 +223,13 @@ class AttackExecutionEngine:
             # Start PCAP capture if enabled and Scapy is available
             pcap_file: Optional[Path] = None
             if self.config.capture_pcap and SCAPY_AVAILABLE:
-                pcap_file = self._start_pcap_capture(attack_name, mapped_params, target_ip, target_port)
+                pcap_file = self._start_pcap_capture(
+                    attack_name, mapped_params, target_ip, target_port
+                )
 
             # Execute attack (real or simulated)
             if self.config.simulation_mode:
-                result = self._simulate_attack(
-                    attack_class, mapped_params, target_ip, target_port
-                )
+                result = self._simulate_attack(attack_class, mapped_params, target_ip, target_port)
             else:
                 result = self._execute_real_attack(
                     attack_class, mapped_params, target_ip, target_port

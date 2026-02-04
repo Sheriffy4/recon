@@ -211,9 +211,7 @@ class PacketEngine:
         elif option_type == TCPOptions.WINDOW_SCALE:
             return TCPOptions.create_window_scale(kwargs.get("shift_count", 7))
         elif option_type == TCPOptions.TIMESTAMP:
-            return TCPOptions.create_timestamp(
-                kwargs.get("ts_val", 0), kwargs.get("ts_echo", 0)
-            )
+            return TCPOptions.create_timestamp(kwargs.get("ts_val", 0), kwargs.get("ts_echo", 0))
         elif option_type == TCPOptions.SACK_PERMITTED:
             return TCPOptions.create_sack_permitted()
         elif option_type == TCPOptions.SACK:
@@ -255,9 +253,7 @@ class PacketEngine:
         return ECHConfig(
             version=kwargs.get("version", ECHVersion.DRAFT_13),
             config_id=kwargs.get("config_id", 0),
-            cipher_suites=kwargs.get(
-                "cipher_suites", [ECHCipherSuite.AES_128_GCM_SHA256]
-            ),
+            cipher_suites=kwargs.get("cipher_suites", [ECHCipherSuite.AES_128_GCM_SHA256]),
             public_name=public_name,
             public_key=kwargs.get("public_key", b""),
             maximum_name_length=kwargs.get("maximum_name_length", 64),
@@ -279,9 +275,7 @@ class PacketEngine:
             encrypted_ch=encrypted_ch,
         )
 
-    def process_quic_initial(
-        self, packet: QUICPacket
-    ) -> Union[QUICPacket, List[QUICPacket]]:
+    def process_quic_initial(self, packet: QUICPacket) -> Union[QUICPacket, List[QUICPacket]]:
         """Process QUIC Initial packet - special handling for the first packet"""
         if packet.header.packet_type != QUICPacketType.INITIAL:
             return packet
@@ -291,8 +285,6 @@ class PacketEngine:
                 version=QUICVersion.NEGOTIATION,
                 dcid=packet.header.scid,
                 scid=packet.header.dcid,
-                payload=struct.pack(
-                    "!II", QUICVersion.VERSION_1, QUICVersion.VERSION_2
-                ),
+                payload=struct.pack("!II", QUICVersion.VERSION_1, QUICVersion.VERSION_2),
             )
         return packet

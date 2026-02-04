@@ -216,12 +216,8 @@ class SystemBypassManager:
                 if placeholder in processed_parameters:
                     full_path = os.path.join(self.base_path, rel_path)
                     full_path = os.path.normpath(full_path)
-                    processed_parameters = processed_parameters.replace(
-                        placeholder, full_path
-                    )
-                    LOG.debug(
-                        f"Replaced placeholder '{placeholder}' with path '{full_path}'"
-                    )
+                    processed_parameters = processed_parameters.replace(placeholder, full_path)
+                    LOG.debug(f"Replaced placeholder '{placeholder}' with path '{full_path}'")
             return processed_parameters
         except ImportError:
             LOG.warning("Could not import config module for placeholder replacement")
@@ -258,13 +254,9 @@ class SystemBypassManager:
                 strategy_list = processed_args.split() if processed_args else []
                 full_args = tool_instance.config.base_args + strategy_list
                 if tool_instance.config.proxy_port:
-                    full_args.extend(
-                        [f"--http-proxy=127.0.0.1:{tool_instance.config.proxy_port}"]
-                    )
+                    full_args.extend([f"--http-proxy=127.0.0.1:{tool_instance.config.proxy_port}"])
                 if tool_instance.config.dns_port:
-                    full_args.extend(
-                        [f"--dns-proxy=127.0.0.1:{tool_instance.config.dns_port}"]
-                    )
+                    full_args.extend([f"--dns-proxy=127.0.0.1:{tool_instance.config.dns_port}"])
                 LOG.info(f"Starting {tool_name} with args: {' '.join(full_args)}")
                 tool_instance.process = subprocess.Popen(
                     [tool_instance.config.executable_path] + full_args,
@@ -281,9 +273,7 @@ class SystemBypassManager:
                     tool_instance.status = ToolStatus.ERROR
                     return False
                 tool_instance.status = ToolStatus.RUNNING
-                LOG.info(
-                    f"Tool {tool_name} started successfully with PID: {tool_instance.pid}"
-                )
+                LOG.info(f"Tool {tool_name} started successfully with PID: {tool_instance.pid}")
                 return True
             except Exception as e:
                 LOG.exception(f"Failed to start tool {tool_name}: {e}")
@@ -319,18 +309,14 @@ class SystemBypassManager:
                             check=False,
                             timeout=tool_instance.config.shutdown_timeout,
                         )
-                        tool_instance.process.wait(
-                            timeout=tool_instance.config.shutdown_timeout
-                        )
+                        tool_instance.process.wait(timeout=tool_instance.config.shutdown_timeout)
                     except subprocess.TimeoutExpired:
                         LOG.warning(f"Timeout stopping {tool_name}, killing forcefully")
                         tool_instance.process.kill()
                 else:
                     tool_instance.process.terminate()
                     try:
-                        tool_instance.process.wait(
-                            timeout=tool_instance.config.shutdown_timeout
-                        )
+                        tool_instance.process.wait(timeout=tool_instance.config.shutdown_timeout)
                     except subprocess.TimeoutExpired:
                         LOG.warning(f"Timeout stopping {tool_name}, killing forcefully")
                         tool_instance.process.kill()
@@ -363,9 +349,7 @@ class SystemBypassManager:
     def get_running_tools(self) -> List[str]:
         """Получает список запущенных инструментов"""
         return [
-            name
-            for name, instance in self.tools.items()
-            if instance.status == ToolStatus.RUNNING
+            name for name, instance in self.tools.items() if instance.status == ToolStatus.RUNNING
         ]
 
     def is_tool_available(self, tool_name: str) -> bool:

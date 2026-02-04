@@ -4,7 +4,6 @@ Provides detailed help and examples for users.
 """
 
 
-
 class HelpSystem:
     """Comprehensive help system for CLI commands."""
 

@@ -9,8 +9,30 @@ from typing import List, Dict, Any, Set
 # >>> ИЗМЕНЕНИЕ: Заменяем относительные импорты на абсолютные <<<
 from core.interfaces import IEvolutionarySearcher, IAttackAdapter, IStrategyGenerator
 from core.bypass.attacks.base import AttackContext
-from metrics import BypassQualityMetrics
-import config  # <-- Этот импорт нужно будет проверить, возможно, `from . import config` или `import config`
+try:
+    from core.metrics import BypassQualityMetrics
+except ImportError:
+    try:
+        from core.bypass.diagnostics.metrics import BypassQualityMetrics
+    except ImportError:
+        # Fallback: Create a stub class if neither import works
+        class BypassQualityMetrics:
+            """Stub implementation of BypassQualityMetrics for compatibility."""
+            @staticmethod
+            def calculate_quality_score(*args, **kwargs):
+                return 0.5  # Default neutral score
+            
+            @staticmethod
+            def calculate_comprehensive_score(*args, **kwargs):
+                return 0.5  # Default neutral score
+
+try:
+    import config
+except ImportError:
+    # Fallback: Create a stub config if import fails
+    class config:
+        """Stub config for compatibility."""
+        pass
 
 LOG = logging.getLogger("EvolutionarySearcher")
 

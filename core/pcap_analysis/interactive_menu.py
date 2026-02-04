@@ -40,9 +40,7 @@ class InteractiveMenu:
         self.title = title
         self.options: List[MenuOption] = []
 
-    def add_option(
-        self, key: str, description: str, action: Callable = None, enabled: bool = True
-    ):
+    def add_option(self, key: str, description: str, action: Callable = None, enabled: bool = True):
         """Add a menu option."""
         self.options.append(MenuOption(key, description, action, enabled))
 
@@ -75,9 +73,7 @@ class DifferenceReviewMenu:
         self.skipped_differences = []
         self.rejected_differences = []
 
-    def review_differences(
-        self, differences: List[Any]
-    ) -> Tuple[List[Any], Dict[str, List[Any]]]:
+    def review_differences(self, differences: List[Any]) -> Tuple[List[Any], Dict[str, List[Any]]]:
         """Review differences interactively."""
         print(f"\n{'='*60}")
         print(f"DIFFERENCE REVIEW - {len(differences)} differences found")
@@ -122,9 +118,7 @@ class DifferenceReviewMenu:
         print("\nBy Impact Level:")
         for impact, count in sorted(
             impact_levels.items(),
-            key=lambda x: {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(
-                x[0], 0
-            ),
+            key=lambda x: {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}.get(x[0], 0),
             reverse=True,
         ):
             print(f"  {impact}: {count}")
@@ -141,9 +135,7 @@ class DifferenceReviewMenu:
         menu.display()
         return menu.get_choice("Select review mode: ")
 
-    def _review_detailed(
-        self, differences: List[Any]
-    ) -> Tuple[List[Any], Dict[str, List[Any]]]:
+    def _review_detailed(self, differences: List[Any]) -> Tuple[List[Any], Dict[str, List[Any]]]:
         """Review differences one by one."""
         approved = []
         skipped = []
@@ -198,9 +190,7 @@ class DifferenceReviewMenu:
             "rejected": rejected,
         }
 
-    def _review_by_category(
-        self, differences: List[Any]
-    ) -> Tuple[List[Any], Dict[str, List[Any]]]:
+    def _review_by_category(self, differences: List[Any]) -> Tuple[List[Any], Dict[str, List[Any]]]:
         """Review differences grouped by category."""
         # Group by category
         categories = {}
@@ -228,12 +218,8 @@ class DifferenceReviewMenu:
                 print(f"\n... and {len(diffs) - 3} more differences in this category")
 
             menu = InteractiveMenu(f"Category Action: {category}")
-            menu.add_option(
-                "y", f"Approve all {len(diffs)} differences in this category"
-            )
-            menu.add_option(
-                "n", f"Reject all {len(diffs)} differences in this category"
-            )
+            menu.add_option("y", f"Approve all {len(diffs)} differences in this category")
+            menu.add_option("n", f"Reject all {len(diffs)} differences in this category")
             menu.add_option("s", f"Skip all {len(diffs)} differences in this category")
             menu.add_option("d", "Review this category in detail")
             menu.add_option("q", "Quit review")
@@ -365,9 +351,7 @@ class FixReviewMenu:
         menu.display()
         return menu.get_choice("Select review mode: ")
 
-    def _review_detailed(
-        self, fixes: List[Any]
-    ) -> Tuple[List[Any], Dict[str, List[Any]]]:
+    def _review_detailed(self, fixes: List[Any]) -> Tuple[List[Any], Dict[str, List[Any]]]:
         """Review fixes one by one."""
         approved = []
         skipped = []
@@ -422,9 +406,7 @@ class FixReviewMenu:
             "rejected": rejected,
         }
 
-    def _review_by_risk_level(
-        self, fixes: List[Any]
-    ) -> Tuple[List[Any], Dict[str, List[Any]]]:
+    def _review_by_risk_level(self, fixes: List[Any]) -> Tuple[List[Any], Dict[str, List[Any]]]:
         """Review fixes grouped by risk level."""
         # Group by risk level
         risk_groups = {"LOW": [], "MEDIUM": [], "HIGH": []}
@@ -454,20 +436,12 @@ class FixReviewMenu:
                 self._display_fix_summary(fix)
 
             if len(fixes_in_level) > 2:
-                print(
-                    f"\n... and {len(fixes_in_level) - 2} more fixes at this risk level"
-                )
+                print(f"\n... and {len(fixes_in_level) - 2} more fixes at this risk level")
 
             menu = InteractiveMenu(f"Risk Level Action: {risk_level}")
-            menu.add_option(
-                "y", f"Approve all {len(fixes_in_level)} {risk_level} risk fixes"
-            )
-            menu.add_option(
-                "n", f"Reject all {len(fixes_in_level)} {risk_level} risk fixes"
-            )
-            menu.add_option(
-                "s", f"Skip all {len(fixes_in_level)} {risk_level} risk fixes"
-            )
+            menu.add_option("y", f"Approve all {len(fixes_in_level)} {risk_level} risk fixes")
+            menu.add_option("n", f"Reject all {len(fixes_in_level)} {risk_level} risk fixes")
+            menu.add_option("s", f"Skip all {len(fixes_in_level)} {risk_level} risk fixes")
             menu.add_option("d", "Review this risk level in detail")
             menu.add_option("q", "Quit review")
 

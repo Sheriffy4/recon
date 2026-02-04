@@ -100,9 +100,7 @@ class NativeCandidateGenerator:
             lat = 0.0
             if telemetry_hint:
                 succ = float(telemetry_hint.get("success_by_type", {}).get(a_type, 0.0))
-                lat = float(
-                    telemetry_hint.get("avg_latency_by_type", {}).get(a_type, 0.0)
-                )
+                lat = float(telemetry_hint.get("avg_latency_by_type", {}).get(a_type, 0.0))
             # Больше успеха и ниже задержка — выше score
             return succ - 0.0005 * lat
 

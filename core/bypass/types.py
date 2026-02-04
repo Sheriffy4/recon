@@ -112,9 +112,7 @@ class PacketInfo:
         """Краткая сводка по пакету для логов."""
         proto_details = ""
         if self.protocol == ProtocolType.TCP:
-            proto_details = (
-                f"seq={self.tcp_seq} ack={self.tcp_ack} flags={self.tcp_flags}"
-            )
+            proto_details = f"seq={self.tcp_seq} ack={self.tcp_ack} flags={self.tcp_flags}"
         return (
             f"PacketInfo({self.src_ip}:{self.src_port} -> {self.dst_ip}:{self.dst_port} "
             f"proto={self.protocol.value} size={self.payload_size} {proto_details})"
@@ -180,9 +178,7 @@ class EngineStats:
     strategies: Dict[str, int] = field(
         default_factory=lambda: {"applied": 0, "success": 0, "failed": 0}
     )
-    bytes: Dict[str, int] = field(
-        default_factory=lambda: {"processed": 0, "modified": 0}
-    )
+    bytes: Dict[str, int] = field(default_factory=lambda: {"processed": 0, "modified": 0})
     timing: Dict[str, float] = field(
         default_factory=lambda: {"start_time": time.time(), "total_processing_ms": 0.0}
     )
@@ -214,9 +210,7 @@ class EngineStats:
             self.strategies[key] += other.strategies.get(key, 0)
         for key in self.bytes:
             self.bytes[key] += other.bytes.get(key, 0)
-        self.timing["total_processing_ms"] += other.timing.get(
-            "total_processing_ms", 0.0
-        )
+        self.timing["total_processing_ms"] += other.timing.get("total_processing_ms", 0.0)
 
 
 # --- Структуры для Фингерпринтинга (значительно расширены) ---

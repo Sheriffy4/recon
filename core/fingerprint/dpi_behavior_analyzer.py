@@ -25,9 +25,7 @@ class DPIBehaviorAnalyzer:
         self.timeout = timeout
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-    async def analyze(
-        self, fingerprint: DPIFingerprint, force_all: bool = False
-    ) -> DPIFingerprint:
+    async def analyze(self, fingerprint: DPIFingerprint, force_all: bool = False) -> DPIFingerprint:
         """
         Analyze DPI behavior patterns and enrich the fingerprint with behavioral markers.
 
@@ -40,9 +38,7 @@ class DPIBehaviorAnalyzer:
         """
         self.logger.info(f"Starting behavioral analysis for {fingerprint.target}")
         try:
-            tests_to_run = (
-                self._determine_targeted_tests(fingerprint) if not force_all else "all"
-            )
+            tests_to_run = self._determine_targeted_tests(fingerprint) if not force_all else "all"
             self.logger.debug(
                 f"Selected tests: {(tests_to_run if tests_to_run != 'all' else 'all tests')}"
             )
@@ -108,9 +104,7 @@ class DPIBehaviorAnalyzer:
             success_rate = successes / attempts
             success_rates.append(success_rate)
         if success_rates:
-            variance = (
-                statistics.variance(success_rates) if len(success_rates) > 1 else 0
-            )
+            variance = statistics.variance(success_rates) if len(success_rates) > 1 else 0
             fingerprint.timing_sensitivity = min(1.0, variance * 4)
             fingerprint.raw_metrics["timing_analysis"] = {
                 "test_intervals": timing_tests,
@@ -215,9 +209,7 @@ class DPIBehaviorAnalyzer:
             await writer.drain()
             try:
                 response = await asyncio.wait_for(reader.read(1024), timeout=2.0)
-                pattern_tests.append(
-                    ("protocol_structure", "malformed", bool(response))
-                )
+                pattern_tests.append(("protocol_structure", "malformed", bool(response)))
             except asyncio.TimeoutError:
                 pattern_tests.append(("protocol_structure", "malformed", False))
             writer.close()
@@ -228,9 +220,7 @@ class DPIBehaviorAnalyzer:
         except Exception as e:
             self.logger.debug(f"Protocol structure test failed: {e}")
         if pattern_tests:
-            string_tests = [
-                result for t, _, result in pattern_tests if t == "string_matching"
-            ]
+            string_tests = [result for t, _, result in pattern_tests if t == "string_matching"]
             structure_tests = [
                 result for t, _, result in pattern_tests if t == "protocol_structure"
             ]
@@ -288,9 +278,7 @@ class DPIBehaviorAnalyzer:
                         fingerprint.rst_ttl = tcp_data["rst_ttl"]
             elif block_type == "timeout":
                 fingerprint.is_stateful = False
-                fingerprint.timing_sensitivity = max(
-                    0.7, fingerprint.timing_sensitivity or 0
-                )
+                fingerprint.timing_sensitivity = max(0.7, fingerprint.timing_sensitivity or 0)
             elif block_type == "content_modified":
                 fingerprint.is_stateful = True
             elif block_type == "refused":
@@ -306,9 +294,7 @@ class DPIBehaviorAnalyzer:
                 },
             }
 
-    def _determine_targeted_tests(
-        self, fingerprint: DPIFingerprint
-    ) -> Union[str, List[str]]:
+    def _determine_targeted_tests(self, fingerprint: DPIFingerprint) -> Union[str, List[str]]:
         """
         Determine which tests to run based on preliminary DPI type and existing data.
         Returns either "all" or a list of test types to run.
@@ -382,18 +368,13 @@ class DPIBehaviorAnalyzer:
                 if "fragment" in strategy:
                     fingerprint.fragmentation_handling = "blocked"
                 elif "timing" in strategy and fingerprint.timing_sensitivity:
-                    fingerprint.timing_sensitivity = max(
-                        0.0, fingerprint.timing_sensitivity - 0.1
-                    )
+                    fingerprint.timing_sensitivity = max(0.0, fingerprint.timing_sensitivity - 0.1)
             success_rate = (
-                len(successful_strategies)
-                / (len(successful_strategies) + len(failed_strategies))
+                len(successful_strategies) / (len(successful_strategies) + len(failed_strategies))
                 if successful_strategies or failed_strategies
                 else 0
             )
-            fingerprint.confidence = min(
-                1.0, fingerprint.confidence + success_rate * 0.1
-            )
+            fingerprint.confidence = min(1.0, fingerprint.confidence + success_rate * 0.1)
             fingerprint.raw_metrics["strategy_testing"] = {
                 "successful_strategies": successful_strategies,
                 "failed_strategies": failed_strategies,

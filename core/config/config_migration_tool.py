@@ -97,9 +97,7 @@ class ConfigMigrationTool:
             )
 
             # Find duplicate strategies
-            analysis["duplicate_strategies"] = self._find_duplicate_strategies(
-                domain_strategies
-            )
+            analysis["duplicate_strategies"] = self._find_duplicate_strategies(domain_strategies)
 
             # Generate recommendations
             analysis["recommendations"] = self._generate_recommendations(analysis)
@@ -133,9 +131,7 @@ class ConfigMigrationTool:
             # Determine output file
             if output_file is None:
                 input_path = Path(config_file)
-                output_file = str(
-                    input_path.with_suffix(".optimized" + input_path.suffix)
-                )
+                output_file = str(input_path.with_suffix(".optimized" + input_path.suffix))
 
             # Save optimized configuration
             self.manager.save_configuration(optimized_config, output_file)
@@ -187,9 +183,7 @@ class ConfigMigrationTool:
 
         return opportunities
 
-    def _find_duplicate_strategies(
-        self, domain_strategies: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def _find_duplicate_strategies(self, domain_strategies: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Find domains with identical strategies."""
         strategy_groups = {}
 
@@ -205,9 +199,7 @@ class ConfigMigrationTool:
         duplicates = []
         for strategy, domains in strategy_groups.items():
             if len(domains) > 1:
-                duplicates.append(
-                    {"strategy": strategy, "domains": domains, "count": len(domains)}
-                )
+                duplicates.append({"strategy": strategy, "domains": domains, "count": len(domains)})
 
         return duplicates
 
@@ -224,17 +216,11 @@ class ConfigMigrationTool:
             total_savings = sum(
                 opp["potential_savings"] for opp in analysis["wildcard_opportunities"]
             )
-            recommendations.append(
-                f"Use wildcards to reduce {total_savings} domain rules"
-            )
+            recommendations.append(f"Use wildcards to reduce {total_savings} domain rules")
 
         if analysis["duplicate_strategies"]:
-            duplicate_count = sum(
-                dup["count"] - 1 for dup in analysis["duplicate_strategies"]
-            )
-            recommendations.append(
-                f"Consolidate {duplicate_count} duplicate strategy rules"
-            )
+            duplicate_count = sum(dup["count"] - 1 for dup in analysis["duplicate_strategies"])
+            recommendations.append(f"Consolidate {duplicate_count} duplicate strategy rules")
 
         if analysis["domain_count"] > 50:
             recommendations.append(
@@ -303,10 +289,8 @@ class ConfigMigrationTool:
             consolidated_metadata = StrategyMetadata(
                 priority=template_rule.metadata.priority,
                 description=f"Consolidated wildcard for {base_domain}",
-                success_rate=sum(rule.metadata.success_rate for _, rule in rules)
-                / len(rules),
-                avg_latency_ms=sum(rule.metadata.avg_latency_ms for _, rule in rules)
-                / len(rules),
+                success_rate=sum(rule.metadata.success_rate for _, rule in rules) / len(rules),
+                avg_latency_ms=sum(rule.metadata.avg_latency_ms for _, rule in rules) / len(rules),
                 test_count=sum(rule.metadata.test_count for _, rule in rules),
             )
 
@@ -328,20 +312,14 @@ class ConfigMigrationTool:
 
 def main():
     """Command-line interface for configuration migration tool."""
-    parser = argparse.ArgumentParser(
-        description="Strategy Configuration Migration Tool"
-    )
+    parser = argparse.ArgumentParser(description="Strategy Configuration Migration Tool")
     parser.add_argument(
         "command", choices=["migrate", "analyze", "optimize"], help="Command to execute"
     )
     parser.add_argument("input_file", help="Input configuration file")
     parser.add_argument("-o", "--output", help="Output file (optional)")
-    parser.add_argument(
-        "--no-backup", action="store_true", help="Skip creating backup file"
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose logging"
-    )
+    parser.add_argument("--no-backup", action="store_true", help="Skip creating backup file")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -367,9 +345,7 @@ def main():
         print(f"Domain rules: {analysis['domain_count']}")
 
         if analysis["wildcard_opportunities"]:
-            print(
-                f"\nWildcard opportunities ({len(analysis['wildcard_opportunities'])}):"
-            )
+            print(f"\nWildcard opportunities ({len(analysis['wildcard_opportunities'])}):")
             for opp in analysis["wildcard_opportunities"]:
                 print(
                     f"  {opp['wildcard_pattern']}: {opp['potential_savings']} rules can be consolidated"

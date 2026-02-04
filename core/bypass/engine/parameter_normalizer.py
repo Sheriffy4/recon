@@ -38,9 +38,7 @@ class ValidationResult:
         """Add a warning about parameter handling."""
         self.warnings.append(message)
 
-    def add_transformation(
-        self, param_name: str, old_value: Any, new_value: Any, reason: str
-    ):
+    def add_transformation(self, param_name: str, old_value: Any, new_value: Any, reason: str):
         """
         Document a parameter transformation.
 
@@ -66,22 +64,23 @@ class ParameterNormalizer:
     - Validates bounds and ranges
     """
 
-    # Parameter aliases mapping
+    # Canonical allowed special tokens for split_pos/positions.
+    # IMPORTANT: do NOT map these tokens to hardcoded integers here.
+    # Actual resolution must be done by TLSFieldLocator (it parses payload properly).
+    _ALLOWED_SPECIAL_TOKENS = {"sni", "cipher", "midsld", "random"}
+
+    # Parameter alias mapping.
+    # Canonical keys are: split_pos, split_count, fooling, attack_type, overlap_size
+    # Keep aliases for backward compatibility; normalization should COPY, not delete.
     ALIASES = {
-        "ttl": "fake_ttl",  # For fakeddisorder and other fake attacks
-        "fooling": "fooling_methods",
-        "overlap_size": "split_seqovl",  # Zapret compatibility
-        "seqovl": "split_seqovl",  # Alternative name
+        # overlap_size canonical
+        "split_seqovl": "overlap_size",
+        "seqovl": "overlap_size",
+        # fooling canonical
+        "fooling_methods": "fooling",
         "window": "window_size",  # For wssize_limit
         "win_size": "window_size",  # Alternative name
         "ack": "ack_first",  # For disorder2
-    }
-
-    # Special position values and their byte positions
-    SPECIAL_POSITIONS = {
-        "sni": 43,  # TLS SNI extension position
-        "cipher": 11,  # TLS cipher suites position
-        "midsld": None,  # Calculated as payload_len // 2
     }
 
     def __init__(self, strict_mode: bool = False):
@@ -120,16 +119,21 @@ class ParameterNormalizer:
         Returns:
             ValidationResult with normalized params and warnings
         """
-        result = ValidationResult(is_valid=True, normalized_params=params.copy())
+        params = params or {}
+        result = ValidationResult(is_valid=True, normalized_params=dict(params))
 
         try:
             # Step 1: Resolve aliases
-            result.normalized_params = self._resolve_aliases(
-                result.normalized_params, result
-            )
+            result.normalized_params = self._resolve_aliases(result.normalized_params, result)
 
             # Step 2: Handle list parameters
             result.normalized_params = self._handle_list_parameters(
+                result.normalized_params, result
+            )
+
+            # Step 2.5: Synchronize commonly-dual params for compatibility:
+            # ttl <-> fake_ttl, overlap_size <-> split_seqovl, fooling <-> fooling_methods
+            result.normalized_params = self._synchronize_compat_params(
                 result.normalized_params, result
             )
 
@@ -143,9 +147,7 @@ class ParameterNormalizer:
             )
 
             # Step 4: Validate bounds
-            validation_errors = self._validate_bounds(
-                result.normalized_params, payload_len
-            )
+            validation_errors = self._validate_bounds(result.normalized_params, payload_len, result)
             if validation_errors:
                 result.is_valid = False
                 result.error_message = "; ".join(validation_errors)
@@ -156,28 +158,25 @@ class ParameterNormalizer:
                 attack_type, result.normalized_params, result
             )
 
-            # Step 6: Apply defaults from AttackRegistry (CRITICAL FIX for parameter loss)
-            # This ensures config parameters have priority over defaults
-            result.normalized_params = self._apply_defaults(
-                attack_type, result.normalized_params, result
-            )
-
+            # IMPORTANT:
+            # Applying registry defaults must be done by AttackDispatcher, because only it has access
+            # to the active UnifiedAttackRegistry instance. Keeping it here caused wrong imports
+            # and semantic drift.
             self.logger.debug(
-                f"Normalized {attack_type} params: "
-                f"{len(result.transformations)} transformations, "
-                f"{len(result.warnings)} warnings"
+                "Normalized %s params: %d transformations, %d warnings",
+                attack_type,
+                len(result.transformations),
+                len(result.warnings),
             )
 
         except Exception as e:
             result.is_valid = False
             result.error_message = f"Normalization failed: {str(e)}"
-            self.logger.error(f"Parameter normalization error: {e}")
+            self.logger.error("Parameter normalization error: %s", e)
 
         return result
 
-    def _resolve_aliases(
-        self, params: Dict[str, Any], result: ValidationResult
-    ) -> Dict[str, Any]:
+    def _resolve_aliases(self, params: Dict[str, Any], result: ValidationResult) -> Dict[str, Any]:
         """
         Resolve parameter aliases to canonical names.
 
@@ -191,14 +190,15 @@ class ParameterNormalizer:
         for alias, canonical in self.ALIASES.items():
             if alias in normalized and canonical not in normalized:
                 old_value = normalized[alias]
-                normalized[canonical] = normalized.pop(alias)
+                # Copy semantics: keep alias key too to preserve backward compatibility.
+                normalized[canonical] = old_value
                 result.add_transformation(
                     alias,
                     old_value,
                     normalized[canonical],
                     f"Resolved alias '{alias}' to '{canonical}'",
                 )
-                self.logger.debug(f"Resolved alias: {alias} → {canonical}")
+                self.logger.debug("Resolved alias: %s -> %s", alias, canonical)
 
         return normalized
 
@@ -214,7 +214,7 @@ class ParameterNormalizer:
         normalized = params.copy()
 
         # Handle split_pos as list (common mistake)
-        if "split_pos" in normalized and isinstance(normalized["split_pos"], list):
+        if "split_pos" in normalized and isinstance(normalized["split_pos"], (list, tuple)):
             old_value = normalized["split_pos"]
             if old_value:
                 if self.strict_mode:
@@ -235,8 +235,8 @@ class ParameterNormalizer:
                     "Converted list to first element",
                 )
                 self.logger.warning(
-                    f"Parameter 'split_pos' was a list, using first element: "
-                    f"{normalized['split_pos']}"
+                    "Parameter 'split_pos' was a list/tuple, using first element: %r",
+                    normalized["split_pos"],
                 )
             else:
                 # Empty list, remove parameter
@@ -248,7 +248,7 @@ class ParameterNormalizer:
             if isinstance(normalized["fooling_methods"], str):
                 old_value = normalized["fooling_methods"]
                 # Filter out 'None' strings
-                if old_value.lower() in ['none', 'null', '']:
+                if old_value.lower() in ["none", "null", ""]:
                     normalized["fooling_methods"] = ["badsum"]  # Default
                     result.add_transformation(
                         "fooling_methods", old_value, ["badsum"], "Replaced 'None' with default"
@@ -265,13 +265,17 @@ class ParameterNormalizer:
                 # Filter out 'None' strings from list
                 old_value = normalized["fooling_methods"]
                 filtered_methods = [
-                    method for method in old_value 
-                    if method and str(method).lower() not in ['none', 'null', '']
+                    method
+                    for method in old_value
+                    if method and str(method).lower() not in ["none", "null", ""]
                 ]
                 if not filtered_methods:
                     normalized["fooling_methods"] = ["badsum"]  # Default if all were None
                     result.add_transformation(
-                        "fooling_methods", old_value, ["badsum"], "Replaced all 'None' values with default"
+                        "fooling_methods",
+                        old_value,
+                        ["badsum"],
+                        "Replaced all 'None' values with default",
                     )
                 elif len(filtered_methods) != len(old_value):
                     normalized["fooling_methods"] = filtered_methods
@@ -280,11 +284,66 @@ class ParameterNormalizer:
                     )
             elif normalized["fooling_methods"] is None:
                 normalized["fooling_methods"] = ["badsum"]  # Default
-                result.add_transformation(
-                    "fooling_methods", None, ["badsum"], "Set default value"
-                )
+                result.add_transformation("fooling_methods", None, ["badsum"], "Set default value")
 
         return normalized
+
+    def _synchronize_compat_params(
+        self, params: Dict[str, Any], result: ValidationResult
+    ) -> Dict[str, Any]:
+        """
+        Keep canonical names, but ensure legacy aliases are present when possible.
+        Canonical:
+          - fooling (str|list[str])
+          - overlap_size (int)
+        Legacy mirrors:
+          - fooling_methods (list[str])
+          - split_seqovl (int)
+        Also keep ttl and fake_ttl both when one is provided.
+        """
+        p = dict(params)
+
+        # ttl <-> fake_ttl
+        if "ttl" in p and "fake_ttl" not in p:
+            p["fake_ttl"] = p["ttl"]
+            result.add_transformation("fake_ttl", None, p["fake_ttl"], "Mirrored from ttl")
+        if "fake_ttl" in p and "ttl" not in p:
+            p["ttl"] = p["fake_ttl"]
+            result.add_transformation("ttl", None, p["ttl"], "Mirrored from fake_ttl")
+
+        # overlap_size <-> split_seqovl
+        if "overlap_size" in p and "split_seqovl" not in p:
+            p["split_seqovl"] = p["overlap_size"]
+            result.add_transformation("split_seqovl", None, p["split_seqovl"], "Mirrored from overlap_size")
+        if "split_seqovl" in p and "overlap_size" not in p:
+            p["overlap_size"] = p["split_seqovl"]
+            result.add_transformation("overlap_size", None, p["overlap_size"], "Mirrored from split_seqovl")
+
+        # fooling <-> fooling_methods
+        # Canonical: fooling
+        fooling = p.get("fooling")
+        fooling_methods = p.get("fooling_methods")
+
+        # Normalize fooling_methods to list[str] if present as str
+        if isinstance(fooling_methods, str):
+            p["fooling_methods"] = [fooling_methods] if fooling_methods else []
+
+        # If only fooling_methods present, provide fooling
+        if fooling is None and isinstance(p.get("fooling_methods"), list) and p["fooling_methods"]:
+            p["fooling"] = p["fooling_methods"][:]  # keep as list for multi-method
+            result.add_transformation("fooling", None, p["fooling"], "Mirrored from fooling_methods")
+
+        # If only fooling present, provide fooling_methods as list
+        if fooling is not None and "fooling_methods" not in p:
+            if isinstance(fooling, str):
+                p["fooling_methods"] = [fooling] if fooling else []
+            elif isinstance(fooling, (list, tuple)):
+                p["fooling_methods"] = [str(x) for x in fooling if x]
+            else:
+                p["fooling_methods"] = []
+            result.add_transformation("fooling_methods", None, p["fooling_methods"], "Mirrored from fooling")
+
+        return p
 
     def _resolve_special_values(
         self,
@@ -293,117 +352,78 @@ class ParameterNormalizer:
         result: ValidationResult,
     ) -> Dict[str, Any]:
         """
-        Resolve special position values (sni, cipher, midsld).
+        Resolve special position values (sni, cipher, midsld, random).
 
-        This logic was previously hidden in attack_dispatcher.py.
-        Now it's explicit and centralized.
+        IMPORTANT: This method does NOT convert tokens to hardcoded integers.
+        It only validates that tokens are known and converts numeric strings to int.
+        Actual resolution is done by TLSFieldLocator based on real TLS payload.
 
         Special values:
-        - "sni": Position 43 (TLS SNI extension)
-        - "cipher": Position 11 (TLS cipher suites)
-        - "midsld": Middle of payload (payload_len // 2)
+        - "sni": TLS SNI extension position (resolved by TLSFieldLocator)
+        - "cipher": TLS cipher suites position (resolved by TLSFieldLocator)
+        - "midsld": Middle of payload (resolved by TLSFieldLocator)
+        - "random": Random position (resolved by TLSFieldLocator)
         """
         normalized = params.copy()
 
-        # Resolve split_pos special values
+        # Resolve split_pos: numeric strings -> int; known tokens are left intact for TLSFieldLocator.
         if "split_pos" in normalized and isinstance(normalized["split_pos"], str):
-            special_value = normalized["split_pos"].lower()
-
-            if special_value in self.SPECIAL_POSITIONS:
-                old_value = normalized["split_pos"]
-
-                if special_value == "midsld":
-                    if payload_len is None:
-                        result.add_warning(
-                            "Cannot resolve 'midsld' without payload_len, "
-                            "will be resolved at execution time"
-                        )
-                        return normalized
-                    new_value = payload_len // 2
-                else:
-                    new_value = self.SPECIAL_POSITIONS[special_value]
-
-                # Check if position is valid for payload
-                if payload_len and new_value >= payload_len:
-                    # Fall back to middle
-                    new_value = payload_len // 2
-                    result.add_warning(
-                        f"Special value '{special_value}' position {self.SPECIAL_POSITIONS[special_value]} "
-                        f"exceeds payload length {payload_len}, using middle: {new_value}"
-                    )
-
-                normalized["split_pos"] = new_value
-                result.add_transformation(
-                    "split_pos",
-                    old_value,
-                    new_value,
-                    f"Resolved special value '{special_value}'",
-                )
-                self.logger.debug(
-                    f"Resolved special value '{special_value}' to position {new_value}"
-                )
+            raw = normalized["split_pos"]
+            token = raw.strip().lower()
+            if token in self._ALLOWED_SPECIAL_TOKENS:
+                # Keep token for TLSFieldLocator.
+                normalized["split_pos"] = token
             else:
-                result.add_warning(
-                    f"Unknown special value '{special_value}' for split_pos, "
-                    "will be treated as invalid"
-                )
+                # Try numeric string
+                try:
+                    iv = int(token)
+                except ValueError:
+                    if self.strict_mode:
+                        result.is_valid = False
+                        result.error_message = f"Invalid split_pos token: {raw!r}"
+                        return normalized
+                    result.add_warning(f"Unknown split_pos token {raw!r}; will be handled later")
+                else:
+                    normalized["split_pos"] = iv
+                    result.add_transformation("split_pos", raw, iv, "Converted numeric string to int")
 
-        # Resolve positions list special values
+        # Resolve positions list: numeric strings -> int; known tokens left intact.
         if "positions" in normalized and isinstance(normalized["positions"], list):
             positions = normalized["positions"]
             resolved_positions = []
-            
+
             for i, pos in enumerate(positions):
                 if isinstance(pos, str):
-                    special_value = pos.lower()
-                    
-                    if special_value in self.SPECIAL_POSITIONS:
-                        if special_value == "midsld":
-                            if payload_len is None:
-                                result.add_warning(
-                                    f"Cannot resolve 'midsld' in positions[{i}] without payload_len, "
-                                    "will be resolved at execution time"
-                                )
-                                resolved_positions.append(pos)  # Keep as string for later resolution
-                                continue
-                            new_value = payload_len // 2
-                        else:
-                            new_value = self.SPECIAL_POSITIONS[special_value]
-
-                        # Check if position is valid for payload
-                        if payload_len and new_value >= payload_len:
-                            # Fall back to middle
-                            new_value = payload_len // 2
-                            result.add_warning(
-                                f"Special value '{special_value}' in positions[{i}] position {self.SPECIAL_POSITIONS[special_value]} "
-                                f"exceeds payload length {payload_len}, using middle: {new_value}"
-                            )
-
-                        resolved_positions.append(new_value)
-                        result.add_transformation(
-                            f"positions[{i}]",
-                            pos,
-                            new_value,
-                            f"Resolved special value '{special_value}'",
-                        )
-                        self.logger.debug(
-                            f"Resolved special value '{special_value}' in positions[{i}] to position {new_value}"
-                        )
+                    token = pos.strip().lower()
+                    if token in self._ALLOWED_SPECIAL_TOKENS:
+                        resolved_positions.append(token)
                     else:
-                        result.add_warning(
-                            f"Unknown special value '{special_value}' in positions[{i}], "
-                            "will be treated as invalid"
-                        )
-                        resolved_positions.append(pos)  # Keep as string for later handling
+                        try:
+                            iv = int(token)
+                        except ValueError:
+                            if self.strict_mode:
+                                result.is_valid = False
+                                result.error_message = f"Invalid positions[{i}] token: {pos!r}"
+                                return normalized
+                            result.add_warning(f"Unknown positions[{i}] token {pos!r}; will be handled later")
+                            resolved_positions.append(pos)
+                        else:
+                            resolved_positions.append(iv)
+                            result.add_transformation(
+                                f"positions[{i}]",
+                                pos,
+                                iv,
+                                "Converted numeric string to int",
+                            )
                 else:
                     resolved_positions.append(pos)
-            
+
             normalized["positions"] = resolved_positions
 
         return normalized
 
     def _validate_bounds(
-        self, params: Dict[str, Any], payload_len: Optional[int]
+        self, params: Dict[str, Any], payload_len: Optional[int], result: ValidationResult
     ) -> List[str]:
         """
         Validate parameter bounds and ranges for all attack types.
@@ -427,9 +447,7 @@ class ParameterNormalizer:
                         ttl = int(ttl)
                         params[ttl_param] = ttl
                     except (ValueError, TypeError):
-                        errors.append(
-                            f"{ttl_param} must be an integer, got {type(ttl)}"
-                        )
+                        errors.append(f"{ttl_param} must be an integer, got {type(ttl)}")
                         continue
 
                 if not (1 <= ttl <= 255):
@@ -439,8 +457,24 @@ class ParameterNormalizer:
         if "split_pos" in params:
             split_pos = params["split_pos"]
 
+            # Only validate numeric split_pos
+            if isinstance(split_pos, int):
+                if split_pos < 1:
+                    errors.append(f"split_pos must be >= 1, got {split_pos}")
+
+                if payload_len and split_pos >= payload_len:
+                    # Non-fatal: clamp and warn (do not fail normalization).
+                    clamped = max(1, payload_len - 1)
+                    params["split_pos"] = clamped
+                    result.add_transformation(
+                        "split_pos",
+                        split_pos,
+                        clamped,
+                        "Clamped to payload_len-1",
+                    )
+
             # Skip validation if it's None or a string (special value that couldn't be resolved)
-            if split_pos is None:
+            elif split_pos is None:
                 # None values are handled at execution time or by other parameters
                 pass
             elif isinstance(split_pos, str):
@@ -452,9 +486,7 @@ class ParameterNormalizer:
                     split_pos = int(split_pos)
                     params["split_pos"] = split_pos
                 except (ValueError, TypeError):
-                    errors.append(
-                        f"split_pos must be an integer, got {type(split_pos)}"
-                    )
+                    errors.append(f"split_pos must be an integer, got {type(split_pos)}")
                     return errors
 
             # Only validate numeric split_pos
@@ -463,8 +495,9 @@ class ParameterNormalizer:
                     errors.append(f"split_pos must be >= 1, got {split_pos}")
 
                 if payload_len and split_pos >= payload_len:
+                    # Для split_pos тоже делаем предупреждение вместо ошибки
                     errors.append(
-                        f"split_pos ({split_pos}) must be less than payload length ({payload_len})"
+                        f"split_pos ({split_pos}) is >= payload length ({payload_len}), will be clamped"
                     )
 
         # Validate overlap parameters (split_seqovl, overlap_size)
@@ -476,9 +509,7 @@ class ParameterNormalizer:
                         overlap = int(overlap)
                         params[overlap_param] = overlap
                     except (ValueError, TypeError):
-                        errors.append(
-                            f"{overlap_param} must be an integer, got {type(overlap)}"
-                        )
+                        errors.append(f"{overlap_param} must be an integer, got {type(overlap)}")
                         continue
 
                 if overlap < 0:
@@ -501,14 +532,18 @@ class ParameterNormalizer:
             else:
                 for i, pos in enumerate(positions):
                     if not isinstance(pos, int):
-                        errors.append(
-                            f"positions[{i}] must be an integer, got {type(pos)}"
-                        )
+                        errors.append(f"positions[{i}] must be an integer, got {type(pos)}")
                     elif pos < 0:
                         errors.append(f"positions[{i}] must be >= 0, got {pos}")
                     elif payload_len and pos >= payload_len:
-                        errors.append(
-                            f"positions[{i}] ({pos}) must be less than payload length ({payload_len})"
+                        # Non-fatal: clamp and warn (do not fail normalization).
+                        clamped = max(0, payload_len - 1)
+                        params["positions"][i] = clamped
+                        result.add_transformation(
+                            f"positions[{i}]",
+                            pos,
+                            clamped,
+                            "Clamped to payload_len-1",
                         )
 
         # Validate window_size for wssize_limit
@@ -519,9 +554,7 @@ class ParameterNormalizer:
                     window_size = int(window_size)
                     params["window_size"] = window_size
                 except (ValueError, TypeError):
-                    errors.append(
-                        f"window_size must be an integer, got {type(window_size)}"
-                    )
+                    errors.append(f"window_size must be an integer, got {type(window_size)}")
                     return errors
 
             if window_size < 1:
@@ -551,9 +584,7 @@ class ParameterNormalizer:
             fooling = params["fooling_methods"]
             if fooling is not None:
                 if not isinstance(fooling, list):
-                    errors.append(
-                        f"fooling_methods must be a list, got {type(fooling)}"
-                    )
+                    errors.append(f"fooling_methods must be a list, got {type(fooling)}")
                 else:
                     valid_methods = [
                         "badsum",
@@ -566,10 +597,11 @@ class ParameterNormalizer:
                     ]
                     for method in fooling:
                         if not isinstance(method, str):
-                            errors.append(
-                                f"fooling method must be a string, got {type(method)}"
-                            )
-                        elif method.lower() not in ['none', 'null', ''] and method not in valid_methods:
+                            errors.append(f"fooling method must be a string, got {type(method)}")
+                        elif (
+                            method.lower() not in ["none", "null", ""]
+                            and method not in valid_methods
+                        ):
                             # Only validate non-None values
                             errors.append(
                                 f"Invalid fooling method '{method}'. Valid methods: {valid_methods}"
@@ -610,28 +642,24 @@ class ParameterNormalizer:
 
         # For multi-attacks, convert to positions list
         if attack_type in ["multisplit", "multidisorder"]:
-            if "positions" not in normalized:
-                if "split_pos" in normalized:
-                    # Convert single split_pos to positions list
-                    old_value = normalized["split_pos"]
-                    normalized["positions"] = [old_value]
-                    del normalized["split_pos"]
-                    result.add_transformation(
-                        "split_pos",
-                        old_value,
-                        normalized["positions"],
-                        "Converted to positions list for multi-attack",
-                    )
-                    self.logger.debug(
-                        f"Converted split_pos to positions for {attack_type}"
-                    )
-                elif "split_count" in normalized:
-                    # Generate positions from count
-                    # This would need payload_len, so we'll handle it at execution time
-                    result.add_warning(
-                        "split_count will be converted to positions at execution time "
-                        "(requires payload length)"
-                    )
+            # IMPORTANT: do not delete split_pos (it is canonical in configs and used widely).
+            # Provide positions as a compatibility hint for handlers that accept it.
+            if "positions" not in normalized and "split_pos" in normalized:
+                old_value = normalized["split_pos"]
+                normalized["positions"] = [old_value]
+                result.add_transformation(
+                    "positions",
+                    None,
+                    normalized["positions"],
+                    "Derived positions from split_pos (compat)",
+                )
+            elif "split_count" in normalized:
+                # Generate positions from count
+                # This would need payload_len, so we'll handle it at execution time
+                result.add_warning(
+                    "split_count will be converted to positions at execution time "
+                    "(requires payload length)"
+                )
 
         # For fake attacks, ensure fake_ttl is set
         if attack_type in ["fakeddisorder", "fake", "seqovl"]:
@@ -693,99 +721,13 @@ class ParameterNormalizer:
         return aliases.get(attack_type.lower(), attack_type.lower())
 
     def _apply_defaults(
-        self,
-        attack_type: str,
-        params: Dict[str, Any],
-        result: ValidationResult
+        self, attack_type: str, params: Dict[str, Any], result: ValidationResult
     ) -> Dict[str, Any]:
         """
-        Apply default parameters from AttackRegistry.
-        
-        CRITICAL FIX: This method solves the "parameter loss" problem where
-        default parameters from AttackRegistry were overwriting configuration
-        parameters from domain_rules.json.
-        
-        CORRECT PRIORITY ORDER:
-        1. Parameters from configuration (domain_rules.json) - HIGHEST PRIORITY
-        2. Default parameters from AttackRegistry - LOWEST PRIORITY
-        
-        This ensures that user configuration always takes precedence over defaults.
-        
-        Example:
-        - AttackRegistry has: optional_params={"split_pos": 3, "ack_first": False}
-        - Config has: {"split_pos": 2, "disorder_method": "reverse"}
-        - Result: {"split_pos": 2, "ack_first": False, "disorder_method": "reverse"}
-        
-        Args:
-            attack_type: Type of attack (disorder, fake, etc.)
-            params: Parameters from configuration (already normalized)
-            result: ValidationResult to log transformations
-            
-        Returns:
-            Parameters with defaults applied (config has priority)
+        Deprecated in engine layer.
+        Registry defaults are applied in AttackDispatcher (it owns UnifiedAttackRegistry).
         """
-        try:
-            # Import AttackRegistry here to avoid circular imports
-            from core.bypass.attacks.attack_registry import AttackRegistry
-            
-            # Get singleton instance
-            registry = AttackRegistry()
-            
-            # Get attack metadata (includes optional_params)
-            metadata = registry.get_attack_metadata(attack_type)
-            
-            if not metadata or not metadata.optional_params:
-                # No defaults to apply
-                self.logger.debug(f"No default parameters for attack '{attack_type}'")
-                return params
-            
-            default_params = metadata.optional_params
-            self.logger.info(f"📋 Default params from AttackRegistry for '{attack_type}': {default_params}")
-            self.logger.info(f"📋 Config params: {params}")
-            
-            # CRITICAL: Correct order - defaults first, then config overwrites
-            # This ensures config parameters have priority
-            final_params = {}
-            
-            # Step 1: Add all defaults
-            final_params.update(default_params)
-            
-            # Step 2: Overwrite with config parameters (PRIORITY)
-            final_params.update(params)
-            
-            self.logger.info(f"📋 Final params after applying defaults: {final_params}")
-            
-            # Step 3: Log which parameters were added/overridden
-            for key, default_value in default_params.items():
-                if key not in params:
-                    # Default was added (parameter was missing in config)
-                    result.add_transformation(
-                        key,
-                        None,
-                        default_value,
-                        f"Added default value from AttackRegistry"
-                    )
-                    self.logger.debug(f"➕ Added default: {key}={default_value}")
-                else:
-                    # Config parameter overrides default
-                    config_value = params[key]
-                    if config_value != default_value:
-                        self.logger.info(
-                            f"✅ Config overrides default: {key}={config_value} "
-                            f"(default was {default_value})"
-                        )
-                    else:
-                        self.logger.debug(
-                            f"✓ Config matches default: {key}={config_value}"
-                        )
-            
-            return final_params
-            
-        except Exception as e:
-            # If anything fails, return original params (safe fallback)
-            self.logger.error(f"Failed to apply defaults for '{attack_type}': {e}")
-            self.logger.warning(f"Using original params without defaults")
-            return params
+        return params
 
 
 # Convenience function for quick normalization

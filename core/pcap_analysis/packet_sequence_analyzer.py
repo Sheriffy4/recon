@@ -130,9 +130,7 @@ class PacketSequenceAnalyzer:
         self.timing_threshold = 0.1  # 100ms timing threshold
         self.split_size_threshold = 1000  # Packets larger than this might be split
 
-    def analyze_fake_disorder_sequence(
-        self, packets: List[PacketInfo]
-    ) -> FakeDisorderAnalysis:
+    def analyze_fake_disorder_sequence(self, packets: List[PacketInfo]) -> FakeDisorderAnalysis:
         """
         Analyze packet sequence for fakeddisorder strategy implementation.
 
@@ -161,9 +159,7 @@ class PacketSequenceAnalyzer:
 
         if fake_packets:
             analysis.fake_packet_detected = True
-            analysis.fake_packet_position = fake_packets[0][
-                0
-            ]  # First fake packet position
+            analysis.fake_packet_position = fake_packets[0][0]  # First fake packet position
 
         # Detect split positions
         split_analysis = self.detect_split_positions(packets)
@@ -179,14 +175,11 @@ class PacketSequenceAnalyzer:
         analysis.real_segments = [
             p
             for i, p in enumerate(packets)
-            if not self.detect_fake_packet(p, packets, i).is_fake
-            and p.payload_length > 0
+            if not self.detect_fake_packet(p, packets, i).is_fake and p.payload_length > 0
         ]
 
         # Calculate zapret compliance score
-        analysis.zapret_compliance = self._calculate_zapret_compliance(
-            analysis, packets
-        )
+        analysis.zapret_compliance = self._calculate_zapret_compliance(analysis, packets)
 
         return analysis
 
@@ -244,9 +237,7 @@ class PacketSequenceAnalyzer:
 
         return analysis
 
-    def detect_split_positions(
-        self, packets: List[PacketInfo]
-    ) -> SplitPositionAnalysis:
+    def detect_split_positions(self, packets: List[PacketInfo]) -> SplitPositionAnalysis:
         """
         Detect split positions in packet sequence for disorder analysis.
 
@@ -259,15 +250,11 @@ class PacketSequenceAnalyzer:
         analysis = SplitPositionAnalysis()
 
         # Find ClientHello packets as potential split targets
-        client_hello_packets = [
-            (i, p) for i, p in enumerate(packets) if p.is_client_hello
-        ]
+        client_hello_packets = [(i, p) for i, p in enumerate(packets) if p.is_client_hello]
 
         for ch_index, ch_packet in client_hello_packets:
             # Look for subsequent packets that might be splits
-            subsequent_packets = packets[
-                ch_index + 1 : ch_index + 10
-            ]  # Look ahead 10 packets
+            subsequent_packets = packets[ch_index + 1 : ch_index + 10]  # Look ahead 10 packets
 
             # Detect potential splits based on payload size patterns
             small_segments = []
@@ -280,9 +267,7 @@ class PacketSequenceAnalyzer:
                 for seg_index, seg_packet in small_segments:
                     # Estimate split position based on payload size
                     if ch_packet.payload_length > 0:
-                        estimated_split = min(
-                            seg_packet.payload_length, ch_packet.payload_length
-                        )
+                        estimated_split = min(seg_packet.payload_length, ch_packet.payload_length)
                         analysis.actual_positions.append(estimated_split)
                         analysis.detected_splits.append(seg_index)
 
@@ -308,8 +293,7 @@ class PacketSequenceAnalyzer:
         if analysis.expected_position and analysis.actual_positions:
             accuracy_scores = [
                 1.0
-                - abs(pos - analysis.expected_position)
-                / max(analysis.expected_position, pos, 1)
+                - abs(pos - analysis.expected_position) / max(analysis.expected_position, pos, 1)
                 for pos in analysis.actual_positions
             ]
             analysis.split_accuracy = max(accuracy_scores) if accuracy_scores else 0.0
@@ -375,13 +359,9 @@ class PacketSequenceAnalyzer:
             accurate_overlaps = [
                 o
                 for o in analysis.overlaps_detected
-                if expected_overlap_range[0]
-                <= o["overlap_bytes"]
-                <= expected_overlap_range[1]
+                if expected_overlap_range[0] <= o["overlap_bytes"] <= expected_overlap_range[1]
             ]
-            analysis.overlap_accuracy = len(accurate_overlaps) / len(
-                analysis.overlaps_detected
-            )
+            analysis.overlap_accuracy = len(accurate_overlaps) / len(analysis.overlaps_detected)
 
         return analysis
 
@@ -566,9 +546,7 @@ class PacketSequenceAnalyzer:
 
         # Generate recommendations
         if recon_analysis.zapret_compliance < 0.8:
-            comparison["recommendations"].append(
-                "Improve recon compliance with zapret patterns"
-            )
+            comparison["recommendations"].append("Improve recon compliance with zapret patterns")
 
         if any(d["severity"] == "critical" for d in comparison["differences"]):
             comparison["recommendations"].append(
@@ -619,9 +597,7 @@ class PacketSequenceAnalyzer:
             },
             "overlaps": overlaps.get_overlap_summary(),
             "quality_score": (
-                fake_disorder.zapret_compliance
-                + splits.split_accuracy
-                + overlaps.overlap_accuracy
+                fake_disorder.zapret_compliance + splits.split_accuracy + overlaps.overlap_accuracy
             )
             / 3,
         }

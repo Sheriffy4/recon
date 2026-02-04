@@ -112,15 +112,11 @@ class SimpleAttackExecutor:
         # fake first (как в zapret race)
         fake_payload = b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
         segs.append(
-            self._mk_segment(
-                fake_payload, 0, self._mk_opts(ttl=ttl, fooling=fooling, is_fake=True)
-            )
+            self._mk_segment(fake_payload, 0, self._mk_opts(ttl=ttl, fooling=fooling, is_fake=True))
         )
         # real parts in disorder/overlap style
         segs.append(self._mk_segment(p2, split_pos, self._mk_opts(ttl=None)))
-        segs.append(
-            self._mk_segment(p1, max(split_pos - overlap, 0), self._mk_opts(ttl=None))
-        )
+        segs.append(self._mk_segment(p1, max(split_pos - overlap, 0), self._mk_opts(ttl=None)))
         meta = {
             "fooling": fooling,
             "ttl": ttl,
@@ -168,7 +164,7 @@ class SimpleAttackExecutor:
         ttl = params.get("ttl")
         fooling = params.get("fooling", []) or []
         fake_payload = b"GET / HTTP/1.1\r\nHost: example.org\r\n\r\n"
-        
+
         # FIX: The real packet should have a different sequence number or be sent after a delay
         # to create a race condition. Here we add a small delay.
         segs = [

@@ -96,9 +96,7 @@ class AttackAdapter:
         if self.config.debug_mode:
             self.logger.setLevel(logging.DEBUG)
         self.packet_executor = IntelligentPacketExecutor(debug=self.config.debug_mode)
-        self.executor = ThreadPoolExecutor(
-            max_workers=self.config.parallel_execution_limit
-        )
+        self.executor = ThreadPoolExecutor(max_workers=self.config.parallel_execution_limit)
         self.execution_stats = {
             "total_executions": 0,
             "successful_executions": 0,
@@ -127,9 +125,7 @@ class AttackAdapter:
             "split_count": ("positions", lambda v: list(range(1, int(v) * 2, 2))),
             "split_positions": (
                 "positions",
-                lambda v: (
-                    [int(x) for x in v] if isinstance(v, (list, tuple)) else [int(v)]
-                ),
+                lambda v: ([int(x) for x in v] if isinstance(v, (list, tuple)) else [int(v)]),
             ),
             "split_pos": ("positions", lambda v: [int(v)]),
             "seq_overlap": ("overlap_size", int),
@@ -139,9 +135,7 @@ class AttackAdapter:
             "split_count": ("positions", lambda v: list(range(1, int(v) * 2, 2))),
             "split_positions": (
                 "positions",
-                lambda v: (
-                    [int(x) for x in v] if isinstance(v, (list, tuple)) else [int(v)]
-                ),
+                lambda v: ([int(x) for x in v] if isinstance(v, (list, tuple)) else [int(v)]),
             ),
             "split_pos": ("positions", lambda v: [int(v)]),
         },
@@ -266,24 +260,16 @@ class AttackAdapter:
                 "type": technique_name,
                 "params": params,
             }
-            parsed_strategy = self.strategy_mapper.parser.parse(
-                strategy_string_from_legacy
-            )
+            parsed_strategy = self.strategy_mapper.parser.parse(strategy_string_from_legacy)
             attack_names = parsed_strategy.attack_types
             if not mappings:
-                raise CompatibilityError(
-                    f"No mapping found for legacy technique: {technique_name}"
-                )
+                raise CompatibilityError(f"No mapping found for legacy technique: {technique_name}")
             mapping = mappings[0]
             attack_name = mapping.attack_names[0]
-            converted_params = self.strategy_mapper.convert_parameters(
-                params, attack_name
-            )
+            converted_params = self.strategy_mapper.convert_parameters(params, attack_name)
             context = self._create_attack_context_from_legacy(params, converted_params)
             result = self.execute_attack_by_name(attack_name, context)
-            legacy_result = self.result_processor.process_attack_result(
-                result, attack_name
-            )
+            legacy_result = self.result_processor.process_attack_result(result, attack_name)
             legacy_result["mapped_from"] = technique_name
             legacy_result["mapping_confidence"] = mapping.confidence
             LOG.info(
@@ -318,9 +304,7 @@ class AttackAdapter:
                 params_to_update = strategy_params.get("params", {})
                 if params_to_update:
                     execution_context.params.update(params_to_update)
-            self.logger.debug(
-                f"Final parameters for '{attack_name}': {execution_context.params}"
-            )
+            self.logger.debug(f"Final parameters for '{attack_name}': {execution_context.params}")
             if inspect.iscoroutinefunction(attack_instance.execute):
                 result = await attack_instance.execute(execution_context)
             else:
@@ -355,17 +339,13 @@ class AttackAdapter:
             if not stage_name:
                 self.logger.warning(f"Stage {i + 1} has no name, skipping.")
                 continue
-            self.logger.debug(
-                f"  Stage {i + 1}/{len(stages)}: Executing '{stage_name}'"
-            )
+            self.logger.debug(f"  Stage {i + 1}/{len(stages)}: Executing '{stage_name}'")
             stage_params_raw = stage_task.get("params", {}) or {}
             stage_params = self._normalize_attack_params_for_name(
                 stage_name, stage_params_raw, expected_keys=None
             )
             current_context.params = stage_params
-            stage_result = await self.execute_attack_by_name(
-                stage_name, current_context
-            )
+            stage_result = await self.execute_attack_by_name(stage_name, current_context)
             all_results.append(stage_result)
             try:
                 is_success = stage_result.status == AttackStatus.SUCCESS
@@ -375,13 +355,9 @@ class AttackAdapter:
                 is_success = stage_result.status == AS.SUCCESS
             if is_success:
                 successful_stages.append(stage_name)
-                current_context = self._update_context_from_result(
-                    current_context, stage_result
-                )
+                current_context = self._update_context_from_result(current_context, stage_result)
             else:
-                self.logger.warning(
-                    f"  Stage '{stage_name}' failed. Stopping combo execution."
-                )
+                self.logger.warning(f"  Stage '{stage_name}' failed. Stopping combo execution.")
                 break
         return self._aggregate_combo_results(all_results, successful_stages, stages)
 
@@ -408,17 +384,14 @@ class AttackAdapter:
             failed_stage_name = failed_stage_info.get("name") or failed_stage_info.get(
                 "type", "unknown_stage"
             )
-            final_result.error_message = (
-                f"Combo failed at stage '{failed_stage_name}'. "
-                + (final_result.error_message or "")
+            final_result.error_message = f"Combo failed at stage '{failed_stage_name}'. " + (
+                final_result.error_message or ""
             )
         final_result.latency_ms = sum((r.latency_ms for r in results))
         final_result.packets_sent = sum((r.packets_sent for r in results))
         final_result.bytes_sent = sum((r.bytes_sent for r in results))
         final_result.technique_used = "dynamic_combo"
-        final_result.set_metadata(
-            "combo_stages_executed", [r.technique_used for r in results]
-        )
+        final_result.set_metadata("combo_stages_executed", [r.technique_used for r in results])
         final_result.set_metadata("combo_successful_stages", successful_stages)
         return final_result
 
@@ -443,9 +416,7 @@ class AttackAdapter:
                 )
             future_to_attack = {}
             for attack_name in attacks:
-                future = self.executor.submit(
-                    self.execute_attack_by_name, attack_name, context
-                )
+                future = self.executor.submit(self.execute_attack_by_name, attack_name, context)
                 future_to_attack[future] = attack_name
             results = []
             for future in as_completed(
@@ -455,9 +426,7 @@ class AttackAdapter:
                 try:
                     result = future.result()
                     results.append(result)
-                    LOG.debug(
-                        f"Parallel attack {attack_name} completed: {result.status.value}"
-                    )
+                    LOG.debug(f"Parallel attack {attack_name} completed: {result.status.value}")
                 except Exception as e:
                     LOG.error(f"Parallel attack {attack_name} failed: {e}")
                     error_result = self._safe_create_attack_result(
@@ -540,9 +509,7 @@ class AttackAdapter:
         with self.stats_lock:
             stats = self.execution_stats.copy()
         if stats["total_executions"] > 0:
-            stats["success_rate"] = (
-                stats["successful_executions"] / stats["total_executions"]
-            )
+            stats["success_rate"] = stats["successful_executions"] / stats["total_executions"]
             stats["average_execution_time"] = (
                 stats["total_execution_time"] / stats["total_executions"]
             )
@@ -567,9 +534,7 @@ class AttackAdapter:
         self, legacy_params: Dict[str, Any], converted_params: Dict[str, Any]
     ) -> AttackContext:
         """Create AttackContext from legacy parameters."""
-        dst_ip = legacy_params.get(
-            "target_ip", legacy_params.get("dst_ip", "127.0.0.1")
-        )
+        dst_ip = legacy_params.get("target_ip", legacy_params.get("dst_ip", "127.0.0.1"))
         dst_port = legacy_params.get("target_port", legacy_params.get("dst_port", 80))
         payload = legacy_params.get("payload", b"")
         protocol = legacy_params.get("protocol", "tcp")
@@ -597,9 +562,7 @@ class AttackAdapter:
                 f"Attack {attack.name} does not support protocol {context.protocol}. Supported: {attack.supported_protocols}"
             )
         if len(context.payload) > 65535:
-            raise AttackExecutionError(
-                f"Payload too large: {len(context.payload)} bytes"
-            )
+            raise AttackExecutionError(f"Payload too large: {len(context.payload)} bytes")
         if not context.dst_ip or context.dst_ip == "0.0.0.0":
             raise AttackExecutionError("Invalid destination IP address")
         if context.protocol != "icmp" and (not 1 <= context.dst_port <= 65535):
@@ -652,9 +615,7 @@ class AttackAdapter:
     def _cache_result(self, cache_key: str, result: AttackResult):
         """Cache attack result."""
         if len(self.result_cache) >= self.config.max_cache_size:
-            oldest_key = min(
-                self.cache_timestamps.keys(), key=lambda k: self.cache_timestamps[k]
-            )
+            oldest_key = min(self.cache_timestamps.keys(), key=lambda k: self.cache_timestamps[k])
             del self.result_cache[oldest_key]
             del self.cache_timestamps[oldest_key]
         self.result_cache[cache_key] = result
@@ -711,9 +672,7 @@ class AttackAdapter:
             return True
         return False
 
-    async def _execute_raw_packets(
-        self, context: AttackContext, result: AttackResult
-    ) -> bool:
+    async def _execute_raw_packets(self, context: AttackContext, result: AttackResult) -> bool:
         """
         Execute raw packets using IntelligentPacketExecutor.
 
@@ -733,9 +692,7 @@ class AttackAdapter:
                     self.packet_executor.execute_attack_session, context, result
                 )
             elif hasattr(result, "modified_packets") and result.modified_packets:
-                success = await self._execute_scapy_packets(
-                    context, result.modified_packets
-                )
+                success = await self._execute_scapy_packets(context, result.modified_packets)
             else:
                 LOG.warning("Raw packet execution requested but no packet data found")
                 return False
@@ -748,9 +705,7 @@ class AttackAdapter:
             LOG.error(f"Error executing raw packets: {e}")
             return False
 
-    async def _execute_scapy_packets(
-        self, context: AttackContext, packets: List[Any]
-    ) -> bool:
+    async def _execute_scapy_packets(self, context: AttackContext, packets: List[Any]) -> bool:
         """
         Execute Scapy packets by converting them to segments for IntelligentPacketExecutor.
 
@@ -804,9 +759,7 @@ class AttackAdapter:
         with self.stats_lock:
             stats = self.execution_stats.copy()
         if stats["total_executions"] > 0:
-            stats["success_rate"] = (
-                stats["successful_executions"] / stats["total_executions"]
-            )
+            stats["success_rate"] = stats["successful_executions"] / stats["total_executions"]
             stats["average_execution_time"] = (
                 stats["total_execution_time"] / stats["total_executions"]
             )
@@ -866,28 +819,18 @@ class AttackAdapter:
                 },
             )
             try:
-                simulated_result = await self._simulate_attack_execution(
-                    attack, context
-                )
+                simulated_result = await self._simulate_attack_execution(attack, context)
                 if simulated_result:
                     result.status = simulated_result.status
-                    result.technique_used = (
-                        simulated_result.technique_used or attack_name
-                    )
+                    result.technique_used = simulated_result.technique_used or attack_name
                     result.error_message = simulated_result.error_message
                     if simulated_result.metadata:
                         result.metadata.update(simulated_result.metadata)
-                    if (
-                        hasattr(simulated_result, "_segments")
-                        and simulated_result._segments
-                    ):
-                        segments = simulated_result._segments
-                        result._segments = segments
-                        result.metadata["segments"] = segments
+                    if simulated_result.segments:
+                        segments = simulated_result.segments
+                        result.segments = segments
                         result.metadata["segments_count"] = len(segments)
-                        validation_result = self._simulate_segments_validation(
-                            segments, context
-                        )
+                        validation_result = self._simulate_segments_validation(segments, context)
                         result.metadata.update(validation_result)
                         with self.stats_lock:
                             self.dry_run_stats["segments_simulated"] += len(segments)
@@ -917,9 +860,7 @@ class AttackAdapter:
             self._log_dry_run_summary(result, attack_name, context)
             with self.stats_lock:
                 self.dry_run_stats["simulation_time"] += simulation_time
-            LOG.info(
-                f"Dry run simulation completed for '{attack_name}' in {simulation_time:.3f}ms"
-            )
+            LOG.info(f"Dry run simulation completed for '{attack_name}' in {simulation_time:.3f}ms")
             return result
         except Exception as e:
             LOG.error(f"Dry run execution failed for '{attack_name}': {e}")
@@ -957,9 +898,7 @@ class AttackAdapter:
             LOG.debug(f"Attack simulation failed: {e}")
             return None
 
-    def _simulate_segments_validation(
-        self, segments: list, context: AttackContext
-    ) -> dict:
+    def _simulate_segments_validation(self, segments: list, context: AttackContext) -> dict:
         """
         Simulate validation of segments for dry run.
 
@@ -1030,13 +969,10 @@ class AttackAdapter:
             "payload_size": len(context.payload) if context.payload else 0,
             "domain": context.domain,
             "params_count": len(context.params) if context.params else 0,
-            "has_tcp_session": hasattr(context, "tcp_seq")
-            and context.tcp_seq is not None,
+            "has_tcp_session": hasattr(context, "tcp_seq") and context.tcp_seq is not None,
         }
 
-    def _log_dry_run_summary(
-        self, result: AttackResult, attack_name: str, context: AttackContext
-    ):
+    def _log_dry_run_summary(self, result: AttackResult, attack_name: str, context: AttackContext):
         """
         Log comprehensive dry run summary.
 
@@ -1049,15 +985,11 @@ class AttackAdapter:
         LOG.info(f"DRY RUN SUMMARY - Attack: {attack_name}")
         LOG.info("=" * 60)
         LOG.info(f"Status: {result.status.value}")
-        LOG.info(
-            f"Simulation time: {result.metadata.get('simulation_time_ms', 0):.3f}ms"
-        )
+        LOG.info(f"Simulation time: {result.metadata.get('simulation_time_ms', 0):.3f}ms")
         if result.error_message:
             LOG.info(f"Error: {result.error_message}")
         context_summary = result.metadata.get("context_summary", {})
-        LOG.info(
-            f"Target: {context_summary.get('dst_ip')}:{context_summary.get('dst_port')}"
-        )
+        LOG.info(f"Target: {context_summary.get('dst_ip')}:{context_summary.get('dst_port')}")
         LOG.info(f"Protocol: {context_summary.get('protocol')}")
         LOG.info(f"Payload size: {context_summary.get('payload_size')} bytes")
         if "segment_analysis" in result.metadata:
@@ -1087,15 +1019,11 @@ class AttackAdapter:
         with self.stats_lock:
             stats = self.dry_run_stats.copy()
         if stats["total_dry_runs"] > 0:
-            stats["average_simulation_time_ms"] = (
-                stats["simulation_time"] / stats["total_dry_runs"]
-            )
+            stats["average_simulation_time_ms"] = stats["simulation_time"] / stats["total_dry_runs"]
             stats["average_segments_per_run"] = (
                 stats["segments_simulated"] / stats["total_dry_runs"]
             )
-            stats["validation_error_rate"] = (
-                stats["validation_errors"] / stats["total_dry_runs"]
-            )
+            stats["validation_error_rate"] = stats["validation_errors"] / stats["total_dry_runs"]
         else:
             stats["average_simulation_time_ms"] = 0.0
             stats["average_segments_per_run"] = 0.0

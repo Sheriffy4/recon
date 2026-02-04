@@ -75,7 +75,7 @@ class BaseHTTPManipulationAttack(BaseAttack):
         """Base implementation - should be overridden by concrete classes."""
         return AttackResult(
             status=AttackStatus.ERROR,
-            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented",
         )
 
     def __init__(self):
@@ -141,9 +141,7 @@ class BaseHTTPManipulationAttack(BaseAttack):
             LOG.error(f"Failed to parse HTTP request: {e}")
             return {}
 
-    def _build_http_request(
-        self, parsed: Dict[str, Any], config: HTTPManipulationConfig
-    ) -> bytes:
+    def _build_http_request(self, parsed: Dict[str, Any], config: HTTPManipulationConfig) -> bytes:
         """
         Build HTTP request from parsed components with modifications.
 
@@ -231,10 +229,7 @@ class BaseHTTPManipulationAttack(BaseAttack):
                     key.upper(),
                     key.lower(),
                     key.title(),
-                    "".join(
-                        c.upper() if i % 2 == 0 else c.lower()
-                        for i, c in enumerate(key)
-                    ),
+                    "".join(c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(key)),
                 ]
                 modified_key = random.choice(patterns)
             else:
@@ -272,9 +267,7 @@ class BaseHTTPManipulationAttack(BaseAttack):
 
         return "".join(chunks)
 
-    def _build_split_header_request(
-        self, request_parts: List[str], line_ending: str
-    ) -> bytes:
+    def _build_split_header_request(self, request_parts: List[str], line_ending: str) -> bytes:
         """Build request with headers split across segments."""
         # This will be handled by creating multiple segments
         # For now, return normal request
@@ -378,13 +371,10 @@ class BaseHTTPManipulationAttack(BaseAttack):
             # Modify each request slightly
             pipeline_config = HTTPManipulationConfig(
                 header_modifications=(
-                    config.header_modifications.copy()
-                    if config.header_modifications
-                    else {}
+                    config.header_modifications.copy() if config.header_modifications else {}
                 ),
                 method_override=config.method_override,
-                chunked_encoding=config.chunked_encoding
-                and i == 0,  # Only first request chunked
+                chunked_encoding=config.chunked_encoding and i == 0,  # Only first request chunked
                 header_case_modification=config.header_case_modification,
                 header_order_randomization=config.header_order_randomization,
                 fake_headers=config.fake_headers,
@@ -416,10 +406,10 @@ class BaseHTTPManipulationAttack(BaseAttack):
         "custom_headers": {},
         "case_modification": True,
         "order_randomization": False,
-        "space_manipulation": False
+        "space_manipulation": False,
     },
     aliases=["http_header_mod", "header_manip"],
-    description="HTTP header modification for DPI evasion"
+    description="HTTP header modification for DPI evasion",
 )
 class HeaderModificationAttack(BaseHTTPManipulationAttack):
     """
@@ -507,7 +497,7 @@ class HeaderModificationAttack(BaseHTTPManipulationAttack):
     required_params=[],
     optional_params={"method": "POST", "original_method": "GET"},
     aliases=["http_method", "method_override"],
-    description="HTTP method manipulation for DPI evasion"
+    description="HTTP method manipulation for DPI evasion",
 )
 class MethodManipulationAttack(BaseHTTPManipulationAttack):
     """
@@ -591,7 +581,7 @@ class MethodManipulationAttack(BaseHTTPManipulationAttack):
     required_params=[],
     optional_params={"chunk_size": 8, "random_chunks": True},
     aliases=["http_chunked", "chunked_transfer"],
-    description="HTTP chunked transfer encoding for DPI evasion"
+    description="HTTP chunked transfer encoding for DPI evasion",
 )
 class ChunkedEncodingAttack(BaseHTTPManipulationAttack):
     """
@@ -662,7 +652,7 @@ class ChunkedEncodingAttack(BaseHTTPManipulationAttack):
 @register_attack(
     name="pipeline_manipulation",
     aliases=["http-pipeline"],
-    description="HTTP pipeline manipulation for DPI evasion"
+    description="HTTP pipeline manipulation for DPI evasion",
 )
 class PipelineManipulationAttack(BaseHTTPManipulationAttack):
     """
@@ -827,9 +817,7 @@ class CaseManipulationAttack(BaseHTTPManipulationAttack):
 
         try:
             # Get parameters
-            method_case = context.params.get(
-                "method_case", "mixed"
-            )  # upper, lower, mixed
+            method_case = context.params.get("method_case", "mixed")  # upper, lower, mixed
             header_case = context.params.get("header_case", "mixed")
             randomize_each_header = context.params.get("randomize_each_header", True)
 
@@ -844,8 +832,7 @@ class CaseManipulationAttack(BaseHTTPManipulationAttack):
                 target_method = original_method.lower()
             else:  # mixed
                 target_method = "".join(
-                    c.upper() if i % 2 == 0 else c.lower()
-                    for i, c in enumerate(original_method)
+                    c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(original_method)
                 )
 
             # Create configuration

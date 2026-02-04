@@ -82,9 +82,7 @@ class TimingStatistics:
         strategy_stats = {}
 
         for strategy in TimingStrategy:
-            strategy_measurements = [
-                m for m in self.measurements if m.strategy_used == strategy
-            ]
+            strategy_measurements = [m for m in self.measurements if m.strategy_used == strategy]
 
             if strategy_measurements:
                 accuracies = [m.accuracy_percentage for m in strategy_measurements]
@@ -151,9 +149,7 @@ class PreciseTimingController:
             sleep_times.append((end - start) * 1000)
 
         sleep_overhead = statistics.mean(sleep_times) - 1.0  # Subtract requested 1ms
-        self.calibration_data[TimingStrategy.SLEEP]["overhead_ms"] = max(
-            0.1, sleep_overhead
-        )
+        self.calibration_data[TimingStrategy.SLEEP]["overhead_ms"] = max(0.1, sleep_overhead)
 
         # Calibrate busy wait precision
         busy_wait_times = []
@@ -165,12 +161,8 @@ class PreciseTimingController:
             end = time.perf_counter()
             busy_wait_times.append((end - start) * 1000)
 
-        busy_wait_error = (
-            statistics.stdev(busy_wait_times) if len(busy_wait_times) > 1 else 0.01
-        )
-        self.calibration_data[TimingStrategy.BUSY_WAIT][
-            "min_precision_ms"
-        ] = busy_wait_error
+        busy_wait_error = statistics.stdev(busy_wait_times) if len(busy_wait_times) > 1 else 0.01
+        self.calibration_data[TimingStrategy.BUSY_WAIT]["min_precision_ms"] = busy_wait_error
 
         self.logger.debug(
             f"Timing calibration complete: sleep_overhead={sleep_overhead:.3f}ms, "
@@ -374,9 +366,7 @@ class PreciseTimingController:
         }
 
         if self.statistics.measurements:
-            recent_measurements = self.statistics.measurements[
-                -10:
-            ]  # Last 10 measurements
+            recent_measurements = self.statistics.measurements[-10:]  # Last 10 measurements
             stats["recent_accuracy"] = statistics.mean(
                 [m.accuracy_percentage for m in recent_measurements]
             )
@@ -417,9 +407,7 @@ class PreciseTimingController:
         Returns:
             Performance comparison of strategies
         """
-        self.logger.info(
-            f"Benchmarking timing strategies with {len(test_delays)} test delays"
-        )
+        self.logger.info(f"Benchmarking timing strategies with {len(test_delays)} test delays")
 
         # Save current statistics
         original_stats = self.statistics
@@ -444,21 +432,15 @@ class PreciseTimingController:
 
             # Collect results
             if self.statistics.measurements:
-                accuracies = [
-                    m.accuracy_percentage for m in self.statistics.measurements
-                ]
-                errors = [
-                    abs(m.accuracy_error_ms) for m in self.statistics.measurements
-                ]
+                accuracies = [m.accuracy_percentage for m in self.statistics.measurements]
+                errors = [abs(m.accuracy_error_ms) for m in self.statistics.measurements]
 
                 results[strategy] = {
                     "avg_accuracy": statistics.mean(accuracies),
                     "avg_error_ms": statistics.mean(errors),
                     "max_error_ms": max(errors),
                     "min_error_ms": min(errors),
-                    "std_error_ms": (
-                        statistics.stdev(errors) if len(errors) > 1 else 0.0
-                    ),
+                    "std_error_ms": (statistics.stdev(errors) if len(errors) > 1 else 0.0),
                     "test_count": len(self.statistics.measurements),
                 }
 
@@ -481,9 +463,7 @@ def get_timing_controller() -> PreciseTimingController:
     return _global_timing_controller
 
 
-def precise_delay(
-    delay_ms: float, strategy: Optional[TimingStrategy] = None
-) -> TimingMeasurement:
+def precise_delay(delay_ms: float, strategy: Optional[TimingStrategy] = None) -> TimingMeasurement:
     """
     Convenience function for precise delay.
 

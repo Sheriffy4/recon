@@ -21,7 +21,7 @@ from datetime import datetime
 
 # Импорты из вашего проекта
 try:
-    from core.adaptive_engine import AdaptiveEngine
+    from core.adaptive_refactored.facade import AdaptiveEngine
     from core.strategy_evaluator import StrategyEvaluator
     from core.domain_manager import DomainManager
     from core.unified_bypass_engine import UnifiedBypassEngine

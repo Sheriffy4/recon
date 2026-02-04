@@ -112,9 +112,7 @@ class UnifiedFingerprinter:
         if sys.platform.startswith("win") and sys.version_info >= (3, 12):
             try:
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-                self.logger.info(
-                    "Applied WindowsSelectorEventLoopPolicy for Python 3.12+"
-                )
+                self.logger.info("Applied WindowsSelectorEventLoopPolicy for Python 3.12+")
             except Exception as e:
                 self.logger.warning(f"Failed to set Windows event loop policy: {e}")
 
@@ -148,9 +146,7 @@ class UnifiedFingerprinter:
         """
         # Try to close the adapter itself
         try:
-            close_coro = getattr(adapter, "close", None) or getattr(
-                adapter, "aclose", None
-            )
+            close_coro = getattr(adapter, "close", None) or getattr(adapter, "aclose", None)
             if close_coro:
                 if inspect.iscoroutinefunction(close_coro):
                     await close_coro()
@@ -166,9 +162,7 @@ class UnifiedFingerprinter:
         try:
             inner = getattr(adapter, "analyzer", None)
             if inner:
-                close_coro = getattr(inner, "close", None) or getattr(
-                    inner, "aclose", None
-                )
+                close_coro = getattr(inner, "close", None) or getattr(inner, "aclose", None)
                 if close_coro:
                     if inspect.iscoroutinefunction(close_coro):
                         await close_coro()
@@ -200,9 +194,7 @@ class UnifiedFingerprinter:
         max_concurrent = max_concurrent or self.config.max_concurrent
         semaphore = asyncio.Semaphore(max_concurrent)
 
-        async def fingerprint_with_semaphore(
-            target: str, port: int
-        ) -> UnifiedFingerprint:
+        async def fingerprint_with_semaphore(target: str, port: int) -> UnifiedFingerprint:
             async with semaphore:
                 try:
                     return await self.fingerprint_target(
@@ -284,12 +276,8 @@ class UnifiedFingerprinter:
         # Passive Analyzer (NEW - runs first for quick diagnosis)
         if PASSIVE_ANALYSIS_AVAILABLE:
             try:
-                self.passive_analyzer = PassiveDPIAnalyzer(
-                    timeout=self.config.connect_timeout
-                )
-                self.bypass_prober = QuickBypassProber(
-                    timeout=self.config.connect_timeout
-                )
+                self.passive_analyzer = PassiveDPIAnalyzer(timeout=self.config.connect_timeout)
+                self.bypass_prober = QuickBypassProber(timeout=self.config.connect_timeout)
                 self.logger.info("Passive analyzer and bypass prober initialized")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize passive components: {e}")
@@ -302,9 +290,7 @@ class UnifiedFingerprinter:
         # TCP Analyzer
         if self.config.enable_tcp_analysis and "tcp" in available_analyzers:
             try:
-                self.analyzers["tcp"] = create_analyzer_adapter(
-                    "tcp", timeout=self.config.timeout
-                )
+                self.analyzers["tcp"] = create_analyzer_adapter("tcp", timeout=self.config.timeout)
                 self.logger.info("TCP analyzer initialized")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize TCP analyzer: {e}")
@@ -319,9 +305,7 @@ class UnifiedFingerprinter:
                     use_system_proxy=False,  # Disable proxy for fingerprinting
                     enable_doh_fallback=self.config.enable_doh_fallback,
                 )
-                self.logger.info(
-                    "HTTP analyzer initialized (proxy disabled for accuracy)"
-                )
+                self.logger.info("HTTP analyzer initialized (proxy disabled for accuracy)")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize HTTP analyzer: {e}")
 
@@ -376,15 +360,11 @@ class UnifiedFingerprinter:
         if isinstance(result, dict):
             try:
                 # Try direct instantiation with matching fields
-                valid_fields = {
-                    k: v for k, v in result.items() if k in model_cls.__annotations__
-                }
+                valid_fields = {k: v for k, v in result.items() if k in model_cls.__annotations__}
                 return model_cls(**valid_fields)
             except (TypeError, ValueError) as e:
                 # Fallback: manual field assignment
-                self.logger.debug(
-                    f"Direct instantiation failed, using manual assignment: {e}"
-                )
+                self.logger.debug(f"Direct instantiation failed, using manual assignment: {e}")
                 obj = model_cls()
                 for k, v in result.items():
                     if hasattr(obj, k):
@@ -434,9 +414,7 @@ class UnifiedFingerprinter:
             if is_ml:
                 raw_result = await analyzer.analyze(fingerprint.to_dict())
             else:
-                raw_result = await analyzer.analyze(
-                    fingerprint.target, fingerprint.port
-                )
+                raw_result = await analyzer.analyze(fingerprint.target, fingerprint.port)
 
             # Map to correct model
             model_map = {
@@ -484,9 +462,7 @@ class UnifiedFingerprinter:
         start_time = time.time()
         analysis_level = analysis_level or self.config.analysis_level
 
-        self.logger.info(
-            f"Starting fingerprinting for {target}:{port} (level: {analysis_level})"
-        )
+        self.logger.info(f"Starting fingerprinting for {target}:{port} (level: {analysis_level})")
 
         try:
             # Check cache
@@ -521,8 +497,8 @@ class UnifiedFingerprinter:
             fingerprint.analysis_duration = time.time() - start_time
 
             # Generate strategy recommendations
-            fingerprint.recommended_strategies = (
-                await self._generate_strategy_recommendations(fingerprint)
+            fingerprint.recommended_strategies = await self._generate_strategy_recommendations(
+                fingerprint
             )
 
             # PCAP Fallback: trigger if reliability is low
@@ -533,9 +509,7 @@ class UnifiedFingerprinter:
                 )
                 self.stats["pcap_fallbacks_triggered"] += 1
 
-                fallback_results = await self._run_pcap_fallback_pass(
-                    target, port, pcap_path
-                )
+                fallback_results = await self._run_pcap_fallback_pass(target, port, pcap_path)
 
                 if fallback_results and fallback_results.get("best_strategy"):
                     self.stats["pcap_fallbacks_successful"] += 1
@@ -586,9 +560,7 @@ class UnifiedFingerprinter:
                 fingerprint.analysis_duration = time.time() - start_time
                 return fingerprint
             else:
-                raise FingerprintingError(
-                    f"Fingerprinting failed for {target}:{port}: {e}"
-                )
+                raise FingerprintingError(f"Fingerprinting failed for {target}:{port}: {e}")
 
     def build_json_report(
         pcap_file: str, triggers: List[Dict[str, Any]], no_reassemble: bool
@@ -606,8 +578,8 @@ class UnifiedFingerprinter:
 
             assembled_payload, stream_label, reassembly_meta = b"", None, {}
             if not no_reassemble and isinstance(trig_idx, int):
-                assembled_payload, stream_label, reassembly_meta = (
-                    reassemble_clienthello(pcap_file, trig_idx, max_back=10)
+                assembled_payload, stream_label, reassembly_meta = reassemble_clienthello(
+                    pcap_file, trig_idx, max_back=10
                 )
 
             if not stream_label:
@@ -645,9 +617,7 @@ class UnifiedFingerprinter:
                     "ec_point_formats": tls.get("ec_point_formats") or [],
                     "ch_length": tls.get("ch_length"),
                 },
-                "payload_preview_hex": (
-                    assembled_payload[:64].hex() if assembled_payload else ""
-                ),
+                "payload_preview_hex": (assembled_payload[:64].hex() if assembled_payload else ""),
                 "recommended_strategies": recs,
             }
             report["incidents"].append(incident)
@@ -655,9 +625,7 @@ class UnifiedFingerprinter:
         # <<< НОВЫЙ БЛОК: Запуск статистического анализа >>>
         if report["incidents"]:
             pattern_analyzer = BlockingPatternAnalyzer()
-            report["statistical_analysis"] = pattern_analyzer.analyze_incidents(
-                report["incidents"]
-            )
+            report["statistical_analysis"] = pattern_analyzer.analyze_incidents(report["incidents"])
         # <<< КОНЕЦ НОВОГО БЛОКА >>>
 
         return report
@@ -673,9 +641,7 @@ class UnifiedFingerprinter:
             return None
 
         try:
-            self.logger.info(
-                f"[PCAP-fallback] Analyzing {pcap_path} for {target}:{port}"
-            )
+            self.logger.info(f"[PCAP-fallback] Analyzing {pcap_path} for {target}:{port}")
 
             # 1. Analyze PCAP
             analyzer = RSTTriggerAnalyzer(pcap_path)
@@ -787,9 +753,7 @@ class UnifiedFingerprinter:
                 )
             finally:
                 # Always cleanup engine resources
-                close_coro = getattr(engine, "cleanup", None) or getattr(
-                    engine, "close", None
-                )
+                close_coro = getattr(engine, "cleanup", None) or getattr(engine, "close", None)
                 if close_coro:
                     if inspect.iscoroutinefunction(close_coro):
                         with contextlib.suppress(Exception):
@@ -799,9 +763,7 @@ class UnifiedFingerprinter:
                             close_coro()
 
             # 6. Extract best strategy
-            working_strategies = [
-                r for r in (results or []) if r.get("success_rate", 0) > 0
-            ]
+            working_strategies = [r for r in (results or []) if r.get("success_rate", 0) > 0]
             best = working_strategies[0] if working_strategies else None
 
             if best:
@@ -830,9 +792,7 @@ class UnifiedFingerprinter:
             )
             return {"error": str(e)}
 
-    async def _check_cache(
-        self, target: str, port: int
-    ) -> Optional[UnifiedFingerprint]:
+    async def _check_cache(self, target: str, port: int) -> Optional[UnifiedFingerprint]:
         """Check cache for existing fingerprint"""
         if not self.cache:
             return None
@@ -884,9 +844,7 @@ class UnifiedFingerprinter:
                 )
 
                 # Store passive analysis results
-                fingerprint.tcp_analysis.rst_injection_detected = (
-                    passive_result.rst_detected
-                )
+                fingerprint.tcp_analysis.rst_injection_detected = passive_result.rst_detected
                 if passive_result.rst_ttl:
                     fingerprint.tcp_analysis.rst_ttl = passive_result.rst_ttl
 
@@ -965,9 +923,7 @@ class UnifiedFingerprinter:
 
         # ML after network analysis
         if "ml" in self.analyzers:
-            await self._run_analysis_safe(
-                fingerprint, "ml", "ml_classification", is_ml=True
-            )
+            await self._run_analysis_safe(fingerprint, "ml", "ml_classification", is_ml=True)
 
     async def _run_comprehensive_analysis(self, fingerprint: UnifiedFingerprint):
         """Comprehensive analysis: All components"""
@@ -975,18 +931,14 @@ class UnifiedFingerprinter:
 
         for name in ["tcp", "http", "dns"]:
             if name in self.analyzers:
-                tasks.append(
-                    self._run_analysis_safe(fingerprint, name, f"{name}_analysis")
-                )
+                tasks.append(self._run_analysis_safe(fingerprint, name, f"{name}_analysis"))
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
         # ML classification last
         if "ml" in self.analyzers:
-            await self._run_analysis_safe(
-                fingerprint, "ml", "ml_classification", is_ml=True
-            )
+            await self._run_analysis_safe(fingerprint, "ml", "ml_classification", is_ml=True)
 
     async def _generate_strategy_recommendations(
         self, fingerprint: UnifiedFingerprint
@@ -1023,8 +975,7 @@ class UnifiedFingerprinter:
                     recommendations.append(
                         StrategyRecommendation(
                             strategy_name=strategy["name"],
-                            predicted_effectiveness=strategy.get("priority", 50)
-                            / 100.0,
+                            predicted_effectiveness=strategy.get("priority", 50) / 100.0,
                             confidence=0.5,
                             reasoning=[strategy.get("reasoning", "Fallback strategy")],
                         )
@@ -1053,9 +1004,7 @@ class UnifiedFingerprinter:
                         strategy_name="fake,disorder",
                         predicted_effectiveness=0.7,
                         confidence=0.6,
-                        reasoning=[
-                            "RST injection detected, fake packet attacks may work"
-                        ],
+                        reasoning=["RST injection detected, fake packet attacks may work"],
                     )
                 )
 
@@ -1128,9 +1077,7 @@ class UnifiedFingerprinter:
             comp = getattr(self, comp_name, None)
             if comp:
                 try:
-                    close_coro = getattr(comp, "close", None) or getattr(
-                        comp, "aclose", None
-                    )
+                    close_coro = getattr(comp, "close", None) or getattr(comp, "aclose", None)
                     if close_coro:
                         if inspect.iscoroutinefunction(close_coro):
                             await close_coro()

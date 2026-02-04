@@ -264,9 +264,7 @@ class WorkflowScheduler:
 
         job_id = f"batch_{int(time.time())}_{hash(name) % 10000}"
 
-        return BatchJob(
-            id=job_id, name=name, pcap_pairs=pcap_pairs, base_config=base_config
-        )
+        return BatchJob(id=job_id, name=name, pcap_pairs=pcap_pairs, base_config=base_config)
 
     async def _scheduler_loop(self) -> None:
         """Main scheduler loop"""
@@ -293,9 +291,7 @@ class WorkflowScheduler:
                 self.logger.error(f"Scheduler loop error: {e}")
                 await asyncio.sleep(60)  # Wait longer on error
 
-    async def _execute_scheduled_job(
-        self, job: ScheduledJob
-    ) -> Optional[WorkflowResult]:
+    async def _execute_scheduled_job(self, job: ScheduledJob) -> Optional[WorkflowResult]:
         """Execute a scheduled job"""
         try:
             self.logger.info(f"Executing scheduled job: {job.name}")
@@ -334,9 +330,7 @@ class WorkflowScheduler:
     async def _execute_batch_job(self, job: BatchJob) -> List[WorkflowResult]:
         """Execute a batch processing job"""
         try:
-            self.logger.info(
-                f"Executing batch job: {job.name} ({len(job.pcap_pairs)} pairs)"
-            )
+            self.logger.info(f"Executing batch job: {job.name} ({len(job.pcap_pairs)} pairs)")
 
             results = []
 
@@ -344,9 +338,7 @@ class WorkflowScheduler:
                 # Execute in parallel with concurrency limit
                 semaphore = asyncio.Semaphore(job.max_concurrent)
 
-                async def execute_pair(
-                    recon_pcap: str, zapret_pcap: str
-                ) -> WorkflowResult:
+                async def execute_pair(recon_pcap: str, zapret_pcap: str) -> WorkflowResult:
                     async with semaphore:
                         # Create config for this pair
                         config = WorkflowConfig(
@@ -410,8 +402,7 @@ class WorkflowScheduler:
 
             success_count = sum(1 for r in results if r.success)
             self.logger.info(
-                f"Batch job completed: {job.name} "
-                f"({success_count}/{len(results)} successful)"
+                f"Batch job completed: {job.name} " f"({success_count}/{len(results)} successful)"
             )
 
             return results
@@ -430,9 +421,7 @@ class WorkflowScheduler:
             hour = job.schedule_params.get("hour", 2)
             minute = job.schedule_params.get("minute", 0)
 
-            next_run = datetime.now().replace(
-                hour=hour, minute=minute, second=0, microsecond=0
-            )
+            next_run = datetime.now().replace(hour=hour, minute=minute, second=0, microsecond=0)
             if next_run <= datetime.now():
                 next_run += timedelta(days=1)
             job.next_run = next_run
@@ -448,9 +437,7 @@ class WorkflowScheduler:
                 days_ahead += 7
 
             next_run = now + timedelta(days=days_ahead)
-            next_run = next_run.replace(
-                hour=hour, minute=minute, second=0, microsecond=0
-            )
+            next_run = next_run.replace(hour=hour, minute=minute, second=0, microsecond=0)
             job.next_run = next_run
 
     def _save_jobs(self) -> None:
@@ -553,9 +540,7 @@ class WorkflowScheduler:
             "scheduler_running": self.running,
             "scheduled_jobs": len(self.scheduled_jobs),
             "batch_jobs": len(self.batch_jobs),
-            "enabled_jobs": sum(
-                1 for job in self.scheduled_jobs.values() if job.enabled
-            ),
+            "enabled_jobs": sum(1 for job in self.scheduled_jobs.values() if job.enabled),
             "jobs": [],
         }
 

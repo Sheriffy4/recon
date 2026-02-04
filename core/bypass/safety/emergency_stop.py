@@ -130,9 +130,7 @@ class AttackStopController:
                 except Exception as e:
                     LOG.error(f"Stop callback failed for {self.attack_id}: {e}")
 
-            LOG.warning(
-                f"Emergency stop requested for attack {self.attack_id}: {description}"
-            )
+            LOG.warning(f"Emergency stop requested for attack {self.attack_id}: {description}")
 
     def is_stop_requested(self) -> bool:
         """Check if stop has been requested."""
@@ -329,9 +327,7 @@ class EmergencyStopManager:
             count = 0
             for attack_id, controller in self._controllers.items():
                 try:
-                    controller.request_stop(
-                        reason, f"Global stop: {description}", priority
-                    )
+                    controller.request_stop(reason, f"Global stop: {description}", priority)
                     count += 1
                 except Exception as e:
                     LOG.error(f"Failed to stop attack {attack_id}: {e}")
@@ -456,9 +452,7 @@ class EmergencyStopManager:
                             condition.consecutive_failures = 0  # Reset on success
 
                     except Exception as e:
-                        LOG.error(
-                            f"Error evaluating stop condition {condition.name}: {e}"
-                        )
+                        LOG.error(f"Error evaluating stop condition {condition.name}: {e}")
 
                 time.sleep(1.0)  # Check every second
 
@@ -473,18 +467,14 @@ class EmergencyStopManager:
 
         # Stop all attacks based on priority
         if condition.priority in [StopPriority.CRITICAL, StopPriority.IMMEDIATE]:
-            self.request_stop_all(
-                condition.reason, condition.description, condition.priority
-            )
+            self.request_stop_all(condition.reason, condition.description, condition.priority)
         else:
             # For lower priority conditions, just log and let individual attacks handle it
             LOG.warning(
                 f"Stop condition {condition.name} triggered but not stopping attacks (priority: {condition.priority.name})"
             )
 
-    def add_global_callback(
-        self, callback: Callable[[EmergencyStopEvent], None]
-    ) -> None:
+    def add_global_callback(self, callback: Callable[[EmergencyStopEvent], None]) -> None:
         """Add global callback for all stop events."""
         with self._lock:
             self._global_callbacks.append(callback)
@@ -511,9 +501,7 @@ class EmergencyStopManager:
     def get_status(self) -> Dict[str, Any]:
         """Get emergency stop manager status."""
         with self._lock:
-            active_stops = sum(
-                1 for c in self._controllers.values() if c.is_stop_requested()
-            )
+            active_stops = sum(1 for c in self._controllers.values() if c.is_stop_requested())
             enabled_conditions = sum(1 for c in self._stop_conditions if c.enabled)
 
             return {
@@ -550,9 +538,7 @@ class EmergencyStopManager:
         self.stop_monitoring()
 
         # Stop all active attacks
-        self.request_stop_all(
-            StopReason.USER_REQUEST, "System shutdown", StopPriority.IMMEDIATE
-        )
+        self.request_stop_all(StopReason.USER_REQUEST, "System shutdown", StopPriority.IMMEDIATE)
 
         # Clear controllers
         with self._lock:

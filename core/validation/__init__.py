@@ -1,22 +1,34 @@
 """
-Validation module for PCAP analysis and compliance checking.
+Packet validation utilities.
+
+This package provides modular validation components for DPI bypass attacks.
 """
 
-from .clienthello_parser import ClientHelloParser, ClientHelloInfo
-from .pcap_validator import (
-    PCAPValidator,
-    TCPStream
+# Re-export for backward compatibility
+from .checksum_utils import calculate_tcp_checksum, validate_tcp_checksum
+from .pcap_parser import PacketData, parse_pcap_file, parse_single_packet, parse_network_packet
+from .rule_evaluators import (
+    evaluate_checksum_rule,
+    evaluate_ttl_rule,
+    evaluate_seq_rule,
+    extract_expected_count,
 )
-from .attack_detector import AttackDetector, DetectedAttacks
-from .compliance_checker import ComplianceChecker, ComplianceReport
+from .attack_validator import AttackValidator
+from .diff_generator import DiffGenerator
+from .spec_validator import SpecValidator
 
 __all__ = [
-    'ClientHelloParser',
-    'ClientHelloInfo',
-    'PCAPValidator',
-    'DetectedAttacks',
-    'TCPStream',
-    'AttackDetector',
-    'ComplianceChecker',
-    'ComplianceReport'
+    "calculate_tcp_checksum",
+    "validate_tcp_checksum",
+    "PacketData",
+    "parse_pcap_file",
+    "parse_single_packet",
+    "parse_network_packet",
+    "evaluate_checksum_rule",
+    "evaluate_ttl_rule",
+    "evaluate_seq_rule",
+    "extract_expected_count",
+    "AttackValidator",
+    "DiffGenerator",
+    "SpecValidator",
 ]

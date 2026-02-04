@@ -270,18 +270,10 @@ class UnifiedFingerprint:
     http_analysis: HTTPAnalysisResult = field(default_factory=HTTPAnalysisResult)
     tls_analysis: TLSAnalysisResult = field(default_factory=TLSAnalysisResult)
     dns_analysis: DNSAnalysisResult = field(default_factory=DNSAnalysisResult)
-    ml_classification: MLClassificationResult = field(
-        default_factory=MLClassificationResult
-    )
-    advanced_tcp_probes: AdvancedTCPProbeResult = field(
-        default_factory=AdvancedTCPProbeResult
-    )
-    advanced_tls_probes: AdvancedTLSProbeResult = field(
-        default_factory=AdvancedTLSProbeResult
-    )
-    behavioral_probes: BehavioralProbeResult = field(
-        default_factory=BehavioralProbeResult
-    )
+    ml_classification: MLClassificationResult = field(default_factory=MLClassificationResult)
+    advanced_tcp_probes: AdvancedTCPProbeResult = field(default_factory=AdvancedTCPProbeResult)
+    advanced_tls_probes: AdvancedTLSProbeResult = field(default_factory=AdvancedTLSProbeResult)
+    behavioral_probes: BehavioralProbeResult = field(default_factory=BehavioralProbeResult)
     recommended_strategies: List[StrategyRecommendation] = field(default_factory=list)
     errors: List["AnalyzerError"] = field(default_factory=list)
 
@@ -310,11 +302,7 @@ class UnifiedFingerprint:
     def calculate_dpi_hash(self) -> str:
         """Calculate hash based on DPI characteristics"""
         characteristics = {
-            "dpi_type": (
-                self.dpi_type.value
-                if isinstance(self.dpi_type, Enum)
-                else self.dpi_type
-            ),
+            "dpi_type": (self.dpi_type.value if isinstance(self.dpi_type, Enum) else self.dpi_type),
             "tcp_rst_injection": self.tcp_analysis.rst_injection_detected,
             "tcp_window_manipulation": self.tcp_analysis.tcp_window_manipulation,
             "sni_blocking": self.tls_analysis.sni_blocking_detected,
@@ -332,25 +320,25 @@ class UnifiedFingerprint:
 
         # TCP analysis weight
         if self.tcp_analysis.status == AnalysisStatus.COMPLETED:
-            tcp_score = len(
-                [r for r in self.tcp_analysis.probe_results if r.success]
-            ) / max(1, len(self.tcp_analysis.probe_results))
+            tcp_score = len([r for r in self.tcp_analysis.probe_results if r.success]) / max(
+                1, len(self.tcp_analysis.probe_results)
+            )
             scores.append(tcp_score)
             weights.append(0.3)
 
         # HTTP analysis weight
         if self.http_analysis.status == AnalysisStatus.COMPLETED:
-            http_score = len(
-                [r for r in self.http_analysis.probe_results if r.success]
-            ) / max(1, len(self.http_analysis.probe_results))
+            http_score = len([r for r in self.http_analysis.probe_results if r.success]) / max(
+                1, len(self.http_analysis.probe_results)
+            )
             scores.append(http_score)
             weights.append(0.2)
 
         # TLS analysis weight
         if self.tls_analysis.status == AnalysisStatus.COMPLETED:
-            tls_score = len(
-                [r for r in self.tls_analysis.probe_results if r.success]
-            ) / max(1, len(self.tls_analysis.probe_results))
+            tls_score = len([r for r in self.tls_analysis.probe_results if r.success]) / max(
+                1, len(self.tls_analysis.probe_results)
+            )
             scores.append(tls_score)
             weights.append(0.3)
 
@@ -365,10 +353,7 @@ class UnifiedFingerprint:
             tcp_probe_score = 0.0
             if self.advanced_tcp_probes.packet_reordering_tolerance:
                 tcp_probe_score += 0.3
-            if (
-                self.advanced_tcp_probes.ip_fragmentation_overlap_handling
-                == "vulnerable"
-            ):
+            if self.advanced_tcp_probes.ip_fragmentation_overlap_handling == "vulnerable":
                 tcp_probe_score += 0.4
             if self.advanced_tcp_probes.dpi_distance_hops:
                 tcp_probe_score += 0.3
@@ -411,11 +396,7 @@ class UnifiedFingerprint:
         """Get summary of analysis results"""
         return {
             "target": f"{self.target}:{self.port}",
-            "dpi_type": (
-                self.dpi_type.value
-                if isinstance(self.dpi_type, Enum)
-                else self.dpi_type
-            ),
+            "dpi_type": (self.dpi_type.value if isinstance(self.dpi_type, Enum) else self.dpi_type),
             "confidence": self.ml_classification.confidence,
             "reliability_score": self.reliability_score,
             "analysis_duration": self.analysis_duration,
@@ -433,9 +414,7 @@ class UnifiedFingerprint:
                 ]
                 if result.status == AnalysisStatus.COMPLETED
             ],
-            "recommended_strategies": [
-                r.strategy_name for r in self.recommended_strategies
-            ],
+            "recommended_strategies": [r.strategy_name for r in self.recommended_strategies],
             "cache_key": self.get_cache_key(),
         }
 

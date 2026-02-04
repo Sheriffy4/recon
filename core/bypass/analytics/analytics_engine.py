@@ -95,9 +95,7 @@ class AnalyticsEngine:
         self, attack_id: str, success: bool, response_time: float, domain: str = None
     ):
         """Record attack execution result"""
-        await self.metrics_collector.record_attack_result(
-            attack_id, success, response_time, domain
-        )
+        await self.metrics_collector.record_attack_result(attack_id, success, response_time, domain)
 
     async def record_strategy_result(
         self, strategy_id: str, domain: str, success: bool, effectiveness: float
@@ -132,40 +130,24 @@ class AnalyticsEngine:
             "performance": performance,
             "predictions": {
                 "success_rate": {
-                    "value": (
-                        success_prediction.predicted_value
-                        if success_prediction
-                        else None
-                    ),
-                    "confidence": (
-                        success_prediction.confidence if success_prediction else None
-                    ),
+                    "value": (success_prediction.predicted_value if success_prediction else None),
+                    "confidence": (success_prediction.confidence if success_prediction else None),
                 },
                 "response_time": {
-                    "value": (
-                        response_prediction.predicted_value
-                        if response_prediction
-                        else None
-                    ),
-                    "confidence": (
-                        response_prediction.confidence if response_prediction else None
-                    ),
+                    "value": (response_prediction.predicted_value if response_prediction else None),
+                    "confidence": (response_prediction.confidence if response_prediction else None),
                 },
             },
         }
 
-    async def get_strategy_analytics(
-        self, strategy_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def get_strategy_analytics(self, strategy_id: str) -> Optional[Dict[str, Any]]:
         """Get comprehensive analytics for specific strategy"""
         metrics = await self.metrics_collector.get_strategy_metrics(strategy_id)
         if not metrics:
             return None
-        performance = await self.performance_tracker.get_performance_summary(
+        performance = await self.performance_tracker.get_performance_summary(strategy_id)
+        effectiveness_prediction = await self.ml_predictor.predict_strategy_effectiveness(
             strategy_id
-        )
-        effectiveness_prediction = (
-            await self.ml_predictor.predict_strategy_effectiveness(strategy_id)
         )
         return {
             "strategy_id": strategy_id,
@@ -187,9 +169,7 @@ class AnalyticsEngine:
                         else None
                     ),
                     "confidence": (
-                        effectiveness_prediction.confidence
-                        if effectiveness_prediction
-                        else None
+                        effectiveness_prediction.confidence if effectiveness_prediction else None
                     ),
                 }
             },
@@ -198,15 +178,11 @@ class AnalyticsEngine:
     async def get_system_overview(self) -> Dict[str, Any]:
         """Get system-wide analytics overview"""
         realtime_metrics = await self.metrics_collector.get_realtime_metrics()
-        top_attacks = await self.performance_tracker.get_top_performers(
-            MetricType.SUCCESS_RATE, 5
-        )
+        top_attacks = await self.performance_tracker.get_top_performers(MetricType.SUCCESS_RATE, 5)
         top_strategies = await self.performance_tracker.get_top_performers(
             MetricType.STRATEGY_PERFORMANCE, 5
         )
-        performance_report = (
-            await self.performance_tracker.generate_performance_report()
-        )
+        performance_report = await self.performance_tracker.generate_performance_report()
         return {
             "timestamp": realtime_metrics.timestamp.isoformat(),
             "system_metrics": {
@@ -237,9 +213,7 @@ class AnalyticsEngine:
         self, entity_id: str, metric_type: MetricType, hours: int = 168
     ) -> Dict[str, Any]:
         """Get detailed trend analysis for entity"""
-        return await self.reporting_dashboard.generate_trend_report(
-            entity_id, metric_type, hours
-        )
+        return await self.reporting_dashboard.generate_trend_report(entity_id, metric_type, hours)
 
     async def train_ml_models(self, min_data_points: int = 50):
         """Manually trigger ML model training"""
@@ -250,13 +224,9 @@ class AnalyticsEngine:
     ) -> Optional[Dict[str, Any]]:
         """Get prediction for specific entity and metric"""
         if metric_type == MetricType.SUCCESS_RATE:
-            prediction = await self.ml_predictor.predict_success_rate(
-                entity_id, hours_ahead
-            )
+            prediction = await self.ml_predictor.predict_success_rate(entity_id, hours_ahead)
         elif metric_type == MetricType.RESPONSE_TIME:
-            prediction = await self.ml_predictor.predict_response_time(
-                entity_id, hours_ahead
-            )
+            prediction = await self.ml_predictor.predict_response_time(entity_id, hours_ahead)
         elif metric_type == MetricType.STRATEGY_PERFORMANCE:
             prediction = await self.ml_predictor.predict_strategy_effectiveness(
                 entity_id, hours_ahead
@@ -282,9 +252,7 @@ class AnalyticsEngine:
         self, entity_id: str, metric_type: MetricType, hours: int = 24
     ) -> List[Dict[str, Any]]:
         """Get historical metric data"""
-        return await self.metrics_collector.get_metric_history(
-            entity_id, metric_type, hours
-        )
+        return await self.metrics_collector.get_metric_history(entity_id, metric_type, hours)
 
     async def get_analytics_summary(self) -> Dict[str, Any]:
         """Get high-level analytics summary"""
@@ -303,20 +271,14 @@ class AnalyticsEngine:
         return {
             "summary": {
                 "total_entities_monitored": total_entities,
-                "overall_success_rate": system_overview["system_metrics"][
-                    "overall_success_rate"
-                ],
+                "overall_success_rate": system_overview["system_metrics"]["overall_success_rate"],
                 "system_health_status": health_status,
                 "active_issues": len(system_overview["recent_issues"]["failures"]),
                 "recommendations_count": len(system_overview["recommendations"]),
             },
             "key_metrics": {
-                "success_rate": system_overview["system_metrics"][
-                    "overall_success_rate"
-                ],
-                "avg_response_time": system_overview["system_metrics"][
-                    "avg_response_time"
-                ],
+                "success_rate": system_overview["system_metrics"]["overall_success_rate"],
+                "avg_response_time": system_overview["system_metrics"]["avg_response_time"],
                 "system_health": system_overview["system_metrics"]["system_health"],
             },
             "status": {

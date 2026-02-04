@@ -81,7 +81,7 @@ validation_rules:
       severity: critical
   
   ttl:
-    - rule: "fake_packet.ttl == params.ttl or params.fake_ttl"
+    - rule: "fake_packet.ttl == (params.fake_ttl or params.ttl)"
       description: "Fake packet must have specified TTL"
       severity: critical
     

@@ -155,9 +155,7 @@ class StrategyPoolManager:
         self, name: str, strategy: BypassStrategy, description: str = ""
     ) -> StrategyPool:
         pool_id = self._generate_pool_id(name)
-        pool = StrategyPool(
-            id=pool_id, name=name, description=description, strategy=strategy
-        )
+        pool = StrategyPool(id=pool_id, name=name, description=description, strategy=strategy)
 
         self.pools[pool_id] = pool
         self.logger.info(f"Created strategy pool '{name}' with ID: {pool_id}")
@@ -197,14 +195,10 @@ class StrategyPoolManager:
             return False
 
         pool.set_subdomain_strategy(subdomain, strategy)
-        self.logger.info(
-            f"Set subdomain strategy for '{subdomain}' in pool '{pool.name}'"
-        )
+        self.logger.info(f"Set subdomain strategy for '{subdomain}' in pool '{pool.name}'")
         return True
 
-    def set_port_strategy(
-        self, pool_id: str, port: int, strategy: BypassStrategy
-    ) -> bool:
+    def set_port_strategy(self, pool_id: str, port: int, strategy: BypassStrategy) -> bool:
         pool = self.pools.get(pool_id)
         if not pool:
             return False
@@ -213,9 +207,7 @@ class StrategyPoolManager:
         self.logger.info(f"Set port {port} strategy in pool '{pool.name}'")
         return True
 
-    def get_strategy_for_domain(
-        self, domain: str, port: int = 443
-    ) -> Optional[BypassStrategy]:
+    def get_strategy_for_domain(self, domain: str, port: int = 443) -> Optional[BypassStrategy]:
         # First try to find pool containing this domain
         pool = self._find_pool_containing_domain(domain)
 
@@ -231,16 +223,12 @@ class StrategyPoolManager:
 
     def auto_assign_domain(self, domain: str, **kwargs) -> Optional[str]:
         # Sort rules by priority (higher first)
-        sorted_rules = sorted(
-            self.assignment_rules, key=lambda r: r.priority, reverse=True
-        )
+        sorted_rules = sorted(self.assignment_rules, key=lambda r: r.priority, reverse=True)
 
         for rule in sorted_rules:
             if rule.matches(domain, **kwargs):
                 if self.add_domain_to_pool(rule.pool_id, domain):
-                    self.logger.info(
-                        f"Auto-assigned '{domain}' to pool '{rule.pool_id}' via rule"
-                    )
+                    self.logger.info(f"Auto-assigned '{domain}' to pool '{rule.pool_id}' via rule")
                     return rule.pool_id
 
         # If no rule matches and we have a default pool, assign there
@@ -353,9 +341,7 @@ class StrategyPoolManager:
         self.assignment_rules.append(rule)
         self.assignment_rules.sort(key=lambda r: r.priority, reverse=True)
 
-        self.logger.info(
-            f"Added assignment rule: {pattern} -> {pool_id} (priority: {priority})"
-        )
+        self.logger.info(f"Added assignment rule: {pattern} -> {pool_id} (priority: {priority})")
         return rule
 
     def set_default_pool(self, pool_id: str) -> bool:
@@ -377,9 +363,7 @@ class StrategyPoolManager:
             "total_domains": sum(len(pool.domains) for pool in self.pools.values()),
             "pools_by_priority": {},
             "domains_per_pool": {},
-            "subdomain_overrides": sum(
-                len(pool.subdomains) for pool in self.pools.values()
-            ),
+            "subdomain_overrides": sum(len(pool.subdomains) for pool in self.pools.values()),
             "port_overrides": sum(len(pool.ports) for pool in self.pools.values()),
         }
 
@@ -442,9 +426,7 @@ def suggest_pool_strategies(domains: List[str]) -> Dict[str, BypassStrategy]:
     suggestions = {}
 
     for domain in domains:
-        if any(
-            social in domain for social in ["youtube", "twitter", "instagram", "tiktok"]
-        ):
+        if any(social in domain for social in ["youtube", "twitter", "instagram", "tiktok"]):
             # Social media sites often need specialized strategies
             suggestions[domain] = BypassStrategy(
                 id=f"social_{domain}",

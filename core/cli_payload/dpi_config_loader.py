@@ -60,13 +60,9 @@ class DPIConfigLoader:
             return config_data
 
         except json.JSONDecodeError as e:
-            raise ConfigurationError(
-                "config_file", str(config_path), f"Invalid JSON: {e}"
-            )
+            raise ConfigurationError("config_file", str(config_path), f"Invalid JSON: {e}")
         except Exception as e:
-            raise ConfigurationError(
-                "config_file", str(config_path), f"Failed to load config: {e}"
-            )
+            raise ConfigurationError("config_file", str(config_path), f"Failed to load config: {e}")
 
     def find_default_config(self) -> Optional[Path]:
         """
@@ -147,9 +143,7 @@ class DPIConfigLoader:
                     for pattern, domain_config in domain_configs.items():
                         if self._matches_wildcard_pattern(domain, pattern):
                             base_config.update(domain_config)
-                            logger.info(
-                                f"Applied wildcard config {pattern} for {domain}"
-                            )
+                            logger.info(f"Applied wildcard config {pattern} for {domain}")
                             break
 
             # Create DPI configuration
@@ -198,9 +192,7 @@ class DPIConfigLoader:
             # More complex patterns would need proper regex
             return False
 
-    def get_preset_config(
-        self, config_data: Dict[str, Any], preset_name: str
-    ) -> DPIConfig:
+    def get_preset_config(self, config_data: Dict[str, Any], preset_name: str) -> DPIConfig:
         """
         Get a preset configuration by name.
 
@@ -215,9 +207,7 @@ class DPIConfigLoader:
             ConfigurationError: If preset not found
         """
         if "presets" not in config_data:
-            raise ConfigurationError(
-                "preset", preset_name, "No presets defined in configuration"
-            )
+            raise ConfigurationError("preset", preset_name, "No presets defined in configuration")
 
         presets = config_data["presets"]
         if preset_name not in presets:

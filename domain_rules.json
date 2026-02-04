@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2025-12-05T15:25:35.445196",
+  "last_updated": "2026-02-04T12:59:10.122121",
   "default_strategy": {
     "type": "fakeddisorder",
     "attacks": [
@@ -11,24 +11,6 @@
     }
   },
   "domain_rules": {
-    "example.com": {
-      "type": "split",
-      "attacks": [
-        "split",
-        "fake"
-      ],
-      "params": {
-        "split_pos": 3,
-        "ttl": 64,
-        "no_fallbacks": true,
-        "forced": true
-      },
-      "metadata": {
-        "source": "adaptive_engine_cli",
-        "discovered_at": "2025-12-03T09:34:57.027332",
-        "success_rate": 100.0
-      }
-    },
     "default": {
       "type": "fakeddisorder",
       "attacks": [
@@ -85,10 +67,10 @@
         "multisplit"
       ],
       "metadata": {
-        "failure_count": 7,
-        "last_failure_time": "2025-12-05T15:41:00.232014",
+        "failure_count": 6,
+        "last_failure_time": "2025-12-08T19:57:18.399136",
         "needs_revalidation": true,
-        "last_failure_reason": "Strategy failed with 5 retransmissions"
+        "last_failure_reason": "Strategy failed with 6 retransmissions"
       }
     },
     "*.googlesyndication.com": {
@@ -102,6 +84,397 @@
         "disorder",
         "multisplit"
       ]
+    },
+    "api.browser.yandex.ru": {
+      "type": "fake",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 8
+      },
+      "attacks": [
+        "fake",
+        "multisplit"
+      ],
+      "metadata": {
+        "failure_count": 1,
+        "last_failure_time": "2025-12-10T11:26:22.428248",
+        "needs_revalidation": false,
+        "last_failure_reason": "Strategy failed with 1 retransmissions"
+      }
+    },
+    "*.yandex.ru": {
+      "type": "fake",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 8
+      },
+      "attacks": [
+        "fake",
+        "multisplit"
+      ]
+    },
+    "acrobat.adobe.com": {
+      "type": "disorder,multisplit",
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ],
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      }
+    },
+    "*.adobe.com": {
+      "type": "disorder",
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ]
+    },
+    "*.ytimg.com": {
+      "type": "fake",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 8
+      },
+      "attacks": [
+        "fake",
+        "multisplit"
+      ]
+    },
+    "*.doubleclick.net": {
+      "type": "fake",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 8
+      },
+      "attacks": [
+        "fake",
+        "multisplit"
+      ]
+    },
+    "settings-win.data.microsoft.com": {
+      "type": "disorder,multisplit",
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ],
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "metadata": {
+        "failure_count": 1,
+        "last_failure_time": "2025-12-10T12:29:07.373785",
+        "needs_revalidation": false,
+        "last_failure_reason": "Strategy failed with 1 retransmissions"
+      }
+    },
+    "*.microsoft.com": {
+      "type": "disorder",
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ]
+    },
+    "chrome.cloudflare-dns.com": {
+      "type": "multisplit,disorder",
+      "attacks": [
+        "multisplit",
+        "disorder"
+      ],
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "metadata": {
+        "failure_count": 3,
+        "last_failure_time": "2025-12-10T12:32:04.106627",
+        "needs_revalidation": false,
+        "last_failure_reason": "Strategy failed with 2 retransmissions"
+      }
+    },
+    "*.cloudflare-dns.com": {
+      "type": "multisplit",
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "attacks": [
+        "multisplit",
+        "disorder"
+      ]
+    },
+    "api.browser.yandex.net": {
+      "type": "disorder,multisplit",
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ],
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "metadata": {
+        "failure_count": 1,
+        "last_failure_time": "2025-12-10T17:56:14.225563",
+        "needs_revalidation": false,
+        "last_failure_reason": "Strategy failed with 1 retransmissions"
+      }
+    },
+    "*.yandex.net": {
+      "type": "disorder",
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ]
+    },
+    "yt3.ggpht.com": {
+      "type": "disorder,multisplit",
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ],
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "metadata": {
+        "failure_count": 15,
+        "last_failure_time": "2025-12-18T14:03:23.427457",
+        "needs_revalidation": true,
+        "last_failure_reason": "Strategy failed with 4 retransmissions"
+      }
+    },
+    "*.ggpht.com": {
+      "type": "disorder",
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ]
+    },
+    "accounts.youtube.com": {
+      "type": "multisplit,fake",
+      "attacks": [
+        "multisplit",
+        "fake"
+      ],
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 8
+      },
+      "metadata": {
+        "failure_count": 22,
+        "last_failure_time": "2026-02-02T14:25:00.261904",
+        "needs_revalidation": true,
+        "last_failure_reason": "Strategy failed with 4 retransmissions"
+      }
+    },
+    "*.mozilla.com": {
+      "type": "multisplit",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 8
+      },
+      "attacks": [
+        "multisplit",
+        "fake"
+      ]
+    },
+    "googleads.g.doubleclick.net": {
+      "type": "fake,disorder",
+      "attacks": [
+        "fake",
+        "disorder"
+      ],
+      "params": {
+        "ttl": 2,
+        "fooling": "badseq",
+        "split_pos": 3
+      },
+      "metadata": {
+        "failure_count": 119,
+        "last_failure_time": "2025-12-10T17:57:34.112297",
+        "needs_revalidation": true,
+        "last_failure_reason": "Strategy failed with 1 retransmissions"
+      }
+    },
+    "i.ytimg.com": {
+      "type": "disorder,multisplit",
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ],
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "metadata": {
+        "failure_count": 176,
+        "last_failure_time": "2025-12-11T10:04:59.546334",
+        "needs_revalidation": true,
+        "last_failure_reason": "Strategy failed with 3 retransmissions"
+      }
+    },
+    "static.doubleclick.net": {
+      "type": "disorder,multisplit",
+      "attacks": [
+        "disorder",
+        "multisplit"
+      ],
+      "params": {
+        "split_pos": 2,
+        "split_count": 6,
+        "disorder_method": "reverse"
+      },
+      "metadata": {
+        "failure_count": 22,
+        "last_failure_time": "2025-12-10T17:45:35.563362",
+        "needs_revalidation": true,
+        "last_failure_reason": "Strategy failed with 1 retransmissions"
+      }
+    },
+    "www.nj.bet365.com": {
+      "type": "fake",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 2
+      },
+      "attacks": [
+        "fake",
+        "split"
+      ],
+      "metadata": {
+        "failure_count": 19,
+        "last_failure_time": "2025-12-12T15:51:23.180016",
+        "needs_revalidation": true,
+        "last_failure_reason": "Strategy failed with 9 retransmissions"
+      }
+    },
+    "*.bet365.com": {
+      "type": "fake",
+      "params": {
+        "ttl": 1,
+        "fooling": "badseq",
+        "split_pos": 3,
+        "split_count": 2
+      },
+      "attacks": [
+        "fake",
+        "split"
+      ]
+    },
+    "www.example.com": {
+      "type": "smart_combo_split_fake",
+      "params": {}
+    },
+    "*.example.com": {
+      "type": "smart_combo_split_fake",
+      "params": {}
+    },
+    "www.googlevideo.com": {
+      "type": "tls_fragmentation",
+      "params": {
+        "domain": "www.googlevideo.com",
+        "fragment_size": 1,
+        "split_count": 1
+      }
+    },
+    "*.googlevideo.com": {
+      "type": "tls_fragmentation",
+      "params": {
+        "domain": "rr1---sn-q4flrnss.googlevideo.com",
+        "fragment_size": 1,
+        "split_count": 1
+      }
+    },
+    "nnmclub.to": {
+      "type": "http_fragmentation",
+      "params": {
+        "domain": "nnmclub.to",
+        "fragmentation_method": "header",
+        "disorder_method": "reverse",
+        "split_pos": 2
+      }
+    },
+    "rr1---sn-4pvgq-n8v6.googlevideo.com": {
+      "type": "tls_fragmentation",
+      "params": {
+        "domain": "rr1---sn-4pvgq-n8v6.googlevideo.com",
+        "fragment_size": 1,
+        "split_count": 1
+      }
+    },
+    "rr2---sn-q4fl6nd7.googlevideo.com": {
+      "type": "tls_fragmentation",
+      "params": {
+        "domain": "rr2---sn-q4fl6nd7.googlevideo.com",
+        "fragment_size": 1,
+        "split_count": 1
+      },
+      "metadata": {
+        "failure_count": 1,
+        "last_failure_time": "2026-02-02T14:24:46.648302",
+        "needs_revalidation": false,
+        "last_failure_reason": "Strategy failed with 3 retransmissions"
+      }
+    },
+    "rr18---sn-n8v7sney.googlevideo.com": {
+      "type": "tls_fragmentation",
+      "params": {
+        "domain": "rr18---sn-n8v7sney.googlevideo.com",
+        "fragment_size": 1,
+        "split_count": 1
+      }
+    },
+    "rr1---sn-q4flrnss.googlevideo.com": {
+      "type": "tls_fragmentation",
+      "params": {
+        "domain": "rr1---sn-q4flrnss.googlevideo.com",
+        "fragment_size": 1,
+        "split_count": 1
+      }
     }
   }
 }

@@ -95,9 +95,7 @@ class DomainStrategyResolver:
                 )
             elif isinstance(data, str):
                 # Простой формат: domain -> strategy
-                self.add_strategy(
-                    domain=domain, strategy=data, latency_ms=0.0, source="manual"
-                )
+                self.add_strategy(domain=domain, strategy=data, latency_ms=0.0, source="manual")
 
     def normalize_domain(self, domain: str) -> str:
         """
@@ -290,10 +288,7 @@ class DomainStrategyResolver:
         Returns:
             Dict[canonical_domain, strategy]
         """
-        return {
-            canonical: resolved.strategy
-            for canonical, resolved in self.resolved.items()
-        }
+        return {canonical: resolved.strategy for canonical, resolved in self.resolved.items()}
 
     def export_detailed_report(self) -> Dict[str, Any]:
         """
@@ -317,8 +312,7 @@ class DomainStrategyResolver:
                 "latency_ms": resolved.latency_ms,
                 "confidence": resolved.confidence,
                 "has_conflict": len(resolved.applies_to) > 1
-                and len(set(self.strategies[d].strategy for d in resolved.applies_to))
-                > 1,
+                and len(set(self.strategies[d].strategy for d in resolved.applies_to)) > 1,
                 "reasoning": resolved.reasoning,
             }
 

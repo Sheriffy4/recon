@@ -16,7 +16,6 @@ import time
 from contextlib import contextmanager
 
 
-
 class ErrorCategory(Enum):
     """Categories of errors that can occur during PCAP analysis."""
 
@@ -105,15 +104,11 @@ class AnalysisError(Exception):
 class PCAPParsingError(AnalysisError):
     """Error during PCAP file parsing."""
 
-    def __init__(
-        self, message: str, pcap_file: str, packet_index: Optional[int] = None, **kwargs
-    ):
+    def __init__(self, message: str, pcap_file: str, packet_index: Optional[int] = None, **kwargs):
         self.pcap_file = pcap_file
         self.packet_index = packet_index
         context = kwargs.get("context", ErrorContext("pcap_parsing", "pcap_parser"))
-        context.input_data.update(
-            {"pcap_file": pcap_file, "packet_index": packet_index}
-        )
+        context.input_data.update({"pcap_file": pcap_file, "packet_index": packet_index})
         super().__init__(message, ErrorCategory.PCAP_PARSING, context=context, **kwargs)
 
 
@@ -122,13 +117,9 @@ class StrategyAnalysisError(AnalysisError):
 
     def __init__(self, message: str, strategy_name: Optional[str] = None, **kwargs):
         self.strategy_name = strategy_name
-        context = kwargs.get(
-            "context", ErrorContext("strategy_analysis", "strategy_analyzer")
-        )
+        context = kwargs.get("context", ErrorContext("strategy_analysis", "strategy_analyzer"))
         context.input_data.update({"strategy_name": strategy_name})
-        super().__init__(
-            message, ErrorCategory.ANALYSIS_FAILURE, context=context, **kwargs
-        )
+        super().__init__(message, ErrorCategory.ANALYSIS_FAILURE, context=context, **kwargs)
 
 
 class FixGenerationError(AnalysisError):
@@ -138,9 +129,7 @@ class FixGenerationError(AnalysisError):
         self.fix_type = fix_type
         context = kwargs.get("context", ErrorContext("fix_generation", "fix_generator"))
         context.input_data.update({"fix_type": fix_type})
-        super().__init__(
-            message, ErrorCategory.FIX_GENERATION, context=context, **kwargs
-        )
+        super().__init__(message, ErrorCategory.FIX_GENERATION, context=context, **kwargs)
 
 
 class ValidationError(AnalysisError):
@@ -150,9 +139,7 @@ class ValidationError(AnalysisError):
         self.validation_type = validation_type
         context = kwargs.get("context", ErrorContext("validation", "validator"))
         context.input_data.update({"validation_type": validation_type})
-        super().__init__(
-            message, ErrorCategory.VALIDATION_ERROR, context=context, **kwargs
-        )
+        super().__init__(message, ErrorCategory.VALIDATION_ERROR, context=context, **kwargs)
 
 
 @dataclass
@@ -191,9 +178,7 @@ class ErrorHandler:
         logger.setLevel(logging.DEBUG)
 
         # Create formatter
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
         # Console handler
         console_handler = logging.StreamHandler()
@@ -302,9 +287,7 @@ class ErrorHandler:
             return self._attempt_recovery(analysis_error)
 
         # Return failed result
-        return PartialResult(
-            success=False, data=None, errors=[analysis_error], completeness=0.0
-        )
+        return PartialResult(success=False, data=None, errors=[analysis_error], completeness=0.0)
 
     def _log_error(self, error: AnalysisError):
         """Log error with appropriate level."""
@@ -330,9 +313,7 @@ class ErrorHandler:
         if not recovery_actions:
             self.logger.warning(f"No recovery actions available for {error.category}")
             self.recovery_stats["failed_recoveries"] += 1
-            return PartialResult(
-                success=False, data=None, errors=[error], completeness=0.0
-            )
+            return PartialResult(success=False, data=None, errors=[error], completeness=0.0)
 
         # Sort by priority
         recovery_actions.sort(key=lambda x: x.priority)
@@ -455,9 +436,7 @@ class ErrorHandler:
         except Exception as e:
             raise Exception(f"Basic comparison failed: {e}")
 
-    def _generate_manual_recommendations(
-        self, error: FixGenerationError
-    ) -> PartialResult:
+    def _generate_manual_recommendations(self, error: FixGenerationError) -> PartialResult:
         """Generate manual fix recommendations."""
         try:
             recommendations = [
@@ -470,9 +449,7 @@ class ErrorHandler:
             return PartialResult(
                 success=True,
                 data={"manual_recommendations": recommendations},
-                warnings=[
-                    "Generated manual recommendations instead of automated fixes"
-                ],
+                warnings=["Generated manual recommendations instead of automated fixes"],
                 completeness=0.4,
                 metadata={"manual_recommendations": True},
             )
@@ -558,12 +535,8 @@ def handle_pcap_error(
     attempt_recovery: bool = True,
 ) -> PartialResult:
     """Convenience function for handling PCAP parsing errors."""
-    pcap_error = PCAPParsingError(
-        str(error), pcap_file, packet_index, original_error=error
-    )
-    return get_error_handler().handle_error(
-        pcap_error, attempt_recovery=attempt_recovery
-    )
+    pcap_error = PCAPParsingError(str(error), pcap_file, packet_index, original_error=error)
+    return get_error_handler().handle_error(pcap_error, attempt_recovery=attempt_recovery)
 
 
 def handle_analysis_error(

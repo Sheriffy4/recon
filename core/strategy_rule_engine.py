@@ -1,14 +1,23 @@
 """
-Rule-based strategy generation engine for DPI bypass.
-Converts fingerprinting results into concrete strategies.
+Compatibility facade for StrategyRuleEngine.
+
+Canonical implementation lives in: core/strategy/strategy_rule_engine.py
+
+This module is kept to avoid changing import paths:
+    from core.strategy_rule_engine import StrategyRuleEngine
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union, Iterable
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
+import json
 
 LOG = logging.getLogger("strategy_rule_engine")
+
+# Canonical engine
+from core.strategy.strategy_rule_engine import StrategyRuleEngine as CanonicalStrategyRuleEngine
 
 # Import fingerprinting types if available
 try:
@@ -58,288 +67,361 @@ class StrategyRule:
             self.fooling_methods = []
 
 
-class StrategyRuleEngine:
+class StrategyRuleEngine(CanonicalStrategyRuleEngine):
     """
-    Rule-based engine for generating DPI bypass strategies from fingerprints.
-
-    Example usage:
-        engine = StrategyRuleEngine()
-        strategy = engine.generate_strategy(fingerprint)
+    Facade over canonical core.strategy.strategy_rule_engine.StrategyRuleEngine.
+    Keeps legacy API: generate_strategy/generate_multiple_strategies/explain_strategy.
     """
 
-    def __init__(self):
-        self.rules: List[StrategyRule] = []
-        self._load_default_rules()
+    _DEFAULT_LEGACY_DEFAULTS: Dict[str, Any] = {
+        "ttl": {"race_default": 3, "normal_default": 64, "low_ttl_value": 3},
+        "split": {
+            "default_split_pos": 76,
+            "tls_split_pos": "sni",
+            "multisplit_split_pos": 1,
+            "multisplit_split_count": 4,
+        },
+        "overlap": {"default_overlap_size": 1, "seqovl_overlap_size": 20},
+        "repeats_default": 1,
+        "autottl_default": None,
+        "confidence_tuning": {"high_threshold": 0.8, "high_repeats": 2},
+    }
 
-    def _load_default_rules(self):
-        """Load default rule set for common DPI types"""
+    def __init__(self, rules_file: Optional[str] = None):
+        super().__init__(rules_file=rules_file)
+        self._legacy_defaults = self._load_legacy_defaults()
 
-        # High priority rules for specific DPI types
-        self.rules.extend(
-            [
-                StrategyRule(
-                    name="roskomnadzor_tspu_optimized",
-                    condition="DPI type is Roskomnadzor TSPU",
-                    priority=90,
-                    attack_type="fakeddisorder",
-                    parameters={
-                        "ttl": 1,
-                        "split_pos": 76,
-                        "overlap_size": 1,
-                        "autottl": 2,
-                    },
-                    fooling_methods=["badseq", "md5sig"],
-                ),
-                StrategyRule(
-                    name="commercial_dpi_bypass",
-                    condition="DPI type is commercial DPI",
-                    priority=85,
-                    attack_type="multisplit",
-                    parameters={"positions": [1, 5, 10, 20], "ttl": 64},
-                    fooling_methods=["badsum"],
-                ),
-                # Badsum-specific rules
-                StrategyRule(
-                    name="badsum_fooling",
-                    condition="Fingerprint allows badsum",
-                    priority=80,
-                    attack_type="fakeddisorder",
-                    parameters={"ttl": 64},
-                    fooling_methods=["badsum"],
-                ),
-                StrategyRule(
-                    name="md5sig_fooling",
-                    condition="Fingerprint allows md5sig",
-                    priority=75,
-                    attack_type="fakeddisorder",
-                    parameters={"ttl": 1},
-                    fooling_methods=["md5sig"],
-                ),
-                # Split position rules based on content inspection depth
-                StrategyRule(
-                    name="high_split_pos",
-                    condition="TLS alert on split pos < 40",
-                    priority=70,
-                    attack_type="fakeddisorder",
-                    parameters={"split_pos": 41},
-                ),
-                StrategyRule(
-                    name="low_split_pos",
-                    condition="TLS alert on split pos >= 40",
-                    priority=65,
-                    attack_type="fakeddisorder",
-                    parameters={"split_pos": 76},
-                ),
-                # TTL-based rules using RST TTL detection
-                StrategyRule(
-                    name="low_ttl_required",
-                    condition="Requires low TTL",
-                    priority=60,
-                    attack_type="fakeddisorder",
-                    parameters={"ttl": 1},
-                ),
-                StrategyRule(
-                    name="high_ttl_bypass",
-                    condition="Does not require low TTL",
-                    priority=55,
-                    attack_type="fakeddisorder",
-                    parameters={"ttl": 64},
-                ),
-                # Fragmentation rules
-                StrategyRule(
-                    name="fragmentation_support",
-                    condition="Supports fragmentation",
-                    priority=50,
-                    attack_type="multisplit",
-                    parameters={"positions": [1, 3, 5]},
-                ),
-                # Fallback rules
-                StrategyRule(
-                    name="default_fakeddisorder",
-                    condition="Default fallback",
-                    priority=10,
-                    attack_type="fakeddisorder",
-                    parameters={"ttl": 64, "split_pos": 76, "overlap_size": 1},
-                    fooling_methods=["badseq"],
-                ),
-            ]
-        )
+    @classmethod
+    def _candidate_config_paths(cls) -> List[Path]:
+        """Return candidate paths for strategy_legacy_defaults.json"""
+        candidates: List[Path] = []
+        try:
+            here = Path(__file__).resolve()
+            repo_root = here.parents[1]
+            candidates.append(repo_root / "config" / "strategy_legacy_defaults.json")
+        except Exception:
+            pass
+        candidates.append(Path.cwd() / "config" / "strategy_legacy_defaults.json")
+        return candidates
 
-    def add_rule(self, rule: StrategyRule):
-        """Add a custom rule to the engine"""
-        self.rules.append(rule)
-        # Keep rules sorted by priority (highest first)
-        self.rules.sort(key=lambda r: r.priority, reverse=True)
+    @classmethod
+    def _load_legacy_defaults(cls) -> Dict[str, Any]:
+        """Load defaults from config/strategy_legacy_defaults.json with fallback"""
+        for path in cls._candidate_config_paths():
+            if path.exists():
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        loaded = json.load(f)
+                    LOG.info(f"Loaded legacy defaults from {path}")
+                    return loaded
+                except Exception as e:
+                    LOG.warning(f"Failed to load {path}: {e}")
+        LOG.info("Using hardcoded legacy defaults (config file not found)")
+        return cls._DEFAULT_LEGACY_DEFAULTS
 
-    def _evaluate_rule_condition(
-        self, rule: StrategyRule, fingerprint: DPIFingerprint
-    ) -> bool:
-        """Evaluate if a rule's condition matches the fingerprint"""
+    @staticmethod
+    def _norm_techniques(techniques: Iterable[str]) -> List[str]:
+        return [str(t).strip().lower() for t in techniques if t]
 
-        # DPI type conditions
-        if "roskomnadzor" in rule.condition.lower():
-            return fingerprint.dpi_type == DPIType.ROSKOMNADZOR_TSPU
+    @staticmethod
+    def _get_by_path(data: Dict[str, Any], path: str) -> Any:
+        """
+        Resolve dotted paths like 'split.tls_split_pos' inside config dict.
+        """
+        cur: Any = data
+        for part in (path or "").split("."):
+            if not isinstance(cur, dict) or part not in cur:
+                return None
+            cur = cur[part]
+        return cur
 
-        if "commercial dpi" in rule.condition.lower():
-            return fingerprint.dpi_type == DPIType.COMMERCIAL_DPI
+    def _resolve_set_value(self, v: Any) -> Any:
+        """
+        Allow config values like "$ttl.low_ttl_value" to reference other config nodes.
+        """
+        if isinstance(v, str) and v.startswith("$"):
+            resolved = self._get_by_path(self._legacy_defaults, v[1:])
+            return resolved if resolved is not None else v
+        return v
 
-        # Fooling method conditions
-        if "allows badsum" in rule.condition.lower():
-            return fingerprint.vulnerable_to_bad_checksum_race
-
-        if "allows md5sig" in rule.condition.lower():
-            return fingerprint.tcp_options_filtering
-
-        # Split position conditions - use content inspection depth as proxy
-        if "tls alert on split pos < 40" in rule.condition.lower():
-            return fingerprint.content_inspection_depth < 40
-
-        if "tls alert on split pos >= 40" in rule.condition.lower():
-            return fingerprint.content_inspection_depth >= 40
-
-        # TTL conditions - use RST TTL as indicator
-        if "requires low ttl" in rule.condition.lower():
-            return fingerprint.rst_ttl is not None and fingerprint.rst_ttl <= 5
-
-        if "does not require low ttl" in rule.condition.lower():
-            return fingerprint.rst_ttl is None or fingerprint.rst_ttl > 5
-
-        # Fragmentation conditions
-        if "supports fragmentation" in rule.condition.lower():
-            return fingerprint.vulnerable_to_fragmentation
-
-        # Default fallback
-        if "default fallback" in rule.condition.lower():
+    @staticmethod
+    def _rule_matches(tlist: List[str], rule: Dict[str, Any]) -> bool:
+        exact = [str(x).lower() for x in (rule.get("match_exact") or [])]
+        contains = [str(x).lower() for x in (rule.get("match_contains") or [])]
+        if exact and any(t in exact for t in tlist):
             return True
-
+        if contains and any(any(c in t for c in contains) for t in tlist):
+            return True
         return False
 
-    def generate_strategy(self, fingerprint: DPIFingerprint) -> Dict[str, Any]:
+    @staticmethod
+    def _fingerprint_to_data(fp: Union[DPIFingerprint, Dict[str, Any]]) -> Dict[str, Any]:
+        if isinstance(fp, dict):
+            return fp
+
+        data: Dict[str, Any] = {}
+        if hasattr(fp, "domain"):
+            data["domain"] = getattr(fp, "domain")
+        if hasattr(fp, "target"):
+            data["domain"] = getattr(fp, "target")
+
+        dpi_type = getattr(fp, "dpi_type", None)
+        if dpi_type is not None:
+            data["dpi_type"] = dpi_type.value if isinstance(dpi_type, Enum) else str(dpi_type)
+
+        # minimal heuristic mapping into canonical fields
+        if getattr(fp, "vulnerable_to_fragmentation", None) is True:
+            data["fragmentation_handling"] = "vulnerable"
+        if getattr(fp, "vulnerable_to_bad_checksum_race", None) is True:
+            data["checksum_validation"] = False
+
+        rst_ttl = getattr(fp, "rst_ttl", None)
+        if isinstance(rst_ttl, int):
+            data["ttl_sensitivity"] = "high" if rst_ttl <= 5 else "low"
+
+        if hasattr(fp, "confidence"):
+            data["confidence"] = getattr(fp, "confidence")
+        return data
+
+    def _pick_base_type(self, techniques: Iterable[str]) -> str:
         """
-        Generate a strategy based on fingerprint using rule engine.
-
-        Args:
-            fingerprint: DPI fingerprint containing detected characteristics
-
-        Returns:
-            Dictionary containing strategy type and parameters
+        Map canonical technique names -> legacy attack dispatcher types.
+        Config-driven with safe fallback.
         """
+        tlist = self._norm_techniques(techniques)
 
-        LOG.info(f"Generating strategy for DPI type: {fingerprint.dpi_type}")
+        # 1) Config-driven mapping
+        mapping = self._legacy_defaults.get("mapping") or {}
+        rules = mapping.get("base_type_rules") or []
+        for rule in rules:
+            if isinstance(rule, dict) and self._rule_matches(tlist, rule):
+                t = rule.get("type")
+                if t:
+                    return str(t)
 
-        # Find all matching rules
-        matching_rules = []
-        for rule in self.rules:
-            if self._evaluate_rule_condition(rule, fingerprint):
-                matching_rules.append(rule)
-                LOG.debug(f"Rule '{rule.name}' matches: {rule.condition}")
+        # 2) Safe fallback
+        if any("seqovl" in t for t in tlist):
+            return "seqovl"
+        if any(("multidisorder" in t) or ("state_confusion" in t) for t in tlist):
+            return "multidisorder"
+        if any(("multisplit" in t) or ("fragmentation" in t) for t in tlist):
+            return "multisplit"
+        return "fakeddisorder"
 
-        if not matching_rules:
-            LOG.warning("No rules matched fingerprint, using default")
-            return {
-                "type": "fakeddisorder",
-                "params": {"ttl": 64, "split_pos": 76, "overlap_size": 1},
-            }
+    def _extract_fooling(self, techniques: Iterable[str]) -> List[str]:
+        """
+        Extract fooling methods from technique names.
+        Config-driven with safe fallback.
+        """
+        tlist = self._norm_techniques(techniques)
+        mapping = self._legacy_defaults.get("mapping") or {}
+        rules = mapping.get("fooling_rules") or []
 
-        # Use highest priority rule as base
-        base_rule = matching_rules[0]
-        strategy = {
-            "type": base_rule.attack_type,
-            "params": base_rule.parameters.copy(),
-        }
+        fooling = set()
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            if self._rule_matches(tlist, rule):
+                for m in rule.get("methods") or []:
+                    if m:
+                        fooling.add(str(m).lower())
 
-        # Merge parameters from other matching rules
-        fooling_methods = set(base_rule.fooling_methods)
+        # fallback if config doesn't specify anything
+        if not fooling:
+            for tl in tlist:
+                if "badsum" in tl:
+                    fooling.add("badsum")
+                if "md5sig" in tl:
+                    fooling.add("md5sig")
+                if "badseq" in tl or tl == "sequence_manipulation":
+                    fooling.add("badseq")
 
-        for rule in matching_rules[1:]:
-            # Merge parameters (later rules can override)
-            strategy["params"].update(rule.parameters)
+        return sorted(fooling)
 
-            # Accumulate fooling methods
-            fooling_methods.update(rule.fooling_methods)
+    def _extract_param_overrides(self, techniques: List[str]) -> Dict[str, Any]:
+        """
+        Technique-driven param hints (config-driven with safe fallback).
+        """
+        tlist = self._norm_techniques(techniques)
+        mapping = self._legacy_defaults.get("mapping") or {}
+        rules = mapping.get("param_override_rules") or []
 
-        # Add fooling methods if any
-        if fooling_methods:
-            strategy["params"]["fooling"] = list(fooling_methods)
+        overrides: Dict[str, Any] = {}
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            if not self._rule_matches(tlist, rule):
+                continue
+            to_set = rule.get("set") or {}
+            if isinstance(to_set, dict):
+                for k, v in to_set.items():
+                    overrides[str(k)] = self._resolve_set_value(v)
 
-        LOG.info(f"Generated strategy: {strategy}")
-        return strategy
+        return overrides
+
+    def _build_legacy_params(
+        self, base_type: str, techniques: List[str], confidence: float = 0.5
+    ) -> Dict[str, Any]:
+        """
+        Produce params with keys used by downstream dispatchers:
+          fake_ttl/ttl/autottl, split_pos/split_count, overlap_size, fooling, repeats.
+
+        Technique-aware parameter extraction:
+        - low_ttl_attacks → ttl=3
+        - tls_record_split/client_hello_fragmentation → split_pos="sni"
+        - tcp_seqovl → overlap_size=20
+        - fragmentation techniques → multisplit with split_count
+
+        Always duplicates split_seqovl = overlap_size for legacy compatibility.
+        """
+        d = self._legacy_defaults
+        ttl_race = int(d.get("ttl", {}).get("race_default", 3))
+        ttl_normal = int(d.get("ttl", {}).get("normal_default", 64))
+        split_default = d.get("split", {}).get("default_split_pos", 76)
+        ms_split_pos = d.get("split", {}).get("multisplit_split_pos", 1)
+        ms_split_count = int(d.get("split", {}).get("multisplit_split_count", 4))
+        ov_default = int(d.get("overlap", {}).get("default_overlap_size", 1))
+        ov_seqovl = int(d.get("overlap", {}).get("seqovl_overlap_size", 20))
+        repeats_default = int(d.get("repeats_default", 1))
+        autottl_default = d.get("autottl_default", None)
+
+        params: Dict[str, Any] = {}
+
+        # TTL defaults
+        if base_type in ("fakeddisorder", "multidisorder", "seqovl"):
+            params["fake_ttl"] = ttl_race
+            params["ttl"] = ttl_race
+        else:
+            params["fake_ttl"] = ttl_normal
+            params["ttl"] = ttl_normal
+
+        # Split defaults
+        params["split_pos"] = split_default
+
+        # Overlap defaults
+        if base_type == "seqovl":
+            params["overlap_size"] = ov_seqovl
+        else:
+            params["overlap_size"] = ov_default
+
+        # Extra safety aliases - always duplicate split_seqovl
+        params["split_seqovl"] = params["overlap_size"]
+
+        # Multisplit expects split_count
+        if base_type == "multisplit":
+            params.setdefault("split_pos", ms_split_pos)
+            params.setdefault("split_count", ms_split_count)
+
+        # Technique-driven overrides
+        params.update(self._extract_param_overrides(techniques))
+        # Keep alias in sync after overrides
+        params["split_seqovl"] = params.get("overlap_size", params.get("split_seqovl", ov_default))
+
+        fooling = self._extract_fooling(techniques)
+        if fooling:
+            params["fooling"] = fooling
+            params["fooling_methods"] = fooling
+
+        params.setdefault("repeats", repeats_default)
+
+        # Confidence tuning (optional)
+        try:
+            ct = d.get("confidence_tuning") or {}
+            if float(confidence) >= float(ct.get("high_threshold", 0.8)):
+                params["repeats"] = int(ct.get("high_repeats", params["repeats"]))
+        except Exception:
+            pass
+
+        if autottl_default is not None and "autottl" not in params:
+            params["autottl"] = autottl_default
+
+        return params
+
+    def _to_legacy_strategy_task(
+        self, recommended_techniques: List[str], confidence: float = 0.5
+    ) -> Dict[str, Any]:
+        base_type = self._pick_base_type(recommended_techniques)
+        params = self._build_legacy_params(base_type, recommended_techniques, confidence=confidence)
+        return {"type": base_type, "params": params}
+
+    def generate_strategy(
+        self, fingerprint: Union[DPIFingerprint, Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Legacy API: returns {"type": ..., "params": {...}} expected by downstream base_engine.
+        """
+        data = self._fingerprint_to_data(fingerprint)
+        result = self.evaluate_fingerprint(data)
+        conf = 0.5
+        try:
+            conf = float(data.get("confidence", 0.5))
+        except Exception:
+            pass
+        return self._to_legacy_strategy_task(result.recommended_techniques, confidence=conf)
 
     def generate_multiple_strategies(
-        self, fingerprint: DPIFingerprint, count: int = 3
+        self, fingerprint: Union[DPIFingerprint, Dict[str, Any]], count: int = 3
     ) -> List[Dict[str, Any]]:
         """
         Generate multiple alternative strategies for A/B testing.
-
-        Args:
-            fingerprint: DPI fingerprint
-            count: Number of strategies to generate
-
-        Returns:
-            List of strategy dictionaries
         """
+        data = self._fingerprint_to_data(fingerprint)
+        result = self.evaluate_fingerprint(data)
+        conf = 0.5
+        try:
+            conf = float(data.get("confidence", 0.5))
+        except Exception:
+            pass
 
-        strategies = []
-
-        # Primary strategy
-        primary = self.generate_strategy(fingerprint)
-        strategies.append(primary)
+        strategies: List[Dict[str, Any]] = []
+        # primary: from full recommendation set
+        strategies.append(
+            self._to_legacy_strategy_task(result.recommended_techniques, confidence=conf)
+        )
 
         if count <= 1:
             return strategies
 
-        # Generate variations
-        base_params = primary["params"].copy()
-
-        # Variation 1: Different TTL
-        if count > 1:
-            var1 = {"type": primary["type"], "params": base_params.copy()}
-            current_ttl = base_params.get("ttl", 64)
-            var1["params"]["ttl"] = 1 if current_ttl > 1 else 64
-            strategies.append(var1)
-
-        # Variation 2: Different attack type
-        if count > 2:
-            var2_type = (
-                "multisplit" if primary["type"] == "fakeddisorder" else "fakeddisorder"
-            )
-            var2 = {"type": var2_type, "params": base_params.copy()}
-            if var2_type == "multisplit":
-                var2["params"]["positions"] = [1, 3, 5, 10]
-            strategies.append(var2)
+        # alternatives: try using next techniques to diversify base_type
+        seen_types = {strategies[0]["type"]}
+        for tech in result.recommended_techniques[1:]:
+            st = self._to_legacy_strategy_task([tech], confidence=conf)
+            if st["type"] in seen_types:
+                continue
+            strategies.append(st)
+            seen_types.add(st["type"])
+            if len(strategies) >= count:
+                break
 
         return strategies[:count]
 
-    def explain_strategy(self, fingerprint: DPIFingerprint) -> str:
+    def explain_strategy(self, fingerprint: Union[DPIFingerprint, Dict[str, Any]]) -> str:
         """
         Generate human-readable explanation of why a strategy was chosen.
-
-        Args:
-            fingerprint: DPI fingerprint
-
-        Returns:
-            String explanation of the strategy selection
         """
+        data = self._fingerprint_to_data(fingerprint)
+        result = self.evaluate_fingerprint(data)
 
-        matching_rules = []
-        for rule in self.rules:
-            if self._evaluate_rule_condition(rule, fingerprint):
-                matching_rules.append(rule)
+        if not result.matched_rules:
+            fc = result.evaluation_details.get("failed_conditions") or []
+            if not fc:
+                return "No rules matched; fallback legacy mapping was used."
+            lines = ["No rules matched. Top failed conditions (truncated):"]
+            for item in fc[:3]:
+                lines.append(
+                    f"- {item.get('rule_id')} / {item.get('rule_name')}: {item.get('failed')}"
+                )
+            return "\n".join(lines)
 
-        if not matching_rules:
-            return "No specific rules matched, using default fakeddisorder strategy"
-
-        explanation = (
-            f"Strategy selected based on {len(matching_rules)} matching rules:\n"
-        )
-
-        for i, rule in enumerate(matching_rules[:3]):  # Show top 3 rules
-            explanation += f"{i+1}. {rule.name}: {rule.condition}\n"
-
-        if len(matching_rules) > 3:
-            explanation += f"... and {len(matching_rules) - 3} more rules"
-
-        return explanation
+        lines = [f"Matched {len(result.matched_rules)} rules."]
+        for r in result.matched_rules[:3]:
+            lines.append(f"- {r.rule_id}: {r.name} (priority={r.priority})")
+        lines.append("Top techniques:")
+        for t in result.recommended_techniques[:5]:
+            lines.append(f"- {t}")
+        legacy = self._to_legacy_strategy_task(result.recommended_techniques)
+        lines.append(f"Legacy strategy: type={legacy['type']}, params={legacy['params']}")
+        return "\n".join(lines)
 
 
 def create_default_rule_engine() -> StrategyRuleEngine:
@@ -350,12 +432,14 @@ def create_default_rule_engine() -> StrategyRuleEngine:
 # Example usage and testing
 if __name__ == "__main__":
     # Create test fingerprint
+    # NOTE: Keep fields aligned with fallback DPIFingerprint (and tolerate advanced model differences)
     test_fingerprint = DPIFingerprint(
         dpi_type=DPIType.ROSKOMNADZOR_TSPU,
-        allows_badsum=True,
-        allows_md5sig=True,
-        tls_alert_on_split_pos=30,
-        requires_low_ttl=True,
+        vulnerable_to_bad_checksum_race=True,
+        tcp_options_filtering=True,
+        content_inspection_depth=30,
+        rst_ttl=3,
+        vulnerable_to_fragmentation=True,
     )
 
     # Generate strategy

@@ -65,9 +65,7 @@ class BackupManager:
         config_path = Path(config_path)
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
-        backup_id = (
-            f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
-        )
+        backup_id = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
         backup_filename = f"{backup_id}_{config_path.name}"
         backup_path = self.backup_dir / backup_filename
         if version is None:
@@ -129,9 +127,7 @@ class BackupManager:
         shutil.copy2(backup_path, target_path)
         return str(target_path.absolute())
 
-    def list_backups(
-        self, config_path: Optional[str] = None
-    ) -> List[ConfigurationBackup]:
+    def list_backups(self, config_path: Optional[str] = None) -> List[ConfigurationBackup]:
         """
         List available backups.
 

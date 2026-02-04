@@ -76,9 +76,7 @@ class StrategyPoolManager:
             pool_id = f"{original_id}_{counter}"
             counter += 1
 
-        pool = StrategyPool(
-            id=pool_id, name=name, description=description, strategy=strategy
-        )
+        pool = StrategyPool(id=pool_id, name=name, description=description, strategy=strategy)
 
         self.pools[pool_id] = pool
         return pool
@@ -102,9 +100,7 @@ class StrategyPoolManager:
 if __name__ == "__main__":
     print("Testing minimal pool management...")
 
-    strategy = BypassStrategy(
-        id="test", name="Test Strategy", attacks=["tcp_fragmentation"]
-    )
+    strategy = BypassStrategy(id="test", name="Test Strategy", attacks=["tcp_fragmentation"])
     print(f"Created strategy: {strategy.name}")
 
     manager = StrategyPoolManager()

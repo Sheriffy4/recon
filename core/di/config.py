@@ -49,9 +49,7 @@ class DIConfiguration:
     )
 
     prober: ServiceConfig = field(
-        default_factory=lambda: ServiceConfig(
-            "UltimateDPIProber", parameters={"debug": False}
-        )
+        default_factory=lambda: ServiceConfig("UltimateDPIProber", parameters={"debug": False})
     )
 
     classifier: ServiceConfig = field(
@@ -61,9 +59,7 @@ class DIConfiguration:
     )
 
     attack_adapter: ServiceConfig = field(
-        default_factory=lambda: ServiceConfig(
-            "AttackAdapter", parameters={"debug_mode": False}
-        )
+        default_factory=lambda: ServiceConfig("AttackAdapter", parameters={"debug_mode": False})
     )
 
     effectiveness_tester: ServiceConfig = field(
@@ -79,9 +75,7 @@ class DIConfiguration:
     )
 
     strategy_generator: ServiceConfig = field(
-        default_factory=lambda: ServiceConfig(
-            "AdvancedStrategyGenerator", parameters={}
-        )
+        default_factory=lambda: ServiceConfig("AdvancedStrategyGenerator", parameters={})
     )
 
     strategy_saver: ServiceConfig = field(

@@ -45,9 +45,7 @@ class PCAPComparator:
             result.zapret_packets = self.extract_packet_sequences(zapret_pcap)
 
             # Calculate basic metrics
-            result.packet_count_diff = len(result.recon_packets) - len(
-                result.zapret_packets
-            )
+            result.packet_count_diff = len(result.recon_packets) - len(result.zapret_packets)
 
             # Perform detailed comparison
             self._analyze_packet_sequences(result)
@@ -109,9 +107,7 @@ class PCAPComparator:
                         break
 
                     # Parse packet header
-                    ts_sec, ts_usec, caplen, origlen = struct.unpack(
-                        f"{endian}IIII", packet_header
-                    )
+                    ts_sec, ts_usec, caplen, origlen = struct.unpack(f"{endian}IIII", packet_header)
                     timestamp = ts_sec + ts_usec / 1000000.0
 
                     # Read packet data
@@ -257,9 +253,7 @@ class PCAPComparator:
         for i, (recon_pkt, zapret_pkt) in enumerate(zip(recon_packets, zapret_packets)):
             # TTL differences
             if recon_pkt.ttl != zapret_pkt.ttl:
-                severity = (
-                    "critical" if abs(recon_pkt.ttl - zapret_pkt.ttl) > 10 else "medium"
-                )
+                severity = "critical" if abs(recon_pkt.ttl - zapret_pkt.ttl) > 10 else "medium"
                 result.add_sequence_difference(
                     recon_pkt,
                     zapret_pkt,
@@ -316,9 +310,7 @@ class PCAPComparator:
 
             # Check for significant timing differences
             if abs(recon_delay - zapret_delay) > 0.1:  # 100ms threshold
-                impact = (
-                    "critical" if abs(recon_delay - zapret_delay) > 1.0 else "medium"
-                )
+                impact = "critical" if abs(recon_delay - zapret_delay) > 1.0 else "medium"
                 result.add_timing_difference(
                     f"Inter-packet delay difference at position {i}",
                     recon_delay,
@@ -368,11 +360,7 @@ class PCAPComparator:
         if client_hello_recon and client_hello_zapret:
             # Analyze split patterns (simplified)
             recon_splits = len(
-                [
-                    p
-                    for p in result.recon_packets
-                    if p.payload_length > 0 and p.payload_length < 100
-                ]
+                [p for p in result.recon_packets if p.payload_length > 0 and p.payload_length < 100]
             )
             zapret_splits = len(
                 [
@@ -418,9 +406,7 @@ class PCAPComparator:
     def _generate_recommendations(self, result: ComparisonResult):
         """Generate recommendations based on analysis."""
         # TTL-related recommendations
-        ttl_diffs = [
-            d for d in result.sequence_differences if d["type"] == "ttl_mismatch"
-        ]
+        ttl_diffs = [d for d in result.sequence_differences if d["type"] == "ttl_mismatch"]
         if ttl_diffs:
             result.add_recommendation(
                 "Fix TTL parameter in fake packets - ensure TTL=3 is used consistently"
@@ -434,11 +420,7 @@ class PCAPComparator:
 
         # Fake packet recommendations
         fake_count_diff = next(
-            (
-                d
-                for d in result.parameter_differences
-                if d["parameter"] == "fake_packet_count"
-            ),
+            (d for d in result.parameter_differences if d["parameter"] == "fake_packet_count"),
             None,
         )
         if fake_count_diff:
@@ -448,11 +430,7 @@ class PCAPComparator:
 
         # Split position recommendations
         split_diff = next(
-            (
-                d
-                for d in result.parameter_differences
-                if d["parameter"] == "split_segments"
-            ),
+            (d for d in result.parameter_differences if d["parameter"] == "split_segments"),
             None,
         )
         if split_diff:
@@ -504,13 +482,9 @@ class PCAPComparator:
             # Look for subsequent small packets that might be splits
             for ch_packet in client_hello_packets:
                 ch_index = packets.index(ch_packet)
-                subsequent_packets = packets[
-                    ch_index + 1 : ch_index + 5
-                ]  # Look at next 4 packets
+                subsequent_packets = packets[ch_index + 1 : ch_index + 5]  # Look at next 4 packets
 
-                small_packets = [
-                    p for p in subsequent_packets if 0 < p.payload_length < 100
-                ]
+                small_packets = [p for p in subsequent_packets if 0 < p.payload_length < 100]
                 if small_packets:
                     patterns["split_positions"].append(
                         {

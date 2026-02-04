@@ -118,11 +118,7 @@ class ComboResult:
     @property
     def success_rate(self) -> float:
         """Calculate success rate."""
-        return (
-            self.successful_attacks / self.total_attacks
-            if self.total_attacks > 0
-            else 0.0
-        )
+        return self.successful_attacks / self.total_attacks if self.total_attacks > 0 else 0.0
 
 
 class NativeComboEngine:
@@ -220,9 +216,7 @@ class NativeComboEngine:
                 continue
             if i > 0:
                 await self._apply_timing(rule, i)
-            attack_result = await self._execute_single_attack(
-                attack_name, context, params
-            )
+            attack_result = await self._execute_single_attack(attack_name, context, params)
             results.append(attack_result)
             if attack_result.success:
                 successful += 1
@@ -307,16 +301,12 @@ class NativeComboEngine:
             if not self._check_conditions(rule, context, results):
                 LOG.debug(f"Conditions not met for {attack_name}, skipping")
                 continue
-            attack_result = await self._execute_single_attack(
-                attack_name, context, params
-            )
+            attack_result = await self._execute_single_attack(attack_name, context, params)
             results.append(attack_result)
             if attack_result.success:
                 successful += 1
                 if params.get("stop_on_first_success", False):
-                    LOG.info(
-                        f"Attack {attack_name} succeeded, stopping conditional execution"
-                    )
+                    LOG.info(f"Attack {attack_name} succeeded, stopping conditional execution")
                     break
         return ComboResult(
             success=successful > 0,
@@ -335,19 +325,13 @@ class NativeComboEngine:
         successful = 0
         modified_context = context
         for attack_name in rule.attacks:
-            attack_result = await self._execute_single_attack(
-                attack_name, modified_context, params
-            )
+            attack_result = await self._execute_single_attack(attack_name, modified_context, params)
             results.append(attack_result)
             if attack_result.success:
                 successful += 1
-                modified_context = self._modify_context_for_layer(
-                    modified_context, attack_result
-                )
+                modified_context = self._modify_context_for_layer(modified_context, attack_result)
             else:
-                LOG.warning(
-                    f"Layer {attack_name} failed, continuing with original context"
-                )
+                LOG.warning(f"Layer {attack_name} failed, continuing with original context")
         return ComboResult(
             success=successful >= len(rule.attacks) * rule.min_success_rate,
             total_attacks=len(results),
@@ -490,9 +474,7 @@ class NativeComboEngine:
             if attack_name in adapted_params:
                 attack_params = adapted_params[attack_name].copy()
                 if "repeats" in attack_params:
-                    attack_params["repeats"] = min(
-                        20, attack_params["repeats"] + failed_count
-                    )
+                    attack_params["repeats"] = min(20, attack_params["repeats"] + failed_count)
                 if "delay_ms" in attack_params:
                     attack_params["delay_ms"] = max(
                         1, attack_params["delay_ms"] - failed_count * 10
@@ -517,9 +499,9 @@ class NativeComboEngine:
         stats["total_attacks"] += result.total_attacks
         stats["successful_attacks"] += result.successful_attacks
         old_avg = stats["avg_execution_time_ms"]
-        new_avg = (
-            old_avg * (stats["executions"] - 1) + result.execution_time_ms
-        ) / stats["executions"]
+        new_avg = (old_avg * (stats["executions"] - 1) + result.execution_time_ms) / stats[
+            "executions"
+        ]
         stats["avg_execution_time_ms"] = new_avg
 
     def _load_builtin_attacks(self):

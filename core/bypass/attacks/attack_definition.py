@@ -150,9 +150,6 @@ class AttackDefinition:
         # Validate scores are in valid range
         self._validate_scores()
 
-        # Set updated_at to now
-        self.updated_at = datetime.now()
-
     def _validate_scores(self):
         """Validate that all scores are in the valid range [0.0, 1.0]."""
         for score_name in [
@@ -188,9 +185,9 @@ class AttackDefinition:
 
     def update_scores(
         self,
-        stability: float = None,
-        effectiveness: float = None,
-        performance: float = None,
+        stability: Optional[float] = None,
+        effectiveness: Optional[float] = None,
+        performance: Optional[float] = None,
     ) -> None:
         """Update performance scores."""
         if stability is not None:
@@ -220,10 +217,7 @@ class AttackDefinition:
 
     def is_compatible_with(self, mode: CompatibilityMode) -> bool:
         """Check if attack is compatible with a specific mode."""
-        return (
-            mode in self.compatibility
-            or CompatibilityMode.UNIVERSAL in self.compatibility
-        )
+        return mode in self.compatibility or CompatibilityMode.UNIVERSAL in self.compatibility
 
     def supports_protocol(self, protocol: str) -> bool:
         """Check if attack supports a specific protocol."""
@@ -360,19 +354,13 @@ class AttackDefinition:
 
         # Convert datetime strings
         created_at = (
-            datetime.fromisoformat(data["created_at"])
-            if data.get("created_at")
-            else datetime.now()
+            datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.now()
         )
         updated_at = (
-            datetime.fromisoformat(data["updated_at"])
-            if data.get("updated_at")
-            else datetime.now()
+            datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") else datetime.now()
         )
         last_tested = (
-            datetime.fromisoformat(data["last_tested"])
-            if data.get("last_tested")
-            else None
+            datetime.fromisoformat(data["last_tested"]) if data.get("last_tested") else None
         )
 
         return cls(

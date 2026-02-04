@@ -7,7 +7,7 @@ that can be passed via command line arguments.
 
 import argparse
 import re
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Any
 import logging
 
 from ..bypass.strategies.config_models import DPIConfig
@@ -36,12 +36,12 @@ class DPIParameterParser:
             "midsld",
         ]  # Special positions
 
-    def add_dpi_arguments(self, parser: argparse.ArgumentParser) -> None:
+    def add_dpi_arguments(self, parser: Any) -> None:
         """
         Add DPI strategy arguments to an argument parser.
 
         Args:
-            parser: The argument parser to add arguments to
+            parser: The argument parser to add arguments to (can be ArgumentParser or ArgumentGroup)
 
         Requirements: 1.1, 2.1, 3.1
         """
@@ -70,9 +70,7 @@ class DPIParameterParser:
         )
 
         # Additional DPI parameters for completeness
-        parser.add_argument(
-            "--dpi-desync-ttl", type=int, help="TTL value for fake packets"
-        )
+        parser.add_argument("--dpi-desync-ttl", type=int, help="TTL value for fake packets")
 
         parser.add_argument(
             "--dpi-desync-repeats",
@@ -133,9 +131,7 @@ class DPIParameterParser:
             )
 
             # Parse fooling methods
-            fooling_methods = self._parse_fooling_methods(
-                getattr(args, "dpi_desync_fooling", None)
-            )
+            fooling_methods = self._parse_fooling_methods(getattr(args, "dpi_desync_fooling", None))
 
             # Check if strategy is disabled
             enabled = not getattr(args, "disable_dpi_strategy", False)
@@ -158,15 +154,17 @@ class DPIParameterParser:
             logger.info(f"Parsed DPI configuration: {config.to_dict()}")
             return config
 
+        except ConfigurationError:
+            # Preserve original ConfigurationError semantics and message
+            raise
         except Exception as e:
-            logger.error(f"Failed to parse DPI configuration: {e}")
+            logger.error("Failed to parse DPI configuration: %s", e, exc_info=True)
+            # Wrap unexpected errors with context
             raise ConfigurationError(
-                "dpi_config", str(args), f"Configuration parsing failed: {e}"
+                "dpi_config", str(args), f"Configuration parsing failed: {type(e).__name__}: {e}"
             )
 
-    def _parse_split_positions(
-        self, split_pos_str: Optional[str]
-    ) -> List[Union[int, str]]:
+    def _parse_split_positions(self, split_pos_str: Optional[str]) -> List[Union[int, str]]:
         """
         Parse split positions from string.
 
@@ -200,9 +198,7 @@ class DPIParameterParser:
                         logger.warning(f"Split position {pos} is less than 1, skipping")
                         continue
                     if pos > 1500:  # Reasonable upper limit for packet size
-                        logger.warning(
-                            f"Split position {pos} is very large, might be invalid"
-                        )
+                        logger.warning(f"Split position {pos} is very large, might be invalid")
                     positions.append(pos)
                     logger.debug(f"Added numeric split position: {pos}")
                 except ValueError:
@@ -282,13 +278,9 @@ class DPIParameterParser:
             raise ConfigurationError("ttl", config.ttl, "TTL must be between 1 and 255")
 
         if config.repeats < 1 or config.repeats > 10:
-            raise ConfigurationError(
-                "repeats", config.repeats, "Repeats must be between 1 and 10"
-            )
+            raise ConfigurationError("repeats", config.repeats, "Repeats must be between 1 and 10")
 
-        if config.split_count is not None and (
-            config.split_count < 2 or config.split_count > 20
-        ):
+        if config.split_count is not None and (config.split_count < 2 or config.split_count > 20):
             raise ConfigurationError(
                 "split_count",
                 config.split_count,
@@ -327,9 +319,7 @@ class DPIParameterParser:
                 desync_mode = desync_match.group(1).split(",")[0]  # Take first mode
 
             # Parse split positions
-            split_pos_match = re.search(
-                r"--dpi-desync-split-pos=([^\s]+)", zapret_command
-            )
+            split_pos_match = re.search(r"--dpi-desync-split-pos=([^\s]+)", zapret_command)
             if split_pos_match:
                 split_positions = self._parse_split_positions(split_pos_match.group(1))
 
@@ -349,9 +339,7 @@ class DPIParameterParser:
                 repeats = int(repeats_match.group(1))
 
             # Parse split count
-            split_count_match = re.search(
-                r"--dpi-desync-split-count=(\d+)", zapret_command
-            )
+            split_count_match = re.search(r"--dpi-desync-split-count=(\d+)", zapret_command)
             if split_count_match:
                 split_count = int(split_count_match.group(1))
 
@@ -372,9 +360,7 @@ class DPIParameterParser:
                 split_seqovl=split_seqovl,
             )
 
-            logger.info(
-                f"Parsed legacy zapret command into DPI config: {config.to_dict()}"
-            )
+            logger.info(f"Parsed legacy zapret command into DPI config: {config.to_dict()}")
             return config
 
         except Exception as e:
@@ -467,7 +453,7 @@ def validate_dpi_arguments(args: argparse.Namespace) -> bool:
     """
     try:
         parser = create_dpi_parameter_parser()
-        config = parser.parse_dpi_config(args)
+        _ = parser.parse_dpi_config(args)
         return True
     except ConfigurationError as e:
         logger.error(f"DPI argument validation failed: {e}")

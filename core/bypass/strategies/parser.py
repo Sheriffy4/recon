@@ -150,9 +150,7 @@ class UnifiedStrategyParser:
                 mapping = self.ZAPRET_TO_ATTACK_MAP[technique]
                 stage_params = {}
                 # Применяем маппинг параметров
-                for zapret_param, engine_param in mapping.get(
-                    "param_mapping", {}
-                ).items():
+                for zapret_param, engine_param in mapping.get("param_mapping", {}).items():
                     if zapret_param in parsed_params:
                         stage_params[engine_param] = parsed_params[zapret_param]
 

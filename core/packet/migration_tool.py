@@ -74,9 +74,7 @@ class ScapyMigrationTool:
                     usage["classes"].append(class_name)
 
             # Определение сложности
-            total_usage = (
-                len(usage["imports"]) + len(usage["functions"]) + len(usage["classes"])
-            )
+            total_usage = len(usage["imports"]) + len(usage["functions"]) + len(usage["classes"])
             if total_usage > 10:
                 usage["complexity"] = "high"
             elif total_usage > 5:
@@ -122,9 +120,7 @@ class ScapyMigrationTool:
 
         # Дополнительные шаги в зависимости от сложности
         if usage["complexity"] == "high":
-            plan["steps"].insert(
-                2, "Использовать слой совместимости для сложных случаев"
-            )
+            plan["steps"].insert(2, "Использовать слой совместимости для сложных случаев")
             plan["estimated_time"] = "4-8 часов"
         elif usage["complexity"] == "medium":
             plan["estimated_time"] = "2-4 часа"
@@ -133,17 +129,11 @@ class ScapyMigrationTool:
 
         # Рекомендации
         if "IP" in usage["classes"]:
-            plan["recommendations"].append(
-                "Заменить IP() на RawPacketEngine.build_ip_packet()"
-            )
+            plan["recommendations"].append("Заменить IP() на RawPacketEngine.build_ip_packet()")
         if "TCP" in usage["classes"]:
-            plan["recommendations"].append(
-                "Заменить TCP() на RawPacketEngine.build_tcp_packet()"
-            )
+            plan["recommendations"].append("Заменить TCP() на RawPacketEngine.build_tcp_packet()")
         if "send" in usage["functions"]:
-            plan["recommendations"].append(
-                "Заменить send() на RawPacketEngine.inject_packet()"
-            )
+            plan["recommendations"].append("Заменить send() на RawPacketEngine.inject_packet()")
 
         return plan
 
@@ -167,7 +157,9 @@ class ScapyMigrationTool:
 
             # Добавление инициализации движка
             if "RawPacketEngine" in converted:
-                init_code = "\n# Инициализация движка побайтовой обработки\nengine = RawPacketEngine()\n"
+                init_code = (
+                    "\n# Инициализация движка побайтовой обработки\nengine = RawPacketEngine()\n"
+                )
                 converted = init_code + converted
 
             # Замена создания пакетов (упрощенная версия)
@@ -204,9 +196,7 @@ class ScapyMigrationTool:
             self.logger.error(f"Error creating backup: {e}")
             return ""
 
-    async def validate_migration(
-        self, original_data: bytes, migrated_data: bytes
-    ) -> bool:
+    async def validate_migration(self, original_data: bytes, migrated_data: bytes) -> bool:
         """Валидирует результаты миграции."""
         try:
             # Простая валидация - сравнение размеров и базовых характеристик
@@ -214,9 +204,7 @@ class ScapyMigrationTool:
                 return False
 
             # Проверка, что данные похожи (допустимая разница до 20%)
-            size_diff = abs(len(original_data) - len(migrated_data)) / len(
-                original_data
-            )
+            size_diff = abs(len(original_data) - len(migrated_data)) / len(original_data)
             if size_diff > 0.2:
                 return False
 
@@ -247,9 +235,7 @@ class ScapyMigrationTool:
                     report["migration_summary"]["conversion_rate"] = conversion_rate
 
                     if conversion_rate >= 90:
-                        report["recommendations"].append(
-                            "Миграция практически завершена"
-                        )
+                        report["recommendations"].append("Миграция практически завершена")
                     elif conversion_rate >= 70:
                         report["recommendations"].append("Хороший прогресс миграции")
                     else:

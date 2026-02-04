@@ -83,26 +83,26 @@ class JitterConfiguration(TimingConfiguration):
         "jitter_variance_ms": 10.0,
         "gaussian_mean_ms": 0.0,
         "gaussian_stddev_ms": 5.0,
-        "measure_jitter": True
+        "measure_jitter": True,
     },
     aliases=["jitter_injection", "timing_jitter_attack"],
-    description="Adds random jitter to packet timing with configurable variance and distributions"
+    description="Adds random jitter to packet timing with configurable variance and distributions",
 )
 class TimingJitterAttack(TimingAttackBase):
     """
     Timing Jitter Attack.
-    
+
     Adds random jitter to packet timing to evade temporal DPI analysis.
     Supports uniform and Gaussian distributions with configurable variance
     and actual jitter measurement.
-    
+
     Parameters:
         jitter_type (str): Type of jitter - "uniform" or "gaussian" (default: "uniform")
         jitter_variance_ms (float): Maximum jitter variance in milliseconds (default: 10.0)
         gaussian_mean_ms (float): Mean for Gaussian distribution (default: 0.0)
         gaussian_stddev_ms (float): Standard deviation for Gaussian (default: 5.0)
         measure_jitter (bool): Measure actual jitter applied (default: True)
-    
+
     Examples:
         # Example 1: Uniform random jitter
         attack = TimingJitterAttack()
@@ -112,7 +112,7 @@ class TimingJitterAttack(TimingAttackBase):
         )
         result = attack.execute(context)
         # Result: Random jitter between -15ms and +15ms
-        
+
         # Example 2: Gaussian jitter for natural timing variation
         context = AttackContext(
             payload=b"sensitive data",
@@ -124,7 +124,7 @@ class TimingJitterAttack(TimingAttackBase):
         )
         result = attack.execute(context)
         # Result: Gaussian-distributed jitter centered at 0ms
-        
+
         # Example 3: Measured jitter with variance tracking
         context = AttackContext(
             payload=b"HTTP request",
@@ -136,19 +136,19 @@ class TimingJitterAttack(TimingAttackBase):
         )
         result = attack.execute(context)
         # Result: Jitter applied and measured for analysis
-    
+
     Known Limitations:
         - Large jitter may cause packet reordering
         - Gaussian jitter may occasionally exceed variance bounds
         - System timer resolution limits precision
         - High jitter may trigger timeout detection
-    
+
     Workarounds:
         - Keep jitter within reasonable bounds
         - Use Gaussian distribution for more natural patterns
         - Combine with other timing attacks
         - Monitor actual jitter to tune parameters
-    
+
     Performance Characteristics:
         - Execution time: O(n) where n is packet count
         - Memory usage: O(n) for jitter history
@@ -177,17 +177,17 @@ class TimingJitterAttack(TimingAttackBase):
     def name(self) -> str:
         """Unique name for this attack."""
         return "timing_jitter"
-    
+
     @property
     def category(self) -> str:
         """Attack category."""
         return AttackCategories.TIMING
-    
+
     @property
     def required_params(self) -> list:
         """Required parameters."""
         return []
-    
+
     @property
     def optional_params(self) -> dict:
         """Optional parameters with defaults."""
@@ -196,7 +196,7 @@ class TimingJitterAttack(TimingAttackBase):
             "jitter_variance_ms": 10.0,
             "gaussian_mean_ms": 0.0,
             "gaussian_stddev_ms": 5.0,
-            "measure_jitter": True
+            "measure_jitter": True,
         }
 
     def _execute_timing_attack(
@@ -216,34 +216,39 @@ class TimingJitterAttack(TimingAttackBase):
             # Extract parameters from context
             jitter_type = context.params.get("jitter_type", "uniform")
             self.jitter_config.jitter_type = jitter_type
-            
+
             # Update configuration from context params
-            for param in ["jitter_variance_ms", "gaussian_mean_ms", "gaussian_stddev_ms", "measure_jitter"]:
+            for param in [
+                "jitter_variance_ms",
+                "gaussian_mean_ms",
+                "gaussian_stddev_ms",
+                "measure_jitter",
+            ]:
                 if param in context.params:
                     setattr(self.jitter_config, param, context.params[param])
-            
+
             # Update amplitude from variance for compatibility
             self.jitter_config.jitter_amplitude_ms = self.jitter_config.jitter_variance_ms
-            
+
             payloads = self._generate_packet_payloads(context)
             jitter_delays = self._generate_jitter_sequence(len(payloads))
-            
+
             # Execute packets with jitter measurement
             packet_results = []
             for i, (payload, base_delay) in enumerate(zip(payloads, jitter_delays)):
                 packet_context = context.copy()
                 packet_context.payload = payload
-                
+
                 # Calculate jitter for this packet
                 jitter_ms = self._calculate_jitter(i)
                 total_delay = max(0.0, base_delay + jitter_ms)
-                
+
                 # Send packet
                 packet_result = self._send_packet(packet_context)
                 packet_results.append(packet_result)
                 timing_result.packets_sent += 1
                 timing_result.bytes_sent += len(payload)
-                
+
                 # Measure actual jitter if enabled
                 if self.jitter_config.measure_jitter and i < len(jitter_delays) - 1:
                     start_time = time.perf_counter()
@@ -251,33 +256,30 @@ class TimingJitterAttack(TimingAttackBase):
                     end_time = time.perf_counter()
                     actual_delay = (end_time - start_time) * 1000.0
                     actual_jitter = actual_delay - base_delay
-                    
-                    self.jitter_measurements.append({
-                        "requested_jitter_ms": jitter_ms,
-                        "actual_jitter_ms": actual_jitter,
-                        "base_delay_ms": base_delay,
-                        "total_delay_ms": total_delay,
-                        "actual_total_ms": actual_delay
-                    })
-                    
+
+                    self.jitter_measurements.append(
+                        {
+                            "requested_jitter_ms": jitter_ms,
+                            "actual_jitter_ms": actual_jitter,
+                            "base_delay_ms": base_delay,
+                            "total_delay_ms": total_delay,
+                            "actual_total_ms": actual_delay,
+                        }
+                    )
+
                     logger.debug(
                         f"Jitter: requested={jitter_ms:.3f}ms, actual={actual_jitter:.3f}ms, "
                         f"base={base_delay:.3f}ms"
                     )
                 elif i < len(jitter_delays) - 1:
                     self.execute_delay(total_delay, timing_result)
-            
-            success = any(
-                (result.status == AttackStatus.SUCCESS for result in packet_results)
-            )
+
+            success = any((result.status == AttackStatus.SUCCESS for result in packet_results))
             timing_result.success = success
             timing_result.response_received = any(
-                (
-                    getattr(result, "response_received", False)
-                    for result in packet_results
-                )
+                (getattr(result, "response_received", False) for result in packet_results)
             )
-            
+
             # Calculate jitter statistics
             avg_jitter = 0.0
             jitter_variance = 0.0
@@ -285,7 +287,7 @@ class TimingJitterAttack(TimingAttackBase):
                 jitters = [m["actual_jitter_ms"] for m in self.jitter_measurements]
                 avg_jitter = sum(jitters) / len(jitters)
                 jitter_variance = sum((j - avg_jitter) ** 2 for j in jitters) / len(jitters)
-            
+
             result = AttackResult(
                 status=AttackStatus.SUCCESS if success else AttackStatus.FAILURE,
                 technique_used=f"timing_jitter_{self.jitter_config.jitter_type}",
@@ -296,8 +298,10 @@ class TimingJitterAttack(TimingAttackBase):
                     "jitter_type": self.jitter_config.jitter_type,
                     "avg_jitter_ms": avg_jitter,
                     "jitter_variance": jitter_variance,
-                    "jitter_measurements": self.jitter_measurements[-10:] if self.jitter_measurements else []
-                }
+                    "jitter_measurements": (
+                        self.jitter_measurements[-10:] if self.jitter_measurements else []
+                    ),
+                },
             )
             return result
         except Exception as e:
@@ -323,7 +327,9 @@ class TimingJitterAttack(TimingAttackBase):
         payloads = []
         original_payload = context.payload
         if not original_payload:
-            original_payload = f"GET / HTTP/1.1\r\nHost: {context.domain or context.dst_ip}\r\n\r\n".encode()
+            original_payload = (
+                f"GET / HTTP/1.1\r\nHost: {context.domain or context.dst_ip}\r\n\r\n".encode()
+            )
         if len(original_payload) > 100:
             chunk_size = len(original_payload) // self.jitter_config.packets_per_burst
             for i in range(0, len(original_payload), chunk_size):
@@ -376,7 +382,7 @@ class TimingJitterAttack(TimingAttackBase):
         jitter_type = self.jitter_config.jitter_type
         variance = self.jitter_config.jitter_variance_ms
         amplitude = self.jitter_config.jitter_amplitude_ms
-        
+
         if jitter_type == JitterType.UNIFORM or jitter_type == "uniform":
             jitter = random.uniform(-variance, variance)
         elif jitter_type == JitterType.GAUSSIAN or jitter_type == "gaussian":
@@ -411,12 +417,12 @@ class TimingJitterAttack(TimingAttackBase):
             jitter = self._calculate_adaptive_jitter(index)
         else:
             jitter = random.uniform(-variance, variance)
-        
+
         # Store jitter in history
         self.jitter_history.append(jitter)
         if len(self.jitter_history) > self.jitter_config.adaptive_memory * 2:
             self.jitter_history.pop(0)
-        
+
         return jitter
 
     def _calculate_adaptive_jitter(self, index: int) -> float:
@@ -441,13 +447,9 @@ class TimingJitterAttack(TimingAttackBase):
         sensitivity = self.jitter_config.adaptive_sensitivity
         amplitude = self.jitter_config.jitter_amplitude_ms
         if trend > 0:
-            adaptive_amplitude = amplitude * (
-                1.0 - sensitivity * min(1.0, trend / 100.0)
-            )
+            adaptive_amplitude = amplitude * (1.0 - sensitivity * min(1.0, trend / 100.0))
         else:
-            adaptive_amplitude = amplitude * (
-                1.0 + sensitivity * min(1.0, abs(trend) / 100.0)
-            )
+            adaptive_amplitude = amplitude * (1.0 + sensitivity * min(1.0, abs(trend) / 100.0))
         base_jitter = random.uniform(-adaptive_amplitude, adaptive_amplitude)
         self.jitter_history.append(base_jitter)
         if len(self.jitter_history) > self.jitter_config.adaptive_memory:
@@ -506,8 +508,7 @@ class TimingJitterAttack(TimingAttackBase):
         if self.response_times:
             stats.update(
                 {
-                    "avg_response_time_ms": sum(self.response_times)
-                    / len(self.response_times),
+                    "avg_response_time_ms": sum(self.response_times) / len(self.response_times),
                     "min_response_time_ms": min(self.response_times),
                     "max_response_time_ms": max(self.response_times),
                 }
@@ -515,8 +516,7 @@ class TimingJitterAttack(TimingAttackBase):
         if self.jitter_history:
             stats.update(
                 {
-                    "avg_jitter_ms": sum(self.jitter_history)
-                    / len(self.jitter_history),
+                    "avg_jitter_ms": sum(self.jitter_history) / len(self.jitter_history),
                     "min_jitter_ms": min(self.jitter_history),
                     "max_jitter_ms": max(self.jitter_history),
                 }
@@ -558,9 +558,7 @@ class TimingJitterAttack(TimingAttackBase):
         self.periodic_time = 0.0
         self.logger.debug("Reset adaptive jitter state")
 
-    def benchmark_jitter_patterns(
-        self, test_count: int = 100
-    ) -> Dict[str, Dict[str, Any]]:
+    def benchmark_jitter_patterns(self, test_count: int = 100) -> Dict[str, Dict[str, Any]]:
         """
         Benchmark different jitter patterns.
 

@@ -99,18 +99,14 @@ class MetricsCollector:
         self.metrics = defaultdict(lambda: deque(maxlen=max_history))
         self.lock = threading.Lock()
 
-    def record_metric(
-        self, name: str, value: float, unit: str = "", tags: Dict[str, str] = None
-    ):
+    def record_metric(self, name: str, value: float, unit: str = "", tags: Dict[str, str] = None):
         """Record a performance metric."""
         metric = PerformanceMetric(name=name, value=value, unit=unit, tags=tags or {})
 
         with self.lock:
             self.metrics[name].append(metric)
 
-    def get_metric_stats(
-        self, name: str, time_window: Optional[float] = None
-    ) -> Dict[str, float]:
+    def get_metric_stats(self, name: str, time_window: Optional[float] = None) -> Dict[str, float]:
         """Get statistics for a metric within time window."""
         with self.lock:
             if name not in self.metrics:
@@ -296,9 +292,7 @@ class HealthChecker:
                 message = f"High memory usage: {memory_mb:.1f}MB ({usage_percent:.1f}%)"
             elif usage_percent > 70:
                 status = "warning"
-                message = (
-                    f"Elevated memory usage: {memory_mb:.1f}MB ({usage_percent:.1f}%)"
-                )
+                message = f"Elevated memory usage: {memory_mb:.1f}MB ({usage_percent:.1f}%)"
 
             return HealthCheckResult(
                 component="memory_usage",
@@ -442,9 +436,7 @@ class DiagnosticLogger:
 
     def log_fingerprinting_start(self, target: str):
         """Log start of fingerprinting operation."""
-        self.logger.info(
-            "Starting fingerprinting operation", extra={"fingerprint_target": target}
-        )
+        self.logger.info("Starting fingerprinting operation", extra={"fingerprint_target": target})
 
     def log_fingerprinting_complete(
         self, target: str, fingerprint: DPIFingerprint, duration: float
@@ -486,9 +478,7 @@ class DiagnosticLogger:
             },
         )
 
-    def log_ml_classification(
-        self, target: str, prediction: Dict[str, Any], duration: float
-    ):
+    def log_ml_classification(self, target: str, prediction: Dict[str, Any], duration: float):
         """Log ML classification result."""
         self.logger.info(
             "ML classification completed",
@@ -611,9 +601,7 @@ class DiagnosticSystem:
         if success and result:
             self.logger.log_analyzer_result(analyzer, target, result, duration)
 
-    def record_ml_classification(
-        self, target: str, duration: float, prediction: Dict[str, Any]
-    ):
+    def record_ml_classification(self, target: str, duration: float, prediction: Dict[str, Any]):
         """Record ML classification metrics."""
         self.metrics_collector.record_metric(
             "ml_classification_duration", duration, "seconds", {"target": target}
@@ -639,9 +627,7 @@ class DiagnosticSystem:
             )
 
         if hit is not None:
-            self.metrics_collector.record_metric(
-                "cache_hit_rate", 1.0 if hit else 0.0, "ratio"
-            )
+            self.metrics_collector.record_metric("cache_hit_rate", 1.0 if hit else 0.0, "ratio")
 
         self.logger.log_cache_operation(operation, target, hit)
 
@@ -744,17 +730,11 @@ if __name__ == "__main__":
     # CLI interface for diagnostics
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Advanced DPI Fingerprinting Diagnostics"
-    )
+    parser = argparse.ArgumentParser(description="Advanced DPI Fingerprinting Diagnostics")
     parser.add_argument("--health-check", action="store_true", help="Run health checks")
-    parser.add_argument(
-        "--metrics", action="store_true", help="Show performance metrics"
-    )
+    parser.add_argument("--metrics", action="store_true", help="Show performance metrics")
     parser.add_argument("--report", help="Generate diagnostic report to file")
-    parser.add_argument(
-        "--test-logging", action="store_true", help="Test logging system"
-    )
+    parser.add_argument("--test-logging", action="store_true", help="Test logging system")
 
     args = parser.parse_args()
 

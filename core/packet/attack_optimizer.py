@@ -76,14 +76,10 @@ class AttackOptimizer:
             print(f"🔧 Оптимизация {attack_type.value}...")
 
             optimized_params = await self.optimize_attack_type(attack_type)
-            optimization_results["optimized_attacks"][
-                attack_type.value
-            ] = optimized_params
+            optimization_results["optimized_attacks"][attack_type.value] = optimized_params
 
             # Генерируем новые стратегии
-            new_strategies = await self.generate_improved_strategies(
-                attack_type, optimized_params
-            )
+            new_strategies = await self.generate_improved_strategies(attack_type, optimized_params)
             optimization_results["new_strategies"].extend(new_strategies)
 
         # Создаем комбинированные стратегии
@@ -92,9 +88,7 @@ class AttackOptimizer:
 
         return optimization_results
 
-    async def optimize_attack_type(
-        self, attack_type: AttackType
-    ) -> List[AttackParameters]:
+    async def optimize_attack_type(self, attack_type: AttackType) -> List[AttackParameters]:
         """Оптимизация конкретного типа атаки."""
         optimized_params = []
 
@@ -115,9 +109,7 @@ class AttackOptimizer:
 
         return optimized_params
 
-    async def optimize_badsum_race(
-        self, param_ranges: Dict[str, List]
-    ) -> List[AttackParameters]:
+    async def optimize_badsum_race(self, param_ranges: Dict[str, List]) -> List[AttackParameters]:
         """Оптимизация badsum_race атаки."""
         optimized = []
 
@@ -172,9 +164,7 @@ class AttackOptimizer:
 
         return optimized
 
-    async def optimize_fakedisorder(
-        self, param_ranges: Dict[str, List]
-    ) -> List[AttackParameters]:
+    async def optimize_fakedisorder(self, param_ranges: Dict[str, List]) -> List[AttackParameters]:
         """Оптимизация fakedisorder атаки."""
         optimized = []
 
@@ -193,9 +183,7 @@ class AttackOptimizer:
                         "disorder_type": "optimized",
                     },
                     success_rate=(
-                        0.8
-                        if split_pos == "midsld" and ttl == 4
-                        else 0.3 + random.random() * 0.4
+                        0.8 if split_pos == "midsld" and ttl == 4 else 0.3 + random.random() * 0.4
                     ),
                     reliability=0.9 if split_pos == "midsld" else 0.7,
                 )
@@ -258,9 +246,7 @@ class AttackOptimizer:
 
         return optimized
 
-    async def optimize_tls_splitting(
-        self, param_ranges: Dict[str, List]
-    ) -> List[AttackParameters]:
+    async def optimize_tls_splitting(self, param_ranges: Dict[str, List]) -> List[AttackParameters]:
         """Оптимизация TLS разделения."""
         optimized = []
 
@@ -303,9 +289,7 @@ class AttackOptimizer:
         strategies = []
 
         # Сортируем по предполагаемой эффективности
-        sorted_params = sorted(
-            optimized_params, key=lambda x: x.success_rate, reverse=True
-        )
+        sorted_params = sorted(optimized_params, key=lambda x: x.success_rate, reverse=True)
 
         # Берем топ-10 лучших параметров
         for params in sorted_params[:10]:
@@ -427,9 +411,7 @@ class AttackOptimizer:
 
         return configs
 
-    async def analyze_attack_effectiveness(
-        self, test_results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def analyze_attack_effectiveness(self, test_results: Dict[str, Any]) -> Dict[str, Any]:
         """Анализ эффективности атак на основе результатов тестирования."""
         analysis = {
             "attack_performance": {},

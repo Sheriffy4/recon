@@ -121,6 +121,20 @@ class ClosedLoopManager(IClosedLoopManager):
         self.iterations_without_improvement = 0
         self.max_iterations_without_improvement = 2
 
+    def _generate_fingerprint_hash(self, fingerprint: EnhancedFingerprint) -> str:
+        """
+        Avoid hard dependency on private learning_memory API.
+        """
+        fp_dict = getattr(fingerprint, "__dict__", {}) if fingerprint else {}
+        public = getattr(self.learning_memory, "generate_fingerprint_hash", None)
+        if callable(public):
+            return public(fp_dict)
+        private = getattr(self.learning_memory, "_generate_fingerprint_hash", None)
+        if callable(private):
+            return private(fp_dict)
+        # last resort: stable-ish hash
+        return str(hash(repr(sorted(fp_dict.items()))))
+
     async def run_closed_loop(
         self, domain: str, port: int = 443, max_iterations: Optional[int] = None
     ) -> ClosedLoopResult:
@@ -140,9 +154,7 @@ class ClosedLoopManager(IClosedLoopManager):
         if max_iterations is not None:
             self.max_iterations = max_iterations
         self.logger.info(f"Starting enhanced closed loop process for {domain}:{port}")
-        self.logger.info(
-            "Algorithm: Fingerprint → Plan → Execute → Analyze → Refine & Learn"
-        )
+        self.logger.info("Algorithm: Fingerprint → Plan → Execute → Analyze → Refine & Learn")
         self.logger.info(
             f"Configuration: max_iterations={self.max_iterations}, convergence_threshold={self.convergence_threshold}"
         )
@@ -160,22 +172,23 @@ class ClosedLoopManager(IClosedLoopManager):
         all_test_results = []
         try:
             self.logger.info("=== PHASE 1: FINGERPRINT ===")
-            baseline_result = await self.effectiveness_tester.test_baseline(
-                domain, port
-            )
-            self.baseline_effectiveness = 1.0 if baseline_result.success else 0.0
+            baseline_result = await self.effectiveness_tester.test_baseline(domain, port)
+            self.baseline_effectiveness = 1.0 if getattr(baseline_result, "success", False) else 0.0
             self.logger.info(
                 f"Baseline established: success={baseline_result.success}, latency={baseline_result.latency_ms:.1f}ms"
             )
             if baseline_result.success:
-                result.analysis_summary.append(
-                    f"Domain {domain} is accessible without bypass"
-                )
-                self.baseline_effectiveness = 0.5
+                result.analysis_summary.append(f"Domain {domain} is accessible without bypass")
+                # No need to run bypass optimization if already accessible
+                result.total_iterations = 0
+                result.final_effectiveness = 1.0
+                result.best_strategy = None
+                result.convergence_achieved = True
+                result.total_time_seconds = time.time() - start_time
+                result.analysis_summary.append("Closed loop skipped: baseline access is OK")
+                return result
             else:
-                result.analysis_summary.append(
-                    f"Domain {domain} is blocked, bypass required"
-                )
+                result.analysis_summary.append(f"Domain {domain} is blocked, bypass required")
             current_fingerprint = await self.fingerprint_engine.create_comprehensive_fingerprint_with_extended_metrics(
                 domain=domain, force_refresh=True
             )
@@ -185,12 +198,8 @@ class ClosedLoopManager(IClosedLoopManager):
             self.logger.info(
                 f"Behavioral profile created: {len(behavioral_profile.identified_weaknesses)} weaknesses identified"
             )
-            fingerprint_hash = self.learning_memory._generate_fingerprint_hash(
-                current_fingerprint.__dict__
-            )
-            learning_history = await self.learning_memory.load_learning_history(
-                fingerprint_hash
-            )
+            fingerprint_hash = self._generate_fingerprint_hash(current_fingerprint)
+            learning_history = await self.learning_memory.load_learning_history(fingerprint_hash)
             if learning_history:
                 self.logger.info(
                     f"Loaded learning history: {len(learning_history.successful_attacks)} successful attacks, best effectiveness: {learning_history.best_effectiveness:.2f}"
@@ -216,24 +225,18 @@ class ClosedLoopManager(IClosedLoopManager):
                     all_test_results.extend(iteration_result.test_results)
                 self.logger.info("=== PHASE 4: ANALYZE ===")
                 if iteration_result.failure_analysis:
-                    cumulative_failure_analysis = (
-                        await self._integrate_failure_analysis(
-                            cumulative_failure_analysis,
-                            iteration_result.failure_analysis,
-                        )
+                    cumulative_failure_analysis = await self._integrate_failure_analysis(
+                        cumulative_failure_analysis,
+                        iteration_result.failure_analysis,
                     )
                     self.logger.info(
                         f"Failure analysis: {len(iteration_result.failure_analysis.failure_patterns)} patterns identified"
                     )
                 if iteration_result.best_effectiveness > self.best_effectiveness:
-                    improvement = (
-                        iteration_result.best_effectiveness - self.best_effectiveness
-                    )
+                    improvement = iteration_result.best_effectiveness - self.best_effectiveness
                     self.best_effectiveness = iteration_result.best_effectiveness
                     result.final_effectiveness = self.best_effectiveness
-                    result.best_strategy = getattr(
-                        iteration_result, "best_strategy", None
-                    )
+                    result.best_strategy = getattr(iteration_result, "best_strategy", None)
                     self.iterations_without_improvement = 0
                     self.logger.info(
                         f"New best effectiveness: {self.best_effectiveness:.2f} (improvement: +{improvement:.2f})"
@@ -250,29 +253,25 @@ class ClosedLoopManager(IClosedLoopManager):
                     break
                 if iteration < self.max_iterations - 1:
                     self.logger.info("=== PHASE 5: REFINE & LEARN ===")
-                    current_fingerprint = (
-                        await self.fingerprint_engine.refine_fingerprint(
-                            current_fingerprint,
-                            getattr(iteration_result, "test_results", []),
-                            learning_insights={
-                                "failure_patterns": (
-                                    cumulative_failure_analysis.failure_patterns
-                                    if cumulative_failure_analysis
-                                    else []
-                                ),
-                                "successful_techniques": [
-                                    r.bypass.attack_name
-                                    for r in all_test_results
-                                    if getattr(r, "bypass_effective", False)
-                                ],
-                                "behavioral_insights": behavioral_profile.__dict__,
-                            },
-                        )
+                    current_fingerprint = await self.fingerprint_engine.refine_fingerprint(
+                        current_fingerprint,
+                        getattr(iteration_result, "test_results", []),
+                        learning_insights={
+                            "failure_patterns": (
+                                cumulative_failure_analysis.failure_patterns
+                                if cumulative_failure_analysis
+                                else []
+                            ),
+                            "successful_techniques": [
+                                r.bypass.attack_name
+                                for r in all_test_results
+                                if getattr(r, "bypass_effective", False)
+                            ],
+                            "behavioral_insights": behavioral_profile.__dict__,
+                        },
                     )
-                    behavioral_profile = (
-                        await self.fingerprint_engine.analyze_dpi_behavior(
-                            domain, current_fingerprint
-                        )
+                    behavioral_profile = await self.fingerprint_engine.analyze_dpi_behavior(
+                        domain, current_fingerprint
                     )
                     await self._update_learning_memory_with_behavioral_insights(
                         fingerprint_hash, behavioral_profile, iteration_result
@@ -281,9 +280,7 @@ class ClosedLoopManager(IClosedLoopManager):
                         "Fingerprint and behavioral profile refined for next iteration"
                     )
             result.total_time_seconds = time.time() - start_time
-            result.convergence_achieved = (
-                self.best_effectiveness >= self.convergence_threshold
-            )
+            result.convergence_achieved = self.best_effectiveness >= self.convergence_threshold
             await self._generate_final_analysis_summary(
                 result, behavioral_profile, cumulative_failure_analysis
             )
@@ -334,17 +331,13 @@ class ClosedLoopManager(IClosedLoopManager):
         try:
             if previous_failure_analysis:
                 self.logger.info("Generating strategies with failure analysis insights")
-                strategies = (
-                    self.strategy_generator.generate_strategies_with_failure_analysis(
-                        count=self.strategies_per_iteration,
-                        failure_analysis=previous_failure_analysis,
-                        use_parameter_ranges=True,
-                    )
+                strategies = self.strategy_generator.generate_strategies_with_failure_analysis(
+                    count=self.strategies_per_iteration,
+                    failure_analysis=previous_failure_analysis,
+                    use_parameter_ranges=True,
                 )
             else:
-                self.logger.info(
-                    "Generating strategies with behavioral profile insights"
-                )
+                self.logger.info("Generating strategies with behavioral profile insights")
                 strategies = self.strategy_generator.generate_strategies(
                     count=self.strategies_per_iteration, use_parameter_ranges=True
                 )
@@ -368,10 +361,8 @@ class ClosedLoopManager(IClosedLoopManager):
                     attack_result = await self.attack_adapter.execute_attack(
                         strategy["name"], strategy.get("params", {}), domain, port
                     )
-                    effectiveness_result = (
-                        await self.effectiveness_tester.test_with_bypass(
-                            domain, port, attack_result
-                        )
+                    effectiveness_result = await self.effectiveness_tester.test_with_bypass(
+                        domain, port, attack_result
                     )
                     test_results.append(effectiveness_result)
                     if (
@@ -386,9 +377,7 @@ class ClosedLoopManager(IClosedLoopManager):
                             f"New best in iteration: {effectiveness_result.effectiveness_score:.2f} with {strategy['name']}"
                         )
                 except Exception as e:
-                    self.logger.error(
-                        f"Failed to test strategy {strategy['name']}: {e}"
-                    )
+                    self.logger.error(f"Failed to test strategy {strategy['name']}: {e}")
                     continue
             iteration_result.test_results = test_results
             iteration_result.best_strategy = best_strategy
@@ -396,16 +385,12 @@ class ClosedLoopManager(IClosedLoopManager):
                 iteration_result.best_effectiveness - self.baseline_effectiveness
             )
             if test_results:
-                failure_analysis = (
-                    await self.failure_analyzer.analyze_iteration_results(
-                        test_results, fingerprint, behavioral_profile
-                    )
+                failure_analysis = await self.failure_analyzer.analyze_iteration_results(
+                    test_results, fingerprint, behavioral_profile
                 )
                 iteration_result.failure_analysis = failure_analysis
-                strategic_recommendations = (
-                    await self._generate_strategic_recommendations(
-                        failure_analysis, behavioral_profile, learning_history
-                    )
+                strategic_recommendations = await self._generate_strategic_recommendations(
+                    failure_analysis, behavioral_profile, learning_history
                 )
                 iteration_result.strategic_recommendations = strategic_recommendations
                 iteration_result.analysis_notes.extend(
@@ -436,9 +421,7 @@ class ClosedLoopManager(IClosedLoopManager):
             )
             return iteration_result
         except Exception as e:
-            self.logger.error(
-                f"Enhanced iteration {self.current_iteration} failed: {e}"
-            )
+            self.logger.error(f"Enhanced iteration {self.current_iteration} failed: {e}")
             iteration_result.analysis_notes.append(f"Iteration failed: {str(e)}")
             return iteration_result
 
@@ -476,9 +459,7 @@ class ClosedLoopManager(IClosedLoopManager):
                     {
                         "attack_name": attack_name,
                         "success_rate": success_rate,
-                        "parameters": learning_history.optimal_parameters.get(
-                            attack_name, {}
-                        ),
+                        "parameters": learning_history.optimal_parameters.get(attack_name, {}),
                     }
                 )
         strategy_gen = AdvancedStrategyGenerator(
@@ -495,12 +476,8 @@ class ClosedLoopManager(IClosedLoopManager):
             )
             self.logger.info("Generated strategies with failure analysis guidance")
         else:
-            strategies = strategy_gen.generate_strategies(
-                count=self.strategies_per_iteration
-            )
-            self.logger.info(
-                "Generated strategies without failure analysis (first iteration)"
-            )
+            strategies = strategy_gen.generate_strategies(count=self.strategies_per_iteration)
+            self.logger.info("Generated strategies without failure analysis (first iteration)")
         self.logger.info(
             f"Generated {len(strategies)} strategies for iteration {self.current_iteration}"
         )
@@ -533,9 +510,9 @@ class ClosedLoopManager(IClosedLoopManager):
         failure_analysis = None
         strategic_recommendations = []
         if effectiveness_results:
-            avg_effectiveness = sum(
-                (r.effectiveness_score for r in effectiveness_results)
-            ) / len(effectiveness_results)
+            avg_effectiveness = sum((r.effectiveness_score for r in effectiveness_results)) / len(
+                effectiveness_results
+            )
             analysis_notes.append(
                 f"Tested {tested_strategies} strategies, avg effectiveness: {avg_effectiveness:.2f}"
             )
@@ -557,9 +534,7 @@ class ClosedLoopManager(IClosedLoopManager):
                     analysis_notes.append(
                         f"DPI classification: {insights['recommended_classification']}"
                     )
-            fingerprint_hash = self.learning_memory._generate_fingerprint_hash(
-                fingerprint_dict
-            )
+            fingerprint_hash = self.learning_memory._generate_fingerprint_hash(fingerprint_dict)
             for result in effectiveness_results:
                 await self.learning_memory.save_learning_result(
                     fingerprint_hash=fingerprint_hash,
@@ -625,9 +600,7 @@ class ClosedLoopManager(IClosedLoopManager):
             EffectivenessResult or None if execution failed
         """
         try:
-            baseline_result = await self.effectiveness_tester.test_baseline(
-                domain, port
-            )
+            baseline_result = await self.effectiveness_tester.test_baseline(domain, port)
             from core.bypass.attacks.base import AttackResult, AttackStatus
 
             mock_attack_result = AttackResult(
@@ -647,9 +620,7 @@ class ClosedLoopManager(IClosedLoopManager):
             self.logger.error(f"Failed to execute strategy {strategy['name']}: {e}")
             return None
 
-    async def should_continue_loop(
-        self, current_results: ClosedLoopResult
-    ) -> Tuple[bool, str]:
+    async def should_continue_loop(self, current_results: ClosedLoopResult) -> Tuple[bool, str]:
         """
         Determine if the closed loop should continue.
 
@@ -666,18 +637,14 @@ class ClosedLoopManager(IClosedLoopManager):
             )
         if self.current_iteration >= self.max_iterations:
             return (False, f"Maximum iterations reached ({self.max_iterations})")
-        if (
-            self.iterations_without_improvement
-            >= self.max_iterations_without_improvement
-        ):
+        if self.iterations_without_improvement >= self.max_iterations_without_improvement:
             return (
                 False,
                 f"No improvement for {self.iterations_without_improvement} iterations",
             )
         if (
             self.current_iteration >= 2
-            and self.best_effectiveness
-            <= self.baseline_effectiveness + self.improvement_threshold
+            and self.best_effectiveness <= self.baseline_effectiveness + self.improvement_threshold
         ):
             return (
                 False,
@@ -697,30 +664,19 @@ class ClosedLoopManager(IClosedLoopManager):
         for result in test_results:
             attack_name = result.bypass.attack_name
             effectiveness = result.effectiveness_score
-            current_rate = current_fingerprint.technique_success_rates.get(
-                attack_name, 0.0
-            )
+            current_rate = current_fingerprint.technique_success_rates.get(attack_name, 0.0)
             new_rate = current_rate * 0.7 + effectiveness * 0.3
             current_fingerprint.technique_success_rates[attack_name] = new_rate
-        if (
-            current_fingerprint.technique_success_rates.get(
-                "ip_fragmentation_advanced", 0.0
-            )
-            > 0.7
-        ):
+        if current_fingerprint.technique_success_rates.get("ip_fragmentation_advanced", 0.0) > 0.7:
             current_fingerprint.supports_ip_frag = True
             LOG.debug("Refined: DPI is likely vulnerable to fragmentation.")
         if current_fingerprint.technique_success_rates.get("badsum_fooling", 0.0) < 0.2:
             current_fingerprint.checksum_validation = True
             LOG.debug("Refined: DPI likely validates checksums.")
-        new_classification = self.fingerprint_engine.classifier.classify(
-            current_fingerprint
-        )
+        new_classification = self.fingerprint_engine.classifier.classify(current_fingerprint)
         current_fingerprint.dpi_type = new_classification.dpi_type
         current_fingerprint.confidence = new_classification.confidence
-        LOG.info(
-            f"Fingerprint refined. New classification: {current_fingerprint.get_summary()}"
-        )
+        LOG.info(f"Fingerprint refined. New classification: {current_fingerprint.get_summary()}")
         return current_fingerprint
 
     def get_statistics(self) -> Dict[str, Any]:
@@ -758,29 +714,19 @@ class ClosedLoopManager(IClosedLoopManager):
             priority_score = 0.5
             strategy_name = strategy.get("name", "")
             for weakness in behavioral_profile.identified_weaknesses:
-                if (
-                    "fragmentation" in weakness.lower()
-                    and "fragmentation" in strategy_name.lower()
-                ):
+                if "fragmentation" in weakness.lower() and "fragmentation" in strategy_name.lower():
                     priority_score += 0.3
                 elif "timing" in weakness.lower() and "timing" in strategy_name.lower():
                     priority_score += 0.3
                 elif "checksum" in weakness.lower() and (
-                    "badsum" in strategy_name.lower()
-                    or "checksum" in strategy_name.lower()
+                    "badsum" in strategy_name.lower() or "checksum" in strategy_name.lower()
                 ):
                     priority_score += 0.3
                 elif "tcp" in weakness.lower() and "tcp" in strategy_name.lower():
                     priority_score += 0.2
-            if (
-                not behavioral_profile.supports_ip_frag
-                and "fragmentation" in strategy_name.lower()
-            ):
+            if not behavioral_profile.supports_ip_frag and "fragmentation" in strategy_name.lower():
                 priority_score -= 0.2
-            if (
-                not behavioral_profile.checksum_validation
-                and "badsum" in strategy_name.lower()
-            ):
+            if not behavioral_profile.checksum_validation and "badsum" in strategy_name.lower():
                 priority_score += 0.2
             if behavioral_profile.ech_support is False and (
                 "ech" in strategy_name.lower() or "modern" in strategy_name.lower()
@@ -828,9 +774,7 @@ class ClosedLoopManager(IClosedLoopManager):
                     )
                     > 0
                 ):
-                    existing_pattern.affected_techniques.extend(
-                        new_pattern.affected_techniques
-                    )
+                    existing_pattern.affected_techniques.extend(new_pattern.affected_techniques)
                     existing_pattern.affected_techniques = list(
                         set(existing_pattern.affected_techniques)
                     )
@@ -880,18 +824,11 @@ class ClosedLoopManager(IClosedLoopManager):
                     "Focus on timing-based attacks - DPI shows timing sensitivity"
                 )
             elif pattern.pattern_type == "protocol_specific":
-                recommendations.append(
-                    "Try protocol tunneling or modern protocol attacks"
-                )
+                recommendations.append("Try protocol tunneling or modern protocol attacks")
         if behavioral_profile.ml_detection:
             recommendations.append("Use traffic mimicry to evade ML detection")
-        if (
-            behavioral_profile.burst_tolerance
-            and behavioral_profile.burst_tolerance < 0.3
-        ):
-            recommendations.append(
-                "Avoid burst traffic patterns - low burst tolerance detected"
-            )
+        if behavioral_profile.burst_tolerance and behavioral_profile.burst_tolerance < 0.3:
+            recommendations.append("Avoid burst traffic patterns - low burst tolerance detected")
         if len(behavioral_profile.anti_evasion_techniques) >= 3:
             recommendations.append(
                 "Use multi-layer combination attacks against sophisticated anti-evasion"
@@ -948,9 +885,7 @@ class ClosedLoopManager(IClosedLoopManager):
                 f"Updated learning memory with behavioral insights for {fingerprint_hash}"
             )
         except Exception as e:
-            self.logger.error(
-                f"Failed to update learning memory with behavioral insights: {e}"
-            )
+            self.logger.error(f"Failed to update learning memory with behavioral insights: {e}")
 
     async def _update_learning_memory_from_iteration(
         self,
@@ -967,9 +902,7 @@ class ClosedLoopManager(IClosedLoopManager):
             iteration_result: Complete iteration result
         """
         try:
-            fingerprint_hash = self.learning_memory._generate_fingerprint_hash(
-                fingerprint.__dict__
-            )
+            fingerprint_hash = self.learning_memory._generate_fingerprint_hash(fingerprint.__dict__)
             for result in test_results:
                 if hasattr(result, "bypass_effective") and result.bypass_effective:
                     attack_name = result.bypass.attack_name
@@ -1025,15 +958,11 @@ class ClosedLoopManager(IClosedLoopManager):
                     f"Convergence not achieved - final effectiveness: {result.final_effectiveness:.2f}"
                 )
             if result.iterations:
-                best_iteration = max(
-                    result.iterations, key=lambda x: x.best_effectiveness
-                )
+                best_iteration = max(result.iterations, key=lambda x: x.best_effectiveness)
                 result.analysis_summary.append(
                     f"Best iteration: #{best_iteration.iteration_number} with {best_iteration.best_effectiveness:.2f} effectiveness"
                 )
             self.logger.info("Final analysis summary generated")
         except Exception as e:
             self.logger.error(f"Failed to generate final analysis summary: {e}")
-            result.analysis_summary.append(
-                f"Analysis summary generation failed: {str(e)}"
-            )
+            result.analysis_summary.append(f"Analysis summary generation failed: {str(e)}")

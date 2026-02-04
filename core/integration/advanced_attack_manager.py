@@ -163,9 +163,7 @@ class AdvancedAttack(ABC):
         }
 
     @abstractmethod
-    async def execute(
-        self, target: str, context: AttackContext
-    ) -> AdvancedAttackResult:
+    async def execute(self, target: str, context: AttackContext) -> AdvancedAttackResult:
         """Execute the advanced attack."""
         pass
 
@@ -207,9 +205,7 @@ class AdvancedAttackManager:
     """
 
     def __init__(self, enable_ml_integration: bool = True):
-        self.enable_ml_integration = (
-            enable_ml_integration and PHASE1_INTEGRATIONS_AVAILABLE
-        )
+        self.enable_ml_integration = enable_ml_integration and PHASE1_INTEGRATIONS_AVAILABLE
         self.registered_attacks: Dict[str, AdvancedAttack] = {}
         self.attack_registry = None
         self.strategy_integrator = None
@@ -375,9 +371,7 @@ class AdvancedAttackManager:
                 continue
             compatible_attacks.append((attack_name, attack))
         if not compatible_attacks:
-            LOG.warning(
-                f"No compatible advanced attacks found for {target_info.domain}"
-            )
+            LOG.warning(f"No compatible advanced attacks found for {target_info.domain}")
             return None
 
         def attack_score(attack_tuple):
@@ -491,16 +485,12 @@ class AdvancedAttackManager:
         """Get DPI signature for target."""
         if self.enable_ml_integration and self.fingerprint_integrator:
             try:
-                fingerprint_result = (
-                    await self.fingerprint_integrator.fingerprint_target(
-                        target_info.domain, target_info.ip
-                    )
+                fingerprint_result = await self.fingerprint_integrator.fingerprint_target(
+                    target_info.domain, target_info.ip
                 )
                 return DPISignature(
                     dpi_type=fingerprint_result.dpi_type,
-                    sophistication_level=self._determine_sophistication_level(
-                        fingerprint_result
-                    ),
+                    sophistication_level=self._determine_sophistication_level(fingerprint_result),
                     capabilities=self._extract_capabilities(fingerprint_result),
                     confidence=fingerprint_result.confidence,
                     fingerprint_data=fingerprint_result.fingerprint_data,
@@ -515,9 +505,7 @@ class AdvancedAttackManager:
             fingerprint_data={},
         )
 
-    def _determine_sophistication_level(
-        self, fingerprint_result: FingerprintResult
-    ) -> str:
+    def _determine_sophistication_level(self, fingerprint_result: FingerprintResult) -> str:
         """Determine DPI sophistication level from fingerprint."""
         if fingerprint_result.confidence > 0.8:
             return "sophisticated"
@@ -572,29 +560,21 @@ class AdvancedAttackManager:
 
     def _get_historical_data(self, domain: str) -> Optional[Dict[str, Any]]:
         """Get historical attack data for domain."""
-        domain_history = [
-            entry for entry in self.execution_history if domain in entry["target"]
-        ]
+        domain_history = [entry for entry in self.execution_history if domain in entry["target"]]
         if not domain_history:
             return None
-        successful_attacks = [
-            entry for entry in domain_history if entry["result"].success
-        ]
+        successful_attacks = [entry for entry in domain_history if entry["result"].success]
         return {
             "total_attempts": len(domain_history),
             "successful_attempts": len(successful_attacks),
             "success_rate": (
                 len(successful_attacks) / len(domain_history) if domain_history else 0.0
             ),
-            "most_successful_attack": self._get_most_successful_attack(
-                successful_attacks
-            ),
+            "most_successful_attack": self._get_most_successful_attack(successful_attacks),
             "last_attempt": domain_history[-1]["timestamp"] if domain_history else None,
         }
 
-    def _get_most_successful_attack(
-        self, successful_attacks: List[Dict]
-    ) -> Optional[str]:
+    def _get_most_successful_attack(self, successful_attacks: List[Dict]) -> Optional[str]:
         """Get the most successful attack type from history."""
         if not successful_attacks:
             return None
@@ -653,12 +633,8 @@ class AdvancedAttackManager:
                 LOG.error(f"Failed to update ML strategy predictor: {e}")
         if result.learning_data:
             try:
-                self.adaptation_cache[result.learning_data.target_signature] = (
-                    result.learning_data
-                )
-                LOG.debug(
-                    f"Stored learning data for {result.learning_data.target_signature}"
-                )
+                self.adaptation_cache[result.learning_data.target_signature] = result.learning_data
+                LOG.debug(f"Stored learning data for {result.learning_data.target_signature}")
             except Exception as e:
                 LOG.error(f"Failed to update learning memory: {e}")
 
@@ -666,9 +642,7 @@ class AdvancedAttackManager:
         """Get comprehensive performance metrics for advanced attacks."""
         metrics = {
             "registered_attacks": len(self.registered_attacks),
-            "enabled_attacks": len(
-                [a for a in self.registered_attacks.values() if a.enabled]
-            ),
+            "enabled_attacks": len([a for a in self.registered_attacks.values() if a.enabled]),
             "total_executions": sum(
                 (a.stats["executions"] for a in self.registered_attacks.values())
             ),

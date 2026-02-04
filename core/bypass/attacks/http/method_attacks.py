@@ -18,11 +18,12 @@ from core.bypass.attacks.base_classes.http_attack_base import HTTPAttackBase
 from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
 from core.bypass.attacks.metadata import AttackCategories
 
+
 @register_attack(
     name="http_method_case",
     category=AttackCategories.HTTP,
     aliases=["http-method-case"],
-    description="Changes case of HTTP method to evade DPI"
+    description="Changes case of HTTP method to evade DPI",
 )
 class HTTPMethodCaseAttack(BaseAttack):
     """
@@ -51,9 +52,7 @@ class HTTPMethodCaseAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "case_strategy": "lower"
-        }
+        return {"case_strategy": "lower"}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP method case attack."""
@@ -164,9 +163,7 @@ class HTTPMethodSubstitutionAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "substitute_method": "POST"
-        }
+        return {"substitute_method": "POST"}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP method substitution attack."""
@@ -245,9 +242,7 @@ class HTTPVersionManipulationAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "new_version": "HTTP/1.0"
-        }
+        return {"new_version": "HTTP/1.0"}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP version manipulation attack."""
@@ -285,9 +280,7 @@ class HTTPVersionManipulationAttack(BaseAttack):
                 connection_established=True,
                 data_transmitted=True,
                 metadata={
-                    "original_version": original_version.decode(
-                        "utf-8", errors="ignore"
-                    ),
+                    "original_version": original_version.decode("utf-8", errors="ignore"),
                     "new_version": new_version,
                     "segments": segments if context.engine_type != "local" else None,
                 },
@@ -304,7 +297,7 @@ class HTTPVersionManipulationAttack(BaseAttack):
     name="http_path_obfuscation",
     category=AttackCategories.HTTP,
     aliases=["http-url-path-case", "http-url-path-dot"],
-    description="Obfuscates HTTP request path using URL encoding"
+    description="Obfuscates HTTP request path using URL encoding",
 )
 class HTTPPathObfuscationAttack(BaseAttack):
     """
@@ -333,9 +326,7 @@ class HTTPPathObfuscationAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "obfuscation_type": "url_encode"
-        }
+        return {"obfuscation_type": "url_encode"}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP path obfuscation attack."""
@@ -403,30 +394,25 @@ class HTTPPathObfuscationAttack(BaseAttack):
         return result
 
 
-
 @register_attack(
     name="http_method_obfuscation",
     category=AttackCategories.HTTP,
     priority=RegistrationPriority.HIGH,
     required_params=[],
-    optional_params={
-        "custom_method": None,
-        "case_strategy": "random",
-        "obfuscation_type": "case"
-    },
+    optional_params={"custom_method": None, "case_strategy": "random", "obfuscation_type": "case"},
     aliases=["method_obfuscation", "method_obfusc"],
-    description="Obfuscates HTTP method using custom methods and case manipulation"
+    description="Obfuscates HTTP method using custom methods and case manipulation",
 )
 class HTTPMethodObfuscationAttack(HTTPAttackBase):
     """
     HTTP Method Obfuscation Attack - obfuscates HTTP method to evade DPI.
-    
+
     Supports multiple obfuscation types:
     - case: Change case of method name
     - custom: Use custom HTTP method
     - whitespace: Add whitespace around method
     - combined: Combine multiple techniques
-    
+
     Maintains parseability while evading detection.
     """
 
@@ -444,41 +430,35 @@ class HTTPMethodObfuscationAttack(HTTPAttackBase):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "custom_method": None,
-            "case_strategy": "random",
-            "obfuscation_type": "case"
-        }
+        return {"custom_method": None, "case_strategy": "random", "obfuscation_type": "case"}
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute HTTP method obfuscation attack."""
         start_time = time.time()
-        
+
         try:
             # Validate context
             if not self.validate_context(context):
                 return AttackResult(
                     status=AttackStatus.INVALID_PARAMS,
                     error_message="Invalid context for HTTP method obfuscation attack",
-                    technique_used=self.name
+                    technique_used=self.name,
                 )
-            
+
             # Parse HTTP request
             parsed = self.parse_http_request(context.payload)
             if not parsed:
                 return self.handle_http_error(
-                    Exception("Failed to parse HTTP request"),
-                    context,
-                    "parse"
+                    Exception("Failed to parse HTTP request"), context, "parse"
                 )
-            
+
             # Get parameters
             obfuscation_type = context.params.get("obfuscation_type", "case")
             custom_method = context.params.get("custom_method", None)
             case_strategy = context.params.get("case_strategy", "random")
-            
-            original_method = parsed['method']
-            
+
+            original_method = parsed["method"]
+
             # Apply obfuscation based on type
             if obfuscation_type == "custom" and custom_method:
                 # Use custom method
@@ -498,35 +478,35 @@ class HTTPMethodObfuscationAttack(HTTPAttackBase):
                 return AttackResult(
                     status=AttackStatus.INVALID_PARAMS,
                     error_message=f"Unknown obfuscation type: {obfuscation_type}",
-                    technique_used=self.name
+                    technique_used=self.name,
                 )
-            
+
             # Validate that method is still parseable
             if not self._is_valid_method(modified_method):
                 self.logger.warning(f"Modified method may not be valid: {modified_method}")
-            
+
             # Update parsed request
-            parsed['method'] = modified_method
-            
+            parsed["method"] = modified_method
+
             # Rebuild request
             modified_payload = self.build_http_request(parsed)
-            
+
             # Validate HTTP compliance
             is_valid, error_msg = self.validate_http_compliance(modified_payload)
             if not is_valid:
                 self.logger.warning(f"Modified request may not be HTTP compliant: {error_msg}")
-            
+
             # Log operation
             self.log_http_operation(
                 "method_obfuscation",
                 modified_method,
-                parsed['path'],
-                f"{obfuscation_type}: {original_method} -> {modified_method}"
+                parsed["path"],
+                f"{obfuscation_type}: {original_method} -> {modified_method}",
             )
-            
+
             # Create result
             latency = (time.time() - start_time) * 1000
-            
+
             return self.create_http_result(
                 modified_payload=modified_payload,
                 original_payload=context.payload,
@@ -536,21 +516,21 @@ class HTTPMethodObfuscationAttack(HTTPAttackBase):
                     "original_method": original_method,
                     "modified_method": modified_method,
                     "case_strategy": case_strategy if obfuscation_type == "case" else None,
-                    "latency_ms": latency
-                }
+                    "latency_ms": latency,
+                },
             )
-            
+
         except Exception as e:
             return self.handle_http_error(e, context, "method_obfuscation")
 
     def _obfuscate_method_case(self, method: str, strategy: str) -> str:
         """
         Obfuscate method name using case manipulation.
-        
+
         Args:
             method: Original method name
             strategy: Case strategy (random, alternating, mixed, lower, upper)
-            
+
         Returns:
             Obfuscated method name
         """
@@ -559,15 +539,9 @@ class HTTPMethodObfuscationAttack(HTTPAttackBase):
         elif strategy == "lower":
             return method.lower()
         elif strategy == "alternating":
-            return ''.join([
-                c.upper() if i % 2 == 0 else c.lower()
-                for i, c in enumerate(method)
-            ])
+            return "".join([c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(method)])
         elif strategy == "random":
-            return ''.join([
-                c.upper() if random.random() > 0.5 else c.lower()
-                for c in method
-            ])
+            return "".join([c.upper() if random.random() > 0.5 else c.lower() for c in method])
         elif strategy == "mixed":
             result = []
             for c in method:
@@ -578,38 +552,37 @@ class HTTPMethodObfuscationAttack(HTTPAttackBase):
                     result.append(c.lower())
                 else:
                     result.append(c)
-            return ''.join(result)
+            return "".join(result)
         else:
             return method
 
     def _add_whitespace(self, method: str) -> str:
         """
         Add whitespace around method (may break some servers).
-        
+
         Args:
             method: Original method name
-            
+
         Returns:
             Method with whitespace
         """
         # Add trailing space (less likely to break)
-        return method + ' '
+        return method + " "
 
     def _is_valid_method(self, method: str) -> bool:
         """
         Check if method is valid (contains only allowed characters).
-        
+
         Args:
             method: Method to validate
-            
+
         Returns:
             True if method is valid
         """
         if not method:
             return False
-        
+
         # HTTP methods should only contain letters and hyphens
         # Allow some flexibility for custom methods
-        allowed_chars = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_ ')
+        allowed_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_ ")
         return all(c in allowed_chars for c in method)
-

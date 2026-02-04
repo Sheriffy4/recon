@@ -12,10 +12,4 @@ from . import obfuscation
 from . import base64_encoding
 from . import padding_injection
 
-__all__ = [
-    'encryption',
-    'noise',
-    'obfuscation',
-    'base64_encoding',
-    'padding_injection'
-]
+__all__ = ["encryption", "noise", "obfuscation", "base64_encoding", "padding_injection"]

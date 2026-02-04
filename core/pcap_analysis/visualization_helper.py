@@ -175,8 +175,7 @@ class VisualizationHelper:
             "recon_counts": [recon_ttl_dist.get(ttl, 0) for ttl in all_ttls],
             "zapret_counts": [zapret_ttl_dist.get(ttl, 0) for ttl in all_ttls],
             "differences": [
-                abs(recon_ttl_dist.get(ttl, 0) - zapret_ttl_dist.get(ttl, 0))
-                for ttl in all_ttls
+                abs(recon_ttl_dist.get(ttl, 0) - zapret_ttl_dist.get(ttl, 0)) for ttl in all_ttls
             ],
         }
 
@@ -229,9 +228,7 @@ class VisualizationHelper:
 
         # Extract timing data
         timing_data = {
-            "descriptions": [
-                d.get("description", "Unknown") for d in timing_differences
-            ],
+            "descriptions": [d.get("description", "Unknown") for d in timing_differences],
             "recon_timings": [d.get("recon_timing", 0) for d in timing_differences],
             "zapret_timings": [d.get("zapret_timing", 0) for d in timing_differences],
             "differences": [d.get("difference", 0) for d in timing_differences],
@@ -240,13 +237,9 @@ class VisualizationHelper:
 
         # Calculate statistics
         avg_difference = (
-            statistics.mean(timing_data["differences"])
-            if timing_data["differences"]
-            else 0
+            statistics.mean(timing_data["differences"]) if timing_data["differences"] else 0
         )
-        max_difference = (
-            max(timing_data["differences"]) if timing_data["differences"] else 0
-        )
+        max_difference = max(timing_data["differences"]) if timing_data["differences"] else 0
 
         config = {
             "chart_type": "scatter",
@@ -295,9 +288,7 @@ class VisualizationHelper:
                 {
                     "id": f.fix_id,
                     "description": (
-                        f.description[:50] + "..."
-                        if len(f.description) > 50
-                        else f.description
+                        f.description[:50] + "..." if len(f.description) > 50 else f.description
                     ),
                     "confidence": f.confidence,
                     "risk_level": f.risk_level.value,
@@ -327,9 +318,7 @@ class VisualizationHelper:
                 "total_fixes": len(fixes),
                 "fix_types": fix_type_counts,
                 "high_confidence_fixes": len([f for f in fixes if f.confidence >= 0.8]),
-                "low_risk_fixes": len(
-                    [f for f in fixes if f.risk_level == RiskLevel.LOW]
-                ),
+                "low_risk_fixes": len([f for f in fixes if f.risk_level == RiskLevel.LOW]),
             },
         }
 
@@ -383,12 +372,12 @@ class VisualizationHelper:
 
         # Create visualization data
         breakdown_data = {
-            "categories": list(category_data.keys()),
+            "categories": sorted(category_data.keys()),
             "category_totals": [
-                category_data[cat]["total"] for cat in category_data.keys()
+                category_data[cat]["total"] for cat in sorted(category_data.keys())
             ],
-            "impact_levels": list(impact_data.keys()),
-            "impact_totals": [impact_data[impact] for impact in impact_data.keys()],
+            "impact_levels": sorted(impact_data.keys()),
+            "impact_totals": [impact_data[impact] for impact in sorted(impact_data.keys())],
             "category_breakdown": category_data,
         }
 
@@ -404,9 +393,7 @@ class VisualizationHelper:
                 "most_common_category": max(
                     category_data.keys(), key=lambda k: category_data[k]["total"]
                 ),
-                "most_common_impact": max(
-                    impact_data.keys(), key=lambda k: impact_data[k]
-                ),
+                "most_common_impact": max(impact_data.keys(), key=lambda k: impact_data[k]),
             },
         }
 
@@ -456,16 +443,10 @@ class VisualizationHelper:
         ]
 
         # Calculate statistics
-        recon_invalid_checksums = len(
-            [p for p in recon_packets if not p.checksum_valid]
-        )
-        zapret_invalid_checksums = len(
-            [p for p in zapret_packets if not p.checksum_valid]
-        )
+        recon_invalid_checksums = len([p for p in recon_packets if not p.checksum_valid])
+        zapret_invalid_checksums = len([p for p in zapret_packets if not p.checksum_valid])
 
-        recon_fake_invalid = len(
-            [p for p in recon_packets if not p.checksum_valid and p.ttl <= 5]
-        )
+        recon_fake_invalid = len([p for p in recon_packets if not p.checksum_valid and p.ttl <= 5])
         zapret_fake_invalid = len(
             [p for p in zapret_packets if not p.checksum_valid and p.ttl <= 5]
         )
@@ -491,9 +472,7 @@ class VisualizationHelper:
             "statistics": {
                 "recon_total_packets": len(recon_packets),
                 "zapret_total_packets": len(zapret_packets),
-                "checksum_difference": abs(
-                    recon_invalid_checksums - zapret_invalid_checksums
-                ),
+                "checksum_difference": abs(recon_invalid_checksums - zapret_invalid_checksums),
             },
         }
 
@@ -520,28 +499,21 @@ class VisualizationHelper:
         """
 
         # Extract comparable parameters
-        common_params = set(recon_strategy.keys()) & set(zapret_strategy.keys())
+        common_params = sorted(set(recon_strategy.keys()) & set(zapret_strategy.keys()))
 
         comparison_data = {
             "parameters": list(common_params),
-            "recon_values": [
-                str(recon_strategy.get(param, "N/A")) for param in common_params
-            ],
-            "zapret_values": [
-                str(zapret_strategy.get(param, "N/A")) for param in common_params
-            ],
+            "recon_values": [str(recon_strategy.get(param, "N/A")) for param in common_params],
+            "zapret_values": [str(zapret_strategy.get(param, "N/A")) for param in common_params],
             "matches": [
-                recon_strategy.get(param) == zapret_strategy.get(param)
-                for param in common_params
+                recon_strategy.get(param) == zapret_strategy.get(param) for param in common_params
             ],
         }
 
         # Calculate match statistics
         total_params = len(common_params)
         matching_params = sum(comparison_data["matches"])
-        match_percentage = (
-            (matching_params / total_params * 100) if total_params > 0 else 0
-        )
+        match_percentage = (matching_params / total_params * 100) if total_params > 0 else 0
 
         config = {
             "chart_type": "comparison_table",
@@ -550,8 +522,8 @@ class VisualizationHelper:
                 "total_parameters": total_params,
                 "matching_parameters": matching_params,
                 "match_percentage": match_percentage,
-                "recon_only_params": list(set(recon_strategy.keys()) - common_params),
-                "zapret_only_params": list(set(zapret_strategy.keys()) - common_params),
+                "recon_only_params": sorted(set(recon_strategy.keys()) - set(common_params)),
+                "zapret_only_params": sorted(set(zapret_strategy.keys()) - set(common_params)),
             },
         }
 
@@ -592,13 +564,14 @@ class VisualizationHelper:
         """
 
         output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
 
         if format == "json":
             viz_data = {
                 "visualizations": [viz.to_dict() for viz in visualizations],
                 "metadata": {
                     "total_visualizations": len(visualizations),
-                    "types": list(set(viz.viz_type for viz in visualizations)),
+                    "types": sorted(set(viz.viz_type for viz in visualizations)),
                 },
             }
 
@@ -614,12 +587,12 @@ class VisualizationHelper:
                 writer.writerow(["Type", "Title", "Description", "Data_Keys"])
 
                 for viz in visualizations:
-                    data_keys = (
-                        list(viz.data.keys()) if isinstance(viz.data, dict) else []
-                    )
+                    data_keys = list(viz.data.keys()) if isinstance(viz.data, dict) else []
                     writer.writerow(
                         [viz.viz_type, viz.title, viz.description, ", ".join(data_keys)]
                     )
+        else:
+            raise ValueError(f"Unsupported export format: {format}")
 
         return str(output_file)
 
@@ -665,8 +638,8 @@ class VisualizationHelper:
 
         # Difference breakdown
         if differences:
-            dashboard_vizs["difference_breakdown"] = (
-                self.create_difference_category_breakdown(differences)
+            dashboard_vizs["difference_breakdown"] = self.create_difference_category_breakdown(
+                differences
             )
 
         # Fix priority matrix

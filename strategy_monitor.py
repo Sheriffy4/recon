@@ -28,6 +28,11 @@ from core.reporting import EnhancedReporter, StrategyEffectivenessReport
 LOG = logging.getLogger("strategy_monitor")
 
 
+def _mono_ms(start_mono: float) -> float:
+    """Helper: elapsed milliseconds from a monotonic start."""
+    return (time.monotonic() - start_mono) * 1000.0
+
+
 @dataclass
 class AttackEffectivenessReport:
     """Report on individual attack effectiveness over time."""
@@ -150,7 +155,7 @@ class StrategyMonitor:
 
         # Initialize unified attack system integration
         self.attack_adapter = AttackAdapter()
-        self.attack_registry = AttackRegistry()
+        self.attack_registry = self._init_attack_registry()
 
         # Monitoring state
         self.running = False
@@ -226,6 +231,43 @@ class StrategyMonitor:
             "Enhanced StrategyMonitor initialized with unified attack system integration"
         )
 
+    def _init_attack_registry(self) -> Any:
+        """
+        Best-effort init of attack registry.
+        This module historically used AttackRegistry but it may not be importable in all builds.
+        Keep behavior stable by falling back to an empty-like registry.
+        """
+        # Preferred: modern unified registry if available
+        try:
+            from core.bypass.attacks.unified_registry import get_unified_registry
+
+            return get_unified_registry()
+        except Exception:
+            pass
+
+        # Legacy: AttackRegistry or get_attack_registry
+        try:
+            from core.bypass.attacks.attack_registry import get_attack_registry
+
+            return get_attack_registry()
+        except Exception:
+            pass
+
+        try:
+            from core.bypass.attacks.attack_registry import AttackRegistry  # type: ignore
+
+            return AttackRegistry()
+        except Exception:
+
+            class _EmptyRegistry:
+                def get_categories(self):  # noqa: D401
+                    return []
+
+                def get_by_category(self, category: str):
+                    return {}
+
+            return _EmptyRegistry()
+
     def start_monitoring(self):
         """Start continuous monitoring in background thread."""
         if self.running:
@@ -262,6 +304,7 @@ class StrategyMonitor:
             EffectivenessReport with current effectiveness data
         """
         try:
+            t0 = time.monotonic()
             self.stats["effectiveness_reports_generated"] += 1
 
             self.logger.debug(
@@ -325,6 +368,7 @@ class StrategyMonitor:
 
             # Дополнительно: Production-оценка (baseline vs bypass) при наличии домена
             if domain:
+                prod_eval_t0 = time.monotonic()
 
                 def _start():
                     try:
@@ -387,10 +431,19 @@ class StrategyMonitor:
                         self.logger.debug(
                             f"Production effectiveness evaluation failed: {e}"
                         )
+                finally:
+                    if self.debug:
+                        self.logger.debug(
+                            f"Production effectiveness eval duration: {_mono_ms(prod_eval_t0):.1f}ms"
+                        )
 
             self.logger.debug(
                 f"Effectiveness report generated: {success_rate:.2f} success rate"
             )
+            if self.debug:
+                self.logger.debug(
+                    f"monitor_strategy_effectiveness duration: {_mono_ms(t0):.1f}ms"
+                )
             return report
 
         except Exception as e:
@@ -952,7 +1005,7 @@ class StrategyMonitor:
         try:
             for domain, strategy_id in self.domain_strategies.items():
                 # Внутренний отчёт + production оценка и health
-                _ = self.monitor_strategy_effectiveness(strategy_id, domain)
+                report = self.monitor_strategy_effectiveness(strategy_id, domain)
 
                 # Store performance data
                 self.strategy_performance[domain][strategy_id] = {

@@ -80,9 +80,7 @@ class HealthMonitor:
 
         if not logger.handlers:
             handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
@@ -302,10 +300,7 @@ class HealthMonitor:
             pcap_processes = []
             for proc in psutil.process_iter(["pid", "name", "cmdline"]):
                 try:
-                    if any(
-                        "pcap" in str(item).lower()
-                        for item in proc.info["cmdline"] or []
-                    ):
+                    if any("pcap" in str(item).lower() for item in proc.info["cmdline"] or []):
                         pcap_processes.append(proc)
                 except:
                     pass
@@ -468,9 +463,7 @@ class HealthMonitor:
 
         if alert_key in self.last_alerts:
             time_since_last = now - self.last_alerts[alert_key]
-            if time_since_last.total_seconds() < (
-                self.alert_config.alert_cooldown_minutes * 60
-            ):
+            if time_since_last.total_seconds() < (self.alert_config.alert_cooldown_minutes * 60):
                 return  # Still in cooldown period
 
         self.last_alerts[alert_key] = now
@@ -488,9 +481,7 @@ class HealthMonitor:
         if self.alert_config.enable_email and self.alert_config.email_recipients:
             await self._send_email_alert(alert_message, health)
 
-        self.logger.warning(
-            f"Alerts sent for {health.status} status: {len(health.alerts)} issues"
-        )
+        self.logger.warning(f"Alerts sent for {health.status} status: {len(health.alerts)} issues")
 
     def _format_alert_message(self, health: SystemHealth) -> str:
         """Format alert message."""
@@ -505,9 +496,7 @@ class HealthMonitor:
         message += "\nMetrics:\n"
         for metric in health.metrics:
             if metric.status != "healthy":
-                message += (
-                    f"• {metric.name}: {metric.value}{metric.unit} ({metric.status})\n"
-                )
+                message += f"• {metric.name}: {metric.value}{metric.unit} ({metric.status})\n"
 
         return message
 
@@ -522,9 +511,7 @@ class HealthMonitor:
                 "metrics": [asdict(m) for m in health.metrics if m.status != "healthy"],
             }
 
-            response = requests.post(
-                self.alert_config.webhook_url, json=payload, timeout=10
-            )
+            response = requests.post(self.alert_config.webhook_url, json=payload, timeout=10)
             response.raise_for_status()
 
             self.logger.info("Webhook alert sent successfully")
@@ -553,9 +540,7 @@ class HealthMonitor:
                 ]
             }
 
-            response = requests.post(
-                self.alert_config.slack_webhook, json=payload, timeout=10
-            )
+            response = requests.post(self.alert_config.slack_webhook, json=payload, timeout=10)
             response.raise_for_status()
 
             self.logger.info("Slack alert sent successfully")
@@ -568,9 +553,7 @@ class HealthMonitor:
         try:
             # This would normally use SMTP to send emails
             # For now, just log the alert
-            self.logger.info(
-                f"Email alert would be sent to: {self.alert_config.email_recipients}"
-            )
+            self.logger.info(f"Email alert would be sent to: {self.alert_config.email_recipients}")
             self.logger.info(f"Email content: {message}")
 
         except Exception as e:
@@ -608,9 +591,7 @@ async def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="PCAP Analysis System Health Monitor")
-    parser.add_argument(
-        "--interval", type=int, default=60, help="Check interval in seconds"
-    )
+    parser.add_argument("--interval", type=int, default=60, help="Check interval in seconds")
     parser.add_argument("--webhook-url", help="Webhook URL for alerts")
     parser.add_argument("--slack-webhook", help="Slack webhook URL")
     parser.add_argument("--email", action="append", help="Email recipients for alerts")

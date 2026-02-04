@@ -10,6 +10,7 @@ Now uses real effectiveness testing instead of simulations.
 import time
 import random
 import hashlib
+import os
 from core.bypass.attacks.attack_registry import register_attack
 from typing import List, Dict, Any, Optional
 from core.bypass.attacks.base import (
@@ -22,6 +23,27 @@ from core.bypass.attacks.real_effectiveness_tester import (
     RealEffectivenessTester,
     EffectivenessResult,
 )
+
+
+def _randbytes(n: int) -> bytes:
+    rb = getattr(random, "randbytes", None)
+    if callable(rb):
+        return rb(n)
+    return os.urandom(n)
+
+
+def _coerce_int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return default
 
 
 @register_attack
@@ -62,8 +84,8 @@ class DPIResponseAdaptiveAttack(BaseAttack):
         start_time = time.time()
         try:
             payload = context.payload
-            max_iterations = context.params.get("max_iterations", 3)
-            detection_threshold = context.params.get("detection_threshold", 0.7)
+            max_iterations = _coerce_int(context.params.get("max_iterations", 3), 3)
+            detection_threshold = _coerce_float(context.params.get("detection_threshold", 0.7), 0.7)
             adaptation_state = {
                 "iteration": 0,
                 "techniques_tried": [],
@@ -72,6 +94,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
             }
             final_payload = payload
             all_segments = []
+            global_seq_offset = 0
             total_packets = 0
             total_bytes = 0
             detection_score = 1.0
@@ -82,14 +105,34 @@ class DPIResponseAdaptiveAttack(BaseAttack):
                 )
                 if detection_score > detection_threshold:
                     strategy = self._adapt_strategy(adaptation_state, detection_score)
-                    final_payload = self._apply_adaptive_strategy(
-                        final_payload, strategy
-                    )
+                    final_payload = self._apply_adaptive_strategy(final_payload, strategy)
                     adaptation_state["techniques_tried"].append(strategy["name"])
+
                 segments = self._create_iteration_segments(final_payload, iteration)
-                all_segments.extend(segments)
-                total_packets += len(segments)
-                total_bytes += sum((len(seg[0]) for seg in segments))
+                # IMPORTANT: prevent TCP SEQ overlap when we append multiple iteration-plans
+                # (each _create_iteration_segments() starts seq_offset from 0)
+                will_continue = detection_score > detection_threshold and iteration < (
+                    max_iterations - 1
+                )
+                adjusted: List[tuple] = []
+                for idx, seg in enumerate(segments):
+                    data = seg[0]
+                    local_off = seg[1] if len(seg) > 1 else 0
+                    opts = seg[2] if len(seg) > 2 and isinstance(seg[2], dict) else {}
+                    new_opts = dict(opts)
+                    # preserve per-iteration "push" semantics if not the last overall
+                    if will_continue and idx == (len(segments) - 1):
+                        new_opts.setdefault("new_flags", "PA")
+                    adjusted.append(
+                        (data, (global_seq_offset + int(local_off)) & 0xFFFFFFFF, new_opts)
+                    )
+
+                all_segments.extend(adjusted)
+                total_packets += len(adjusted)
+                iter_bytes = sum((len(seg[0]) for seg in adjusted))
+                total_bytes += iter_bytes
+                global_seq_offset = (global_seq_offset + iter_bytes) & 0xFFFFFFFF
+
                 adaptation_state["success_rate"] = max(0.0, 1.0 - detection_score)
                 if detection_score <= detection_threshold:
                     break
@@ -108,9 +151,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
                     "final_detection_score": detection_score,
                     "original_size": len(payload),
                     "final_size": len(final_payload),
-                    "segments": (
-                        all_segments if context.engine_type != "local" else None
-                    ),
+                    "segments": (all_segments if context.engine_type != "local" else None),
                 },
             )
         except Exception as e:
@@ -128,7 +169,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
             if not hasattr(self, "_effectiveness_tester"):
                 self._effectiveness_tester = RealEffectivenessTester(timeout=5.0)
             domain = getattr(context, "domain", "example.com")
-            port = getattr(context, "port", 443)
+            port = getattr(context, "dst_port", getattr(context, "port", 443))
             mock_attack_result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 latency_ms=50.0,
@@ -137,15 +178,13 @@ class DPIResponseAdaptiveAttack(BaseAttack):
                 connection_established=True,
                 data_transmitted=True,
                 technique_used=f"adaptive_iteration_{state['iteration']}",
-                metadata={"segments": [(payload, 0)]},
+                metadata={"segments": [(payload, 0, {})]},
             )
             baseline = await self._effectiveness_tester.test_baseline(domain, port)
             bypass = await self._effectiveness_tester.test_with_bypass(
                 domain, port, mock_attack_result
             )
-            effectiveness = await self._effectiveness_tester.compare_results(
-                baseline, bypass
-            )
+            effectiveness = await self._effectiveness_tester.compare_results(baseline, bypass)
             detection_score = 1.0 - effectiveness.effectiveness_score
             for technique in state["techniques_tried"]:
                 if technique in ["segmentation", "obfuscation", "tunneling"]:
@@ -157,9 +196,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
         except Exception:
             return self._fallback_detection_estimation(payload, state)
 
-    def _fallback_detection_estimation(
-        self, payload: bytes, state: Dict[str, Any]
-    ) -> float:
+    def _fallback_detection_estimation(self, payload: bytes, state: Dict[str, Any]) -> float:
         """Fallback detection estimation based on payload entropy."""
         entropy = self._calculate_entropy(payload)
         base_score = entropy / 8.0 * 0.8
@@ -187,9 +224,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
                 entropy -= probability * math.log2(probability)
         return entropy
 
-    def _adapt_strategy(
-        self, state: Dict[str, Any], detection_score: float
-    ) -> Dict[str, Any]:
+    def _adapt_strategy(self, state: Dict[str, Any], detection_score: float) -> Dict[str, Any]:
         """Adapt strategy based on detection score."""
         if detection_score > 0.8:
             strategies = [
@@ -214,9 +249,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
                     "params": {"type": "random", "no_fallbacks": True, "forced": True},
                 },
             ]
-        available_strategies = [
-            s for s in strategies if s["name"] not in state["techniques_tried"]
-        ]
+        available_strategies = [s for s in strategies if s["name"] not in state["techniques_tried"]]
         if available_strategies:
             return random.choice(available_strategies)
         else:
@@ -225,9 +258,7 @@ class DPIResponseAdaptiveAttack(BaseAttack):
                 "params": {"techniques": state["techniques_tried"][:2]},
             }
 
-    def _apply_adaptive_strategy(
-        self, payload: bytes, strategy: Dict[str, Any]
-    ) -> bytes:
+    def _apply_adaptive_strategy(self, payload: bytes, strategy: Dict[str, Any]) -> bytes:
         """Apply adaptive strategy to payload."""
         name = strategy["name"]
         params = strategy.get("params", {})
@@ -236,12 +267,10 @@ class DPIResponseAdaptiveAttack(BaseAttack):
         elif name == "heavy_obfuscation":
             result = payload
             for _ in range(params.get("layers", 3)):
-                result = self._apply_xor_obfuscation(result, random.randbytes(16))
+                result = self._apply_xor_obfuscation(result, _randbytes(16))
             return result
         elif name == "tunneling":
-            return self._apply_protocol_tunneling(
-                payload, params.get("protocol", "dns")
-            )
+            return self._apply_protocol_tunneling(payload, params.get("protocol", "dns"))
         elif name == "case_manipulation":
             return self._apply_case_manipulation(payload)
         elif name == "combination":
@@ -300,16 +329,12 @@ class DPIResponseAdaptiveAttack(BaseAttack):
             text = payload.decode("utf-8", errors="ignore")
             result = "".join(
                 (
-                    (
-                        c.upper()
-                        if random.random() > 0.5
-                        else c.lower() if c.isalpha() else c
-                    )
+                    (c.upper() if random.random() > 0.5 else c.lower() if c.isalpha() else c)
                     for c in text
                 )
             )
             return result.encode("utf-8")
-        except:
+        except Exception:
             return payload
 
     def _create_iteration_segments(self, payload: bytes, iteration: int) -> List[tuple]:
@@ -317,10 +342,12 @@ class DPIResponseAdaptiveAttack(BaseAttack):
         base_size = 64
         segment_size = base_size // 2 ** min(iteration, 2)
         segments = []
-        for i in range(0, len(payload), segment_size):
-            segment = payload[i : i + segment_size]
-            delay = random.randint(20, 100) * (iteration + 1)
-            segments.append((segment, delay if i > 0 else 0))
+        seq_offset = 0
+        for pos in range(0, len(payload), segment_size):
+            segment = payload[pos : pos + segment_size]
+            delay = 0 if pos == 0 else (random.randint(20, 100) * (iteration + 1))
+            segments.append((segment, seq_offset, {"delay_ms": delay}))
+            seq_offset = (seq_offset + len(segment)) & 0xFFFFFFFF
         return segments
 
 
@@ -364,9 +391,7 @@ class NetworkConditionAdaptiveAttack(BaseAttack):
             modified_payload = self._apply_network_adaptive_modifications(
                 payload, strategy, network_conditions
             )
-            segments = self._create_network_adaptive_segments(
-                modified_payload, network_conditions
-            )
+            segments = self._create_network_adaptive_segments(modified_payload, network_conditions)
             total_bytes = sum((len(seg[0]) for seg in segments))
             packets_sent = len(segments)
             latency = (time.time() - start_time) * 1000
@@ -393,22 +418,18 @@ class NetworkConditionAdaptiveAttack(BaseAttack):
                 latency_ms=(time.time() - start_time) * 1000,
             )
 
-    async def _measure_real_network_conditions(
-        self, context: AttackContext
-    ) -> Dict[str, Any]:
+    async def _measure_real_network_conditions(self, context: AttackContext) -> Dict[str, Any]:
         """Measure real network conditions using effectiveness tester."""
         try:
             if not hasattr(self, "_effectiveness_tester"):
                 self._effectiveness_tester = RealEffectivenessTester(timeout=5.0)
             domain = getattr(context, "domain", "example.com")
-            port = getattr(context, "port", 443)
+            port = getattr(context, "dst_port", getattr(context, "port", 443))
             baseline = await self._effectiveness_tester.test_baseline(domain, port)
             conditions = {
                 "latency": baseline.latency_ms,
                 "success": baseline.success,
-                "block_type": (
-                    baseline.block_type.value if baseline.block_type else "none"
-                ),
+                "block_type": (baseline.block_type.value if baseline.block_type else "none"),
                 "response_size": baseline.response_size,
                 "timing_pattern": baseline.response_timing_pattern or "unknown",
             }
@@ -455,9 +476,7 @@ class NetworkConditionAdaptiveAttack(BaseAttack):
             "time_of_day": random.choice(["peak", "off-peak"]),
         }
 
-    def _adapt_to_network_conditions(
-        self, conditions: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _adapt_to_network_conditions(self, conditions: Dict[str, Any]) -> Dict[str, Any]:
         """Adapt strategy based on network conditions."""
         strategy = {
             "segment_size": 1024,
@@ -514,11 +533,7 @@ class NetworkConditionAdaptiveAttack(BaseAttack):
         while i < len(payload):
             current_byte = payload[i]
             count = 1
-            while (
-                i + count < len(payload)
-                and payload[i + count] == current_byte
-                and (count < 255)
-            ):
+            while i + count < len(payload) and payload[i + count] == current_byte and (count < 255):
                 count += 1
             if count > 3:
                 compressed.extend([255, count, current_byte])
@@ -546,8 +561,9 @@ class NetworkConditionAdaptiveAttack(BaseAttack):
         key1 = hashlib.sha256(b"heavy_key_1").digest()[:16]
         result = bytes((result[i] ^ key1[i % len(key1)] for i in range(len(result))))
         substitution_table = list(range(256))
-        random.seed(42)
-        random.shuffle(substitution_table)
+        # Do not poison global RNG state; use local PRNG.
+        rng = random.Random(42)
+        rng.shuffle(substitution_table)
         result = bytes((substitution_table[b] for b in result))
         result = result[::-1]
         return result
@@ -569,15 +585,18 @@ class NetworkConditionAdaptiveAttack(BaseAttack):
         segment_size = strategy["segment_size"]
         delay_min, delay_max = strategy["delay_range"]
         segments = []
-        for i in range(0, len(payload), segment_size):
-            segment = payload[i : i + segment_size]
+        seq_offset = 0
+        for pos in range(0, len(payload), segment_size):
+            segment = payload[pos : pos + segment_size]
             if conditions["congestion"] == "heavy":
                 delay = random.randint(delay_max, delay_max * 2)
             elif conditions["latency"] > 100:
                 delay = random.randint(delay_min * 2, delay_max)
             else:
                 delay = random.randint(delay_min, delay_max)
-            segments.append((segment, delay if i > 0 else 0))
+            delay = 0 if pos == 0 else delay
+            segments.append((segment, seq_offset, {"delay_ms": delay}))
+            seq_offset = (seq_offset + len(segment)) & 0xFFFFFFFF
         return segments
 
 
@@ -629,8 +648,8 @@ class LearningAdaptiveAttack(BaseAttack):
             if not self._effectiveness_tester:
                 self._effectiveness_tester = RealEffectivenessTester(timeout=5.0)
             fingerprint_data = self._extract_fingerprint_data(context)
-            self._current_fingerprint_hash = (
-                self._learning_memory._generate_fingerprint_hash(fingerprint_data)
+            self._current_fingerprint_hash = self._learning_memory._generate_fingerprint_hash(
+                fingerprint_data
             )
             learning_history = await self._learning_memory.load_learning_history(
                 self._current_fingerprint_hash
@@ -741,19 +760,11 @@ class LearningAdaptiveAttack(BaseAttack):
             if best_attack and best_attack in learning_history.optimal_parameters:
                 strategy["attack_name"] = best_attack
                 strategy["techniques"] = [best_attack]
-                strategy["parameters"] = learning_history.optimal_parameters[
-                    best_attack
-                ].copy()
+                strategy["parameters"] = learning_history.optimal_parameters[best_attack].copy()
                 strategy["confidence"] = best_success_rate
-                if (
-                    payload_pattern == "encrypted"
-                    and "obfuscation_level" in strategy["parameters"]
-                ):
+                if payload_pattern == "encrypted" and "obfuscation_level" in strategy["parameters"]:
                     strategy["parameters"]["obfuscation_level"] = "heavy"
-                elif (
-                    payload_pattern == "plaintext"
-                    and "segment_size" in strategy["parameters"]
-                ):
+                elif payload_pattern == "plaintext" and "segment_size" in strategy["parameters"]:
                     strategy["parameters"]["segment_size"] = min(
                         strategy["parameters"]["segment_size"], 32
                     )
@@ -770,19 +781,15 @@ class LearningAdaptiveAttack(BaseAttack):
             mock_attack_result = AttackResult(
                 status=AttackStatus.SUCCESS,
                 technique_used="learning_adaptive_test",
-                metadata={"segments": [(payload, 0)]},
+                metadata={"segments": [(payload, 0, {})]},
             )
             domain = getattr(context, "domain", "example.com")
             port = getattr(context, "dst_port", 443)
             baseline = await tester.test_baseline(domain, port)
-            bypass_result = await tester.test_with_bypass(
-                domain, port, mock_attack_result
-            )
+            bypass_result = await tester.test_with_bypass(domain, port, mock_attack_result)
             return await tester.compare_results(baseline, bypass_result)
         except Exception as e:
-            self.logger.error(
-                f"Real effectiveness test failed within LearningAdaptiveAttack: {e}"
-            )
+            self.logger.error(f"Real effectiveness test failed within LearningAdaptiveAttack: {e}")
             from core.bypass.attacks.real_effectiveness_tester import (
                 EffectivenessResult,
                 BaselineResult,
@@ -790,9 +797,7 @@ class LearningAdaptiveAttack(BaseAttack):
             )
 
             timeout = getattr(context, "timeout", tester.timeout)
-            baseline = BaselineResult(
-                domain="unknown", success=False, latency_ms=timeout * 1000.0
-            )
+            baseline = BaselineResult(domain="unknown", success=False, latency_ms=timeout * 1000.0)
             bypass = BypassResult(
                 domain="unknown",
                 success=False,
@@ -835,7 +840,7 @@ class LearningAdaptiveAttack(BaseAttack):
             )
             if strategy.get("confidence", 0.5) > 0.7:
                 from core.bypass.attacks.learning_memory import AdaptationRecord
-                
+
                 from datetime import datetime
 
                 adaptation_record = AdaptationRecord(
@@ -857,9 +862,7 @@ class LearningAdaptiveAttack(BaseAttack):
                 f"Failed to update learning memory: {e}"
             )
 
-    def _apply_learned_strategy(
-        self, payload: bytes, strategy: Dict[str, Any]
-    ) -> bytes:
+    def _apply_learned_strategy(self, payload: bytes, strategy: Dict[str, Any]) -> bytes:
         """Apply learned strategy to payload."""
         modified_payload = payload
         for technique in strategy["techniques"]:
@@ -885,18 +888,19 @@ class LearningAdaptiveAttack(BaseAttack):
                 modified_payload = dns_header + encoded + b"\x00\x00\x01\x00\x01"
         return modified_payload
 
-    def _create_learned_segments(
-        self, payload: bytes, strategy: Dict[str, Any]
-    ) -> List[tuple]:
+    def _create_learned_segments(self, payload: bytes, strategy: Dict[str, Any]) -> List[tuple]:
         """Create segments based on learned strategy."""
         segment_size = strategy["parameters"].get("segment_size", 64)
         base_delay = strategy["parameters"].get("delay", 50)
         segments = []
-        for i in range(0, len(payload), segment_size):
-            segment = payload[i : i + segment_size]
+        seq_offset = 0
+        for pos in range(0, len(payload), segment_size):
+            segment = payload[pos : pos + segment_size]
             confidence = strategy.get("confidence", 0.5)
             delay_variation = int(base_delay * (1.0 - confidence))
             delay = base_delay + random.randint(-delay_variation, delay_variation)
             delay = max(10, delay)
-            segments.append((segment, delay if i > 0 else 0))
+            delay = 0 if pos == 0 else delay
+            segments.append((segment, seq_offset, {"delay_ms": delay}))
+            seq_offset = (seq_offset + len(segment)) & 0xFFFFFFFF
         return segments

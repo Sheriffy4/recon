@@ -62,9 +62,7 @@ class PerformanceTracker:
                         self.trends[trend_key] = PerformanceTrend(
                             metric_type=MetricType.RESPONSE_TIME, entity_id=attack_id
                         )
-                    self.trends[trend_key].add_data_point(
-                        now, metrics.avg_response_time
-                    )
+                    self.trends[trend_key].add_data_point(now, metrics.avg_response_time)
         for strategy_id, metrics in self.metrics_collector.strategy_metrics.items():
             if metrics.domain_count > 0:
                 trend_key = f"strategy_{strategy_id}_performance"
@@ -93,9 +91,7 @@ class PerformanceTracker:
         if abs(current_value - mean) > 2 * std:
             await self._handle_anomaly(trend, current_value, mean, std)
 
-    async def _handle_anomaly(
-        self, trend: PerformanceTrend, value: float, mean: float, std: float
-    ):
+    async def _handle_anomaly(self, trend: PerformanceTrend, value: float, mean: float, std: float):
         """Handle detected performance anomaly"""
         anomaly_info = {
             "entity_id": trend.entity_id,
@@ -137,15 +133,11 @@ class PerformanceTracker:
 
     async def _handle_declining_performance(self, trend: PerformanceTrend):
         """Handle declining performance pattern"""
-        print(
-            f"Declining performance detected for {trend.entity_id} ({trend.metric_type.value})"
-        )
+        print(f"Declining performance detected for {trend.entity_id} ({trend.metric_type.value})")
 
     async def _handle_volatile_performance(self, trend: PerformanceTrend):
         """Handle volatile performance pattern"""
-        print(
-            f"Volatile performance detected for {trend.entity_id} ({trend.metric_type.value})"
-        )
+        print(f"Volatile performance detected for {trend.entity_id} ({trend.metric_type.value})")
 
     async def get_performance_summary(self, entity_id: str) -> Dict[str, any]:
         """Get performance summary for entity"""
@@ -156,9 +148,7 @@ class PerformanceTracker:
             "recommendations": [],
         }
         entity_trends = {
-            key: trend
-            for key, trend in self.trends.items()
-            if trend.entity_id == entity_id
+            key: trend for key, trend in self.trends.items() if trend.entity_id == entity_id
         }
         if not entity_trends:
             return summary
@@ -179,18 +169,10 @@ class PerformanceTracker:
         if not trends:
             return "unknown"
         declining_count = sum(
-            (
-                1
-                for t in trends.values()
-                if t.trend_direction == TrendDirection.DECLINING
-            )
+            (1 for t in trends.values() if t.trend_direction == TrendDirection.DECLINING)
         )
         improving_count = sum(
-            (
-                1
-                for t in trends.values()
-                if t.trend_direction == TrendDirection.IMPROVING
-            )
+            (1 for t in trends.values() if t.trend_direction == TrendDirection.IMPROVING)
         )
         if declining_count > improving_count:
             return "declining"
@@ -199,9 +181,7 @@ class PerformanceTracker:
         else:
             return "stable"
 
-    def _generate_recommendations(
-        self, trends: Dict[str, PerformanceTrend]
-    ) -> List[str]:
+    def _generate_recommendations(self, trends: Dict[str, PerformanceTrend]) -> List[str]:
         """Generate performance recommendations"""
         recommendations = []
         for trend in trends.values():
@@ -215,9 +195,7 @@ class PerformanceTracker:
                         f"Investigate {trend.entity_id} performance - response time increasing"
                     )
             elif trend.trend_direction == TrendDirection.VOLATILE:
-                recommendations.append(
-                    f"Stabilize {trend.entity_id} - performance is volatile"
-                )
+                recommendations.append(f"Stabilize {trend.entity_id} - performance is volatile")
         return recommendations
 
     async def get_top_performers(
@@ -282,13 +260,9 @@ class PerformanceTracker:
         report = {
             "generated_at": datetime.now().isoformat(),
             "summary": {
-                "total_entities_tracked": len(
-                    set((t.entity_id for t in self.trends.values()))
-                ),
+                "total_entities_tracked": len(set((t.entity_id for t in self.trends.values()))),
                 "total_trends": len(self.trends),
-                "active_trends": len(
-                    [t for t in self.trends.values() if len(t.values) > 0]
-                ),
+                "active_trends": len([t for t in self.trends.values() if len(t.values) > 0]),
             },
             "top_performers": {},
             "declining_entities": [],
@@ -316,11 +290,7 @@ class PerformanceTracker:
                     }
                 )
         if report["declining_entities"]:
-            report["recommendations"].append(
-                "Review configuration for declining entities"
-            )
+            report["recommendations"].append("Review configuration for declining entities")
         if report["volatile_entities"]:
-            report["recommendations"].append(
-                "Investigate stability issues for volatile entities"
-            )
+            report["recommendations"].append("Investigate stability issues for volatile entities")
         return report

@@ -97,9 +97,7 @@ class SystemValidator:
 
         if not logger.handlers:
             handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             logger.addHandler(handler)
 
@@ -127,31 +125,23 @@ class SystemValidator:
         total_domains = len(domain_results)
         successful_domains = sum(1 for r in domain_results if r.success)
         failed_domains = total_domains - successful_domains
-        success_rate = (
-            (successful_domains / total_domains * 100) if total_domains > 0 else 0
-        )
+        success_rate = (successful_domains / total_domains * 100) if total_domains > 0 else 0
 
         response_times = [r.response_time for r in domain_results if r.success]
-        average_response_time = (
-            sum(response_times) / len(response_times) if response_times else 0
-        )
+        average_response_time = sum(response_times) / len(response_times) if response_times else 0
 
         # System performance metrics
         total_time = time.time() - start_time
         system_performance = {
             "total_validation_time": total_time,
             "domains_per_second": total_domains / total_time if total_time > 0 else 0,
-            "average_domain_time": (
-                total_time / total_domains if total_domains > 0 else 0
-            ),
+            "average_domain_time": (total_time / total_domains if total_domains > 0 else 0),
             "memory_usage_mb": self._get_memory_usage(),
             "cpu_usage_percent": self._get_cpu_usage(),
         }
 
         # Generate recommendations
-        recommendations = self._generate_recommendations(
-            domain_results, system_performance
-        )
+        recommendations = self._generate_recommendations(domain_results, system_performance)
 
         report = SystemValidationReport(
             timestamp=time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -269,9 +259,7 @@ class SystemValidator:
             if result.success:
                 strategy_success[result.strategy_name]["success"] += 1
 
-        best_strategy = max(
-            strategy_success.items(), key=lambda x: x[1]["success"] / x[1]["total"]
-        )
+        best_strategy = max(strategy_success.items(), key=lambda x: x[1]["success"] / x[1]["total"])
         worst_strategy = min(
             strategy_success.items(), key=lambda x: x[1]["success"] / x[1]["total"]
         )
@@ -294,9 +282,7 @@ class SystemValidator:
             )
 
         if performance["memory_usage_mb"] > 500:
-            recommendations.append(
-                "High memory usage detected - consider memory optimization"
-            )
+            recommendations.append("High memory usage detected - consider memory optimization")
 
         # X.com specific recommendations
         x_com_results = [r for r in domain_results if r.domain == "x.com"]
@@ -376,9 +362,7 @@ class SystemValidator:
 
         # Additional x.com specific tests
         pcap_comparison_result = None
-        if os.path.exists("recon/recon_x.pcap") and os.path.exists(
-            "recon/zapret_x.pcap"
-        ):
+        if os.path.exists("recon/recon_x.pcap") and os.path.exists("recon/zapret_x.pcap"):
             try:
                 comparator = PCAPComparator()
                 pcap_comparison_result = comparator.compare_pcaps(
@@ -415,15 +399,9 @@ async def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="PCAP Analysis System Validation")
-    parser.add_argument(
-        "--output-dir", default="validation_results", help="Output directory"
-    )
-    parser.add_argument(
-        "--x-com-only", action="store_true", help="Test only x.com domain"
-    )
-    parser.add_argument(
-        "--quick", action="store_true", help="Quick validation with fewer domains"
-    )
+    parser.add_argument("--output-dir", default="validation_results", help="Output directory")
+    parser.add_argument("--x-com-only", action="store_true", help="Test only x.com domain")
+    parser.add_argument("--quick", action="store_true", help="Quick validation with fewer domains")
 
     args = parser.parse_args()
 

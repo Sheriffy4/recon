@@ -84,9 +84,7 @@ class BypassStrategy:
             "attacks": self.attacks,
             "parameters": self.parameters,
             "target_ports": self.target_ports,
-            "subdomain_overrides": {
-                k: v.to_dict() for k, v in self.subdomain_overrides.items()
-            },
+            "subdomain_overrides": {k: v.to_dict() for k, v in self.subdomain_overrides.items()},
             "compatibility_mode": self.compatibility_mode,
             "priority": self.priority,
             "success_rate": self.success_rate,
@@ -111,9 +109,7 @@ class BypassStrategy:
             priority=data.get("priority", 1),
             success_rate=data.get("success_rate", 0.0),
             last_tested=(
-                datetime.fromisoformat(data["last_tested"])
-                if data.get("last_tested")
-                else None
+                datetime.fromisoformat(data["last_tested"]) if data.get("last_tested") else None
             ),
         )
 
@@ -224,9 +220,7 @@ class PoolConfiguration:
             "fallback_strategy": (
                 self.fallback_strategy.to_dict() if self.fallback_strategy else None
             ),
-            "auto_assignment_rules": [
-                rule.to_dict() for rule in self.auto_assignment_rules
-            ],
+            "auto_assignment_rules": [rule.to_dict() for rule in self.auto_assignment_rules],
             "metadata": self.metadata,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
@@ -235,34 +229,25 @@ class PoolConfiguration:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "PoolConfiguration":
         """Create from dictionary."""
-        pools = [
-            StrategyPool.from_dict(pool_data) for pool_data in data.get("pools", [])
-        ]
+        pools = [StrategyPool.from_dict(pool_data) for pool_data in data.get("pools", [])]
 
         fallback_strategy = None
         if data.get("fallback_strategy"):
             fallback_strategy = BypassStrategy.from_dict(data["fallback_strategy"])
 
         auto_assignment_rules = [
-            DomainRule.from_dict(rule_data)
-            for rule_data in data.get("auto_assignment_rules", [])
+            DomainRule.from_dict(rule_data) for rule_data in data.get("auto_assignment_rules", [])
         ]
 
         return cls(
-            version=ConfigurationVersion(
-                data.get("version", ConfigurationVersion.POOL_V1.value)
-            ),
+            version=ConfigurationVersion(data.get("version", ConfigurationVersion.POOL_V1.value)),
             pools=pools,
             default_pool=data.get("default_pool"),
             fallback_strategy=fallback_strategy,
             auto_assignment_rules=auto_assignment_rules,
             metadata=data.get("metadata", {}),
-            created_at=datetime.fromisoformat(
-                data.get("created_at", datetime.now().isoformat())
-            ),
-            updated_at=datetime.fromisoformat(
-                data.get("updated_at", datetime.now().isoformat())
-            ),
+            created_at=datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())),
+            updated_at=datetime.fromisoformat(data.get("updated_at", datetime.now().isoformat())),
         )
 
     def to_json(self, indent: int = 2) -> str:

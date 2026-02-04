@@ -3,7 +3,6 @@ Base classes for all DPI bypass attacks.
 Unified interface that combines all legacy attack systems.
 """
 
-
 import time
 import logging
 import asyncio
@@ -39,7 +38,7 @@ class BypassMode(Enum):
 
 
 SegmentTuple = Tuple[bytes, int, Dict[str, Any]]
-'\nSegment tuple format: (payload_data, seq_offset, options_dict)\n- payload_data: bytes - Raw bytes to send\n- seq_offset: int - TCP sequence offset from original packet  \n- options_dict: Dict[str, Any] - Transmission options:\n  - "ttl": int - IP Time To Live value\n  - "bad_checksum": bool - Corrupt TCP checksum\n  - "delay_ms": float - Delay before sending (milliseconds)\n  - "window_size": int - TCP window size override\n  - "flags": int - TCP flags override\n'
+# Segment tuple format: (payload_data, seq_offset, options_dict)
 
 
 class AttackStatus(Enum):
@@ -203,7 +202,9 @@ class AttackContext:
             Connection ID string
         """
         if not self.connection_id:
-            self.connection_id = f"{self.src_ip or 'unknown'}:{self.src_port or 0}->{self.dst_ip}:{self.dst_port}"
+            self.connection_id = (
+                f"{self.src_ip or 'unknown'}:{self.src_port or 0}->{self.dst_ip}:{self.dst_port}"
+            )
         return self.connection_id
 
     def increment_packet_id(self) -> int:
@@ -326,9 +327,7 @@ class AttackContext:
             "flags_string": self.get_tcp_flags_string(),
         }
 
-    def update_from_packet(
-        self, seq: int, ack: int, flags: int, window: int = None
-    ) -> None:
+    def update_from_packet(self, seq: int, ack: int, flags: int, window: int = None) -> None:
         """
         Update TCP session info from received packet.
 
@@ -468,7 +467,7 @@ class AttackResult:
     connection_established: bool = False
     data_transmitted: bool = False
     modified_payload: Optional[bytes] = None
-    segments: Optional[List[Tuple[bytes, int, Dict[str, Any]]]] = None
+    # segments поле удалено - используется только property
 
     def __post_init__(self):
         """Ensure proper initialization of metadata."""
@@ -542,9 +541,7 @@ class AttackResult:
         if self.has_segments():
             return
         if self.modified_payload:
-            self.create_segments_from_modified_payload(
-                self.modified_payload, original_payload
-            )
+            self.create_segments_from_modified_payload(self.modified_payload, original_payload)
         elif self.metadata and "modified_payload" in self.metadata:
             modified = self.metadata["modified_payload"]
             if isinstance(modified, bytes):
@@ -568,7 +565,9 @@ class AttackResult:
         Returns:
             List of segment tuples or None if not set
         """
-        return self.metadata.get("segments") if self.metadata else None
+        if self.metadata is None:
+            return None
+        return self.metadata.get("segments")
 
     @segments.setter
     def segments(self, value: Optional[List[SegmentTuple]]) -> None:
@@ -578,6 +577,7 @@ class AttackResult:
         Args:
             value: List of segment tuples or None to clear
         """
+        logger = logging.getLogger(__name__)
         if self.metadata is None:
             self.metadata = {}
         if value is None:
@@ -585,51 +585,51 @@ class AttackResult:
         else:
             # ✅ Validate and fix segments instead of raising errors
             if not isinstance(value, list):
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"AttackResult.segments: value is not a list ({type(value)}), converting to empty list")
+                logger.warning(
+                    f"AttackResult.segments: value is not a list ({type(value)}), converting to empty list"
+                )
+                if logger.isEnabledFor(logging.DEBUG):
+                    import traceback
+
+                    logger.debug("Stack trace:\n%s", "".join(traceback.format_stack()))
                 self.metadata["segments"] = []
                 return
-            
+
             # Validate and filter segments
             valid_segments = []
             for i, segment in enumerate(value):
                 if not isinstance(segment, tuple) or len(segment) != 3:
-                    import logging
-                    logger = logging.getLogger(__name__)
                     logger.warning(
                         f"AttackResult.segments: Segment {i} is not a tuple of length 3, skipping"
                     )
                     continue
-                
+
                 payload_data, seq_offset, options_dict = segment
-                
+
                 # Validate types
                 if not isinstance(payload_data, bytes):
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"AttackResult.segments: Segment {i} payload_data is not bytes, skipping")
+                    logger.warning(
+                        f"AttackResult.segments: Segment {i} payload_data is not bytes, skipping"
+                    )
                     continue
                 if not isinstance(seq_offset, int):
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"AttackResult.segments: Segment {i} seq_offset is not int, skipping")
+                    logger.warning(
+                        f"AttackResult.segments: Segment {i} seq_offset is not int, skipping"
+                    )
                     continue
                 if not isinstance(options_dict, dict):
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"AttackResult.segments: Segment {i} options_dict is not dict, skipping")
+                    logger.warning(
+                        f"AttackResult.segments: Segment {i} options_dict is not dict, skipping"
+                    )
                     continue
-                
+
                 # Segment is valid
                 valid_segments.append(segment)
-            
+
             # Store only valid segments
             self.metadata["segments"] = valid_segments
-            
+
             if len(valid_segments) < len(value):
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.warning(
                     f"AttackResult.segments: Filtered {len(value) - len(valid_segments)} invalid segments, "
                     f"kept {len(valid_segments)} valid segments"
@@ -666,12 +666,8 @@ class AttackResult:
         Returns:
             True if result has segments to execute
         """
-        if self.metadata and "segments" in self.metadata:
-            segments = self.metadata["segments"]
-            return segments is not None and len(segments) > 0
-        if hasattr(self, "segments") and self.segments:
-            return len(self.segments) > 0
-        return False
+        segments = self.segments
+        return bool(segments)
 
     def get_segment_count(self) -> int:
         """
@@ -1011,9 +1007,7 @@ class BaseAttack(ABC):
     """
 
     def __init__(self):
-        self.logger = logging.getLogger(
-            f"{self.__class__.__module__}.{self.__class__.__name__}"
-        )
+        self.logger = logging.getLogger(f"{self.__class__.__module__}.{self.__class__.__name__}")
         self._stats = {
             "executions": 0,
             "successes": 0,
@@ -1024,78 +1018,106 @@ class BaseAttack(ABC):
     def __init_subclass__(cls, **kwargs):
         """Validate metadata completeness when subclassing."""
         super().__init_subclass__(**kwargs)
-        
+
         # Skip validation for abstract base classes
         # Check both __abstractmethods__ and if any required property is abstract
-        if getattr(cls, '__abstractmethods__', None):
+        if getattr(cls, "__abstractmethods__", None):
             return
-        
+
         # Validate that required abstract metadata properties are implemented
-        required_properties = ['name', 'category', 'required_params', 'optional_params']
+        required_properties = ["name", "category", "required_params", "optional_params"]
         missing_properties = []
         has_abstract_properties = False
-        
+
         for prop in required_properties:
             # Check if property is properly implemented (not abstract)
             if hasattr(cls, prop):
                 prop_obj = getattr(cls, prop)
                 # Check if it's still abstract (has __isabstractmethod__ = True)
-                if getattr(prop_obj, '__isabstractmethod__', False):
+                if getattr(prop_obj, "__isabstractmethod__", False):
                     missing_properties.append(prop)
                     has_abstract_properties = True
             else:
                 missing_properties.append(prop)
-        
+
         # If any properties are abstract, this is an abstract base class - skip validation
         if has_abstract_properties:
             return
-        
+
         if missing_properties:
             raise TypeError(
                 f"Attack class {cls.__name__} must implement all required abstract properties: "
                 f"{missing_properties}. These properties are required for proper attack registration "
                 f"and metadata handling."
             )
-        
+
         # Validate that properties return correct types
         try:
             # Instantiate to check property values (only for concrete classes)
             if not missing_properties:
                 # Create a temporary instance to validate property types
                 temp_instance = object.__new__(cls)
-                temp_instance.__dict__.update({'logger': None, '_stats': {}})
-                
+                temp_instance.__dict__.update({"logger": None, "_stats": {}})
+
                 # Validate name property
-                name_val = cls.name.fget(temp_instance) if hasattr(cls.name, 'fget') else getattr(temp_instance, 'name', None)
+                name_val = (
+                    cls.name.fget(temp_instance)
+                    if hasattr(cls.name, "fget")
+                    else getattr(temp_instance, "name", None)
+                )
                 if not isinstance(name_val, str) or not name_val.strip():
-                    raise TypeError(f"Attack class {cls.__name__}.name must return a non-empty string")
-                
+                    raise TypeError(
+                        f"Attack class {cls.__name__}.name must return a non-empty string"
+                    )
+
                 # Validate category property
-                category_val = cls.category.fget(temp_instance) if hasattr(cls.category, 'fget') else getattr(temp_instance, 'category', None)
+                category_val = (
+                    cls.category.fget(temp_instance)
+                    if hasattr(cls.category, "fget")
+                    else getattr(temp_instance, "category", None)
+                )
                 if not isinstance(category_val, str) or not category_val.strip():
-                    raise TypeError(f"Attack class {cls.__name__}.category must return a non-empty string")
-                
+                    raise TypeError(
+                        f"Attack class {cls.__name__}.category must return a non-empty string"
+                    )
+
                 # Import AttackCategories and validate category value
                 from .metadata import AttackCategories
+
                 if category_val not in AttackCategories.ALL:
-                    raise ValueError(f"Attack class {cls.__name__}.category '{category_val}' must be one of: {AttackCategories.ALL}")
-                
+                    raise ValueError(
+                        f"Attack class {cls.__name__}.category '{category_val}' must be one of: {AttackCategories.ALL}"
+                    )
+
                 # Validate required_params property
-                req_params = cls.required_params.fget(temp_instance) if hasattr(cls.required_params, 'fget') else getattr(temp_instance, 'required_params', None)
+                req_params = (
+                    cls.required_params.fget(temp_instance)
+                    if hasattr(cls.required_params, "fget")
+                    else getattr(temp_instance, "required_params", None)
+                )
                 if not isinstance(req_params, list):
-                    raise TypeError(f"Attack class {cls.__name__}.required_params must return a list")
-                
+                    raise TypeError(
+                        f"Attack class {cls.__name__}.required_params must return a list"
+                    )
+
                 # Validate optional_params property
-                opt_params = cls.optional_params.fget(temp_instance) if hasattr(cls.optional_params, 'fget') else getattr(temp_instance, 'optional_params', None)
+                opt_params = (
+                    cls.optional_params.fget(temp_instance)
+                    if hasattr(cls.optional_params, "fget")
+                    else getattr(temp_instance, "optional_params", None)
+                )
                 if not isinstance(opt_params, dict):
-                    raise TypeError(f"Attack class {cls.__name__}.optional_params must return a dict")
-                    
+                    raise TypeError(
+                        f"Attack class {cls.__name__}.optional_params must return a dict"
+                    )
+
         except (TypeError, ValueError) as e:
             # Re-raise validation errors
             raise e
         except Exception as e:
             # If we can't validate due to complex initialization, just warn
             import logging
+
             logger = logging.getLogger(f"{cls.__module__}.{cls.__name__}")
             logger.warning(f"Could not validate metadata types for {cls.__name__}: {e}")
 
@@ -1117,16 +1139,14 @@ class BaseAttack(ABC):
         pass
 
     @property
-    @abstractmethod
     def required_params(self) -> List[str]:
-        """List of required parameter names."""
-        pass
+        """List of required parameter names. Override if attack needs required params."""
+        return []
 
     @property
-    @abstractmethod
     def optional_params(self) -> Dict[str, Any]:
-        """Dictionary of optional parameters with default values."""
-        pass
+        """Dictionary of optional parameters with default values. Override if attack needs optional params."""
+        return {}
 
     @property
     def aliases(self) -> List[str]:
@@ -1156,17 +1176,17 @@ class BaseAttack(ABC):
     def get_metadata(self) -> "AttackMetadata":
         """
         Get complete metadata for this attack.
-        
+
         Returns:
             AttackMetadata object with all attack information
         """
         from .metadata import AttackMetadata, AttackCategories
-        
+
         # Validate category
         category = self.category
         if category not in AttackCategories.ALL:
             category = AttackCategories.CUSTOM
-        
+
         return AttackMetadata(
             name=self.description,
             description=self.__doc__.strip() if self.__doc__ else f"Attack: {self.name}",
@@ -1280,9 +1300,7 @@ class BaseAttack(ABC):
         tester = RealEffectivenessTester(timeout=context.timeout)
         try:
             baseline = await tester.test_baseline(context.domain, context.dst_port)
-            bypass = await tester.test_with_bypass(
-                context.domain, context.dst_port, result
-            )
+            bypass = await tester.test_with_bypass(context.domain, context.dst_port, result)
             effectiveness = await tester.compare_results(baseline, bypass)
             result.metadata["bypass_results"] = (
                 effectiveness.to_dict()
@@ -1294,9 +1312,7 @@ class BaseAttack(ABC):
             result.response_received = effectiveness.bypass.success
             if not effectiveness.bypass_effective and strict_mode:
                 result.status = AttackStatus.BLOCKED
-                result.error_message = (
-                    "Bypass was not effective against detected blocking."
-                )
+                result.error_message = "Bypass was not effective against detected blocking."
         finally:
             await tester.close()
         return result
@@ -1331,7 +1347,7 @@ class SegmentationAttack(BaseAttack):
         """Base implementation - should be overridden by concrete classes."""
         return AttackResult(
             status=AttackStatus.ERROR,
-            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented",
         )
 
     def create_segments(self, payload: bytes, positions: List[int]) -> List[tuple]:
@@ -1388,7 +1404,7 @@ class TimingAttack(BaseAttack):
         """Base implementation - should be overridden by concrete classes."""
         return AttackResult(
             status=AttackStatus.ERROR,
-            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented",
         )
 
     def apply_delay(self, delay_ms: float):
@@ -1426,7 +1442,7 @@ class ManipulationAttack(BaseAttack):
         """Base implementation - should be overridden by concrete classes."""
         return AttackResult(
             status=AttackStatus.ERROR,
-            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented",
         )
 
 
@@ -1464,7 +1480,7 @@ class PayloadAttack(BaseAttack):
         """Base implementation - should be overridden by concrete classes."""
         return AttackResult(
             status=AttackStatus.ERROR,
-            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented",
         )
 
     def obfuscate_bytes(self, data: bytes, shift: int = 13) -> bytes:
@@ -1504,7 +1520,7 @@ class TunnelingAttack(BaseAttack):
         """Base implementation - should be overridden by concrete classes."""
         return AttackResult(
             status=AttackStatus.ERROR,
-            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented",
         )
 
 
@@ -1549,7 +1565,7 @@ class ComboAttack(BaseAttack):
         """Base implementation - should be overridden by concrete classes."""
         return AttackResult(
             status=AttackStatus.ERROR,
-            error_message=f"Base class {self.__class__.__name__} execute method not implemented"
+            error_message=f"Base class {self.__class__.__name__} execute method not implemented",
         )
 
 
@@ -1557,9 +1573,7 @@ class SegmentOrchestrationHelper:
     """Helper for creating segment orchestration plans."""
 
     @staticmethod
-    def create_simple_segments(
-        payload: bytes, chunk_size: int = 0
-    ) -> List[SegmentTuple]:
+    def create_simple_segments(payload: bytes, chunk_size: int = 0) -> List[SegmentTuple]:
         """Create simple segments without modifications."""
         if chunk_size <= 0:
             return [(payload, 0, {})]
@@ -1703,7 +1717,9 @@ class BatchTestResult:
     @property
     def summary(self) -> str:
         """Get summary string."""
-        return f"{self.successful_sites}/{self.total_sites} sites accessible ({self.success_rate:.1%})"
+        return (
+            f"{self.successful_sites}/{self.total_sites} sites accessible ({self.success_rate:.1%})"
+        )
 
 
 @dataclass

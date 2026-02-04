@@ -60,9 +60,7 @@ class BehaviorChange:
             "target": self.target,
             "timestamp": self.timestamp.isoformat(),
             "change_type": self.change_type,
-            "old_fingerprint": (
-                self.old_fingerprint.to_dict() if self.old_fingerprint else None
-            ),
+            "old_fingerprint": (self.old_fingerprint.to_dict() if self.old_fingerprint else None),
             "new_fingerprint": self.new_fingerprint.to_dict(),
             "confidence": self.confidence,
             "details": self.details,
@@ -161,9 +159,7 @@ class PerformanceMonitor:
         except ImportError:
             return 0.0
 
-    def is_system_overloaded(
-        self, cpu_threshold: float, memory_threshold: float
-    ) -> bool:
+    def is_system_overloaded(self, cpu_threshold: float, memory_threshold: float) -> bool:
         """Check if system is overloaded"""
         current_time = time.time()
         if current_time - self._last_check > 30:
@@ -262,9 +258,7 @@ class BehaviorAnalyzer:
             )
         return None
 
-    def _calculate_fingerprint_similarity(
-        self, fp1: DPIFingerprint, fp2: DPIFingerprint
-    ) -> float:
+    def _calculate_fingerprint_similarity(self, fp1: DPIFingerprint, fp2: DPIFingerprint) -> float:
         """Calculate similarity between two fingerprints"""
         indicators = [
             "rst_injection_detected",
@@ -345,10 +339,7 @@ class BehaviorAnalyzer:
             return "unknown_pattern"
         signature = self._extract_behavior_signature(fp)
         for pattern_name, pattern_signature in self._known_patterns.items():
-            if (
-                len(signature.intersection(pattern_signature))
-                >= len(pattern_signature) * 0.7
-            ):
+            if len(signature.intersection(pattern_signature)) >= len(pattern_signature) * 0.7:
                 return "known_pattern"
         return "new_blocking"
 
@@ -386,9 +377,7 @@ class BehaviorAnalyzer:
             signature.add("fast_connection_reset")
         return signature
 
-    def generate_alert(
-        self, behavior_change: BehaviorChange
-    ) -> Optional[MonitoringAlert]:
+    def generate_alert(self, behavior_change: BehaviorChange) -> Optional[MonitoringAlert]:
         """Generate alert for significant behavior changes"""
         if not self.config.enable_alerts:
             return None
@@ -431,9 +420,7 @@ class BehaviorAnalyzer:
             "new_blocking": f"New blocking behavior for {change.target}",
             "behavior_modification": f"DPI behavior modification for {change.target}",
         }
-        return titles.get(
-            change.change_type, f"DPI behavior change for {change.target}"
-        )
+        return titles.get(change.change_type, f"DPI behavior change for {change.target}")
 
     def _generate_alert_description(self, change: BehaviorChange) -> str:
         """Generate detailed alert description"""
@@ -443,10 +430,7 @@ class BehaviorAnalyzer:
         if change.old_fingerprint:
             desc += f"Previous DPI type: {change.old_fingerprint.dpi_type.value}\n"
         desc += f"Current DPI type: {change.new_fingerprint.dpi_type.value}\n"
-        if (
-            "new_blocking_methods" in change.details
-            and change.details["new_blocking_methods"]
-        ):
+        if "new_blocking_methods" in change.details and change.details["new_blocking_methods"]:
             desc += f"New blocking methods: {', '.join(change.details['new_blocking_methods'])}\n"
         if (
             "removed_blocking_methods" in change.details
@@ -531,9 +515,7 @@ class DPIBehaviorMonitor:
             "total_monitoring_time": 0.0,
             "last_cycle_time": 0.0,
         }
-        self.executor = ThreadPoolExecutor(
-            max_workers=3, thread_name_prefix="DPIBehaviorMonitor"
-        )
+        self.executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="DPIBehaviorMonitor")
         self._load_persisted_data()
         self.logger.info("DPI Behavior Monitor initialized")
 
@@ -555,9 +537,7 @@ class DPIBehaviorMonitor:
                                     if item["old_fingerprint"]
                                     else None
                                 ),
-                                new_fingerprint=DPIFingerprint.from_dict(
-                                    item["new_fingerprint"]
-                                ),
+                                new_fingerprint=DPIFingerprint.from_dict(item["new_fingerprint"]),
                                 confidence=item["confidence"],
                                 details=item["details"],
                             )
@@ -575,9 +555,7 @@ class DPIBehaviorMonitor:
                                 severity=AlertSeverity(item["severity"]),
                                 title=item["title"],
                                 description=item["description"],
-                                fingerprint=DPIFingerprint.from_dict(
-                                    item["fingerprint"]
-                                ),
+                                fingerprint=DPIFingerprint.from_dict(item["fingerprint"]),
                                 suggested_actions=item["suggested_actions"],
                                 acknowledged=item["acknowledged"],
                                 resolved=item["resolved"],
@@ -595,9 +573,7 @@ class DPIBehaviorMonitor:
             if self.config.save_behavior_changes and self.behavior_changes:
                 behavior_file = Path(self.config.behavior_log_file)
                 with open(behavior_file, "w", encoding="utf-8") as f:
-                    data = [
-                        change.to_dict() for change in self.behavior_changes[-1000:]
-                    ]
+                    data = [change.to_dict() for change in self.behavior_changes[-1000:]]
                     json.dump(data, f, indent=2, ensure_ascii=False)
             if self.config.enable_alerts and self.alerts:
                 alerts_file = Path(self.config.alerts_file)
@@ -658,9 +634,7 @@ class DPIBehaviorMonitor:
             for task in self.monitoring_tasks.values():
                 task.cancel()
             if self.monitoring_tasks:
-                await asyncio.gather(
-                    *self.monitoring_tasks.values(), return_exceptions=True
-                )
+                await asyncio.gather(*self.monitoring_tasks.values(), return_exceptions=True)
             self.monitoring_tasks.clear()
             self._save_persisted_data()
             self.state = MonitoringState.STOPPED
@@ -727,9 +701,7 @@ class DPIBehaviorMonitor:
 
     async def _handle_behavior_change(self, change: BehaviorChange):
         """Handle detected behavior change"""
-        self.logger.info(
-            f"Behavior change detected for {change.target}: {change.change_type}"
-        )
+        self.logger.info(f"Behavior change detected for {change.target}: {change.change_type}")
         self.behavior_changes.append(change)
         self.stats["behavior_changes_detected"] += 1
         self.fingerprinter.invalidate_cache(change.target)
@@ -790,9 +762,7 @@ class DPIBehaviorMonitor:
             "config": self.config.to_dict(),
         }
 
-    def get_target_status(
-        self, target: str, port: int = 443
-    ) -> Optional[Dict[str, Any]]:
+    def get_target_status(self, target: str, port: int = 443) -> Optional[Dict[str, Any]]:
         """Get status for specific target"""
         target_key = f"{target}:{port}"
         if target_key not in self.monitored_targets:
@@ -844,9 +814,7 @@ class DPIBehaviorMonitor:
             alerts = [a for a in alerts if not a.resolved]
         return sorted(alerts, key=lambda a: a.timestamp, reverse=True)
 
-    async def force_check(
-        self, target: str, port: int = 443
-    ) -> Optional[BehaviorChange]:
+    async def force_check(self, target: str, port: int = 443) -> Optional[BehaviorChange]:
         """Force immediate check of a target"""
         target_key = f"{target}:{port}"
         try:

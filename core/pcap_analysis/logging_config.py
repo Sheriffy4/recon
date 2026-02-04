@@ -128,9 +128,7 @@ class PCAPAnalysisLogger:
         # Console handler with colors
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
-        console_formatter = ColoredFormatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        console_formatter = ColoredFormatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         console_handler.setFormatter(console_formatter)
         root_logger.addHandler(console_handler)
 
@@ -284,9 +282,7 @@ class PCAPAnalysisLogger:
         }
 
         root_logger = self.loggers["root"]
-        root_logger.info(
-            "PCAP Analysis System Starting", extra={"system_info": system_info}
-        )
+        root_logger.info("PCAP Analysis System Starting", extra={"system_info": system_info})
 
     def log_configuration(self, config: Dict[str, Any]):
         """Log configuration information."""
@@ -358,9 +354,7 @@ class ContextualLogger:
 _pcap_logger = None
 
 
-def setup_logging(
-    log_dir: str = "recon/logs", log_level: str = "INFO"
-) -> PCAPAnalysisLogger:
+def setup_logging(log_dir: str = "recon/logs", log_level: str = "INFO") -> PCAPAnalysisLogger:
     """Setup logging for PCAP analysis system."""
     global _pcap_logger
 
@@ -390,9 +384,7 @@ def get_contextual_logger(name: str = "root") -> ContextualLogger:
 def log_operation_start(operation: str, **context):
     """Log the start of an operation."""
     logger = get_logger("analysis")
-    logger.info(
-        f"Starting operation: {operation}", extra={"operation": operation, **context}
-    )
+    logger.info(f"Starting operation: {operation}", extra={"operation": operation, **context})
 
 
 def log_operation_end(operation: str, duration: float, **results):
@@ -463,6 +455,4 @@ if _pcap_logger is None:
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
-        logging.getLogger("pcap_analysis").warning(
-            f"Failed to setup advanced logging: {e}"
-        )
+        logging.getLogger("pcap_analysis").warning(f"Failed to setup advanced logging: {e}")

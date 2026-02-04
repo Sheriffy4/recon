@@ -30,9 +30,7 @@ class ConfigurationManager:
         self.default_config_path = self.config_dir / "pool_config.json"
         self.legacy_config_path = self.config_dir / "best_strategy.json"
 
-    def load_configuration(
-        self, config_path: Optional[str] = None
-    ) -> PoolConfiguration:
+    def load_configuration(self, config_path: Optional[str] = None) -> PoolConfiguration:
         """
         Load configuration from file.
 
@@ -182,9 +180,7 @@ class ConfigurationManager:
             priority=1,
         )
 
-    def add_pool_to_configuration(
-        self, config: PoolConfiguration, pool: StrategyPool
-    ) -> None:
+    def add_pool_to_configuration(self, config: PoolConfiguration, pool: StrategyPool) -> None:
         """
         Add pool to configuration.
 
@@ -198,9 +194,7 @@ class ConfigurationManager:
         config.pools.append(pool)
         config.updated_at = datetime.now()
 
-    def remove_pool_from_configuration(
-        self, config: PoolConfiguration, pool_id: str
-    ) -> None:
+    def remove_pool_from_configuration(self, config: PoolConfiguration, pool_id: str) -> None:
         """
         Remove pool from configuration.
 
@@ -213,9 +207,7 @@ class ConfigurationManager:
             config.default_pool = config.pools[0].id if config.pools else None
         config.updated_at = datetime.now()
 
-    def get_pool_by_id(
-        self, config: PoolConfiguration, pool_id: str
-    ) -> Optional[StrategyPool]:
+    def get_pool_by_id(self, config: PoolConfiguration, pool_id: str) -> Optional[StrategyPool]:
         """
         Get pool by ID.
 
@@ -322,14 +314,10 @@ class ConfigurationManager:
         validation_errors = self.validator.validate_configuration(config)
         error_count = len([e for e in validation_errors if e.level == "error"])
         if error_count > 0:
-            raise ValueError(
-                f"Imported configuration has {error_count} validation errors"
-            )
+            raise ValueError(f"Imported configuration has {error_count} validation errors")
         return config
 
-    def get_configuration_info(
-        self, config_path: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_configuration_info(self, config_path: Optional[str] = None) -> Dict[str, Any]:
         """
         Get information about configuration file.
 

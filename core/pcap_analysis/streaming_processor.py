@@ -62,9 +62,7 @@ class MemoryMonitor:
     def force_gc_if_needed(self) -> bool:
         """Force garbage collection if memory limit exceeded."""
         if self.is_memory_limit_exceeded():
-            logger.debug(
-                f"Memory limit exceeded ({self.get_memory_usage_mb():.1f}MB), forcing GC"
-            )
+            logger.debug(f"Memory limit exceeded ({self.get_memory_usage_mb():.1f}MB), forcing GC")
             gc.collect()
             return True
         return False
@@ -187,16 +185,11 @@ class StreamingPcapProcessor:
                                 flags=self._extract_tcp_flags(tcp_layer),
                                 payload_length=len(tcp_layer.payload),
                                 payload_hex=(
-                                    bytes(tcp_layer.payload).hex()
-                                    if tcp_layer.payload
-                                    else ""
+                                    bytes(tcp_layer.payload).hex() if tcp_layer.payload else ""
                                 ),
                                 checksum=tcp_layer.chksum,
-                                checksum_valid=packet.haslayer("TCP")
-                                and tcp_layer.chksum != 0,
-                                is_client_hello=self._is_tls_client_hello(
-                                    bytes(tcp_layer.payload)
-                                ),
+                                checksum_valid=packet.haslayer("TCP") and tcp_layer.chksum != 0,
+                                is_client_hello=self._is_tls_client_hello(bytes(tcp_layer.payload)),
                             )
 
                             packet_buffer.append(packet_info)
@@ -226,9 +219,7 @@ class StreamingPcapProcessor:
             logger.error(f"Error reading PCAP file {pcap_file}: {e}")
             raise
 
-    def stream_packets(
-        self, pcap_file: str, prefer_dpkt: bool = True
-    ) -> Iterator[PacketInfo]:
+    def stream_packets(self, pcap_file: str, prefer_dpkt: bool = True) -> Iterator[PacketInfo]:
         """
         Stream packets from PCAP file using available library.
 
@@ -288,9 +279,7 @@ class StreamingPcapProcessor:
 
         # TLS record header: type(1) + version(2) + length(2) + handshake_type(1)
         try:
-            return (
-                payload[0] == 0x16 and payload[5] == 0x01  # TLS Handshake
-            )  # Client Hello
+            return payload[0] == 0x16 and payload[5] == 0x01  # TLS Handshake  # Client Hello
         except IndexError:
             return False
 
@@ -319,9 +308,7 @@ class AsyncStreamingProcessor:
                 yield packet
             await asyncio.sleep(0)  # Allow other coroutines to run
 
-    async def compare_pcaps_streaming(
-        self, recon_pcap: str, zapret_pcap: str
-    ) -> ComparisonResult:
+    async def compare_pcaps_streaming(self, recon_pcap: str, zapret_pcap: str) -> ComparisonResult:
         """Compare two PCAP files using streaming processing."""
         recon_packets = []
         zapret_packets = []

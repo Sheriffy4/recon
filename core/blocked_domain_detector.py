@@ -129,9 +129,7 @@ class BlockedDomainDetector:
 
         return False, "none"
 
-    async def check_domain(
-        self, domain: str, force_refresh: bool = False
-    ) -> DomainStatus:
+    async def check_domain(self, domain: str, force_refresh: bool = False) -> DomainStatus:
         """Проверяет статус домена и определяет необходимость обхода."""
 
         # Проверка кэша
@@ -149,14 +147,10 @@ class BlockedDomainDetector:
         doh_ips = await self.doh_resolver.resolve_all(domain)
 
         # Получение IP из hosts файла
-        hosts_ips = (
-            {self.hosts_entries[domain]} if domain in self.hosts_entries else set()
-        )
+        hosts_ips = {self.hosts_entries[domain]} if domain in self.hosts_entries else set()
 
         # Определение типа блокировки
-        is_blocked, block_type = await self._detect_block_type(
-            domain, system_ips, doh_ips
-        )
+        is_blocked, block_type = await self._detect_block_type(domain, system_ips, doh_ips)
 
         # Определение необходимости обхода
         bypass_required = is_blocked or (domain in self.KNOWN_BLOCKED_DOMAINS)
@@ -207,9 +201,7 @@ class BlockedDomainDetector:
         LOG.warning(f"Не удалось получить рабочий IP для {domain}")
         return None
 
-    async def check_multiple_domains(
-        self, domains: List[str]
-    ) -> Dict[str, DomainStatus]:
+    async def check_multiple_domains(self, domains: List[str]) -> Dict[str, DomainStatus]:
         """Проверяет множество доменов параллельно."""
         tasks = [self.check_domain(domain) for domain in domains]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -236,17 +228,11 @@ class BlockedDomainDetector:
 
     def get_blocked_domains(self) -> List[str]:
         """Возвращает список заблокированных доменов из кэша."""
-        return [
-            domain for domain, status in self.domain_cache.items() if status.is_blocked
-        ]
+        return [domain for domain, status in self.domain_cache.items() if status.is_blocked]
 
     def get_bypass_domains(self) -> List[str]:
         """Возвращает список доменов, требующих обхода."""
-        return [
-            domain
-            for domain, status in self.domain_cache.items()
-            if status.bypass_required
-        ]
+        return [domain for domain, status in self.domain_cache.items() if status.bypass_required]
 
     async def cleanup(self):
         """Очистка ресурсов."""
@@ -298,9 +284,7 @@ async def main():
     statuses = await detector.check_multiple_domains(domains)
 
     for domain, status in statuses.items():
-        print(
-            f"{domain}: заблокирован={status.is_blocked}, обход={status.bypass_required}"
-        )
+        print(f"{domain}: заблокирован={status.is_blocked}, обход={status.bypass_required}")
 
     # Генерация отчета
     report = detector.generate_report()

@@ -243,14 +243,10 @@ class PcapAnalyzer:
         # Calculate statistics for each domain
         for domain, connections in domain_connections.items():
             total_connections = len(connections)
-            successful_connections = sum(
-                1 for conn in connections if conn.connection_successful
-            )
+            successful_connections = sum(1 for conn in connections if conn.connection_successful)
             failed_connections = total_connections - successful_connections
             success_rate = (
-                successful_connections / total_connections
-                if total_connections > 0
-                else 0.0
+                successful_connections / total_connections if total_connections > 0 else 0.0
             )
 
             # Calculate average latency (placeholder - would need proper timing analysis)
@@ -260,11 +256,7 @@ class PcapAnalyzer:
             rst_packet_count = sum(conn.rst_packets for conn in connections)
 
             strategies_used = list(
-                set(
-                    conn.strategy_applied
-                    for conn in connections
-                    if conn.strategy_applied
-                )
+                set(conn.strategy_applied for conn in connections if conn.strategy_applied)
             )
 
             domain_stats[domain] = DomainAnalysis(
@@ -355,9 +347,7 @@ class PcapAnalyzer:
             twitter_success_rates = [
                 domain_analyses[domain].success_rate for domain in twitter_domains
             ]
-            avg_twitter_success = sum(twitter_success_rates) / len(
-                twitter_success_rates
-            )
+            avg_twitter_success = sum(twitter_success_rates) / len(twitter_success_rates)
 
             if avg_twitter_success < 0.8:
                 recommendations.append(

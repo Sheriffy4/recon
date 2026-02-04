@@ -201,9 +201,7 @@ class OnlineLearningSystem:
         """
         with self._lock:
             self.stats["total_examples_received"] += 1
-            if not self._should_learn_from_example(
-                confidence, predicted_type, actual_type
-            ):
+            if not self._should_learn_from_example(confidence, predicted_type, actual_type):
                 LOG.debug(
                     f"Skipping learning example: confidence={confidence:.3f}, predicted={predicted_type}, actual={actual_type}"
                 )
@@ -228,9 +226,7 @@ class OnlineLearningSystem:
                 self._trigger_retraining()
             return True
 
-    def _should_learn_from_example(
-        self, confidence: float, predicted: str, actual: str
-    ) -> bool:
+    def _should_learn_from_example(self, confidence: float, predicted: str, actual: str) -> bool:
         """Determine if we should learn from this example based on learning mode and confidence."""
         if self.learning_mode == LearningMode.DISABLED:
             return False
@@ -265,14 +261,10 @@ class OnlineLearningSystem:
             )
             return
         try:
-            LOG.info(
-                f"Performing incremental update with {len(self.learning_buffer)} examples"
-            )
+            LOG.info(f"Performing incremental update with {len(self.learning_buffer)} examples")
             training_data = []
             for example in self.learning_buffer:
-                training_data.append(
-                    {"metrics": example.metrics, "dpi_type": example.actual_type}
-                )
+                training_data.append({"metrics": example.metrics, "dpi_type": example.actual_type})
             if not training_data:
                 LOG.debug("No training data for incremental update")
                 return
@@ -303,11 +295,7 @@ class OnlineLearningSystem:
         is_correct = example.predicted_type == example.actual_type
         if len(self.performance_history) >= self.performance_window_size:
             correct_predictions = sum(
-                (
-                    1
-                    for ex in self.performance_history
-                    if ex.predicted_type == ex.actual_type
-                )
+                (1 for ex in self.performance_history if ex.predicted_type == ex.actual_type)
             )
             accuracy = correct_predictions / len(self.performance_history)
             confidence_dist = defaultdict(int)
@@ -337,11 +325,7 @@ class OnlineLearningSystem:
         ):
             return False
         correct_predictions = sum(
-            (
-                1
-                for ex in self.performance_history
-                if ex.predicted_type == ex.actual_type
-            )
+            (1 for ex in self.performance_history if ex.predicted_type == ex.actual_type)
         )
         current_accuracy = correct_predictions / len(self.performance_history)
         performance_drop = self.baseline_performance.accuracy - current_accuracy
@@ -385,9 +369,7 @@ class OnlineLearningSystem:
             self.performance_history.clear()
             self.stats["retraining_events"] += 1
             self.stats["last_retraining_time"] = time.time()
-            LOG.info(
-                f"Model retraining completed. New accuracy: {metrics.accuracy:.3f}"
-            )
+            LOG.info(f"Model retraining completed. New accuracy: {metrics.accuracy:.3f}")
         except Exception as e:
             LOG.error(f"Model retraining failed: {e}")
 
@@ -403,11 +385,7 @@ class OnlineLearningSystem:
                 sample_size=0,
             )
         correct_predictions = sum(
-            (
-                1
-                for ex in self.performance_history
-                if ex.predicted_type == ex.actual_type
-            )
+            (1 for ex in self.performance_history if ex.predicted_type == ex.actual_type)
         )
         accuracy = correct_predictions / len(self.performance_history)
         return PerformanceMetrics(
@@ -510,9 +488,7 @@ class OnlineLearningSystem:
         config = self.active_ab_test
         control_results = self.ab_test_results["control"]
         test_results = self.ab_test_results["test"]
-        control_accuracy = sum((r["correct"] for r in control_results)) / len(
-            control_results
-        )
+        control_accuracy = sum((r["correct"] for r in control_results)) / len(control_results)
         test_accuracy = sum((r["correct"] for r in test_results)) / len(test_results)
         improvement = test_accuracy - control_accuracy
         statistical_significance = abs(improvement) / max(
@@ -563,13 +539,9 @@ class OnlineLearningSystem:
             "buffer_capacity": self.buffer_size,
             "performance_history_size": len(self.performance_history),
             "baseline_performance": (
-                self.baseline_performance.to_dict()
-                if self.baseline_performance
-                else None
+                self.baseline_performance.to_dict() if self.baseline_performance else None
             ),
-            "active_ab_test": (
-                self.active_ab_test.test_name if self.active_ab_test else None
-            ),
+            "active_ab_test": (self.active_ab_test.test_name if self.active_ab_test else None),
             "statistics": self.stats.copy(),
         }
 
@@ -583,13 +555,9 @@ class OnlineLearningSystem:
                 "performance_window_size": self.performance_window_size,
                 "retraining_threshold": self.retraining_threshold,
                 "learning_buffer": [ex.to_dict() for ex in self.learning_buffer],
-                "performance_history": [
-                    ex.to_dict() for ex in self.performance_history
-                ],
+                "performance_history": [ex.to_dict() for ex in self.performance_history],
                 "baseline_performance": (
-                    self.baseline_performance.to_dict()
-                    if self.baseline_performance
-                    else None
+                    self.baseline_performance.to_dict() if self.baseline_performance else None
                 ),
                 "stats": self.stats,
             }

@@ -98,10 +98,7 @@ class ValidationReport:
         if result == ValidationResult.FAIL or result == ValidationResult.ERROR:
             if self.overall_result in [ValidationResult.PASS, ValidationResult.WARN]:
                 self.overall_result = result
-        elif (
-            result == ValidationResult.WARN
-            and self.overall_result == ValidationResult.PASS
-        ):
+        elif result == ValidationResult.WARN and self.overall_result == ValidationResult.PASS:
             self.overall_result = ValidationResult.WARN
         self._calculate_safety_score()
 
@@ -239,18 +236,12 @@ class SafetyValidator:
             attack: BaseAttack, context: AttackContext, result: Optional[AttackResult]
         ) -> Tuple[ValidationResult, str]:
             attack_id = getattr(attack, "id", "unknown")
-            if (
-                hasattr(attack, "stability")
-                and attack.stability == AttackStability.EXPERIMENTAL
-            ):
+            if hasattr(attack, "stability") and attack.stability == AttackStability.EXPERIMENTAL:
                 return (
                     ValidationResult.WARN,
                     "Attack marked as experimental - use with caution",
                 )
-            if (
-                hasattr(attack, "complexity")
-                and attack.complexity == AttackComplexity.EXPERIMENTAL
-            ):
+            if hasattr(attack, "complexity") and attack.complexity == AttackComplexity.EXPERIMENTAL:
                 return (ValidationResult.WARN, "Attack has experimental complexity")
             return (ValidationResult.PASS, "Attack definition validation passed")
 
@@ -276,9 +267,7 @@ class SafetyValidator:
                     )
             if context.params:
                 if context.params.get("iterations", 1) > 1000:
-                    warnings.append(
-                        "High iteration count may consume significant resources"
-                    )
+                    warnings.append("High iteration count may consume significant resources")
                 if context.params.get("delay", 0) > 10:
                     warnings.append("Long delay may cause timeout issues")
             if warnings:
@@ -344,9 +333,7 @@ class SafetyValidator:
                 for key, value in result.metadata.items():
                     if isinstance(value, str) and len(value) > 100000:
                         issues.append(f"Suspiciously large metadata field: {key}")
-                    if key.lower() in ["password", "secret", "key"] and isinstance(
-                        value, str
-                    ):
+                    if key.lower() in ["password", "secret", "key"] and isinstance(value, str):
                         issues.append(f"Potentially sensitive data in metadata: {key}")
             if hasattr(result, "segments") and result.segments:
                 total_payload_size = sum(
@@ -400,10 +387,7 @@ class SafetyValidator:
             attack: BaseAttack, context: AttackContext, result: Optional[AttackResult]
         ) -> Tuple[ValidationResult, str]:
             warnings = []
-            if (
-                hasattr(attack, "modifies_global_state")
-                and attack.modifies_global_state
-            ):
+            if hasattr(attack, "modifies_global_state") and attack.modifies_global_state:
                 warnings.append("Attack may modify global state")
             if context.params and any(
                 (
@@ -474,9 +458,7 @@ class SafetyValidator:
     ) -> ValidationReport:
         """Validate attack before execution."""
         attack_id = getattr(attack, "id", f"attack_{id(attack)}")
-        report = ValidationReport(
-            attack_id=attack_id, validation_level=self.validation_level
-        )
+        report = ValidationReport(attack_id=attack_id, validation_level=self.validation_level)
         with self._lock:
             applicable_checks = [
                 check
@@ -500,9 +482,7 @@ class SafetyValidator:
     ) -> ValidationReport:
         """Validate attack after execution."""
         attack_id = getattr(attack, "id", f"attack_{id(attack)}")
-        report = ValidationReport(
-            attack_id=attack_id, validation_level=self.validation_level
-        )
+        report = ValidationReport(attack_id=attack_id, validation_level=self.validation_level)
         with self._lock:
             applicable_checks = [
                 check
@@ -544,9 +524,7 @@ class SafetyValidator:
                 "Review warnings and consider if attack execution is appropriate"
             )
         if report.safety_score < 0.8:
-            report.recommendations.append(
-                "Consider using a safer attack or adjusting parameters"
-            )
+            report.recommendations.append("Consider using a safer attack or adjusting parameters")
         if report.overall_result == ValidationResult.ERROR:
             report.recommendations.append("Fix validation errors and retry validation")
         for check_name, result, message in report.check_results:
@@ -581,36 +559,19 @@ class SafetyValidator:
                 return {"total_validations": 0}
             total_validations = len(self._validation_history)
             passed = sum(
-                (
-                    1
-                    for r in self._validation_history
-                    if r.overall_result == ValidationResult.PASS
-                )
+                (1 for r in self._validation_history if r.overall_result == ValidationResult.PASS)
             )
             warned = sum(
-                (
-                    1
-                    for r in self._validation_history
-                    if r.overall_result == ValidationResult.WARN
-                )
+                (1 for r in self._validation_history if r.overall_result == ValidationResult.WARN)
             )
             failed = sum(
-                (
-                    1
-                    for r in self._validation_history
-                    if r.overall_result == ValidationResult.FAIL
-                )
+                (1 for r in self._validation_history if r.overall_result == ValidationResult.FAIL)
             )
             errored = sum(
-                (
-                    1
-                    for r in self._validation_history
-                    if r.overall_result == ValidationResult.ERROR
-                )
+                (1 for r in self._validation_history if r.overall_result == ValidationResult.ERROR)
             )
             avg_safety_score = (
-                sum((r.safety_score for r in self._validation_history))
-                / total_validations
+                sum((r.safety_score for r in self._validation_history)) / total_validations
             )
             return {
                 "total_validations": total_validations,

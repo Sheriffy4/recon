@@ -74,9 +74,7 @@ class IEffectivenessTester(ABC):
         pass
 
     @abstractmethod
-    async def test_with_bypass(
-        self, domain: str, port: int, attack_result: AttackResult
-    ) -> Any:
+    async def test_with_bypass(self, domain: str, port: int, attack_result: AttackResult) -> Any:
         pass
 
     @abstractmethod
@@ -106,9 +104,7 @@ class IStrategyGenerator(ABC):
     """Interface for strategy generation functionality."""
 
     @abstractmethod
-    def generate_strategies(
-        self, count: int = 20, use_parameter_ranges: bool = True
-    ) -> List[Dict]:
+    def generate_strategies(self, count: int = 20, use_parameter_ranges: bool = True) -> List[Dict]:
         pass
 
 

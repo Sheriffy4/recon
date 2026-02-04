@@ -30,7 +30,6 @@ class BadSumFoolingAttack(ManipulationAttack):
     - apply_badsum_fooling (fast_bypass.py)
     """
 
-
     @property
     def required_params(self) -> list:
         return []

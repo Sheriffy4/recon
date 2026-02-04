@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 
 class BaseTLSAdvancedAttack(BaseAttack):
     """Базовый класс для продвинутых TLS атак."""
-    
+
     # Mark as abstract to skip metaclass validation
     __abstractmethods__ = frozenset()
 
@@ -85,7 +85,7 @@ class BaseTLSAdvancedAttack(BaseAttack):
     required_params=[],
     optional_params={"mode": "fake", "fake_sni": "example.com"},
     aliases=["sni_manip", "tls_sni"],
-    description="TLS Server Name Indication (SNI) manipulation for DPI evasion"
+    description="TLS Server Name Indication (SNI) manipulation for DPI evasion",
 )
 class SNIManipulationAttack(BaseTLSAdvancedAttack):
     """
@@ -123,11 +123,11 @@ class SNIManipulationAttack(BaseTLSAdvancedAttack):
     def _find_sni_extension(self, payload: bytes) -> int:
         """
         Находит позицию SNI extension.
-        
+
         DEPRECATED: Use SNIManipulator.find_sni_position() instead.
         """
         from core.bypass.sni.manipulator import SNIManipulator
-        
+
         sni_pos = SNIManipulator.find_sni_position(payload)
         if sni_pos:
             return sni_pos.extension_start
@@ -136,11 +136,11 @@ class SNIManipulationAttack(BaseTLSAdvancedAttack):
     def _replace_sni(self, payload: bytes, pos: int, new_sni: str) -> bytes:
         """
         Заменяет SNI на новый.
-        
+
         DEPRECATED: Use SNIManipulator.change_sni() instead.
         """
         from core.bypass.sni.manipulator import SNIManipulator
-        
+
         try:
             return SNIManipulator.change_sni(payload, new_sni)
         except Exception as e:
@@ -151,7 +151,7 @@ class SNIManipulationAttack(BaseTLSAdvancedAttack):
     def _build_sni_extension(self, sni: bytes) -> bytes:
         """
         Строит SNI extension.
-        
+
         DEPRECATED: This method is no longer needed with SNIManipulator.
         """
         # Extension type (0x0000)
@@ -189,7 +189,7 @@ class SNIManipulationAttack(BaseTLSAdvancedAttack):
     required_params=[],
     optional_params={"protocols": ["h2", "http/1.1"]},
     aliases=["alpn_manip", "tls_alpn"],
-    description="TLS Application-Layer Protocol Negotiation (ALPN) manipulation for DPI evasion"
+    description="TLS Application-Layer Protocol Negotiation (ALPN) manipulation for DPI evasion",
 )
 class ALPNManipulationAttack(BaseTLSAdvancedAttack):
     """
@@ -257,7 +257,7 @@ class ALPNManipulationAttack(BaseTLSAdvancedAttack):
     required_params=[],
     optional_params={"count": 3},
     aliases=["grease_inject", "tls_grease"],
-    description="TLS GREASE (Generate Random Extensions And Sustain Extensibility) injection for DPI evasion"
+    description="TLS GREASE (Generate Random Extensions And Sustain Extensibility) injection for DPI evasion",
 )
 class GREASEInjectionAttack(BaseTLSAdvancedAttack):
     """
@@ -294,9 +294,7 @@ class GREASEInjectionAttack(BaseTLSAdvancedAttack):
         count = context.params.get("count", 3)
 
         # Выбираем случайные GREASE значения
-        grease_values = random.sample(
-            self.GREASE_VALUES, min(count, len(self.GREASE_VALUES))
-        )
+        grease_values = random.sample(self.GREASE_VALUES, min(count, len(self.GREASE_VALUES)))
 
         # Добавляем GREASE extensions
         grease_extensions = b""
@@ -318,16 +316,16 @@ def register_tls_advanced_attacks():
     # Manual registration as fallback if decorators don't work
     from .attack_registry import get_attack_registry, register_attack, RegistrationPriority
     from .metadata import AttackCategories
-    
+
     registry = get_attack_registry()
-    
+
     # Define attacks to register manually
     attacks_to_register = [
         ("sni_manipulation", SNIManipulationAttack, ["sni_manip", "tls_sni"]),
         ("alpn_manipulation", ALPNManipulationAttack, ["alpn_manip", "tls_alpn"]),
         ("grease_injection", GREASEInjectionAttack, ["grease_inject", "tls_grease"]),
     ]
-    
+
     # Register each attack manually if not already registered
     for attack_name, attack_class, aliases in attacks_to_register:
         if attack_name not in registry.attacks:
@@ -340,7 +338,7 @@ def register_tls_advanced_attacks():
                     required_params=[],
                     optional_params={},
                     aliases=aliases,
-                    description=f"TLS {attack_name.replace('_', ' ').title()} attack"
+                    description=f"TLS {attack_name.replace('_', ' ').title()} attack",
                 )(attack_class)
                 LOG.debug(f"Manually registered {attack_name}")
             except Exception as e:

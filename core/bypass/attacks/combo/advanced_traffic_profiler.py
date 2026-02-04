@@ -22,7 +22,7 @@ from core.bypass.attacks.combo.steganographic_engine import (
 )
 
 try:
-    from scapy.all import rdpcap
+    from scapy.utils import PcapReader
 
     SCAPY_AVAILABLE = True
 except ImportError:
@@ -236,16 +236,12 @@ class StatisticalTrafficAnalyzer(TrafficAnalyzer):
             steganographic_opportunities = self._identify_steganographic_opportunities(
                 packet_sequence, features
             )
-            recommended_profiles = self._generate_recommendations(
-                matches, confidence_scores
-            )
+            recommended_profiles = self._generate_recommendations(matches, confidence_scores)
             return ProfilingResult(
                 success=True,
                 detected_applications=list(matches.keys()),
                 confidence_scores=confidence_scores,
-                traffic_signatures=[
-                    self._signature_database[app] for app in matches.keys()
-                ],
+                traffic_signatures=[self._signature_database[app] for app in matches.keys()],
                 recommended_profiles=recommended_profiles,
                 steganographic_opportunities=steganographic_opportunities,
                 metadata={
@@ -299,9 +295,7 @@ class StatisticalTrafficAnalyzer(TrafficAnalyzer):
             LOG.error(f"Signature extraction failed: {e}")
             return []
 
-    def _extract_all_features(
-        self, packet_sequence: List[Tuple[bytes, float]]
-    ) -> Dict[str, Any]:
+    def _extract_all_features(self, packet_sequence: List[Tuple[bytes, float]]) -> Dict[str, Any]:
         """Extract all features from packet sequence."""
         features = {}
         for feature_name, extractor in self._feature_extractors.items():
@@ -320,9 +314,7 @@ class StatisticalTrafficAnalyzer(TrafficAnalyzer):
         if not packet_sizes:
             return {}
         avg_size = sum(packet_sizes) / len(packet_sizes)
-        variance = sum(((size - avg_size) ** 2 for size in packet_sizes)) / len(
-            packet_sizes
-        )
+        variance = sum(((size - avg_size) ** 2 for size in packet_sizes)) / len(packet_sizes)
         small_count = sum((1 for size in packet_sizes if size < 500))
         medium_count = sum((1 for size in packet_sizes if 500 <= size < 1000))
         large_count = sum((1 for size in packet_sizes if size >= 1000))
@@ -357,9 +349,7 @@ class StatisticalTrafficAnalyzer(TrafficAnalyzer):
             "max_delay": max(delays),
         }
 
-    def _extract_burst_patterns(
-        self, packet_sequence: List[Tuple[bytes, float]]
-    ) -> Dict[str, Any]:
+    def _extract_burst_patterns(self, packet_sequence: List[Tuple[bytes, float]]) -> Dict[str, Any]:
         """Extract burst patterns."""
         if len(packet_sequence) < 3:
             return {}
@@ -377,9 +367,7 @@ class StatisticalTrafficAnalyzer(TrafficAnalyzer):
             bursts.append((current_burst, 0))
         return {
             "burst_patterns": bursts,
-            "avg_burst_size": (
-                sum((size for size, _ in bursts)) / len(bursts) if bursts else 1
-            ),
+            "avg_burst_size": (sum((size for size, _ in bursts)) / len(bursts) if bursts else 1),
             "burst_count": len(bursts),
         }
 
@@ -397,11 +385,7 @@ class StatisticalTrafficAnalyzer(TrafficAnalyzer):
                 continue
             try:
                 packet_str = packet.decode("utf-8", errors="ignore")
-                if (
-                    "HTTP/" in packet_str
-                    or "GET " in packet_str
-                    or "POST " in packet_str
-                ):
+                if "HTTP/" in packet_str or "GET " in packet_str or "POST " in packet_str:
                     http_count += 1
             except:
                 pass
@@ -441,21 +425,16 @@ class StatisticalTrafficAnalyzer(TrafficAnalyzer):
             if "packet_size_stats" in features:
                 size_stats = features["packet_size_stats"]
                 if "avg_packet_size" in size_stats:
-                    size_diff = abs(
-                        size_stats["avg_packet_size"] - signature.avg_packet_size
-                    )
+                    size_diff = abs(size_stats["avg_packet_size"] - signature.avg_packet_size)
                     size_score = max(0, 1.0 - size_diff / signature.avg_packet_size)
                     score += size_score * 0.3
             if "timing_stats" in features:
                 timing_stats = features["timing_stats"]
                 if "avg_inter_packet_delay" in timing_stats:
                     delay_diff = abs(
-                        timing_stats["avg_inter_packet_delay"]
-                        - signature.avg_inter_packet_delay
+                        timing_stats["avg_inter_packet_delay"] - signature.avg_inter_packet_delay
                     )
-                    delay_score = max(
-                        0, 1.0 - delay_diff / signature.avg_inter_packet_delay
-                    )
+                    delay_score = max(0, 1.0 - delay_diff / signature.avg_inter_packet_delay)
                     score += delay_score * 0.3
             if "protocol_features" in features:
                 protocol_features = features["protocol_features"]
@@ -594,9 +573,7 @@ class AdvancedTrafficProfiler:
             for packet in packets:
                 timestamp = float(getattr(packet, "time", time.time()))
                 delay = (
-                    0.0
-                    if last_timestamp is None
-                    else max(0.0, (timestamp - last_timestamp) * 1000)
+                    0.0 if last_timestamp is None else max(0.0, (timestamp - last_timestamp) * 1000)
                 )
                 last_timestamp = timestamp
                 packet_info = self._extract_packet_info(packet)
@@ -609,10 +586,8 @@ class AdvancedTrafficProfiler:
                     if len(payload) > 5 and payload[5] == 1:
                         tls_client_hello_count += 1
                 flow_key = self._get_flow_key(ip_info, transport_info)
-                if flow_key != current_flow:
-                    if current_flow:
-                        flow_stats[current_flow] += 1
-                    current_flow = flow_key
+                # Count packets per flow (not only flow transitions).
+                flow_stats[flow_key] += 1
                 if real_time:
                     self._process_realtime_feedback(packet_info)
                 packet_entry = {
@@ -625,12 +600,8 @@ class AdvancedTrafficProfiler:
                     "size": len(payload),
                 }
                 packet_sequence.append((packet_entry, delay))
-            if current_flow:
-                flow_stats[current_flow] += 1
             if not packet_sequence:
-                LOG.warning(
-                    f"Could not extract a valid packet sequence from {filepath}"
-                )
+                LOG.warning(f"Could not extract a valid packet sequence from {filepath}")
                 return ProfilingResult(
                     success=False,
                     detected_applications=[],
@@ -660,33 +631,17 @@ class AdvancedTrafficProfiler:
                 ),
             }
             pm = analysis_context.get("protocol_metrics", {})
-            simple_sequence = [
-                (entry["payload"], delay) for entry, delay in packet_sequence
-            ]
-            result = self.analyzer.analyze_packet_sequence(
-                simple_sequence, analysis_context
-            )
+            simple_sequence = [(entry["payload"], delay) for entry, delay in packet_sequence]
+            result = self.analyzer.analyze_packet_sequence(simple_sequence, analysis_context)
             result.pcap_file = filepath
             ip_packets = sum(
-                (
-                    1
-                    for entry, _ in packet_sequence
-                    if entry.get("ip", {}).get("version") in (4, 6)
-                )
+                (1 for entry, _ in packet_sequence if entry.get("ip", {}).get("version") in (4, 6))
             )
             tcp_packets = sum(
-                (
-                    1
-                    for entry, _ in packet_sequence
-                    if entry.get("ip", {}).get("proto") == 6
-                )
+                (1 for entry, _ in packet_sequence if entry.get("ip", {}).get("proto") == 6)
             )
             udp_packets = sum(
-                (
-                    1
-                    for entry, _ in packet_sequence
-                    if entry.get("ip", {}).get("proto") == 17
-                )
+                (1 for entry, _ in packet_sequence if entry.get("ip", {}).get("proto") == 17)
             )
             if result and behavioral_analysis:
                 result.metadata.update(
@@ -707,15 +662,10 @@ class AdvancedTrafficProfiler:
                 )
             detected_protocols = []
             try:
-                if (
-                    pm.get("tls", {}).get("handshakes", 0)
-                    + pm.get("tls", {}).get("data", 0)
-                    > 0
-                ):
+                if pm.get("tls", {}).get("handshakes", 0) + pm.get("tls", {}).get("data", 0) > 0:
                     detected_protocols.append("TLS")
                 if (
-                    pm.get("http", {}).get("requests", 0)
-                    + pm.get("http", {}).get("responses", 0)
+                    pm.get("http", {}).get("requests", 0) + pm.get("http", {}).get("responses", 0)
                     > 0
                 ):
                     detected_protocols.append("HTTP")
@@ -736,20 +686,12 @@ class AdvancedTrafficProfiler:
             if isinstance(stego_ctx, dict):
                 result.steganographic_opportunities.update(stego_ctx)
             dns_pkts = pm.get("dns", {}).get("packets", 0)
-            if (
-                dns_pkts > 0
-                and "dns_tunneling" not in result.steganographic_opportunities
-            ):
+            if dns_pkts > 0 and "dns_tunneling" not in result.steganographic_opportunities:
                 total = len(packet_sequence) if packet_sequence else 1
                 score = min(0.9, 0.4 + dns_pkts / total * 0.5)
                 result.steganographic_opportunities["dns_tunneling"] = score
-            tls_pkts = pm.get("tls", {}).get("handshakes", 0) + pm.get("tls", {}).get(
-                "data", 0
-            )
-            if (
-                tls_pkts > 0
-                and "tls_padding" not in result.steganographic_opportunities
-            ):
+            tls_pkts = pm.get("tls", {}).get("handshakes", 0) + pm.get("tls", {}).get("data", 0)
+            if tls_pkts > 0 and "tls_padding" not in result.steganographic_opportunities:
                 total = len(packet_sequence) if packet_sequence else 1
                 score = min(0.9, 0.4 + tls_pkts / total * 0.5)
                 result.steganographic_opportunities["tls_padding"] = score
@@ -821,9 +763,7 @@ class AdvancedTrafficProfiler:
             LOG.debug(f"Could not extract packet info: {e}")
             return self._extract_packet_info_fallback(packet)
 
-    def _extract_packet_info_fallback(
-        self, packet
-    ) -> Optional[Tuple[bytes, Dict, Dict]]:
+    def _extract_packet_info_fallback(self, packet) -> Optional[Tuple[bytes, Dict, Dict]]:
         """Fallback method to extract packet information from simpler packet structures."""
         try:
             try:
@@ -852,7 +792,9 @@ class AdvancedTrafficProfiler:
 
     def _get_flow_key(self, ip_info: Dict, transport_info: Dict) -> str:
         """Generate unique flow identifier."""
-        return f"{ip_info['src']}:{transport_info['sport']}-{ip_info['dst']}:{transport_info['dport']}"
+        return (
+            f"{ip_info['src']}:{transport_info['sport']}-{ip_info['dst']}:{transport_info['dport']}"
+        )
 
     def _process_realtime_feedback(self, packet_info: Tuple[bytes, Dict, Dict]):
         """Process packet for real-time analysis feedback."""
@@ -907,8 +849,8 @@ class AdvancedTrafficProfiler:
                 }
             )
             patterns["size_patterns"].append(packet["size"])
-            current_direction = packet["ip"]["src"]
-            if last_direction and current_direction != last_direction:
+            current_direction = (packet.get("ip") or {}).get("src")
+            if last_direction and current_direction and current_direction != last_direction:
                 patterns["direction_patterns"].append(
                     {
                         "timestamp": packet["timestamp"],
@@ -916,7 +858,8 @@ class AdvancedTrafficProfiler:
                         "current": current_direction,
                     }
                 )
-            last_direction = current_direction
+            if current_direction:
+                last_direction = current_direction
         return patterns
 
     def _analyze_protocol_patterns(
@@ -932,11 +875,7 @@ class AdvancedTrafficProfiler:
         for packet, _ in packet_sequence:
             payload = packet["payload"]
             transport = packet["transport"]
-            if (
-                b"HTTP/" in payload
-                or payload.startswith(b"GET ")
-                or payload.startswith(b"POST ")
-            ):
+            if b"HTTP/" in payload or payload.startswith(b"GET ") or payload.startswith(b"POST "):
                 protocol_metrics["http"]["requests"] += 1
             elif b" 200 OK" in payload or b" 404 Not Found" in payload:
                 protocol_metrics["http"]["responses"] += 1
@@ -980,9 +919,9 @@ class AdvancedTrafficProfiler:
                 opportunities["lsb_embedding"] = min(avg_size / 1500, 0.9)
         delays = [delay for _, delay in packet_sequence]
         if len(delays) > 10:
-            delay_variance = sum(
-                ((d - sum(delays) / len(delays)) ** 2 for d in delays)
-            ) / len(delays)
+            delay_variance = sum(((d - sum(delays) / len(delays)) ** 2 for d in delays)) / len(
+                delays
+            )
             if 10 < delay_variance < 1000:
                 opportunities["timing_channel"] = 0.7
         http_count = sum((1 for p, _ in packet_sequence if b"HTTP/" in p["payload"]))
@@ -1018,14 +957,14 @@ class AdvancedTrafficProfiler:
             "dominant_flows": [],
         }
         total_packets = sum(flow_stats.values())
+        if total_packets <= 0:
+            return flow_analysis
         for flow, count in flow_stats.items():
             percentage = count / total_packets
             flow_analysis["flow_distribution"][flow] = percentage
             if percentage > 0:
                 flow_analysis["flow_entropy"] -= percentage * math.log2(percentage)
-        dominant_flows = sorted(flow_stats.items(), key=lambda x: x[1], reverse=True)[
-            :3
-        ]
+        dominant_flows = sorted(flow_stats.items(), key=lambda x: x[1], reverse=True)[:3]
         flow_analysis["dominant_flows"] = [
             {"flow": flow, "packet_count": count, "percentage": count / total_packets}
             for flow, count in dominant_flows
@@ -1078,16 +1017,11 @@ class AdvancedTrafficProfiler:
                 "name": f"{base_profile_name}_enhanced",
                 "base_profile": base_profile_name,
                 "signature": signature,
-                "steganographic_config": steganographic_config
-                or SteganographicConfig(),
+                "steganographic_config": steganographic_config or SteganographicConfig(),
                 "embedding_capacity": signature.embedding_capacity,
                 "detection_resistance": signature.detection_resistance,
-                "recommended_methods": self._get_recommended_steganographic_methods(
-                    signature
-                ),
-                "traffic_pattern": self._create_traffic_pattern_from_signature(
-                    signature
-                ),
+                "recommended_methods": self._get_recommended_steganographic_methods(signature),
+                "traffic_pattern": self._create_traffic_pattern_from_signature(signature),
                 "metadata": {
                     "created_at": time.time(),
                     "enhancement_level": "advanced",
@@ -1106,9 +1040,7 @@ class AdvancedTrafficProfiler:
             data.extend([len(packet), int(delay * 1000)])
         return hashlib.md5(str(data).encode()).hexdigest()
 
-    def _get_recommended_steganographic_methods(
-        self, signature: TrafficSignature
-    ) -> List[str]:
+    def _get_recommended_steganographic_methods(self, signature: TrafficSignature) -> List[str]:
         """Get recommended steganographic methods for signature."""
         methods = []
         if signature.steganographic_support:
@@ -1125,9 +1057,7 @@ class AdvancedTrafficProfiler:
                 methods.append("multi_layer")
         return methods
 
-    def _create_traffic_pattern_from_signature(
-        self, signature: TrafficSignature
-    ) -> TrafficPattern:
+    def _create_traffic_pattern_from_signature(self, signature: TrafficSignature) -> TrafficPattern:
         """Create TrafficPattern from signature."""
         return TrafficPattern(
             packet_sizes=(
@@ -1149,9 +1079,7 @@ class AdvancedTrafficProfiler:
             idle_periods=signature.idle_periods,
             bidirectional_ratio=signature.bidirectional_ratio,
             keep_alive_interval=(
-                signature.keep_alive_pattern[0]
-                if signature.keep_alive_pattern
-                else 30.0
+                signature.keep_alive_pattern[0] if signature.keep_alive_pattern else 30.0
             ),
             protocol_headers=signature.http_headers,
             content_patterns=[],
@@ -1162,9 +1090,7 @@ class AdvancedTrafficProfiler:
         return {
             "cache_size": len(self._profile_cache),
             "analysis_count": len(self._analysis_history),
-            "recent_analyses": (
-                self._analysis_history[-10:] if self._analysis_history else []
-            ),
+            "recent_analyses": (self._analysis_history[-10:] if self._analysis_history else []),
             "steganographic_stats": self.steganographic_manager.get_engine_stats(),
         }
 
@@ -1219,10 +1145,7 @@ class AdvancedTrafficProfiler:
                     "avg_size": sum(packet_sizes) / len(packet_sizes),
                     "size_stddev": math.sqrt(
                         sum(
-                            (
-                                (x - sum(packet_sizes) / len(packet_sizes)) ** 2
-                                for x in packet_sizes
-                            )
+                            ((x - sum(packet_sizes) / len(packet_sizes)) ** 2 for x in packet_sizes)
                         )
                         / len(packet_sizes)
                     ),
@@ -1232,8 +1155,7 @@ class AdvancedTrafficProfiler:
                     "max_delay": max(delays),
                     "avg_delay": sum(delays) / len(delays),
                     "delay_stddev": math.sqrt(
-                        sum(((x - sum(delays) / len(delays)) ** 2 for x in delays))
-                        / len(delays)
+                        sum(((x - sum(delays) / len(delays)) ** 2 for x in delays)) / len(delays)
                     ),
                 },
                 "behavioral_patterns": behavioral_patterns,
@@ -1252,22 +1174,13 @@ class AdvancedTrafficProfiler:
                 },
             }
             if kwargs.get("ml_classification"):
-                profile["ml_patterns"] = self._classify_traffic_patterns(
-                    packet_sequence
-                )
+                profile["ml_patterns"] = self._classify_traffic_patterns(packet_sequence)
             if kwargs.get("steganographic_hints"):
-                profile["steganographic_hints"] = (
-                    self._identify_steganographic_channels(
-                        [
-                            ({"payload": p, "size": len(p)}, d)
-                            for p, d in packet_sequence
-                        ]
-                    )
+                profile["steganographic_hints"] = self._identify_steganographic_channels(
+                    [({"payload": p, "size": len(p)}, d) for p, d in packet_sequence]
                 )
             profile["quality_metrics"] = {
-                "pattern_stability": self._calculate_pattern_stability(
-                    behavioral_patterns
-                ),
+                "pattern_stability": self._calculate_pattern_stability(behavioral_patterns),
                 "mimicry_effectiveness": self._estimate_mimicry_effectiveness(profile),
                 "detection_resistance": self._estimate_detection_resistance(profile),
             }
@@ -1284,12 +1197,8 @@ class AdvancedTrafficProfiler:
             burst_sizes = [p["size"] for p in patterns["burst_patterns"]]
             if burst_sizes:
                 mean_size = sum(burst_sizes) / len(burst_sizes)
-                variance = sum(((x - mean_size) ** 2 for x in burst_sizes)) / len(
-                    burst_sizes
-                )
-                stability_score += max(
-                    0, 1 - (variance / mean_size if mean_size > 0 else 1)
-                )
+                variance = sum(((x - mean_size) ** 2 for x in burst_sizes)) / len(burst_sizes)
+                stability_score += max(0, 1 - (variance / mean_size if mean_size > 0 else 1))
                 total_metrics += 1
         if patterns["timing_patterns"]:
             delays = [p["delay"] for p in patterns["timing_patterns"]]
@@ -1363,13 +1272,9 @@ class AdvancedTrafficProfiler:
         features = self._extract_ml_features(packet_sequence)
         protocols = ["HTTP", "TLS", "DNS", "Unknown"]
         scores = self._calculate_protocol_scores(features)
-        patterns["confidence_scores"] = {
-            proto: score for proto, score in zip(protocols, scores)
-        }
+        patterns["confidence_scores"] = {proto: score for proto, score in zip(protocols, scores)}
         patterns["likely_protocols"] = [
-            proto
-            for proto, score in patterns["confidence_scores"].items()
-            if score > 0.6
+            proto for proto, score in patterns["confidence_scores"].items() if score > 0.6
         ]
         behavior_score = self._classify_behavioral_pattern(features)
         patterns["behavioral_class"] = {
@@ -1378,9 +1283,7 @@ class AdvancedTrafficProfiler:
         }
         return patterns
 
-    def _extract_ml_features(
-        self, packet_sequence: List[Tuple[bytes, float]]
-    ) -> Dict[str, float]:
+    def _extract_ml_features(self, packet_sequence: List[Tuple[bytes, float]]) -> Dict[str, float]:
         """Extract features for ML classification."""
         features = {}
         sizes = [len(p) for p, _ in packet_sequence]
@@ -1391,15 +1294,11 @@ class AdvancedTrafficProfiler:
             {
                 "avg_size": avg_size,
                 "size_variance": (
-                    sum(((x - avg_size) ** 2 for x in sizes)) / len(sizes)
-                    if sizes
-                    else 0.0
+                    sum(((x - avg_size) ** 2 for x in sizes)) / len(sizes) if sizes else 0.0
                 ),
                 "avg_delay": avg_delay,
                 "delay_variance": (
-                    sum(((x - avg_delay) ** 2 for x in delays)) / len(delays)
-                    if delays
-                    else 0.0
+                    sum(((x - avg_delay) ** 2 for x in delays)) / len(delays) if delays else 0.0
                 ),
                 "packet_count": len(packet_sequence),
             }
@@ -1412,16 +1311,10 @@ class AdvancedTrafficProfiler:
             )
         )
         tls_count = sum(
-            (
-                1
-                for p, _ in packet_sequence
-                if len(p) > 2 and p[0] in (22, 23) and (p[1] == 3)
-            )
+            (1 for p, _ in packet_sequence if len(p) > 2 and p[0] in (22, 23) and (p[1] == 3))
         )
         total = len(packet_sequence) if packet_sequence else 1
-        features.update(
-            {"http_ratio": http_count / total, "tls_ratio": tls_count / total}
-        )
+        features.update({"http_ratio": http_count / total, "tls_ratio": tls_count / total})
         return features
 
     def _calculate_protocol_scores(self, features: Dict[str, float]) -> List[float]:

@@ -158,11 +158,7 @@ class MemoryPool:
 
         with self._lock:
             pool = self._pools[size]
-            if (
-                len(pool) < self.max_size // len(self._pools)
-                if self._pools
-                else self.max_size
-            ):
+            if len(pool) < self.max_size // len(self._pools) if self._pools else self.max_size:
                 pool.append(buffer)
 
     def get_stats(self) -> Dict[str, Any]:
@@ -258,9 +254,7 @@ class SegmentPerformanceOptimizer:
 
         # Performance components
         self.packet_cache = (
-            PacketCache(self.config.max_cache_size)
-            if self.config.enable_packet_caching
-            else None
+            PacketCache(self.config.max_cache_size) if self.config.enable_packet_caching else None
         )
         self.memory_pool = (
             MemoryPool(self.config.max_memory_pool_size)
@@ -271,9 +265,7 @@ class SegmentPerformanceOptimizer:
 
         # Thread pool for async operations
         self._thread_pool = (
-            ThreadPoolExecutor(max_workers=4)
-            if self.config.enable_async_execution
-            else None
+            ThreadPoolExecutor(max_workers=4) if self.config.enable_async_execution else None
         )
 
         # Performance monitoring
@@ -325,9 +317,7 @@ class SegmentPerformanceOptimizer:
                     finally:
                         self.memory_pool.return_buffer(buffer)
                 else:
-                    packet = packet_builder.build_segment_packet(
-                        payload, seq_offset, options
-                    )
+                    packet = packet_builder.build_segment_packet(payload, seq_offset, options)
 
                 packets.append(packet)
 
@@ -361,10 +351,7 @@ class SegmentPerformanceOptimizer:
 
         try:
             with self.profiler.profile("segment_execution"):
-                if (
-                    self.config.enable_batch_processing
-                    and len(segments) > self.config.batch_size
-                ):
+                if self.config.enable_batch_processing and len(segments) > self.config.batch_size:
                     # Process in batches for better performance
                     metrics = self._execute_batched(segments, execution_func)
                 elif self.config.enable_async_execution and self._thread_pool:
@@ -593,21 +580,15 @@ class SegmentPerformanceOptimizer:
         if "cache_stats" in performance_stats:
             cache_stats = performance_stats["cache_stats"]
             if cache_stats["hit_rate"] < 0.5:
-                suggestions.append(
-                    "Consider increasing cache size - low hit rate detected"
-                )
+                suggestions.append("Consider increasing cache size - low hit rate detected")
             if cache_stats["size"] < cache_stats["max_size"] * 0.1:
-                suggestions.append(
-                    "Cache is underutilized - consider reducing cache size"
-                )
+                suggestions.append("Cache is underutilized - consider reducing cache size")
 
         # Check memory pool performance
         if "memory_pool_stats" in performance_stats:
             pool_stats = performance_stats["memory_pool_stats"]
             if pool_stats["reuse_rate"] < 0.3:
-                suggestions.append(
-                    "Memory pool has low reuse rate - consider adjusting pool sizes"
-                )
+                suggestions.append("Memory pool has low reuse rate - consider adjusting pool sizes")
 
         # Check execution times
         if "performance_history" in performance_stats:
@@ -623,18 +604,11 @@ class SegmentPerformanceOptimizer:
 
         # Check optimization usage
         opt_stats = performance_stats.get("optimization_stats", {})
-        if (
-            not self.config.enable_async_execution
-            and opt_stats.get("async_executions", 0) == 0
-        ):
-            suggestions.append(
-                "Consider enabling async execution for I/O bound operations"
-            )
+        if not self.config.enable_async_execution and opt_stats.get("async_executions", 0) == 0:
+            suggestions.append("Consider enabling async execution for I/O bound operations")
 
         if not self.config.enable_batch_processing and len(suggestions) == 0:
-            suggestions.append(
-                "Consider enabling batch processing for large segment counts"
-            )
+            suggestions.append("Consider enabling batch processing for large segment counts")
 
         return suggestions
 

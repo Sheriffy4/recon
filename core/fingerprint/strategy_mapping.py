@@ -228,9 +228,7 @@ def get_strategies_for_fingerprint(
     tls_analysis = fingerprint_data.get("tls_analysis", {})
 
     # Check for TLS handshake timeout
-    if tls_analysis.get("handshake_timeout") or http_analysis.get(
-        "http_blocking_detected"
-    ):
+    if tls_analysis.get("handshake_timeout") or http_analysis.get("http_blocking_detected"):
         detected_characteristics.append(DPICharacteristic.TLS_HANDSHAKE_TIMEOUT)
 
     # Check for RST injection
@@ -242,9 +240,7 @@ def get_strategies_for_fingerprint(
             detected_characteristics.append(DPICharacteristic.RST_INJECTION_HIGH_TTL)
 
     # Check for SNI filtering
-    if tls_analysis.get("sni_blocking_detected") or http_analysis.get(
-        "sni_host_mismatch_blocking"
-    ):
+    if tls_analysis.get("sni_blocking_detected") or http_analysis.get("sni_host_mismatch_blocking"):
         detected_characteristics.append(DPICharacteristic.SNI_FILTERING)
 
     # Check for content filtering

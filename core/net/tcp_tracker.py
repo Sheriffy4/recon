@@ -113,9 +113,7 @@ class TCPTracker:
         if conn_id in self.connections:
             del self.connections[conn_id]
 
-    def handle_retransmission(
-        self, ip: IPv4Packet, tcp: TCPPacket, conn: TCPConnection
-    ) -> bool:
+    def handle_retransmission(self, ip: IPv4Packet, tcp: TCPPacket, conn: TCPConnection) -> bool:
         """Проверить, является ли пакет ретрансмиссией"""
         is_client = ip.src_addr == conn.client_addr and tcp.src_port == conn.client_port
         expected_seq = conn.client_seq if is_client else conn.server_seq

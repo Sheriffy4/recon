@@ -178,9 +178,7 @@ class PatternDatabase:
         except Exception as e:
             LOG.error(f"Failed to add fix pattern: {e}")
 
-    def get_matching_patterns(
-        self, query: Dict[str, Any]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    def get_matching_patterns(self, query: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """Get patterns matching the query criteria"""
 
         matches = {"failure_patterns": [], "success_patterns": [], "fix_patterns": []}
@@ -206,9 +204,7 @@ class PatternDatabase:
 
         return matches
 
-    def _pattern_matches_query(
-        self, pattern: Dict[str, Any], query: Dict[str, Any]
-    ) -> bool:
+    def _pattern_matches_query(self, pattern: Dict[str, Any], query: Dict[str, Any]) -> bool:
         """Check if pattern matches query criteria"""
 
         try:
@@ -262,9 +258,7 @@ class PatternDatabase:
                     current_count = pattern.get("occurrences", 1)
 
                     if success:
-                        new_rate = (
-                            current_rate * (current_count - 1) + 1.0
-                        ) / current_count
+                        new_rate = (current_rate * (current_count - 1) + 1.0) / current_count
                     else:
                         new_rate = (current_rate * (current_count - 1)) / current_count
 
@@ -403,9 +397,7 @@ class LearningEngine:
             patterns["effectiveness_patterns"] = {
                 "domains_tested": validation_results.get("domains_tested", 0),
                 "success_rate": validation_results.get("success_rate", 0.0),
-                "performance_improvement": validation_results.get(
-                    "performance_metrics", {}
-                ),
+                "performance_improvement": validation_results.get("performance_metrics", {}),
             }
 
             # Extract parameter patterns
@@ -428,9 +420,7 @@ class LearningEngine:
         try:
             # Add success patterns
             for solution in learning_patterns.get("solution_patterns", []):
-                pattern_id = (
-                    f"learned_solution_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                )
+                pattern_id = f"learned_solution_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
                 self.pattern_db.add_success_pattern(
                     pattern_id,
@@ -452,15 +442,12 @@ class LearningEngine:
                         "fix_type", "unknown"
                     ),
                     "problem_types": [
-                        p.get("type")
-                        for p in learning_patterns.get("problem_patterns", [])
+                        p.get("type") for p in learning_patterns.get("problem_patterns", [])
                     ],
                     "solution": learning_patterns.get("solution_patterns", [{}])[0].get(
                         "changes", {}
                     ),
-                    "effectiveness": learning_patterns.get(
-                        "effectiveness_patterns", {}
-                    ),
+                    "effectiveness": learning_patterns.get("effectiveness_patterns", {}),
                     "success_count": 1,
                 },
             )
@@ -559,14 +546,10 @@ class LearningEngine:
                 ]
 
             # Add reasoning based on learned fixes
-            self._add_prediction_reasoning(
-                prediction, strategy_params, matching_patterns
-            )
+            self._add_prediction_reasoning(prediction, strategy_params, matching_patterns)
 
             # Generate recommendations
-            self._generate_strategy_recommendations(
-                prediction, strategy_params, matching_patterns
-            )
+            self._generate_strategy_recommendations(prediction, strategy_params, matching_patterns)
 
         except Exception as e:
             LOG.error(f"Failed to predict strategy effectiveness: {e}")
@@ -591,26 +574,18 @@ class LearningEngine:
                 avg_success = statistics.mean(
                     [p.get("success_rate", 0.0) for p in success_patterns]
                 )
-                reasoning.append(
-                    f"Similar patterns show {avg_success:.1%} average success rate"
-                )
+                reasoning.append(f"Similar patterns show {avg_success:.1%} average success rate")
 
             # Reasoning from fix patterns
             fix_patterns = matching_patterns.get("fix_patterns", [])
             if fix_patterns:
-                successful_fixes = len(
-                    [p for p in fix_patterns if p.get("success_count", 0) > 0]
-                )
-                reasoning.append(
-                    f"{successful_fixes} similar fixes have been successful"
-                )
+                successful_fixes = len([p for p in fix_patterns if p.get("success_count", 0) > 0])
+                reasoning.append(f"{successful_fixes} similar fixes have been successful")
 
             # Reasoning from failure patterns
             failure_patterns = matching_patterns.get("failure_patterns", [])
             if failure_patterns:
-                reasoning.append(
-                    f"Warning: {len(failure_patterns)} similar failure patterns found"
-                )
+                reasoning.append(f"Warning: {len(failure_patterns)} similar failure patterns found")
 
             # Parameter-specific reasoning
             if strategy_params.get("ttl") == 3:
@@ -638,23 +613,19 @@ class LearningEngine:
             # Recommendations based on successful patterns
             success_patterns = matching_patterns.get("success_patterns", [])
             if success_patterns:
-                best_pattern = max(
-                    success_patterns, key=lambda x: x.get("success_rate", 0.0)
-                )
+                best_pattern = max(success_patterns, key=lambda x: x.get("success_rate", 0.0))
                 best_params = best_pattern.get("parameters", {})
 
                 # TTL recommendations
-                if best_params.get("ttl") and best_params["ttl"] != strategy_params.get(
-                    "ttl"
-                ):
+                if best_params.get("ttl") and best_params["ttl"] != strategy_params.get("ttl"):
                     recommendations.append(
                         f"Consider using TTL={best_params['ttl']} (success rate: {best_pattern.get('success_rate', 0.0):.1%})"
                     )
 
                 # Split position recommendations
-                if best_params.get("split_pos") and best_params[
+                if best_params.get("split_pos") and best_params["split_pos"] != strategy_params.get(
                     "split_pos"
-                ] != strategy_params.get("split_pos"):
+                ):
                     recommendations.append(
                         f"Consider using split_pos={best_params['split_pos']} (success rate: {best_pattern.get('success_rate', 0.0):.1%})"
                     )
@@ -662,13 +633,9 @@ class LearningEngine:
             # Recommendations based on fix patterns
             fix_patterns = matching_patterns.get("fix_patterns", [])
             if fix_patterns:
-                successful_fixes = [
-                    p for p in fix_patterns if p.get("success_count", 0) > 0
-                ]
+                successful_fixes = [p for p in fix_patterns if p.get("success_count", 0) > 0]
                 if successful_fixes:
-                    best_fix = max(
-                        successful_fixes, key=lambda x: x.get("success_count", 0)
-                    )
+                    best_fix = max(successful_fixes, key=lambda x: x.get("success_count", 0))
                     recommendations.append(
                         f"Consider applying {best_fix.get('fix_type', 'unknown')} fix (successful {best_fix.get('success_count', 0)} times)"
                     )

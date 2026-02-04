@@ -19,9 +19,7 @@ from core.bypass.performance.performance_models import (
 class PerformanceOptimizer:
     """Optimizes bypass engine performance based on testing results."""
 
-    def __init__(
-        self, optimization_level: OptimizationLevel = OptimizationLevel.BALANCED
-    ):
+    def __init__(self, optimization_level: OptimizationLevel = OptimizationLevel.BALANCED):
         self.optimization_level = optimization_level
         self.metrics_history = deque(maxlen=1000)
         self.strategy_performance = {}
@@ -80,9 +78,7 @@ class PerformanceOptimizer:
             self.logger.error(f"Error collecting performance metrics: {e}")
             return self._get_default_metrics()
 
-    async def optimize_performance(
-        self, current_metrics: PerformanceMetrics
-    ) -> OptimizationResult:
+    async def optimize_performance(self, current_metrics: PerformanceMetrics) -> OptimizationResult:
         """Optimize performance based on current metrics."""
         try:
             original_metrics = current_metrics
@@ -97,10 +93,7 @@ class PerformanceOptimizer:
                 > self.thresholds[self.optimization_level]["max_memory_usage"]
             ):
                 optimization_actions.extend(self._optimize_memory_usage())
-            if (
-                current_metrics.latency
-                > self.thresholds[self.optimization_level]["max_latency"]
-            ):
+            if current_metrics.latency > self.thresholds[self.optimization_level]["max_latency"]:
                 optimization_actions.extend(self._optimize_latency())
             if (
                 current_metrics.success_rate
@@ -110,9 +103,7 @@ class PerformanceOptimizer:
             await self._apply_optimizations(optimization_actions)
             await asyncio.sleep(2)
             optimized_metrics = await self.collect_performance_metrics()
-            improvement = self._calculate_improvement(
-                original_metrics, optimized_metrics
-            )
+            improvement = self._calculate_improvement(original_metrics, optimized_metrics)
             result = OptimizationResult(
                 original_metrics=original_metrics,
                 optimized_metrics=optimized_metrics,
@@ -120,9 +111,7 @@ class PerformanceOptimizer:
                 optimization_actions=optimization_actions,
                 recommendations=self._generate_recommendations(optimized_metrics),
             )
-            self.logger.info(
-                f"Performance optimization completed: {improvement:.2f}% improvement"
-            )
+            self.logger.info(f"Performance optimization completed: {improvement:.2f}% improvement")
             return result
         except Exception as e:
             self.logger.error(f"Error during performance optimization: {e}")
@@ -182,22 +171,16 @@ class PerformanceOptimizer:
         """Calculate performance improvement percentage."""
         try:
             cpu_improvement = (
-                max(0, original.cpu_usage - optimized.cpu_usage)
-                / original.cpu_usage
-                * 100
+                max(0, original.cpu_usage - optimized.cpu_usage) / original.cpu_usage * 100
             )
             memory_improvement = (
-                max(0, original.memory_usage - optimized.memory_usage)
-                / original.memory_usage
-                * 100
+                max(0, original.memory_usage - optimized.memory_usage) / original.memory_usage * 100
             )
             latency_improvement = (
                 max(0, original.latency - optimized.latency) / original.latency * 100
             )
             success_improvement = (
-                max(0, optimized.success_rate - original.success_rate)
-                / original.success_rate
-                * 100
+                max(0, optimized.success_rate - original.success_rate) / original.success_rate * 100
             )
             total_improvement = (
                 cpu_improvement * 0.3
@@ -213,15 +196,11 @@ class PerformanceOptimizer:
         """Generate performance recommendations."""
         recommendations = []
         if metrics.cpu_usage > 80:
-            recommendations.append(
-                "Consider upgrading CPU or reducing concurrent operations"
-            )
+            recommendations.append("Consider upgrading CPU or reducing concurrent operations")
         if metrics.memory_usage > 85:
             recommendations.append("Consider increasing RAM or optimizing memory usage")
         if metrics.latency > 2.0:
-            recommendations.append(
-                "Optimize network configuration or use faster algorithms"
-            )
+            recommendations.append("Optimize network configuration or use faster algorithms")
         if metrics.success_rate < 80:
             recommendations.append("Review and improve strategy selection algorithms")
         return recommendations
@@ -231,18 +210,16 @@ class PerformanceOptimizer:
         if len(self.metrics_history) < 2:
             return 0.0
         recent_metrics = list(self.metrics_history)[-10:]
-        return sum(
-            (1.0 / max(m.attack_execution_time, 0.1) for m in recent_metrics)
-        ) / len(recent_metrics)
+        return sum((1.0 / max(m.attack_execution_time, 0.1) for m in recent_metrics)) / len(
+            recent_metrics
+        )
 
     def _calculate_average_latency(self) -> float:
         """Calculate average latency."""
         if not self.metrics_history:
             return 0.0
         recent_metrics = list(self.metrics_history)[-10:]
-        return sum((m.attack_execution_time for m in recent_metrics)) / len(
-            recent_metrics
-        )
+        return sum((m.attack_execution_time for m in recent_metrics)) / len(recent_metrics)
 
     def _calculate_success_rate(self) -> float:
         """Calculate current success rate."""
@@ -256,18 +233,14 @@ class PerformanceOptimizer:
         if not self.metrics_history:
             return 0.0
         recent_metrics = list(self.metrics_history)[-10:]
-        return sum((m.attack_execution_time for m in recent_metrics)) / len(
-            recent_metrics
-        )
+        return sum((m.attack_execution_time for m in recent_metrics)) / len(recent_metrics)
 
     def _get_average_selection_time(self) -> float:
         """Get average strategy selection time."""
         if not self.metrics_history:
             return 0.0
         recent_metrics = list(self.metrics_history)[-10:]
-        return sum((m.strategy_selection_time for m in recent_metrics)) / len(
-            recent_metrics
-        )
+        return sum((m.strategy_selection_time for m in recent_metrics)) / len(recent_metrics)
 
     def _get_average_validation_time(self) -> float:
         """Get average validation time."""
@@ -295,11 +268,7 @@ class PerformanceOptimizer:
             cpu_usage = psutil.cpu_percent(interval=1)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage("/")
-            load_avg = (
-                psutil.getloadavg()[0]
-                if hasattr(psutil, "getloadavg")
-                else cpu_usage / 100
-            )
+            load_avg = psutil.getloadavg()[0] if hasattr(psutil, "getloadavg") else cpu_usage / 100
             boot_time = psutil.boot_time()
             uptime = time.time() - boot_time
             return SystemHealth(

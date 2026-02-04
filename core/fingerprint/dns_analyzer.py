@@ -177,9 +177,7 @@ class DNSAnalyzer:
             results["analysis_error"] = str(e)
 
         results["analysis_duration"] = time.time() - start_time
-        LOG.info(
-            f"DNS analysis completed for {target} in {results['analysis_duration']:.2f}s"
-        )
+        LOG.info(f"DNS analysis completed for {target} in {results['analysis_duration']:.2f}s")
 
         return results
 
@@ -215,9 +213,7 @@ class DNSAnalyzer:
                     results["dns_hijacking_detected"] = True
                     results["hijacking_details"] = {
                         "conflicting_resolvers": list(resolver_responses.keys()),
-                        "responses": {
-                            k: list(v) for k, v in resolver_responses.items()
-                        },
+                        "responses": {k: list(v) for k, v in resolver_responses.items()},
                     }
                     break
 
@@ -246,9 +242,7 @@ class DNSAnalyzer:
                         modifications.append(
                             {
                                 "record_type": record_type.name,
-                                "suspicious_patterns": self._analyze_response_patterns(
-                                    response
-                                ),
+                                "suspicious_patterns": self._analyze_response_patterns(response),
                             }
                         )
 
@@ -548,9 +542,7 @@ class DNSAnalyzer:
                 params = {"name": domain, "type": "A"}
                 headers = {"Accept": "application/dns-json"}
 
-                async with session.get(
-                    server_url, params=params, headers=headers
-                ) as response:
+                async with session.get(server_url, params=params, headers=headers) as response:
                     if response.status == 200:
                         # Read JSON, disabling content-type check for compatibility
                         # with servers like Google that use application/json
@@ -558,9 +550,7 @@ class DNSAnalyzer:
 
                         answers = []
                         if "Answer" in data:
-                            answers = [
-                                record.get("data", "") for record in data["Answer"]
-                            ]
+                            answers = [record.get("data", "") for record in data["Answer"]]
 
                         return DNSResponse(
                             timestamp=time.time(),
@@ -583,9 +573,7 @@ class DNSAnalyzer:
             LOG.debug(f"DoH query failed: {e}")
             return None
 
-    async def _query_dot(
-        self, domain: str, host: str, port: int
-    ) -> Optional[DNSResponse]:
+    async def _query_dot(self, domain: str, host: str, port: int) -> Optional[DNSResponse]:
         """Query DNS using DoT (DNS over TLS)"""
         try:
             # Create SSL context for DoT

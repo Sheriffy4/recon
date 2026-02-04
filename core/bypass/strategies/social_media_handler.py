@@ -77,9 +77,7 @@ class PlatformSpecificStrategy:
     compatibility_notes: str = ""
     last_updated: Optional[datetime] = None
 
-    def update_effectiveness(
-        self, success: bool, speed_improvement: float = 0.0
-    ) -> None:
+    def update_effectiveness(self, success: bool, speed_improvement: float = 0.0) -> None:
         """Update strategy effectiveness metrics."""
         alpha = 0.3
         if success:
@@ -92,9 +90,7 @@ class PlatformSpecificStrategy:
         if self.effectiveness_score == 0.0:
             self.effectiveness_score = new_score
         else:
-            self.effectiveness_score = (
-                alpha * new_score + (1 - alpha) * self.effectiveness_score
-            )
+            self.effectiveness_score = alpha * new_score + (1 - alpha) * self.effectiveness_score
         self.last_updated = datetime.now()
 
 
@@ -195,9 +191,7 @@ class SocialMediaBypassHandler:
         Returns:
             Optimized bypass strategy or None
         """
-        LOG.info(
-            f"Getting optimized strategy for {domain}:{port} (media_type: {media_type})"
-        )
+        LOG.info(f"Getting optimized strategy for {domain}:{port} (media_type: {media_type})")
         platform = self._detect_platform(domain)
         if platform == PlatformType.GENERIC:
             return self.subdomain_handler.get_strategy_for_subdomain(domain, port)
@@ -248,9 +242,7 @@ class SocialMediaBypassHandler:
             results["tests"]["platform_specific"] = platform_result
         test_results = [r.get("success", False) for r in results["tests"].values()]
         results["overall_success"] = all(test_results)
-        results["success_rate"] = (
-            sum(test_results) / len(test_results) if test_results else 0.0
-        )
+        results["success_rate"] = sum(test_results) / len(test_results) if test_results else 0.0
         self._update_strategy_effectiveness(domain, strategy, results)
         return results
 
@@ -300,9 +292,7 @@ class SocialMediaBypassHandler:
         optimized_strategy = self._apply_twitter_optimizations(strategy, domain)
         return optimized_strategy
 
-    async def optimize_instagram_access(
-        self, domain: str, port: int = 443
-    ) -> BypassStrategy:
+    async def optimize_instagram_access(self, domain: str, port: int = 443) -> BypassStrategy:
         """
         Optimize Instagram access with specialized strategies.
 
@@ -349,9 +339,7 @@ class SocialMediaBypassHandler:
         optimized_strategy = self._apply_tiktok_optimizations(strategy, domain)
         return optimized_strategy
 
-    def get_platform_recommendations(
-        self, domain: str
-    ) -> List[Tuple[BypassStrategy, float, str]]:
+    def get_platform_recommendations(self, domain: str) -> List[Tuple[BypassStrategy, float, str]]:
         """
         Get platform-specific strategy recommendations.
 
@@ -581,12 +569,7 @@ class SocialMediaBypassHandler:
             )
         ):
             return PlatformType.YOUTUBE
-        if any(
-            (
-                tw_domain in domain_lower
-                for tw_domain in ["twitter.com", "twimg.com", "t.co"]
-            )
-        ):
+        if any((tw_domain in domain_lower for tw_domain in ["twitter.com", "twimg.com", "t.co"])):
             return PlatformType.TWITTER
         if any(
             (
@@ -604,9 +587,7 @@ class SocialMediaBypassHandler:
             return PlatformType.TIKTOK
         return PlatformType.GENERIC
 
-    async def _detect_blocking_patterns(
-        self, domain: str, port: int
-    ) -> Set[BlockingPattern]:
+    async def _detect_blocking_patterns(self, domain: str, port: int) -> Set[BlockingPattern]:
         """Detect blocking patterns for a domain."""
         patterns = set()
         if "googlevideo.com" in domain or "tiktokcdn.com" in domain:
@@ -640,9 +621,7 @@ class SocialMediaBypassHandler:
             strategy = await self.optimize_tiktok_access(domain)
         else:
             return None
-        optimized_strategy = self._apply_blocking_pattern_optimizations(
-            strategy, blocking_patterns
-        )
+        optimized_strategy = self._apply_blocking_pattern_optimizations(strategy, blocking_patterns)
         return optimized_strategy
 
     def _apply_blocking_pattern_optimizations(
@@ -661,9 +640,7 @@ class SocialMediaBypassHandler:
             optimized_params["fake_sni"] = True
         if BlockingPattern.CDN_BLOCKING in blocking_patterns:
             optimized_params["cdn_optimization"] = True
-            optimized_params["split_count"] = max(
-                optimized_params.get("split_count", 3), 5
-            )
+            optimized_params["split_count"] = max(optimized_params.get("split_count", 3), 5)
         if BlockingPattern.HTTP_HOST_BLOCKING in blocking_patterns:
             if "http_manipulation" not in optimized_attacks:
                 optimized_attacks.append("http_manipulation")
@@ -674,9 +651,7 @@ class SocialMediaBypassHandler:
             parameters=optimized_params,
         )
 
-    def _apply_youtube_optimizations(
-        self, strategy: BypassStrategy, domain: str
-    ) -> BypassStrategy:
+    def _apply_youtube_optimizations(self, strategy: BypassStrategy, domain: str) -> BypassStrategy:
         """Apply YouTube-specific optimizations."""
         optimized_params = strategy.parameters.copy()
         if self.youtube_config.enable_video_acceleration:
@@ -693,16 +668,12 @@ class SocialMediaBypassHandler:
             parameters=optimized_params,
         )
 
-    def _apply_twitter_optimizations(
-        self, strategy: BypassStrategy, domain: str
-    ) -> BypassStrategy:
+    def _apply_twitter_optimizations(self, strategy: BypassStrategy, domain: str) -> BypassStrategy:
         """Apply Twitter-specific optimizations."""
         optimized_params = strategy.parameters.copy()
         if self.twitter_config.handle_media_subdomains and "twimg.com" in domain:
             optimized_params["media_subdomain_handling"] = True
-            optimized_params["split_count"] = max(
-                optimized_params.get("split_count", 3), 4
-            )
+            optimized_params["split_count"] = max(optimized_params.get("split_count", 3), 4)
         if self.twitter_config.optimize_image_loading:
             optimized_params["image_optimization"] = True
         if self.twitter_config.support_spaces_audio:
@@ -728,9 +699,7 @@ class SocialMediaBypassHandler:
             "cdninstagram.com" in domain or "fbcdn.net" in domain
         ):
             optimized_params["cdn_optimization"] = True
-            optimized_params["split_count"] = max(
-                optimized_params.get("split_count", 5), 7
-            )
+            optimized_params["split_count"] = max(optimized_params.get("split_count", 5), 7)
         if self.instagram_config.support_igtv:
             optimized_params["igtv_support"] = True
         return BypassStrategy(
@@ -740,23 +709,17 @@ class SocialMediaBypassHandler:
             parameters=optimized_params,
         )
 
-    def _apply_tiktok_optimizations(
-        self, strategy: BypassStrategy, domain: str
-    ) -> BypassStrategy:
+    def _apply_tiktok_optimizations(self, strategy: BypassStrategy, domain: str) -> BypassStrategy:
         """Apply TikTok-specific optimizations."""
         optimized_params = strategy.parameters.copy()
         if self.tiktok_config.optimize_for_mobile:
             optimized_params["mobile_optimization"] = True
         if self.tiktok_config.handle_cdn_rotation and "tiktokcdn.com" in domain:
             optimized_params["cdn_rotation_handling"] = True
-            optimized_params["split_count"] = max(
-                optimized_params.get("split_count", 6), 8
-            )
+            optimized_params["split_count"] = max(optimized_params.get("split_count", 6), 8)
         if self.tiktok_config.support_live_streams and "live" in domain:
             optimized_params["live_stream_optimization"] = True
-            optimized_params["jitter_ms"] = min(
-                optimized_params.get("jitter_ms", 10), 5
-            )
+            optimized_params["jitter_ms"] = min(optimized_params.get("jitter_ms", 10), 5)
         return BypassStrategy(
             id=f"{strategy.id}_tt_optimized",
             name=f"{strategy.name} (TikTok Optimized)",
@@ -827,10 +790,7 @@ class SocialMediaBypassHandler:
             "content_type": (
                 "media"
                 if any(
-                    (
-                        cdn in domain
-                        for cdn in ["googlevideo", "twimg", "cdninstagram", "tiktokcdn"]
-                    )
+                    (cdn in domain for cdn in ["googlevideo", "twimg", "cdninstagram", "tiktokcdn"])
                 )
                 else "web"
             ),
@@ -877,25 +837,17 @@ class SocialMediaBypassHandler:
         platform = self._detect_platform(domain)
         speed_improvement = 0.0
         if "speed" in results["tests"] and results["tests"]["speed"]["success"]:
-            speed_improvement = results["tests"]["speed"].get(
-                "improvement_percent", 0.0
-            )
+            speed_improvement = results["tests"]["speed"].get("improvement_percent", 0.0)
         key = f"{platform.value}_{domain}_{strategy.id}"
         if key in self.platform_strategies:
             self.platform_strategies[key].update_effectiveness(
                 results["overall_success"], speed_improvement
             )
         else:
-            media_type = (
-                MediaType.VIDEO_STREAM if "video" in domain else MediaType.IMAGE_CONTENT
-            )
-            blocking_patterns = self.detected_patterns.get(
-                domain, {BlockingPattern.SNI_BLOCKING}
-            )
+            media_type = MediaType.VIDEO_STREAM if "video" in domain else MediaType.IMAGE_CONTENT
+            blocking_patterns = self.detected_patterns.get(domain, {BlockingPattern.SNI_BLOCKING})
             primary_pattern = (
-                next(iter(blocking_patterns))
-                if blocking_patterns
-                else BlockingPattern.SNI_BLOCKING
+                next(iter(blocking_patterns)) if blocking_patterns else BlockingPattern.SNI_BLOCKING
             )
             platform_strategy = PlatformSpecificStrategy(
                 platform=platform,
@@ -908,9 +860,7 @@ class SocialMediaBypassHandler:
             self.platform_strategies[key] = platform_strategy
         self._save_configuration()
 
-    def _get_youtube_recommendations(
-        self, domain: str
-    ) -> List[Tuple[BypassStrategy, float, str]]:
+    def _get_youtube_recommendations(self, domain: str) -> List[Tuple[BypassStrategy, float, str]]:
         """Get YouTube-specific recommendations."""
         recommendations = []
         if "googlevideo.com" in domain:
@@ -947,9 +897,7 @@ class SocialMediaBypassHandler:
             )
         return recommendations
 
-    def _get_twitter_recommendations(
-        self, domain: str
-    ) -> List[Tuple[BypassStrategy, float, str]]:
+    def _get_twitter_recommendations(self, domain: str) -> List[Tuple[BypassStrategy, float, str]]:
         """Get Twitter-specific recommendations."""
         recommendations = []
         if "twimg.com" in domain:
@@ -1017,9 +965,7 @@ class SocialMediaBypassHandler:
             )
         return recommendations
 
-    def _get_tiktok_recommendations(
-        self, domain: str
-    ) -> List[Tuple[BypassStrategy, float, str]]:
+    def _get_tiktok_recommendations(self, domain: str) -> List[Tuple[BypassStrategy, float, str]]:
         """Get TikTok-specific recommendations."""
         recommendations = []
         if "tiktokcdn.com" in domain:
@@ -1066,19 +1012,11 @@ class SocialMediaBypassHandler:
                         platform_strategy = PlatformSpecificStrategy(
                             platform=PlatformType(strategy_data["platform"]),
                             media_type=MediaType(strategy_data["media_type"]),
-                            blocking_pattern=BlockingPattern(
-                                strategy_data["blocking_pattern"]
-                            ),
+                            blocking_pattern=BlockingPattern(strategy_data["blocking_pattern"]),
                             strategy=strategy,
-                            effectiveness_score=strategy_data.get(
-                                "effectiveness_score", 0.0
-                            ),
-                            avg_speed_improvement=strategy_data.get(
-                                "avg_speed_improvement", 0.0
-                            ),
-                            compatibility_notes=strategy_data.get(
-                                "compatibility_notes", ""
-                            ),
+                            effectiveness_score=strategy_data.get("effectiveness_score", 0.0),
+                            avg_speed_improvement=strategy_data.get("avg_speed_improvement", 0.0),
+                            compatibility_notes=strategy_data.get("compatibility_notes", ""),
                             last_updated=(
                                 datetime.fromisoformat(strategy_data["last_updated"])
                                 if strategy_data.get("last_updated")
@@ -1130,16 +1068,12 @@ class SocialMediaBypassHandler:
             LOG.error(f"Failed to save social media configuration: {e}")
 
 
-async def get_youtube_strategy(
-    domain: str, handler: SocialMediaBypassHandler
-) -> BypassStrategy:
+async def get_youtube_strategy(domain: str, handler: SocialMediaBypassHandler) -> BypassStrategy:
     """Get optimized YouTube strategy."""
     return await handler.optimize_youtube_access(domain)
 
 
-async def get_twitter_strategy(
-    domain: str, handler: SocialMediaBypassHandler
-) -> BypassStrategy:
+async def get_twitter_strategy(domain: str, handler: SocialMediaBypassHandler) -> BypassStrategy:
     """Get optimized Twitter strategy."""
     return await handler.optimize_twitter_access(domain)
 
@@ -1151,8 +1085,6 @@ async def get_instagram_strategy(
     return await handler.optimize_instagram_access(domain, port)
 
 
-async def get_tiktok_strategy(
-    domain: str, handler: SocialMediaBypassHandler
-) -> BypassStrategy:
+async def get_tiktok_strategy(domain: str, handler: SocialMediaBypassHandler) -> BypassStrategy:
     """Get optimized TikTok strategy."""
     return await handler.optimize_tiktok_access(domain)

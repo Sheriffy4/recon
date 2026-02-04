@@ -86,9 +86,7 @@ class ParametricOptimizer:
             return await self._random_search()
         elif self.optimization_strategy == "bayesian":
             # Placeholder for a more advanced optimization method
-            print(
-                "Bayesian optimization is not yet implemented. Falling back to random search."
-            )
+            print("Bayesian optimization is not yet implemented. Falling back to random search.")
             return await self._random_search()
         else:
             print(f"Unknown optimization strategy: {self.optimization_strategy}")

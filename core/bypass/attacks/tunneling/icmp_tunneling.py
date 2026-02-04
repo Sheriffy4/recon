@@ -23,13 +23,9 @@ from core.bypass.attacks.base import (
     category=AttackCategories.TUNNELING,
     priority=RegistrationPriority.NORMAL,
     required_params=[],
-    optional_params={
-        "icmp_type": 8,
-        "icmp_code": 0,
-        "chunk_size": 64
-    },
+    optional_params={"icmp_type": 8, "icmp_code": 0, "chunk_size": 64},
     aliases=["icmp_tunnel", "icmp_data"],
-    description="Tunnels data through ICMP packets to evade DPI"
+    description="Tunnels data through ICMP packets to evade DPI",
 )
 class ICMPDataTunnelingAttack(BaseAttack):
     """
@@ -120,9 +116,7 @@ class ICMPDataTunnelingAttack(BaseAttack):
         header = struct.pack("!BBHHH", icmp_type, icmp_code, 0, icmp_id, sequence)
         packet = header + data
         checksum = self._calculate_checksum(packet)
-        header = struct.pack(
-            "!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence
-        )
+        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence)
         return header + data
 
     def _calculate_checksum(self, data: bytes) -> int:
@@ -146,10 +140,10 @@ class ICMPDataTunnelingAttack(BaseAttack):
     optional_params={
         "use_originate_timestamp": True,
         "use_receive_timestamp": True,
-        "use_transmit_timestamp": True
+        "use_transmit_timestamp": True,
     },
     aliases=["icmp_timestamp", "icmp_ts_tunnel"],
-    description="Tunnels data through ICMP timestamp packets"
+    description="Tunnels data through ICMP timestamp packets",
 )
 class ICMPTimestampTunnelingAttack(BaseAttack):
     """
@@ -238,9 +232,7 @@ class ICMPTimestampTunnelingAttack(BaseAttack):
         timestamps = struct.pack("!III", originate_time, receive_time, transmit_time)
         packet = header + timestamps
         checksum = self._calculate_checksum(packet)
-        header = struct.pack(
-            "!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence
-        )
+        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence)
         return header + timestamps
 
     def _calculate_checksum(self, data: bytes) -> int:
@@ -333,9 +325,7 @@ class ICMPRedirectTunnelingAttack(BaseAttack):
             chunks.append(payload[i : i + chunk_size])
         return chunks
 
-    def _create_redirect_packet(
-        self, gateway_ip: str, data: bytes, sequence: int
-    ) -> bytes:
+    def _create_redirect_packet(self, gateway_ip: str, data: bytes, sequence: int) -> bytes:
         """Create ICMP redirect packet."""
         icmp_type = 5
         icmp_code = 1
@@ -348,9 +338,7 @@ class ICMPRedirectTunnelingAttack(BaseAttack):
             redirect_data += b"\x00" * (8 - len(redirect_data))
         packet = header + redirect_data
         checksum = self._calculate_checksum(packet)
-        header = struct.pack(
-            "!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence
-        )
+        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence)
         return header + redirect_data
 
     def _calculate_checksum(self, data: bytes) -> int:
@@ -475,9 +463,7 @@ class ICMPCovertChannelAttack(BaseAttack):
         header = struct.pack("!BBHHH", icmp_type, icmp_code, 0, icmp_id, sequence)
         packet = header + data
         checksum = self._calculate_checksum(packet)
-        header = struct.pack(
-            "!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence
-        )
+        header = struct.pack("!BBHHH", icmp_type, icmp_code, checksum, icmp_id, sequence)
         return header + data
 
     def _calculate_checksum(self, data: bytes) -> int:

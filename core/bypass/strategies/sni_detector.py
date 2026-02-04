@@ -320,9 +320,7 @@ class SNIDetector:
             return False
 
         # Check for valid characters (basic check)
-        allowed_chars = set(
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"
-        )
+        allowed_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
         if not all(c in allowed_chars for c in hostname):
             return False
 
@@ -358,9 +356,7 @@ class SNIDetector:
 
                 if info["sni_position"] is not None:
                     info["has_sni"] = True
-                    info["sni_value"] = self.extract_sni_value(
-                        packet, info["sni_position"]
-                    )
+                    info["sni_value"] = self.extract_sni_value(packet, info["sni_position"])
 
         except Exception as e:
             self.logger.error(f"Error getting SNI info: {e}")
@@ -419,9 +415,7 @@ class SNIDetector:
 
         # SNI Extension Data
         hostname_bytes = hostname.encode("utf-8")
-        sni_list_length = (
-            1 + 2 + len(hostname_bytes)
-        )  # name_type(1) + name_length(2) + name
+        sni_list_length = 1 + 2 + len(hostname_bytes)  # name_type(1) + name_length(2) + name
         sni_extension_length = 2 + sni_list_length  # list_length(2) + sni_list
 
         record.extend(struct.pack(">H", sni_extension_length))  # Extension Length
@@ -436,9 +430,7 @@ class SNIDetector:
 
         handshake_length = len(record) - handshake_start - 4
         struct.pack_into(">I", record, handshake_length_pos, handshake_length)
-        record[handshake_length_pos] = (
-            0  # Clear the first byte (should be 0 for 3-byte length)
-        )
+        record[handshake_length_pos] = 0  # Clear the first byte (should be 0 for 3-byte length)
 
         record_length = len(record) - 5  # Exclude TLS record header
         struct.pack_into(">H", record, record_length_pos, record_length)
@@ -500,9 +492,7 @@ class SNIDetector:
 
             while offset < extensions_end and offset + 4 <= len(packet):
                 extension_type = struct.unpack(">H", packet[offset : offset + 2])[0]
-                extension_length = struct.unpack(">H", packet[offset + 2 : offset + 4])[
-                    0
-                ]
+                extension_length = struct.unpack(">H", packet[offset + 2 : offset + 4])[0]
 
                 # Store extension position
                 extensions[extension_type] = offset

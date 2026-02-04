@@ -9,7 +9,6 @@ from typing import List
 from core.bypass.attacks.base import AttackContext, AttackResult, AttackStatus
 from core.bypass.attacks.base import BaseAttack
 from core.bypass.attacks.metadata import AttackCategories
-from core.bypass.attacks.attack_registry import register_attack
 
 LOG = logging.getLogger(__name__)
 
@@ -42,9 +41,7 @@ class ClientHelloSplitAttack(BaseAttack):
             payload = context.payload
             params = context.params
             split_pos = params.get("split_pos", 15)
-            if not (
-                len(payload) > 9 and payload.startswith(b"\x16") and (payload[5] == 1)
-            ):
+            if not (len(payload) > 9 and payload.startswith(b"\x16") and (payload[5] == 1)):
                 return AttackResult(
                     status=AttackStatus.INVALID_PARAMS,
                     error_message="Payload is not a valid ClientHello record.",

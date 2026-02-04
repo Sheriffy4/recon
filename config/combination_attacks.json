@@ -1,0 +1,46 @@
+{
+  "enabled": true,
+  "simple_failure_threshold": 5,
+  "combination_failure_threshold": 3,
+  "max_combination_strategies": 15,
+  "enable_adaptive_thresholds": true,
+  "google_domain_immediate_combinations": true,
+  "domain_specific_thresholds": {
+    "google_domains": {
+      "patterns": [
+        "google.com",
+        "googlevideo.com",
+        "youtube.com",
+        "ytimg.com"
+      ],
+      "simple_failure_threshold": 2,
+      "immediate_combinations": true
+    },
+    "social_media": {
+      "patterns": [
+        "facebook.com",
+        "instagram.com",
+        "twitter.com",
+        "tiktok.com"
+      ],
+      "simple_failure_threshold": 3,
+      "immediate_combinations": false
+    }
+  },
+  "combination_priorities": {
+    "high_priority": [
+      "fake,disorder",
+      "split,fake",
+      "multisplit,disorder"
+    ],
+    "medium_priority": [
+      "disorder,multisplit",
+      "fake,multisplit",
+      "split,disorder"
+    ],
+    "low_priority": [
+      "seqovl,fake",
+      "multidisorder,split"
+    ]
+  }
+}

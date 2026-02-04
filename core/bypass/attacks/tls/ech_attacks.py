@@ -13,6 +13,7 @@ from core.bypass.attacks.base import (
 from core.protocols.tls import TLSParser
 from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
 from core.bypass.attacks.metadata import AttackCategories
+
 ECH_EXTENSION_TYPE = 65037
 
 
@@ -41,10 +42,10 @@ def _safe_create_result(status_name: str, **kwargs):
         "fragment_count": 3,
         "use_padding": True,
         "randomize_order": False,
-        "ech_config": None
+        "ech_config": None,
     },
     aliases=["ech_frag", "encrypted_client_hello_fragmentation"],
-    description="Fragments ECH data across multiple extensions to evade DPI"
+    description="Fragments ECH data across multiple extensions to evade DPI",
 )
 class ECHFragmentationAttack(BaseAttack):
     """
@@ -78,7 +79,7 @@ class ECHFragmentationAttack(BaseAttack):
             "fragment_count": 3,
             "use_padding": True,
             "randomize_order": False,
-            "ech_config": None
+            "ech_config": None,
         }
 
     def execute(self, context: AttackContext) -> AttackResult:
@@ -173,9 +174,7 @@ class ECHFragmentationAttack(BaseAttack):
             padded_fragments.append(padded_fragment)
         return padded_fragments
 
-    def _insert_fragmented_extensions(
-        self, payload: bytes, fragments: List[bytes]
-    ) -> bytes:
+    def _insert_fragmented_extensions(self, payload: bytes, fragments: List[bytes]) -> bytes:
         """Insert ECH fragments as separate TLS extensions."""
         result = payload
         base_ext_type = ECH_EXTENSION_TYPE
@@ -269,9 +268,7 @@ def test_ech_attack_effectiveness(
     return {
         "attack_type": attack_type,
         "success": result.status == AttackStatus.SUCCESS,
-        "payload_size_increase": (
-            result.bytes_sent - len(base_hello) if result.bytes_sent else 0
-        ),
+        "payload_size_increase": (result.bytes_sent - len(base_hello) if result.bytes_sent else 0),
         "metadata": result.metadata,
     }
 
@@ -284,10 +281,10 @@ def test_ech_attack_effectiveness(
     optional_params={
         "grease_intensity": "medium",
         "include_fake_ech": True,
-        "randomize_grease": True
+        "randomize_grease": True,
     },
     aliases=["ech_grease_attack", "encrypted_client_hello_grease"],
-    description="Uses GREASE values in ECH extensions to confuse DPI analysis"
+    description="Uses GREASE values in ECH extensions to confuse DPI analysis",
 )
 class ECHGreaseAttack(BaseAttack):
     """
@@ -316,11 +313,7 @@ class ECHGreaseAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "grease_intensity": "medium",
-            "include_fake_ech": True,
-            "randomize_grease": True
-        }
+        return {"grease_intensity": "medium", "include_fake_ech": True, "randomize_grease": True}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ECH GREASE attack."""
@@ -333,9 +326,7 @@ class ECHGreaseAttack(BaseAttack):
             grease_extensions = self._create_grease_ech_extensions(
                 grease_intensity, include_fake_ech, randomize_grease, context
             )
-            modified_payload = self._insert_grease_extensions(
-                payload, grease_extensions
-            )
+            modified_payload = self._insert_grease_extensions(payload, grease_extensions)
             segments = [(modified_payload, 0, {})]
             packets_sent = 1
             bytes_sent = len(modified_payload)
@@ -421,9 +412,7 @@ class ECHGreaseAttack(BaseAttack):
         grease_data = pattern * (data_length // 2)
         if data_length % 2:
             grease_data += bytes([ext_type & 255])
-        random_bytes = bytes(
-            [random.randint(0, 255) for _ in range(random.randint(4, 16))]
-        )
+        random_bytes = bytes([random.randint(0, 255) for _ in range(random.randint(4, 16))])
         return grease_data + random_bytes
 
     def _generate_fake_ech_data(self, context: AttackContext) -> bytes:
@@ -433,9 +422,7 @@ class ECHGreaseAttack(BaseAttack):
         enc_length = random.randint(32, 64)
         enc_data = bytes([random.randint(0, 255) for _ in range(enc_length)])
         payload_length = random.randint(200, 500)
-        encrypted_payload = bytes(
-            [random.randint(0, 255) for _ in range(payload_length)]
-        )
+        encrypted_payload = bytes([random.randint(0, 255) for _ in range(payload_length)])
         ech_data = struct.pack(">B", ech_type)
         ech_data += struct.pack(">H", len(enc_data) + len(encrypted_payload) + 1)
         ech_data += struct.pack(">B", config_id)
@@ -486,9 +473,7 @@ class ECHGreaseAttack(BaseAttack):
             offset += 1 + session_id_length
             if offset + 2 > len(handshake_data):
                 return -1
-            cipher_suites_length = struct.unpack(
-                ">H", handshake_data[offset : offset + 2]
-            )[0]
+            cipher_suites_length = struct.unpack(">H", handshake_data[offset : offset + 2])[0]
             offset += 2 + cipher_suites_length
             if offset >= len(handshake_data):
                 return -1
@@ -528,9 +513,7 @@ class ECHGreaseAttack(BaseAttack):
             result += combined_ext_data
             result += handshake_data[extensions_start + 2 + existing_ext_length :]
             new_handshake_length = len(result) - 4
-            result = (
-                result[:1] + struct.pack(">I", new_handshake_length)[1:] + result[4:]
-            )
+            result = result[:1] + struct.pack(">I", new_handshake_length)[1:] + result[4:]
             return result
         except Exception:
             return handshake_data
@@ -541,13 +524,9 @@ class ECHGreaseAttack(BaseAttack):
     category=AttackCategories.TLS,
     priority=RegistrationPriority.NORMAL,
     required_params=[],
-    optional_params={
-        "decoy_count": 5,
-        "real_ech_position": "random",
-        "vary_sizes": True
-    },
+    optional_params={"decoy_count": 5, "real_ech_position": "random", "vary_sizes": True},
     aliases=["ech_decoy_attack", "encrypted_client_hello_decoy"],
-    description="Creates multiple fake ECH extensions to hide the real one"
+    description="Creates multiple fake ECH extensions to hide the real one",
 )
 class ECHDecoyAttack(BaseAttack):
     """
@@ -576,11 +555,7 @@ class ECHDecoyAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "decoy_count": 5,
-            "real_ech_position": "random",
-            "vary_sizes": True
-        }
+        return {"decoy_count": 5, "real_ech_position": "random", "vary_sizes": True}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ECH decoy attack."""
@@ -689,9 +664,7 @@ class ECHDecoyAttack(BaseAttack):
         extensions_for_insertion = [
             (ext_type, ext_data) for ext_type, ext_data, _ in decoy_extensions
         ]
-        return grease_attack._insert_grease_extensions(
-            payload, extensions_for_insertion
-        )
+        return grease_attack._insert_grease_extensions(payload, extensions_for_insertion)
 
 
 @register_attack(
@@ -702,10 +675,10 @@ class ECHDecoyAttack(BaseAttack):
     optional_params={
         "grease_strategy": "adaptive_grease",
         "grease_density": "high",
-        "include_malformed": True
+        "include_malformed": True,
     },
     aliases=["ech_advanced_grease_attack", "sophisticated_ech_grease"],
-    description="Uses advanced GREASE techniques with ECH to confuse DPI"
+    description="Uses advanced GREASE techniques with ECH to confuse DPI",
 )
 class ECHAdvancedGreaseAttack(BaseAttack):
     """
@@ -737,7 +710,7 @@ class ECHAdvancedGreaseAttack(BaseAttack):
         return {
             "grease_strategy": "adaptive_grease",
             "grease_density": "high",
-            "include_malformed": True
+            "include_malformed": True,
         }
 
     def execute(self, context: AttackContext) -> AttackResult:
@@ -792,25 +765,15 @@ class ECHAdvancedGreaseAttack(BaseAttack):
     ) -> bytes:
         """Create advanced GREASE ECH payload."""
         if strategy == "adaptive_grease":
-            return self._create_adaptive_grease(
-                payload, density, include_malformed, context
-            )
+            return self._create_adaptive_grease(payload, density, include_malformed, context)
         elif strategy == "layered_grease":
-            return self._create_layered_grease(
-                payload, density, include_malformed, context
-            )
+            return self._create_layered_grease(payload, density, include_malformed, context)
         elif strategy == "polymorphic_grease":
-            return self._create_polymorphic_grease(
-                payload, density, include_malformed, context
-            )
+            return self._create_polymorphic_grease(payload, density, include_malformed, context)
         elif strategy == "contextual_grease":
-            return self._create_contextual_grease(
-                payload, density, include_malformed, context
-            )
+            return self._create_contextual_grease(payload, density, include_malformed, context)
         else:
-            return self._create_adaptive_grease(
-                payload, density, include_malformed, context
-            )
+            return self._create_adaptive_grease(payload, density, include_malformed, context)
 
     def _create_adaptive_grease(
         self,
@@ -881,9 +844,7 @@ class ECHAdvancedGreaseAttack(BaseAttack):
         pattern_seed = current_time % 10
         for i in range(self._get_grease_count(density)):
             ext_type = self._generate_polymorphic_extension_type(pattern_seed, i)
-            grease_data = self._generate_polymorphic_grease_data(
-                pattern_seed, i, context
-            )
+            grease_data = self._generate_polymorphic_grease_data(pattern_seed, i, context)
             extensions.append((ext_type, grease_data))
         return self._insert_multiple_extensions(payload, extensions)
 
@@ -908,9 +869,7 @@ class ECHAdvancedGreaseAttack(BaseAttack):
             extensions.extend(self._create_generic_contextual_grease(density))
         return self._insert_multiple_extensions(payload, extensions)
 
-    def _generate_adaptive_grease_data(
-        self, ext_type: int, domain: str, index: int
-    ) -> bytes:
+    def _generate_adaptive_grease_data(self, ext_type: int, domain: str, index: int) -> bytes:
         """Generate adaptive GREASE data."""
         data = struct.pack(">H", ext_type)
         domain_hash = hash(domain) % 256
@@ -926,9 +885,7 @@ class ECHAdvancedGreaseAttack(BaseAttack):
         basic_grease_types = [2570, 6682, 10794, 14906, 19018, 23130]
         for i in range(count):
             ext_type = basic_grease_types[i % len(basic_grease_types)]
-            grease_data = struct.pack(">H", ext_type) + secrets.token_bytes(
-                random.randint(4, 16)
-            )
+            grease_data = struct.pack(">H", ext_type) + secrets.token_bytes(random.randint(4, 16))
             extensions.append((ext_type, grease_data))
         return extensions
 
@@ -958,9 +915,7 @@ class ECHAdvancedGreaseAttack(BaseAttack):
         for i in range(count):
             ext_type = protocol_grease_types[i % len(protocol_grease_types)]
             if context.dst_port == 443:
-                grease_data = b"\x16\x03\x03" + secrets.token_bytes(
-                    random.randint(8, 24)
-                )
+                grease_data = b"\x16\x03\x03" + secrets.token_bytes(random.randint(8, 24))
             elif context.dst_port == 80:
                 grease_data = b"HTTP" + secrets.token_bytes(random.randint(8, 24))
             else:
@@ -1070,9 +1025,7 @@ class ECHAdvancedGreaseAttack(BaseAttack):
             extensions.append((ext_type, grease_data))
         return extensions
 
-    def _create_generic_contextual_grease(
-        self, density: str
-    ) -> List[Tuple[int, bytes]]:
+    def _create_generic_contextual_grease(self, density: str) -> List[Tuple[int, bytes]]:
         """Create generic contextual GREASE."""
         extensions = []
         count = self._get_grease_count(density) // 2
@@ -1148,9 +1101,7 @@ class ECHAdvancedGreaseAttack(BaseAttack):
 
     def to_zapret_command(self, params: Optional[Dict[str, Any]] = None) -> str:
         """Generate zapret command for ECH attacks."""
-        attack_type = (
-            params.get("attack_type", "fragmentation") if params else "fragmentation"
-        )
+        attack_type = params.get("attack_type", "fragmentation") if params else "fragmentation"
         if attack_type == "fragmentation":
             return "zapret --ech-fragment --fake-tls --split-pos 2"
         elif attack_type == "grease":
@@ -1169,10 +1120,10 @@ class ECHAdvancedGreaseAttack(BaseAttack):
     optional_params={
         "manipulation_strategy": "public_suffix",
         "fake_sni": None,
-        "preserve_length": True
+        "preserve_length": True,
     },
     aliases=["ech_sni_manipulation", "outer_sni_manipulation"],
-    description="Manipulates ECH outer SNI to confuse DPI analysis"
+    description="Manipulates ECH outer SNI to confuse DPI analysis",
 )
 class ECHOuterSNIManipulationAttack(BaseAttack):
     """
@@ -1201,20 +1152,14 @@ class ECHOuterSNIManipulationAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "manipulation_strategy": "public_suffix",
-            "fake_sni": None,
-            "preserve_length": True
-        }
+        return {"manipulation_strategy": "public_suffix", "fake_sni": None, "preserve_length": True}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute ECH outer SNI manipulation attack."""
         start_time = time.time()
         try:
             payload = context.payload
-            manipulation_strategy = context.params.get(
-                "manipulation_strategy", "public_suffix"
-            )
+            manipulation_strategy = context.params.get("manipulation_strategy", "public_suffix")
             use_fake_ech = context.params.get("use_fake_ech", True)
             sni_count = context.params.get("sni_count", 1)
             modified_payload = self._manipulate_outer_sni(
@@ -1269,13 +1214,9 @@ class ECHOuterSNIManipulationAttack(BaseAttack):
             outer_snis = self._generate_cdn_domain_snis(sni_count)
         else:
             outer_snis = [f"example{i}.com" for i in range(sni_count)]
-        return self._modify_tls_with_outer_sni(
-            payload, outer_snis, use_fake_ech, context
-        )
+        return self._modify_tls_with_outer_sni(payload, outer_snis, use_fake_ech, context)
 
-    def _generate_public_suffix_snis(
-        self, original_domain: str, count: int
-    ) -> List[str]:
+    def _generate_public_suffix_snis(self, original_domain: str, count: int) -> List[str]:
         """Generate SNIs using public suffix of original domain."""
         if not original_domain:
             return ["example.com"] * count
@@ -1292,9 +1233,7 @@ class ECHOuterSNIManipulationAttack(BaseAttack):
                 snis.append(f"sni{i}.{public_suffix}")
         return snis
 
-    def _generate_random_subdomain_snis(
-        self, original_domain: str, count: int
-    ) -> List[str]:
+    def _generate_random_subdomain_snis(self, original_domain: str, count: int) -> List[str]:
         """Generate random subdomain SNIs."""
         if not original_domain:
             base_domain = "example.com"
@@ -1397,10 +1336,10 @@ class ECHOuterSNIManipulationAttack(BaseAttack):
     optional_params={
         "fragmentation_strategy": "nested_extensions",
         "fragment_size_variation": "random",
-        "max_fragments": 16
+        "max_fragments": 16,
     },
     aliases=["ech_advanced_frag", "sophisticated_ech_fragmentation"],
-    description="Uses advanced ECH fragmentation techniques to evade DPI"
+    description="Uses advanced ECH fragmentation techniques to evade DPI",
 )
 class ECHAdvancedFragmentationAttack(BaseAttack):
     """
@@ -1432,7 +1371,7 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
         return {
             "fragmentation_strategy": "nested_extensions",
             "fragment_size_variation": "random",
-            "max_fragments": 16
+            "max_fragments": 16,
         }
 
     def execute(self, context: AttackContext) -> AttackResult:
@@ -1443,12 +1382,8 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
             fragmentation_strategy = context.params.get(
                 "fragmentation_strategy", "nested_extensions"
             )
-            fragment_size_variation = context.params.get(
-                "fragment_size_variation", True
-            )
-            cross_record_fragmentation = context.params.get(
-                "cross_record_fragmentation", False
-            )
+            fragment_size_variation = context.params.get("fragment_size_variation", True)
+            cross_record_fragmentation = context.params.get("cross_record_fragmentation", False)
             fragmented_payload = self._create_advanced_fragmented_ech(
                 payload,
                 fragmentation_strategy,
@@ -1497,25 +1432,15 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
     ) -> bytes:
         """Create advanced fragmented ECH payload."""
         if strategy == "nested_extensions":
-            return self._create_nested_extension_fragmentation(
-                payload, size_variation, context
-            )
+            return self._create_nested_extension_fragmentation(payload, size_variation, context)
         elif strategy == "interleaved_fragments":
-            return self._create_interleaved_fragmentation(
-                payload, size_variation, context
-            )
+            return self._create_interleaved_fragmentation(payload, size_variation, context)
         elif strategy == "recursive_fragmentation":
-            return self._create_recursive_fragmentation(
-                payload, size_variation, context
-            )
+            return self._create_recursive_fragmentation(payload, size_variation, context)
         elif strategy == "steganographic_fragmentation":
-            return self._create_steganographic_fragmentation(
-                payload, size_variation, context
-            )
+            return self._create_steganographic_fragmentation(payload, size_variation, context)
         else:
-            return self._create_nested_extension_fragmentation(
-                payload, size_variation, context
-            )
+            return self._create_nested_extension_fragmentation(payload, size_variation, context)
 
     def _create_nested_extension_fragmentation(
         self, payload: bytes, size_variation: bool, context: AttackContext
@@ -1544,28 +1469,20 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
         decoy1_fragments = self._fragment_data(decoy_ech1, 3, size_variation)
         decoy2_fragments = self._fragment_data(decoy_ech2, 3, size_variation)
         interleaved_extensions = []
-        max_fragments = max(
-            len(real_fragments), len(decoy1_fragments), len(decoy2_fragments)
-        )
+        max_fragments = max(len(real_fragments), len(decoy1_fragments), len(decoy2_fragments))
         for i in range(max_fragments):
             if i < len(real_fragments):
                 ext_type = ECH_EXTENSION_TYPE + i * 3
                 fragment_header = struct.pack(">BBB", 0, i, len(real_fragments))
-                interleaved_extensions.append(
-                    (ext_type, fragment_header + real_fragments[i])
-                )
+                interleaved_extensions.append((ext_type, fragment_header + real_fragments[i]))
             if i < len(decoy1_fragments):
                 ext_type = ECH_EXTENSION_TYPE + i * 3 + 1
                 fragment_header = struct.pack(">BBB", 1, i, len(decoy1_fragments))
-                interleaved_extensions.append(
-                    (ext_type, fragment_header + decoy1_fragments[i])
-                )
+                interleaved_extensions.append((ext_type, fragment_header + decoy1_fragments[i]))
             if i < len(decoy2_fragments):
                 ext_type = ECH_EXTENSION_TYPE + i * 3 + 2
                 fragment_header = struct.pack(">BBB", 2, i, len(decoy2_fragments))
-                interleaved_extensions.append(
-                    (ext_type, fragment_header + decoy2_fragments[i])
-                )
+                interleaved_extensions.append((ext_type, fragment_header + decoy2_fragments[i]))
         return self._insert_multiple_extensions(payload, interleaved_extensions)
 
     def _create_recursive_fragmentation(
@@ -1598,15 +1515,11 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
         for i, fragment in enumerate(fragments):
             carrier_type = carrier_extensions[i % len(carrier_extensions)]
             carrier_data = self._generate_carrier_extension_data(carrier_type)
-            steganographic_data = self._hide_fragment_in_carrier(
-                fragment, carrier_data, i
-            )
+            steganographic_data = self._hide_fragment_in_carrier(fragment, carrier_data, i)
             steganographic_extensions.append((carrier_type, steganographic_data))
         return self._insert_multiple_extensions(payload, steganographic_extensions)
 
-    def _fragment_data(
-        self, data: bytes, fragment_count: int, size_variation: bool
-    ) -> List[bytes]:
+    def _fragment_data(self, data: bytes, fragment_count: int, size_variation: bool) -> List[bytes]:
         """Fragment data into specified number of pieces."""
         if fragment_count <= 1:
             return [data]
@@ -1657,9 +1570,7 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
         for i, byte in enumerate(sni_bytes):
             encrypted_data.append(byte ^ i % 256)
         while len(encrypted_data) < inner_size:
-            encrypted_data.extend(
-                secrets.token_bytes(min(16, inner_size - len(encrypted_data)))
-            )
+            encrypted_data.extend(secrets.token_bytes(min(16, inner_size - len(encrypted_data))))
         return bytes(encrypted_data[:inner_size])
 
     def _generate_decoy_ech_data(self, variant: int, size_variation: bool) -> bytes:
@@ -1691,7 +1602,9 @@ class ECHAdvancedFragmentationAttack(BaseAttack):
         elif ext_type == 10:
             return b"\x00\x08\x00\x1d\x00\x17\x00\x18\x00\x19"
         elif ext_type == 13:
-            return b"\x00\x12\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01\x02\x01"
+            return (
+                b"\x00\x12\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01\x02\x01"
+            )
         elif ext_type == 43:
             return b"\x03\x04\x03\x03\x03\x02"
         else:

@@ -115,9 +115,7 @@ class DPIStrategyEngine(IDPIStrategy):
 
         try:
             self._stats["packets_processed"] += 1
-            logger.debug(
-                f"Starting strategy application for packet of size {len(packet)}"
-            )
+            logger.debug(f"Starting strategy application for packet of size {len(packet)}")
 
             # Validate components are configured
             try:
@@ -135,9 +133,7 @@ class DPIStrategyEngine(IDPIStrategy):
                     )
                     return [packet]
             except Exception as e:
-                logger.warning(
-                    f"Error in packet evaluation, falling back to original: {e}"
-                )
+                logger.warning(f"Error in packet evaluation, falling back to original: {e}")
                 self.log_strategy_failure(packet, e, "packet_evaluation")
                 return self.handle_strategy_failure(packet, e, "packet_evaluation")
 
@@ -156,9 +152,7 @@ class DPIStrategyEngine(IDPIStrategy):
 
             # Split the packet
             try:
-                packet_parts = self._packet_modifier.split_packet(
-                    packet, split_positions
-                )
+                packet_parts = self._packet_modifier.split_packet(packet, split_positions)
                 logger.debug(f"Split packet into {len(packet_parts)} parts")
             except Exception as e:
                 logger.error(f"Packet splitting failed: {e}")
@@ -171,12 +165,8 @@ class DPIStrategyEngine(IDPIStrategy):
 
             # Create TCP segments from split parts
             try:
-                tcp_segments = self._packet_modifier.create_tcp_segments(
-                    packet, packet_parts
-                )
-                logger.debug(
-                    f"Created {len(tcp_segments)} TCP segments from split parts"
-                )
+                tcp_segments = self._packet_modifier.create_tcp_segments(packet, packet_parts)
+                logger.debug(f"Created {len(tcp_segments)} TCP segments from split parts")
             except Exception as e:
                 logger.error(f"TCP segment creation failed: {e}")
                 self.log_strategy_failure(packet, e, "tcp_segment_creation")
@@ -184,12 +174,8 @@ class DPIStrategyEngine(IDPIStrategy):
 
             # Update sequence numbers for proper TCP stream continuity
             try:
-                final_packets = self._packet_modifier.update_sequence_numbers(
-                    tcp_segments
-                )
-                logger.debug(
-                    f"Updated sequence numbers for {len(final_packets)} packets"
-                )
+                final_packets = self._packet_modifier.update_sequence_numbers(tcp_segments)
+                logger.debug(f"Updated sequence numbers for {len(final_packets)} packets")
             except Exception as e:
                 logger.error(f"Sequence number update failed: {e}")
                 self.log_strategy_failure(packet, e, "sequence_number_update")
@@ -211,9 +197,7 @@ class DPIStrategyEngine(IDPIStrategy):
             if self.config.has_badsum():
                 try:
                     result_packets = self._apply_fooling_strategies(final_packets)
-                    logger.debug(
-                        f"Applied fooling strategies to {len(result_packets)} packets"
-                    )
+                    logger.debug(f"Applied fooling strategies to {len(result_packets)} packets")
                 except Exception as e:
                     logger.error(f"Fooling strategies failed: {e}")
                     self.log_strategy_failure(packet, e, "fooling_strategies")
@@ -221,9 +205,7 @@ class DPIStrategyEngine(IDPIStrategy):
 
             # Log successful strategy application
             processing_time = (time.time() - start_time) * 1000
-            self.log_strategy_application(
-                packet, result_packets, split_positions, processing_time
-            )
+            self.log_strategy_application(packet, result_packets, split_positions, processing_time)
 
             return result_packets
 
@@ -292,9 +274,7 @@ class DPIStrategyEngine(IDPIStrategy):
             numeric_positions = self.config.get_numeric_positions()
             min_position = min(numeric_positions)
             if len(packet) > min_position + 1:  # Need at least 1 byte after split
-                logger.debug(
-                    f"Packet large enough for numeric split at position {min_position}"
-                )
+                logger.debug(f"Packet large enough for numeric split at position {min_position}")
                 return True
 
         # Check if any split positions are actually applicable
@@ -349,9 +329,7 @@ class DPIStrategyEngine(IDPIStrategy):
             logger.debug(f"After validation: {valid_positions}")
 
             # Apply final conflict resolution
-            resolved_positions = self._resolve_position_conflicts(
-                packet, valid_positions
-            )
+            resolved_positions = self._resolve_position_conflicts(packet, valid_positions)
 
             logger.debug(
                 f"Resolved split positions: {resolved_positions} from original: {positions}"
@@ -363,9 +341,7 @@ class DPIStrategyEngine(IDPIStrategy):
             self._stats["errors"] += 1  # Increment error count here
             return []
 
-    def _apply_priority_handling(
-        self, packet: bytes, positions: List[int]
-    ) -> List[int]:
+    def _apply_priority_handling(self, packet: bytes, positions: List[int]) -> List[int]:
         """
         Apply priority handling to split positions.
 
@@ -386,9 +362,7 @@ class DPIStrategyEngine(IDPIStrategy):
         prioritized = []
 
         # Check if this is a TLS Client Hello and we have SNI configuration
-        if self.config.has_sni_position() and self._sni_detector.is_client_hello(
-            packet
-        ):
+        if self.config.has_sni_position() and self._sni_detector.is_client_hello(packet):
             try:
                 sni_position = self._sni_detector.find_sni_position(packet)
                 if sni_position is not None and sni_position in positions:
@@ -404,9 +378,7 @@ class DPIStrategyEngine(IDPIStrategy):
 
         return prioritized
 
-    def _resolve_position_conflicts(
-        self, packet: bytes, positions: List[int]
-    ) -> List[int]:
+    def _resolve_position_conflicts(self, packet: bytes, positions: List[int]) -> List[int]:
         """
         Resolve conflicts between split positions.
 
@@ -436,9 +408,7 @@ class DPIStrategyEngine(IDPIStrategy):
         # Limit number of positions to avoid excessive fragmentation
         max_positions = 3  # Reasonable limit for DPI bypass
         if len(unique_positions) > max_positions:
-            logger.info(
-                f"Limiting split positions from {len(unique_positions)} to {max_positions}"
-            )
+            logger.info(f"Limiting split positions from {len(unique_positions)} to {max_positions}")
             unique_positions = unique_positions[:max_positions]
 
         # Validate fragment sizes - we need to check this in sorted order for validation
@@ -458,18 +428,12 @@ class DPIStrategyEngine(IDPIStrategy):
                     valid_sorted_positions.append(pos)
                     last_pos = pos
                 else:
-                    logger.debug(
-                        f"Skipping position {pos} - would create too small final fragment"
-                    )
+                    logger.debug(f"Skipping position {pos} - would create too small final fragment")
             else:
-                logger.debug(
-                    f"Skipping position {pos} - would create too small fragment"
-                )
+                logger.debug(f"Skipping position {pos} - would create too small fragment")
 
         # Now filter the original priority-ordered positions to only include valid ones
-        filtered_positions = [
-            pos for pos in unique_positions if pos in valid_sorted_positions
-        ]
+        filtered_positions = [pos for pos in unique_positions if pos in valid_sorted_positions]
 
         return filtered_positions
 
@@ -485,24 +449,16 @@ class DPIStrategyEngine(IDPIStrategy):
             ConfigurationError: If required components are missing
         """
         if not self._position_resolver:
-            raise ConfigurationError(
-                "position_resolver", None, "Position resolver not configured"
-            )
+            raise ConfigurationError("position_resolver", None, "Position resolver not configured")
 
         if not self._packet_modifier:
-            raise ConfigurationError(
-                "packet_modifier", None, "Packet modifier not configured"
-            )
+            raise ConfigurationError("packet_modifier", None, "Packet modifier not configured")
 
         if not self._sni_detector:
-            raise ConfigurationError(
-                "sni_detector", None, "SNI detector not configured"
-            )
+            raise ConfigurationError("sni_detector", None, "SNI detector not configured")
 
         if not self._checksum_fooler:
-            raise ConfigurationError(
-                "checksum_fooler", None, "Checksum fooler not configured"
-            )
+            raise ConfigurationError("checksum_fooler", None, "Checksum fooler not configured")
 
     def _apply_fooling_strategies(self, packets: List[bytes]) -> List[bytes]:
         """
@@ -533,8 +489,8 @@ class DPIStrategyEngine(IDPIStrategy):
 
                 if self._checksum_fooler.should_apply_badsum(tcp_info, is_first_part):
                     # Apply badsum only to first packet as per requirements
-                    modified_packet, checksum_result = (
-                        self._checksum_fooler.apply_badsum(packet, tcp_info)
+                    modified_packet, checksum_result = self._checksum_fooler.apply_badsum(
+                        packet, tcp_info
                     )
                     result.append(modified_packet)
                     self._stats["badsum_applied"] += 1
@@ -608,9 +564,7 @@ class DPIStrategyEngine(IDPIStrategy):
         # For now, return a placeholder
         from .config_models import SplitConfig
 
-        numeric_positions = [
-            pos for pos in self.config.split_positions if isinstance(pos, int)
-        ]
+        numeric_positions = [pos for pos in self.config.split_positions if isinstance(pos, int)]
 
         use_sni = "sni" in self.config.split_positions
 
@@ -642,14 +596,9 @@ class DPIStrategyEngine(IDPIStrategy):
             "sni_splits": self._stats["sni_splits"],
             "numeric_splits": self._stats["numeric_splits"],
             "errors": self._stats["errors"],
-            "split_rate": (
-                self._stats["packets_split"] / max(1, self._stats["packets_processed"])
-            )
+            "split_rate": (self._stats["packets_split"] / max(1, self._stats["packets_processed"]))
             * 100,
-            "error_rate": (
-                self._stats["errors"] / max(1, self._stats["packets_processed"])
-            )
-            * 100,
+            "error_rate": (self._stats["errors"] / max(1, self._stats["packets_processed"])) * 100,
         }
 
     def reset_statistics(self) -> None:
@@ -664,9 +613,7 @@ class DPIStrategyEngine(IDPIStrategy):
         }
         logger.info("Strategy engine statistics reset")
 
-    def handle_strategy_failure(
-        self, packet: bytes, error: Exception, context: str
-    ) -> List[bytes]:
+    def handle_strategy_failure(self, packet: bytes, error: Exception, context: str) -> List[bytes]:
         """
         Handle strategy application failures with graceful degradation.
 
@@ -699,9 +646,7 @@ class DPIStrategyEngine(IDPIStrategy):
         )
 
         # Implement graceful degradation
-        logger.info(
-            f"Graceful degradation: returning original packet due to {context} failure"
-        )
+        logger.info(f"Graceful degradation: returning original packet due to {context} failure")
 
         # Try to determine if this is a critical error that should disable the strategy
         if self._is_critical_error(error):
@@ -792,13 +737,9 @@ class DPIStrategyEngine(IDPIStrategy):
             ),
         }
 
-        logger.info(
-            "Strategy applied successfully", extra={"strategy_details": log_data}
-        )
+        logger.info("Strategy applied successfully", extra={"strategy_details": log_data})
 
-    def log_strategy_failure(
-        self, packet: bytes, error: Exception, context: str
-    ) -> None:
+    def log_strategy_failure(self, packet: bytes, error: Exception, context: str) -> None:
         """
         Log detailed information about strategy failures.
 
@@ -821,9 +762,7 @@ class DPIStrategyEngine(IDPIStrategy):
             "stats": self.get_statistics(),
         }
 
-        logger.error(
-            f"Strategy failure: {context}", extra={"failure_details": failure_data}
-        )
+        logger.error(f"Strategy failure: {context}", extra={"failure_details": failure_data})
 
         # Log additional debug information if debug logging is enabled
         if logger.isEnabledFor(logging.DEBUG):
@@ -833,9 +772,7 @@ class DPIStrategyEngine(IDPIStrategy):
                     packet_info = {
                         "first_bytes": packet[:20].hex(),
                         "is_tls": self._sni_detector.is_client_hello(packet),
-                        "potential_sni_pos": self._sni_detector.find_sni_position(
-                            packet
-                        ),
+                        "potential_sni_pos": self._sni_detector.find_sni_position(packet),
                     }
                     logger.debug(
                         "Packet analysis for failed strategy",
@@ -844,9 +781,7 @@ class DPIStrategyEngine(IDPIStrategy):
             except Exception as debug_error:
                 logger.debug(f"Could not analyze failed packet: {debug_error}")
 
-    def validate_strategy_result(
-        self, original_packet: bytes, result_packets: List[bytes]
-    ) -> bool:
+    def validate_strategy_result(self, original_packet: bytes, result_packets: List[bytes]) -> bool:
         """
         Validate that strategy application result is correct.
 
@@ -996,13 +931,10 @@ class BasePacketProcessor(IPacketProcessor):
         """Create SplitConfig from main DPI config."""
         from .config_models import SplitConfig
 
-        numeric_positions = [
-            pos for pos in self.config.split_positions if isinstance(pos, int)
-        ]
+        numeric_positions = [pos for pos in self.config.split_positions if isinstance(pos, int)]
 
         use_sni = any(
-            isinstance(pos, str) and pos.lower() == "sni"
-            for pos in self.config.split_positions
+            isinstance(pos, str) and pos.lower() == "sni" for pos in self.config.split_positions
         )
 
         return SplitConfig(

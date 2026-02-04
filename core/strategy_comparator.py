@@ -12,10 +12,94 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-import socket
+
+from core.utils.packet_capture import (
+    resolve_domain,
+    start_packet_capture,
+    stop_packet_capture,
+)
+from core.utils.serialization import save_capture_to_json, save_json_file
+from core.utils.network_probe import probe_domain_connection
+from core.utils.capture_io import save_strategy_capture, safe_filename_component
+
+
+def _normalize_parsed_strategy(parsed: Any) -> Dict[str, Any]:
+    """
+    Normalize parser output to a flat parameter dict used by the comparator.
+    Supports:
+      - old parsers returning Dict[str, Any]
+      - StrategyParserV2 returning ParsedStrategy(dataclass) with .params/.attack_type
+    """
+    if parsed is None:
+        return {}
+
+    if isinstance(parsed, dict):
+        params = dict(parsed)
+        # Keep compatibility with existing analysis keys
+        if "attack_type" in params and "desync_method" not in params:
+            params["desync_method"] = params["attack_type"]
+        return params
+
+    # ParsedStrategy-like object
+    params_obj = getattr(parsed, "params", None)
+    params = dict(params_obj or {})
+    attack_type = getattr(parsed, "attack_type", None)
+    if attack_type is not None:
+        params.setdefault("attack_type", attack_type)
+        params.setdefault("desync_method", attack_type)
+    return params
+
+
+def _canonicalize_strategy_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Canonicalize strategy params for stable comparisons.
+
+    Goals:
+      - treat known aliases as the same parameter to avoid duplicate/noisy diffs
+      - keep original keys for unknown params untouched
+
+    This does NOT remove data from the original dict; it operates on a copy.
+    """
+    if not isinstance(params, dict):
+        return {}
+
+    p = dict(params)
+
+    # Alias groups: (aliases..., canonical)
+    alias_groups = [
+        (("attack_type", "desync_method"), "attack_type"),
+        (("overlap_size", "split_seqovl"), "overlap_size"),
+        (("split_pos", "split_position"), "split_pos"),
+        (("fooling", "fooling_methods"), "fooling"),
+    ]
+
+    for aliases, canonical in alias_groups:
+        # Prefer canonical key if present, else take first found alias.
+        canonical_value = None
+        canonical_present = canonical in p and p.get(canonical) is not None
+        if canonical_present:
+            canonical_value = p.get(canonical)
+        else:
+            for a in aliases:
+                if a in p and p.get(a) is not None:
+                    canonical_value = p.get(a)
+                    break
+
+        if canonical_value is None:
+            continue
+
+        # Inject canonical key for comparison
+        p[canonical] = canonical_value
+
+        # Keep legacy compatibility keys in the dict (some code reads them),
+        # but we will ignore them during comparisons (see StrategyDiff).
+        for a in aliases:
+            p.setdefault(a, canonical_value)
+
+    return p
 
 try:
-    from scapy.all import sniff, wrpcap, IP, TCP
+    from scapy.all import IP, TCP
 
     SCAPY_AVAILABLE = True
 except ImportError:
@@ -62,19 +146,19 @@ class DiscoveryModeCapture:
         """
         self.logger.info(f"Starting discovery mode for {domain}")
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        pcap_file = self.output_dir / f"discovery_{domain}_{timestamp}.pcap"
+        timestamp = getattr(self, "_run_id", None) or datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_domain = safe_filename_component(domain)
+        pcap_file = self.output_dir / f"discovery_{file_domain}_{timestamp}.pcap"
 
         # Resolve domain to IPs
-        resolved_ips = self._resolve_domain(domain)
+        resolved_ips = resolve_domain(domain)
         self.logger.info(f"Resolved {domain} to IPs: {resolved_ips}")
 
         # Start packet capture
-        capture_process = None
-        if SCAPY_AVAILABLE:
-            capture_process = self._start_packet_capture(
-                domain, resolved_ips, str(pcap_file)
-            )
+        capture_process = start_packet_capture(resolved_ips, str(pcap_file))
+
+        # Best-effort: generate minimal traffic to be captured (does not change public API)
+        self._probe_domain(domain)
 
         # Run discovery mode
         strategy_string, parsed_params = self._execute_discovery(domain, timeout)
@@ -82,9 +166,7 @@ class DiscoveryModeCapture:
         # Stop packet capture
         packets_captured = 0
         if capture_process:
-            packets_captured = self._stop_packet_capture(
-                capture_process, str(pcap_file)
-            )
+            packets_captured = stop_packet_capture(capture_process, str(pcap_file))
 
         # Create capture result
         capture = StrategyCapture(
@@ -104,42 +186,11 @@ class DiscoveryModeCapture:
         self.logger.info(f"Discovery mode complete for {domain}")
         return capture
 
-    def _resolve_domain(self, domain: str) -> List[str]:
-        """Resolve domain to IP addresses"""
-        try:
-            addr_info = socket.getaddrinfo(domain, None)
-            ips = list(set([addr[4][0] for addr in addr_info]))
-            return ips
-        except socket.gaierror as e:
-            self.logger.error(f"Failed to resolve {domain}: {e}")
-            return []
+    def _probe_domain(self, domain: str):
+        """Generate minimal probe traffic for packet capture"""
+        probe_domain_connection(domain, port=443, timeout=2.0, logger=self.logger)
 
-    def _start_packet_capture(
-        self, domain: str, ips: List[str], pcap_file: str
-    ) -> Optional[Dict[str, Any]]:
-        """Start capturing packets for the domain"""
-        if not SCAPY_AVAILABLE:
-            return None
-
-        self.logger.info(f"Starting packet capture to {pcap_file}")
-
-        # Build filter for target IPs
-        ip_filter = " or ".join([f"host {ip}" for ip in ips])
-        filter_str = f"tcp and ({ip_filter})"
-
-        # Start capture in background
-        capture_info = {
-            "filter": filter_str,
-            "pcap_file": pcap_file,
-            "packets": [],
-            "start_time": time.time(),
-        }
-
-        return capture_info
-
-    def _execute_discovery(
-        self, domain: str, timeout: int
-    ) -> tuple[str, Dict[str, Any]]:
+    def _execute_discovery(self, domain: str, timeout: int) -> tuple[str, Dict[str, Any]]:
         """
         Execute discovery mode to find working strategy.
 
@@ -160,71 +211,35 @@ class DiscoveryModeCapture:
 
                 if domain in strategies:
                     strategy_string = strategies[domain]
-                    self.logger.info(
-                        f"Found existing strategy for {domain}: {strategy_string}"
-                    )
+                    self.logger.info(f"Found existing strategy for {domain}: {strategy_string}")
 
                     # Parse the strategy
                     parser = StrategyParserV2()
-                    parsed_params = parser.parse(strategy_string)
+                    parsed_params = _normalize_parsed_strategy(parser.parse(strategy_string))
 
                     return strategy_string, parsed_params
 
             # If no existing strategy, return a default discovery result
-            self.logger.warning(
-                f"No existing strategy found for {domain}, using default"
-            )
+            self.logger.warning(f"No existing strategy found for {domain}, using default")
             strategy_string = "--dpi-desync=fake --dpi-desync-ttl=4"
-            parsed_params = {"desync_method": "fake", "ttl": 4, "split_pos": 3}
+            parsed_params = {"attack_type": "fake", "desync_method": "fake", "ttl": 4, "split_pos": 3}
 
             return strategy_string, parsed_params
 
-        except Exception as e:
+        except (ImportError, AttributeError, FileNotFoundError, json.JSONDecodeError, ValueError, OSError) as e:
             self.logger.error(f"Discovery execution failed: {e}")
             # Return minimal default
-            return "--dpi-desync=fake", {"desync_method": "fake"}
-
-    def _stop_packet_capture(self, capture_info: Dict[str, Any], pcap_file: str) -> int:
-        """Stop packet capture and save to file"""
-        if not SCAPY_AVAILABLE or not capture_info:
-            return 0
-
-        self.logger.info("Stopping packet capture")
-
-        try:
-            # Capture packets for the IPs
-            packets = sniff(
-                filter=capture_info["filter"],
-                timeout=2,  # Short timeout to capture recent packets
-                store=True,
-            )
-
-            if packets:
-                wrpcap(pcap_file, packets)
-                self.logger.info(f"Captured {len(packets)} packets to {pcap_file}")
-                return len(packets)
-            else:
-                self.logger.warning("No packets captured")
-                return 0
-
-        except Exception as e:
-            self.logger.error(f"Failed to save packet capture: {e}")
-            return 0
+            return "--dpi-desync=fake", {"attack_type": "fake", "desync_method": "fake"}
 
     def _save_capture(self, capture: StrategyCapture):
         """Save capture results to JSON file"""
-        output_file = (
-            self.output_dir / f"discovery_{capture.domain}_{capture.timestamp}.json"
+        save_strategy_capture(
+            capture_data=capture.to_dict(),
+            output_dir=self.output_dir,
+            prefix="discovery",
+            domain=capture.domain,
+            timestamp=capture.timestamp,
         )
-
-        try:
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(capture.to_dict(), f, indent=2)
-
-            self.logger.info(f"Saved discovery results to {output_file}")
-
-        except Exception as e:
-            self.logger.error(f"Failed to save capture results: {e}")
 
 
 @dataclass
@@ -238,12 +253,11 @@ class StrategyDifference:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
-        return {
-            "parameter": self.parameter,
-            "discovery_value": str(self.discovery_value),
-            "service_value": str(self.service_value),
-            "is_critical": self.is_critical,
-        }
+        from core.utils.dataclass_serialization import dataclass_to_dict_with_str_values
+
+        return dataclass_to_dict_with_str_values(
+            self, fields_to_stringify=["discovery_value", "service_value"]
+        )
 
 
 @dataclass
@@ -339,15 +353,27 @@ class StrategyDiff:
     def _find_parameter_differences(
         self, discovery_params: Dict[str, Any], service_params: Dict[str, Any]
     ) -> List[StrategyDifference]:
-        """Find differences between parameter dictionaries"""
+        """Find differences between parameter dictionaries (alias-aware)."""
         differences = []
 
-        # Get all unique parameter names
-        all_params = set(discovery_params.keys()) | set(service_params.keys())
+        disc = _canonicalize_strategy_params(discovery_params or {})
+        svc = _canonicalize_strategy_params(service_params or {})
+
+        # Keys to ignore for diffing because they are aliases of canonical keys.
+        # The canonical keys are the ones compared and reported.
+        alias_only_keys = {
+            "desync_method",      # alias of attack_type
+            "split_seqovl",       # alias of overlap_size
+            "split_position",     # alias of split_pos
+            "fooling_methods",    # alias of fooling
+        }
+
+        # Get all unique parameter names after canonicalization, excluding alias-only.
+        all_params = (set(disc.keys()) | set(svc.keys())) - alias_only_keys
 
         for param in all_params:
-            discovery_value = discovery_params.get(param)
-            service_value = service_params.get(param)
+            discovery_value = disc.get(param)
+            service_value = svc.get(param)
 
             # Check if values differ
             if discovery_value != service_value:
@@ -373,50 +399,9 @@ class StrategyDiff:
         Returns:
             Formatted string report
         """
-        lines = []
-        lines.append("=" * 80)
-        lines.append(f"STRATEGY COMPARISON REPORT: {comparison.domain}")
-        lines.append("=" * 80)
-        lines.append(f"Timestamp: {comparison.timestamp}")
-        lines.append("")
+        from core.reports.strategy_report import StrategyComparisonReporter
 
-        lines.append("Discovery Mode Strategy:")
-        lines.append(f"  {comparison.discovery_strategy}")
-        lines.append("")
-
-        lines.append("Service Mode Strategy:")
-        lines.append(f"  {comparison.service_strategy}")
-        lines.append("")
-
-        if comparison.strategies_match:
-            lines.append("✓ RESULT: Strategies match perfectly!")
-        else:
-            lines.append(f"✗ RESULT: Found {len(comparison.differences)} differences")
-            lines.append("")
-
-            # Group by critical vs non-critical
-            critical_diffs = [d for d in comparison.differences if d.is_critical]
-            other_diffs = [d for d in comparison.differences if not d.is_critical]
-
-            if critical_diffs:
-                lines.append("CRITICAL DIFFERENCES:")
-                for diff in critical_diffs:
-                    lines.append(f"  • {diff.parameter}:")
-                    lines.append(f"      Discovery: {diff.discovery_value}")
-                    lines.append(f"      Service:   {diff.service_value}")
-                lines.append("")
-
-            if other_diffs:
-                lines.append("OTHER DIFFERENCES:")
-                for diff in other_diffs:
-                    lines.append(f"  • {diff.parameter}:")
-                    lines.append(f"      Discovery: {diff.discovery_value}")
-                    lines.append(f"      Service:   {diff.service_value}")
-                lines.append("")
-
-        lines.append("=" * 80)
-
-        return "\n".join(lines)
+        return StrategyComparisonReporter.format_strategy_diff(comparison)
 
 
 @dataclass
@@ -431,13 +416,11 @@ class PacketDifference:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
-        return {
-            "packet_index": self.packet_index,
-            "field": self.field,
-            "discovery_value": str(self.discovery_value),
-            "service_value": str(self.service_value),
-            "is_critical": self.is_critical,
-        }
+        from core.utils.dataclass_serialization import dataclass_to_dict_with_str_values
+
+        return dataclass_to_dict_with_str_values(
+            self, fields_to_stringify=["discovery_value", "service_value"]
+        )
 
 
 @dataclass
@@ -497,51 +480,126 @@ class PacketDiff:
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Load packets if available
-        discovery_packets = []
-        service_packets = []
+        # Load packets from both captures
+        discovery_packets = self._load_capture_packets(discovery_capture)
+        service_packets = self._load_capture_packets(service_capture)
 
-        if SCAPY_AVAILABLE:
-            if (
-                discovery_capture.pcap_file
-                and Path(discovery_capture.pcap_file).exists()
-            ):
-                discovery_packets = self._load_packets(discovery_capture.pcap_file)
+        # Analyze differences and timing
+        differences, timing_diffs = self._analyze_packet_differences(
+            discovery_packets, service_packets
+        )
 
-            if service_capture.pcap_file and Path(service_capture.pcap_file).exists():
-                service_packets = self._load_packets(service_capture.pcap_file)
+        packets_match = len(differences) == 0
 
-        # Find differences
+        # Create comparison result
+        comparison = self._create_packet_comparison(
+            discovery_capture=discovery_capture,
+            service_capture=service_capture,
+            timestamp=timestamp,
+            discovery_packets=discovery_packets,
+            service_packets=service_packets,
+            differences=differences,
+            timing_diffs=timing_diffs,
+            packets_match=packets_match,
+        )
+
+        # Log results
+        self._log_comparison_results(packets_match, len(differences))
+
+        return comparison
+
+    def _load_capture_packets(self, capture: StrategyCapture) -> List[Any]:
+        """
+        Load packets from a capture's PCAP file.
+
+        Args:
+            capture: Strategy capture with pcap_file path
+
+        Returns:
+            List of packets or empty list if not available
+        """
+        if not SCAPY_AVAILABLE:
+            return []
+
+        if capture.pcap_file and Path(capture.pcap_file).exists():
+            return self._load_packets(capture.pcap_file)
+
+        return []
+
+    def _analyze_packet_differences(
+        self, discovery_packets: List[Any], service_packets: List[Any]
+    ) -> tuple[List[PacketDifference], Dict[str, float]]:
+        """
+        Analyze differences and timing between packet sequences.
+
+        Args:
+            discovery_packets: Packets from discovery mode
+            service_packets: Packets from service mode
+
+        Returns:
+            Tuple of (differences list, timing differences dict)
+        """
         differences = []
         timing_diffs = {}
 
         if discovery_packets and service_packets:
-            differences = self._find_packet_differences(
-                discovery_packets, service_packets
-            )
+            differences = self._find_packet_differences(discovery_packets, service_packets)
             timing_diffs = self._analyze_timing(discovery_packets, service_packets)
 
-        packets_match = len(differences) == 0
+        return differences, timing_diffs
 
-        comparison = PacketComparison(
-            domain=discovery_capture.domain,
-            timestamp=timestamp,
-            discovery_pcap=discovery_capture.pcap_file,
-            service_pcap=service_capture.pcap_file,
-            discovery_packet_count=len(discovery_packets),
-            service_packet_count=len(service_packets),
-            differences=differences,
-            packets_match=packets_match,
-            timing_differences=timing_diffs,
+    def _create_packet_comparison(
+        self,
+        discovery_capture: StrategyCapture,
+        service_capture: StrategyCapture,
+        timestamp: str,
+        discovery_packets: List[Any],
+        service_packets: List[Any],
+        differences: List[PacketDifference],
+        timing_diffs: Dict[str, float],
+        packets_match: bool,
+    ) -> PacketComparison:
+        """
+        Create PacketComparison object from analysis results.
+
+        Args:
+            discovery_capture: Discovery mode capture
+            service_capture: Service mode capture
+            timestamp: Comparison timestamp
+            discovery_packets: Loaded discovery packets
+            service_packets: Loaded service packets
+            differences: Found packet differences
+            timing_diffs: Timing analysis results
+            packets_match: Whether packets match
+
+        Returns:
+            PacketComparison object
+        """
+        from core.analysis.packet_analyzer import PacketAnalyzer
+
+        return PacketAnalyzer.create_comparison(
+            discovery_capture,
+            service_capture,
+            timestamp,
+            discovery_packets,
+            service_packets,
+            differences,
+            timing_diffs,
+            packets_match,
         )
 
-        # Log results
+    def _log_comparison_results(self, packets_match: bool, difference_count: int):
+        """
+        Log packet comparison results.
+
+        Args:
+            packets_match: Whether packets match
+            difference_count: Number of differences found
+        """
         if packets_match:
             self.logger.info("✓ Packets match perfectly")
         else:
-            self.logger.warning(f"✗ Found {len(differences)} packet differences")
-
-        return comparison
+            self.logger.warning(f"✗ Found {difference_count} packet differences")
 
     def _load_packets(self, pcap_file: str) -> List[Any]:
         """Load packets from PCAP file"""
@@ -554,92 +612,182 @@ class PacketDiff:
             packets = rdpcap(pcap_file)
             self.logger.info(f"Loaded {len(packets)} packets from {pcap_file}")
             return packets
-        except Exception as e:
+        except (ImportError, FileNotFoundError, OSError) as e:
             self.logger.error(f"Failed to load packets from {pcap_file}: {e}")
             return []
 
     def _find_packet_differences(
         self, discovery_packets: List[Any], service_packets: List[Any]
     ) -> List[PacketDifference]:
-        """Find differences between packet sequences"""
+        """
+        Find differences between packet sequences.
+
+        Args:
+            discovery_packets: Packets from discovery mode
+            service_packets: Packets from service mode
+
+        Returns:
+            List of PacketDifference objects
+        """
         differences = []
 
-        # Compare packet counts
+        # Log packet count mismatch if present
+        self._check_packet_count_mismatch(discovery_packets, service_packets)
+
+        # Compare packets pairwise
+        min_count = min(len(discovery_packets), len(service_packets))
+        for i in range(min_count):
+            packet_diffs = self._compare_packet_pair(discovery_packets[i], service_packets[i], i)
+            differences.extend(packet_diffs)
+
+        return differences
+
+    def _check_packet_count_mismatch(
+        self, discovery_packets: List[Any], service_packets: List[Any]
+    ):
+        """
+        Check and log if packet counts don't match.
+
+        Args:
+            discovery_packets: Packets from discovery mode
+            service_packets: Packets from service mode
+        """
         if len(discovery_packets) != len(service_packets):
             self.logger.warning(
                 f"Packet count mismatch: discovery={len(discovery_packets)}, "
                 f"service={len(service_packets)}"
             )
 
-        # Compare packets pairwise
-        min_count = min(len(discovery_packets), len(service_packets))
+    def _compare_packet_pair(
+        self, disc_pkt: Any, svc_pkt: Any, packet_index: int
+    ) -> List[PacketDifference]:
+        """
+        Compare a pair of packets and find differences.
 
-        for i in range(min_count):
-            disc_pkt = discovery_packets[i]
-            svc_pkt = service_packets[i]
+        Args:
+            disc_pkt: Discovery mode packet
+            svc_pkt: Service mode packet
+            packet_index: Index of the packet in sequence
 
-            # Compare IP layer
-            if disc_pkt.haslayer(IP) and svc_pkt.haslayer(IP):
-                disc_ip = disc_pkt[IP]
-                svc_ip = svc_pkt[IP]
+        Returns:
+            List of differences found in this packet pair
+        """
+        differences = []
 
-                # Check TTL
-                if disc_ip.ttl != svc_ip.ttl:
-                    differences.append(
-                        PacketDifference(
-                            packet_index=i,
-                            field="ttl",
-                            discovery_value=disc_ip.ttl,
-                            service_value=svc_ip.ttl,
-                            is_critical=True,
-                        )
+        # Compare IP layer
+        ip_diffs = self._compare_ip_layer(disc_pkt, svc_pkt, packet_index)
+        differences.extend(ip_diffs)
+
+        # Compare TCP layer
+        tcp_diffs = self._compare_tcp_layer(disc_pkt, svc_pkt, packet_index)
+        differences.extend(tcp_diffs)
+
+        return differences
+
+    def _compare_ip_layer(
+        self, disc_pkt: Any, svc_pkt: Any, packet_index: int
+    ) -> List[PacketDifference]:
+        """
+        Compare IP layer fields between two packets.
+
+        Args:
+            disc_pkt: Discovery mode packet
+            svc_pkt: Service mode packet
+            packet_index: Index of the packet in sequence
+
+        Returns:
+            List of IP layer differences
+        """
+        differences = []
+
+        if disc_pkt.haslayer(IP) and svc_pkt.haslayer(IP):
+            disc_ip = disc_pkt[IP]
+            svc_ip = svc_pkt[IP]
+
+            # Check TTL
+            if disc_ip.ttl != svc_ip.ttl:
+                differences.append(
+                    PacketDifference(
+                        packet_index=packet_index,
+                        field="ttl",
+                        discovery_value=disc_ip.ttl,
+                        service_value=svc_ip.ttl,
+                        is_critical=("ttl" in self.CRITICAL_FIELDS),
                     )
-
-            # Compare TCP layer
-            if disc_pkt.haslayer(TCP) and svc_pkt.haslayer(TCP):
-                disc_tcp = disc_pkt[TCP]
-                svc_tcp = svc_pkt[TCP]
-
-                # Check flags
-                if disc_tcp.flags != svc_tcp.flags:
-                    differences.append(
-                        PacketDifference(
-                            packet_index=i,
-                            field="flags",
-                            discovery_value=str(disc_tcp.flags),
-                            service_value=str(svc_tcp.flags),
-                            is_critical=True,
-                        )
-                    )
-
-                # Check sequence number
-                if disc_tcp.seq != svc_tcp.seq:
-                    differences.append(
-                        PacketDifference(
-                            packet_index=i,
-                            field="seq",
-                            discovery_value=disc_tcp.seq,
-                            service_value=svc_tcp.seq,
-                            is_critical=False,
-                        )
-                    )
-
-                # Check payload length
-                disc_payload_len = (
-                    len(bytes(disc_tcp.payload)) if disc_tcp.payload else 0
                 )
-                svc_payload_len = len(bytes(svc_tcp.payload)) if svc_tcp.payload else 0
 
-                if disc_payload_len != svc_payload_len:
-                    differences.append(
-                        PacketDifference(
-                            packet_index=i,
-                            field="payload_len",
-                            discovery_value=disc_payload_len,
-                            service_value=svc_payload_len,
-                            is_critical=True,
-                        )
+        return differences
+
+    def _compare_tcp_layer(
+        self, disc_pkt: Any, svc_pkt: Any, packet_index: int
+    ) -> List[PacketDifference]:
+        """
+        Compare TCP layer fields between two packets.
+
+        Args:
+            disc_pkt: Discovery mode packet
+            svc_pkt: Service mode packet
+            packet_index: Index of the packet in sequence
+
+        Returns:
+            List of TCP layer differences
+        """
+        differences = []
+
+        if disc_pkt.haslayer(TCP) and svc_pkt.haslayer(TCP):
+            disc_tcp = disc_pkt[TCP]
+            svc_tcp = svc_pkt[TCP]
+
+            # Check flags
+            if disc_tcp.flags != svc_tcp.flags:
+                differences.append(
+                    PacketDifference(
+                        packet_index=packet_index,
+                        field="flags",
+                        discovery_value=str(disc_tcp.flags),
+                        service_value=str(svc_tcp.flags),
+                        is_critical=("flags" in self.CRITICAL_FIELDS),
                     )
+                )
+
+            # Check sequence number
+            if disc_tcp.seq != svc_tcp.seq:
+                differences.append(
+                    PacketDifference(
+                        packet_index=packet_index,
+                        field="seq",
+                        discovery_value=disc_tcp.seq,
+                        service_value=svc_tcp.seq,
+                        is_critical=("seq" in self.CRITICAL_FIELDS),
+                    )
+                )
+
+            # Check acknowledgement number
+            if disc_tcp.ack != svc_tcp.ack:
+                differences.append(
+                    PacketDifference(
+                        packet_index=packet_index,
+                        field="ack",
+                        discovery_value=disc_tcp.ack,
+                        service_value=svc_tcp.ack,
+                        is_critical=("ack" in self.CRITICAL_FIELDS),
+                    )
+                )
+
+            # Check payload length
+            disc_payload_len = len(bytes(disc_tcp.payload)) if disc_tcp.payload else 0
+            svc_payload_len = len(bytes(svc_tcp.payload)) if svc_tcp.payload else 0
+
+            if disc_payload_len != svc_payload_len:
+                differences.append(
+                    PacketDifference(
+                        packet_index=packet_index,
+                        field="payload_len",
+                        discovery_value=disc_payload_len,
+                        service_value=svc_payload_len,
+                        is_critical=("payload_len" in self.CRITICAL_FIELDS),
+                    )
+                )
 
         return differences
 
@@ -647,31 +795,9 @@ class PacketDiff:
         self, discovery_packets: List[Any], service_packets: List[Any]
     ) -> Dict[str, float]:
         """Analyze timing differences between packet sequences"""
-        timing = {}
+        from core.analysis.packet_analyzer import PacketAnalyzer
 
-        if not discovery_packets or not service_packets:
-            return timing
-
-        # Calculate inter-packet delays
-        disc_delays = []
-        for i in range(1, len(discovery_packets)):
-            delay = float(discovery_packets[i].time - discovery_packets[i - 1].time)
-            disc_delays.append(delay)
-
-        svc_delays = []
-        for i in range(1, len(service_packets)):
-            delay = float(service_packets[i].time - service_packets[i - 1].time)
-            svc_delays.append(delay)
-
-        if disc_delays and svc_delays:
-            timing["avg_discovery_delay_ms"] = (
-                sum(disc_delays) / len(disc_delays) * 1000
-            )
-            timing["avg_service_delay_ms"] = sum(svc_delays) / len(svc_delays) * 1000
-            timing["max_discovery_delay_ms"] = max(disc_delays) * 1000
-            timing["max_service_delay_ms"] = max(svc_delays) * 1000
-
-        return timing
+        return PacketAnalyzer.analyze_timing(discovery_packets, service_packets)
 
     def highlight_differences(self, comparison: PacketComparison) -> str:
         """
@@ -683,58 +809,9 @@ class PacketDiff:
         Returns:
             Formatted string report
         """
-        lines = []
-        lines.append("=" * 80)
-        lines.append(f"PACKET COMPARISON REPORT: {comparison.domain}")
-        lines.append("=" * 80)
-        lines.append(f"Timestamp: {comparison.timestamp}")
-        lines.append("")
+        from core.reports.strategy_report import StrategyComparisonReporter
 
-        lines.append(f"Discovery PCAP: {comparison.discovery_pcap}")
-        lines.append(f"  Packet count: {comparison.discovery_packet_count}")
-        lines.append("")
-
-        lines.append(f"Service PCAP: {comparison.service_pcap}")
-        lines.append(f"  Packet count: {comparison.service_packet_count}")
-        lines.append("")
-
-        if comparison.packets_match:
-            lines.append("✓ RESULT: Packets match perfectly!")
-        else:
-            lines.append(
-                f"✗ RESULT: Found {len(comparison.differences)} packet differences"
-            )
-            lines.append("")
-
-            # Group by critical vs non-critical
-            critical_diffs = [d for d in comparison.differences if d.is_critical]
-            other_diffs = [d for d in comparison.differences if not d.is_critical]
-
-            if critical_diffs:
-                lines.append("CRITICAL PACKET DIFFERENCES:")
-                for diff in critical_diffs:
-                    lines.append(f"  • Packet {diff.packet_index}, {diff.field}:")
-                    lines.append(f"      Discovery: {diff.discovery_value}")
-                    lines.append(f"      Service:   {diff.service_value}")
-                lines.append("")
-
-            if other_diffs:
-                lines.append("OTHER PACKET DIFFERENCES:")
-                for diff in other_diffs:
-                    lines.append(f"  • Packet {diff.packet_index}, {diff.field}:")
-                    lines.append(f"      Discovery: {diff.discovery_value}")
-                    lines.append(f"      Service:   {diff.service_value}")
-                lines.append("")
-
-        if comparison.timing_differences:
-            lines.append("TIMING ANALYSIS:")
-            for key, value in comparison.timing_differences.items():
-                lines.append(f"  {key}: {value:.2f}")
-            lines.append("")
-
-        lines.append("=" * 80)
-
-        return "\n".join(lines)
+        return StrategyComparisonReporter.format_packet_diff(comparison)
 
 
 class ServiceModeCapture:
@@ -761,22 +838,88 @@ class ServiceModeCapture:
         """
         self.logger.info(f"Starting service mode capture for {domain}")
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        pcap_file = self.output_dir / f"service_{domain}_{timestamp}.pcap"
+        # Prepare capture environment
+        timestamp, pcap_file = self._prepare_capture_environment(domain)
 
-        # Resolve domain to IPs
-        resolved_ips = self._resolve_domain(domain)
-        self.logger.info(f"Resolved {domain} to IPs: {resolved_ips}")
-
-        # Get strategy from service configuration
+        # Resolve domain and get strategy
+        resolved_ips = self._resolve_and_log_domain(domain)
         strategy_string, parsed_params = self._get_service_strategy(domain)
 
+        # Perform packet capture
+        packets_captured = self._perform_packet_capture(
+            resolved_ips, str(pcap_file), duration, domain
+        )
+
+        # Parse service logs if provided
+        if service_log_file:
+            self._parse_service_logs(service_log_file, domain)
+
+        # Create and save capture result
+        capture = self._create_capture_result(
+            domain=domain,
+            timestamp=timestamp,
+            pcap_file=pcap_file,
+            strategy_string=strategy_string,
+            parsed_params=parsed_params,
+            resolved_ips=resolved_ips,
+            packets_captured=packets_captured,
+        )
+
+        self._save_capture(capture)
+
+        self.logger.info(f"Service mode capture complete for {domain}")
+        return capture
+
+    def _prepare_capture_environment(self, domain: str) -> tuple[str, Path]:
+        """
+        Prepare capture environment with timestamp and pcap file path.
+
+        Args:
+            domain: Domain being captured
+
+        Returns:
+            Tuple of (timestamp, pcap_file_path)
+        """
+        timestamp = getattr(self, "_run_id", None) or datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_domain = safe_filename_component(domain)
+        pcap_file = self.output_dir / f"service_{file_domain}_{timestamp}.pcap"
+        return timestamp, pcap_file
+
+    def _resolve_and_log_domain(self, domain: str) -> List[str]:
+        """
+        Resolve domain to IPs and log the result.
+
+        Args:
+            domain: Domain to resolve
+
+        Returns:
+            List of resolved IP addresses
+        """
+        resolved_ips = resolve_domain(domain)
+        self.logger.info(f"Resolved {domain} to IPs: {resolved_ips}")
+        return resolved_ips
+
+    def _perform_packet_capture(
+        self, resolved_ips: List[str], pcap_file: str, duration: int, domain: Optional[str] = None
+    ) -> int:
+        """
+        Perform packet capture for specified duration.
+
+        Args:
+            resolved_ips: List of IP addresses to capture
+            pcap_file: Path to save pcap file
+            duration: Duration to capture in seconds
+            domain: Optional domain for probe traffic
+
+        Returns:
+            Number of packets captured
+        """
         # Start packet capture
-        capture_process = None
-        if SCAPY_AVAILABLE:
-            capture_process = self._start_packet_capture(
-                domain, resolved_ips, str(pcap_file)
-            )
+        capture_process = start_packet_capture(resolved_ips, pcap_file)
+
+        # Best-effort: generate minimal traffic to be captured (does not change public API)
+        if domain:
+            self._probe_domain(domain)
 
         # Monitor service for specified duration
         self.logger.info(f"Monitoring service for {duration} seconds...")
@@ -785,16 +928,40 @@ class ServiceModeCapture:
         # Stop packet capture
         packets_captured = 0
         if capture_process:
-            packets_captured = self._stop_packet_capture(
-                capture_process, str(pcap_file)
-            )
+            packets_captured = stop_packet_capture(capture_process, pcap_file)
 
-        # Parse service logs if provided
-        if service_log_file:
-            self._parse_service_logs(service_log_file, domain)
+        return packets_captured
 
-        # Create capture result
-        capture = StrategyCapture(
+    def _probe_domain(self, domain: str):
+        """Generate minimal probe traffic for packet capture"""
+        probe_domain_connection(domain, port=443, timeout=2.0, logger=self.logger)
+
+    def _create_capture_result(
+        self,
+        domain: str,
+        timestamp: str,
+        pcap_file: Path,
+        strategy_string: str,
+        parsed_params: Dict[str, Any],
+        resolved_ips: List[str],
+        packets_captured: int,
+    ) -> StrategyCapture:
+        """
+        Create StrategyCapture result object.
+
+        Args:
+            domain: Domain captured
+            timestamp: Capture timestamp
+            pcap_file: Path to pcap file
+            strategy_string: Strategy string
+            parsed_params: Parsed strategy parameters
+            resolved_ips: Resolved IP addresses
+            packets_captured: Number of packets captured
+
+        Returns:
+            StrategyCapture object
+        """
+        return StrategyCapture(
             mode="service",
             domain=domain,
             timestamp=timestamp,
@@ -804,22 +971,6 @@ class ServiceModeCapture:
             packets_captured=packets_captured,
             pcap_file=str(pcap_file) if pcap_file.exists() else None,
         )
-
-        # Save results
-        self._save_capture(capture)
-
-        self.logger.info(f"Service mode capture complete for {domain}")
-        return capture
-
-    def _resolve_domain(self, domain: str) -> List[str]:
-        """Resolve domain to IP addresses"""
-        try:
-            addr_info = socket.getaddrinfo(domain, None)
-            ips = list(set([addr[4][0] for addr in addr_info]))
-            return ips
-        except socket.gaierror as e:
-            self.logger.error(f"Failed to resolve {domain}: {e}")
-            return []
 
     def _get_service_strategy(self, domain: str) -> tuple[str, Dict[str, Any]]:
         """
@@ -843,9 +994,7 @@ class ServiceModeCapture:
 
                 if domain in strategies:
                     strategy_string = strategies[domain]
-                    self.logger.info(
-                        f"Found service strategy for {domain}: {strategy_string}"
-                    )
+                    self.logger.info(f"Found service strategy for {domain}: {strategy_string}")
 
                     # Parse the strategy
                     parser = StrategyParserV2()
@@ -854,67 +1003,15 @@ class ServiceModeCapture:
                     return strategy_string, parsed_params
 
             # If no strategy found, return default
-            self.logger.warning(
-                f"No service strategy found for {domain}, using default"
-            )
+            self.logger.warning(f"No service strategy found for {domain}, using default")
             strategy_string = "--dpi-desync=fake --dpi-desync-ttl=4"
             parsed_params = {"desync_method": "fake", "ttl": 4, "split_pos": 3}
 
             return strategy_string, parsed_params
 
-        except Exception as e:
+        except (ImportError, FileNotFoundError, json.JSONDecodeError, OSError) as e:
             self.logger.error(f"Failed to get service strategy: {e}")
             return "--dpi-desync=fake", {"desync_method": "fake"}
-
-    def _start_packet_capture(
-        self, domain: str, ips: List[str], pcap_file: str
-    ) -> Optional[Dict[str, Any]]:
-        """Start capturing packets for the domain"""
-        if not SCAPY_AVAILABLE:
-            return None
-
-        self.logger.info(f"Starting packet capture to {pcap_file}")
-
-        # Build filter for target IPs
-        ip_filter = " or ".join([f"host {ip}" for ip in ips])
-        filter_str = f"tcp and ({ip_filter})"
-
-        # Start capture in background
-        capture_info = {
-            "filter": filter_str,
-            "pcap_file": pcap_file,
-            "packets": [],
-            "start_time": time.time(),
-        }
-
-        return capture_info
-
-    def _stop_packet_capture(self, capture_info: Dict[str, Any], pcap_file: str) -> int:
-        """Stop packet capture and save to file"""
-        if not SCAPY_AVAILABLE or not capture_info:
-            return 0
-
-        self.logger.info("Stopping packet capture")
-
-        try:
-            # Capture packets for the IPs
-            packets = sniff(
-                filter=capture_info["filter"],
-                timeout=2,  # Short timeout to capture recent packets
-                store=True,
-            )
-
-            if packets:
-                wrpcap(pcap_file, packets)
-                self.logger.info(f"Captured {len(packets)} packets to {pcap_file}")
-                return len(packets)
-            else:
-                self.logger.warning("No packets captured")
-                return 0
-
-        except Exception as e:
-            self.logger.error(f"Failed to save packet capture: {e}")
-            return 0
 
     def _parse_service_logs(self, log_file: str, domain: str):
         """Parse service logs to extract strategy application details"""
@@ -925,23 +1022,18 @@ class ServiceModeCapture:
                 for line in f:
                     if domain in line and "strategy" in line.lower():
                         self.logger.info(f"Service log: {line.strip()}")
-        except Exception as e:
+        except (IOError, OSError, FileNotFoundError) as e:
             self.logger.error(f"Failed to parse service logs: {e}")
 
     def _save_capture(self, capture: StrategyCapture):
         """Save capture results to JSON file"""
-        output_file = (
-            self.output_dir / f"service_{capture.domain}_{capture.timestamp}.json"
+        save_strategy_capture(
+            capture_data=capture.to_dict(),
+            output_dir=self.output_dir,
+            prefix="service",
+            domain=capture.domain,
+            timestamp=capture.timestamp,
         )
-
-        try:
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(capture.to_dict(), f, indent=2)
-
-            self.logger.info(f"Saved service mode results to {output_file}")
-
-        except Exception as e:
-            self.logger.error(f"Failed to save capture results: {e}")
 
 
 @dataclass
@@ -958,15 +1050,7 @@ class RootCauseAnalysis:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
-        return {
-            "domain": self.domain,
-            "timestamp": self.timestamp,
-            "has_strategy_differences": self.has_strategy_differences,
-            "has_packet_differences": self.has_packet_differences,
-            "root_causes": self.root_causes,
-            "code_locations": self.code_locations,
-            "fix_recommendations": self.fix_recommendations,
-        }
+        return asdict(self)
 
 
 class RootCauseAnalyzer:
@@ -974,6 +1058,9 @@ class RootCauseAnalyzer:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        from core.analysis.parameter_handlers import ParameterDifferenceHandler
+
+        self._param_handler = ParameterDifferenceHandler()
 
     def analyze(
         self,
@@ -990,9 +1077,7 @@ class RootCauseAnalyzer:
         Returns:
             RootCauseAnalysis with identified causes and recommendations
         """
-        self.logger.info(
-            f"Performing root cause analysis for {strategy_comparison.domain}"
-        )
+        self.logger.info(f"Performing root cause analysis for {strategy_comparison.domain}")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -1019,159 +1104,33 @@ class RootCauseAnalyzer:
     def _analyze_strategy_differences(
         self, comparison: StrategyComparison, analysis: RootCauseAnalysis
     ):
-        """Analyze strategy differences to identify root causes"""
+        """
+        Analyze strategy differences to identify root causes.
 
+        Args:
+            comparison: Strategy comparison results
+            analysis: RootCauseAnalysis object to populate
+        """
         for diff in comparison.differences:
-            if diff.parameter == "desync_method" or diff.parameter == "attack_type":
-                analysis.root_causes.append(
-                    f"Attack type mismatch: discovery uses '{diff.discovery_value}' "
-                    f"but service uses '{diff.service_value}'"
-                )
-                analysis.code_locations.append(
-                    "recon/core/strategy_interpreter.py: _config_to_strategy_task()"
-                )
-                analysis.fix_recommendations.append(
-                    "Check strategy interpreter mapping logic. Ensure desync_method "
-                    "is checked BEFORE fooling parameter (Fix #1 from ПОЛНОЕ_РЕШЕНИЕ_ПРОБЛЕМЫ.txt)"
-                )
+            self._process_strategy_difference(diff, analysis)
 
-            elif diff.parameter == "ttl":
-                analysis.root_causes.append(
-                    f"TTL mismatch: discovery uses {diff.discovery_value} "
-                    f"but service uses {diff.service_value}"
-                )
-                analysis.code_locations.append(
-                    "recon/core/bypass/engine/base_engine.py: calculate_autottl() or packet building"
-                )
-                analysis.fix_recommendations.append(
-                    "Verify autottl calculation is working correctly. "
-                    "Check if autottl parameter is being passed to bypass engine."
-                )
+    def _process_strategy_difference(self, diff: StrategyDifference, analysis: RootCauseAnalysis):
+        """
+        Process a single strategy difference and add findings to analysis.
 
-            elif diff.parameter == "autottl":
-                analysis.root_causes.append(
-                    f"AutoTTL mismatch: discovery uses {diff.discovery_value} "
-                    f"but service uses {diff.service_value}"
-                )
-                analysis.code_locations.append(
-                    "recon/core/strategy_parser_v2.py: parse() method"
-                )
-                analysis.fix_recommendations.append(
-                    "Ensure --dpi-desync-autottl parameter is being parsed correctly. "
-                    "Verify it's not being overridden by fixed TTL value."
-                )
-
-            elif diff.parameter == "split_pos":
-                analysis.root_causes.append(
-                    f"Split position mismatch: discovery uses {diff.discovery_value} "
-                    f"but service uses {diff.service_value}"
-                )
-                analysis.code_locations.append(
-                    "recon/core/strategy_parser_v2.py: parse() method"
-                )
-                analysis.fix_recommendations.append(
-                    "Check --dpi-desync-split-pos parsing. "
-                    "Verify default value is not overriding configured value."
-                )
-
-            elif diff.parameter == "overlap_size" or diff.parameter == "split_seqovl":
-                analysis.root_causes.append(
-                    f"Sequence overlap mismatch: discovery uses {diff.discovery_value} "
-                    f"but service uses {diff.service_value}"
-                )
-                analysis.code_locations.append(
-                    "recon/core/strategy_parser_v2.py: parse() method"
-                )
-                analysis.fix_recommendations.append(
-                    "Ensure --dpi-desync-split-seqovl parameter is being parsed "
-                    "and mapped to overlap_size correctly."
-                )
-
-            elif diff.parameter == "repeats":
-                analysis.root_causes.append(
-                    f"Repeats mismatch: discovery uses {diff.discovery_value} "
-                    f"but service uses {diff.service_value}"
-                )
-                analysis.code_locations.append(
-                    "recon/core/strategy_parser_v2.py: parse() method"
-                )
-                analysis.fix_recommendations.append(
-                    "Check --dpi-desync-repeats parsing. "
-                    "Verify repeats parameter is being applied in attack execution."
-                )
-
-            elif diff.parameter == "fooling":
-                analysis.root_causes.append(
-                    f"Fooling method mismatch: discovery uses {diff.discovery_value} "
-                    f"but service uses {diff.service_value}"
-                )
-                analysis.code_locations.append(
-                    "recon/core/strategy_parser_v2.py: parse() method"
-                )
-                analysis.fix_recommendations.append(
-                    "Verify --dpi-desync-fooling parameter parsing. "
-                    "Check if multiple fooling methods are being parsed correctly."
-                )
+        Args:
+            diff: Strategy difference to process
+            analysis: RootCauseAnalysis object to populate
+        """
+        self._param_handler.handle_difference(diff, analysis)
 
     def _analyze_packet_differences(
         self, comparison: PacketComparison, analysis: RootCauseAnalysis
     ):
         """Analyze packet differences to identify root causes"""
+        from core.analysis.packet_analyzer import PacketAnalyzer
 
-        # Group differences by field
-        ttl_diffs = [d for d in comparison.differences if d.field == "ttl"]
-        flag_diffs = [d for d in comparison.differences if d.field == "flags"]
-        payload_diffs = [d for d in comparison.differences if d.field == "payload_len"]
-
-        if ttl_diffs:
-            analysis.root_causes.append(
-                f"TTL values differ in {len(ttl_diffs)} packets"
-            )
-            analysis.code_locations.append(
-                "recon/core/bypass/engine/base_engine.py: calculate_autottl() or _build_packet()"
-            )
-            analysis.fix_recommendations.append(
-                "Verify TTL calculation and application in packet building. "
-                "Check if autottl is being calculated correctly at runtime."
-            )
-
-        if flag_diffs:
-            analysis.root_causes.append(
-                f"TCP flags differ in {len(flag_diffs)} packets"
-            )
-            analysis.code_locations.append(
-                "recon/core/bypass/packet/builder.py: build_tcp_packet()"
-            )
-            analysis.fix_recommendations.append(
-                "Check TCP flag setting in packet builder. "
-                "Verify fooling methods are being applied correctly."
-            )
-
-        if payload_diffs:
-            analysis.root_causes.append(
-                f"Payload lengths differ in {len(payload_diffs)} packets"
-            )
-            analysis.code_locations.append(
-                "recon/core/bypass/attacks/: attack implementation"
-            )
-            analysis.fix_recommendations.append(
-                "Verify split position and overlap size are being applied correctly. "
-                "Check packet segmentation logic."
-            )
-
-        # Check packet count mismatch
-        if comparison.discovery_packet_count != comparison.service_packet_count:
-            analysis.root_causes.append(
-                f"Packet count mismatch: discovery sent {comparison.discovery_packet_count} "
-                f"packets but service sent {comparison.service_packet_count}"
-            )
-            analysis.code_locations.append(
-                "recon/core/bypass/attacks/: attack implementation"
-            )
-            analysis.fix_recommendations.append(
-                "Check if repeats parameter is being applied. "
-                "Verify attack sequence is complete."
-            )
+        PacketAnalyzer.analyze_packet_differences_for_root_cause(comparison, analysis)
 
     def _correlate_findings(self, analysis: RootCauseAnalysis):
         """Correlate strategy and packet differences to identify common root causes"""
@@ -1204,43 +1163,9 @@ class RootCauseAnalyzer:
         Returns:
             Formatted string report
         """
-        lines = []
-        lines.append("=" * 80)
-        lines.append(f"ROOT CAUSE ANALYSIS REPORT: {analysis.domain}")
-        lines.append("=" * 80)
-        lines.append(f"Timestamp: {analysis.timestamp}")
-        lines.append("")
+        from core.reports.strategy_report import StrategyComparisonReporter
 
-        lines.append("SUMMARY:")
-        lines.append(
-            f"  Strategy differences: {'YES' if analysis.has_strategy_differences else 'NO'}"
-        )
-        lines.append(
-            f"  Packet differences: {'YES' if analysis.has_packet_differences else 'NO'}"
-        )
-        lines.append("")
-
-        if analysis.root_causes:
-            lines.append("IDENTIFIED ROOT CAUSES:")
-            for i, cause in enumerate(analysis.root_causes, 1):
-                lines.append(f"  {i}. {cause}")
-            lines.append("")
-
-        if analysis.code_locations:
-            lines.append("CODE LOCATIONS TO INVESTIGATE:")
-            for loc in set(analysis.code_locations):  # Remove duplicates
-                lines.append(f"  • {loc}")
-            lines.append("")
-
-        if analysis.fix_recommendations:
-            lines.append("FIX RECOMMENDATIONS:")
-            for i, rec in enumerate(analysis.fix_recommendations, 1):
-                lines.append(f"  {i}. {rec}")
-            lines.append("")
-
-        lines.append("=" * 80)
-
-        return "\n".join(lines)
+        return StrategyComparisonReporter.format_root_cause(analysis)
 
 
 class StrategyComparatorTool:
@@ -1272,6 +1197,52 @@ class StrategyComparatorTool:
             Dictionary with all comparison results
         """
         self.logger.info(f"Starting complete comparison for {domain}")
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Run discovery and service phases
+        discovery_result, service_result = self._run_discovery_and_service_phases(
+            domain, discovery_timeout, service_duration, run_id
+        )
+
+        # Perform comparisons
+        strategy_comparison, packet_comparison = self._perform_comparisons(
+            discovery_result, service_result
+        )
+
+        # Analyze root causes
+        root_cause = self._analyze_root_causes(strategy_comparison, packet_comparison)
+
+        # Generate and save reports
+        results = self._generate_and_save_reports(
+            domain,
+            run_id,
+            discovery_result,
+            service_result,
+            strategy_comparison,
+            packet_comparison,
+            root_cause,
+        )
+
+        return results
+
+    def _run_discovery_and_service_phases(
+        self, domain: str, discovery_timeout: int, service_duration: int, run_id: str
+    ) -> tuple:
+        """
+        Run discovery and service mode capture phases.
+
+        Args:
+            domain: Domain to test
+            discovery_timeout: Timeout for discovery mode
+            service_duration: Duration to monitor service mode
+            run_id: Unique run identifier
+
+        Returns:
+            Tuple of (discovery_result, service_result)
+        """
+        # Private attributes; does not change public API
+        self.discovery_capture._run_id = run_id
+        self.service_capture._run_id = run_id
 
         # Run discovery mode
         self.logger.info("Step 1: Running discovery mode...")
@@ -1285,6 +1256,19 @@ class StrategyComparatorTool:
             domain, duration=service_duration
         )
 
+        return discovery_result, service_result
+
+    def _perform_comparisons(self, discovery_result, service_result) -> tuple:
+        """
+        Perform strategy and packet comparisons.
+
+        Args:
+            discovery_result: Discovery mode capture result
+            service_result: Service mode capture result
+
+        Returns:
+            Tuple of (strategy_comparison, packet_comparison)
+        """
         # Compare strategies
         self.logger.info("Step 3: Comparing strategies...")
         strategy_comparison = self.strategy_diff.compare_strategies(
@@ -1293,25 +1277,58 @@ class StrategyComparatorTool:
 
         # Compare packets
         self.logger.info("Step 4: Comparing packets...")
-        packet_comparison = self.packet_diff.compare_packets(
-            discovery_result, service_result
-        )
+        packet_comparison = self.packet_diff.compare_packets(discovery_result, service_result)
 
-        # Perform root cause analysis
+        return strategy_comparison, packet_comparison
+
+    def _analyze_root_causes(self, strategy_comparison, packet_comparison):
+        """
+        Perform root cause analysis on comparison results.
+
+        Args:
+            strategy_comparison: Strategy comparison results
+            packet_comparison: Packet comparison results
+
+        Returns:
+            RootCauseAnalysis object
+        """
         self.logger.info("Step 5: Performing root cause analysis...")
-        root_cause = self.root_cause_analyzer.analyze(
-            strategy_comparison, packet_comparison
-        )
+        return self.root_cause_analyzer.analyze(strategy_comparison, packet_comparison)
 
+    def _generate_and_save_reports(
+        self,
+        domain: str,
+        run_id: str,
+        discovery_result,
+        service_result,
+        strategy_comparison,
+        packet_comparison,
+        root_cause,
+    ) -> Dict[str, Any]:
+        """
+        Generate reports and save comprehensive results.
+
+        Args:
+            domain: Domain name
+            run_id: Unique run identifier
+            discovery_result: Discovery mode capture result
+            service_result: Service mode capture result
+            strategy_comparison: Strategy comparison results
+            packet_comparison: Packet comparison results
+            root_cause: Root cause analysis results
+
+        Returns:
+            Dictionary with all comparison results
+        """
         # Generate reports
         strategy_report = self.strategy_diff.highlight_differences(strategy_comparison)
         packet_report = self.packet_diff.highlight_differences(packet_comparison)
         root_cause_report = self.root_cause_analyzer.generate_report(root_cause)
 
-        # Save comprehensive results
+        # Build comprehensive results
         results = {
             "domain": domain,
-            "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "timestamp": run_id,
             "discovery": discovery_result.to_dict(),
             "service": service_result.to_dict(),
             "strategy_comparison": strategy_comparison.to_dict(),
@@ -1324,12 +1341,14 @@ class StrategyComparatorTool:
             },
         }
 
-        # Save to file
-        output_file = (
-            self.output_dir / f"comparison_{domain}_{results['timestamp']}.json"
+        # Save to file (robust serialization)
+        output_file = self.output_dir / f"comparison_{domain}_{results['timestamp']}.json"
+        save_json_file(
+            data=results,
+            output_file=output_file,
+            description="complete comparison",
+            default_handler=str,
         )
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2)
 
         self.logger.info(f"Saved complete comparison to {output_file}")
 
@@ -1354,9 +1373,7 @@ def main():
     print("=" * 80)
 
     comparator = StrategyComparatorTool()
-    results = comparator.compare_modes(
-        domain="x.com", discovery_timeout=30, service_duration=10
-    )
+    results = comparator.compare_modes(domain="x.com", discovery_timeout=30, service_duration=10)
 
     print("\n" + "=" * 80)
     print("COMPARISON COMPLETE")
@@ -1383,8 +1400,8 @@ if __name__ == "__main__":
 
 
 @dataclass
-class RootCauseAnalysis:
-    """Root cause analysis results"""
+class AdvancedRootCauseAnalysis:
+    """Advanced root cause analysis results with structured data"""
 
     domain: str
     timestamp: str
@@ -1401,12 +1418,10 @@ class RootCauseAnalysis:
             "domain": self.domain,
             "timestamp": self.timestamp,
             "strategy_differences": [
-                d.to_dict() if hasattr(d, "to_dict") else d
-                for d in self.strategy_differences
+                d.to_dict() if hasattr(d, "to_dict") else d for d in self.strategy_differences
             ],
             "packet_differences": [
-                d.to_dict() if hasattr(d, "to_dict") else d
-                for d in self.packet_differences
+                d.to_dict() if hasattr(d, "to_dict") else d for d in self.packet_differences
             ],
             "identified_causes": self.identified_causes,
             "fix_recommendations": self.fix_recommendations,
@@ -1435,8 +1450,8 @@ class RootCauseAnalysis:
         }
 
 
-class RootCauseAnalyzer:
-    """Analyzes root causes of strategy and packet differences"""
+class AdvancedRootCauseAnalyzer:
+    """Analyzes root causes of strategy and packet differences with detailed structured output"""
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -1466,7 +1481,7 @@ class RootCauseAnalyzer:
         self,
         strategy_comparison: StrategyComparison,
         packet_comparison: PacketComparison,
-    ) -> RootCauseAnalysis:
+    ) -> AdvancedRootCauseAnalysis:
         """
         Perform comprehensive root cause analysis.
 
@@ -1477,16 +1492,12 @@ class RootCauseAnalyzer:
         Returns:
             RootCauseAnalysis with identified causes and fix recommendations
         """
-        self.logger.info(
-            f"Starting root cause analysis for {strategy_comparison.domain}"
-        )
+        self.logger.info(f"Starting root cause analysis for {strategy_comparison.domain}")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Analyze strategy differences
-        strategy_causes = self._analyze_strategy_differences(
-            strategy_comparison.differences
-        )
+        strategy_causes = self._analyze_strategy_differences(strategy_comparison.differences)
 
         # Analyze packet differences
         packet_causes = self._analyze_packet_differences(packet_comparison.differences)
@@ -1511,7 +1522,7 @@ class RootCauseAnalyzer:
         # Calculate overall confidence score
         confidence_score = self._calculate_confidence_score(unique_causes)
 
-        analysis = RootCauseAnalysis(
+        analysis = AdvancedRootCauseAnalysis(
             domain=strategy_comparison.domain,
             timestamp=timestamp,
             strategy_differences=strategy_comparison.differences,
@@ -1522,9 +1533,7 @@ class RootCauseAnalyzer:
             confidence_score=confidence_score,
         )
 
-        self.logger.info(
-            f"Root cause analysis complete: {len(unique_causes)} causes identified"
-        )
+        self.logger.info(f"Root cause analysis complete: {len(unique_causes)} causes identified")
         return analysis
 
     def _analyze_strategy_differences(
@@ -1547,10 +1556,7 @@ class RootCauseAnalyzer:
 
         # Map parameter differences to root causes
         if diff.parameter == "desync_method":
-            if (
-                diff.discovery_value == "multidisorder"
-                and diff.service_value != "multidisorder"
-            ):
+            if diff.discovery_value == "multidisorder" and diff.service_value != "multidisorder":
                 return {
                     "type": "strategy_interpreter_mapping_error",
                     "description": f"Strategy interpreter incorrectly maps multidisorder to {diff.service_value}",
@@ -1682,8 +1688,7 @@ class RootCauseAnalyzer:
                 "confidence": 0.9,
                 "component": "packet_builder",
                 "evidence": {
-                    "ttl_hardcoded_in_service": int(diff.service_value)
-                    in [1, 3, 4, 64],
+                    "ttl_hardcoded_in_service": int(diff.service_value) in [1, 3, 4, 64],
                     "autottl_not_calculated": True,
                     "packet_construction_uses_wrong_ttl": True,
                 },
@@ -1856,9 +1861,7 @@ class RootCauseAnalyzer:
         unique_causes.sort(key=sort_key, reverse=True)
         return unique_causes
 
-    def _generate_fix_recommendations(
-        self, causes: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _generate_fix_recommendations(self, causes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Generate actionable fix recommendations for identified causes"""
         recommendations = []
 
@@ -2076,7 +2079,7 @@ class RootCauseAnalyzer:
 
         return weighted_confidence / max(1.0, total_weight)
 
-    def generate_report(self, analysis: RootCauseAnalysis) -> str:
+    def generate_report(self, analysis: AdvancedRootCauseAnalysis) -> str:
         """Generate a comprehensive root cause analysis report"""
         lines = []
         lines.append("=" * 100)
@@ -2095,9 +2098,7 @@ class RootCauseAnalyzer:
         lines.append(
             f"  • Packet Differences: {summary['total_packet_differences']} ({summary['critical_packet_differences']} critical)"
         )
-        lines.append(
-            f"  • Root Causes Identified: {summary['total_causes_identified']}"
-        )
+        lines.append(f"  • Root Causes Identified: {summary['total_causes_identified']}")
         lines.append(f"  • Actionable Fixes: {summary['actionable_fixes']}")
         lines.append("")
 
@@ -2107,12 +2108,8 @@ class RootCauseAnalyzer:
             lines.append("")
 
             for i, cause in enumerate(analysis.identified_causes, 1):
-                lines.append(
-                    f"{i}. {cause.get('type', 'Unknown').replace('_', ' ').title()}"
-                )
-                lines.append(
-                    f"   Description: {cause.get('description', 'No description')}"
-                )
+                lines.append(f"{i}. {cause.get('type', 'Unknown').replace('_', ' ').title()}")
+                lines.append(f"   Description: {cause.get('description', 'No description')}")
                 lines.append(f"   Severity: {cause.get('severity', 'unknown').upper()}")
                 lines.append(f"   Confidence: {cause.get('confidence', 0.0):.2f}")
                 lines.append(f"   Component: {cause.get('component', 'unknown')}")
@@ -2134,9 +2131,7 @@ class RootCauseAnalyzer:
             for i, fix in enumerate(analysis.fix_recommendations, 1):
                 lines.append(f"{i}. {fix.get('title', 'Unknown Fix')}")
                 lines.append(f"   Priority: {fix.get('priority', 'unknown').upper()}")
-                lines.append(
-                    f"   Description: {fix.get('description', 'No description')}"
-                )
+                lines.append(f"   Description: {fix.get('description', 'No description')}")
                 lines.append(
                     f"   Estimated Effort: {fix.get('estimated_effort', 'unknown').upper()}"
                 )
@@ -2189,7 +2184,7 @@ class StrategyComparator:
         self.service_capture = ServiceModeCapture(str(self.output_dir))
         self.strategy_diff = StrategyDiff()
         self.packet_diff = PacketDiff()
-        self.root_cause_analyzer = RootCauseAnalyzer()
+        self.root_cause_analyzer = AdvancedRootCauseAnalyzer()
 
     def compare_modes(self, domain: str, capture_duration: int = 30) -> Dict[str, Any]:
         """
@@ -2203,6 +2198,10 @@ class StrategyComparator:
             Complete comparison results with root cause analysis
         """
         self.logger.info(f"Starting comprehensive strategy comparison for {domain}")
+        run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Private attributes; does not change public API
+        self.discovery_capture._run_id = run_id
+        self.service_capture._run_id = run_id
 
         try:
             # Run discovery mode
@@ -2223,9 +2222,7 @@ class StrategyComparator:
 
             # Compare packets
             self.logger.info("Comparing packets...")
-            packet_comparison = self.packet_diff.compare_packets(
-                discovery_capture, service_capture
-            )
+            packet_comparison = self.packet_diff.compare_packets(discovery_capture, service_capture)
 
             # Perform root cause analysis
             self.logger.info("Performing root cause analysis...")
@@ -2236,7 +2233,7 @@ class StrategyComparator:
             # Generate comprehensive results
             results = {
                 "domain": domain,
-                "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+                "timestamp": run_id,
                 "discovery_capture": discovery_capture.to_dict(),
                 "service_capture": service_capture.to_dict(),
                 "strategy_comparison": strategy_comparison.to_dict(),
@@ -2254,7 +2251,7 @@ class StrategyComparator:
             self.logger.info(f"Strategy comparison complete for {domain}")
             return results
 
-        except Exception as e:
+        except (ImportError, AttributeError, RuntimeError) as e:
             self.logger.error(f"Strategy comparison failed for {domain}: {e}")
             raise
 
@@ -2264,14 +2261,12 @@ class StrategyComparator:
         domain = results["domain"]
         output_file = self.output_dir / f"comparison_{domain}_{timestamp}.json"
 
-        try:
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(results, f, indent=2, default=str)
-
-            self.logger.info(f"Saved comparison results to {output_file}")
-
-        except Exception as e:
-            self.logger.error(f"Failed to save comparison results: {e}")
+        save_json_file(
+            data=results,
+            output_file=output_file,
+            description="comparison results",
+            default_handler=str,
+        )
 
     def _generate_comprehensive_report(self, results: Dict[str, Any]) -> str:
         """Generate comprehensive comparison report"""
@@ -2287,9 +2282,7 @@ class StrategyComparator:
         lines.append("STRATEGY COMPARISON SUMMARY:")
         lines.append(f"  Discovery Strategy: {strategy_comp['discovery_strategy']}")
         lines.append(f"  Service Strategy:   {strategy_comp['service_strategy']}")
-        lines.append(
-            f"  Strategies Match:   {'✓' if strategy_comp['strategies_match'] else '✗'}"
-        )
+        lines.append(f"  Strategies Match:   {'✓' if strategy_comp['strategies_match'] else '✗'}")
         lines.append(f"  Differences Found:  {strategy_comp['difference_count']}")
         lines.append(f"  Critical Issues:    {strategy_comp['critical_differences']}")
         lines.append("")
@@ -2299,9 +2292,7 @@ class StrategyComparator:
         lines.append("PACKET COMPARISON SUMMARY:")
         lines.append(f"  Discovery Packets: {packet_comp['discovery_packet_count']}")
         lines.append(f"  Service Packets:   {packet_comp['service_packet_count']}")
-        lines.append(
-            f"  Packets Match:     {'✓' if packet_comp['packets_match'] else '✗'}"
-        )
+        lines.append(f"  Packets Match:     {'✓' if packet_comp['packets_match'] else '✗'}")
         lines.append(f"  Differences Found: {packet_comp['difference_count']}")
         lines.append(f"  Critical Issues:   {packet_comp['critical_differences']}")
         lines.append("")
@@ -2315,7 +2306,7 @@ class StrategyComparator:
         lines.append("")
 
         # Add detailed root cause analysis report
-        rca_obj = RootCauseAnalysis(**{k: v for k, v in rca.items() if k != "summary"})
+        rca_obj = AdvancedRootCauseAnalysis(**{k: v for k, v in rca.items() if k != "summary"})
         detailed_rca_report = self.root_cause_analyzer.generate_report(rca_obj)
         lines.append(detailed_rca_report)
 
@@ -2332,200 +2323,34 @@ class StrategyComparator:
 
             self.logger.info(f"Saved comprehensive report to {report_file}")
 
-        except Exception as e:
+        except (IOError, OSError) as e:
             self.logger.error(f"Failed to save report: {e}")
+            raise
 
 
-# Add missing ServiceModeCapture methods
-class ServiceModeCapture:
-    """Handles service mode capture for strategy comparison"""
-
-    def __init__(self, output_dir: str = "strategy_comparison_results"):
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
-        self.logger = logging.getLogger(__name__)
-
-    def capture_service_mode(
-        self, domain: str, duration: int = 30, service_log_file: Optional[str] = None
-    ) -> StrategyCapture:
-        """
-        Capture strategy application in service mode.
-
-        Args:
-            domain: Domain to monitor
-            duration: How long to capture (seconds)
-            service_log_file: Path to service log file to parse
-
-        Returns:
-            StrategyCapture object with service mode results
-        """
-        self.logger.info(f"Starting service mode capture for {domain}")
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        pcap_file = self.output_dir / f"service_{domain}_{timestamp}.pcap"
-
-        # Resolve domain to IPs
-        resolved_ips = self._resolve_domain(domain)
-        self.logger.info(f"Resolved {domain} to IPs: {resolved_ips}")
-
-        # Get strategy from service configuration
-        strategy_string, parsed_params = self._get_service_strategy(domain)
-
-        # Start packet capture
-        capture_process = None
-        if SCAPY_AVAILABLE:
-            capture_process = self._start_packet_capture(
-                domain, resolved_ips, str(pcap_file)
-            )
-
-        # Monitor service for specified duration
-        self.logger.info(f"Monitoring service for {duration} seconds...")
-        time.sleep(duration)
-
-        # Stop packet capture
-        packets_captured = 0
-        if capture_process:
-            packets_captured = self._stop_packet_capture(
-                capture_process, str(pcap_file)
-            )
-
-        # Parse service logs if provided
-        if service_log_file:
-            self._parse_service_logs(service_log_file, domain)
-
-        # Create capture result
-        capture = StrategyCapture(
-            mode="service",
-            domain=domain,
-            timestamp=timestamp,
-            strategy_string=strategy_string,
-            parsed_params=parsed_params,
-            resolved_ips=resolved_ips,
-            packets_captured=packets_captured,
-            pcap_file=str(pcap_file) if pcap_file.exists() else None,
-        )
-
-        # Save results
-        self._save_capture(capture)
-
-        self.logger.info(f"Service mode capture complete for {domain}")
-        return capture
-
-    def _resolve_domain(self, domain: str) -> List[str]:
-        """Resolve domain to IP addresses"""
-        try:
-            addr_info = socket.getaddrinfo(domain, None)
-            ips = list(set([addr[4][0] for addr in addr_info]))
-            return ips
-        except socket.gaierror as e:
-            self.logger.error(f"Failed to resolve {domain}: {e}")
-            return []
-
-    def _get_service_strategy(self, domain: str) -> tuple[str, Dict[str, Any]]:
-        """Get strategy configuration from service"""
-        try:
-            # Try to read from strategies.json
-            strategies_file = Path("recon/strategies.json")
-            if strategies_file.exists():
-                with open(strategies_file, "r", encoding="utf-8") as f:
-                    strategies = json.load(f)
-
-                if domain in strategies:
-                    strategy_string = strategies[domain]
-
-                    # Parse the strategy
-                    from core.strategy_parser_v2 import StrategyParserV2
-
-                    parser = StrategyParserV2()
-                    parsed_params = parser.parse(strategy_string)
-
-                    return strategy_string, parsed_params
-
-            # Default fallback
-            self.logger.warning(f"No service strategy found for {domain}")
-            return "--dpi-desync=fake --dpi-desync-ttl=4", {
-                "desync_method": "fake",
-                "ttl": 4,
-            }
-
-        except Exception as e:
-            self.logger.error(f"Failed to get service strategy: {e}")
-            return "--dpi-desync=fake", {"desync_method": "fake"}
-
-    def _start_packet_capture(
-        self, domain: str, ips: List[str], pcap_file: str
-    ) -> Optional[Dict[str, Any]]:
-        """Start capturing packets for the domain"""
-        if not SCAPY_AVAILABLE:
-            return None
-
-        self.logger.info(f"Starting packet capture to {pcap_file}")
-
-        # Build filter for target IPs
-        ip_filter = " or ".join([f"host {ip}" for ip in ips])
-        filter_str = f"tcp and ({ip_filter})"
-
-        # Start capture in background
-        capture_info = {
-            "filter": filter_str,
-            "pcap_file": pcap_file,
-            "packets": [],
-            "start_time": time.time(),
-        }
-
-        return capture_info
-
-    def _stop_packet_capture(self, capture_info: Dict[str, Any], pcap_file: str) -> int:
-        """Stop packet capture and save to file"""
-        if not SCAPY_AVAILABLE or not capture_info:
-            return 0
-
-        self.logger.info("Stopping packet capture")
-
-        try:
-            # Capture packets for the IPs
-            packets = sniff(
-                filter=capture_info["filter"],
-                timeout=2,  # Short timeout to capture recent packets
-                store=True,
-            )
-
-            if packets:
-                wrpcap(pcap_file, packets)
-                self.logger.info(f"Captured {len(packets)} packets to {pcap_file}")
-                return len(packets)
-            else:
-                self.logger.warning("No packets captured")
-                return 0
-
-        except Exception as e:
-            self.logger.error(f"Failed to save packet capture: {e}")
-            return 0
-
-    def _parse_service_logs(self, log_file: str, domain: str):
-        """Parse service logs for strategy application info"""
-        try:
-            with open(log_file, "r", encoding="utf-8") as f:
-                logs = f.read()
-
-            # Look for strategy application logs
-            if domain in logs:
-                self.logger.info(f"Found {domain} references in service logs")
-
-        except Exception as e:
-            self.logger.error(f"Failed to parse service logs: {e}")
-
-    def _save_capture(self, capture: StrategyCapture):
-        """Save capture results to JSON file"""
-        output_file = (
-            self.output_dir / f"service_{capture.domain}_{capture.timestamp}.json"
-        )
-
-        try:
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(capture.to_dict(), f, indent=2)
-
-            self.logger.info(f"Saved service capture results to {output_file}")
-
-        except Exception as e:
-            self.logger.error(f"Failed to save service capture results: {e}")
+# Public API exports for backward compatibility
+__all__ = [
+    # Data classes
+    "StrategyCapture",
+    "StrategyDifference",
+    "StrategyComparison",
+    "PacketDifference",
+    "PacketComparison",
+    "RootCauseAnalysis",
+    "AdvancedRootCauseAnalysis",
+    # Main classes
+    "DiscoveryModeCapture",
+    "ServiceModeCapture",
+    "StrategyDiff",
+    "PacketDiff",
+    "RootCauseAnalyzer",
+    "AdvancedRootCauseAnalyzer",
+    "StrategyComparatorTool",
+    "StrategyComparator",
+    # Utility re-exports for convenience
+    "resolve_domain",
+    "start_packet_capture",
+    "stop_packet_capture",
+    "save_capture_to_json",
+    "save_json_file",
+]

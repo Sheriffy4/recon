@@ -63,9 +63,7 @@ class FoolingSelector:
             try:
                 with open(cache_path, "rb") as f:
                     self.compatibility_cache = pickle.load(f)
-                self.logger.info(
-                    f"Loaded {len(self.compatibility_cache)} path profiles"
-                )
+                self.logger.info(f"Loaded {len(self.compatibility_cache)} path profiles")
             except Exception as e:
                 self.logger.error(f"Failed to load cache: {e}")
 
@@ -121,12 +119,14 @@ class FoolingSelector:
                 sample = random.sample(domains, k=min(limit_per_run, len(domains)))
 
                 for site in sample:
-                    hostname = urlparse(site).hostname or site.replace(
-                        "https://", ""
-                    ).replace("http://", "")
+                    hostname = urlparse(site).hostname or site.replace("https://", "").replace(
+                        "http://", ""
+                    )
                     # Выберем метод для проверки
                     for method in ["badsum", "md5sig", "badseq"]:
-                        strategy_str = f"--dpi-desync=fake --dpi-desync-fooling={method} --dpi-desync-ttl=1"
+                        strategy_str = (
+                            f"--dpi-desync=fake --dpi-desync-fooling={method} --dpi-desync-ttl=1"
+                        )
                         # Выполним минимальный тест
                         dns_cache = {}
                         try:
@@ -162,11 +162,7 @@ class FoolingSelector:
                             cache_key = hostname
                             cdn = None
                             if kb:
-                                ip = (
-                                    list(site_results.values())[0][1]
-                                    if site_results
-                                    else ""
-                                )
+                                ip = list(site_results.values())[0][1] if site_results else ""
                                 cdn = kb.identify_cdn(ip) if ip else None
                                 if cdn:
                                     cache_key = f"cdn:{cdn}"
@@ -190,9 +186,7 @@ class FoolingSelector:
                             # Сохраняем кэш периодически
                             self.save_cache()
                         except Exception as e:
-                            self.logger.debug(
-                                f"Probe failed for {hostname} ({method}): {e}"
-                            )
+                            self.logger.debug(f"Probe failed for {hostname} ({method}): {e}")
 
                 await asyncio.sleep(interval_seconds)
             except asyncio.CancelledError:

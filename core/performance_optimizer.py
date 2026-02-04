@@ -112,9 +112,7 @@ class PerformanceCache:
                 self._evict_lru()
 
             # Add new entry
-            self._cache[key] = CacheEntry(
-                data=value, timestamp=time.time(), ttl_seconds=ttl
-            )
+            self._cache[key] = CacheEntry(data=value, timestamp=time.time(), ttl_seconds=ttl)
             self._access_order.append(key)
 
     def _evict_lru(self) -> None:
@@ -159,9 +157,7 @@ class StrategySelector:
 
         # Strategy performance tracking
         self.strategy_performance: Dict[str, StrategyPerformance] = {}
-        self.domain_strategy_cache = PerformanceCache(
-            max_size=500, default_ttl=1800
-        )  # 30 min
+        self.domain_strategy_cache = PerformanceCache(max_size=500, default_ttl=1800)  # 30 min
 
         # Performance thresholds
         self.min_success_rate = 0.7
@@ -224,14 +220,10 @@ class StrategySelector:
             success_score = perf.success_rate
 
             # Time penalty (faster is better)
-            time_score = max(
-                0.0, 1.0 - (perf.avg_execution_time_ms / self.max_execution_time_ms)
-            )
+            time_score = max(0.0, 1.0 - (perf.avg_execution_time_ms / self.max_execution_time_ms))
 
             # Recency bonus (more recent data is more valuable)
-            recency_score = max(
-                0.0, 1.0 - (time.time() - perf.last_updated) / 3600
-            )  # 1 hour decay
+            recency_score = max(0.0, 1.0 - (time.time() - perf.last_updated) / 3600)  # 1 hour decay
 
             # Execution count bonus (more data is more reliable)
             reliability_score = min(1.0, perf.total_executions / 100.0)
@@ -254,9 +246,7 @@ class StrategySelector:
 
             return total_score
 
-    def _calculate_fingerprint_compatibility(
-        self, strategy_type: str, fingerprint: Any
-    ) -> float:
+    def _calculate_fingerprint_compatibility(self, strategy_type: str, fingerprint: Any) -> float:
         """Calculate compatibility score between strategy and DPI fingerprint."""
         # This would be enhanced with actual fingerprint analysis
         # For now, return a neutral score
@@ -292,9 +282,7 @@ class StrategySelector:
                 )
 
                 # Recalculate averages
-                recent_successes = sum(
-                    1 for p in perf.recent_performance if p["success"]
-                )
+                recent_successes = sum(1 for p in perf.recent_performance if p["success"])
                 recent_times = [p["execution_time_ms"] for p in perf.recent_performance]
 
                 perf.success_rate = recent_successes / len(perf.recent_performance)
@@ -335,9 +323,7 @@ class PacketBuilderOptimizer:
 
     def __init__(self):
         self.checksum_cache = PerformanceCache(max_size=200, default_ttl=300)  # 5 min
-        self.header_template_cache = PerformanceCache(
-            max_size=100, default_ttl=600
-        )  # 10 min
+        self.header_template_cache = PerformanceCache(max_size=100, default_ttl=600)  # 10 min
 
         # Pre-computed values
         self._ip_header_template = None
@@ -352,9 +338,7 @@ class PacketBuilderOptimizer:
         # The actual checksum calculation would be done elsewhere
         return 0
 
-    def optimize_packet_assembly(
-        self, packet_count: int, payload_size: int
-    ) -> Dict[str, Any]:
+    def optimize_packet_assembly(self, packet_count: int, payload_size: int) -> Dict[str, Any]:
         """Provide optimization recommendations for packet assembly."""
         recommendations = {
             "use_batch_processing": packet_count > 10,
@@ -448,13 +432,11 @@ class PerformanceMonitor:
 
             # Calculate derived metrics
             total_packets = engine_stats.get("packets_captured", 0)
-            bypassed_packets = engine_stats.get(
-                "tls_packets_bypassed", 0
-            ) + engine_stats.get("http_packets_bypassed", 0)
-
-            success_rate = (
-                (bypassed_packets / total_packets) if total_packets > 0 else 0.0
+            bypassed_packets = engine_stats.get("tls_packets_bypassed", 0) + engine_stats.get(
+                "http_packets_bypassed", 0
             )
+
+            success_rate = (bypassed_packets / total_packets) if total_packets > 0 else 0.0
 
             metrics = {
                 "timestamp": time.time(),
@@ -463,9 +445,7 @@ class PerformanceMonitor:
                 "success_rate": success_rate,
                 "fragments_sent": engine_stats.get("fragments_sent", 0),
                 "fake_packets_sent": engine_stats.get("fake_packets_sent", 0),
-                "possible_dpi_injections": engine_stats.get(
-                    "possible_dpi_injections", 0
-                ),
+                "possible_dpi_injections": engine_stats.get("possible_dpi_injections", 0),
                 "memory_usage_mb": self._get_memory_usage(),
                 "cpu_usage_percent": self._get_cpu_usage(),
             }
@@ -570,34 +550,22 @@ class PerformanceMonitor:
             recent_metrics = list(self.metrics_history)[-20:]  # Last 20 measurements
 
             success_rates = [
-                m.get("success_rate", 0.0)
-                for m in recent_metrics
-                if "success_rate" in m
+                m.get("success_rate", 0.0) for m in recent_metrics if "success_rate" in m
             ]
             memory_usage = [
-                m.get("memory_usage_mb", 0.0)
-                for m in recent_metrics
-                if "memory_usage_mb" in m
+                m.get("memory_usage_mb", 0.0) for m in recent_metrics if "memory_usage_mb" in m
             ]
             cpu_usage = [
-                m.get("cpu_usage_percent", 0.0)
-                for m in recent_metrics
-                if "cpu_usage_percent" in m
+                m.get("cpu_usage_percent", 0.0) for m in recent_metrics if "cpu_usage_percent" in m
             ]
 
             summary = {
-                "avg_success_rate": (
-                    statistics.mean(success_rates) if success_rates else 0.0
-                ),
+                "avg_success_rate": (statistics.mean(success_rates) if success_rates else 0.0),
                 "min_success_rate": min(success_rates) if success_rates else 0.0,
                 "max_success_rate": max(success_rates) if success_rates else 0.0,
-                "avg_memory_usage_mb": (
-                    statistics.mean(memory_usage) if memory_usage else 0.0
-                ),
+                "avg_memory_usage_mb": (statistics.mean(memory_usage) if memory_usage else 0.0),
                 "max_memory_usage_mb": max(memory_usage) if memory_usage else 0.0,
-                "avg_cpu_usage_percent": (
-                    statistics.mean(cpu_usage) if cpu_usage else 0.0
-                ),
+                "avg_cpu_usage_percent": (statistics.mean(cpu_usage) if cpu_usage else 0.0),
                 "max_cpu_usage_percent": max(cpu_usage) if cpu_usage else 0.0,
                 "total_alerts": len(self.alerts),
                 "recent_alerts": len(
@@ -622,9 +590,7 @@ def performance_timer(func):
             success = False
             raise
         finally:
-            execution_time = (
-                time.time() - start_time
-            ) * 1000  # Convert to milliseconds
+            execution_time = (time.time() - start_time) * 1000  # Convert to milliseconds
 
             # Try to log performance if possible
             try:
@@ -653,9 +619,7 @@ class PerformanceOptimizer:
         self.performance_monitor = PerformanceMonitor(debug=debug)
 
         # Fingerprint cache
-        self.fingerprint_cache = PerformanceCache(
-            max_size=300, default_ttl=7200
-        )  # 2 hours
+        self.fingerprint_cache = PerformanceCache(max_size=300, default_ttl=7200)  # 2 hours
 
         # Performance optimization settings
         self.optimization_enabled = True
@@ -686,9 +650,7 @@ class PerformanceOptimizer:
             domain, available_strategies, fingerprint
         )
 
-    def cache_fingerprint(
-        self, domain: str, fingerprint: Any, ttl: Optional[float] = None
-    ) -> None:
+    def cache_fingerprint(self, domain: str, fingerprint: Any, ttl: Optional[float] = None) -> None:
         """Cache domain fingerprint for performance."""
         self.fingerprint_cache.put(domain, fingerprint, ttl)
 

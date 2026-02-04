@@ -90,11 +90,7 @@ class ModeController:
         Returns:
             Dictionary mapping modes to their information
         """
-        return {
-            mode: info
-            for mode, info in self.mode_capabilities.items()
-            if info.available
-        }
+        return {mode: info for mode, info in self.mode_capabilities.items() if info.available}
 
     def is_mode_available(self, mode: OperationMode) -> bool:
         """
@@ -155,9 +151,7 @@ class ModeController:
                 return False
         except Exception as e:
             self.logger.error(f"Mode switch failed: {e}")
-            raise ModeTransitionError(
-                self.current_mode.value, target_mode.value, str(e)
-            )
+            raise ModeTransitionError(self.current_mode.value, target_mode.value, str(e))
 
     def auto_fallback(self, error: Exception) -> bool:
         """
@@ -169,9 +163,7 @@ class ModeController:
         Returns:
             True if fallback was successful
         """
-        self.logger.warning(
-            f"Auto-fallback triggered from {self.current_mode.value}: {error}"
-        )
+        self.logger.warning(f"Auto-fallback triggered from {self.current_mode.value}: {error}")
         self.mode_failure_counts[self.current_mode] = (
             self.mode_failure_counts.get(self.current_mode, 0) + 1
         )
@@ -243,9 +235,7 @@ class ModeController:
             self.logger.error(f"Health check failed for {target_mode.value}: {e}")
             return False
 
-    def register_health_check(
-        self, mode: OperationMode, checker: Callable[[], bool]
-    ) -> None:
+    def register_health_check(self, mode: OperationMode, checker: Callable[[], bool]) -> None:
         """
         Register a health check function for a mode.
 
@@ -367,34 +357,22 @@ class ModeController:
             return self.switch_mode(target_mode, f"Auto-selected: {reason}")
         except ValueError:
             self.logger.error(f"Invalid recommended mode: {recommended_mode}")
-            return self.switch_mode(
-                OperationMode.COMPATIBILITY, "Fallback to compatibility"
-            )
+            return self.switch_mode(OperationMode.COMPATIBILITY, "Fallback to compatibility")
 
     def _register_default_handlers(self) -> None:
         """Register default transition and validation handlers."""
-        self.transition_manager.register_rollback_handler(
-            "native", self._rollback_native_mode
-        )
-        self.transition_manager.register_rollback_handler(
-            "emulated", self._rollback_emulated_mode
-        )
-        self.transition_manager.register_validation_handler(
-            "native", self._validate_native_mode
-        )
+        self.transition_manager.register_rollback_handler("native", self._rollback_native_mode)
+        self.transition_manager.register_rollback_handler("emulated", self._rollback_emulated_mode)
+        self.transition_manager.register_validation_handler("native", self._validate_native_mode)
         self.transition_manager.register_validation_handler(
             "emulated", self._validate_emulated_mode
         )
 
-    def _rollback_native_mode(
-        self, rollback_data: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def _rollback_native_mode(self, rollback_data: Optional[Dict[str, Any]] = None) -> None:
         """Rollback handler for native mode."""
         self.logger.info("Rolling back native mode")
 
-    def _rollback_emulated_mode(
-        self, rollback_data: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def _rollback_emulated_mode(self, rollback_data: Optional[Dict[str, Any]] = None) -> None:
         """Rollback handler for emulated mode."""
         self.logger.info("Rolling back emulated mode")
 

@@ -103,17 +103,13 @@ class EnhancedEngineFactory:
         Raises:
             EngineCreationError: If engine creation fails
         """
-        request = EngineCreationRequest(
-            engine_type=engine_type, config=config, parameters=kwargs
-        )
+        request = EngineCreationRequest(engine_type=engine_type, config=config, parameters=kwargs)
         result = self.create_engine_with_result(request)
         if not result.success:
             raise EngineCreationError(result.error_message or "Engine creation failed")
         return result.engine
 
-    def create_engine_with_result(
-        self, request: EngineCreationRequest
-    ) -> EngineCreationResult:
+    def create_engine_with_result(self, request: EngineCreationRequest) -> EngineCreationResult:
         """
         Create an engine and return detailed result information.
 
@@ -135,9 +131,7 @@ class EnhancedEngineFactory:
                         f"Engine type not specified, using configured default: {normalized_type.value}"
                     )
                 else:
-                    result.error_message = (
-                        "Engine type is required when fallback is disabled"
-                    )
+                    result.error_message = "Engine type is required when fallback is disabled"
                     return result
             result.engine_type = normalized_type
             if request.validate_dependencies:
@@ -159,7 +153,9 @@ class EnhancedEngineFactory:
                         )
                         if fallback_result.success:
                             return fallback_result
-                    result.error_message = f"Engine validation failed: {'; '.join(validation_result.errors)}"
+                    result.error_message = (
+                        f"Engine validation failed: {'; '.join(validation_result.errors)}"
+                    )
                     return result
             if request.config:
                 if hasattr(request.config, "to_engine_config"):
@@ -190,15 +186,11 @@ class EnhancedEngineFactory:
                 e, StructuredEngineCreationError, context
             )
             error_result = self._error_handler.handle_error(structured_error, context)
-            self.logger.error(
-                f"Engine creation failed: {structured_error.get_detailed_message()}"
-            )
+            self.logger.error(f"Engine creation failed: {structured_error.get_detailed_message()}")
             if request.allow_fallback:
                 fallback_result = self._try_fallback_engines(request, [str(e)])
                 if fallback_result.success:
-                    fallback_result.warnings.append(
-                        f"Primary engine creation failed: {e}"
-                    )
+                    fallback_result.warnings.append(f"Primary engine creation failed: {e}")
                     fallback_result.warnings.extend(
                         [s.action for s in structured_error.suggestions[:3]]
                     )
@@ -206,10 +198,7 @@ class EnhancedEngineFactory:
             result.error_message = structured_error.get_detailed_message()
             if structured_error.suggestions:
                 result.warnings.extend(
-                    [
-                        f"Suggestion: {s.action}"
-                        for s in structured_error.suggestions[:3]
-                    ]
+                    [f"Suggestion: {s.action}" for s in structured_error.suggestions[:3]]
                 )
         return result
 
@@ -250,9 +239,7 @@ class EnhancedEngineFactory:
                 elif "tool" in dep.lower():
                     results["tool_available"] = False
         elif engine_type == EngineType.NATIVE_PYDIVERT:
-            results.update(
-                {"platform": True, "pydivert_available": True, "permissions": True}
-            )
+            results.update({"platform": True, "pydivert_available": True, "permissions": True})
         elif engine_type == EngineType.EXTERNAL_TOOL:
             results.update({"platform": True, "tool_available": True})
         elif engine_type == EngineType.NATIVE_NETFILTER:
@@ -268,9 +255,7 @@ class EnhancedEngineFactory:
         """
         return self._detector.detect_available_engines()
 
-    def create_with_fallback(
-        self, preferred_type: Optional[EngineType] = None
-    ) -> BaseBypassEngine:
+    def create_with_fallback(self, preferred_type: Optional[EngineType] = None) -> BaseBypassEngine:
         """
         Create an engine with automatic fallback to alternatives.
 
@@ -285,9 +270,7 @@ class EnhancedEngineFactory:
         )
         result = self.create_engine_with_result(request)
         if not result.success:
-            raise EngineCreationError(
-                result.error_message or "All engine creation attempts failed"
-            )
+            raise EngineCreationError(result.error_message or "All engine creation attempts failed")
         return result.engine
 
     def _normalize_engine_type(
@@ -313,9 +296,7 @@ class EnhancedEngineFactory:
     ) -> EngineCreationResult:
         """Try fallback engines in order of preference."""
         result = EngineCreationResult()
-        result.warnings.extend(
-            [f"Fallback reason: {reason}" for reason in failed_reasons]
-        )
+        result.warnings.extend([f"Fallback reason: {reason}" for reason in failed_reasons])
         fallback_order = self._get_fallback_order()
         for engine_type in fallback_order:
             if engine_type == request.engine_type:
@@ -333,18 +314,12 @@ class EnhancedEngineFactory:
                 if fallback_result.success:
                     fallback_result.fallback_used = True
                     fallback_result.warnings.extend(result.warnings)
-                    fallback_result.warnings.append(
-                        f"Used fallback engine: {engine_type.value}"
-                    )
+                    fallback_result.warnings.append(f"Used fallback engine: {engine_type.value}")
                     return fallback_result
             except Exception as e:
-                self.logger.debug(
-                    f"Fallback engine {engine_type.value} also failed: {e}"
-                )
+                self.logger.debug(f"Fallback engine {engine_type.value} also failed: {e}")
                 continue
-        result.error_message = (
-            f"All fallback engines failed. Reasons: {'; '.join(failed_reasons)}"
-        )
+        result.error_message = f"All fallback engines failed. Reasons: {'; '.join(failed_reasons)}"
         return result
 
     def get_engine_detection_details(self, engine_type: EngineType) -> Dict[str, Any]:
@@ -501,9 +476,7 @@ class EnhancedEngineFactory:
         """
         self._config_manager.enable_engine(engine_type, enabled)
 
-    def set_engine_config_override(
-        self, engine_type: EngineType, config: Dict[str, Any]
-    ):
+    def set_engine_config_override(self, engine_type: EngineType, config: Dict[str, Any]):
         """
         Set configuration override for an engine type.
 
@@ -517,9 +490,7 @@ class EnhancedEngineFactory:
         """Reload configuration from files and environment."""
         self._config_manager.reload_configuration()
 
-    def create_engine_from_request(
-        self, request: EngineCreationRequest
-    ) -> EngineCreationResult:
+    def create_engine_from_request(self, request: EngineCreationRequest) -> EngineCreationResult:
         """
         Create an engine from an EngineCreationRequest object.
 
@@ -648,9 +619,7 @@ class EnhancedEngineFactory:
         Returns:
             List of resolution suggestions
         """
-        suggestions = self._error_handler.get_resolution_suggestions(
-            error_code, context
-        )
+        suggestions = self._error_handler.get_resolution_suggestions(error_code, context)
         return [
             {
                 "action": s.action,

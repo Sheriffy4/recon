@@ -7,48 +7,12 @@ Includes preset configurations and integration helpers.
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 
-try:
-    from core.bypass.attacks.combo.zapret_strategy import (
-        ZapretStrategy,
-        ZapretConfig,
-        create_zapret_strategy,
-    )
-    from core.bypass.attacks.combo.native_combo_engine import (
-        get_global_combo_engine,
-        ComboRule,
-        ComboMode,
-        ComboTiming,
-    )
-    from core.bypass.attacks.base import AttackContext, AttackResult
-except ImportError:
-    from enum import Enum
-    from dataclasses import dataclass
-    from typing import Optional, Dict, Any
+from core.bypass.attacks.base import AttackContext, AttackResult
 
-    class AttackStatus(Enum):
-        SUCCESS = "success"
-        FAILED = "failed"
-
-    @dataclass
-    class AttackContext:
-        target_host: str
-        target_port: int
-        source_ip: Optional[str] = None
-        source_port: Optional[int] = None
-        payload: Optional[bytes] = None
-
-    @dataclass
-    class AttackResult:
-        success: bool
-        status: AttackStatus = AttackStatus.SUCCESS
-        technique_used: str = ""
-        packets_sent: int = 0
-        execution_time_ms: float = 0.0
-        details: Optional[Dict[str, Any]] = None
-        error_message: Optional[str] = None
+if TYPE_CHECKING:  # pragma: no cover
+    pass
 
 
 LOG = logging.getLogger("ZapretIntegration")
@@ -141,6 +105,14 @@ class ZapretIntegration:
     def _initialize_presets(self):
         """Initialize preset configurations in the combo engine."""
         try:
+            from core.bypass.attacks.combo.native_combo_engine import (
+                get_global_combo_engine,
+                ComboRule,
+                ComboMode,
+                ComboTiming,
+            )
+            from core.bypass.attacks.combo.zapret_strategy import ZapretStrategy
+
             self.combo_engine = get_global_combo_engine()
             if "zapret" not in self.combo_engine.attack_registry:
                 self.combo_engine.register_attack("zapret", ZapretStrategy)
@@ -180,15 +152,11 @@ class ZapretIntegration:
             available = ", ".join(ZAPRET_PRESETS.keys())
             raise ValueError(f"Unknown preset '{preset_name}'. Available: {available}")
         preset_info = ZAPRET_PRESETS[preset_name]
-        LOG.info(
-            f"Executing zapret preset '{preset_name}': {preset_info['description']}"
-        )
+        LOG.info(f"Executing zapret preset '{preset_name}': {preset_info['description']}")
         if self.combo_engine and preset_name in self.registered_presets:
             try:
                 rule_name = self.registered_presets[preset_name]
-                result = await self.combo_engine.execute_combo(
-                    rule_name, context, custom_params
-                )
+                result = await self.combo_engine.execute_combo(rule_name, context, custom_params)
                 if result.attack_results:
                     return result.attack_results[0]
                 else:
@@ -198,12 +166,12 @@ class ZapretIntegration:
                         execution_time_ms=result.execution_time_ms,
                     )
             except Exception as e:
-                LOG.warning(
-                    f"Combo engine execution failed, falling back to direct execution: {e}"
-                )
+                LOG.warning(f"Combo engine execution failed, falling back to direct execution: {e}")
         config_params = preset_info["config"].copy()
         if custom_params:
             config_params.update(custom_params)
+        from core.bypass.attacks.combo.zapret_strategy import create_zapret_strategy
+
         strategy = create_zapret_strategy(**config_params)
         result = await strategy.execute(context)
         if result.details:
@@ -213,9 +181,7 @@ class ZapretIntegration:
             }
         return result
 
-    async def execute_custom(
-        self, context: AttackContext, **config_params
-    ) -> AttackResult:
+    async def execute_custom(self, context: AttackContext, **config_params) -> AttackResult:
         """
         Execute zapret with custom configuration.
 
@@ -227,6 +193,8 @@ class ZapretIntegration:
             AttackResult from execution
         """
         LOG.info(f"Executing custom zapret configuration: {config_params}")
+        from core.bypass.attacks.combo.zapret_strategy import create_zapret_strategy
+
         strategy = create_zapret_strategy(**config_params)
         result = await strategy.execute(context)
         if result.details:
@@ -285,9 +253,7 @@ class ZapretIntegration:
         Returns:
             Dictionary mapping preset names to results
         """
-        LOG.info(
-            f"Testing all {len(ZAPRET_PRESETS)} presets against {context.target_host}"
-        )
+        LOG.info(f"Testing all {len(ZAPRET_PRESETS)} presets against {context.target_host}")
         semaphore = asyncio.Semaphore(max_concurrent)
 
         async def test_preset(preset_name: str) -> tuple:
@@ -310,9 +276,7 @@ class ZapretIntegration:
         results = await asyncio.gather(*tasks)
         result_dict = dict(results)
         successful = sum((1 for r in result_dict.values() if r.success))
-        LOG.info(
-            f"Preset testing completed: {successful}/{len(result_dict)} successful"
-        )
+        LOG.info(f"Preset testing completed: {successful}/{len(result_dict)} successful")
         return result_dict
 
     def get_statistics(self) -> Dict[str, Any]:

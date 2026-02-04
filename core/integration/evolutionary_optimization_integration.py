@@ -131,9 +131,7 @@ class EvolutionaryOptimizationIntegrator:
 
         # Check if optimization is already running for these domains
         for existing_task in self.optimization_tasks.values():
-            if existing_task.status == "running" and set(existing_task.domains) == set(
-                domains
-            ):
+            if existing_task.status == "running" and set(existing_task.domains) == set(domains):
                 LOG.info(f"Optimization already running for domains: {domains}")
                 return existing_task.task_id
 
@@ -161,9 +159,7 @@ class EvolutionaryOptimizationIntegrator:
 
             success = AsyncOperationWrapper.schedule_background_task(config)
             if success:
-                LOG.info(
-                    f"Started background optimization task {task_id} for domains: {domains}"
-                )
+                LOG.info(f"Started background optimization task {task_id} for domains: {domains}")
             else:
                 raise RuntimeError("Failed to schedule background task")
 
@@ -314,11 +310,7 @@ class EvolutionaryOptimizationIntegrator:
             "enabled": self.enable_optimization,
             "total_tasks": len(self.optimization_tasks),
             "active_tasks": len(
-                [
-                    t
-                    for t in self.optimization_tasks.values()
-                    if t.status in ["pending", "running"]
-                ]
+                [t for t in self.optimization_tasks.values() if t.status in ["pending", "running"]]
             ),
             "completed_tasks": len(
                 [t for t in self.optimization_tasks.values() if t.status == "completed"]

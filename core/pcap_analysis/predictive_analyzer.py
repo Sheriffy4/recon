@@ -84,9 +84,7 @@ class PredictiveAnalyzer:
             )
 
             # Get risk assessment
-            risk_assessment = self.risk_model.assess_risk(
-                strategy_params, self.historical_data
-            )
+            risk_assessment = self.risk_model.assess_risk(strategy_params, self.historical_data)
 
             # Get optimization suggestions
             optimization_suggestions = self.optimization_model.suggest_optimizations(
@@ -155,10 +153,7 @@ class PredictiveAnalyzer:
                 total_weight = sum(confidences)
                 if total_weight > 0:
                     weighted_success = (
-                        sum(
-                            rate * conf
-                            for rate, conf in zip(success_rates, confidences)
-                        )
+                        sum(rate * conf for rate, conf in zip(success_rates, confidences))
                         / total_weight
                     )
                     combined["predicted_success_rate"] = weighted_success
@@ -231,25 +226,17 @@ class PredictiveAnalyzer:
 
             # Identify reliability factors
             if analysis["confidence_consistency"] > 0.8:
-                analysis["reliability_factors"].append(
-                    "High confidence consistency across models"
-                )
+                analysis["reliability_factors"].append("High confidence consistency across models")
 
             if analysis["prediction_agreement"] > 0.8:
-                analysis["reliability_factors"].append(
-                    "High agreement between predictions"
-                )
+                analysis["reliability_factors"].append("High agreement between predictions")
 
             # Identify confidence issues
             if analysis["confidence_consistency"] < 0.5:
-                analysis["confidence_issues"].append(
-                    "Low confidence consistency between models"
-                )
+                analysis["confidence_issues"].append("Low confidence consistency between models")
 
             if analysis["prediction_agreement"] < 0.5:
-                analysis["confidence_issues"].append(
-                    "Low agreement between predictions"
-                )
+                analysis["confidence_issues"].append("Low agreement between predictions")
 
         except Exception as e:
             LOG.error(f"Failed to analyze confidence: {e}")
@@ -314,9 +301,7 @@ class PredictiveAnalyzer:
                     optimization_steps.append(fooling_optimization["step"])
 
             optimization["optimized_parameters"] = best_params
-            optimization["predicted_improvement"] = (
-                best_success_rate - current_success_rate
-            )
+            optimization["predicted_improvement"] = best_success_rate - current_success_rate
             optimization["optimization_steps"] = optimization_steps
             optimization["confidence"] = min(len(optimization_steps) / 3.0, 1.0)
 
@@ -337,9 +322,7 @@ class PredictiveAnalyzer:
             test_params = current_params.copy()
             test_params["ttl"] = ttl
 
-            prediction = self.learning_engine.predict_strategy_effectiveness(
-                test_params
-            )
+            prediction = self.learning_engine.predict_strategy_effectiveness(test_params)
             success_rate = prediction.get("predicted_success_rate", 0.0)
 
             if success_rate > best_success_rate:
@@ -363,9 +346,7 @@ class PredictiveAnalyzer:
             test_params = current_params.copy()
             test_params["split_pos"] = split_pos
 
-            prediction = self.learning_engine.predict_strategy_effectiveness(
-                test_params
-            )
+            prediction = self.learning_engine.predict_strategy_effectiveness(test_params)
             success_rate = prediction.get("predicted_success_rate", 0.0)
 
             if success_rate > best_success_rate:
@@ -395,9 +376,7 @@ class PredictiveAnalyzer:
                 test_params = current_params.copy()
                 test_params["fooling"] = list(fooling_combo)
 
-                prediction = self.learning_engine.predict_strategy_effectiveness(
-                    test_params
-                )
+                prediction = self.learning_engine.predict_strategy_effectiveness(test_params)
                 success_rate = prediction.get("predicted_success_rate", 0.0)
 
                 if success_rate > best_success_rate:
@@ -433,13 +412,9 @@ class EffectivenessModel:
             # Find similar strategies
             similar_strategies = []
             for result in all_results:
-                similarity = self._calculate_strategy_similarity(
-                    strategy_params, result
-                )
+                similarity = self._calculate_strategy_similarity(strategy_params, result)
                 if similarity > 0.3:  # Threshold for similarity
-                    similar_strategies.append(
-                        {"result": result, "similarity": similarity}
-                    )
+                    similar_strategies.append({"result": result, "similarity": similarity})
 
             if similar_strategies:
                 # Weight by similarity
@@ -500,9 +475,7 @@ class EffectivenessModel:
 
             # Fooling methods similarity
             if "fooling" in params1 and isinstance(params1["fooling"], list):
-                fooling_matches = sum(
-                    1 for method in params1["fooling"] if method in strategy_str
-                )
+                fooling_matches = sum(1 for method in params1["fooling"] if method in strategy_str)
                 if len(params1["fooling"]) > 0:
                     similarity += 0.2 * (fooling_matches / len(params1["fooling"]))
                 factors += 1
@@ -538,9 +511,7 @@ class RiskAssessmentModel:
 
             # Analyze historical failures
             all_results = historical_data.get("all_results", [])
-            failed_results = [
-                r for r in all_results if r.get("success_rate", 0.0) == 0.0
-            ]
+            failed_results = [r for r in all_results if r.get("success_rate", 0.0) == 0.0]
 
             # TTL risk assessment
             if "ttl" in strategy_params:
@@ -548,9 +519,7 @@ class RiskAssessmentModel:
                 ttl_failures = sum(
                     1 for r in failed_results if f"ttl={ttl}" in r.get("strategy", "")
                 )
-                ttl_total = sum(
-                    1 for r in all_results if f"ttl={ttl}" in r.get("strategy", "")
-                )
+                ttl_total = sum(1 for r in all_results if f"ttl={ttl}" in r.get("strategy", ""))
 
                 if ttl_total > 0:
                     ttl_failure_rate = ttl_failures / ttl_total
@@ -572,19 +541,13 @@ class RiskAssessmentModel:
                     risk_factors.append("Large split positions often fail")
                     risk_score += 0.2
                 elif split_pos > 50:
-                    risk_factors.append(
-                        "Very large split positions have high failure risk"
-                    )
+                    risk_factors.append("Very large split positions have high failure risk")
                     risk_score += 0.4
 
             # Strategy complexity risk
-            if "fooling" in strategy_params and isinstance(
-                strategy_params["fooling"], list
-            ):
+            if "fooling" in strategy_params and isinstance(strategy_params["fooling"], list):
                 if len(strategy_params["fooling"]) > 3:
-                    risk_factors.append(
-                        "Complex fooling combinations may increase failure risk"
-                    )
+                    risk_factors.append("Complex fooling combinations may increase failure risk")
                     risk_score += 0.1
 
             # Determine risk level
@@ -624,9 +587,7 @@ class OptimizationModel:
 
         try:
             all_results = historical_data.get("all_results", [])
-            successful_results = [
-                r for r in all_results if r.get("success_rate", 0.0) > 0.0
-            ]
+            successful_results = [r for r in all_results if r.get("success_rate", 0.0) > 0.0]
 
             # TTL optimization suggestions
             if "ttl" in strategy_params:
@@ -635,20 +596,14 @@ class OptimizationModel:
                     strategy_str = result.get("strategy", "")
                     if "ttl=" in strategy_str:
                         try:
-                            ttl_part = (
-                                strategy_str.split("ttl=")[1].split()[0].rstrip(",)")
-                            )
+                            ttl_part = strategy_str.split("ttl=")[1].split()[0].rstrip(",)")
                             ttl_value = int(ttl_part)
-                            ttl_success_rates[ttl_value].append(
-                                result.get("success_rate", 0.0)
-                            )
+                            ttl_success_rates[ttl_value].append(result.get("success_rate", 0.0))
                         except:
                             pass
 
                 if ttl_success_rates:
-                    best_ttl = max(
-                        ttl_success_rates.items(), key=lambda x: statistics.mean(x[1])
-                    )
+                    best_ttl = max(ttl_success_rates.items(), key=lambda x: statistics.mean(x[1]))
                     if best_ttl[0] != strategy_params["ttl"]:
                         suggestions.append(
                             {
@@ -670,20 +625,14 @@ class OptimizationModel:
                         try:
                             if "split_pos=" in strategy_str:
                                 split_part = (
-                                    strategy_str.split("split_pos=")[1]
-                                    .split()[0]
-                                    .rstrip(",)")
+                                    strategy_str.split("split_pos=")[1].split()[0].rstrip(",)")
                                 )
                             else:
                                 split_part = (
-                                    strategy_str.split("split-pos=")[1]
-                                    .split()[0]
-                                    .rstrip(",)")
+                                    strategy_str.split("split-pos=")[1].split()[0].rstrip(",)")
                                 )
                             split_value = int(split_part)
-                            split_success_rates[split_value].append(
-                                result.get("success_rate", 0.0)
-                            )
+                            split_success_rates[split_value].append(result.get("success_rate", 0.0))
                         except:
                             pass
 
@@ -708,22 +657,14 @@ class OptimizationModel:
             for result in successful_results:
                 strategy_str = result.get("strategy", "").lower()
                 if "fake" in strategy_str and "disorder" in strategy_str:
-                    strategy_type_success["fake_disorder"].append(
-                        result.get("success_rate", 0.0)
-                    )
+                    strategy_type_success["fake_disorder"].append(result.get("success_rate", 0.0))
                 elif "fake" in strategy_str:
-                    strategy_type_success["fake"].append(
-                        result.get("success_rate", 0.0)
-                    )
+                    strategy_type_success["fake"].append(result.get("success_rate", 0.0))
                 elif "split" in strategy_str:
-                    strategy_type_success["split"].append(
-                        result.get("success_rate", 0.0)
-                    )
+                    strategy_type_success["split"].append(result.get("success_rate", 0.0))
 
             if strategy_type_success:
-                best_type = max(
-                    strategy_type_success.items(), key=lambda x: statistics.mean(x[1])
-                )
+                best_type = max(strategy_type_success.items(), key=lambda x: statistics.mean(x[1]))
                 current_type = strategy_params.get("strategy_type", "").lower()
                 if best_type[0] != current_type:
                     suggestions.append(

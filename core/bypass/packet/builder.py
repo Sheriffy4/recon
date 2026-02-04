@@ -6,7 +6,6 @@ from typing import Optional
 import logging
 
 
-
 class PacketBuilder:
     """
     Отвечает за сборку сырых байтов пакетов на основе спецификаций.
@@ -21,12 +20,7 @@ class PacketBuilder:
         Находит и заменяет SNI в TLS ClientHello.
         """
         try:
-            if not (
-                payload
-                and len(payload) > 43
-                and payload[0] == 0x16
-                and payload[5] == 0x01
-            ):
+            if not (payload and len(payload) > 43 and payload[0] == 0x16 and payload[5] == 0x01):
                 self.logger.debug("Payload is not a valid TLS ClientHello")
                 return None
 
@@ -64,9 +58,7 @@ class PacketBuilder:
                 return None
 
             ext_block_start = pos
-            total_ext_len = int.from_bytes(
-                payload[ext_block_start : ext_block_start + 2], "big"
-            )
+            total_ext_len = int.from_bytes(payload[ext_block_start : ext_block_start + 2], "big")
             ext_start = ext_block_start + 2
 
             if ext_start + total_ext_len > len(payload):
@@ -96,12 +88,8 @@ class PacketBuilder:
             original_sni_ext_len = int.from_bytes(
                 payload[sni_ext_start + 2 : sni_ext_start + 4], "big"
             )
-            new_sni_name_bytes = (
-                b"\x00" + len(new_sni_bytes).to_bytes(2, "big") + new_sni_bytes
-            )
-            new_sni_list_bytes = (
-                len(new_sni_name_bytes).to_bytes(2, "big") + new_sni_name_bytes
-            )
+            new_sni_name_bytes = b"\x00" + len(new_sni_bytes).to_bytes(2, "big") + new_sni_bytes
+            new_sni_list_bytes = len(new_sni_name_bytes).to_bytes(2, "big") + new_sni_name_bytes
             new_sni_ext_len = len(new_sni_list_bytes)
             new_sni_ext_bytes = (
                 b"\x00\x00" + new_sni_ext_len.to_bytes(2, "big") + new_sni_list_bytes
@@ -129,9 +117,7 @@ class PacketBuilder:
 
             original_record_header = payload[:5]
             new_payload = (
-                original_record_header[:3]
-                + new_record_len.to_bytes(2, "big")
-                + new_record_content
+                original_record_header[:3] + new_record_len.to_bytes(2, "big") + new_record_content
             )
 
             self.logger.debug(
@@ -140,9 +126,7 @@ class PacketBuilder:
             return new_payload
 
         except Exception as e:
-            self.logger.error(
-                f"_replace_sni_in_payload: Unexpected error - {e}", exc_info=True
-            )
+            self.logger.error(f"_replace_sni_in_payload: Unexpected error - {e}", exc_info=True)
             return None
 
     def build_tcp_segment(
@@ -178,17 +162,13 @@ class PacketBuilder:
 
             raw = original_packet.raw
             if len(raw) < 40:
-                self.logger.error(
-                    f"build_tcp_segment: packet too short ({len(raw)} bytes)"
-                )
+                self.logger.error(f"build_tcp_segment: packet too short ({len(raw)} bytes)")
                 return None
 
             # Extract IP header length
             ip_hl = (raw[0] & 0x0F) * 4
             if ip_hl < 20 or ip_hl > 60:
-                self.logger.error(
-                    f"build_tcp_segment: invalid IP header length {ip_hl}"
-                )
+                self.logger.error(f"build_tcp_segment: invalid IP header length {ip_hl}")
                 return None
 
             # Extract TCP header length
@@ -200,7 +180,7 @@ class PacketBuilder:
             base_seq = struct.unpack("!I", raw[ip_hl + 4 : ip_hl + 8])[0]
             base_ack = struct.unpack("!I", raw[ip_hl + 8 : ip_hl + 12])[0]
             base_win = struct.unpack("!H", raw[ip_hl + 14 : ip_hl + 16])[0]
-            
+
             # CRITICAL DEBUG: Log base_seq to verify it's correct
             self.logger.debug(
                 f"📊 Original packet: base_seq=0x{base_seq:08X} ({base_seq}), "
@@ -217,7 +197,7 @@ class PacketBuilder:
             # seq_offset takes precedence over seq_extra for backward compatibility
             seq_offset = getattr(spec, "seq_offset", 0)
             seq_extra = getattr(spec, "seq_extra", None)
-            
+
             # Determine which offset to use:
             # - If seq_offset is non-zero, use it (new behavior)
             # - Otherwise, if seq_extra is set, use it (legacy behavior)
@@ -230,7 +210,7 @@ class PacketBuilder:
                 # Legacy behavior: use seq_extra with validation
                 offset = seq_extra
                 self.logger.info(f"📐 Using seq_extra (legacy): {offset}")
-                
+
                 # Task 11: Add deprecation warning when seq_extra is used with badseq
                 # Check if this is a fake packet (badseq fooling)
                 is_fake = getattr(spec, "is_fake", False)
@@ -245,7 +225,7 @@ class PacketBuilder:
                     self.logger.warning(
                         f"📖 See config/README_PACKET_CONFIG.md for full migration guide"
                     )
-                
+
                 # Task 5: Add warning log when seq_extra=-1 is detected
                 if seq_extra == -1:
                     self.logger.warning(
@@ -255,21 +235,21 @@ class PacketBuilder:
             else:
                 offset = 0
                 self.logger.debug(f"📐 No offset specified, using default: {offset}")
-            
+
             # Calculate final sequence number
             # Formula: final_seq = (base_seq + rel_seq + offset) & 0xFFFFFFFF
             seq = (base_seq + spec.rel_seq + offset) & 0xFFFFFFFF
-            
+
             # Task 4: Overlap detection and validation
             # Check if FAKE packet sequence overlaps with REAL packet sequence
             is_fake = getattr(spec, "is_fake", False)
             payload_len = len(spec.payload) if spec.payload else 0
-            
+
             if is_fake and payload_len > 0:
                 # Calculate the expected REAL packet sequence (without offset)
                 real_seq = (base_seq + spec.rel_seq) & 0xFFFFFFFF
                 fake_seq_end = (seq + payload_len) & 0xFFFFFFFF
-                
+
                 # Detect overlap: FAKE packet's data range overlaps with REAL packet's start
                 # Overlap occurs when the FAKE packet's end extends into or past the REAL packet's start
                 # For negative offsets: fake_seq = real_seq + offset
@@ -279,7 +259,7 @@ class PacketBuilder:
                 # Which simplifies to: (real_seq + offset) + payload_len > real_seq
                 # Which simplifies to: offset + payload_len > 0
                 overlap_detected = False
-                
+
                 # Check for seq_extra=-1 with non-empty payload (most common case)
                 if seq_extra == -1:
                     overlap_detected = True
@@ -296,7 +276,7 @@ class PacketBuilder:
                     self.logger.error(
                         f"   💡 SUGGESTION: Use seq_offset=0x10000000 instead of seq_extra=-1"
                     )
-                
+
                 # Check for any negative offset that creates overlap
                 elif offset < 0:
                     # Overlap occurs if: offset + payload_len > 0
@@ -312,16 +292,10 @@ class PacketBuilder:
                         self.logger.error(
                             f"   REAL packet: seq=0x{real_seq:08X}, starts at byte 0x{real_seq:08X}"
                         )
-                        self.logger.error(
-                            f"   Overlap amount: {offset + payload_len} bytes"
-                        )
-                        self.logger.error(
-                            f"   This will cause servers to reject the connection!"
-                        )
-                        self.logger.error(
-                            f"   💡 SUGGESTION: Use seq_offset=0x10000000 instead"
-                        )
-                
+                        self.logger.error(f"   Overlap amount: {offset + payload_len} bytes")
+                        self.logger.error(f"   This will cause servers to reject the connection!")
+                        self.logger.error(f"   💡 SUGGESTION: Use seq_offset=0x10000000 instead")
+
                 # Task 5: Log validation result with "no overlap" confirmation
                 if overlap_detected:
                     self.logger.error(
@@ -332,10 +306,10 @@ class PacketBuilder:
                     self.logger.info(
                         f"✅ VALIDATION PASSED: No sequence overlap detected (no overlap)"
                     )
-            
+
             # Task 5: Enhanced logging with all sequence number components
             packet_type = "FAKE" if getattr(spec, "is_fake", False) else "REAL"
-            
+
             # Log which parameter is being used (seq_offset or seq_extra)
             if seq_offset != 0:
                 param_used = f"seq_offset={offset} (0x{offset:08X})"
@@ -343,13 +317,13 @@ class PacketBuilder:
                 param_used = f"seq_extra={offset}"
             else:
                 param_used = "no offset"
-            
+
             self.logger.info(
                 f"🔢 {packet_type} segment seq calculation: "
                 f"base=0x{base_seq:08X} + rel={spec.rel_seq} + offset={offset} = 0x{seq:08X} "
                 f"[using {param_used}]"
             )
-            
+
             # Enhanced logging for fake vs real packet sequence numbers
             if getattr(spec, "is_fake", False):
                 self.logger.info(
@@ -363,12 +337,12 @@ class PacketBuilder:
                     f"payload_len={len(spec.payload) if spec.payload else 0}, "
                     f"covers bytes [{spec.rel_seq}:{spec.rel_seq + len(spec.payload) if spec.payload else spec.rel_seq}]"
                 )
-                
+
             # Task 5: Log sequence difference between FAKE and REAL packets
             if getattr(spec, "is_fake", False) and offset != 0:
                 expected_real_seq = (base_seq + spec.rel_seq) & 0xFFFFFFFF
                 seq_diff = (seq - expected_real_seq) & 0xFFFFFFFF
-                
+
                 # Handle wraparound for negative differences
                 if seq_diff > 0x80000000:  # More than half of 32-bit space means negative
                     seq_diff_signed = seq_diff - 0x100000000
@@ -396,9 +370,7 @@ class PacketBuilder:
             if hasattr(spec, "preserve_window_size") and spec.preserve_window_size:
                 window = base_win
             else:
-                window = (
-                    max(base_win // window_div, 1024) if window_div > 1 else base_win
-                )
+                window = max(base_win // window_div, 1024) if window_div > 1 else base_win
 
             # Get TTL (None means use original)
             ttl = spec.ttl
@@ -409,6 +381,16 @@ class PacketBuilder:
             # Add MD5 signature option if requested
             if hasattr(spec, "add_md5sig_option") and spec.add_md5sig_option:
                 md5opt = b"\x13\x12" + b"\x00" * 16
+                # tcp_options can be memoryview on some pydivert/scapy paths
+                if tcp_options is None:
+                    tcp_options = b""
+                elif isinstance(tcp_options, memoryview):
+                    tcp_options = tcp_options.tobytes()
+                elif isinstance(tcp_options, bytearray):
+                    tcp_options = bytes(tcp_options)
+                elif not isinstance(tcp_options, (bytes,)):
+                    tcp_options = bytes(tcp_options)
+
                 tcp_options = tcp_options + md5opt
                 # Pad to 4-byte boundary with NOP (0x01)
                 if len(tcp_options) % 4 != 0:
@@ -465,9 +447,7 @@ class PacketBuilder:
                     else 0xDEAD
                 )
                 seg_raw[tcp_start + 16 : tcp_start + 18] = struct.pack("!H", bad_csum)
-                self.logger.debug(
-                    f"TCP checksum corrupted: 0x{good_csum:04X} -> 0x{bad_csum:04X}"
-                )
+                self.logger.debug(f"TCP checksum corrupted: 0x{good_csum:04X} -> 0x{bad_csum:04X}")
             else:
                 seg_raw[tcp_start + 16 : tcp_start + 18] = struct.pack("!H", good_csum)
                 self.logger.debug(f"TCP checksum: 0x{good_csum:04X}")
@@ -476,9 +456,7 @@ class PacketBuilder:
             return bytes(seg_raw)
 
         except Exception as e:
-            self.logger.error(
-                f"build_tcp_segment: Unexpected error - {e}", exc_info=True
-            )
+            self.logger.error(f"build_tcp_segment: Unexpected error - {e}", exc_info=True)
             return None
 
     def build_udp_datagram(
@@ -528,9 +506,7 @@ class PacketBuilder:
             return bytes(seg_raw)
 
         except Exception as e:
-            self.logger.error(
-                f"build_udp_datagram: Unexpected error - {e}", exc_info=True
-            )
+            self.logger.error(f"build_udp_datagram: Unexpected error - {e}", exc_info=True)
             return None
 
     def _ones_complement_sum(self, data: bytes) -> int:
@@ -656,12 +632,7 @@ class PacketBuilder:
         Public-style TCP checksum (src/dst + tcp hdr + payload).
         Kept for compatibility if other code calls it.
         """
-        pseudo = (
-            src_ip
-            + dst_ip
-            + b"\x00\x06"
-            + struct.pack("!H", len(tcp_header) + len(payload))
-        )
+        pseudo = src_ip + dst_ip + b"\x00\x06" + struct.pack("!H", len(tcp_header) + len(payload))
         # zero checksum inside tcp_header
         hdr = bytearray(tcp_header)
         hdr[16:18] = b"\x00\x00"

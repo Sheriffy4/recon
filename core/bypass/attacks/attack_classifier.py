@@ -47,6 +47,7 @@ class AttackClassifier:
     """Классификатор атак для автоматического выбора"""
 
     def __init__(self):
+        self.profiles: Dict[str, AttackProfile] = {}
         self._init_attack_profiles()
 
     def _init_attack_profiles(self):
@@ -147,7 +148,7 @@ class AttackClassifier:
 
     def classify_strategy(self, strategy_task: Dict) -> Optional[str]:
         """Классифицирует стратегию по категории"""
-        task_type = strategy_task.get("type", "")
+        task_type = str(strategy_task.get("type", "") or "")
         if task_type in self.profiles:
             return self.profiles[task_type].category.value
 
@@ -173,9 +174,7 @@ class AttackClassifier:
             return self.profiles[attack_type].category.value
         return None
 
-    def recommend_attacks_for_dpi(
-        self, dpi_type: str, max_complexity: int = 10
-    ) -> List[str]:
+    def recommend_attacks_for_dpi(self, dpi_type: str, max_complexity: int = 10) -> List[str]:
         """Рекомендует атаки для конкретного типа DPI"""
         recommendations = []
 
@@ -194,8 +193,10 @@ class AttackClassifier:
         stealthy = []
 
         for name, profile in self.profiles.items():
-            avg_effectiveness = sum(profile.effectiveness_vs_dpi.values()) / len(
-                profile.effectiveness_vs_dpi
+            if not profile.effectiveness_vs_dpi:
+                continue
+            avg_effectiveness = (
+                sum(profile.effectiveness_vs_dpi.values()) / len(profile.effectiveness_vs_dpi)
             )
             if avg_effectiveness >= min_effectiveness:
                 stealthy.append((name, profile.stealth))

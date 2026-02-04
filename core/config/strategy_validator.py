@@ -190,11 +190,7 @@ class StrategyValidator:
                 )
 
         # Check for empty configurations
-        if (
-            not config.domain_strategies
-            and not config.ip_strategies
-            and not config.global_strategy
-        ):
+        if not config.domain_strategies and not config.ip_strategies and not config.global_strategy:
             self.issues.append(
                 ValidationIssue(
                     severity="error",
@@ -209,9 +205,7 @@ class StrategyValidator:
         """Validate strategy syntax for all rules."""
         # Validate domain strategies
         for pattern, rule in config.domain_strategies.items():
-            self._validate_single_strategy(
-                rule.strategy, f"domain_strategies.{pattern}"
-            )
+            self._validate_single_strategy(rule.strategy, f"domain_strategies.{pattern}")
             self._validate_domain_pattern(pattern, f"domain_strategies.{pattern}")
 
         # Validate IP strategies
@@ -221,9 +215,7 @@ class StrategyValidator:
 
         # Validate global strategy
         if config.global_strategy:
-            self._validate_single_strategy(
-                config.global_strategy.strategy, "global_strategy"
-            )
+            self._validate_single_strategy(config.global_strategy.strategy, "global_strategy")
 
     def _validate_single_strategy(self, strategy: str, location: str):
         """Validate syntax of a single strategy string."""
@@ -428,17 +420,13 @@ class StrategyValidator:
                 strategies_with_data += 1
 
                 # Check success rate
-                if (
-                    rule.metadata.success_rate
-                    < self.PERFORMANCE_THRESHOLDS["min_success_rate"]
-                ):
+                if rule.metadata.success_rate < self.PERFORMANCE_THRESHOLDS["min_success_rate"]:
                     low_performance_strategies.append(pattern)
 
                 # Check latency
                 if (
                     rule.metadata.avg_latency_ms > 0
-                    and rule.metadata.avg_latency_ms
-                    > self.PERFORMANCE_THRESHOLDS["max_latency_ms"]
+                    and rule.metadata.avg_latency_ms > self.PERFORMANCE_THRESHOLDS["max_latency_ms"]
                 ):
                     self.issues.append(
                         ValidationIssue(
@@ -451,10 +439,7 @@ class StrategyValidator:
                     )
 
                 # Check test count
-                if (
-                    rule.metadata.test_count
-                    < self.PERFORMANCE_THRESHOLDS["min_test_count"]
-                ):
+                if rule.metadata.test_count < self.PERFORMANCE_THRESHOLDS["min_test_count"]:
                     self.issues.append(
                         ValidationIssue(
                             severity="info",
@@ -534,9 +519,7 @@ class StrategyValidator:
 
         # Check for missing global strategy
         if not config.global_strategy:
-            self.recommendations.append(
-                "Add global fallback strategy for unmatched domains"
-            )
+            self.recommendations.append("Add global fallback strategy for unmatched domains")
 
     def _validate_compatibility(self, config: StrategyConfiguration):
         """Validate compatibility with different systems."""

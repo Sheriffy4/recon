@@ -87,9 +87,7 @@ class WorkflowIntegration:
             self.logger.info("Starting comprehensive PCAP analysis")
 
             # Create configuration
-            config = self.config_manager.create_config_from_preset(
-                preset, recon_pcap, zapret_pcap
-            )
+            config = self.config_manager.create_config_from_preset(preset, recon_pcap, zapret_pcap)
 
             if not config:
                 raise ValueError(f"Unknown preset: {preset}")
@@ -124,9 +122,7 @@ class WorkflowIntegration:
 
         except Exception as e:
             self.logger.error(f"Comprehensive analysis failed: {e}")
-            error_result = WorkflowResult(
-                success=False, execution_time=0, error_details=str(e)
-            )
+            error_result = WorkflowResult(success=False, execution_time=0, error_details=str(e))
             self.results_history.append(error_result)
             return error_result
 
@@ -156,7 +152,7 @@ class WorkflowIntegration:
                 base_config.target_domains = target_domains
 
             # Create batch job
-            batch_job = self.config_manager.create_batch_job_from_directory(
+            batch_job = self.scheduler.create_batch_job_from_directory(
                 f"Batch Analysis {pcap_directory}", pcap_directory, base_config
             )
 
@@ -165,6 +161,7 @@ class WorkflowIntegration:
                 return []
 
             batch_job.max_concurrent = max_concurrent
+            self.scheduler.add_batch_job(batch_job)
 
             # Execute batch job
             results = await self.scheduler.run_batch_job(batch_job.id)
@@ -175,9 +172,7 @@ class WorkflowIntegration:
                 self._update_metrics(result)
 
             success_count = sum(1 for r in results if r.success)
-            self.logger.info(
-                f"Batch analysis completed: {success_count}/{len(results)} successful"
-            )
+            self.logger.info(f"Batch analysis completed: {success_count}/{len(results)} successful")
 
             return results
 
@@ -206,9 +201,7 @@ class WorkflowIntegration:
         """
         try:
             # Create configuration
-            config = self.config_manager.create_config_from_preset(
-                "safe", recon_pcap, zapret_pcap
-            )
+            config = self.config_manager.create_config_from_preset("safe", recon_pcap, zapret_pcap)
 
             # Create scheduled job
             if schedule_type == "daily":
@@ -283,8 +276,7 @@ class WorkflowIntegration:
             successful_domains = sum(
                 1
                 for domain_result in validation_results.values()
-                if isinstance(domain_result, dict)
-                and domain_result.get("success", False)
+                if isinstance(domain_result, dict) and domain_result.get("success", False)
             )
 
             summary = {
@@ -361,17 +353,11 @@ class WorkflowIntegration:
                     "fix_success_rate": self._calculate_fix_success_rate(),
                 },
                 "validation_analysis": {
-                    "domain_success_rates": self._analyze_domain_success_rates(
-                        all_validations
-                    ),
-                    "problematic_domains": self._identify_problematic_domains(
-                        all_validations
-                    ),
+                    "domain_success_rates": self._analyze_domain_success_rates(all_validations),
+                    "problematic_domains": self._identify_problematic_domains(all_validations),
                 },
                 "recommendations": recommendations,
-                "scheduler_status": (
-                    self.scheduler.get_job_status() if self.scheduler else None
-                ),
+                "scheduler_status": (self.scheduler.get_job_status() if self.scheduler else None),
             }
 
             return report
@@ -424,14 +410,10 @@ class WorkflowIntegration:
             # Example integration
             if hasattr(comparison_result, "recon_packets"):
                 rst_packets = [
-                    p
-                    for p in comparison_result.recon_packets
-                    if "RST" in getattr(p, "flags", [])
+                    p for p in comparison_result.recon_packets if "RST" in getattr(p, "flags", [])
                 ]
                 if rst_packets:
-                    self.logger.info(
-                        f"Found {len(rst_packets)} RST packets for analysis"
-                    )
+                    self.logger.info(f"Found {len(rst_packets)} RST packets for analysis")
 
         except Exception as e:
             self.logger.error(f"RST analysis update failed: {e}")
@@ -471,18 +453,14 @@ class WorkflowIntegration:
             self.integration_metrics["fixes_applied"] += len(result.fixes_applied)
 
         if result.validation_results:
-            self.integration_metrics["domains_validated"] += len(
-                result.validation_results
-            )
+            self.integration_metrics["domains_validated"] += len(result.validation_results)
 
     def _generate_integration_recommendations(self) -> List[str]:
         """Generate recommendations based on integration history"""
         recommendations = []
 
         if not self.results_history:
-            recommendations.append(
-                "No workflow history available - run initial analysis"
-            )
+            recommendations.append("No workflow history available - run initial analysis")
             return recommendations
 
         # Analyze success rate
@@ -497,23 +475,17 @@ class WorkflowIntegration:
 
         # Analyze fix effectiveness
         if self.integration_metrics["fixes_applied"] == 0:
-            recommendations.append(
-                "No fixes have been applied - consider enabling auto-fix"
-            )
+            recommendations.append("No fixes have been applied - consider enabling auto-fix")
 
         # Analyze validation coverage
         if self.integration_metrics["domains_validated"] < 5:
-            recommendations.append(
-                "Limited domain validation - consider testing more domains"
-            )
+            recommendations.append("Limited domain validation - consider testing more domains")
 
         # Recent failure analysis
         recent_failures = [r for r in self.results_history[-5:] if not r.success]
 
         if len(recent_failures) >= 3:
-            recommendations.append(
-                "Multiple recent failures - investigate common issues"
-            )
+            recommendations.append("Multiple recent failures - investigate common issues")
 
         return recommendations
 
@@ -538,9 +510,7 @@ class WorkflowIntegration:
 
         return successful_with_fixes / len(workflows_with_fixes)
 
-    def _analyze_domain_success_rates(
-        self, all_validations: Dict[str, Any]
-    ) -> Dict[str, float]:
+    def _analyze_domain_success_rates(self, all_validations: Dict[str, Any]) -> Dict[str, float]:
         """Analyze success rates by domain"""
         domain_stats = {}
 
@@ -551,16 +521,12 @@ class WorkflowIntegration:
 
         return domain_stats
 
-    def _identify_problematic_domains(
-        self, all_validations: Dict[str, Any]
-    ) -> List[str]:
+    def _identify_problematic_domains(self, all_validations: Dict[str, Any]) -> List[str]:
         """Identify domains with consistently low success rates"""
         domain_success_rates = self._analyze_domain_success_rates(all_validations)
 
         problematic = [
-            domain
-            for domain, success_rate in domain_success_rates.items()
-            if success_rate < 0.5
+            domain for domain, success_rate in domain_success_rates.items() if success_rate < 0.5
         ]
 
         return problematic
@@ -570,9 +536,7 @@ class WorkflowIntegration:
 async def run_quick_analysis(recon_pcap: str, zapret_pcap: str) -> WorkflowResult:
     """Run quick PCAP analysis"""
     integration = WorkflowIntegration()
-    return await integration.run_comprehensive_analysis(
-        recon_pcap, zapret_pcap, preset="quick"
-    )
+    return await integration.run_comprehensive_analysis(recon_pcap, zapret_pcap, preset="quick")
 
 
 async def run_full_analysis(
@@ -588,9 +552,7 @@ async def run_full_analysis(
 async def run_safe_analysis(recon_pcap: str, zapret_pcap: str) -> WorkflowResult:
     """Run safe PCAP analysis with backups and rollbacks"""
     integration = WorkflowIntegration()
-    return await integration.run_comprehensive_analysis(
-        recon_pcap, zapret_pcap, preset="safe"
-    )
+    return await integration.run_comprehensive_analysis(recon_pcap, zapret_pcap, preset="safe")
 
 
 if __name__ == "__main__":
@@ -599,9 +561,7 @@ if __name__ == "__main__":
         setup_logging()
 
         # Create integration instance
-        integration = WorkflowIntegration(
-            {"auto_apply_fixes": True, "notifications": True}
-        )
+        integration = WorkflowIntegration({"auto_apply_fixes": True, "notifications": True})
 
         # Run comprehensive analysis
         result = await integration.run_comprehensive_analysis(

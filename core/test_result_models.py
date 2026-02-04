@@ -1,186 +1,167 @@
 """
-Core data models for test result coordination.
+Test result models for the DPI bypass system.
 
-This module defines the data structures used by the TestResultCoordinator
-to track test execution, validation, and saving operations.
-
-Feature: strategy-testing-production-parity
-Requirements: 1.1, 1.2, 8.1
+This module provides data classes for representing test results, PCAP analysis,
+validation results, and test sessions.
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
+from datetime import datetime
 from typing import Dict, List, Optional, Any
+from enum import Enum
 
 
-class TestVerdict(Enum):
-    """
-    Possible test outcomes for strategy testing.
-    
-    The verdict determines whether a strategy should be saved and
-    represents the final determination of test success.
-    """
-    SUCCESS = "success"  # Strategy worked perfectly, all checks passed
-    FAIL = "fail"  # Strategy failed (retransmissions >= 3 or timeout)
-    PARTIAL_SUCCESS = "partial"  # Some attacks applied, not all
-    MISMATCH = "mismatch"  # Declared strategy != applied strategy
-    INCONCLUSIVE = "inconclusive"  # Cannot determine (no PCAP, errors, etc.)
+class TestStatus(Enum):
+    """Status of a test."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class VerdictType(Enum):
+    """Types of test verdicts."""
+
+    SUCCESS = "success"
+    FAILURE = "failure"
+    INCONCLUSIVE = "inconclusive"
+    ERROR = "error"
 
 
 @dataclass
 class TestSession:
-    """
-    Tracks all data for a single strategy test.
-    
-    This is the central data structure that accumulates evidence
-    during test execution and is used to make the final verdict.
-    """
+    """Represents a test session for strategy validation."""
+
     session_id: str
     domain: str
     strategy_name: str
     pcap_file: str
-    start_time: float
-    
-    # Task: Testing-Production Parity - track executed attacks for simple comparison
-    executed_attacks: Optional[str] = None  # Final attack string from log (e.g., "split,fake")
-    
-    # Evidence collected during test execution
-    retransmission_count: int = 0
-    response_received: bool = False
-    response_status: Optional[int] = None
-    timeout: bool = False
-    
-    # Analysis results (populated after test completes)
-    pcap_analysis: Optional['PCAPAnalysisResult'] = None
-    validation_result: Optional['ValidationResult'] = None
-    
-    # Final verdict (determined by coordinator)
-    verdict: Optional[TestVerdict] = None
-    verdict_reason: str = ""
-    
-    # Metadata
-    end_time: Optional[float] = None
-    error: Optional[str] = None
+    start_time: datetime = field(default_factory=datetime.now)
+    end_time: Optional[datetime] = None
+    status: TestStatus = TestStatus.PENDING
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "session_id": self.session_id,
+            "domain": self.domain,
+            "strategy_name": self.strategy_name,
+            "pcap_file": self.pcap_file,
+            "start_time": self.start_time.isoformat(),
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "status": self.status.value,
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class TestVerdict:
+    """Final verdict from a test session."""
+
+    session_id: str
+    verdict: VerdictType
+    confidence: float = 0.0
+    reasoning: str = ""
+    evidence: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "session_id": self.session_id,
+            "verdict": self.verdict.value,
+            "confidence": self.confidence,
+            "reasoning": self.reasoning,
+            "evidence": self.evidence,
+            "timestamp": self.timestamp.isoformat(),
+        }
 
 
 @dataclass
 class PCAPAnalysisResult:
-    """
-    Results from PCAP analysis.
-    
-    This structured result replaces the previous dict-based approach
-    and ensures all components have access to the same analysis data.
-    
-    New fields for PCAP Validator Combo Detection (Requirements 3.1, 3.5):
-    - strategy_type: The determined strategy type from detected attacks.
-                     This is the primary source for StrategyValidator to determine
-                     applied_strategy. Set to None only when no attacks detected.
-                     Examples: "smart_combo_disorder_multisplit", "multisplit", "fakeddisorder"
-    - combo_attacks: List of core attacks only (fooling attacks filtered out).
-                     Used for detailed analysis and debugging.
-                     Examples: ['disorder', 'multisplit'], ['fake', 'split']
-    """
+    """Result of PCAP file analysis."""
+
     pcap_file: str
-    packet_count: int
-    
-    # Detected attacks (e.g., ['split', 'fake'])
+    packet_count: int = 0
     detected_attacks: List[str] = field(default_factory=list)
-    
-    # Task: Testing-Production Parity - store executed attacks from log for simple comparison
-    executed_attacks_from_log: Optional[str] = None  # e.g., "split,fake"
-    
-    # Task: PCAP Validator Combo Detection - strategy type determination
-    strategy_type: Optional[str] = None  # e.g., "smart_combo_disorder_multisplit"
-    combo_attacks: List[str] = field(default_factory=list)  # Core attacks only (e.g., ['disorder', 'multisplit'])
-    
-    # Extracted parameters (e.g., {'split_pos': 3, 'ttl': 64})
+    executed_attacks_from_log: List[str] = field(default_factory=list)
+    strategy_type: str = "unknown"
+    combo_attacks: List[str] = field(default_factory=list)
     parameters: Dict[str, Any] = field(default_factory=dict)
-    
-    # Evidence details
     split_positions: List[int] = field(default_factory=list)
     fake_packets_detected: int = 0
     sni_values: List[str] = field(default_factory=list)
-    
-    # Metadata
     analysis_time: float = 0.0
     analyzer_version: str = "1.0"
-    
-    # Error tracking
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    domain: str = ""
+    analysis_timestamp: datetime = field(default_factory=datetime.now)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "pcap_file": self.pcap_file,
+            "packet_count": self.packet_count,
+            "detected_attacks": self.detected_attacks,
+            "executed_attacks_from_log": self.executed_attacks_from_log,
+            "strategy_type": self.strategy_type,
+            "combo_attacks": self.combo_attacks,
+            "parameters": self.parameters,
+            "split_positions": self.split_positions,
+            "fake_packets_detected": self.fake_packets_detected,
+            "sni_values": self.sni_values,
+            "analysis_time": self.analysis_time,
+            "analyzer_version": self.analyzer_version,
+            "errors": self.errors,
+            "warnings": self.warnings,
+            "domain": self.domain,
+            "analysis_timestamp": self.analysis_timestamp.isoformat(),
+            "metadata": self.metadata,
+        }
 
 
 @dataclass
 class ValidationResult:
-    """
-    Results from strategy validation.
-    
-    This contains the outcome of validating that the declared strategy
-    matches what was actually applied, and that all parameters were extracted.
-    
-    Feature: pcap-validator-combo-detection
-    Requirements: 4.1, 4.4
-    
-    New fields for PCAP Validator Combo Detection:
-    - applied_strategy_source: Tracks which source was used to determine applied_strategy.
-                               Values: "metadata" (from executed_attacks_from_log),
-                                      "pcap_analyzer" (from strategy_type),
-                                      "reconstruction" (from detected_attacks fallback),
-                                      "unknown" (default/error state)
-                               This enables debugging and understanding the 3-tier priority logic.
-                               (Requirement 4.1)
-    - declared_normalized: The normalized version of declared_strategy used for comparison.
-                          Normalization removes prefixes, sorts attacks, and applies equivalences.
-                          Stored for debugging and transparency. (Requirement 4.4)
-    - applied_normalized: The normalized version of applied_strategy used for comparison.
-                         Stored for debugging and transparency. (Requirement 4.4)
-    """
-    is_valid: bool
-    
-    # Completeness checks
-    all_attacks_applied: bool
-    declared_strategy: str
-    applied_strategy: str
-    strategy_match: bool
-    
-    # Task 3.4: Source tracking for applied_strategy determination
-    # Requirement 4.1: Track which source was used (metadata/pcap_analyzer/reconstruction)
-    applied_strategy_source: str = "unknown"
-    
-    # Task 3.4: Normalization tracking
-    # Requirement 4.4: Store both original and normalized names for debugging
-    declared_normalized: str = ""
-    applied_normalized: str = ""
-    
-    # Parameter validation
-    parameters_extracted: bool = False
-    parameter_count: int = 0
-    
-    # Issues found
-    warnings: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
-    
-    # Recommendations
-    recommendations: List[str] = field(default_factory=list)
-    
-    # Missing components (for combo strategies)
-    missing_components: List[str] = field(default_factory=list)
+    """Result of validation operations."""
+
+    test_name: str
+    success: bool
+    message: str = ""
+    details: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "test_name": self.test_name,
+            "success": self.success,
+            "message": self.message,
+            "details": self.details,
+            "timestamp": self.timestamp.isoformat(),
+        }
 
 
 @dataclass
 class SaveResult:
-    """
-    Result of a strategy save operation.
-    
-    Tracks which files were updated and whether the save was
-    deduplicated (already saved).
-    """
+    """Result of save operations."""
+
     success: bool
-    files_updated: List[str] = field(default_factory=list)
-    was_duplicate: bool = False
+    file_path: str = ""
+    message: str = ""
     error: Optional[str] = None
-    
-    # Details about what was saved
-    domain: str = ""
-    strategy_name: str = ""
-    timestamp: float = 0.0
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "success": self.success,
+            "file_path": self.file_path,
+            "message": self.message,
+            "error": self.error,
+            "timestamp": self.timestamp.isoformat(),
+        }

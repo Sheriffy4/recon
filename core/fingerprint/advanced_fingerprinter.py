@@ -10,43 +10,37 @@ import ssl
 import asyncio
 import time
 import logging
-import hashlib
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from datetime import datetime, timedelta
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from scapy.all import IP, TCP, send
 from core.fingerprint.advanced_models import (
     DPIFingerprint,
     DPIType,
     FingerprintingError,
 )
-from core.fingerprint.cache import FingerprintCache
-from core.fingerprint.metrics_collector import MetricsCollector
-from core.fingerprint.tcp_analyzer import TCPAnalyzer
-from core.fingerprint.dns_analyzer import DNSAnalyzer
-from core.fingerprint.http_analyzer import HTTPAnalyzer
-from core.fingerprint.ml_classifier import MLClassifier
-from core.protocols.tls import TLSParser, ClientHelloInfo
+from core.fingerprint.component_initializer import ComponentInitializer
 from core.fingerprint.ech_detector import ECHDetector
-from core.fingerprint.models import DPIBehaviorProfile
-from core.knowledge.cdn_asn_db import CdnAsnKnowledgeBase
-
-# Try to import sklearn for ML features
-try:
-    import numpy as np
-    from sklearn.ensemble import RandomForestClassifier
-    import joblib
-
-    SKLEARN_AVAILABLE = True
-except ImportError:
-    SKLEARN_AVAILABLE = False
+from core.fingerprint.async_helpers import (
+    execute_task_list_with_integration,
+    parallel_probe_execution,
+)
+from core.fingerprint.connection_testers import (
+    test_payload_size,
+    test_connection_with_reordering,
+)
+from core.fingerprint.probing_methods import DPIProber
+from core.fingerprint.analysis_methods import DPIAnalyzer
+from core.fingerprint.fingerprint_processor import FingerprintProcessor
+from core.protocols.tls import TLSParser, ClientHelloInfo
 
 # Try to import RealEffectivenessTester for extended metrics
 try:
-    from core.bypass.attacks.real_effectiveness_tester import RealEffectivenessTester
+    from core.bypass.attacks.real_effectiveness_tester import (  # noqa: F401
+        RealEffectivenessTester,
+    )
 
     EFFECTIVENESS_TESTER_AVAILABLE = True
 except ImportError:
@@ -111,13 +105,8 @@ class DPIBehaviorProfile:
         if not self.ml_detection:
             weaknesses.append("No ML detection - evasion easier")
         if self.packet_reordering_tolerance:
-            weaknesses.append(
-                "Tolerates packet reordering - TCP sequence attacks viable"
-            )
-        if (
-            self.deep_packet_inspection_depth
-            and self.deep_packet_inspection_depth < 1500
-        ):
+            weaknesses.append("Tolerates packet reordering - TCP sequence attacks viable")
+        if self.deep_packet_inspection_depth and self.deep_packet_inspection_depth < 1500:
             weaknesses.append(
                 f"Limited DPI depth ({self.deep_packet_inspection_depth} bytes) - large payload bypass possible"
             )
@@ -192,7 +181,22 @@ class AdvancedFingerprinter:
     ):
         self.config = config or FingerprintingConfig()
         self.logger = logging.getLogger(f"{__name__}.AdvancedFingerprinter")
-        self._initialize_components(cache_file)
+
+        # Initialize all components using ComponentInitializer
+        initializer = ComponentInitializer(self.config, self.logger)
+        components = initializer.initialize_all(cache_file)
+
+        # Assign components to instance attributes
+        self.cache = components.get("cache")
+        self.metrics_collector = components.get("metrics_collector")
+        self.tcp_analyzer = components.get("tcp_analyzer")
+        self.http_analyzer = components.get("http_analyzer")
+        self.dns_analyzer = components.get("dns_analyzer")
+        self.ml_classifier = components.get("ml_classifier")
+        self.effectiveness_model = components.get("effectiveness_model")
+        self.effectiveness_tester = components.get("effectiveness_tester")
+        self.kb = components.get("kb")
+        self.ech_detector = components.get("ech_detector")
 
         # Enhanced stats combining all proposals
         self.stats = {
@@ -222,581 +226,17 @@ class AdvancedFingerprinter:
         self.executor = ThreadPoolExecutor(
             max_workers=5, thread_name_prefix="AdvancedFingerprinter"
         )
-        self.logger.info(
-            "Ultimate AdvancedFingerprinter initialized with all enhancements"
-        )
 
-    def _initialize_components(self, cache_file: str):
-        """Initialize all fingerprinting components with error handling"""
-        # Cache initialization
-        try:
-            if self.config.enable_cache:
-                self.cache = FingerprintCache(
-                    cache_file=cache_file, ttl=self.config.cache_ttl, auto_save=True
-                )
-                self.logger.info("Cache initialized successfully")
-            else:
-                self.cache = None
-        except Exception as e:
-            self.logger.error(f"Failed to initialize cache: {e}")
-            self.cache = None
+        # Initialize DPI Prober for all probing methods
+        self._prober = DPIProber(self.config, self.logger, self.executor)
 
-        # Core analyzers
-        self.metrics_collector = MetricsCollector(
-            timeout=self.config.timeout,
-            max_concurrent=self.config.max_concurrent_probes,
-        )
-        self.tcp_analyzer = (
-            TCPAnalyzer(timeout=self.config.timeout)
-            if self.config.enable_tcp_analysis
-            else None
-        )
-        self.http_analyzer = (
-            HTTPAnalyzer(timeout=self.config.timeout)
-            if self.config.enable_http_analysis
-            else None
-        )
-        self.dns_analyzer = (
-            DNSAnalyzer(timeout=self.config.timeout)
-            if self.config.enable_dns_analysis
-            else None
-        )
+        # Initialize DPI Analyzer for all analysis methods
+        self._analyzer = DPIAnalyzer(self.config, self.logger)
 
-        # ML components
-        try:
-            if self.config.enable_ml:
-                self.ml_classifier = MLClassifier()
-                if self.ml_classifier.load_model():
-                    self.logger.info("ML classifier loaded successfully")
-                else:
-                    self.logger.warning(
-                        "No pre-trained ML model found, will use fallback classification"
-                    )
+        # Initialize Fingerprint Processor for all processing methods
+        self._processor = FingerprintProcessor(self.logger)
 
-                # Try to load effectiveness predictor
-                if SKLEARN_AVAILABLE:
-                    self._load_effectiveness_model()
-            else:
-                self.ml_classifier = None
-                self.effectiveness_model = None
-        except Exception as e:
-            self.logger.error(f"Failed to initialize ML components: {e}")
-            self.ml_classifier = None
-            self.effectiveness_model = None
-
-        # Initialize RealEffectivenessTester if available
-        self.effectiveness_tester = None
-        if EFFECTIVENESS_TESTER_AVAILABLE and self.config.enable_extended_metrics:
-            try:
-                self.effectiveness_tester = RealEffectivenessTester(
-                    timeout=self.config.extended_metrics_timeout
-                )
-
-                # Check available methods
-                available_methods = []
-                for method in [
-                    "collect_extended_metrics",
-                    "test_baseline",
-                    "test_http2_support",
-                    "test_quic_support",
-                    "get_rst_ttl",
-                ]:
-                    if hasattr(self.effectiveness_tester, method):
-                        available_methods.append(method)
-
-                if available_methods:
-                    self.logger.info(
-                        f"RealEffectivenessTester initialized with methods: {', '.join(available_methods)}"
-                    )
-                else:
-                    self.logger.warning(
-                        "RealEffectivenessTester has no known methods, disabling extended metrics"
-                    )
-                    self.effectiveness_tester = None
-
-            except Exception as e:
-                self.logger.warning(
-                    f"Could not initialize RealEffectivenessTester: {e}"
-                )
-                self.effectiveness_tester = None
-
-        # Новое: база знаний CDN/ASN и ECH-детектор
-        try:
-            self.kb = CdnAsnKnowledgeBase()
-        except Exception as e:
-            self.logger.warning(f"Failed to init CdnAsnKnowledgeBase: {e}")
-            self.kb = None
-        try:
-            # Fix: ECHDetector constructor only accepts dns_timeout, not timeout
-            self.ech_detector = ECHDetector(dns_timeout=self.config.dns_timeout)
-        except Exception as e:
-            self.logger.warning(f"Failed to init ECHDetector: {e}")
-            self.ech_detector = None
-
-    def _load_effectiveness_model(self):
-        """Load ML model for attack effectiveness prediction"""
-        try:
-            import os
-
-            model_path = "data/ml_models/effectiveness_predictor.pkl"
-            if os.path.exists(model_path):
-                self.effectiveness_model = joblib.load(model_path)
-                self.logger.info("Effectiveness prediction model loaded")
-            else:
-                self.effectiveness_model = None
-        except Exception as e:
-            self.logger.debug(f"Could not load effectiveness model: {e}")
-            self.effectiveness_model = None
-
-    async def fingerprint_many(
-        self,
-        targets: List[Tuple[str, int]],
-        force_refresh: bool = False,
-        protocols: Optional[List[str]] = None,
-        include_behavior_analysis: Optional[bool] = None,
-        include_extended_metrics: Optional[bool] = None,
-        concurrency: Optional[int] = None,
-    ) -> List[DPIFingerprint]:
-        """
-        Параллельно фингерпринтим список доменов с ограничением по одновременным задачам.
-
-        Args:
-            targets: [(domain, port), ...]
-            force_refresh: Force refresh for all targets
-            protocols: Protocols to analyze
-            include_behavior_analysis: Enable behavior analysis
-            include_extended_metrics: Enable extended metrics
-            concurrency: Override default concurrency limit
-
-        Returns:
-            List of DPIFingerprint objects
-        """
-        start_time = time.time()
-        concurrency_limit = concurrency or self.config.max_parallel_targets
-        sem = asyncio.Semaphore(concurrency_limit)
-
-        async def _worker(target: str, port: int):
-            async with sem:
-                return await self.fingerprint_target(
-                    target,
-                    port,
-                    force_refresh=force_refresh,
-                    protocols=protocols,
-                    include_behavior_analysis=include_behavior_analysis,
-                    include_extended_metrics=include_extended_metrics,
-                )
-
-        self.logger.info(
-            f"Starting parallel fingerprinting for {len(targets)} targets with concurrency {concurrency_limit}"
-        )
-
-        tasks = [asyncio.create_task(_worker(t, p)) for t, p in targets]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Process results and handle exceptions
-        fingerprints = []
-        error_count = 0
-
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                error_count += 1
-                target, port = targets[i]
-                self.logger.error(
-                    f"Fingerprinting failed for {target}:{port}: {result}"
-                )
-                # Create fallback fingerprint for failed targets
-                fingerprints.append(
-                    self._create_fallback_fingerprint(f"{target}:{port}", str(result))
-                )
-            else:
-                fingerprints.append(result)
-
-        total_time = time.time() - start_time
-        success_count = len(fingerprints) - error_count
-
-        self.logger.info(
-            f"Parallel fingerprinting completed: {success_count}/{len(targets)} successful "
-            f"in {total_time:.2f}s (avg: {total_time/len(targets):.2f}s per target)"
-        )
-
-        # Update stats
-        self.stats["total_analysis_time"] += total_time
-        self.stats["errors"] += error_count
-
-        return fingerprints
-
-    async def _perform_comprehensive_analysis(
-        self, target: str, port: int, protocols: Optional[List[str]] = None
-    ) -> DPIFingerprint:
-        """
-        Enhanced comprehensive DPI analysis with fail-fast optimization
-        """
-        fingerprint = DPIFingerprint(target=f"{target}:{port}", timestamp=time.time())
-        analysis_start = time.time()
-
-        # Quick connectivity check for fail-fast
-        preliminary_block_type = await self._quick_connectivity_check(target, port)
-        fingerprint.block_type = preliminary_block_type
-
-        # Fail-fast: при явном тяжелом блоке, пропускаем тяжелые пробы
-        fast_mode = self.config.analysis_level == "fast" or (
-            self.config.enable_fail_fast
-            and preliminary_block_type
-            in ["tcp_timeout", "dns_resolution_failed", "connection_reset"]
-        )
-
-        if fast_mode:
-            self.logger.info(
-                f"Fast mode enabled for {target}:{port} (block_type: {preliminary_block_type})"
-            )
-
-            # Только базовые метрики и классификация
-            tasks = []
-            if self.metrics_collector:
-                tasks.append(
-                    (
-                        "metrics_collection",
-                        self.metrics_collector.collect_comprehensive_metrics(
-                            target, port, protocols
-                        ),
-                    )
-                )
-            if self.tcp_analyzer:
-                tasks.append(
-                    (
-                        "tcp_analysis",
-                        self.tcp_analyzer.analyze_tcp_behavior(target, port),
-                    )
-                )
-
-            if tasks:
-                results = await asyncio.gather(
-                    *(self._safe_async_call(name, coro) for name, coro in tasks),
-                    return_exceptions=True,
-                )
-                for i, (name, _) in enumerate(tasks):
-                    result = results[i]
-                    if not isinstance(result, Exception):
-                        task_name, task_result = result
-                        if task_result:
-                            self._integrate_analysis_result(
-                                fingerprint, task_name, task_result
-                            )
-
-            fingerprint.raw_metrics["rst_ttl_stats"] = self._analyze_rst_ttl_stats(
-                fingerprint
-            )
-            await self._classify_dpi_type(fingerprint)
-            fingerprint.reliability_score = self._calculate_reliability_score(
-                fingerprint
-            )
-            fingerprint.analysis_duration = time.time() - analysis_start
-            return fingerprint
-
-        # Full analysis mode
-        # Capture ClientHello for TLS analysis
-        client_hello_bytes = await self._capture_client_hello(target, port)
-        if client_hello_bytes:
-            client_hello_info = TLSParser.parse_client_hello(client_hello_bytes)
-            if client_hello_info:
-                self._populate_coherent_fingerprint_features(
-                    fingerprint, client_hello_info
-                )
-            # JA3 hash
-            fingerprint.raw_metrics["ja3"] = self._compute_ja3(client_hello_bytes)
-
-        # Core analysis tasks
-        tasks = []
-        if self.metrics_collector:
-            tasks.append(
-                (
-                    "metrics_collection",
-                    self.metrics_collector.collect_comprehensive_metrics(
-                        target, port, protocols
-                    ),
-                )
-            )
-        if self.tcp_analyzer:
-            tasks.append(
-                ("tcp_analysis", self.tcp_analyzer.analyze_tcp_behavior(target, port))
-            )
-        if self.http_analyzer:
-            tasks.append(
-                (
-                    "http_analysis",
-                    self.http_analyzer.analyze_http_behavior(target, port),
-                )
-            )
-        if self.dns_analyzer:
-            tasks.append(
-                ("dns_analysis", self.dns_analyzer.analyze_dns_behavior(target))
-            )
-
-        # Extras — по уровню анализа
-        extra_tasks = []
-        if self.config.analysis_level in ("balanced", "full"):
-            extra_tasks.append(("quic_probe", self._probe_quic_initial(target, port)))
-            extra_tasks.append(("tls_caps", self._probe_tls_capabilities(target, port)))
-            # Новое: параллельно — ECH через DNS (HTTPS/SVCB) и быстрый QUIC‑handshake
-            if self.ech_detector:
-                extra_tasks.append(
-                    ("ech_dns", self.ech_detector.detect_ech_dns(target))
-                )
-                extra_tasks.append(
-                    (
-                        "quic_handshake",
-                        self.ech_detector.probe_quic(
-                            domain=target, port=port, timeout=self.config.udp_timeout
-                        ),
-                    )
-                )
-            if self.config.analysis_level == "full":
-                if self.config.enable_behavioral_probes:
-                    extra_tasks.append(
-                        (
-                            "behavioral_probes",
-                            self._probe_dpi_behavioral_patterns(target, port),
-                        )
-                    )
-
-        # SNI probing по режиму
-        if self.config.enable_sni_probing and self.config.sni_probe_mode != "off":
-            extra_tasks.append(("sni_probe", self._probe_sni_sensitivity(target, port)))
-            if self.config.sni_probe_mode == "detailed":
-                extra_tasks.append(
-                    (
-                        "sni_probe_detailed",
-                        self._probe_sni_sensitivity_detailed(target, port),
-                    )
-                )
-            self.stats["sni_probes_executed"] += 1
-
-        # Execute all tasks concurrently
-        if tasks:
-            results = await asyncio.gather(
-                *(self._safe_async_call(name, coro) for name, coro in tasks),
-                return_exceptions=True,
-            )
-            for i, (name, _) in enumerate(tasks):
-                result = results[i]
-                if not isinstance(result, Exception):
-                    task_name, task_result = result
-                    if task_result:
-                        self._integrate_analysis_result(
-                            fingerprint, task_name, task_result
-                        )
-
-        # Execute extra probes
-        if extra_tasks:
-            extras = await asyncio.gather(
-                *(c for _, c in extra_tasks), return_exceptions=True
-            )
-            for i, (name, _) in enumerate(extra_tasks):
-                res = extras[i]
-                if not isinstance(res, Exception):
-                    if name == "behavioral_probes":
-                        self._apply_behavioral_metrics_to_fingerprint(fingerprint, res)
-                    fingerprint.raw_metrics[name] = res
-
-        # Новое: упрощённые флаги из ECH/QUIC результатов
-        rm = fingerprint.raw_metrics
-        try:
-            ech_dns = rm.get("ech_dns") or {}
-            quic_hs = rm.get("quic_handshake") or {}
-            if "ech_support" not in rm:
-                rm["ech_support"] = bool(ech_dns.get("ech_present", False))
-            if "quic_support" not in rm:
-                rm["quic_support"] = bool(quic_hs.get("success", False))
-            # Не делаем жёстких выводов об ech_blocked на основе UDP, оставляем None/False
-            rm.setdefault("ech_blocked", False)
-        except Exception:
-            pass
-
-        # Analysis and classification
-        fingerprint.raw_metrics["rst_ttl_stats"] = self._analyze_rst_ttl_stats(
-            fingerprint
-        )
-        fingerprint.raw_metrics["sni_sensitivity"] = {
-            "likely": self._infer_sni_sensitivity(fingerprint)
-        }
-
-        # Predict weaknesses and attacks
-        fingerprint.predicted_weaknesses = self._predict_weaknesses(fingerprint)
-        fingerprint.recommended_attacks = self._predict_best_attacks(fingerprint)
-
-        # Initial classification
-        await self._classify_dpi_type(fingerprint)
-
-        # Generate strategy hints
-        fingerprint.raw_metrics["strategy_hints"] = self._generate_strategy_hints(
-            fingerprint
-        )
-
-        fingerprint.analysis_duration = time.time() - analysis_start
-        fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
-
-        return fingerprint
-
-    async def fingerprint_target(
-        self,
-        target: str,
-        port: int = 443,
-        force_refresh: bool = False,
-        protocols: Optional[List[str]] = None,
-        include_behavior_analysis: bool = None,
-        include_extended_metrics: bool = None,
-    ) -> DPIFingerprint:
-        """
-        Create comprehensive DPI fingerprint with all enhancements
-        """
-        start_time = time.time()
-        self.logger.info(f"Starting comprehensive fingerprinting for {target}:{port}")
-
-        # Use config defaults if not specified
-        if include_behavior_analysis is None:
-            include_behavior_analysis = self.config.enable_behavior_analysis
-        if include_extended_metrics is None:
-            include_extended_metrics = self.config.enable_extended_metrics
-
-        try:
-            # Новое: быстрая проверка кэша по домену/CDN до любых зондов
-            cdn_name = None
-            domain_key = f"domain:{target}:{port}"
-            cdn_key = None
-            if not force_refresh and self.cache:
-                cached_fp = self.cache.get(domain_key)
-                if cached_fp and getattr(cached_fp, "reliability_score", 0) > 0.8:
-                    self.stats["cache_hits"] += 1
-                    self.logger.info(
-                        f"Using domain-cache fingerprint for {target}:{port}"
-                    )
-                    return cached_fp
-                # вычислим CDN-ключ (требует резолва)
-                try:
-                    ip = socket.gethostbyname(target)
-                    if self.kb:
-                        cdn_name = self.kb.identify_cdn(ip) or None
-                    if cdn_name:
-                        cdn_key = f"cdn:{cdn_name}:{port}"
-                        cached_fp = self.cache.get(cdn_key)
-                        if (
-                            cached_fp
-                            and getattr(cached_fp, "reliability_score", 0) > 0.8
-                        ):
-                            self.stats["cache_hits"] += 1
-                            self.logger.info(
-                                f"Using CDN-cache fingerprint for {target}:{port} (cdn={cdn_name})"
-                            )
-                            return cached_fp
-                except Exception:
-                    pass
-
-            # Phase 1: Shallow probe for quick classification
-            preliminary_fp = await self._run_shallow_probe(target, port)
-            dpi_hash = preliminary_fp.short_hash()
-
-            # Check cache по dpihash (существующее поведение)
-            if not force_refresh and self.cache:
-                cached_fp = self.cache.get(dpi_hash)
-                if cached_fp and cached_fp.reliability_score > 0.8:
-                    self.stats["cache_hits"] += 1
-                    self.logger.info(f"Using cached fingerprint for {target}:{port}")
-                    return cached_fp
-
-            self.stats["cache_misses"] += 1
-
-            # Phase 2: Comprehensive analysis
-            final_fingerprint = await self._perform_comprehensive_analysis(
-                target, port, protocols
-            )
-
-            # Merge preliminary results
-            final_fingerprint.rst_ttl = preliminary_fp.rst_ttl
-            if final_fingerprint.block_type == "unknown":
-                final_fingerprint.block_type = preliminary_fp.block_type
-
-            # Phase 3: Extended metrics collection (from proposal 2)
-            if include_extended_metrics and self.effectiveness_tester:
-                extended_metrics = await self.collect_extended_fingerprint_metrics(
-                    target, port
-                )
-                self._apply_extended_metrics_to_fingerprint(
-                    final_fingerprint, extended_metrics
-                )
-                self.stats["extended_metrics_collected"] += 1
-
-            # Phase 4: ML refinement if available (from proposal 2)
-            if self.config.enable_ml_refinement:
-                await self._classify_with_ml(final_fingerprint)
-
-            # Phase 5: Targeted probes if low confidence (from proposal 2)
-            if self._determine_additional_probing_needs(final_fingerprint):
-                targeted_results = await self._run_targeted_probes(
-                    target, port, final_fingerprint
-                )
-                self.stats["targeted_probes_executed"] += 1
-
-            # Phase 6: Behavior analysis (from proposal 3)
-            if include_behavior_analysis:
-                behavior_profile = await self.analyze_dpi_behavior(
-                    target, final_fingerprint
-                )
-                final_fingerprint.raw_metrics["behavior_profile"] = asdict(
-                    behavior_profile
-                )
-
-            # Phase 7: Attack recommendations (from proposal 3)
-            if self.config.enable_attack_recommendations:
-                recommendations = self.recommend_bypass_strategies(final_fingerprint)
-                final_fingerprint.raw_metrics["recommendations"] = recommendations
-                self.stats["attacks_recommended"] += 1
-
-            # Final reliability score calculation
-            final_fingerprint.reliability_score = self._calculate_reliability_score(
-                final_fingerprint
-            )
-
-            # Новое: кэширование по всем ключам (domain/cdn/dpihash)
-            if self.cache and final_fingerprint.reliability_score > 0.7:
-                try:
-                    # домен
-                    self.cache.set(domain_key, final_fingerprint)
-                    # CDN
-                    if cdn_name is None:
-                        try:
-                            ip = socket.gethostbyname(target)
-                            if self.kb:
-                                cdn_name = self.kb.identify_cdn(ip) or None
-                        except Exception:
-                            cdn_name = None
-                    if cdn_name:
-                        cdn_key = f"cdn:{cdn_name}:{port}"
-                        self.cache.set(cdn_key, final_fingerprint)
-                    # dpihash
-                    self.cache.set(dpi_hash, final_fingerprint)
-                except Exception as e:
-                    self.logger.debug(f"Failed to persist all cache keys: {e}")
-
-            analysis_time = time.time() - start_time
-            self.stats["fingerprints_created"] += 1
-            self.stats["total_analysis_time"] += analysis_time
-
-            self.logger.info(
-                f"Ultimate fingerprinting completed for {target}:{port} in {analysis_time:.2f}s "
-                f"(reliability: {final_fingerprint.reliability_score:.2f}, confidence: {final_fingerprint.confidence:.2f})"
-            )
-
-            return final_fingerprint
-
-        except Exception as e:
-            self.stats["errors"] += 1
-            self.logger.error(f"Fingerprinting failed for {target}:{port}: {e}")
-            if self.config.fallback_on_error:
-                return self._create_fallback_fingerprint(target, str(e))
-            else:
-                raise FingerprintingError(
-                    f"Fingerprinting failed for {target}:{port}: {e}"
-                )
+        self.logger.info("Ultimate AdvancedFingerprinter initialized with all enhancements")
 
     async def fingerprint_many(
         self,
@@ -857,7 +297,7 @@ class AdvancedFingerprinter:
                 # Create fallback fingerprint for failed targets
                 if self.config.fallback_on_error:
                     fingerprints.append(
-                        self._create_fallback_fingerprint(target, str(result))
+                        self._create_fallback_fingerprint(f"{target}:{port}", str(result))
                     )
                 else:
                     fingerprints.append(None)
@@ -866,6 +306,10 @@ class AdvancedFingerprinter:
 
         total_time = time.time() - start_time
         success_count = len(targets) - errors
+
+        # Update stats
+        self.stats["total_analysis_time"] += total_time
+        self.stats["errors"] += errors
 
         self.logger.info(
             f"Parallel fingerprinting completed: {success_count}/{len(targets)} successful "
@@ -919,27 +363,14 @@ class AdvancedFingerprinter:
                     )
                 )
 
-            if tasks:
-                results = await asyncio.gather(
-                    *(self._safe_async_call(name, coro) for name, coro in tasks),
-                    return_exceptions=True,
-                )
-                for i, (name, _) in enumerate(tasks):
-                    result = results[i]
-                    if not isinstance(result, Exception):
-                        task_name, task_result = result
-                        if task_result:
-                            self._integrate_analysis_result(
-                                fingerprint, task_name, task_result
-                            )
+            # Execute tasks and integrate results using async helper
+            await execute_task_list_with_integration(
+                tasks, self._integrate_analysis_result, fingerprint, self.logger
+            )
 
-            fingerprint.raw_metrics["rst_ttl_stats"] = self._analyze_rst_ttl_stats(
-                fingerprint
-            )
+            fingerprint.raw_metrics["rst_ttl_stats"] = self._analyze_rst_ttl_stats(fingerprint)
             await self._classify_dpi_type(fingerprint)
-            fingerprint.reliability_score = self._calculate_reliability_score(
-                fingerprint
-            )
+            fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
             fingerprint.analysis_duration = time.time() - analysis_start
             return fingerprint
 
@@ -949,9 +380,7 @@ class AdvancedFingerprinter:
         if client_hello_bytes:
             client_hello_info = TLSParser.parse_client_hello(client_hello_bytes)
             if client_hello_info:
-                self._populate_coherent_fingerprint_features(
-                    fingerprint, client_hello_info
-                )
+                self._populate_coherent_fingerprint_features(fingerprint, client_hello_info)
             # JA3 hash
             fingerprint.raw_metrics["ja3"] = self._compute_ja3(client_hello_bytes)
 
@@ -961,15 +390,11 @@ class AdvancedFingerprinter:
             tasks.append(
                 (
                     "metrics_collection",
-                    self.metrics_collector.collect_comprehensive_metrics(
-                        target, port, protocols
-                    ),
+                    self.metrics_collector.collect_comprehensive_metrics(target, port, protocols),
                 )
             )
         if self.tcp_analyzer:
-            tasks.append(
-                ("tcp_analysis", self.tcp_analyzer.analyze_tcp_behavior(target, port))
-            )
+            tasks.append(("tcp_analysis", self.tcp_analyzer.analyze_tcp_behavior(target, port)))
         if self.http_analyzer:
             tasks.append(
                 (
@@ -978,15 +403,24 @@ class AdvancedFingerprinter:
                 )
             )
         if self.dns_analyzer:
-            tasks.append(
-                ("dns_analysis", self.dns_analyzer.analyze_dns_behavior(target))
-            )
+            tasks.append(("dns_analysis", self.dns_analyzer.analyze_dns_behavior(target)))
 
         # Extras — по уровню анализа
         extra_tasks = []
         if self.config.analysis_level in ("balanced", "full"):
             extra_tasks.append(("quic_probe", self._probe_quic_initial(target, port)))
             extra_tasks.append(("tls_caps", self._probe_tls_capabilities(target, port)))
+            # Новое: параллельно — ECH через DNS (HTTPS/SVCB) и быстрый QUIC‑handshake
+            if self.ech_detector:
+                extra_tasks.append(("ech_dns", self.ech_detector.detect_ech_dns(target)))
+                extra_tasks.append(
+                    (
+                        "quic_handshake",
+                        self.ech_detector.probe_quic(
+                            domain=target, port=port, timeout=self.config.udp_timeout
+                        ),
+                    )
+                )
             if self.config.analysis_level == "full":
                 if self.config.enable_behavioral_probes:
                     extra_tasks.append(
@@ -1008,37 +442,36 @@ class AdvancedFingerprinter:
                 )
             self.stats["sni_probes_executed"] += 1
 
-        # Execute all tasks concurrently
-        if tasks:
-            results = await asyncio.gather(
-                *(self._safe_async_call(name, coro) for name, coro in tasks),
-                return_exceptions=True,
-            )
-            for i, (name, _) in enumerate(tasks):
-                result = results[i]
-                if not isinstance(result, Exception):
-                    task_name, task_result = result
-                    if task_result:
-                        self._integrate_analysis_result(
-                            fingerprint, task_name, task_result
-                        )
+        # Execute all tasks concurrently using async helper
+        await execute_task_list_with_integration(
+            tasks, self._integrate_analysis_result, fingerprint, self.logger
+        )
 
-        # Execute extra probes
+        # Execute extra probes using parallel probe execution
         if extra_tasks:
-            extras = await asyncio.gather(
-                *(c for _, c in extra_tasks), return_exceptions=True
-            )
-            for i, (name, _) in enumerate(extra_tasks):
-                res = extras[i]
-                if not isinstance(res, Exception):
+            probe_results = await parallel_probe_execution(extra_tasks, self.logger)
+            for name, result in probe_results.items():
+                if result is not None:
                     if name == "behavioral_probes":
-                        self._apply_behavioral_metrics_to_fingerprint(fingerprint, res)
-                    fingerprint.raw_metrics[name] = res
+                        self._apply_behavioral_metrics_to_fingerprint(fingerprint, result)
+                    fingerprint.raw_metrics[name] = result
+
+        # Новое: упрощённые флаги из ECH/QUIC результатов
+        rm = fingerprint.raw_metrics
+        try:
+            ech_dns = rm.get("ech_dns") or {}
+            quic_hs = rm.get("quic_handshake") or {}
+            if "ech_support" not in rm:
+                rm["ech_support"] = bool(ech_dns.get("ech_present", False))
+            if "quic_support" not in rm:
+                rm["quic_support"] = bool(quic_hs.get("success", False))
+            # Не делаем жёстких выводов об ech_blocked на основе UDP, оставляем None/False
+            rm.setdefault("ech_blocked", False)
+        except Exception:
+            pass
 
         # Analysis and classification
-        fingerprint.raw_metrics["rst_ttl_stats"] = self._analyze_rst_ttl_stats(
-            fingerprint
-        )
+        fingerprint.raw_metrics["rst_ttl_stats"] = self._analyze_rst_ttl_stats(fingerprint)
         fingerprint.raw_metrics["sni_sensitivity"] = {
             "likely": self._infer_sni_sensitivity(fingerprint)
         }
@@ -1051,14 +484,154 @@ class AdvancedFingerprinter:
         await self._classify_dpi_type(fingerprint)
 
         # Generate strategy hints
-        fingerprint.raw_metrics["strategy_hints"] = self._generate_strategy_hints(
-            fingerprint
-        )
+        fingerprint.raw_metrics["strategy_hints"] = self._generate_strategy_hints(fingerprint)
 
         fingerprint.analysis_duration = time.time() - analysis_start
         fingerprint.reliability_score = self._calculate_reliability_score(fingerprint)
 
         return fingerprint
+
+    async def fingerprint_target(
+        self,
+        target: str,
+        port: int = 443,
+        force_refresh: bool = False,
+        protocols: Optional[List[str]] = None,
+        include_behavior_analysis: bool = None,
+        include_extended_metrics: bool = None,
+    ) -> DPIFingerprint:
+        """
+        Create comprehensive DPI fingerprint with all enhancements
+        """
+        start_time = time.time()
+        self.logger.info(f"Starting comprehensive fingerprinting for {target}:{port}")
+
+        # Use config defaults if not specified
+        if include_behavior_analysis is None:
+            include_behavior_analysis = self.config.enable_behavior_analysis
+        if include_extended_metrics is None:
+            include_extended_metrics = self.config.enable_extended_metrics
+
+        try:
+            # Новое: быстрая проверка кэша по домену/CDN до любых зондов
+            cdn_name = None
+            domain_key = f"domain:{target}:{port}"
+            cdn_key = None
+            if not force_refresh and self.cache:
+                cached_fp = self.cache.get(domain_key)
+                if cached_fp and getattr(cached_fp, "reliability_score", 0) > 0.8:
+                    self.stats["cache_hits"] += 1
+                    self.logger.info(f"Using domain-cache fingerprint for {target}:{port}")
+                    return cached_fp
+                # вычислим CDN-ключ (требует резолва)
+                try:
+                    ip = socket.gethostbyname(target)
+                    if self.kb:
+                        cdn_name = self.kb.identify_cdn(ip) or None
+                    if cdn_name:
+                        cdn_key = f"cdn:{cdn_name}:{port}"
+                        cached_fp = self.cache.get(cdn_key)
+                        if cached_fp and getattr(cached_fp, "reliability_score", 0) > 0.8:
+                            self.stats["cache_hits"] += 1
+                            self.logger.info(
+                                f"Using CDN-cache fingerprint for {target}:{port} (cdn={cdn_name})"
+                            )
+                            return cached_fp
+                except Exception:
+                    pass
+
+            # Phase 1: Shallow probe for quick classification
+            preliminary_fp = await self._run_shallow_probe(target, port)
+            dpi_hash = preliminary_fp.short_hash()
+
+            # Check cache по dpihash (существующее поведение)
+            if not force_refresh and self.cache:
+                cached_fp = self.cache.get(dpi_hash)
+                if cached_fp and cached_fp.reliability_score > 0.8:
+                    self.stats["cache_hits"] += 1
+                    self.logger.info(f"Using cached fingerprint for {target}:{port}")
+                    return cached_fp
+
+            self.stats["cache_misses"] += 1
+
+            # Phase 2: Comprehensive analysis
+            final_fingerprint = await self._perform_comprehensive_analysis(target, port, protocols)
+
+            # Merge preliminary results
+            final_fingerprint.rst_ttl = preliminary_fp.rst_ttl
+            if final_fingerprint.block_type == "unknown":
+                final_fingerprint.block_type = preliminary_fp.block_type
+
+            # Phase 3: Extended metrics collection (from proposal 2)
+            if include_extended_metrics and self.effectiveness_tester:
+                extended_metrics = await self.collect_extended_fingerprint_metrics(target, port)
+                self._apply_extended_metrics_to_fingerprint(final_fingerprint, extended_metrics)
+                self.stats["extended_metrics_collected"] += 1
+
+            # Phase 4: ML refinement if available (from proposal 2)
+            if self.config.enable_ml_refinement:
+                await self._classify_with_ml(final_fingerprint)
+
+            # Phase 5: Targeted probes if low confidence (from proposal 2)
+            if self._determine_additional_probing_needs(final_fingerprint):
+                await self._run_targeted_probes(target, port, final_fingerprint)
+                self.stats["targeted_probes_executed"] += 1
+
+            # Phase 6: Behavior analysis (from proposal 3)
+            if include_behavior_analysis:
+                behavior_profile = await self.analyze_dpi_behavior(target, final_fingerprint)
+                final_fingerprint.raw_metrics["behavior_profile"] = asdict(behavior_profile)
+
+            # Phase 7: Attack recommendations (from proposal 3)
+            if self.config.enable_attack_recommendations:
+                recommendations = self.recommend_bypass_strategies(final_fingerprint)
+                final_fingerprint.raw_metrics["recommendations"] = recommendations
+                self.stats["attacks_recommended"] += 1
+
+            # Final reliability score calculation
+            final_fingerprint.reliability_score = self._calculate_reliability_score(
+                final_fingerprint
+            )
+
+            # Новое: кэширование по всем ключам (domain/cdn/dpihash)
+            if self.cache and final_fingerprint.reliability_score > 0.7:
+                try:
+                    # домен
+                    self.cache.set(domain_key, final_fingerprint)
+                    # CDN
+                    if cdn_name is None:
+                        try:
+                            ip = socket.gethostbyname(target)
+                            if self.kb:
+                                cdn_name = self.kb.identify_cdn(ip) or None
+                        except Exception:
+                            cdn_name = None
+                    if cdn_name:
+                        cdn_key = f"cdn:{cdn_name}:{port}"
+                        self.cache.set(cdn_key, final_fingerprint)
+                    # dpihash
+                    self.cache.set(dpi_hash, final_fingerprint)
+                except Exception as e:
+                    self.logger.debug(f"Failed to persist all cache keys: {e}")
+
+            analysis_time = time.time() - start_time
+            self.stats["fingerprints_created"] += 1
+            self.stats["total_analysis_time"] += analysis_time
+
+            self.logger.info(
+                f"Ultimate fingerprinting completed for {target}:{port} in {analysis_time:.2f}s "
+                f"(reliability: {final_fingerprint.reliability_score:.2f}, confidence: {final_fingerprint.confidence:.2f})"
+            )
+
+            return final_fingerprint
+
+        except Exception as e:
+            self.stats["errors"] += 1
+            self.logger.error(f"Fingerprinting failed for {target}:{port}: {e}")
+            if self.config.fallback_on_error:
+                return self._create_fallback_fingerprint(target, str(e))
+            else:
+                raise FingerprintingError(f"Fingerprinting failed for {target}:{port}: {e}")
 
     async def _quick_connectivity_check(self, target: str, port: int) -> str:
         """
@@ -1104,31 +677,21 @@ class AdvancedFingerprinter:
         try:
             # Check if the method exists
             if hasattr(self.effectiveness_tester, "collect_extended_metrics"):
-                metrics = await self.effectiveness_tester.collect_extended_metrics(
-                    target, port
-                )
+                metrics = await self.effectiveness_tester.collect_extended_metrics(target, port)
             else:
                 # Fallback: try to use other available methods
-                self.logger.debug(
-                    "collect_extended_metrics not available, using fallback"
-                )
+                self.logger.debug("collect_extended_metrics not available, using fallback")
 
                 # Try to get basic connectivity info
                 if hasattr(self.effectiveness_tester, "test_baseline"):
                     try:
-                        baseline = await self.effectiveness_tester.test_baseline(
-                            target, port
-                        )
+                        baseline = await self.effectiveness_tester.test_baseline(target, port)
                         if baseline:
                             metrics["baseline_block_type"] = getattr(
                                 baseline, "block_type", "unknown"
                             )
-                            metrics["baseline_success"] = getattr(
-                                baseline, "success", False
-                            )
-                            metrics["baseline_latency"] = getattr(
-                                baseline, "latency_ms", None
-                            )
+                            metrics["baseline_success"] = getattr(baseline, "success", False)
+                            metrics["baseline_latency"] = getattr(baseline, "latency_ms", None)
                     except Exception as e:
                         self.logger.debug(f"Baseline test failed: {e}")
 
@@ -1136,19 +699,15 @@ class AdvancedFingerprinter:
                 if hasattr(self.effectiveness_tester, "test_http2_support"):
                     try:
                         metrics["http2_support"] = (
-                            await self.effectiveness_tester.test_http2_support(
-                                target, port
-                            )
+                            await self.effectiveness_tester.test_http2_support(target, port)
                         )
                     except Exception as e:
                         self.logger.debug(f"HTTP/2 test failed: {e}")
 
                 if hasattr(self.effectiveness_tester, "test_quic_support"):
                     try:
-                        metrics["quic_support"] = (
-                            await self.effectiveness_tester.test_quic_support(
-                                target, port
-                            )
+                        metrics["quic_support"] = await self.effectiveness_tester.test_quic_support(
+                            target, port
                         )
                     except Exception as e:
                         self.logger.debug(f"QUIC test failed: {e}")
@@ -1156,9 +715,7 @@ class AdvancedFingerprinter:
                 # Try to get RST TTL if available
                 if hasattr(self.effectiveness_tester, "get_rst_ttl"):
                     try:
-                        rst_ttl = await self.effectiveness_tester.get_rst_ttl(
-                            target, port
-                        )
+                        rst_ttl = await self.effectiveness_tester.get_rst_ttl(target, port)
                         if rst_ttl:
                             metrics["rst_ttl"] = rst_ttl
                     except Exception as e:
@@ -1168,14 +725,10 @@ class AdvancedFingerprinter:
             if port == 443 and metrics:
                 try:
                     if hasattr(self.effectiveness_tester, "test_baseline"):
-                        http_baseline = await self.effectiveness_tester.test_baseline(
-                            target, 80
-                        )
+                        http_baseline = await self.effectiveness_tester.test_baseline(target, 80)
                         if http_baseline:
                             metrics["http"] = {
-                                "block_type": getattr(
-                                    http_baseline, "block_type", "unknown"
-                                ),
+                                "block_type": getattr(http_baseline, "block_type", "unknown"),
                                 "success": getattr(http_baseline, "success", False),
                             }
                 except Exception as e:
@@ -1213,9 +766,7 @@ class AdvancedFingerprinter:
                 if ech_blk:
                     metrics["ech_blocked"] = bool(ech_blk.get("ech_blocked", False))
                     # Также можно сохранить вспомогательные флаги
-                    metrics.setdefault("ech_details", {})["tls_ok"] = ech_blk.get(
-                        "tls_ok", False
-                    )
+                    metrics.setdefault("ech_details", {})["tls_ok"] = ech_blk.get("tls_ok", False)
                     metrics["ech_present"] = metrics.get("ech_present", False) or bool(
                         ech_blk.get("ech_present", False)
                     )
@@ -1229,52 +780,8 @@ class AdvancedFingerprinter:
     def _apply_extended_metrics_to_fingerprint(
         self, fingerprint: DPIFingerprint, extended: Dict[str, Any]
     ):
-        """
-        Apply extended metrics to fingerprint (enhanced from proposal 2)
-        """
-        if not extended or "error" in extended:
-            return
-
-        rm = fingerprint.raw_metrics
-        rm["extended_metrics"] = extended
-
-        # Map key metrics
-        https_metrics = extended.get("https", extended)
-
-        if "baseline_block_type" in https_metrics:
-            if not fingerprint.block_type or fingerprint.block_type == "unknown":
-                fingerprint.block_type = https_metrics["baseline_block_type"]
-
-        if "rst_ttl_distance" in https_metrics:
-            rm.setdefault("rst_ttl_stats", {})["distance"] = https_metrics[
-                "rst_ttl_distance"
-            ]
-
-        # Protocol support
-        for proto in ["http2_support", "quic_support", "ech_support"]:
-            if proto in https_metrics:
-                rm[proto] = https_metrics[proto]
-        # Добавили новые признаки
-        if "http3_support" in https_metrics:
-            rm["http3_support"] = bool(https_metrics["http3_support"])
-        if "ech_present" in https_metrics:
-            rm["ech_present"] = bool(https_metrics["ech_present"])
-        if "ech_blocked" in https_metrics:
-            rm["ech_blocked"] = bool(https_metrics["ech_blocked"])
-
-        # SNI consistency
-        if "sni_consistency_blocked" in https_metrics:
-            rm.setdefault("sni_sensitivity", {})["consistency_blocked"] = https_metrics[
-                "sni_consistency_blocked"
-            ]
-
-        # Content filtering indicators
-        cfi = https_metrics.get("content_filtering_indicators", {})
-        if cfi:
-            fingerprint.content_inspection_depth = max(
-                getattr(fingerprint, "content_inspection_depth", 0),
-                len(cfi) * 100,  # Rough estimate
-            )
+        """Wrapper for FingerprintProcessor.apply_extended_metrics_to_fingerprint"""
+        return self._processor.apply_extended_metrics_to_fingerprint(fingerprint, extended)
 
     async def _classify_with_ml(self, fingerprint: DPIFingerprint):
         """
@@ -1353,9 +860,7 @@ class AdvancedFingerprinter:
                 missing += 1
 
         if missing >= 2:
-            self.logger.debug(
-                f"Missing {missing} key attributes, triggering targeted probes"
-            )
+            self.logger.debug(f"Missing {missing} key attributes, triggering targeted probes")
             return True
 
         return False
@@ -1386,15 +891,11 @@ class AdvancedFingerprinter:
 
         # Additional behavioral probes
         tasks.append(("timing_probe", self._probe_timing_sensitivity(target, port)))
-        tasks.append(
-            ("fragmentation_probe", self._probe_fragmentation_support(target, port))
-        )
+        tasks.append(("fragmentation_probe", self._probe_fragmentation_support(target, port)))
 
         # Execute probes
         if tasks:
-            outputs = await asyncio.gather(
-                *(c for _, c in tasks), return_exceptions=True
-            )
+            outputs = await asyncio.gather(*(c for _, c in tasks), return_exceptions=True)
             for i, (name, _) in enumerate(tasks):
                 if not isinstance(outputs[i], Exception):
                     results[name] = outputs[i]
@@ -1405,480 +906,115 @@ class AdvancedFingerprinter:
         # Update SNI sensitivity
         sni_probe = results.get("sni_probe_detailed", {})
         if sni_probe.get("sni_sensitive"):
-            fingerprint.raw_metrics.setdefault("sni_sensitivity", {})[
-                "confirmed"
-            ] = True
+            fingerprint.raw_metrics.setdefault("sni_sensitivity", {})["confirmed"] = True
 
         return results
 
-    async def _probe_sni_sensitivity(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
-        """
-        Basic SNI sensitivity probe (from proposal 2)
-        """
-        loop = asyncio.get_event_loop()
-        res = {"normal": None, "uppercase": None, "nosni": None, "sni_sensitive": False}
+    async def _probe_sni_sensitivity(self, target: str, port: int = 443) -> Dict[str, Any]:
+        """Wrapper for DPIProber.probe_sni_sensitivity - maintains backward compatibility"""
+        return await self._prober.probe_sni_sensitivity(target, port)
 
-        def do_handshake(server_hostname):
-            try:
-                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-                ctx.check_hostname = False
-                ctx.verify_mode = ssl.CERT_NONE
-
-                t0 = time.time()
-                with socket.create_connection((target, port), timeout=3.0) as sock:
-                    with ctx.wrap_socket(
-                        sock, server_hostname=server_hostname
-                    ) as ssock:
-                        version = ssock.version()
-                        latency = (time.time() - t0) * 1000
-                        return {"ok": True, "version": version, "latency_ms": latency}
-            except Exception as e:
-                return {"ok": False, "error": str(e)}
-
-        try:
-            # Normal SNI
-            res["normal"] = await loop.run_in_executor(
-                self.executor, do_handshake, target
-            )
-
-            # Uppercase SNI
-            upp = target.upper() if isinstance(target, str) else None
-            if upp and upp != target:
-                res["uppercase"] = await loop.run_in_executor(
-                    self.executor, do_handshake, upp
-                )
-
-            # No SNI
-            res["nosni"] = await loop.run_in_executor(self.executor, do_handshake, None)
-
-            # Analyze results
-            def ok(v):
-                return bool(v and v.get("ok"))
-
-            res["sni_sensitive"] = (ok(res["normal"]) and not ok(res["nosni"])) or (
-                ok(res["normal"]) and not ok(res.get("uppercase"))
-            )
-
-        except Exception as e:
-            res["error"] = str(e)
-
-        return res
-
-    async def _probe_sni_sensitivity_detailed(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
-        """
-        Detailed SNI sensitivity probe with additional tests
-        """
-        basic = await self._probe_sni_sensitivity(target, port)
-
-        # Additional tests
-        loop = asyncio.get_event_loop()
-
-        def test_sni_variant(sni_value):
-            try:
-                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                ctx.check_hostname = False
-                ctx.verify_mode = ssl.CERT_NONE
-                with socket.create_connection((target, port), timeout=2.0) as sock:
-                    with ctx.wrap_socket(sock, server_hostname=sni_value) as ssock:
-                        return True
-            except:
-                return False
-
-        # Test with subdomain
-        subdomain_test = await loop.run_in_executor(
-            self.executor, test_sni_variant, f"www.{target}"
-        )
-
-        # Test with random SNI
-        random_test = await loop.run_in_executor(
-            self.executor, test_sni_variant, "random.example.com"
-        )
-
-        basic["subdomain_works"] = subdomain_test
-        basic["random_sni_works"] = random_test
-
-        # Enhanced sensitivity detection
-        if not random_test and subdomain_test:
-            basic["sni_validation_type"] = "strict_domain"
-        elif random_test:
-            basic["sni_validation_type"] = "none"
-        else:
-            basic["sni_validation_type"] = "unknown"
-
-        return basic
+    async def _probe_sni_sensitivity_detailed(self, target: str, port: int = 443) -> Dict[str, Any]:
+        """Wrapper for DPIProber.probe_sni_sensitivity_detailed - maintains backward compatibility"""
+        return await self._prober.probe_sni_sensitivity_detailed(target, port)
 
     async def _probe_timing_sensitivity(self, target: str, port: int) -> Dict[str, Any]:
-        """
-        Probe timing sensitivity with actual delays
-        """
-        results = {}
-        loop = asyncio.get_event_loop()
+        """Wrapper for DPIProber.probe_timing_sensitivity - maintains backward compatibility"""
+        return await self._prober.probe_timing_sensitivity(target, port)
 
-        async def test_with_delay(delay_ms: int) -> bool:
-            try:
-                await asyncio.sleep(delay_ms / 1000.0)
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(target, port), timeout=2.0
-                )
-                writer.close()
-                await writer.wait_closed()
-                return True
-            except:
-                return False
+    async def _probe_fragmentation_support(self, target: str, port: int) -> Dict[str, Any]:
+        """Wrapper for DPIProber.probe_fragmentation_support - maintains backward compatibility"""
+        return await self._prober.probe_fragmentation_support(target, port)
 
-        # Test different delays
-        delays = [0, 100, 500, 1000]
-        for delay in delays:
-            success = await test_with_delay(delay)
-            results[f"delay_{delay}ms"] = success
+    async def _probe_dpi_behavioral_patterns(self, target: str, port: int) -> Dict[str, Any]:
+        """Wrapper for DPIProber.probe_dpi_behavioral_patterns - maintains backward compatibility"""
+        return await self._prober.probe_dpi_behavioral_patterns(target, port)
 
-        # Calculate sensitivity
-        successes = sum(1 for v in results.values() if v)
-        results["timing_sensitive"] = successes < len(delays) / 2
+    async def _probe_packet_reordering_detailed(self, target: str, port: int) -> Dict[str, Any]:
+        """Wrapper for DPIProber.probe_packet_reordering_detailed - maintains backward compatibility"""
+        return await self._prober.probe_packet_reordering_detailed(target, port)
 
-        return results
+    async def _test_reordered_connection(self, target: str, port: int) -> bool:
+        """Test connection with reordered packets - delegates to connection_testers"""
+        return await test_connection_with_reordering(target, port, timeout=2.0, logger=self.logger)
 
-    async def _probe_fragmentation_support(
-        self, target: str, port: int
-    ) -> Dict[str, Any]:
-        """
-        Probe IP fragmentation support
-        """
-        if not self.config.enable_scapy_probes:
-            return {"supports_fragmentation": False, "error": "scapy_probes_disabled"}
-
-        results = {"supports_fragmentation": False, "error": None}
-
-        try:
-            # Send fragmented packet
-            packet = IP(dst=target) / TCP(dport=port, flags="S")
-            fragments = packet.fragment(8)  # Fragment into 8-byte chunks
-
-            # Send fragments
-            for frag in fragments:
-                send(frag, verbose=0)
-
-            # Check for response (simplified)
-            await asyncio.sleep(0.5)
-            results["supports_fragmentation"] = True
-
-        except Exception as e:
-            results["error"] = str(e)
-
-        return results
-
-    async def _probe_dpi_behavioral_patterns(
-        self, target: str, port: int
-    ) -> Dict[str, Any]:
-        """
-        Comprehensive behavioral pattern analysis (enhanced from proposal 1)
-        """
-        results = {}
-
-        try:
-            # Packet reordering tolerance
-            results["reordering_tolerance"] = (
-                await self._probe_packet_reordering_detailed(target, port)
-            )
-
-            # Fragmentation handling
-            results["fragmentation_handling"] = (
-                await self._probe_fragmentation_detailed(target, port)
-            )
-
-            # Timing patterns
-            results["timing_patterns"] = await self._analyze_timing_patterns(
-                target, port
-            )
-
-            # Packet size limits
-            results["packet_size_limits"] = await self._probe_packet_size_limits(
-                target, port
-            )
-
-            # Protocol detection
-            results["protocol_detection"] = await self._probe_protocol_detection(
-                target, port
-            )
-
-        except Exception as e:
-            self.logger.error(f"Behavioral pattern probing failed: {e}")
-            results["error"] = str(e)
-
-        return results
-
-    async def _probe_packet_reordering_detailed(
-        self, target: str, port: int
-    ) -> Dict[str, Any]:
-        """
-        Detailed packet reordering tolerance test
-        """
-        result = {"tolerates_reordering": False, "max_reorder_distance": 0}
-
-        try:
-            # Test with different reordering distances
-            for distance in [1, 2, 4, 8]:
-                # Simplified test - in production would send actual reordered packets
-                success = await self._test_reordered_connection(target, port, distance)
-                if success:
-                    result["tolerates_reordering"] = True
-                    result["max_reorder_distance"] = distance
-                else:
-                    break
-
-        except Exception as e:
-            result["error"] = str(e)
-
-        return result
-
-    async def _test_reordered_connection(
-        self, target: str, port: int, distance: int
-    ) -> bool:
-        """Test connection with reordered packets"""
-        # Simplified - actual implementation would reorder TCP segments
-        try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(target, port), timeout=2.0
-            )
-            writer.close()
-            await writer.wait_closed()
-            return True
-        except:
-            return False
-
-    async def _probe_fragmentation_detailed(
-        self, target: str, port: int
-    ) -> Dict[str, Any]:
-        """
-        Detailed fragmentation analysis
-        """
-        if not self.config.enable_scapy_probes:
-            return {
-                "supports_ip_fragmentation": False,
-                "min_fragment_size": None,
-                "reassembly_timeout": None,
-            }
-
-        result = {
-            "supports_ip_fragmentation": False,
-            "min_fragment_size": None,
-            "reassembly_timeout": None,
-        }
-
-        try:
-            # Test different fragment sizes
-            for frag_size in [8, 16, 32, 64]:
-                success = await self._test_fragmented_connection(
-                    target, port, frag_size
-                )
-                if success:
-                    result["supports_ip_fragmentation"] = True
-                    if not result["min_fragment_size"]:
-                        result["min_fragment_size"] = frag_size
-
-        except Exception as e:
-            result["error"] = str(e)
-
-        return result
-
-    async def _test_fragmented_connection(
-        self, target: str, port: int, frag_size: int
-    ) -> bool:
-        """Test connection with fragmented packets"""
-        # Simplified - actual implementation would fragment packets
-        return True  # Placeholder
+    async def _probe_fragmentation_detailed(self, target: str, port: int) -> Dict[str, Any]:
+        """Wrapper for DPIProber.probe_fragmentation_detailed - maintains backward compatibility"""
+        return await self._prober.probe_fragmentation_detailed(target, port)
 
     async def _analyze_timing_patterns(self, target: str, port: int) -> Dict[str, Any]:
-        """
-        Analyze various timing patterns
-        """
-        patterns = {}
-
-        # Connection establishment timing
-        try:
-            t0 = time.time()
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(target, port), timeout=5.0
-            )
-            patterns["connect_time_ms"] = (time.time() - t0) * 1000
-            writer.close()
-            await writer.wait_closed()
-        except Exception as e:
-            patterns["connect_error"] = str(e)
-
-        # TLS handshake timing (if HTTPS)
-        if port == 443:
-            try:
-                t0 = time.time()
-                ctx = ssl.create_default_context()
-                ctx.check_hostname = False
-                ctx.verify_mode = ssl.CERT_NONE
-
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(target, port, ssl=ctx), timeout=5.0
-                )
-                patterns["tls_handshake_ms"] = (time.time() - t0) * 1000
-                writer.close()
-                await writer.wait_closed()
-            except Exception as e:
-                patterns["tls_error"] = str(e)
-
-        return patterns
+        """Wrapper for DPIProber.analyze_timing_patterns - maintains backward compatibility"""
+        return await self._prober.analyze_timing_patterns(target, port)
 
     async def _probe_packet_size_limits(self, target: str, port: int) -> Dict[str, Any]:
-        """
-        Probe packet size limitations
-        """
-        limits = {
-            "max_tcp_payload": None,
-            "mtu_discovered": 1500,
-            "jumbo_frames_supported": False,
-        }
-
-        # Test various payload sizes
-        test_sizes = [64, 256, 512, 1024, 1460, 9000]
-
-        for size in test_sizes:
-            success = await self._test_payload_size(target, port, size)
-            if success:
-                limits["max_tcp_payload"] = size
-                if size > 1500:
-                    limits["jumbo_frames_supported"] = True
-            else:
-                break
-
-        return limits
+        """Wrapper for DPIProber.probe_packet_size_limits - maintains backward compatibility"""
+        return await self._prober.probe_packet_size_limits(target, port)
 
     async def _test_payload_size(self, target: str, port: int, size: int) -> bool:
-        """Test if specific payload size works"""
-        try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(target, port), timeout=2.0
-            )
-
-            # Send test payload
-            writer.write(b"X" * size)
-            await writer.drain()
-
-            writer.close()
-            await writer.wait_closed()
-            return True
-        except:
-            return False
+        """Test if specific payload size works - delegates to connection_testers"""
+        return await test_payload_size(target, port, size, timeout=2.0, logger=self.logger)
 
     async def _probe_protocol_detection(self, target: str, port: int) -> Dict[str, Any]:
-        """
-        Probe protocol detection capabilities
-        """
-        detection = {
-            "http_detected": False,
-            "https_detected": False,
-            "http2_detected": False,
-            "quic_detected": False,
-            "custom_protocol_blocked": False,
-        }
+        """Wrapper for DPIProber.probe_protocol_detection - maintains backward compatibility"""
+        return await self._prober.probe_protocol_detection(target, port)
 
-        # These would be actual protocol tests in production
-        # For now, using port-based heuristics
-        if port == 80:
-            detection["http_detected"] = True
-        elif port == 443:
-            detection["https_detected"] = True
-            detection["http2_detected"] = True  # Assume HTTP/2 support
+    async def _probe_quic_initial(self, target: str, port: int) -> Dict[str, Any]:
+        """Wrapper for DPIProber.probe_quic_initial - maintains backward compatibility"""
+        return await self._prober.probe_quic_initial(target, port)
 
-        return detection
+    async def _probe_tls_capabilities(self, target: str, port: int) -> Dict[str, Any]:
+        """Wrapper for DPIProber.probe_tls_capabilities - maintains backward compatibility"""
+        return await self._prober.probe_tls_capabilities(target, port)
 
     def _apply_behavioral_metrics_to_fingerprint(
         self, fingerprint: DPIFingerprint, behavioral_metrics: Dict[str, Any]
     ):
-        """
-        Apply behavioral metrics to fingerprint
-        """
-        if not behavioral_metrics or "error" in behavioral_metrics:
-            return
-
-        # Reordering tolerance
-        reordering = behavioral_metrics.get("reordering_tolerance", {})
-        if reordering.get("tolerates_reordering"):
-            fingerprint.raw_metrics["packet_reordering_tolerant"] = True
-            fingerprint.raw_metrics["max_reorder_distance"] = reordering.get(
-                "max_reorder_distance", 0
-            )
-
-        # Fragmentation
-        frag = behavioral_metrics.get("fragmentation_handling", {})
-        if frag.get("supports_ip_fragmentation"):
-            setattr(fingerprint, "supports_ip_frag", True)
-            fingerprint.raw_metrics["min_fragment_size"] = frag.get("min_fragment_size")
-
-        # Timing patterns
-        timing = behavioral_metrics.get("timing_patterns", {})
-        if "connect_time_ms" in timing:
-            fingerprint.connection_latency = timing["connect_time_ms"]
-        if "tls_handshake_ms" in timing:
-            fingerprint.raw_metrics["tls_handshake_latency"] = timing[
-                "tls_handshake_ms"
-            ]
-
-        # Packet size limits
-        limits = behavioral_metrics.get("packet_size_limits", {})
-        if limits.get("max_tcp_payload"):
-            fingerprint.packet_size_limitations = limits["max_tcp_payload"]
-        if limits.get("jumbo_frames_supported"):
-            fingerprint.raw_metrics["jumbo_frames_supported"] = True
+        """Wrapper for FingerprintProcessor.apply_behavioral_metrics_to_fingerprint"""
+        return self._processor.apply_behavioral_metrics_to_fingerprint(
+            fingerprint, behavioral_metrics
+        )
 
     def _generate_strategy_hints(self, fingerprint: DPIFingerprint) -> List[str]:
-        """
-        Generate strategy hints based on all collected data
-        """
-        hints = []
-        rm = fingerprint.raw_metrics
+        """Wrapper for FingerprintProcessor.generate_strategy_hints"""
+        return self._processor.generate_strategy_hints(fingerprint)
 
-        # QUIC blocking
-        if rm.get("quic_probe", {}).get("blocked") or not rm.get("quic_support"):
-            hints.append("disable_quic")
+    def _populate_coherent_fingerprint_features(
+        self, fingerprint: DPIFingerprint, client_hello_info: ClientHelloInfo
+    ):
+        """Wrapper for FingerprintProcessor.populate_coherent_fingerprint_features"""
+        return self._processor.populate_coherent_fingerprint_features(
+            fingerprint, client_hello_info
+        )
 
-        # SNI sensitivity
-        if rm.get("sni_sensitivity", {}).get("likely") or rm.get(
-            "sni_sensitivity", {}
-        ).get("confirmed"):
-            hints.append("split_tls_sni")
-            if rm.get("sni_probe", {}).get("sni_validation_type") == "strict_domain":
-                hints.append("use_domain_fronting")
+    def _integrate_analysis_result(
+        self, fingerprint: DPIFingerprint, task_name: str, result: Dict[str, Any]
+    ):
+        """Wrapper for FingerprintProcessor.integrate_analysis_result"""
+        return self._processor.integrate_analysis_result(fingerprint, task_name, result)
 
-        # Protocol preferences
-        if not rm.get("http2_support"):
-            hints.append("prefer_http11")
-        elif rm.get("http2_support") and not rm.get("alpn_h2_supported"):
-            hints.append("force_http2_prior_knowledge")
+    def _extract_ml_features(self, fingerprint: DPIFingerprint) -> Dict[str, Any]:
+        """Wrapper for FingerprintProcessor.extract_ml_features"""
+        return self._processor.extract_ml_features(fingerprint)
 
-        # CDN detection
-        cdn_markers = ["cloudflare", "fastly", "akamai", "cloudfront"]
-        if any(m in fingerprint.target.lower() for m in cdn_markers):
-            hints.append("cdn_aware_strategy")
+    def _predict_weaknesses(self, fp: DPIFingerprint) -> List[str]:
+        """Wrapper for FingerprintProcessor.predict_weaknesses"""
+        return self._processor.predict_weaknesses(fp)
 
-        # Fragmentation support
-        if getattr(fingerprint, "supports_ip_frag", False):
-            hints.append("use_fragmentation")
+    def _predict_best_attacks(self, fp: DPIFingerprint) -> List[Dict[str, Any]]:
+        """Wrapper for FingerprintProcessor.predict_best_attacks"""
+        return self._processor.predict_best_attacks(fp)
 
-        # Timing sensitivity
-        if rm.get("timing_probe", {}).get("timing_sensitive"):
-            hints.append("use_timing_attacks")
+    def _infer_sni_sensitivity(self, fp: DPIFingerprint) -> bool:
+        """Wrapper for FingerprintProcessor.infer_sni_sensitivity"""
+        return self._processor.infer_sni_sensitivity(fp)
 
-        # Packet reordering
-        if rm.get("packet_reordering_tolerant"):
-            hints.append("tcp_segment_reordering")
+    def _compute_ja3(self, client_hello_bytes: bytes) -> Dict[str, Any]:
+        """Wrapper for FingerprintProcessor.compute_ja3"""
+        return self._processor.compute_ja3(client_hello_bytes)
 
-        # RST injection
-        if fingerprint.rst_injection_detected:
-            hints.append("tcp_disorder_defense")
-
-        return hints
+    def _create_fallback_fingerprint(self, target: str, error_msg: str) -> DPIFingerprint:
+        """Wrapper for FingerprintProcessor.create_fallback_fingerprint"""
+        return self._processor.create_fallback_fingerprint(target, error_msg)
 
     def recommend_bypass_strategies(
         self, fingerprint: DPIFingerprint, context: Optional[Dict[str, Any]] = None
@@ -1924,9 +1060,7 @@ class AdvancedFingerprinter:
                 {"provider": "cloudflare"},
                 "Bypasses DNS hijacking",
             )
-            add_recommendation(
-                "dns_over_tls", 0.7, {"port": 853}, "Encrypted DNS queries"
-            )
+            add_recommendation("dns_over_tls", 0.7, {"port": 853}, "Encrypted DNS queries")
 
         # SNI-based blocking
         if "split_tls_sni" in hints:
@@ -1939,9 +1073,7 @@ class AdvancedFingerprinter:
 
         # QUIC blocking
         if "disable_quic" in hints:
-            add_recommendation(
-                "force_tcp", 0.6, {"disable_quic": True}, "QUIC blocked by DPI"
-            )
+            add_recommendation("force_tcp", 0.6, {"disable_quic": True}, "QUIC blocked by DPI")
 
         # Fragmentation vulnerability
         if "use_fragmentation" in hints:
@@ -1971,10 +1103,7 @@ class AdvancedFingerprinter:
             )
 
         # Content inspection depth limit
-        if (
-            fingerprint.content_inspection_depth
-            and fingerprint.content_inspection_depth < 1500
-        ):
+        if fingerprint.content_inspection_depth and fingerprint.content_inspection_depth < 1500:
             add_recommendation(
                 "payload_padding",
                 0.7,
@@ -2002,10 +1131,7 @@ class AdvancedFingerprinter:
             if context.get("speed_priority"):
                 # Prefer faster methods
                 for rec in recommendations:
-                    if (
-                        "multi" not in rec["technique"]
-                        and "fragment" not in rec["technique"]
-                    ):
+                    if "multi" not in rec["technique"] and "fragment" not in rec["technique"]:
                         rec["score"] *= 1.1
 
         # Sort by score and add execution order
@@ -2014,9 +1140,7 @@ class AdvancedFingerprinter:
         for i, rec in enumerate(recommendations[:10]):  # Top 10
             rec["execution_order"] = i + 1
             if i == 0:
-                rec["execution_notes"] = (
-                    "Primary recommendation - highest success probability"
-                )
+                rec["execution_notes"] = "Primary recommendation - highest success probability"
             elif i < 3:
                 rec["execution_notes"] = "Strong alternative - high success rate"
             elif i < 6:
@@ -2041,9 +1165,7 @@ class AdvancedFingerprinter:
         raw_metrics = getattr(fingerprint, "raw_metrics", {})
         profile = DPIBehaviorProfile(
             dpi_system_id=raw_metrics.get("dpi_system_id", "unknown"),
-            signature_based_detection=raw_metrics.get(
-                "signature_based_detection", False
-            ),
+            signature_based_detection=raw_metrics.get("signature_based_detection", False),
             behavioral_analysis=raw_metrics.get("behavioral_analysis", False),
             ml_detection=raw_metrics.get("ml_detection", False),
             statistical_analysis=raw_metrics.get("statistical_analysis", False),
@@ -2065,9 +1187,7 @@ class AdvancedFingerprinter:
                 getattr(fingerprint, "tcp_window_manipulation", False),
             ]
         )
-        profile.ml_detection = bool(
-            fingerprint.raw_metrics.get("ml_detection_indicators", False)
-        )
+        profile.ml_detection = bool(fingerprint.raw_metrics.get("ml_detection_indicators", False))
         profile.statistical_analysis = any(
             [
                 getattr(fingerprint, "rate_limiting_detected", False),
@@ -2079,9 +1199,7 @@ class AdvancedFingerprinter:
         try:
             rm = fingerprint.raw_metrics or {}
             # ech_support можно трактовать как присутствие ECH в DNS/поддержке
-            profile.ech_support = bool(
-                rm.get("ech_support", False) or rm.get("ech_present", False)
-            )
+            profile.ech_support = bool(rm.get("ech_support", False) or rm.get("ech_present", False))
             profile.ech_present = rm.get("ech_present")
             profile.ech_blocked = rm.get("ech_blocked")
             profile.http3_support = rm.get("http3_support")
@@ -2089,24 +1207,18 @@ class AdvancedFingerprinter:
             pass
 
         # Timing sensitivity
-        profile.timing_sensitivity_profile = (
-            await self._analyze_timing_sensitivity_detailed(domain, fingerprint)
+        profile.timing_sensitivity_profile = await self._analyze_timing_sensitivity_detailed(
+            domain, fingerprint
         )
 
         # Connection patterns
-        profile.connection_timeout_patterns = self._analyze_connection_timeouts(
-            fingerprint
-        )
+        profile.connection_timeout_patterns = self._analyze_connection_timeouts(fingerprint)
 
         # Advanced metrics
-        profile.burst_tolerance = await self._analyze_burst_tolerance(
-            domain, fingerprint
-        )
+        profile.burst_tolerance = await self._analyze_burst_tolerance(domain, fingerprint)
         profile.tcp_state_tracking_depth = self._analyze_tcp_state_depth(fingerprint)
         profile.tls_inspection_level = self._analyze_tls_inspection_level(fingerprint)
-        profile.http_parsing_strictness = self._analyze_http_parsing_strictness(
-            fingerprint
-        )
+        profile.http_parsing_strictness = self._analyze_http_parsing_strictness(fingerprint)
 
         # New detailed metrics
         profile.packet_reordering_tolerance = fingerprint.raw_metrics.get(
@@ -2129,8 +1241,7 @@ class AdvancedFingerprinter:
 
         # Generate exploit recommendations
         profile.exploit_recommendations = [
-            tech["technique"]
-            for tech in self.recommend_bypass_strategies(fingerprint)[:5]
+            tech["technique"] for tech in self.recommend_bypass_strategies(fingerprint)[:5]
         ]
 
         # Store profile
@@ -2146,138 +1257,40 @@ class AdvancedFingerprinter:
     async def _analyze_timing_sensitivity_detailed(
         self, domain: str, fingerprint: DPIFingerprint
     ) -> Dict[str, float]:
-        """
-        Detailed timing sensitivity analysis
-        """
-        timing_profile = {}
+        """Wrapper for DPIAnalyzer.analyze_timing_sensitivity_detailed - maintains backward compatibility"""
+        return await self._analyzer.analyze_timing_sensitivity_detailed(domain, fingerprint)
 
-        # Connection delay sensitivity
-        if hasattr(fingerprint, "rst_latency_ms") and fingerprint.rst_latency_ms:
-            if fingerprint.rst_latency_ms < 100:
-                timing_profile["connection_delay"] = 0.9
-            elif fingerprint.rst_latency_ms < 500:
-                timing_profile["connection_delay"] = 0.5
-            else:
-                timing_profile["connection_delay"] = 0.2
-
-        # From timing probe results
-        timing_probe = fingerprint.raw_metrics.get("timing_probe", {})
-        if timing_probe.get("timing_sensitive"):
-            timing_profile["overall_sensitivity"] = 0.8
-        else:
-            timing_profile["overall_sensitivity"] = 0.3
-
-        # TLS handshake timing
-        tls_latency = fingerprint.raw_metrics.get("tls_handshake_latency")
-        if tls_latency:
-            if tls_latency < 50:
-                timing_profile["tls_sensitivity"] = 0.9
-            elif tls_latency < 200:
-                timing_profile["tls_sensitivity"] = 0.5
-            else:
-                timing_profile["tls_sensitivity"] = 0.2
-
-        return timing_profile
-
-    async def _analyze_burst_tolerance(
-        self, domain: str, fingerprint: DPIFingerprint
-    ) -> float:
-        """
-        Analyze burst tolerance based on collected metrics
-        """
-        # Check for rate limiting indicators
-        if getattr(fingerprint, "rate_limiting_detected", False):
-            return 0.3  # Low tolerance
-
-        # Check packet size limits
-        max_payload = fingerprint.raw_metrics.get("packet_size_limits", {}).get(
-            "max_tcp_payload"
-        )
-        if max_payload and max_payload > 9000:
-            return 0.8  # High tolerance (supports jumbo frames)
-        elif max_payload and max_payload < 1000:
-            return 0.4  # Low tolerance
-
-        return 0.6  # Default moderate tolerance
+    async def _analyze_burst_tolerance(self, domain: str, fingerprint: DPIFingerprint) -> float:
+        """Wrapper for DPIAnalyzer.analyze_burst_tolerance - maintains backward compatibility"""
+        return await self._analyzer.analyze_burst_tolerance(domain, fingerprint)
 
     def _analyze_tcp_state_depth(self, fingerprint: DPIFingerprint) -> int:
-        """
-        Analyze TCP state tracking depth
-        """
-        depth = 0
-
-        if getattr(fingerprint, "stateful_inspection", False):
-            depth += 1
-        if getattr(fingerprint, "sequence_number_anomalies", False):
-            depth += 2
-        if getattr(fingerprint, "tcp_window_manipulation", False):
-            depth += 1
-        if fingerprint.raw_metrics.get("packet_reordering_tolerant"):
-            depth += 1
-
-        return min(depth, 5)  # Cap at 5 levels
+        """Wrapper for DPIAnalyzer.analyze_tcp_state_depth - maintains backward compatibility"""
+        return self._analyzer.analyze_tcp_state_depth(fingerprint)
 
     def _analyze_tls_inspection_level(self, fingerprint: DPIFingerprint) -> str:
-        """
-        Determine TLS inspection level
-        """
-        rm = fingerprint.raw_metrics
-
-        # Check various indicators
-        if rm.get("ech_support") is False and rm.get("ech_blocked"):
-            return "full"  # Full TLS interception
-
-        if rm.get("sni_sensitivity", {}).get("confirmed"):
-            if rm.get("sni_probe", {}).get("sni_validation_type") == "strict_domain":
-                return "deep"  # Deep inspection with validation
-            else:
-                return "moderate"  # Some SNI inspection
-
-        if rm.get("tls_caps", {}).get("tls13_supported") is False:
-            return "legacy"  # Blocks modern TLS
-
-        return "minimal"  # Little to no TLS inspection
+        """Wrapper for DPIAnalyzer.analyze_tls_inspection_level - maintains backward compatibility"""
+        return self._analyzer.analyze_tls_inspection_level(fingerprint)
 
     def _analyze_http_parsing_strictness(self, fingerprint: DPIFingerprint) -> str:
-        """
-        Analyze HTTP parsing strictness
-        """
-        if getattr(fingerprint, "http_header_filtering", False):
-            if getattr(fingerprint, "http_method_restrictions", None):
-                return "very_strict"
-            return "strict"
+        """Wrapper for DPIAnalyzer.analyze_http_parsing_strictness - maintains backward compatibility"""
+        return self._analyzer.analyze_http_parsing_strictness(fingerprint)
 
-        if getattr(fingerprint, "content_inspection_depth", 0) > 0:
-            return "moderate"
+    def _analyze_connection_timeouts(self, fingerprint: DPIFingerprint) -> Dict[str, int]:
+        """Wrapper for DPIAnalyzer.analyze_connection_timeouts - maintains backward compatibility"""
+        return self._analyzer.analyze_connection_timeouts(fingerprint)
 
-        return "lenient"
+    def _analyze_rst_ttl_stats(self, fp: DPIFingerprint) -> Dict[str, Any]:
+        """Wrapper for DPIAnalyzer.analyze_rst_ttl_stats - maintains backward compatibility"""
+        return self._analyzer.analyze_rst_ttl_stats(fp)
 
-    def _analyze_connection_timeouts(
-        self, fingerprint: DPIFingerprint
-    ) -> Dict[str, int]:
-        """
-        Analyze connection timeout patterns
-        """
-        timeouts = {}
+    def _heuristic_classification(self, fingerprint: DPIFingerprint) -> Tuple[DPIType, float]:
+        """Wrapper for DPIAnalyzer.heuristic_classification - maintains backward compatibility"""
+        return self._analyzer.heuristic_classification(fingerprint)
 
-        # TCP timeout
-        if hasattr(fingerprint, "connection_timeout_ms"):
-            timeouts["tcp"] = fingerprint.connection_timeout_ms
-
-        # Block type based timeouts
-        if fingerprint.block_type == "tcp_timeout":
-            timeouts["default"] = 10000
-        elif fingerprint.block_type == "connection_reset":
-            timeouts["default"] = 100
-        else:
-            timeouts["default"] = 5000
-
-        # Protocol specific
-        rm = fingerprint.raw_metrics
-        if rm.get("timing_patterns", {}).get("connect_time_ms"):
-            timeouts["observed"] = int(rm["timing_patterns"]["connect_time_ms"])
-
-        return timeouts
+    def _calculate_reliability_score(self, fingerprint: DPIFingerprint) -> float:
+        """Wrapper for DPIAnalyzer.calculate_reliability_score - maintains backward compatibility"""
+        return self._analyzer.calculate_reliability_score(fingerprint)
 
     # Keep all existing methods from original implementation...
     # (rest of the existing methods remain)
@@ -2304,9 +1317,7 @@ class AdvancedFingerprinter:
                 all_effectiveness.extend(scores)
 
         if all_effectiveness:
-            stats["avg_attack_effectiveness"] = sum(all_effectiveness) / len(
-                all_effectiveness
-            )
+            stats["avg_attack_effectiveness"] = sum(all_effectiveness) / len(all_effectiveness)
             stats["total_attacks_tracked"] = len(all_effectiveness)
 
         # Analysis performance
@@ -2360,7 +1371,7 @@ class AdvancedFingerprinter:
                     "status": "healthy",
                     "entries": self.cache.get_stats().get("entries", 0),
                 }
-            except:
+            except Exception:
                 components["cache"] = {"status": "unhealthy"}
         else:
             components["cache"] = {"status": "disabled"}
@@ -2384,12 +1395,8 @@ class AdvancedFingerprinter:
             components["ml_classifier"] = {"status": "disabled"}
 
         # Overall status
-        healthy_count = sum(
-            1 for c in components.values() if c.get("status") == "healthy"
-        )
-        total_enabled = sum(
-            1 for c in components.values() if c.get("status") != "disabled"
-        )
+        healthy_count = sum(1 for c in components.values() if c.get("status") == "healthy")
+        total_enabled = sum(1 for c in components.values() if c.get("status") != "disabled")
 
         overall_status = "healthy" if healthy_count == total_enabled else "degraded"
 
@@ -2509,21 +1516,17 @@ class AdvancedFingerprinter:
                 sni_list.extend(len(hostname_bytes).to_bytes(2, "big"))
                 sni_list.extend(hostname_bytes)
 
-                sni_extension.extend(
-                    (len(sni_list) + 2).to_bytes(2, "big")
-                )  # Extension Length
-                sni_extension.extend(
-                    len(sni_list).to_bytes(2, "big")
-                )  # SNI List Length
+                sni_extension.extend((len(sni_list) + 2).to_bytes(2, "big"))  # Extension Length
+                sni_extension.extend(len(sni_list).to_bytes(2, "big"))  # SNI List Length
                 sni_extension.extend(sni_list)
 
                 client_hello.extend(sni_extension)
 
                 # Update extensions length
                 extensions_length = len(client_hello) - extensions_length_offset - 2
-                client_hello[
-                    extensions_length_offset : extensions_length_offset + 2
-                ] = extensions_length.to_bytes(2, "big")
+                client_hello[extensions_length_offset : extensions_length_offset + 2] = (
+                    extensions_length.to_bytes(2, "big")
+                )
 
                 # Update handshake length
                 handshake_length = len(client_hello) - handshake_length_offset - 3
@@ -2533,9 +1536,7 @@ class AdvancedFingerprinter:
 
                 # Update record length
                 record_length = len(client_hello) - length_offset - 2
-                client_hello[length_offset : length_offset + 2] = (
-                    record_length.to_bytes(2, "big")
-                )
+                client_hello[length_offset : length_offset + 2] = record_length.to_bytes(2, "big")
 
                 return bytes(client_hello)
 
@@ -2558,9 +1559,7 @@ class AdvancedFingerprinter:
 
                     # Create a raw socket if possible (requires privileges)
                     try:
-                        sock = socket.socket(
-                            socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
-                        )
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
                         sock.settimeout(2.0)
 
                         # Try to trigger RST by connecting to closed port
@@ -2596,7 +1595,7 @@ class AdvancedFingerprinter:
                                 return 128  # Common Windows TTL
                             else:
                                 return 64  # Default
-                        except:
+                        except Exception:
                             return None
 
                 except Exception as e:
@@ -2609,118 +1608,6 @@ class AdvancedFingerprinter:
         except Exception as e:
             self.logger.debug(f"RST TTL detection failed: {e}")
             return None
-
-    def _populate_coherent_fingerprint_features(
-        self, fingerprint: DPIFingerprint, client_hello_info: ClientHelloInfo
-    ):
-        """Populates the DPIFingerprint with features for coherent mimicry."""
-        if not client_hello_info:
-            return
-
-        # Map ClientHello info to fingerprint attributes if they exist
-        if hasattr(fingerprint, "cipher_suites_order"):
-            fingerprint.cipher_suites_order = client_hello_info.cipher_suites
-        if hasattr(fingerprint, "extensions_order"):
-            fingerprint.extensions_order = client_hello_info.extensions_order
-        if hasattr(fingerprint, "supported_groups"):
-            fingerprint.supported_groups = client_hello_info.supported_groups
-        if hasattr(fingerprint, "signature_algorithms"):
-            fingerprint.signature_algorithms = client_hello_info.signature_algorithms
-        if hasattr(fingerprint, "ec_point_formats"):
-            fingerprint.ec_point_formats = client_hello_info.ec_point_formats
-        if hasattr(fingerprint, "alpn_protocols"):
-            fingerprint.alpn_protocols = client_hello_info.alpn_protocols
-
-    def _integrate_analysis_result(
-        self, fingerprint: DPIFingerprint, task_name: str, result: Dict[str, Any]
-    ):
-        """Integrates analysis results into the fingerprint."""
-        if task_name == "tcp_analysis" and result:
-            fingerprint.rst_injection_detected = result.get(
-                "rst_injection_detected", False
-            )
-            fingerprint.rst_source_analysis = result.get(
-                "rst_source_analysis", "unknown"
-            )
-            fingerprint.tcp_window_manipulation = result.get(
-                "tcp_window_manipulation", False
-            )
-            fingerprint.sequence_number_anomalies = result.get(
-                "sequence_number_anomalies", False
-            )
-            fingerprint.handshake_anomalies = result.get("handshake_anomalies", [])
-            fingerprint.tcp_options_filtering = bool(
-                result.get("tcp_options_filtering", [])
-            )
-
-            # Optional TCP attributes
-            for attr in [
-                "tcp_window_size",
-                "tcp_mss",
-                "tcp_sack_permitted",
-                "tcp_timestamps_enabled",
-                "syn_ack_to_client_hello_delta",
-            ]:
-                if attr in result:
-                    setattr(fingerprint, attr, result[attr])
-
-        elif task_name == "http_analysis" and result:
-            fingerprint.http_header_filtering = result.get(
-                "http_header_filtering", False
-            )
-            fingerprint.content_inspection_depth = result.get(
-                "content_inspection_depth", 0
-            )
-            fingerprint.user_agent_filtering = result.get("user_agent_filtering", False)
-            fingerprint.host_header_manipulation = result.get(
-                "host_header_manipulation", False
-            )
-            fingerprint.http_method_restrictions = result.get(
-                "http_method_restrictions", []
-            )
-            fingerprint.content_type_filtering = result.get(
-                "content_type_filtering", False
-            )
-            fingerprint.redirect_injection = result.get("redirect_injection", False)
-            fingerprint.http_response_modification = result.get(
-                "http_response_modification", False
-            )
-            fingerprint.keep_alive_manipulation = result.get(
-                "keep_alive_manipulation", False
-            )
-
-        elif task_name == "dns_analysis" and result:
-            fingerprint.dns_hijacking_detected = result.get(
-                "dns_hijacking_detected", False
-            )
-            fingerprint.dns_response_modification = result.get(
-                "dns_response_modification", False
-            )
-            fingerprint.dns_query_filtering = result.get("dns_query_filtering", False)
-            fingerprint.doh_blocking = result.get("doh_blocking", False)
-            fingerprint.dot_blocking = result.get("dot_blocking", False)
-            fingerprint.dns_cache_poisoning = result.get("dns_cache_poisoning", False)
-            fingerprint.dns_timeout_manipulation = result.get(
-                "dns_timeout_manipulation", False
-            )
-            fingerprint.recursive_resolver_blocking = result.get(
-                "recursive_resolver_blocking", False
-            )
-            fingerprint.dns_over_tcp_blocking = result.get(
-                "dns_over_tcp_blocking", False
-            )
-            fingerprint.edns_support = result.get("edns_support", False)
-
-        # Store raw result
-        fingerprint.raw_metrics[task_name] = result
-
-    async def _safe_async_call(self, task_name: str, coro) -> Tuple[str, Any]:
-        """Safely execute async task and return result or None on error"""
-        try:
-            return (task_name, await coro)
-        except Exception as e:
-            self.logger.debug(f"Task {task_name} failed: {e}")
-            return (task_name, None)
 
     async def _classify_dpi_type(self, fingerprint: DPIFingerprint):
         """Classify DPI type using heuristic approaches"""
@@ -2750,278 +1637,6 @@ class AdvancedFingerprinter:
             fingerprint.dpi_type = DPIType.UNKNOWN
             fingerprint.confidence = 0.0
             fingerprint.analysis_methods_used.append("fallback_unknown")
-
-    def _extract_ml_features(self, fingerprint: DPIFingerprint) -> Dict[str, Any]:
-        """Extract ML features from fingerprint"""
-        features = {}
-
-        # Binary features
-        binary_attrs = [
-            "rst_injection_detected",
-            "tcp_window_manipulation",
-            "sequence_number_anomalies",
-            "tcp_options_filtering",
-            "mss_clamping_detected",
-            "tcp_timestamp_manipulation",
-            "http_header_filtering",
-            "user_agent_filtering",
-            "host_header_manipulation",
-            "content_type_filtering",
-            "redirect_injection",
-            "http_response_modification",
-            "keep_alive_manipulation",
-            "dns_hijacking_detected",
-            "dns_response_modification",
-            "dns_query_filtering",
-            "doh_blocking",
-            "dot_blocking",
-            "dns_cache_poisoning",
-            "dns_timeout_manipulation",
-            "recursive_resolver_blocking",
-            "dns_over_tcp_blocking",
-            "edns_support",
-            "supports_ipv6",
-            "geographic_restrictions",
-            "time_based_filtering",
-        ]
-
-        for attr in binary_attrs:
-            features[attr] = 1 if getattr(fingerprint, attr, False) else 0
-
-        # Numeric features
-        features["connection_reset_timing"] = getattr(
-            fingerprint, "connection_reset_timing", 0.0
-        )
-        features["handshake_anomalies_count"] = len(
-            getattr(fingerprint, "handshake_anomalies", [])
-        )
-        features["content_inspection_depth"] = getattr(
-            fingerprint, "content_inspection_depth", 0
-        )
-        features["http_method_restrictions_count"] = len(
-            getattr(fingerprint, "http_method_restrictions", [])
-        )
-        features["packet_size_limitations"] = getattr(
-            fingerprint, "packet_size_limitations", 0
-        )
-        features["protocol_whitelist_count"] = len(
-            getattr(fingerprint, "protocol_whitelist", [])
-        )
-        features["analysis_duration"] = getattr(fingerprint, "analysis_duration", 0.0)
-
-        return features
-
-    def _predict_weaknesses(self, fp: DPIFingerprint) -> List[str]:
-        """Predict DPI weaknesses based on fingerprint"""
-        weaknesses = []
-
-        if getattr(fp, "supports_ip_frag", False):
-            weaknesses.append("Vulnerable to IP fragmentation attacks")
-
-        if not getattr(fp, "checksum_validation", True):
-            weaknesses.append("No checksum validation - checksum attacks possible")
-
-        if getattr(fp, "large_payload_bypass", False):
-            weaknesses.append("Large payloads can bypass inspection")
-
-        if not fp.raw_metrics.get("ml_detection_indicators", False):
-            weaknesses.append("No ML-based anomaly detection")
-
-        if getattr(fp, "rate_limiting_detected", False):
-            weaknesses.append("Rate limiting detected - timing attacks possible")
-
-        if fp.raw_metrics.get("packet_reordering_tolerant"):
-            weaknesses.append("Tolerates packet reordering - sequence attacks viable")
-
-        if fp.content_inspection_depth and fp.content_inspection_depth < 1500:
-            weaknesses.append(
-                f"Limited inspection depth ({fp.content_inspection_depth} bytes)"
-            )
-
-        return list(set(weaknesses))
-
-    def _predict_best_attacks(self, fp: DPIFingerprint) -> List[Dict[str, Any]]:
-        """Predict most effective attacks based on fingerprint"""
-        predictions = []
-        weaknesses = self._predict_weaknesses(fp)
-
-        # Map weaknesses to attacks
-        if "Vulnerable to IP fragmentation attacks" in weaknesses:
-            predictions.append({"technique": "ip_fragmentation", "score": 0.9})
-
-        if "No checksum validation" in weaknesses:
-            predictions.append({"technique": "bad_checksum", "score": 0.85})
-
-        if fp.rst_injection_detected:
-            predictions.append({"technique": "tcp_fakeddisorder", "score": 0.8})
-            predictions.append({"technique": "tcp_multisplit", "score": 0.75})
-
-        if fp.dns_hijacking_detected:
-            predictions.append({"technique": "dns_over_https", "score": 0.7})
-
-        if fp.http_header_filtering:
-            predictions.append({"technique": "http_header_obfuscation", "score": 0.65})
-
-        # Generic fallbacks
-        if not predictions:
-            predictions.append({"technique": "tcp_multisplit", "score": 0.5})
-            predictions.append({"technique": "tcp_fakeddisorder", "score": 0.45})
-
-        predictions.sort(key=lambda x: x["score"], reverse=True)
-        return predictions[:10]
-
-    def _infer_sni_sensitivity(self, fp: DPIFingerprint) -> bool:
-        """Infer SNI sensitivity from fingerprint data"""
-        try:
-            # Check direct SNI probe results
-            if fp.raw_metrics.get("sni_probe", {}).get("sni_sensitive"):
-                return True
-
-            # Heuristic: RST injection + HTTP filtering often means SNI sensitivity
-            if (
-                fp.rst_injection_detected
-                and fp.http_header_filtering
-                and not fp.dns_hijacking_detected
-            ):
-                return True
-
-            # Check if SNI validation detected
-            if (
-                fp.raw_metrics.get("sni_probe", {}).get("sni_validation_type")
-                == "strict_domain"
-            ):
-                return True
-
-            return False
-        except Exception:
-            return False
-
-    def _compute_ja3(self, client_hello_bytes: bytes) -> Dict[str, Any]:
-        """Compute JA3 hash from ClientHello bytes"""
-        try:
-            # Simple MD5 hash of ClientHello bytes
-            md5_hash = hashlib.md5(client_hello_bytes).hexdigest()
-            return {"ja3_hash": md5_hash}
-        except Exception as e:
-            return {"ja3_hash": None, "error": str(e)}
-
-    def _analyze_rst_ttl_stats(self, fp: DPIFingerprint) -> Dict[str, Any]:
-        """Analyze RST TTL statistics"""
-        ttl = getattr(fp, "rst_ttl", None)
-        if ttl is None:
-            return {"rst_ttl_level": "unknown"}
-
-        if ttl <= 64:
-            level = "low"
-        elif ttl <= 128:
-            level = "mid"
-        else:
-            level = "high"
-
-        return {"rst_ttl_level": level, "rst_ttl": ttl}
-
-    def _heuristic_classification(
-        self, fingerprint: DPIFingerprint
-    ) -> Tuple[DPIType, float]:
-        """Enhanced heuristic DPI classification"""
-        score = 0.1
-        dpi_type = DPIType.UNKNOWN
-
-        rm = getattr(fingerprint, "raw_metrics", {}) or {}
-
-        # Extract signals
-        quic_blocked = bool(rm.get("quic_probe", {}).get("blocked", False))
-        tls_caps = rm.get("tls_caps", {})
-        tls13 = bool(tls_caps.get("tls13_supported", False))
-        alpn_h2 = bool(tls_caps.get("alpn_h2_supported", False))
-        rst_ttl_stats = rm.get("rst_ttl_stats", {})
-        rst_level = rst_ttl_stats.get("rst_ttl_level", "unknown")
-
-        # Base flags
-        rst = fingerprint.rst_injection_detected
-        dns = fingerprint.dns_hijacking_detected
-        httpf = fingerprint.http_header_filtering
-        tcpman = fingerprint.tcp_window_manipulation
-        content_depth = getattr(fingerprint, "content_inspection_depth", 0) or 0
-
-        # New behavioral flags
-        frag_vuln = rm.get("packet_reordering_tolerant", False)
-        timing_vuln = rm.get("timing_probe", {}).get("timing_sensitive", False)
-
-        # Strong signals for TSPU
-        if rst and dns and httpf:
-            dpi_type = DPIType.ROSKOMNADZOR_TSPU
-            score += 0.4
-            if rst_level == "low":
-                score += 0.15
-        elif rst and rst_level == "low":
-            dpi_type = DPIType.ROSKOMNADZOR_TSPU
-            score += 0.35
-        elif rst:
-            dpi_type = DPIType.COMMERCIAL_DPI
-            score += 0.25
-
-        # Commercial DPI indicators
-        if tcpman or content_depth > 0:
-            if dpi_type == DPIType.UNKNOWN:
-                dpi_type = DPIType.COMMERCIAL_DPI
-            score += 0.15
-
-        if quic_blocked:
-            if dpi_type == DPIType.UNKNOWN:
-                dpi_type = DPIType.COMMERCIAL_DPI
-            score += 0.1
-
-        # Transparent proxy indicators
-        if getattr(fingerprint, "redirect_injection", False):
-            dpi_type = DPIType.ISP_TRANSPARENT_PROXY
-            score += 0.2
-
-        # Behavioral indicators
-        if frag_vuln or timing_vuln:
-            score += 0.1
-
-        # Normalize score
-        score = max(0.1, min(0.95, score))
-
-        return (dpi_type, score)
-
-    def _calculate_reliability_score(self, fingerprint: DPIFingerprint) -> float:
-        """Calculate fingerprint reliability score"""
-        score = fingerprint.confidence * 0.5
-        score += len(fingerprint.analysis_methods_used) * 0.1
-
-        # Positive indicators
-        positive_indicators = [
-            fingerprint.rst_injection_detected,
-            fingerprint.tcp_window_manipulation,
-            fingerprint.sequence_number_anomalies,
-            fingerprint.http_header_filtering,
-            fingerprint.dns_hijacking_detected,
-            fingerprint.raw_metrics.get("packet_reordering_tolerant", False),
-            fingerprint.raw_metrics.get("timing_probe", {}).get(
-                "timing_sensitive", False
-            ),
-        ]
-
-        score += sum(0.05 for indicator in positive_indicators if indicator)
-
-        return min(1.0, score)
-
-    def _create_fallback_fingerprint(
-        self, target: str, error_msg: str
-    ) -> DPIFingerprint:
-        """Create fallback fingerprint when analysis fails"""
-        fp = DPIFingerprint(
-            target=target,
-            analysis_duration=0.0,
-            reliability_score=0.0,
-            dpi_type=DPIType.UNKNOWN,
-            confidence=0.0,
-        )
-        fp.analysis_methods_used.append("fallback")
-        fp.raw_metrics["error"] = error_msg
-        return fp
 
     async def _probe_quic_initial(self, target: str, port: int = 443) -> Dict[str, Any]:
         """Probe for QUIC support/blocking"""
@@ -3053,9 +1668,7 @@ class AdvancedFingerprinter:
             res["error"] = str(e)
         return res
 
-    async def _probe_tls_capabilities(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def _probe_tls_capabilities(self, target: str, port: int = 443) -> Dict[str, Any]:
         """Probe TLS capabilities"""
         out = {
             "tls13_supported": False,
@@ -3083,9 +1696,7 @@ class AdvancedFingerprinter:
 
         try:
             # Test TLS 1.3
-            r13 = await loop.run_in_executor(
-                self.executor, try_tls, ssl.TLSVersion.TLSv1_3, None
-            )
+            r13 = await loop.run_in_executor(self.executor, try_tls, ssl.TLSVersion.TLSv1_3, None)
             if r13:
                 out["tls13_supported"] = True
 
@@ -3104,9 +1715,7 @@ class AdvancedFingerprinter:
 
     def update_with_attack_results(self, domain: str, attack_results: List[Any]):
         """Update effectiveness tracking with attack results"""
-        self.logger.info(
-            f"Updating with {len(attack_results)} attack results for {domain}"
-        )
+        self.logger.info(f"Updating with {len(attack_results)} attack results for {domain}")
 
         for result in attack_results:
             if hasattr(result, "technique_used") and hasattr(result, "effectiveness"):
@@ -3139,11 +1748,7 @@ class AdvancedFingerprinter:
         self.logger.info(f"Refining fingerprint for {current_fingerprint.target}")
 
         # Update technique success rates
-        domain = (
-            current_fingerprint.target.split(":")[0]
-            if current_fingerprint.target
-            else ""
-        )
+        domain = current_fingerprint.target.split(":")[0] if current_fingerprint.target else ""
 
         for result in test_results:
             if hasattr(result, "technique_used") and hasattr(result, "effectiveness"):
@@ -3165,13 +1770,13 @@ class AdvancedFingerprinter:
         # Apply learning insights
         if learning_insights:
             if "successful_patterns" in learning_insights:
-                current_fingerprint.raw_metrics["successful_patterns"] = (
-                    learning_insights["successful_patterns"]
-                )
+                current_fingerprint.raw_metrics["successful_patterns"] = learning_insights[
+                    "successful_patterns"
+                ]
             if "optimal_parameters" in learning_insights:
-                current_fingerprint.raw_metrics["optimal_parameters"] = (
-                    learning_insights["optimal_parameters"]
-                )
+                current_fingerprint.raw_metrics["optimal_parameters"] = learning_insights[
+                    "optimal_parameters"
+                ]
 
         # Recalculate reliability
         current_fingerprint.reliability_score = self._calculate_reliability_score(

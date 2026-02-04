@@ -165,9 +165,7 @@ class EngineConfigurationError(BaseEngineError):
 class EngineDependencyError(BaseEngineError):
     """Error related to missing or invalid dependencies."""
 
-    def __init__(
-        self, message: str, missing_dependencies: Optional[List[str]] = None, **kwargs
-    ):
+    def __init__(self, message: str, missing_dependencies: Optional[List[str]] = None, **kwargs):
         self.missing_dependencies = missing_dependencies or []
         suggestions = kwargs.get("suggestions", [])
         if self.missing_dependencies:
@@ -211,16 +209,11 @@ class EngineDependencyError(BaseEngineError):
 class EnginePermissionError(BaseEngineError):
     """Error related to insufficient permissions."""
 
-    def __init__(
-        self, message: str, required_permissions: Optional[List[str]] = None, **kwargs
-    ):
+    def __init__(self, message: str, required_permissions: Optional[List[str]] = None, **kwargs):
         self.required_permissions = required_permissions or []
         suggestions = kwargs.get("suggestions", [])
         current_platform = platform.system()
-        if (
-            "administrator" in self.required_permissions
-            or "admin" in self.required_permissions
-        ):
+        if "administrator" in self.required_permissions or "admin" in self.required_permissions:
             if current_platform == "Windows":
                 suggestions.append(
                     ResolutionSuggestion(
@@ -305,9 +298,7 @@ class EnginePlatformError(BaseEngineError):
 class EngineValidationError(BaseEngineError):
     """Error related to validation failures."""
 
-    def __init__(
-        self, message: str, validation_errors: Optional[List[str]] = None, **kwargs
-    ):
+    def __init__(self, message: str, validation_errors: Optional[List[str]] = None, **kwargs):
         self.validation_errors = validation_errors or []
         super().__init__(
             message,
@@ -451,9 +442,7 @@ class ErrorHandler:
                 f"Validation error: {message}", context=context, cause=exception
             )
         elif isinstance(exception, (ConnectionError, TimeoutError)):
-            return EngineNetworkError(
-                f"Network error: {message}", context=context, cause=exception
-            )
+            return EngineNetworkError(f"Network error: {message}", context=context, cause=exception)
         else:
             return error_type(message, context=context, cause=exception)
 
@@ -490,9 +479,7 @@ class ErrorHandler:
     def _enhance_suggestions(self, error: BaseEngineError):
         """Enhance error suggestions based on context and error type."""
         if error.category == ErrorCategory.DEPENDENCY:
-            if not any(
-                (s.action.startswith("Check Python") for s in error.suggestions)
-            ):
+            if not any((s.action.startswith("Check Python") for s in error.suggestions)):
                 error.suggestions.append(
                     ResolutionSuggestion(
                         action="Check Python environment",
@@ -510,9 +497,7 @@ class ErrorHandler:
                     )
                 )
         elif error.category == ErrorCategory.CONFIGURATION:
-            if not any(
-                (s.action.startswith("Check config") for s in error.suggestions)
-            ):
+            if not any((s.action.startswith("Check config") for s in error.suggestions)):
                 error.suggestions.append(
                     ResolutionSuggestion(
                         action="Check configuration files",

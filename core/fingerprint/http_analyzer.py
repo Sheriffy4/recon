@@ -121,9 +121,7 @@ class HTTPAnalyzer:
             "censored",
         ]
 
-        self.doh_resolver = (
-            DoHResolver() if (DOH_AVAILABLE and enable_doh_fallback) else None
-        )
+        self.doh_resolver = DoHResolver() if (DOH_AVAILABLE and enable_doh_fallback) else None
 
         if sys.platform.startswith("win") and sys.version_info >= (3, 12):
             try:
@@ -164,9 +162,7 @@ class HTTPAnalyzer:
             connector_kwargs["family"] = socket.AF_INET
         return aiohttp.TCPConnector(**connector_kwargs)
 
-    async def _create_session(
-        self, pinned_ip: Optional[str] = None
-    ) -> aiohttp.ClientSession:
+    async def _create_session(self, pinned_ip: Optional[str] = None) -> aiohttp.ClientSession:
         connector = self._create_connector(pinned_ip=pinned_ip)
         timeout = aiohttp.ClientTimeout(
             total=self.timeout,
@@ -188,14 +184,8 @@ class HTTPAnalyzer:
     def _format_exc(self, e: BaseException) -> str:
         try:
             info = f"{type(e).__name__}: {repr(e)}"
-            cause = (
-                f"cause={repr(e.__cause__)}" if getattr(e, "__cause__", None) else None
-            )
-            ctx = (
-                f"context={repr(e.__context__)}"
-                if getattr(e, "__context__", None)
-                else None
-            )
+            cause = f"cause={repr(e.__cause__)}" if getattr(e, "__cause__", None) else None
+            ctx = f"context={repr(e.__context__)}" if getattr(e, "__context__", None) else None
             return " | ".join(x for x in (info, cause, ctx) if x)
         except Exception:
             return str(e)
@@ -282,9 +272,7 @@ class HTTPAnalyzer:
         if hasattr(e, "__cause__") and e.__cause__:
             parts.append(f"Cause: {type(e.__cause__).__name__}: {str(e.__cause__)}")
         if hasattr(e, "__context__") and e.__context__:
-            parts.append(
-                f"Context: {type(e.__context__).__name__}: {str(e.__context__)}"
-            )
+            parts.append(f"Context: {type(e.__context__).__name__}: {str(e.__context__)}")
         if isinstance(e, aiohttp.ClientConnectorError):
             parts.append(f"OS Error: {e.os_error}")
             if hasattr(e, "host"):
@@ -298,18 +286,14 @@ class HTTPAnalyzer:
         return " | ".join(parts)
 
     # ... (остальные методы остаются без изменений)
-    async def analyze_http_behavior(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def analyze_http_behavior(self, target: str, port: int = 443) -> Dict[str, Any]:
         """Main HTTP analysis method with fail-fast gate"""
         self.logger.info(f"Starting HTTP analysis for {target}:{port}")
 
         result = HTTPAnalysisResult()
         protocol = "https" if port == 443 else "http"
         base_url = (
-            f"{protocol}://{target}:{port}"
-            if port not in [80, 443]
-            else f"{protocol}://{target}"
+            f"{protocol}://{target}:{port}" if port not in [80, 443] else f"{protocol}://{target}"
         )
 
         # FAIL-FAST GATE: Test basic connectivity with fallback strategies
@@ -318,12 +302,8 @@ class HTTPAnalyzer:
         if not success:
             # Fast exit: transport/TLS path is blocked — skip heuristics that require a working HTTP path
             result.http_blocking_detected = True
-            result.analysis_errors.append(
-                "BASELINE_FAILED: Skipping advanced HTTP tests"
-            )
-            self.logger.warning(
-                f"Baseline failed for {target} — advanced HTTP tests skipped"
-            )
+            result.analysis_errors.append("BASELINE_FAILED: Skipping advanced HTTP tests")
+            self.logger.warning(f"Baseline failed for {target} — advanced HTTP tests skipped")
             result.reliability_score = self._calculate_reliability_score(result)
             return result.to_dict()
 
@@ -520,9 +500,7 @@ class HTTPAnalyzer:
                 self.logger.warning(f"❌ Connection reset for {url} - DPI likely")
             else:
                 request.blocking_method = HTTPBlockingMethod.TIMEOUT
-                self.logger.warning(
-                    f"❌ Connection error for {url}: {request.error_message}"
-                )
+                self.logger.warning(f"❌ Connection error for {url}: {request.error_message}")
 
         except asyncio.TimeoutError as e:
             request.error_message = self._format_exception_details(e)
@@ -560,9 +538,7 @@ class HTTPAnalyzer:
         result.http_requests.append(request)
         return False
 
-    async def _analyze_header_filtering(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_header_filtering(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze HTTP header filtering behavior"""
         self.logger.debug("Analyzing HTTP header filtering")
         baseline_headers = {
@@ -572,15 +548,11 @@ class HTTPAnalyzer:
             "Accept-Encoding": "gzip, deflate",
         }
 
-        baseline_request = await self._make_request(
-            base_url, "GET", baseline_headers.copy()
-        )
+        baseline_request = await self._make_request(base_url, "GET", baseline_headers.copy())
         result.http_requests.append(baseline_request)
 
         if not baseline_request.success:
-            self.logger.warning(
-                "Baseline request failed, skipping header filtering analysis"
-            )
+            self.logger.warning("Baseline request failed, skipping header filtering analysis")
             return
 
         baseline_body = await self._coerce_text(baseline_request.response_body)
@@ -646,9 +618,7 @@ class HTTPAnalyzer:
         await self._test_header_case_sensitivity(result, base_url)
         await self._test_custom_header_blocking(result, base_url)
 
-    async def _test_header_case_sensitivity(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _test_header_case_sensitivity(self, result: HTTPAnalysisResult, base_url: str):
         """Test if DPI is case-sensitive with headers"""
         test_cases = [
             ("user-agent", "test-agent"),
@@ -658,9 +628,7 @@ class HTTPAnalyzer:
         ]
         responses = []
         for header_name, header_value in test_cases:
-            request = await self._make_request(
-                base_url, "GET", {header_name: header_value}
-            )
+            request = await self._make_request(base_url, "GET", {header_name: header_value})
             responses.append(request.success)
             result.http_requests.append(request)
             await asyncio.sleep(0.1)
@@ -668,9 +636,7 @@ class HTTPAnalyzer:
             result.header_case_sensitivity = True
             self.logger.info("Header case sensitivity detected")
 
-    async def _test_custom_header_blocking(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _test_custom_header_blocking(self, result: HTTPAnalysisResult, base_url: str):
         """Test blocking of custom/unusual headers"""
         custom_headers = [
             ("X-Bypass-DPI", "true"),
@@ -681,9 +647,7 @@ class HTTPAnalyzer:
         baseline_request = await self._make_request(
             base_url,
             "GET",
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            },
+            {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
         )
         blocked_count = 0
         for header_name, header_value in custom_headers:
@@ -700,13 +664,9 @@ class HTTPAnalyzer:
             await asyncio.sleep(0.1)
         if blocked_count > 0:
             result.custom_header_blocking = True
-            self.logger.info(
-                f"Custom header blocking detected ({blocked_count} headers blocked)"
-            )
+            self.logger.info(f"Custom header blocking detected ({blocked_count} headers blocked)")
 
-    async def _analyze_user_agent_filtering(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_user_agent_filtering(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze user agent filtering behavior"""
         # Guard: Skip if baseline not successful
         if not any(r.success for r in result.http_requests):
@@ -717,9 +677,7 @@ class HTTPAnalyzer:
         successful_agents = []
         blocked_agents = []
         for user_agent in self.test_user_agents:
-            request = await self._make_request(
-                base_url, "GET", {"User-Agent": user_agent}
-            )
+            request = await self._make_request(base_url, "GET", {"User-Agent": user_agent})
             result.http_requests.append(request)
             if request.success:
                 successful_agents.append(user_agent)
@@ -764,9 +722,7 @@ class HTTPAnalyzer:
             "",
         ]
         for test_host in test_hosts:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             if test_host:
                 headers["Host"] = test_host
             request = await self._make_request(base_url, "GET", headers)
@@ -779,9 +735,7 @@ class HTTPAnalyzer:
         if base_url.startswith("https://"):
             await self._test_sni_host_mismatch(result, base_url, target)
 
-    async def _test_sni_host_mismatch(
-        self, result: HTTPAnalysisResult, base_url: str, target: str
-    ):
+    async def _test_sni_host_mismatch(self, result: HTTPAnalysisResult, base_url: str, target: str):
         """Test SNI-Host header mismatch detection"""
         try:
             mismatch_request = await self._make_request(
@@ -802,17 +756,13 @@ class HTTPAnalyzer:
         except Exception as e:
             self.logger.debug(f"SNI-Host mismatch test failed: {e}")
 
-    async def _analyze_http_method_restrictions(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_http_method_restrictions(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze HTTP method restrictions"""
         self.logger.debug("Analyzing HTTP method restrictions")
         baseline_request = await self._make_request(
             base_url,
             "GET",
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            },
+            {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
         )
         result.http_requests.append(baseline_request)
         if not baseline_request.success:
@@ -822,9 +772,7 @@ class HTTPAnalyzer:
             request = await self._make_request(
                 base_url,
                 method,
-                {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                },
+                {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
             )
             result.http_requests.append(request)
             is_blocked = any(
@@ -832,10 +780,7 @@ class HTTPAnalyzer:
                     not request.success,
                     request.blocking_method != HTTPBlockingMethod.NONE,
                     request.status_code is not None
-                    and (
-                        request.status_code in [405, 403, 401, 501]
-                        or request.status_code >= 400
-                    ),
+                    and (request.status_code in [405, 403, 401, 501] or request.status_code >= 400),
                 )
             )
             if is_blocked:
@@ -844,28 +789,20 @@ class HTTPAnalyzer:
                 self.logger.info(
                     f"HTTP method restricted: {method} (status: {request.status_code})"
                 )
-            elif request.success and (
-                request.status_code is None or request.status_code < 400
-            ):
+            elif request.success and (request.status_code is None or request.status_code < 400):
                 if method not in result.allowed_methods:
                     result.allowed_methods.append(method)
             await asyncio.sleep(0.1)
         if result.http_method_restrictions:
             result.method_based_blocking = True
             dangerous_methods = set(["TRACE", "DELETE", "PUT"])
-            blocked_dangerous = dangerous_methods.intersection(
-                set(result.http_method_restrictions)
-            )
+            blocked_dangerous = dangerous_methods.intersection(set(result.http_method_restrictions))
             if blocked_dangerous:
-                self.logger.info(
-                    f"Dangerous methods blocked: {', '.join(blocked_dangerous)}"
-                )
+                self.logger.info(f"Dangerous methods blocked: {', '.join(blocked_dangerous)}")
                 if len(blocked_dangerous) >= 2:
                     result.method_based_blocking = True
 
-    async def _analyze_content_type_filtering(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_content_type_filtering(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze content type filtering"""
         self.logger.debug("Analyzing content type filtering")
         for content_type in self.test_content_types:
@@ -873,9 +810,7 @@ class HTTPAnalyzer:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                 "Content-Type": content_type,
             }
-            request = await self._make_request(
-                base_url, "POST", headers, data="test data"
-            )
+            request = await self._make_request(base_url, "POST", headers, data="test data")
             result.http_requests.append(request)
             if not request.success:
                 result.content_type_filtering = True
@@ -884,9 +819,7 @@ class HTTPAnalyzer:
             await asyncio.sleep(0.1)
         await self._test_content_type_validation(result, base_url)
 
-    async def _test_content_type_validation(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _test_content_type_validation(self, result: HTTPAnalysisResult, base_url: str):
         """Test content type validation"""
         mismatch_request = await self._make_request(
             base_url,
@@ -912,9 +845,7 @@ class HTTPAnalyzer:
             result.content_type_validation = True
             self.logger.info("Content type validation detected")
 
-    async def _analyze_content_inspection(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_content_inspection(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze content inspection depth and keyword filtering"""
         self.logger.debug("Analyzing content inspection depth")
         content_lengths = [100, 500, 1000, 2000, 5000, 10000]
@@ -977,9 +908,7 @@ class HTTPAnalyzer:
         finally:
             result.keyword_filtering = blocked_keywords
 
-    async def _analyze_redirect_injection(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_redirect_injection(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze redirect injection patterns"""
         self.logger.debug("Analyzing redirect injection")
         test_paths = ["/", "/blocked", "/forbidden", "/admin", "/proxy", "/vpn"]
@@ -988,9 +917,7 @@ class HTTPAnalyzer:
             request = await self._make_request(
                 test_url,
                 "GET",
-                {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                },
+                {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
                 allow_redirects=False,
             )
             result.http_requests.append(request)
@@ -1011,21 +938,12 @@ class HTTPAnalyzer:
                         "censorship",
                         "unavailable",
                     ]
-                    if any(
-                        (
-                            pattern in redirect_url.lower()
-                            for pattern in suspicious_patterns
-                        )
-                    ):
-                        self.logger.info(
-                            f"Suspicious redirect detected: {redirect_url}"
-                        )
+                    if any((pattern in redirect_url.lower() for pattern in suspicious_patterns)):
+                        self.logger.info(f"Suspicious redirect detected: {redirect_url}")
                         result.http_response_modification = True
             await asyncio.sleep(0.1)
 
-    async def _analyze_response_modification(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_response_modification(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze response modification and content injection"""
         self.logger.debug("Analyzing response modification")
         baseline_responses = []
@@ -1033,9 +951,7 @@ class HTTPAnalyzer:
             request = await self._make_request(
                 base_url,
                 "GET",
-                {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                },
+                {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
             )
             if request.success and request.response_body:
                 baseline_responses.append(request.response_body)
@@ -1069,9 +985,7 @@ class HTTPAnalyzer:
         request = await self._make_request(
             base_url,
             "GET",
-            {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            },
+            {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
         )
         result.http_requests.append(request)
         if request.success and request.response_headers:
@@ -1089,9 +1003,7 @@ class HTTPAnalyzer:
                     result.response_modification_patterns.append(f"header:{header}")
                     self.logger.info(f"Response header injection detected: {header}")
 
-    async def _analyze_connection_behavior(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_connection_behavior(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze connection behavior and keep-alive handling"""
         self.logger.debug("Analyzing connection behavior")
         keep_alive_request = await self._make_request(
@@ -1118,9 +1030,7 @@ class HTTPAnalyzer:
             self.logger.info("Connection header manipulation detected")
         await self._test_persistent_connections(result, base_url)
 
-    async def _test_persistent_connections(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _test_persistent_connections(self, result: HTTPAnalysisResult, base_url: str):
         """Test persistent connection handling"""
         try:
             async with aiohttp.ClientSession(
@@ -1153,9 +1063,7 @@ class HTTPAnalyzer:
         except Exception as e:
             self.logger.debug(f"Persistent connection test failed: {e}")
 
-    async def _analyze_encoding_handling(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _analyze_encoding_handling(self, result: HTTPAnalysisResult, base_url: str):
         """Analyze encoding and transfer handling"""
         self.logger.debug("Analyzing encoding handling")
         await self._test_chunked_encoding(result, base_url)
@@ -1194,9 +1102,7 @@ class HTTPAnalyzer:
         else:
             result.chunked_encoding_handling = "unknown"
 
-    async def _test_compression_handling(
-        self, result: HTTPAnalysisResult, base_url: str
-    ):
+    async def _test_compression_handling(self, result: HTTPAnalysisResult, base_url: str):
         """Test compression handling"""
         compressed_request = await self._make_request(
             base_url,
@@ -1292,9 +1198,7 @@ class HTTPAnalyzer:
 
         except (aiohttp.ClientConnectorError, socket.gaierror) as e:
             err_details = self._format_exc(e)
-            is_dns_issue = any(
-                w in err_details.lower() for w in ("dns", "getaddrinfo", "no data")
-            )
+            is_dns_issue = any(w in err_details.lower() for w in ("dns", "getaddrinfo", "no data"))
 
             if not (DOH_AVAILABLE and is_dns_issue):
                 request.error_message = err_details
@@ -1360,17 +1264,13 @@ class HTTPAnalyzer:
                 request.blocking_method = HTTPBlockingMethod.TIMEOUT
             return request
 
-    async def _process_response(
-        self, request: HTTPRequest, response, start_time: float
-    ):
+    async def _process_response(self, request: HTTPRequest, response, start_time: float):
         """Process HTTP response and update request object"""
         request.response_time_ms = (time.perf_counter() - start_time) * 1000
         request.status_code = (
             int(getattr(response, "status", 0)) if hasattr(response, "status") else None
         )
-        request.response_headers = await self._coerce_headers(
-            getattr(response, "headers", {})
-        )
+        request.response_headers = await self._coerce_headers(getattr(response, "headers", {}))
         try:
             txt = await response.text()
         except Exception:
@@ -1378,9 +1278,7 @@ class HTTPAnalyzer:
         request.response_body = await self._coerce_text(txt)
         request.success = True
         if request.status_code in [301, 302, 303, 307, 308]:
-            request.redirect_url = (getattr(response, "headers", {}) or {}).get(
-                "location"
-            )
+            request.redirect_url = (getattr(response, "headers", {}) or {}).get("location")
         if request.response_body:
             modification_indicators = [
                 "blocked",
@@ -1416,9 +1314,7 @@ class HTTPAnalyzer:
             )
         )
 
-        base_score = (
-            successful_tests / total_tests * 0.5 + useful_responses / total_tests * 0.5
-        )
+        base_score = successful_tests / total_tests * 0.5 + useful_responses / total_tests * 0.5
 
         analysis_factors = []
 
@@ -1450,9 +1346,7 @@ class HTTPAnalyzer:
 
         return max(0.0, min(1.0, final_score))
 
-    async def analyze_packet_stream(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def analyze_packet_stream(self, target: str, port: int = 443) -> Dict[str, Any]:
         """
         Эмуляция побайтовой обработки — читаем raw_packets из контекста ответа (см. тест).
         Возвращает:
@@ -1462,15 +1356,11 @@ class HTTPAnalyzer:
         """
         protocol = "https" if port == 443 else "http"
         base_url = (
-            f"{protocol}://{target}:{port}"
-            if port not in [80, 443]
-            else f"{protocol}://{target}"
+            f"{protocol}://{target}:{port}" if port not in [80, 443] else f"{protocol}://{target}"
         )
         result = {
             "target": target,
-            "packet_processing_method": (
-                "bytewise" if self.use_bytewise_processing else "stream"
-            ),
+            "packet_processing_method": ("bytewise" if self.use_bytewise_processing else "stream"),
             "segmentation_detected": False,
             "packet_reassembly_success": False,
         }
@@ -1486,9 +1376,7 @@ class HTTPAnalyzer:
                     result["packet_reassembly_success"] = bool(assembled)
         return result
 
-    async def analyze_packet_modifications(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def analyze_packet_modifications(self, target: str, port: int = 443) -> Dict[str, Any]:
         """
         Эмуляция детекции модификаций пакетов — сравнение original_packets и raw_packets.
         Возвращает:
@@ -1498,9 +1386,7 @@ class HTTPAnalyzer:
         """
         protocol = "https" if port == 443 else "http"
         base_url = (
-            f"{protocol}://{target}:{port}"
-            if port not in [80, 443]
-            else f"{protocol}://{target}"
+            f"{protocol}://{target}:{port}" if port not in [80, 443] else f"{protocol}://{target}"
         )
         result = {
             "target": target,
@@ -1533,9 +1419,7 @@ class HTTPAnalyzer:
                     result["modifications_detected"]["user_agent_modified"] = True
         return result
 
-    async def analyze_fragmentation_handling(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def analyze_fragmentation_handling(self, target: str, port: int = 443) -> Dict[str, Any]:
         """
         Эмуляция обработки фрагментов — собираем raw_packets и проверяем сборку.
         Возвращает:
@@ -1546,9 +1430,7 @@ class HTTPAnalyzer:
         """
         protocol = "https" if port == 443 else "http"
         base_url = (
-            f"{protocol}://{target}:{port}"
-            if port not in [80, 443]
-            else f"{protocol}://{target}"
+            f"{protocol}://{target}:{port}" if port not in [80, 443] else f"{protocol}://{target}"
         )
         result = {
             "target": target,

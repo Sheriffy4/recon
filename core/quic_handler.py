@@ -16,9 +16,7 @@ class QuicHandler:
         self.logger = logging.getLogger("QuicHandler")
         if debug:
             self.logger.setLevel(logging.DEBUG)
-            if not any(
-                isinstance(h, logging.StreamHandler) for h in self.logger.handlers
-            ):
+            if not any(isinstance(h, logging.StreamHandler) for h in self.logger.handlers):
                 logging.basicConfig(
                     level=logging.DEBUG,
                     format="%(asctime)s [%(levelname)-7s] %(name)s: %(message)s",
@@ -57,9 +55,7 @@ class QuicHandler:
             self.logger.debug(f"Ошибка при проверке QUIC пакета: {e}")
             return False
 
-    def split_quic_initial(
-        self, payload: bytes, positions: List[int]
-    ) -> List[Tuple[bytes, int]]:
+    def split_quic_initial(self, payload: bytes, positions: List[int]) -> List[Tuple[bytes, int]]:
         """
         Разделяет QUIC Initial пакет на несколько частей.
         Попытка «осмысленной» сегментации по границам фреймов (CRYPTO/STREAM/PADDING),

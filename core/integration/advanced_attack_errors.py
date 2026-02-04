@@ -101,9 +101,7 @@ class IntegrationError(AdvancedAttackError):
         context: Optional[ErrorContext] = None,
         cause: Optional[Exception] = None,
     ):
-        super().__init__(
-            message, ErrorCategory.INTEGRATION, ErrorSeverity.HIGH, context, cause
-        )
+        super().__init__(message, ErrorCategory.INTEGRATION, ErrorSeverity.HIGH, context, cause)
         self.integration_type = integration_type
 
 
@@ -117,9 +115,7 @@ class MLFeedbackError(AdvancedAttackError):
         context: Optional[ErrorContext] = None,
         cause: Optional[Exception] = None,
     ):
-        super().__init__(
-            message, ErrorCategory.ML_FEEDBACK, ErrorSeverity.MEDIUM, context, cause
-        )
+        super().__init__(message, ErrorCategory.ML_FEEDBACK, ErrorSeverity.MEDIUM, context, cause)
         self.ml_component = ml_component
 
 
@@ -185,9 +181,7 @@ class ConfigurationError(AdvancedAttackError):
         context: Optional[ErrorContext] = None,
         cause: Optional[Exception] = None,
     ):
-        super().__init__(
-            message, ErrorCategory.CONFIGURATION, ErrorSeverity.HIGH, context, cause
-        )
+        super().__init__(message, ErrorCategory.CONFIGURATION, ErrorSeverity.HIGH, context, cause)
         self.config_parameter = config_parameter
 
 
@@ -201,9 +195,7 @@ class NetworkError(AdvancedAttackError):
         context: Optional[ErrorContext] = None,
         cause: Optional[Exception] = None,
     ):
-        super().__init__(
-            message, ErrorCategory.NETWORK, ErrorSeverity.MEDIUM, context, cause
-        )
+        super().__init__(message, ErrorCategory.NETWORK, ErrorSeverity.MEDIUM, context, cause)
         self.network_operation = network_operation
 
 
@@ -217,9 +209,7 @@ class SystemError(AdvancedAttackError):
         context: Optional[ErrorContext] = None,
         cause: Optional[Exception] = None,
     ):
-        super().__init__(
-            message, ErrorCategory.SYSTEM, ErrorSeverity.CRITICAL, context, cause
-        )
+        super().__init__(message, ErrorCategory.SYSTEM, ErrorSeverity.CRITICAL, context, cause)
         self.system_component = system_component
 
 
@@ -280,9 +270,7 @@ class AdvancedAttackErrorHandler:
         self.error_history.append(error)
 
         # Determine recovery strategy
-        recovery_actions = self.recovery_strategies.get(
-            error.category, [RecoveryAction.ABORT]
-        )
+        recovery_actions = self.recovery_strategies.get(error.category, [RecoveryAction.ABORT])
 
         # Try recovery actions in order
         for action in recovery_actions:
@@ -292,9 +280,7 @@ class AdvancedAttackErrorHandler:
                     LOG.info(f"Error recovery successful: {action.value}")
                     return result
                 else:
-                    LOG.warning(
-                        f"Error recovery failed: {action.value} - {result.message}"
-                    )
+                    LOG.warning(f"Error recovery failed: {action.value} - {result.message}")
             except Exception as e:
                 LOG.error(f"Recovery action {action.value} failed: {e}")
 
@@ -460,9 +446,7 @@ class AdvancedAttackErrorHandler:
 
         LOG.debug(f"Ignoring error: {error.message}")
 
-        return RecoveryResult(
-            action=RecoveryAction.IGNORE, success=True, message="Error ignored"
-        )
+        return RecoveryResult(action=RecoveryAction.IGNORE, success=True, message="Error ignored")
 
     def get_error_statistics(self) -> Dict[str, Any]:
         """Get error statistics."""

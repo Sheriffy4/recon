@@ -2,6 +2,8 @@
 База знаний по CDN/ASN с накоплением опыта
 """
 
+from __future__ import annotations
+
 import ipaddress
 import pickle
 from pathlib import Path
@@ -19,7 +21,7 @@ class AsnProfile:
     country: str = ""
     successful_strategies: Dict[str, float] = field(default_factory=dict)
     failed_strategies: Set[str] = field(default_factory=set)
-    preferred_params: Dict[str, any] = field(default_factory=dict)
+    preferred_params: Dict[str, Any] = field(default_factory=dict)
     last_updated: str = field(default_factory=lambda: datetime.now().isoformat())
     test_count: int = 0
     block_reasons: Dict[str, int] = field(default_factory=dict)
@@ -175,9 +177,7 @@ class CdnAsnKnowledgeBase:
             cdn_name = cdn or self.identify_cdn(ip) or "generic"
             asn_id = asn or self.ip_to_asn.get(ip, 0)
             cprof = self.cdn_profiles.setdefault(cdn_name, CdnProfile(name=cdn_name))
-            aprof = self.asn_profiles.setdefault(
-                asn_id, AsnProfile(asn=asn_id, name=f"AS{asn_id}")
-            )
+            aprof = self.asn_profiles.setdefault(asn_id, AsnProfile(asn=asn_id, name=f"AS{asn_id}"))
 
             # Нормализуем стратегию
             if isinstance(strategy, str):
@@ -240,11 +240,7 @@ class CdnAsnKnowledgeBase:
                     self.ip_to_asn[ip] = asn_id
             # Учтём причины блокировки по CDN/ASN и по домену
             try:
-                bt_key = (
-                    getattr(block_type, "value", str(block_type))
-                    if block_type
-                    else "unknown"
-                )
+                bt_key = getattr(block_type, "value", str(block_type)) if block_type else "unknown"
                 if not success and bt_key:
                     # по CDN
                     cprof.block_reasons[bt_key] = cprof.block_reasons.get(bt_key, 0) + 1
@@ -266,9 +262,7 @@ class CdnAsnKnowledgeBase:
                 return
             alpha = 0.3
             old = self.domain_quic_scores.get(d, 0.0)
-            self.domain_quic_scores[d] = (1 - alpha) * old + alpha * float(
-                success_score or 0.0
-            )
+            self.domain_quic_scores[d] = (1 - alpha) * old + alpha * float(success_score or 0.0)
         except Exception as e:
             print(f"KB update_quic_metrics failed: {e}")
 
@@ -281,9 +275,7 @@ class CdnAsnKnowledgeBase:
         asn: int = 0,
         cdn: str = "",
     ):
-        self.update_with_result(
-            domain, ip, strategy, True, "none", latency_ms, asn, cdn
-        )
+        self.update_with_result(domain, ip, strategy, True, "none", latency_ms, asn, cdn)
 
     def update_with_failure(
         self,
@@ -295,6 +287,4 @@ class CdnAsnKnowledgeBase:
         asn: int = 0,
         cdn: str = "",
     ):
-        self.update_with_result(
-            domain, ip, strategy, False, block_type, latency_ms, asn, cdn
-        )
+        self.update_with_result(domain, ip, strategy, False, block_type, latency_ms, asn, cdn)

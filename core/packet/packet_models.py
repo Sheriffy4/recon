@@ -123,12 +123,7 @@ class IPHeader:
     def _ip_to_int(ip_str: str) -> int:
         """Конвертирует IP строку в int."""
         parts = ip_str.split(".")
-        return (
-            (int(parts[0]) << 24)
-            + (int(parts[1]) << 16)
-            + (int(parts[2]) << 8)
-            + int(parts[3])
-        )
+        return (int(parts[0]) << 24) + (int(parts[1]) << 16) + (int(parts[2]) << 8) + int(parts[3])
 
     @staticmethod
     def _int_to_ip(ip_int: int) -> str:
@@ -188,8 +183,8 @@ class TCPHeader:
             raise ValueError("TCP header too short")
 
         # Распаковываем заголовок
-        src_port, dst_port, seq, ack, header_len_flags, window, checksum, urgent = (
-            struct.unpack("!HHLLHHHH", data[:20])
+        src_port, dst_port, seq, ack, header_len_flags, window, checksum, urgent = struct.unpack(
+            "!HHLLHHHH", data[:20]
         )
 
         header_length = (header_len_flags >> 12) * 4
@@ -333,9 +328,7 @@ class RawPacket:
         return (
             self.is_tcp
             and self.destination_port == 80
-            and self.payload.startswith(
-                (b"GET ", b"POST ", b"PUT ", b"DELETE ", b"HEAD ")
-            )
+            and self.payload.startswith((b"GET ", b"POST ", b"PUT ", b"DELETE ", b"HEAD "))
         )
 
     @property
@@ -538,8 +531,4 @@ class PacketStatistics:
         """Возвращает процент успешной обработки."""
         if self.packets_processed == 0:
             return 0.0
-        return (
-            (self.packets_processed - self.errors_count)
-            / self.packets_processed
-            * 100.0
-        )
+        return (self.packets_processed - self.errors_count) / self.packets_processed * 100.0

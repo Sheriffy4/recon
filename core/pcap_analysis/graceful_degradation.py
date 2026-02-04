@@ -140,13 +140,9 @@ class GracefulPCAPParser:
                             header_valid = True
 
                             # Estimate packet count by scanning file
-                            packet_count_estimate, readable_portion = (
-                                self._estimate_packet_count(f)
-                            )
+                            packet_count_estimate, readable_portion = self._estimate_packet_count(f)
                         else:
-                            corruption_details.append(
-                                f"Invalid PCAP magic number: 0x{magic:08x}"
-                            )
+                            corruption_details.append(f"Invalid PCAP magic number: 0x{magic:08x}")
                     else:
                         corruption_details.append("Incomplete PCAP header")
 
@@ -166,9 +162,7 @@ class GracefulPCAPParser:
                 readable_portion=readable_portion,
             )
 
-            self.debug_logger.end_operation(
-                "analyze_pcap_file", file_info=file_info.__dict__
-            )
+            self.debug_logger.end_operation("analyze_pcap_file", file_info=file_info.__dict__)
             return file_info
 
         except Exception as e:
@@ -200,9 +194,7 @@ class GracefulPCAPParser:
 
                 try:
                     # Parse packet header
-                    ts_sec, ts_usec, incl_len, orig_len = struct.unpack(
-                        "<IIII", packet_header
-                    )
+                    ts_sec, ts_usec, incl_len, orig_len = struct.unpack("<IIII", packet_header)
 
                     # Sanity checks
                     if incl_len > 65535 or orig_len > 65535 or incl_len > orig_len:
@@ -232,9 +224,7 @@ class GracefulPCAPParser:
             self.logger.warning(f"Error estimating packet count: {e}")
             return 0, 0.0
 
-    def parse_with_degradation(
-        self, filepath: str, min_success_rate: float = 0.5
-    ) -> PartialResult:
+    def parse_with_degradation(self, filepath: str, min_success_rate: float = 0.5) -> PartialResult:
         """Parse PCAP file with graceful degradation."""
         self.parsing_stats["total_files"] += 1
 
@@ -288,13 +278,8 @@ class GracefulPCAPParser:
                 self.parsing_stats["fallback_uses"] += 1
 
                 try:
-                    result = self._apply_fallback_strategy(
-                        strategy, filepath, file_info
-                    )
-                    if (
-                        result.success
-                        and result.completeness >= strategy.min_success_rate
-                    ):
+                    result = self._apply_fallback_strategy(strategy, filepath, file_info)
+                    if result.success and result.completeness >= strategy.min_success_rate:
                         self.parsing_stats["partial_parses"] += 1
                         self.debug_logger.end_operation(
                             "parse_with_degradation",
@@ -303,9 +288,7 @@ class GracefulPCAPParser:
                         )
                         return result
                 except Exception as e:
-                    self.logger.warning(
-                        f"Fallback strategy {strategy.name} failed: {e}"
-                    )
+                    self.logger.warning(f"Fallback strategy {strategy.name} failed: {e}")
 
             # All strategies failed
             self.parsing_stats["failed_parses"] += 1
@@ -313,9 +296,7 @@ class GracefulPCAPParser:
                 success=False,
                 data=None,
                 errors=[
-                    PCAPParsingError(
-                        f"All parsing strategies failed for {filepath}", filepath
-                    )
+                    PCAPParsingError(f"All parsing strategies failed for {filepath}", filepath)
                 ],
                 completeness=0.0,
                 metadata={"file_info": file_info.__dict__},
@@ -335,7 +316,7 @@ class GracefulPCAPParser:
         """Normal PCAP parsing using RawPCAPReader."""
         try:
             self.logger.info("ℹ️ Используется RawPCAPReader для парсинга PCAP")
-            
+
             # Use RawPCAPReader to read packets
             raw_packets = self.pcap_reader.read_pcap_file(filepath)
             packet_infos = []
@@ -354,9 +335,7 @@ class GracefulPCAPParser:
             return packet_infos
 
         except Exception as e:
-            raise PCAPParsingError(
-                f"Normal parsing failed: {e}", filepath, original_error=e
-            )
+            raise PCAPParsingError(f"Normal parsing failed: {e}", filepath, original_error=e)
 
     def _apply_fallback_strategy(
         self, strategy: FallbackStrategy, filepath: str, file_info: PCAPFileInfo
@@ -376,13 +355,11 @@ class GracefulPCAPParser:
         else:
             raise ValueError(f"Unknown fallback strategy: {strategy.name}")
 
-    def _skip_corrupted_packets(
-        self, filepath: str, file_info: PCAPFileInfo
-    ) -> PartialResult:
+    def _skip_corrupted_packets(self, filepath: str, file_info: PCAPFileInfo) -> PartialResult:
         """Skip corrupted packets and continue parsing using RawPCAPReader streaming."""
         try:
             self.logger.info("ℹ️ Используется RawPCAPReader с пропуском поврежденных пакетов")
-            
+
             packet_infos = []
             skipped_count = 0
             total_count = 0
@@ -396,9 +373,7 @@ class GracefulPCAPParser:
                         packet_infos.append(packet_info)
                 except Exception as e:
                     skipped_count += 1
-                    self.logger.debug(
-                        f"Skipped corrupted packet {total_count}: {e}"
-                    )
+                    self.logger.debug(f"Skipped corrupted packet {total_count}: {e}")
                     continue
 
             success_rate = (total_count - skipped_count) / max(1, total_count)
@@ -406,9 +381,7 @@ class GracefulPCAPParser:
             return PartialResult(
                 success=True,
                 data=packet_infos,
-                warnings=[
-                    f"Skipped {skipped_count} corrupted packets out of {total_count}"
-                ],
+                warnings=[f"Skipped {skipped_count} corrupted packets out of {total_count}"],
                 completeness=success_rate,
                 metadata={
                     "parsing_method": "skip_corrupted_raw",
@@ -422,19 +395,17 @@ class GracefulPCAPParser:
             return PartialResult(
                 success=False,
                 data=None,
-                errors=[
-                    PCAPParsingError(f"Skip corrupted strategy failed: {e}", filepath)
-                ],
+                errors=[PCAPParsingError(f"Skip corrupted strategy failed: {e}", filepath)],
                 completeness=0.0,
             )
 
-    def _partial_file_parsing(
-        self, filepath: str, file_info: PCAPFileInfo
-    ) -> PartialResult:
+    def _partial_file_parsing(self, filepath: str, file_info: PCAPFileInfo) -> PartialResult:
         """Parse only the readable portion of the file using RawPCAPReader."""
         try:
-            self.logger.info(f"ℹ️ Парсинг частичного файла ({file_info.readable_portion:.1%}) с RawPCAPReader")
-            
+            self.logger.info(
+                f"ℹ️ Парсинг частичного файла ({file_info.readable_portion:.1%}) с RawPCAPReader"
+            )
+
             # Create a temporary file with only the readable portion
             readable_bytes = int(file_info.size_bytes * file_info.readable_portion)
 
@@ -449,7 +420,9 @@ class GracefulPCAPParser:
                 return PartialResult(
                     success=True,
                     data=packet_infos,
-                    warnings=[f"Parsed only {file_info.readable_portion:.1%} of file using RawPCAPReader"],
+                    warnings=[
+                        f"Parsed only {file_info.readable_portion:.1%} of file using RawPCAPReader"
+                    ],
                     completeness=file_info.readable_portion,
                     metadata={
                         "parsing_method": "partial_file_raw",
@@ -468,19 +441,15 @@ class GracefulPCAPParser:
             return PartialResult(
                 success=False,
                 data=None,
-                errors=[
-                    PCAPParsingError(f"Partial file parsing failed: {e}", filepath)
-                ],
+                errors=[PCAPParsingError(f"Partial file parsing failed: {e}", filepath)],
                 completeness=0.0,
             )
 
-    def _alternative_parser(
-        self, filepath: str, file_info: PCAPFileInfo
-    ) -> PartialResult:
+    def _alternative_parser(self, filepath: str, file_info: PCAPFileInfo) -> PartialResult:
         """Use alternative parsing library (dpkt) as last resort fallback."""
         try:
             self.logger.info("ℹ️ Используется альтернативный парсер (dpkt) как последний fallback")
-            
+
             import dpkt
             import socket
 
@@ -542,25 +511,23 @@ class GracefulPCAPParser:
                 completeness=0.0,
             )
 
-    def _raw_packet_extraction(
-        self, filepath: str, file_info: PCAPFileInfo
-    ) -> PartialResult:
+    def _raw_packet_extraction(self, filepath: str, file_info: PCAPFileInfo) -> PartialResult:
         """Extract packets using RawPacketEngine.parse_packet_sync()."""
         try:
             self.logger.info("ℹ️ Используется RawPacketEngine для извлечения пакетов")
-            
+
             packet_infos = []
 
             with open(filepath, "rb") as f:
                 # Parse PCAP header to get byte order
                 try:
                     pcap_header = self.pcap_reader.parse_pcap_header(f)
-                    endian = '<' if pcap_header.byte_order == 'little' else '>'
+                    endian = "<" if pcap_header.byte_order == "little" else ">"
                 except Exception as e:
                     self.logger.warning(f"Failed to parse PCAP header, using default: {e}")
                     # Skip to packet data
                     f.seek(24)
-                    endian = '<'
+                    endian = "<"
 
                 packet_index = 0
                 while True:
@@ -570,7 +537,7 @@ class GracefulPCAPParser:
                         break
 
                     try:
-                        format_str = f'{endian}IIII'
+                        format_str = f"{endian}IIII"
                         ts_sec, ts_usec, incl_len, orig_len = struct.unpack(
                             format_str, packet_header
                         )
@@ -588,11 +555,15 @@ class GracefulPCAPParser:
                         try:
                             raw_packet = self.pcap_reader.engine.parse_packet_sync(packet_data)
                             timestamp = ts_sec + ts_usec / 1000000.0
-                            packet_info = self._raw_packet_to_packet_info(raw_packet, packet_index, timestamp)
+                            packet_info = self._raw_packet_to_packet_info(
+                                raw_packet, packet_index, timestamp
+                            )
                             if packet_info:
                                 packet_infos.append(packet_info)
                         except Exception as e:
-                            self.logger.debug(f"Failed to parse packet {packet_index} with RawPacketEngine: {e}")
+                            self.logger.debug(
+                                f"Failed to parse packet {packet_index} with RawPacketEngine: {e}"
+                            )
                             # Fallback to basic extraction
                             packet_info = self._extract_basic_info_raw(
                                 packet_data, ts_sec + ts_usec / 1000000.0, packet_index
@@ -607,9 +578,7 @@ class GracefulPCAPParser:
                             break
 
                     except Exception as e:
-                        self.logger.debug(
-                            f"Error in raw extraction at packet {packet_index}: {e}"
-                        )
+                        self.logger.debug(f"Error in raw extraction at packet {packet_index}: {e}")
                         break
 
             return PartialResult(
@@ -663,12 +632,12 @@ class GracefulPCAPParser:
     ) -> Optional[PacketInfo]:
         """
         Convert RawPacket to PacketInfo.
-        
+
         Args:
             raw_packet: RawPacket from RawPCAPReader
             index: Packet index
             timestamp: Optional timestamp (if not available, use 0.0)
-            
+
         Returns:
             PacketInfo or None if conversion fails
         """
@@ -676,33 +645,33 @@ class GracefulPCAPParser:
             # Extract TCP header information from raw packet data
             if len(raw_packet.data) < 34:  # Minimum Ethernet + IP + TCP
                 return None
-            
+
             # Skip Ethernet header (14 bytes) and parse IP header
             ip_start = 14
-            ip_header = raw_packet.data[ip_start:ip_start + 20]
-            
+            ip_header = raw_packet.data[ip_start : ip_start + 20]
+
             if len(ip_header) < 20:
                 return None
-            
+
             # Parse IP header fields
             version_ihl = ip_header[0]
             ihl = (version_ihl & 0x0F) * 4
             ttl = ip_header[8]
             protocol = ip_header[9]
-            
+
             if protocol != 6:  # Not TCP
                 return None
-            
+
             # Parse TCP header
             tcp_start = ip_start + ihl
-            tcp_header = raw_packet.data[tcp_start:tcp_start + 20]
-            
+            tcp_header = raw_packet.data[tcp_start : tcp_start + 20]
+
             if len(tcp_header) < 20:
                 return None
-            
+
             seq_num = struct.unpack(">I", tcp_header[4:8])[0]
             ack_num = struct.unpack(">I", tcp_header[8:12])[0]
-            
+
             # TCP flags
             flags_byte = tcp_header[13]
             flags = []
@@ -710,25 +679,25 @@ class GracefulPCAPParser:
             for i, flag_name in enumerate(flag_names):
                 if flags_byte & (1 << i):
                     flags.append(flag_name)
-            
+
             # Window size
             window_size = struct.unpack(">H", tcp_header[14:16])[0]
-            
+
             # Checksum
             checksum = struct.unpack(">H", tcp_header[16:18])[0]
-            
+
             # TCP header length
             tcp_header_len = ((tcp_header[12] >> 4) & 0xF) * 4
-            
+
             # Payload
             payload = raw_packet.payload if raw_packet.payload else b""
-            
+
             # Check for TLS ClientHello
             is_client_hello = self._is_tls_client_hello(payload)
             tls_info = None
             if is_client_hello:
                 tls_info = TLSInfo.from_payload(payload)
-            
+
             return PacketInfo(
                 timestamp=timestamp if timestamp is not None else 0.0,
                 src_ip=raw_packet.src_ip,
@@ -750,7 +719,7 @@ class GracefulPCAPParser:
                 packet_size=len(raw_packet.data),
                 raw_data=raw_packet.data,
             )
-            
+
         except Exception as e:
             self.logger.debug(f"Error converting RawPacket to PacketInfo for packet {index}: {e}")
             return None
@@ -873,8 +842,7 @@ class GracefulPCAPParser:
             "failed_parses": self.parsing_stats["failed_parses"],
             "fallback_uses": self.parsing_stats["fallback_uses"],
             "success_rate": (
-                self.parsing_stats["successful_parses"]
-                + self.parsing_stats["partial_parses"]
+                self.parsing_stats["successful_parses"] + self.parsing_stats["partial_parses"]
             )
             / total,
             "fallback_rate": self.parsing_stats["fallback_uses"] / total,
@@ -893,8 +861,6 @@ def get_graceful_parser() -> GracefulPCAPParser:
     return _graceful_parser
 
 
-def parse_pcap_with_fallback(
-    filepath: str, min_success_rate: float = 0.5
-) -> PartialResult:
+def parse_pcap_with_fallback(filepath: str, min_success_rate: float = 0.5) -> PartialResult:
     """Parse PCAP file with graceful degradation."""
     return get_graceful_parser().parse_with_degradation(filepath, min_success_rate)

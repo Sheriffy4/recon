@@ -54,9 +54,7 @@ class ZapretConfig:
                     else 1
                 ),
                 "window_size": (
-                    self.parameters.get("wssize").value
-                    if "wssize" in self.parameters
-                    else None
+                    self.parameters.get("wssize").value if "wssize" in self.parameters else None
                 ),
                 "auto_ttl": (
                     self.parameters.get("dpi-desync-autottl").value
@@ -218,9 +216,7 @@ class ZapretConfigParser:
         self._extract_fooling_methods(config)
         self._extract_split_positions(config)
 
-        self.logger.info(
-            f"Parsed zapret config with {len(config.parameters)} parameters"
-        )
+        self.logger.info(f"Parsed zapret config with {len(config.parameters)} parameters")
         return config
 
     def _parse_parameters(self, command: str, config: ZapretConfig):
@@ -239,9 +235,7 @@ class ZapretConfigParser:
                 param_type = param_def.get("type", "unknown")
 
                 # Parse value based on type
-                parsed_value = self._parse_parameter_value(
-                    param_value, param_type, param_def
-                )
+                parsed_value = self._parse_parameter_value(param_value, param_type, param_def)
 
                 # Store parameter
                 config.parameters[param_name] = ZapretParameter(
@@ -284,9 +278,7 @@ class ZapretConfigParser:
                 return value
 
         except (ValueError, TypeError) as e:
-            self.logger.warning(
-                f"Failed to parse parameter value '{value}' as {param_type}: {e}"
-            )
+            self.logger.warning(f"Failed to parse parameter value '{value}' as {param_type}: {e}")
             return value
 
     def _parse_split_positions(self, positions_str: str) -> List[Dict[str, Any]]:
@@ -297,17 +289,11 @@ class ZapretConfigParser:
             pos = pos.strip()
 
             if pos == "midsld":
-                positions.append(
-                    {"type": "midsld", "description": "Middle of second-level domain"}
-                )
+                positions.append({"type": "midsld", "description": "Middle of second-level domain"})
             elif pos == "host":
-                positions.append(
-                    {"type": "host", "description": "Host header position"}
-                )
+                positions.append({"type": "host", "description": "Host header position"})
             elif pos == "method":
-                positions.append(
-                    {"type": "method", "description": "HTTP method position"}
-                )
+                positions.append({"type": "method", "description": "HTTP method position"})
             elif pos.isdigit() or (pos.startswith("-") and pos[1:].isdigit()):
                 positions.append(
                     {
@@ -360,9 +346,7 @@ class ZapretConfigParser:
     def _extract_split_positions(self, config: ZapretConfig):
         """Extract split positions from parameters."""
         if "dpi-desync-split-pos" in config.parameters:
-            config.split_positions = (
-                config.parameters["dpi-desync-split-pos"].value or []
-            )
+            config.split_positions = config.parameters["dpi-desync-split-pos"].value or []
 
     def validate_config(self, config: ZapretConfig) -> List[str]:
         """
@@ -388,9 +372,7 @@ class ZapretConfigParser:
 
         if "split" in config.desync_methods or "split2" in config.desync_methods:
             if not config.split_positions:
-                issues.append(
-                    "Split method requires split positions (--dpi-desync-split-pos)"
-                )
+                issues.append("Split method requires split positions (--dpi-desync-split-pos)")
 
         # Validate parameter values
         for param_name, param in config.parameters.items():
@@ -400,9 +382,7 @@ class ZapretConfigParser:
             if valid_values and isinstance(param.value, list):
                 for value in param.value:
                     if value not in valid_values:
-                        issues.append(
-                            f"Invalid value '{value}' for parameter {param_name}"
-                        )
+                        issues.append(f"Invalid value '{value}' for parameter {param_name}")
 
         # Check for unknown parameters
         if config.unknown_parameters:

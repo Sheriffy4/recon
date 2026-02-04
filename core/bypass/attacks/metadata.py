@@ -156,9 +156,23 @@ class AttackCategories:
     # Список всех доступных категорий
     ALL = [
         # Primary categories (recommended for new attacks)
-        TCP, IP, TLS, HTTP, PAYLOAD, TUNNELING, COMBO, TIMING,
+        TCP,
+        IP,
+        TLS,
+        HTTP,
+        PAYLOAD,
+        TUNNELING,
+        COMBO,
+        TIMING,
         # Legacy categories (for backward compatibility)
-        SPLIT, DISORDER, FAKE, RACE, OVERLAP, FRAGMENT, DNS, CUSTOM
+        SPLIT,
+        DISORDER,
+        FAKE,
+        RACE,
+        OVERLAP,
+        FRAGMENT,
+        DNS,
+        CUSTOM,
     ]
 
     # Primary categories only (recommended for new implementations)

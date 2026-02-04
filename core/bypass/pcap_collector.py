@@ -48,9 +48,7 @@ class FailurePcapCollector:
         self.failure_queue.append(
             {"domain": domain, "error_type": error_type, "timestamp": datetime.now()}
         )
-        thread = threading.Thread(
-            target=self._capture_pcap, args=(domain, error_type), daemon=True
-        )
+        thread = threading.Thread(target=self._capture_pcap, args=(domain, error_type), daemon=True)
         thread.start()
 
     def _capture_pcap(self, domain: str, error_type: str):
@@ -80,9 +78,7 @@ class FailurePcapCollector:
             writer.close()
             self.pcap_count += 1
             file_size = filename.stat().st_size / 1024
-            self.logger.info(
-                f"PCAP capture completed: {filename.name} ({file_size:.1f} KB)"
-            )
+            self.logger.info(f"PCAP capture completed: {filename.name} ({file_size:.1f} KB)")
         except Exception as e:
             self.logger.error(f"PCAP capture failed for {domain}: {e}")
         finally:

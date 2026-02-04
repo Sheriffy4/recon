@@ -93,9 +93,7 @@ class CDNResolver:
                     break
         self._domain_cache[blocked_domain] = cdn_domains
         if cdn_domains:
-            LOG.info(
-                f"Found {len(cdn_domains)} CDN domains for {blocked_domain}: {cdn_domains}"
-            )
+            LOG.info(f"Found {len(cdn_domains)} CDN domains for {blocked_domain}: {cdn_domains}")
         else:
             LOG.debug(f"No CDN domains found for {blocked_domain}")
         return cdn_domains
@@ -156,9 +154,7 @@ class CDNResolver:
         result = self.resolve_cdn_domains(blocked_domain)
         return {ip for ip in result.resolved_ips.values() if ip is not None}
 
-    def validate_cdn_resolution(
-        self, blocked_domain: str, min_success_rate: float = 0.5
-    ) -> bool:
+    def validate_cdn_resolution(self, blocked_domain: str, min_success_rate: float = 0.5) -> bool:
         """
         Validate that CDN resolution meets minimum success criteria.
         """
@@ -200,8 +196,6 @@ class CDNResolver:
         """
         return {
             "total_main_domains": len(self.CDN_MAPPINGS),
-            "total_cdn_domains": sum(
-                (len(domains) for domains in self.CDN_MAPPINGS.values())
-            ),
+            "total_cdn_domains": sum((len(domains) for domains in self.CDN_MAPPINGS.values())),
             "cached_lookups": len(self._domain_cache),
         }

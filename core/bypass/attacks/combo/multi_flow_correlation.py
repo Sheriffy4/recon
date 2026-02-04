@@ -22,13 +22,15 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.bypass.attacks.attack_registry import register_attack
-from core.bypass.attacks.combo.advanced_traffic_profiler import (
-    AdvancedTrafficProfiler,
-    TrafficSignature,
-)
-from core.bypass.attacks.combo.full_session_simulation import (
-    FullSessionSimulationAttack,
-)
+
+# Lazy imports to avoid circular dependencies
+# from core.bypass.attacks.combo.advanced_traffic_profiler import (
+#     AdvancedTrafficProfiler,
+#     TrafficSignature,
+# )
+# from core.bypass.attacks.combo.full_session_simulation import (
+#     FullSessionSimulationAttack,
+# )
 from core.bypass.attacks.combo.traffic_mimicry import TrafficProfile
 
 LOG = logging.getLogger(__name__)
@@ -38,7 +40,7 @@ LOG = logging.getLogger(__name__)
 class BackgroundFlow:
     """Represents a background traffic flow."""
 
-    profile: TrafficSignature
+    profile: Any  # TrafficSignature from advanced_traffic_profiler
     target_domain: str
     target_ip: str
     target_port: int
@@ -83,10 +85,17 @@ class MultiFlowCorrelationAttack(BaseAttack):
         super().__init__()
         self.config = config or CorrelationConfig()
         self._background_flows: List[BackgroundFlow] = []
-        self._executor = ThreadPoolExecutor(
-            max_workers=self.config.max_concurrent_flows
-        )
+        self._executor = ThreadPoolExecutor(max_workers=self.config.max_concurrent_flows)
         self._stop_event = threading.Event()
+
+        # Lazy imports to avoid circular dependencies
+        from core.bypass.attacks.combo.advanced_traffic_profiler import (
+            AdvancedTrafficProfiler,
+        )
+        from core.bypass.attacks.combo.full_session_simulation import (
+            FullSessionSimulationAttack,
+        )
+
         self.traffic_profiler = AdvancedTrafficProfiler()
         self.session_simulator = FullSessionSimulationAttack()
         self._profiles: Dict[str, "TrafficProfile"] = {}
@@ -120,7 +129,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
             "pre_attack_delay": 5.0,
             "post_attack_delay": 10.0,
         }
-    
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute multi-flow correlation attack.
@@ -160,9 +169,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
 
             self._stop_event.set()
 
-            background_results = await asyncio.gather(
-                *background_tasks, return_exceptions=True
-            )
+            background_results = await asyncio.gather(*background_tasks, return_exceptions=True)
 
             total_background_bytes = 0
             total_background_packets = 0
@@ -204,16 +211,12 @@ class MultiFlowCorrelationAttack(BaseAttack):
         finally:
             self._cleanup()
 
-    async def _create_background_flows(
-        self, main_context: AttackContext
-    ) -> List[BackgroundFlow]:
+    async def _create_background_flows(self, main_context: AttackContext) -> List[BackgroundFlow]:
         """
         Create background traffic flows using the AdvancedTrafficProfiler.
         """
         flows = []
-        available_profiles = list(
-            self.traffic_profiler.analyzer._signature_database.keys()
-        )
+        available_profiles = list(self.traffic_profiler.analyzer._signature_database.keys())
         if not available_profiles:
             self.logger.error("No traffic profiles available in the profiler.")
             return []
@@ -222,9 +225,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
                 profile_name = random.choice(available_profiles)
             else:
                 profile_name = "chrome"
-            profile_signature = self.traffic_profiler.analyzer.get_signature(
-                profile_name
-            )
+            profile_signature = self.traffic_profiler.analyzer.get_signature(profile_name)
             if not profile_signature:
                 self.logger.warning(
                     f"Could not find signature for profile '{profile_name}'. Skipping flow."
@@ -279,9 +280,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
                 "success": result.status == AttackStatus.SUCCESS,
             }
         except Exception as e:
-            LOG.error(
-                f"Background flow to {flow.target_domain} failed: {e}", exc_info=True
-            )
+            LOG.error(f"Background flow to {flow.target_domain} failed: {e}", exc_info=True)
             return {
                 "domain": flow.target_domain,
                 "profile": flow.profile.application_name,
@@ -402,9 +401,9 @@ class MultiFlowCorrelationAttack(BaseAttack):
         total_duration = sum((flow.duration_seconds for flow in self._background_flows))
         avg_duration = total_duration / len(self._background_flows)
         duration_score = min(1.0, avg_duration / 60.0)
-        avg_pps = sum(
-            (flow.packets_per_second for flow in self._background_flows)
-        ) / len(self._background_flows)
+        avg_pps = sum((flow.packets_per_second for flow in self._background_flows)) / len(
+            self._background_flows
+        )
         rate_score = min(1.0, avg_pps / 2.0)
         return (duration_score + rate_score) / 2.0
 
@@ -461,7 +460,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
 
     def _select_intelligent_profile(
         self, domain: str, flow_index: int
-    ) -> TrafficSignature:
+    ) -> Any:  # Returns TrafficSignature
         """Select profile intelligently based on domain and flow diversity."""
         domain_profiles = {
             "google.com": ["browsing", "youtube"],
@@ -482,9 +481,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
             return random.choice(available_profiles)
         return random.choice(self._profiles)
 
-    def _calculate_optimal_duration(
-        self, main_context: AttackContext, flow_index: int
-    ) -> float:
+    def _calculate_optimal_duration(self, main_context: AttackContext, flow_index: int) -> float:
         """Calculate optimal duration for background flow."""
         base_duration = random.uniform(*self.config.background_duration_range)
         stagger_factor = 1.0 + flow_index * 0.2
@@ -492,9 +489,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
             stagger_factor *= 1.5
         return base_duration * stagger_factor
 
-    def _calculate_optimal_packet_rate(
-        self, timing_pattern: str, flow_index: int
-    ) -> float:
+    def _calculate_optimal_packet_rate(self, timing_pattern: str, flow_index: int) -> float:
         """Calculate optimal packet rate based on timing pattern."""
         base_rate = random.uniform(*self.config.background_pps_range)
         pattern_multipliers = {
@@ -506,7 +501,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
         multiplier = pattern_multipliers.get(timing_pattern, 1.0)
         return base_rate * multiplier
 
-    def _select_realistic_port(self, profile: TrafficSignature) -> int:
+    def _select_realistic_port(self, profile: Any) -> int:  # profile is TrafficSignature
         """Select realistic port based on traffic profile."""
         profile_ports = {
             "zoom": [80, 443, 8801, 8802],
@@ -519,9 +514,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
         ports = profile_ports.get(profile.name, [80, 443])
         return random.choice(ports)
 
-    async def _execute_advanced_background_flow(
-        self, flow: BackgroundFlow
-    ) -> Dict[str, Any]:
+    async def _execute_advanced_background_flow(self, flow: BackgroundFlow) -> Dict[str, Any]:
         """Execute background flow with advanced timing patterns."""
         start_time = time.time()
         bytes_sent = 0
@@ -535,9 +528,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
                 payload=background_payload,
                 timeout=flow.duration_seconds,
             )
-            packet_sequence = await self._generate_advanced_packet_sequence(
-                flow, bg_context
-            )
+            packet_sequence = await self._generate_advanced_packet_sequence(flow, bg_context)
             for packet_data, delay_ms in packet_sequence:
                 if self._stop_event.is_set():
                     break
@@ -576,9 +567,7 @@ class MultiFlowCorrelationAttack(BaseAttack):
         """Generate advanced packet sequence with sophisticated timing."""
         sequence = []
         timing_pattern = getattr(flow, "timing_pattern", "constant")
-        base_sequence = await flow.profile.generate_packet_sequence(
-            context.payload, context
-        )
+        base_sequence = await flow.profile.generate_packet_sequence(context.payload, context)
         if timing_pattern == "constant":
             interval = 1000.0 / flow.packets_per_second
             for i, (packet, _) in enumerate(base_sequence):
@@ -657,7 +646,6 @@ class MultiFlowCorrelationAttack(BaseAttack):
     def _register_default_profiles(self):
         """Register default traffic profiles."""
         from core.bypass.attacks.combo.traffic_profiles import (
-
             ZoomTrafficProfile,
             TelegramTrafficProfile,
             WhatsAppTrafficProfile,

@@ -82,9 +82,7 @@ class BackwardCompatibilityLayer:
             "UNKNOWN": DPIType.UNKNOWN,
         }
 
-    def migrate_legacy_cache(
-        self, legacy_cache_path: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def migrate_legacy_cache(self, legacy_cache_path: Optional[str] = None) -> Dict[str, Any]:
         """
         Migrate legacy cache files to new format.
 
@@ -131,9 +129,7 @@ class BackwardCompatibilityLayer:
                     migrated_entries = self._migrate_cache_file(legacy_file)
                     migration_report["entries_migrated"] += len(migrated_entries)
 
-                    logger.info(
-                        f"Migrated {len(migrated_entries)} entries from {legacy_file}"
-                    )
+                    logger.info(f"Migrated {len(migrated_entries)} entries from {legacy_file}")
 
                 except Exception as e:
                     error_msg = f"Failed to migrate {legacy_file}: {str(e)}"
@@ -185,9 +181,7 @@ class BackwardCompatibilityLayer:
                     matches = list(search_dir.glob(pattern))
                     legacy_files.extend(matches)
                 except Exception as e:
-                    logger.warning(
-                        f"Error searching for pattern {pattern} in {search_dir}: {e}"
-                    )
+                    logger.warning(f"Error searching for pattern {pattern} in {search_dir}: {e}")
 
         # Remove duplicates and non-existent files
         unique_files = []
@@ -280,9 +274,7 @@ class BackwardCompatibilityLayer:
                             is_effectively_empty = False
                             break
                 if not is_effectively_empty:
-                    raise LegacyFormatError(
-                        "File has non-comment content but produced no data."
-                    )
+                    raise LegacyFormatError("File has non-comment content but produced no data.")
             return data
         except LegacyFormatError:
             pass
@@ -321,9 +313,7 @@ class BackwardCompatibilityLayer:
                         data[key] = value
 
                     except Exception as e:
-                        logger.warning(
-                            f"Failed to parse line {line_num} in {file_path}: {e}"
-                        )
+                        logger.warning(f"Failed to parse line {line_num} in {file_path}: {e}")
                         continue
 
         except Exception as e:
@@ -358,9 +348,7 @@ class BackwardCompatibilityLayer:
         target = key.split("_")[0] if "_" in key else key
 
         # Map legacy DPI type
-        legacy_dpi_type = str(
-            value.get("dpi_type", value.get("type", "UNKNOWN"))
-        ).upper()
+        legacy_dpi_type = str(value.get("dpi_type", value.get("type", "UNKNOWN"))).upper()
         dpi_type = self.legacy_dpi_type_mapping.get(legacy_dpi_type, DPIType.UNKNOWN)
 
         # Extract confidence
@@ -432,14 +420,10 @@ class BackwardCompatibilityLayer:
         # Assume list contains [dpi_type, confidence, ...other_data]
         dpi_type_str = str(value[0]) if len(value) > 0 else "UNKNOWN"
         confidence = (
-            float(value[1])
-            if len(value) > 1 and isinstance(value[1], (int, float))
-            else 0.5
+            float(value[1]) if len(value) > 1 and isinstance(value[1], (int, float)) else 0.5
         )
 
-        dpi_type = self.legacy_dpi_type_mapping.get(
-            dpi_type_str.upper(), DPIType.UNKNOWN
-        )
+        dpi_type = self.legacy_dpi_type_mapping.get(dpi_type_str.upper(), DPIType.UNKNOWN)
 
         fingerprint = DPIFingerprint(
             target=target,
@@ -471,9 +455,7 @@ class BackwardCompatibilityLayer:
 
         except ImportError:
             # Fallback: save to JSON file
-            cache_file = (
-                self.cache_dir / f"migrated_{fingerprint.target.replace('.', '_')}.json"
-            )
+            cache_file = self.cache_dir / f"migrated_{fingerprint.target.replace('.', '_')}.json"
             with open(cache_file, "w") as f:
                 json.dump(fingerprint.to_dict(), f, indent=2)
 
@@ -507,17 +489,13 @@ class BackwardCompatibilityLayer:
             for key in sample_keys:
                 try:
                     original_value = original_data[key]
-                    migrated_fingerprint = self._convert_legacy_entry(
-                        key, original_value
-                    )
+                    migrated_fingerprint = self._convert_legacy_entry(key, original_value)
 
                     if migrated_fingerprint:
                         validation_report["sample_comparisons"].append(
                             {
                                 "key": key,
-                                "original": str(original_value)[
-                                    :100
-                                ],  # Truncate for readability
+                                "original": str(original_value)[:100],  # Truncate for readability
                                 "migrated_target": migrated_fingerprint.target,
                                 "migrated_type": migrated_fingerprint.dpi_type.value,
                                 "migrated_confidence": migrated_fingerprint.confidence,
@@ -594,9 +572,7 @@ class LegacyFingerprintWrapper:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
-            return loop.run_until_complete(
-                self._advanced_fingerprinter.fingerprint_target(target)
-            )
+            return loop.run_until_complete(self._advanced_fingerprinter.fingerprint_target(target))
 
         except Exception as e:
             logger.warning(f"Advanced fingerprinting failed for {target}: {e}")
@@ -701,9 +677,7 @@ class LegacyFingerprintWrapper:
         return fingerprint.get("dpi_type", "UNKNOWN")
 
 
-def migrate_legacy_data(
-    cache_dir: str = "cache", backup_dir: str = "backup"
-) -> Dict[str, Any]:
+def migrate_legacy_data(cache_dir: str = "cache", backup_dir: str = "backup") -> Dict[str, Any]:
     """
     Convenience function to migrate legacy data.
 
@@ -742,9 +716,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Setup logging
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     compatibility_layer = BackwardCompatibilityLayer(args.cache_dir, args.backup_dir)
 

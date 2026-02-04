@@ -25,9 +25,7 @@ class PostHandshakeAnalyzer:
         """Запускает все зонды пост-хендшейка."""
         LOG.info(f"Running post-handshake probes for {self.target_ip}:{self.port}")
         results = {}
-        results["session_resumption_tolerance"] = (
-            self.probe_session_resumption_tolerance()
-        )
+        results["session_resumption_tolerance"] = self.probe_session_resumption_tolerance()
         return results
 
     def probe_session_resumption_tolerance(self) -> Optional[bool]:
@@ -71,9 +69,7 @@ class PostHandshakeAnalyzer:
             if resp.haslayer(TCP) and resp[TCP].flags.R:
                 LOG.debug("Session resumption probe: RST. DPI or server rejected.")
                 return False
-            LOG.debug(
-                "Session resumption probe: Response received. DPI likely tolerant."
-            )
+            LOG.debug("Session resumption probe: Response received. DPI likely tolerant.")
             return True
         except Exception as e:
             LOG.error(f"Error during session resumption probe: {e}")

@@ -344,9 +344,7 @@ class UDPHandler(ProtocolHandler):
         udp_data = data[offset : offset + 8]
         src_port, dst_port, length, checksum = struct.unpack("!HHHH", udp_data)
 
-        header = UDPHeader(
-            src_port=src_port, dst_port=dst_port, length=length, checksum=checksum
-        )
+        header = UDPHeader(src_port=src_port, dst_port=dst_port, length=length, checksum=checksum)
 
         return header, offset + 8
 
@@ -385,9 +383,7 @@ class ICMPHandler(ProtocolHandler):
 
     def build(self, header: ICMPHeader) -> bytes:
         """Build ICMP header."""
-        return struct.pack(
-            "!BBHI", header.type, header.code, header.checksum, header.rest
-        )
+        return struct.pack("!BBHI", header.type, header.code, header.checksum, header.rest)
 
     def modify(self, data: bytes, modifications: Dict[str, Any]) -> bytes:
         """Modify ICMP header."""
@@ -410,8 +406,8 @@ class DNSHandler(ProtocolHandler):
             raise ValueError("Insufficient data for DNS header")
 
         dns_data = data[offset : offset + 12]
-        transaction_id, flags, questions, answers, authority, additional = (
-            struct.unpack("!HHHHHH", dns_data)
+        transaction_id, flags, questions, answers, authority, additional = struct.unpack(
+            "!HHHHHH", dns_data
         )
 
         header = DNSHeader(

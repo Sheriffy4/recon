@@ -245,15 +245,11 @@ class ZapretStrategyGenerator:
             strategies.extend(generic_strategies)
 
         # Remove duplicates while preserving order
-        seen = set()
-        unique_strategies = []
-        for strategy in strategies:
-            if strategy not in seen:
-                seen.add(strategy)
-                unique_strategies.append(strategy)
+        from core.utils.strategy_utils import deduplicate_with_limit
+        unique_strategies = deduplicate_with_limit(strategies, limit=count)
 
         self.logger.info(f"Generated {len(unique_strategies)} unique strategies")
-        return unique_strategies[:count]
+        return unique_strategies
 
     def _generate_fingerprint_aware_strategies(
         self, fingerprint: DPIFingerprint, count: int

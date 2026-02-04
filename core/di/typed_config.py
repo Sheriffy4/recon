@@ -154,37 +154,27 @@ if PYDANTIC_AVAILABLE:
         debug_enabled: bool = False
 
         # Service configurations
-        fingerprint_engine: FingerprintEngineConfig = Field(
-            default_factory=FingerprintEngineConfig
-        )
+        fingerprint_engine: FingerprintEngineConfig = Field(default_factory=FingerprintEngineConfig)
         prober: ProberConfig = Field(default_factory=ProberConfig)
         classifier: ClassifierConfig = Field(default_factory=ClassifierConfig)
         attack_adapter: AttackAdapterConfig = Field(default_factory=AttackAdapterConfig)
         effectiveness_tester: EffectivenessTesterConfig = Field(
             default_factory=EffectivenessTesterConfig
         )
-        learning_memory: LearningMemoryConfig = Field(
-            default_factory=LearningMemoryConfig
-        )
-        strategy_generator: StrategyGeneratorConfig = Field(
-            default_factory=StrategyGeneratorConfig
-        )
+        learning_memory: LearningMemoryConfig = Field(default_factory=LearningMemoryConfig)
+        strategy_generator: StrategyGeneratorConfig = Field(default_factory=StrategyGeneratorConfig)
         strategy_saver: StrategySaverConfig = Field(default_factory=StrategySaverConfig)
         closed_loop_manager: ClosedLoopManagerConfig = Field(
             default_factory=ClosedLoopManagerConfig
         )
-        http_client_pool: HTTPClientPoolConfig = Field(
-            default_factory=HTTPClientPoolConfig
-        )
+        http_client_pool: HTTPClientPoolConfig = Field(default_factory=HTTPClientPoolConfig)
         parameter_optimizer: ParameterOptimizerConfig = Field(
             default_factory=ParameterOptimizerConfig
         )
 
         # Monitoring and Health
         monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
-        health_thresholds: HealthThresholdsConfig = Field(
-            default_factory=HealthThresholdsConfig
-        )
+        health_thresholds: HealthThresholdsConfig = Field(default_factory=HealthThresholdsConfig)
 
         # Custom service configurations
         custom_services: Dict[str, ServiceConfiguration] = Field(default_factory=dict)
@@ -233,13 +223,9 @@ if PYDANTIC_AVAILABLE:
                 self.parameter_optimizer.max_iterations = getattr(
                     args, "optimization_iterations", 15
                 )
-                self.parameter_optimizer.timeout = getattr(
-                    args, "optimization_timeout", 120.0
-                )
+                self.parameter_optimizer.timeout = getattr(args, "optimization_timeout", 120.0)
             if hasattr(args, "closed_loop") and args.closed_loop:
-                self.closed_loop_manager.max_iterations = getattr(
-                    args, "max_iterations", 5
-                )
+                self.closed_loop_manager.max_iterations = getattr(args, "max_iterations", 5)
                 self.closed_loop_manager.convergence_threshold = getattr(
                     args, "convergence_threshold", 0.9
                 )
@@ -371,37 +357,27 @@ else:
         debug_enabled: bool = False
 
         # Service configurations
-        fingerprint_engine: FingerprintEngineConfig = field(
-            default_factory=FingerprintEngineConfig
-        )
+        fingerprint_engine: FingerprintEngineConfig = field(default_factory=FingerprintEngineConfig)
         prober: ProberConfig = field(default_factory=ProberConfig)
         classifier: ClassifierConfig = field(default_factory=ClassifierConfig)
         attack_adapter: AttackAdapterConfig = field(default_factory=AttackAdapterConfig)
         effectiveness_tester: EffectivenessTesterConfig = field(
             default_factory=EffectivenessTesterConfig
         )
-        learning_memory: LearningMemoryConfig = field(
-            default_factory=LearningMemoryConfig
-        )
-        strategy_generator: StrategyGeneratorConfig = field(
-            default_factory=StrategyGeneratorConfig
-        )
+        learning_memory: LearningMemoryConfig = field(default_factory=LearningMemoryConfig)
+        strategy_generator: StrategyGeneratorConfig = field(default_factory=StrategyGeneratorConfig)
         strategy_saver: StrategySaverConfig = field(default_factory=StrategySaverConfig)
         closed_loop_manager: ClosedLoopManagerConfig = field(
             default_factory=ClosedLoopManagerConfig
         )
-        http_client_pool: HTTPClientPoolConfig = field(
-            default_factory=HTTPClientPoolConfig
-        )
+        http_client_pool: HTTPClientPoolConfig = field(default_factory=HTTPClientPoolConfig)
         parameter_optimizer: ParameterOptimizerConfig = field(
             default_factory=ParameterOptimizerConfig
         )
 
         # Monitoring and Health
         monitoring: MonitoringConfig = field(default_factory=MonitoringConfig)
-        health_thresholds: HealthThresholdsConfig = field(
-            default_factory=HealthThresholdsConfig
-        )
+        health_thresholds: HealthThresholdsConfig = field(default_factory=HealthThresholdsConfig)
 
         # Custom service configurations
         custom_services: Dict[str, ServiceConfiguration] = field(default_factory=dict)
@@ -445,14 +421,10 @@ else:
                 self.parameter_optimizer.max_iterations = getattr(
                     args, "optimization_iterations", 15
                 )
-                self.parameter_optimizer.timeout = getattr(
-                    args, "optimization_timeout", 120.0
-                )
+                self.parameter_optimizer.timeout = getattr(args, "optimization_timeout", 120.0)
 
             if hasattr(args, "closed_loop") and args.closed_loop:
-                self.closed_loop_manager.max_iterations = getattr(
-                    args, "max_iterations", 5
-                )
+                self.closed_loop_manager.max_iterations = getattr(args, "max_iterations", 5)
                 self.closed_loop_manager.convergence_threshold = getattr(
                     args, "convergence_threshold", 0.9
                 )
@@ -507,9 +479,7 @@ def create_config_from_file(file_path: Union[str, Path]) -> TypedDIConfiguration
         return config
 
 
-def save_config_to_file(
-    config: TypedDIConfiguration, file_path: Union[str, Path]
-) -> None:
+def save_config_to_file(config: TypedDIConfiguration, file_path: Union[str, Path]) -> None:
     """Save configuration to JSON file."""
     import json
 

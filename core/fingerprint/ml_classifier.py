@@ -129,9 +129,7 @@ class MLClassifier:
             accuracy = accuracy_score(y_test, y_pred)
 
             LOG.info(f"Model trained with accuracy: {accuracy:.3f}")
-            LOG.debug(
-                f"Classification report:\n{classification_report(y_test, y_pred)}"
-            )
+            LOG.debug(f"Classification report:\n{classification_report(y_test, y_pred)}")
 
             # Save the trained model
             self.save_model()
@@ -173,9 +171,7 @@ class MLClassifier:
             predicted_type = self.model.classes_[predicted_idx]
             confidence = probabilities[predicted_idx]
 
-            LOG.debug(
-                f"ML classification: {predicted_type} (confidence: {confidence:.3f})"
-            )
+            LOG.debug(f"ML classification: {predicted_type} (confidence: {confidence:.3f})")
 
             return predicted_type, float(confidence)
 
@@ -244,9 +240,7 @@ class MLClassifier:
             # Alternative predictions (top 3 excluding the top one)
             alternatives = [(cls, float(prob)) for cls, prob in class_probs[1:4]]
 
-            LOG.debug(
-                f"ML classification: {top_prediction} (confidence: {top_confidence:.3f})"
-            )
+            LOG.debug(f"ML classification: {top_prediction} (confidence: {top_confidence:.3f})")
             LOG.debug(f"Alternatives: {alternatives}")
 
             return top_prediction, top_confidence, alternatives
@@ -333,57 +327,25 @@ class MLClassifier:
             "tcp_option_len_limit": lambda x: float(x) if x is not None else -1.0,
             "dpi_hop_distance": lambda x: float(x) if x is not None else -1.0,
             # Boolean features (converted to 0/1)
-            "rst_from_target": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "icmp_ttl_exceeded": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "supports_ip_frag": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "checksum_validation": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "quic_udp_blocked": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "stateful_inspection": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "rate_limiting_detected": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "ml_detection_blocked": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "ip_level_blocked": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
+            "rst_from_target": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "icmp_ttl_exceeded": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "supports_ip_frag": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "checksum_validation": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "quic_udp_blocked": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "stateful_inspection": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "rate_limiting_detected": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "ml_detection_blocked": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "ip_level_blocked": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
             "ech_blocked": lambda x: 1.0 if x is True else 0.0 if x is False else -1.0,
-            "tcp_option_splicing": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "large_payload_bypass": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
+            "tcp_option_splicing": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "large_payload_bypass": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
             "ecn_support": lambda x: 1.0 if x is True else 0.0 if x is False else -1.0,
-            "http2_detection": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "http3_support": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
+            "http2_detection": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "http3_support": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
             "esni_support": lambda x: 1.0 if x is True else 0.0 if x is False else -1.0,
-            "zero_rtt_blocked": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "dns_over_https_blocked": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
-            "websocket_blocked": lambda x: (
-                1.0 if x is True else 0.0 if x is False else -1.0
-            ),
+            "zero_rtt_blocked": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "dns_over_https_blocked": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
+            "websocket_blocked": lambda x: (1.0 if x is True else 0.0 if x is False else -1.0),
             # Categorical features (encoded as numbers)
             "tls_version_sensitivity": self._encode_tls_sensitivity,
             "ipv6_handling": self._encode_ipv6_handling,
@@ -482,7 +444,5 @@ class MLClassifier:
             "model_path": self.model_path,
             "feature_count": len(self.feature_names),
             "dpi_types": self.dpi_types,
-            "model_exists": (
-                os.path.exists(self.model_path) if self.model_path else False
-            ),
+            "model_exists": (os.path.exists(self.model_path) if self.model_path else False),
         }

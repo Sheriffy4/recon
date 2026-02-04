@@ -157,9 +157,7 @@ class AdvancedPerformanceMonitor:
 
             # Calculate metrics from recent history
             recent_attacks = [
-                m
-                for m in self.attack_metrics_history
-                if (current_time - m.timestamp).seconds < 300
+                m for m in self.attack_metrics_history if (current_time - m.timestamp).seconds < 300
             ]  # Last 5 minutes
 
             if recent_attacks:
@@ -167,12 +165,8 @@ class AdvancedPerformanceMonitor:
                 successful_attacks = sum(1 for m in recent_attacks if m.success)
                 failed_attacks = total_attacks - successful_attacks
 
-                avg_execution_time = statistics.mean(
-                    m.execution_time_ms for m in recent_attacks
-                )
-                avg_effectiveness = statistics.mean(
-                    m.effectiveness_score for m in recent_attacks
-                )
+                avg_execution_time = statistics.mean(m.execution_time_ms for m in recent_attacks)
+                avg_effectiveness = statistics.mean(m.effectiveness_score for m in recent_attacks)
                 error_rate = (failed_attacks / total_attacks) * 100
             else:
                 total_attacks = successful_attacks = failed_attacks = 0
@@ -241,9 +235,7 @@ class AdvancedPerformanceMonitor:
                     "min_ms": min(execution_times),
                     "max_ms": max(execution_times),
                     "stdev_ms": (
-                        statistics.stdev(execution_times)
-                        if len(execution_times) > 1
-                        else 0
+                        statistics.stdev(execution_times) if len(execution_times) > 1 else 0
                     ),
                 },
                 "effectiveness_stats": {
@@ -259,9 +251,7 @@ class AdvancedPerformanceMonitor:
             return summary
 
         except Exception as e:
-            LOG.error(
-                f"Failed to get attack performance summary for {attack_name}: {e}"
-            )
+            LOG.error(f"Failed to get attack performance summary for {attack_name}: {e}")
             return {"error": str(e)}
 
     async def get_dpi_performance_analysis(self, dpi_type: str) -> Dict[str, Any]:
@@ -285,15 +275,9 @@ class AdvancedPerformanceMonitor:
             # Calculate performance by attack type
             attack_analysis = {}
             for attack_name, metrics in attack_performance.items():
-                success_rate = (
-                    sum(1 for m in metrics if m.success) / len(metrics)
-                ) * 100
-                avg_effectiveness = statistics.mean(
-                    m.effectiveness_score for m in metrics
-                )
-                avg_execution_time = statistics.mean(
-                    m.execution_time_ms for m in metrics
-                )
+                success_rate = (sum(1 for m in metrics if m.success) / len(metrics)) * 100
+                avg_effectiveness = statistics.mean(m.effectiveness_score for m in metrics)
+                avg_execution_time = statistics.mean(m.execution_time_ms for m in metrics)
 
                 attack_analysis[attack_name] = {
                     "executions": len(metrics),
@@ -304,12 +288,8 @@ class AdvancedPerformanceMonitor:
 
             # Overall DPI analysis
             total_attacks = len(dpi_metrics)
-            overall_success_rate = (
-                sum(1 for m in dpi_metrics if m.success) / total_attacks
-            ) * 100
-            overall_effectiveness = statistics.mean(
-                m.effectiveness_score for m in dpi_metrics
-            )
+            overall_success_rate = (sum(1 for m in dpi_metrics if m.success) / total_attacks) * 100
+            overall_effectiveness = statistics.mean(m.effectiveness_score for m in dpi_metrics)
 
             analysis = {
                 "dpi_type": dpi_type,
@@ -389,9 +369,7 @@ class AdvancedPerformanceMonitor:
                 "recommendations": self._generate_health_recommendations(
                     latest_metrics, recent_alerts
                 ),
-                "uptime_hours": (
-                    current_time - self.current_metrics["start_time"]
-                ).total_seconds()
+                "uptime_hours": (current_time - self.current_metrics["start_time"]).total_seconds()
                 / 3600,
             }
 
@@ -410,9 +388,7 @@ class AdvancedPerformanceMonitor:
             alerts = list(self.performance_alerts)
 
             if severity_filter:
-                alerts = [
-                    alert for alert in alerts if alert.severity == severity_filter
-                ]
+                alerts = [alert for alert in alerts if alert.severity == severity_filter]
 
             return [asdict(alert) for alert in alerts]
 
@@ -457,9 +433,7 @@ class AdvancedPerformanceMonitor:
                     "unique_attack_types": len(
                         set(m["attack_name"] for m in filtered_attack_metrics)
                     ),
-                    "unique_dpi_types": len(
-                        set(m["dpi_type"] for m in filtered_attack_metrics)
-                    ),
+                    "unique_dpi_types": len(set(m["dpi_type"] for m in filtered_attack_metrics)),
                     "overall_success_rate": (
                         (
                             sum(1 for m in filtered_attack_metrics if m["success"])
@@ -527,9 +501,7 @@ class AdvancedPerformanceMonitor:
         except Exception:
             return 0
 
-    async def _check_performance_alerts(
-        self, metrics: AttackPerformanceMetrics
-    ) -> None:
+    async def _check_performance_alerts(self, metrics: AttackPerformanceMetrics) -> None:
         """Check for performance alerts based on attack metrics."""
 
         try:
@@ -539,8 +511,7 @@ class AdvancedPerformanceMonitor:
                     alert_type="high_latency",
                     severity=(
                         "high"
-                        if metrics.execution_time_ms
-                        > self.thresholds["max_execution_time_ms"] * 2
+                        if metrics.execution_time_ms > self.thresholds["max_execution_time_ms"] * 2
                         else "medium"
                     ),
                     message=f"High execution time for {metrics.attack_name}: {metrics.execution_time_ms:.1f}ms",
@@ -586,19 +557,13 @@ class AdvancedPerformanceMonitor:
         except Exception as e:
             LOG.error(f"Failed to check performance alerts: {e}")
 
-    async def _check_system_alerts(
-        self, system_metrics: SystemPerformanceMetrics
-    ) -> None:
+    async def _check_system_alerts(self, system_metrics: SystemPerformanceMetrics) -> None:
         """Check for system-level performance alerts."""
 
         try:
             # Low success rate alert
             success_rate = (
-                (
-                    system_metrics.successful_attacks
-                    / system_metrics.total_attacks_executed
-                    * 100
-                )
+                (system_metrics.successful_attacks / system_metrics.total_attacks_executed * 100)
                 if system_metrics.total_attacks_executed > 0
                 else 100
             )
@@ -609,16 +574,12 @@ class AdvancedPerformanceMonitor:
                     message=f"Low system success rate: {success_rate:.1f}%",
                     timestamp=datetime.now(),
                     metrics={"success_rate_percent": success_rate},
-                    threshold_exceeded=self.thresholds["min_success_rate_percent"]
-                    - success_rate,
+                    threshold_exceeded=self.thresholds["min_success_rate_percent"] - success_rate,
                 )
                 self.performance_alerts.append(alert)
 
             # High error rate alert
-            if (
-                system_metrics.error_rate_percent
-                > self.thresholds["max_error_rate_percent"]
-            ):
+            if system_metrics.error_rate_percent > self.thresholds["max_error_rate_percent"]:
                 alert = PerformanceAlert(
                     alert_type="high_error_rate",
                     severity="high",
@@ -636,9 +597,7 @@ class AdvancedPerformanceMonitor:
         """Get recent performance trend for an attack."""
 
         try:
-            recent_metrics = [
-                m for m in self.attack_performance_by_type[attack_name][-10:]
-            ]
+            recent_metrics = [m for m in self.attack_performance_by_type[attack_name][-10:]]
             if len(recent_metrics) < 3:
                 return "insufficient_data"
 
@@ -759,9 +718,7 @@ class AdvancedPerformanceMonitor:
             recent_avg = statistics.mean(values[-3:])
             older_avg = statistics.mean(values[:3])
 
-            change_percent = (
-                ((recent_avg - older_avg) / older_avg) * 100 if older_avg != 0 else 0
-            )
+            change_percent = ((recent_avg - older_avg) / older_avg) * 100 if older_avg != 0 else 0
 
             if change_percent > 10:
                 return "increasing"
@@ -773,9 +730,7 @@ class AdvancedPerformanceMonitor:
         except Exception:
             return "stable"
 
-    def _calculate_system_health_score(
-        self, metrics: SystemPerformanceMetrics
-    ) -> float:
+    def _calculate_system_health_score(self, metrics: SystemPerformanceMetrics) -> float:
         """Calculate overall system health score (0-100)."""
 
         try:
@@ -875,9 +830,7 @@ class AdvancedPerformanceMonitor:
             # Alert-based recommendations
             alert_types = [alert.alert_type for alert in alerts]
             if "high_latency" in alert_types:
-                recommendations.append(
-                    "Check network connectivity and target responsiveness"
-                )
+                recommendations.append("Check network connectivity and target responsiveness")
 
             if "low_success_rate" in alert_types:
                 recommendations.append(
@@ -885,9 +838,7 @@ class AdvancedPerformanceMonitor:
                 )
 
             if not recommendations:
-                recommendations.append(
-                    "System performance is within acceptable parameters"
-                )
+                recommendations.append("System performance is within acceptable parameters")
 
         except Exception as e:
             recommendations.append(f"Unable to generate recommendations: {e}")

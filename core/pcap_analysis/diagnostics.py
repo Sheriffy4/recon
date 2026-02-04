@@ -20,7 +20,6 @@ import queue
 from datetime import datetime
 
 
-
 @dataclass
 class SystemMetrics:
     """System performance metrics."""
@@ -249,9 +248,7 @@ class DiagnosticChecker:
 
             # Check disk space
             if (disk.used / disk.total) * 100 > 90:
-                issues.append(
-                    f"Low disk space: {((disk.used / disk.total) * 100):.1f}% used"
-                )
+                issues.append(f"Low disk space: {((disk.used / disk.total) * 100):.1f}% used")
                 recommendations.append("Free up disk space before running analysis")
 
             # Check CPU
@@ -303,9 +300,7 @@ class DiagnosticChecker:
 
             if not in_venv:
                 issues.append("Not running in virtual environment")
-                recommendations.append(
-                    "Use virtual environment to avoid dependency conflicts"
-                )
+                recommendations.append("Use virtual environment to avoid dependency conflicts")
 
             status = (
                 "WARNING"
@@ -429,9 +424,7 @@ class DiagnosticChecker:
                     status="WARNING",
                     message=f"Low disk space: {available_gb:.1f}GB available",
                     details={"available_gb": available_gb},
-                    recommendations=[
-                        "Consider freeing up more disk space for large PCAP files"
-                    ],
+                    recommendations=["Consider freeing up more disk space for large PCAP files"],
                 )
 
             return DiagnosticResult(
@@ -471,16 +464,12 @@ class DiagnosticChecker:
                     if size == 0:
                         issues.append(f"Empty PCAP file: {pcap_file}")
                     elif size < 100:
-                        issues.append(
-                            f"Suspiciously small PCAP file: {pcap_file} ({size} bytes)"
-                        )
+                        issues.append(f"Suspiciously small PCAP file: {pcap_file} ({size} bytes)")
                 except Exception as e:
                     issues.append(f"Cannot access {pcap_file}: {e}")
 
             status = "WARNING" if issues else "PASS"
-            message = (
-                "; ".join(issues) if issues else f"Found {len(pcap_files)} PCAP files"
-            )
+            message = "; ".join(issues) if issues else f"Found {len(pcap_files)} PCAP files"
 
             return DiagnosticResult(
                 check_name="pcap_files",
@@ -515,9 +504,7 @@ class DiagnosticChecker:
                         check_name="log_directories",
                         status="FAIL",
                         message=f"Cannot create log directory: {e}",
-                        recommendations=[
-                            "Create log directory manually or fix permissions"
-                        ],
+                        recommendations=["Create log directory manually or fix permissions"],
                     )
 
             # Check if we can write to log directory
@@ -617,12 +604,19 @@ class DebugLogger:
         # Debug file handler
         try:
             log_dir = Path("recon/logs")
-            log_dir.mkdir(exist_ok=True)
+            log_dir.mkdir(parents=True, exist_ok=True)
 
-            debug_handler = logging.FileHandler(log_dir / "debug.log")
-            debug_handler.setLevel(logging.DEBUG)
-            debug_handler.setFormatter(formatter)
-            self.logger.addHandler(debug_handler)
+            log_file = log_dir / "debug.log"
+            # Avoid duplicating handlers if DebugLogger is instantiated multiple times
+            if not any(
+                isinstance(h, logging.FileHandler)
+                and getattr(h, "baseFilename", None) == str(log_file)
+                for h in self.logger.handlers
+            ):
+                debug_handler = logging.FileHandler(log_file)
+                debug_handler.setLevel(logging.DEBUG)
+                debug_handler.setFormatter(formatter)
+                self.logger.addHandler(debug_handler)
         except Exception as e:
             print(f"Warning: Could not setup debug file logging: {e}")
 
@@ -660,9 +654,7 @@ class DebugLogger:
 
     def log_comparison_result(self, result: Dict[str, Any]):
         """Log comparison result details."""
-        self.logger.debug(
-            f"Comparison result: {result}", extra={"comparison_result": result}
-        )
+        self.logger.debug(f"Comparison result: {result}", extra={"comparison_result": result})
 
     def log_error_details(self, error: Exception, context: str = ""):
         """Log detailed error information."""

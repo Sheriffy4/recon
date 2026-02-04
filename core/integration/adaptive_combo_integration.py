@@ -94,9 +94,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
                 LOG.warning(f"Error handler not available: {e}")
         LOG.info(f"Adaptive Combo Attack Integration initialized: {self.config.name}")
 
-    async def execute(
-        self, target: str, context: AttackContext
-    ) -> AdvancedAttackResult:
+    async def execute(self, target: str, context: AttackContext) -> AdvancedAttackResult:
         """Execute adaptive combo attack with ML integration."""
         LOG.info(f"Executing adaptive combo attack on {target}")
         start_time = time.time()
@@ -110,9 +108,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
             base_context = await self._convert_to_base_context(context, state)
             if self.adaptive_attack:
                 base_result = await self.adaptive_attack.execute(base_context)
-                result = await self._convert_from_base_result(
-                    base_result, state, target_key
-                )
+                result = await self._convert_from_base_result(base_result, state, target_key)
             else:
                 result = await self._fallback_execution(target, context, state)
             await self._update_state_and_learning(state, result, target_key)
@@ -129,14 +125,9 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
                     error_context = ErrorContext(
                         attack_name=self.config.name, target=target, operation="execute"
                     )
-                    error = create_execution_error(
-                        str(e), self.config.name, error_context, e
-                    )
+                    error = create_execution_error(str(e), self.config.name, error_context, e)
                     recovery_result = await self.error_handler.handle_error(error)
-                    if (
-                        recovery_result.success
-                        and recovery_result.action.value == "retry"
-                    ):
+                    if recovery_result.success and recovery_result.action.value == "retry":
                         return await self._retry_with_fallback(target, context)
                 except Exception as error_handling_error:
                     LOG.error(f"Error handling failed: {error_handling_error}")
@@ -147,14 +138,10 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
         LOG.info(f"Adapting from ML feedback: {feedback.attack_name}")
         try:
             if feedback.success:
-                self.adaptation_aggressiveness = max(
-                    0.1, self.adaptation_aggressiveness * 0.95
-                )
+                self.adaptation_aggressiveness = max(0.1, self.adaptation_aggressiveness * 0.95)
                 self.detection_threshold = min(0.9, self.detection_threshold * 1.05)
             else:
-                self.adaptation_aggressiveness = min(
-                    1.0, self.adaptation_aggressiveness * 1.1
-                )
+                self.adaptation_aggressiveness = min(1.0, self.adaptation_aggressiveness * 1.1)
                 self.detection_threshold = max(0.3, self.detection_threshold * 0.95)
             for suggestion in feedback.adaptation_suggestions:
                 await self._apply_adaptation_suggestion(suggestion)
@@ -179,9 +166,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
                 "learning_rate": self.learning_rate,
             }
             if self.state_cache:
-                total_iterations = sum(
-                    (state.iteration for state in self.state_cache.values())
-                )
+                total_iterations = sum((state.iteration for state in self.state_cache.values()))
                 total_techniques = sum(
                     (len(state.techniques_tried) for state in self.state_cache.values())
                 )
@@ -234,9 +219,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
                 self.max_iterations = max(3, self.max_iterations - 1)
             primary_strategy = ml_prediction.primary_strategy
             if "combo" in primary_strategy or "adaptive" in primary_strategy:
-                self.adaptation_aggressiveness = min(
-                    1.0, self.adaptation_aggressiveness * 1.2
-                )
+                self.adaptation_aggressiveness = min(1.0, self.adaptation_aggressiveness * 1.2)
             elif "steganography" in primary_strategy:
                 self.detection_threshold = max(0.3, self.detection_threshold * 0.8)
             LOG.debug(
@@ -253,17 +236,13 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
             most_successful = historical_data.get("most_successful_attack")
             if most_successful and "adaptive" in most_successful:
                 state.current_strategy = "proven"
-                self.adaptation_aggressiveness = min(
-                    1.0, self.adaptation_aggressiveness * 1.1
-                )
+                self.adaptation_aggressiveness = min(1.0, self.adaptation_aggressiveness * 1.1)
             historical_success_rate = historical_data.get("success_rate", 0.5)
             if historical_success_rate > 0.8:
                 self.detection_threshold = min(0.9, self.detection_threshold * 1.1)
             elif historical_success_rate < 0.3:
                 self.detection_threshold = max(0.3, self.detection_threshold * 0.9)
-            LOG.debug(
-                f"Applied historical learning: success_rate={historical_success_rate}"
-            )
+            LOG.debug(f"Applied historical learning: success_rate={historical_success_rate}")
         except Exception as e:
             LOG.error(f"Failed to apply historical learning: {e}")
 
@@ -272,9 +251,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
     ) -> BaseAttackContext:
         """Convert Phase 2 context to base attack context."""
         try:
-            payload = (
-                f"GET / HTTP/1.1\r\nHost: {context.target_info.domain}\r\n\r\n".encode()
-            )
+            payload = f"GET / HTTP/1.1\r\nHost: {context.target_info.domain}\r\n\r\n".encode()
             base_context = BaseAttackContext(
                 payload=payload,
                 dst_ip=context.target_info.ip,
@@ -319,9 +296,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
                 success=base_result.status.name == "SUCCESS",
                 latency_ms=base_result.latency_ms,
                 effectiveness_score=final_success_rate,
-                failure_reason=(
-                    base_result.error_message if base_result.error_message else None
-                ),
+                failure_reason=(base_result.error_message if base_result.error_message else None),
                 adaptation_suggestions=self._generate_adaptation_suggestions(
                     state, detection_score
                 ),
@@ -349,9 +324,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
                 network_overhead_bytes=base_result.bytes_sent,
                 success_rate=final_success_rate,
             )
-            adaptation_suggestions = self._generate_adaptation_suggestions(
-                state, detection_score
-            )
+            adaptation_suggestions = self._generate_adaptation_suggestions(state, detection_score)
             return AdvancedAttackResult(
                 attack_name=self.config.name,
                 success=base_result.status.name == "SUCCESS",
@@ -414,9 +387,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
             elif suggestion == "decrease_threshold":
                 self.detection_threshold = max(0.2, self.detection_threshold * 0.9)
             elif suggestion == "increase_aggressiveness":
-                self.adaptation_aggressiveness = min(
-                    1.0, self.adaptation_aggressiveness * 1.1
-                )
+                self.adaptation_aggressiveness = min(1.0, self.adaptation_aggressiveness * 1.1)
             elif suggestion == "reset_techniques":
                 for state in self.state_cache.values():
                     state.techniques_tried.clear()
@@ -450,9 +421,7 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
                 }
             )
             if len(self.learning_data_cache[target_key]) > 20:
-                self.learning_data_cache[target_key] = self.learning_data_cache[
-                    target_key
-                ][-20:]
+                self.learning_data_cache[target_key] = self.learning_data_cache[target_key][-20:]
         except Exception as e:
             LOG.error(f"Failed to update state and learning: {e}")
 
@@ -482,12 +451,8 @@ class AdaptiveComboAttackIntegration(AdvancedAttack):
                 success=success,
                 latency_ms=latency,
                 effectiveness_score=effectiveness,
-                failure_reason=(
-                    None if success else "DPI too sophisticated for fallback"
-                ),
-                adaptation_suggestions=(
-                    ["increase_aggressiveness"] if not success else []
-                ),
+                failure_reason=(None if success else "DPI too sophisticated for fallback"),
+                adaptation_suggestions=(["increase_aggressiveness"] if not success else []),
             )
             learning_data = LearningData(
                 target_signature=target,

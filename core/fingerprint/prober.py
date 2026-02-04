@@ -93,9 +93,7 @@ def probe_timeout(timeout: float):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             try:
-                return await asyncio.wait_for(
-                    func(self, *args, **kwargs), timeout=timeout
-                )
+                return await asyncio.wait_for(func(self, *args, **kwargs), timeout=timeout)
             except asyncio.TimeoutError:
                 LOG.debug(f"Probe {func.__name__} timed out after {timeout}s")
                 return None
@@ -251,9 +249,7 @@ class UltimateDPIProber:
         force_all: bool = False,
     ) -> Dict[str, Any]:
         if not self.config or not self.executor or (not self.cache):
-            raise RuntimeError(
-                "ProbeConfig is not set. Call set_config() before running probes."
-            )
+            raise RuntimeError("ProbeConfig is not set. Call set_config() before running probes.")
         start_time = time.time()
         cache_key = f"{self.config.target_ip}:{self.config.port}:{domain}"
         if not force_all:
@@ -427,9 +423,7 @@ class UltimateDPIProber:
                 result = await task
                 if result is not None:
                     if asyncio.iscoroutine(result):
-                        LOG.warning(
-                            f"Probe {name} returned coroutine instead of result"
-                        )
+                        LOG.warning(f"Probe {name} returned coroutine instead of result")
                         result = await result
                     results[name] = result
                     probe_result = ProbeResult(
@@ -444,9 +438,7 @@ class UltimateDPIProber:
     async def _run_single_probe(self, name: str, probe_func: Callable) -> Any:
         """Run single probe with retry logic"""
         last_error = None
-        for attempt in range(
-            self.config.max_retries if self.config.retry_failed else 1
-        ):
+        for attempt in range(self.config.max_retries if self.config.retry_failed else 1):
             try:
                 if attempt > 0:
                     LOG.debug(f"Retrying probe {name} (attempt {attempt + 1})")
@@ -491,9 +483,7 @@ class UltimateDPIProber:
         """Test if DPI validates TCP checksums"""
         LOG.debug(f"Probing checksum validation on {self.config.target_ip}")
         ip = self._get_ip_layer()
-        pkt = ip(dst=self.config.target_ip) / TCP(
-            dport=self.config.port, flags="S", chksum=57005
-        )
+        pkt = ip(dst=self.config.target_ip) / TCP(dport=self.config.port, flags="S", chksum=57005)
         resp = await self._async_sr1(pkt)
         return resp is None
 
@@ -515,9 +505,7 @@ class UltimateDPIProber:
             if i < len(frags) - 1:
                 await asyncio.sleep(0.01)
         await asyncio.sleep(0.5)
-        test_pkt = ip(dst=self.config.target_ip) / TCP(
-            dport=self.config.port, flags="S"
-        )
+        test_pkt = ip(dst=self.config.target_ip) / TCP(dport=self.config.port, flags="S")
         resp = await self._async_sr1(test_pkt)
         return resp is not None
 
@@ -689,9 +677,7 @@ class UltimateDPIProber:
             ("TLS 1.3", b"\x03\x04"),
         ]
         for version_name, version_bytes in versions:
-            hello = self.tls_handler.build_client_hello(
-                "example.com", version=version_bytes
-            )
+            hello = self.tls_handler.build_client_hello("example.com", version=version_bytes)
             resp = await self._send_client_hello(hello)
             blocked = resp is None or self._is_rst(resp)
             results[version_name] = not blocked
@@ -893,9 +879,7 @@ class UltimateDPIProber:
             attack = ECHFragmentationAttack()
             result = attack.execute(context)
             if result.status.name == "SUCCESS":
-                modified_hello = result.metadata.get("segments", [(base_hello, 0)])[0][
-                    0
-                ]
+                modified_hello = result.metadata.get("segments", [(base_hello, 0)])[0][0]
                 frag_resp = await self._send_client_hello(modified_hello)
                 normal_blocked = normal_resp is None or self._is_rst(normal_resp)
                 frag_works = frag_resp is not None and (not self._is_rst(frag_resp))
@@ -919,9 +903,7 @@ class UltimateDPIProber:
         resp = await self._send_client_hello(hello)
         return resp is not None and (not self._is_rst(resp))
 
-    def _build_simple_client_hello(
-        self, sni: str, extra_extension: bytes = b""
-    ) -> bytes:
+    def _build_simple_client_hello(self, sni: str, extra_extension: bytes = b"") -> bytes:
         """Build a simplified TLS ClientHello for testing"""
         hello = b"\x16"
         hello += b"\x03\x01"
@@ -964,9 +946,7 @@ class UltimateDPIProber:
         )
         record_length = len(hello) - 5
         hello = (
-            hello[:length_offset]
-            + struct.pack("!H", record_length)
-            + hello[length_offset + 2 :]
+            hello[:length_offset] + struct.pack("!H", record_length) + hello[length_offset + 2 :]
         )
         return hello
 
@@ -1090,9 +1070,7 @@ class UltimateDPIProber:
             if resp:
                 rapid_times.append(time.time() - start)
             await asyncio.sleep(0.01)
-        results["rapid_avg_ms"] = (
-            sum(rapid_times) / len(rapid_times) * 1000 if rapid_times else 0
-        )
+        results["rapid_avg_ms"] = sum(rapid_times) / len(rapid_times) * 1000 if rapid_times else 0
         await asyncio.sleep(1.0)
         delayed_times = []
         for i in range(3):
@@ -1108,9 +1086,7 @@ class UltimateDPIProber:
             sum(delayed_times) / len(delayed_times) * 1000 if delayed_times else 0
         )
         if results["rapid_avg_ms"] > 0 and results["delayed_avg_ms"] > 0:
-            results["timing_ratio"] = (
-                results["rapid_avg_ms"] / results["delayed_avg_ms"]
-            )
+            results["timing_ratio"] = results["rapid_avg_ms"] / results["delayed_avg_ms"]
         else:
             results["timing_ratio"] = 1.0
         return results
@@ -1224,9 +1200,7 @@ class UltimateDPIProber:
         LOG.debug(f"Probing DPI distance to {self.config.target_ip}")
         ip = self._get_ip_layer()
         for ttl in range(1, 30):
-            suspicious_hello = self.tls_handler.build_client_hello(
-                "blocked.example.com"
-            )
+            suspicious_hello = self.tls_handler.build_client_hello("blocked.example.com")
             pkt = (
                 ip(dst=self.config.target_ip, ttl=ttl)
                 / TCP(dport=self.config.port, flags="PA")
@@ -1258,24 +1232,12 @@ class UltimateDPIProber:
         working_mtu = 576
         for size in sizes:
             if self.config.family == "IPv4":
-                pkt = (
-                    ip(dst=self.config.target_ip, flags="DF")
-                    / ICMP()
-                    / Raw(b"X" * (size - 28))
-                )
+                pkt = ip(dst=self.config.target_ip, flags="DF") / ICMP() / Raw(b"X" * (size - 28))
             else:
-                pkt = (
-                    ip(dst=self.config.target_ip)
-                    / ICMPv6EchoRequest()
-                    / Raw(b"X" * (size - 48))
-                )
+                pkt = ip(dst=self.config.target_ip) / ICMPv6EchoRequest() / Raw(b"X" * (size - 48))
             resp = await self._async_sr1(pkt, timeout=1.0)
             if resp:
-                if (
-                    resp.haslayer(ICMP)
-                    and resp[ICMP].type == 3
-                    and (resp[ICMP].code == 4)
-                ):
+                if resp.haslayer(ICMP) and resp[ICMP].type == 3 and (resp[ICMP].code == 4):
                     continue
                 else:
                     working_mtu = size
@@ -1298,9 +1260,7 @@ class UltimateDPIProber:
                 start = time.time()
                 await asyncio.get_event_loop().sock_sendall(sock, data)
                 try:
-                    await asyncio.wait_for(
-                        asyncio.get_event_loop().sock_recv(sock, 1), timeout=0.5
-                    )
+                    await asyncio.wait_for(asyncio.get_event_loop().sock_recv(sock, 1), timeout=0.5)
                     rtt = time.time() - start
                     measurements.append(rtt)
                 except:
@@ -1308,9 +1268,7 @@ class UltimateDPIProber:
             sock.close()
             if measurements:
                 avg_rtt = sum(measurements) / len(measurements)
-                variance = sum(((x - avg_rtt) ** 2 for x in measurements)) / len(
-                    measurements
-                )
+                variance = sum(((x - avg_rtt) ** 2 for x in measurements)) / len(measurements)
                 if variance < 0.001:
                     return "vegas"
                 elif variance > 0.01:
@@ -1373,9 +1331,7 @@ class UltimateDPIProber:
         sa_payload = os.urandom(100)
         ip = self._get_ip_layer()
         pkt = (
-            ip(dst=self.config.target_ip)
-            / UDP(sport=500, dport=500)
-            / Raw(ike_header + sa_payload)
+            ip(dst=self.config.target_ip) / UDP(sport=500, dport=500) / Raw(ike_header + sa_payload)
         )
         resp = await self._async_sr1(pkt, timeout=1.0)
         return resp is not None
@@ -1447,9 +1403,7 @@ class UltimateDPIProber:
         """Test certificate validation behavior"""
         LOG.debug(f"Probing certificate validation on {self.config.target_ip}")
         results = {}
-        self_signed_hello = self.tls_handler.build_client_hello(
-            "self-signed.badssl.com"
-        )
+        self_signed_hello = self.tls_handler.build_client_hello("self-signed.badssl.com")
         resp1 = await self._send_client_hello(self_signed_hello)
         results["blocks_self_signed"] = resp1 is None or self._is_rst(resp1)
         expired_hello = self.tls_handler.build_client_hello("expired.badssl.com")
@@ -1510,9 +1464,7 @@ class UltimateDPIProber:
             return True
         return False
 
-    async def _send_tcp_payload(
-        self, payload: bytes, port: int = None
-    ) -> Optional[Packet]:
+    async def _send_tcp_payload(self, payload: bytes, port: int = None) -> Optional[Packet]:
         """Send TCP payload and get response"""
         port = port or self.config.port
         ip = self._get_ip_layer()

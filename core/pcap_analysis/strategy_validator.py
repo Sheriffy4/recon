@@ -50,9 +50,7 @@ class TestDomain:
         now = time.time()
         if self.last_success:
             days_since_success = (now - self.last_success) / 86400
-            recency_factor = max(
-                0.1, 1.0 - (days_since_success / 30)
-            )  # Decay over 30 days
+            recency_factor = max(0.1, 1.0 - (days_since_success / 30))  # Decay over 30 days
             base_score *= recency_factor
 
         return base_score
@@ -84,9 +82,7 @@ class ValidationResult:
         """Convert to dictionary for serialization."""
         return {
             "success": self.success,
-            "strategy_config": (
-                self.strategy_config.to_dict() if self.strategy_config else None
-            ),
+            "strategy_config": (self.strategy_config.to_dict() if self.strategy_config else None),
             "domains_tested": self.domains_tested,
             "domains_successful": self.domains_successful,
             "success_rate": self.success_rate,
@@ -114,9 +110,7 @@ class EffectivenessResult:
     def __post_init__(self):
         """Calculate derived metrics."""
         self.success_rate = (
-            self.successful_domains / self.total_domains
-            if self.total_domains > 0
-            else 0.0
+            self.successful_domains / self.total_domains if self.total_domains > 0 else 0.0
         )
         self.failed_domains = self.total_domains - self.successful_domains
 
@@ -134,24 +128,14 @@ class BeforeAfterComparison:
 
     def __post_init__(self):
         """Calculate comparison metrics."""
-        self.improvement = max(
-            0, self.after_result.success_rate - self.before_result.success_rate
-        )
-        self.degradation = max(
-            0, self.before_result.success_rate - self.after_result.success_rate
-        )
-        self.net_change = (
-            self.after_result.success_rate - self.before_result.success_rate
-        )
+        self.improvement = max(0, self.after_result.success_rate - self.before_result.success_rate)
+        self.degradation = max(0, self.before_result.success_rate - self.after_result.success_rate)
+        self.net_change = self.after_result.success_rate - self.before_result.success_rate
 
         # Consider change significant if > 10% or affects > 2 domains
         rate_change = abs(self.net_change) > 0.1
         domain_change = (
-            abs(
-                self.after_result.successful_domains
-                - self.before_result.successful_domains
-            )
-            > 2
+            abs(self.after_result.successful_domains - self.before_result.successful_domains) > 2
         )
         self.significant_change = rate_change or domain_change
 
@@ -229,9 +213,7 @@ class DomainSelector:
             ]
         ):
             return "social"
-        elif any(
-            video in domain for video in ["youtube.com", "ytimg.com", "googlevideo.com"]
-        ):
+        elif any(video in domain for video in ["youtube.com", "ytimg.com", "googlevideo.com"]):
             return "video"
         elif any(torrent in domain for torrent in ["rutracker.org", "nnmclub.to"]):
             return "torrent"
@@ -297,9 +279,7 @@ class DomainSelector:
                         domain.last_success = stats.get("last_success")
                         domain.last_failure = stats.get("last_failure")
 
-                logger.info(
-                    f"Loaded domain statistics for {len(self.domain_stats)} domains"
-                )
+                logger.info(f"Loaded domain statistics for {len(self.domain_stats)} domains")
             except Exception as e:
                 logger.warning(f"Failed to load domain stats: {e}")
 
@@ -436,9 +416,7 @@ class StrategyValidator:
         try:
             # Select test domains
             if test_domains:
-                domains = [
-                    TestDomain(url=f"https://{d}", domain=d) for d in test_domains
-                ]
+                domains = [TestDomain(url=f"https://{d}", domain=d) for d in test_domains]
             else:
                 domains = self.domain_selector.select_test_domains(count=5)
 
@@ -534,9 +512,7 @@ class StrategyValidator:
         except Exception as e:
             logger.error(f"Error applying fix: {e}")
 
-    async def _test_domain_with_strategy(
-        self, domain: TestDomain, fix: CodeFix
-    ) -> Dict[str, Any]:
+    async def _test_domain_with_strategy(self, domain: TestDomain, fix: CodeFix) -> Dict[str, Any]:
         """Test a domain with the strategy from the fix."""
         logger.info(f"Testing domain {domain.domain} with fix")
 
@@ -557,9 +533,7 @@ class StrategyValidator:
             )
 
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(), timeout=self.timeout
-                )
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
                 response_time = time.time() - start_time
 
                 # Analyze result
@@ -615,9 +589,7 @@ class StrategyValidator:
 
         return config
 
-    def _build_test_command(
-        self, domain: TestDomain, strategy_config: StrategyConfig
-    ) -> List[str]:
+    def _build_test_command(self, domain: TestDomain, strategy_config: StrategyConfig) -> List[str]:
         """Build command to test domain with strategy."""
         cmd = ["python", "cli.py"]
 
@@ -639,9 +611,7 @@ class StrategyValidator:
 
         return cmd
 
-    def _analyze_test_result(
-        self, stdout: bytes, stderr: bytes, return_code: int
-    ) -> bool:
+    def _analyze_test_result(self, stdout: bytes, stderr: bytes, return_code: int) -> bool:
         """Analyze test result to determine success."""
         stdout_str = stdout.decode("utf-8", errors="ignore").lower()
         stderr_str = stderr.decode("utf-8", errors="ignore").lower()
@@ -679,9 +649,7 @@ class StrategyValidator:
         # Default to success if return code is 0 and no clear failure
         return return_code == 0
 
-    async def _generate_validation_pcap(
-        self, domain: TestDomain, fix: CodeFix
-    ) -> Optional[str]:
+    async def _generate_validation_pcap(self, domain: TestDomain, fix: CodeFix) -> Optional[str]:
         """Generate PCAP file for validation testing."""
         try:
             pcap_filename = f"validation_{domain.domain}_{int(time.time())}.pcap"
@@ -749,9 +717,7 @@ class StrategyValidator:
 
             total_response_time += result.get("response_time", 0.0)
 
-        average_response_time = (
-            total_response_time / len(test_domains) if test_domains else 0.0
-        )
+        average_response_time = total_response_time / len(test_domains) if test_domains else 0.0
 
         # Calculate performance breakdown by category
         performance_breakdown = {}
@@ -816,9 +782,7 @@ class StrategyValidator:
             )
 
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(), timeout=self.timeout
-                )
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
                 response_time = time.time() - start_time
 
                 success = self._analyze_test_result(stdout, stderr, process.returncode)
@@ -853,9 +817,7 @@ class StrategyValidator:
         logger.info("Comparing strategy performance before and after fixes")
 
         # Test original strategy
-        before_result = await self.test_strategy_effectiveness(
-            original_strategy, domains
-        )
+        before_result = await self.test_strategy_effectiveness(original_strategy, domains)
 
         # Test fixed strategy
         after_result = await self.test_strategy_effectiveness(fixed_strategy, domains)
@@ -875,14 +837,10 @@ class StrategyValidator:
         self, strategy: StrategyConfig, domain: str
     ) -> Optional[str]:
         """Generate PCAP file for validation testing."""
-        logger.info(
-            f"Generating validation PCAP for {domain} with strategy {strategy.name}"
-        )
+        logger.info(f"Generating validation PCAP for {domain} with strategy {strategy.name}")
 
         try:
-            pcap_filename = (
-                f"validation_{domain.replace('.', '_')}_{int(time.time())}.pcap"
-            )
+            pcap_filename = f"validation_{domain.replace('.', '_')}_{int(time.time())}.pcap"
             pcap_path = self.pcap_dir / pcap_filename
 
             # Build command
@@ -942,9 +900,7 @@ class StrategyValidator:
 
         domain_success_rates = [r.success_rate for r in results if r.domains_tested > 0]
         average_domain_success_rate = (
-            sum(domain_success_rates) / len(domain_success_rates)
-            if domain_success_rates
-            else 0.0
+            sum(domain_success_rates) / len(domain_success_rates) if domain_success_rates else 0.0
         )
 
         return {
@@ -955,8 +911,6 @@ class StrategyValidator:
             "total_domains_tested": total_domains_tested,
             "total_domains_successful": total_domains_successful,
             "overall_domain_success_rate": (
-                total_domains_successful / total_domains_tested
-                if total_domains_tested > 0
-                else 0.0
+                total_domains_successful / total_domains_tested if total_domains_tested > 0 else 0.0
             ),
         }

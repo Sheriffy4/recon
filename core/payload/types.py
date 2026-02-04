@@ -17,25 +17,26 @@ from typing import Optional
 class PayloadType(Enum):
     """
     Enumeration of supported payload types.
-    
+
     Each type corresponds to a specific protocol that can be used
     for fake payload generation in DPI bypass strategies.
-    
+
     Requirements: 5.1, 5.2, 5.3
     """
-    TLS = "tls"           # TLS ClientHello payloads
-    HTTP = "http"         # HTTP request payloads
-    QUIC = "quic"         # QUIC Initial payloads
-    UNKNOWN = "unknown"   # Unknown or unvalidated payloads
-    
+
+    TLS = "tls"  # TLS ClientHello payloads
+    HTTP = "http"  # HTTP request payloads
+    QUIC = "quic"  # QUIC Initial payloads
+    UNKNOWN = "unknown"  # Unknown or unvalidated payloads
+
     @classmethod
     def from_string(cls, value: str) -> "PayloadType":
         """
         Convert a string to PayloadType enum.
-        
+
         Args:
             value: String representation of payload type
-            
+
         Returns:
             Corresponding PayloadType enum value
         """
@@ -50,10 +51,10 @@ class PayloadType(Enum):
 class PayloadInfo:
     """
     Metadata about a payload.
-    
+
     Contains all information needed to identify, locate, and validate
     a payload file or data.
-    
+
     Attributes:
         payload_type: Type of payload (TLS, HTTP, QUIC, UNKNOWN)
         source: Origin of payload ("bundled", "captured", "hex", "inline")
@@ -61,44 +62,44 @@ class PayloadInfo:
         file_path: Path to payload file on disk (optional)
         size: Size of payload in bytes
         checksum: SHA256 checksum of payload data
-        
+
     Requirements: 1.1, 5.1, 5.2, 5.3
     """
+
     payload_type: PayloadType
     source: str
     size: int
     checksum: str
     domain: Optional[str] = None
     file_path: Optional[Path] = None
-    
+
     def __post_init__(self):
         """Validate and normalize fields after initialization."""
         # Convert string path to Path object if needed
         if self.file_path is not None and isinstance(self.file_path, str):
             self.file_path = Path(self.file_path)
-        
+
         # Validate source
         valid_sources = {"bundled", "captured", "hex", "inline"}
         if self.source not in valid_sources:
             raise ValueError(
-                f"Invalid source '{self.source}'. "
-                f"Must be one of: {', '.join(valid_sources)}"
+                f"Invalid source '{self.source}'. " f"Must be one of: {', '.join(valid_sources)}"
             )
-        
+
         # Validate size
         if self.size < 0:
             raise ValueError(f"Size must be non-negative, got {self.size}")
-    
+
     @property
     def is_file_based(self) -> bool:
         """Check if payload is stored in a file."""
         return self.file_path is not None
-    
+
     @property
     def is_domain_specific(self) -> bool:
         """Check if payload is associated with a specific domain."""
         return self.domain is not None
-    
+
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
@@ -109,7 +110,7 @@ class PayloadInfo:
             "size": self.size,
             "checksum": self.checksum,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict) -> "PayloadInfo":
         """Create PayloadInfo from dictionary."""

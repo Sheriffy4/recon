@@ -34,9 +34,7 @@ class MetricsCollector:
         self.logger = get_logger(f"Metrics.{name}")
         self._counters: Dict[str, int] = defaultdict(int)
         self._gauges: Dict[str, float] = {}
-        self._histograms: Dict[str, deque] = defaultdict(
-            lambda: deque(maxlen=max_history)
-        )
+        self._histograms: Dict[str, deque] = defaultdict(lambda: deque(maxlen=max_history))
         self._timers: Dict[str, float] = {}
         self._lock = Lock()
         self._start_time = time.time()
@@ -56,9 +54,7 @@ class MetricsCollector:
             key = self._make_key(name, labels)
             self._counters[key] += value
 
-    def set_gauge(
-        self, name: str, value: float, labels: Optional[Dict[str, str]] = None
-    ) -> None:
+    def set_gauge(self, name: str, value: float, labels: Optional[Dict[str, str]] = None) -> None:
         """
         Установка значения gauge.
 
@@ -96,9 +92,7 @@ class MetricsCollector:
         with self._lock:
             self._timers[name] = time.time()
 
-    def stop_timer(
-        self, name: str, labels: Optional[Dict[str, str]] = None
-    ) -> Optional[float]:
+    def stop_timer(self, name: str, labels: Optional[Dict[str, str]] = None) -> Optional[float]:
         """
         Остановка таймера и запись времени.
 
@@ -129,9 +123,7 @@ class MetricsCollector:
             key = self._make_key(name, labels)
             return self._counters.get(key, 0)
 
-    def get_gauge(
-        self, name: str, labels: Optional[Dict[str, str]] = None
-    ) -> Optional[float]:
+    def get_gauge(self, name: str, labels: Optional[Dict[str, str]] = None) -> Optional[float]:
         """Получение значения gauge."""
         with self._lock:
             key = self._make_key(name, labels)

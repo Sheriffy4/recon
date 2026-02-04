@@ -132,9 +132,7 @@ class QUICAttackIntegration(AdvancedAttack):
                 self.quic_prober = None
         LOG.info("QUIC Attack Integration initialized")
 
-    async def execute(
-        self, target: str, context: AttackContext
-    ) -> AdvancedAttackResult:
+    async def execute(self, target: str, context: AttackContext) -> AdvancedAttackResult:
         """Execute QUIC attack with enhanced detection and optimization."""
         start_time = time.time()
         try:
@@ -144,12 +142,8 @@ class QUICAttackIntegration(AdvancedAttack):
             strategy = await self._select_optimal_quic_strategy(
                 fingerprint_hash, quic_detection, ml_prediction, context
             )
-            result = await self._execute_quic_attack(
-                target, context, strategy, fingerprint_hash
-            )
-            await self._save_attack_result(
-                fingerprint_hash, strategy, result, quic_detection
-            )
+            result = await self._execute_quic_attack(target, context, strategy, fingerprint_hash)
+            await self._save_attack_result(fingerprint_hash, strategy, result, quic_detection)
             await self._update_state_and_stats(result, quic_detection)
             return result
         except Exception as e:
@@ -171,9 +165,7 @@ class QUICAttackIntegration(AdvancedAttack):
                 effectiveness_score=0.0,
             )
 
-    async def _generate_fingerprint_hash(
-        self, target: str, context: AttackContext
-    ) -> str:
+    async def _generate_fingerprint_hash(self, target: str, context: AttackContext) -> str:
         """Generate fingerprint hash for target."""
         try:
             fingerprint_data = {
@@ -215,9 +207,7 @@ class QUICAttackIntegration(AdvancedAttack):
                 max_datagram_size=1200,
                 confidence=confidence,
                 detected_features=(
-                    ["quic_support", "http3_support"]
-                    if http3_supported
-                    else ["quic_support"]
+                    ["quic_support", "http3_support"] if http3_supported else ["quic_support"]
                 ),
                 recommended_attacks=recommended_attacks,
             )
@@ -400,9 +390,7 @@ class QUICAttackIntegration(AdvancedAttack):
                 success=result.status.name == "SUCCESS",
                 latency_ms=execution_time,
                 effectiveness_score=effectiveness_score,
-                failure_reason=(
-                    None if result.status.name == "SUCCESS" else result.error_message
-                ),
+                failure_reason=(None if result.status.name == "SUCCESS" else result.error_message),
                 adaptation_suggestions=self._generate_quic_suggestions(
                     strategy, result, effectiveness_score
                 ),
@@ -434,9 +422,7 @@ class QUICAttackIntegration(AdvancedAttack):
                 target=target,
                 latency_ms=execution_time,
                 effectiveness_score=effectiveness_score,
-                error_message=(
-                    result.error_message if result.status.name != "SUCCESS" else None
-                ),
+                error_message=(result.error_message if result.status.name != "SUCCESS" else None),
                 ml_feedback=ml_feedback,
                 learning_data=learning_data,
                 performance_metrics=performance_metrics,
@@ -445,9 +431,7 @@ class QUICAttackIntegration(AdvancedAttack):
                     "parameters": parameters,
                     "packets_sent": getattr(result, "packets_sent", 0),
                     "bytes_sent": getattr(result, "bytes_sent", 0),
-                    "connection_established": getattr(
-                        result, "connection_established", False
-                    ),
+                    "connection_established": getattr(result, "connection_established", False),
                 },
             )
         except Exception as e:

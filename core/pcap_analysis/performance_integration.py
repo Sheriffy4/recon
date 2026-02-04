@@ -103,9 +103,7 @@ class HighPerformancePcapAnalyzer:
                 memory_limit_mb=self.config.streaming_memory_limit_mb,
                 enable_gc_optimization=self.config.enable_aggressive_gc,
                 progress_callback=(
-                    self._progress_callback
-                    if self.config.enable_progress_reporting
-                    else None
+                    self._progress_callback if self.config.enable_progress_reporting else None
                 ),
             )
             self.streaming_processor = StreamingPcapProcessor(streaming_config)
@@ -193,9 +191,7 @@ class HighPerformancePcapAnalyzer:
 
             # Optimize packet storage
             if self.memory_optimizer and len(packets) > 1000:
-                optimized_storage = self.memory_optimizer.optimize_packet_storage(
-                    packets
-                )
+                optimized_storage = self.memory_optimizer.optimize_packet_storage(packets)
                 packets = optimized_storage.get_all_packets()
                 self.metrics["memory_optimizations"] += 1
                 logger.debug("Applied memory optimization to packet storage")
@@ -229,9 +225,7 @@ class HighPerformancePcapAnalyzer:
 
             # Cache results
             if self.cached_analyzer:
-                self.cache.put(
-                    cache_key, results, self.config.default_cache_ttl_seconds
-                )
+                self.cache.put(cache_key, results, self.config.default_cache_ttl_seconds)
 
             # Record optimizations applied
             if self.streaming_processor:
@@ -252,9 +246,7 @@ class HighPerformancePcapAnalyzer:
             logger.error(f"Error analyzing PCAP {pcap_file}: {e}")
             raise
 
-    def compare_pcaps_optimized(
-        self, recon_pcap: str, zapret_pcap: str
-    ) -> ComparisonResult:
+    def compare_pcaps_optimized(self, recon_pcap: str, zapret_pcap: str) -> ComparisonResult:
         """
         Compare two PCAP files with all optimizations enabled.
 
@@ -267,9 +259,7 @@ class HighPerformancePcapAnalyzer:
         """
         start_time = time.time()
 
-        logger.info(
-            f"Starting optimized PCAP comparison: {recon_pcap} vs {zapret_pcap}"
-        )
+        logger.info(f"Starting optimized PCAP comparison: {recon_pcap} vs {zapret_pcap}")
 
         try:
             # Check cache first
@@ -328,9 +318,7 @@ class HighPerformancePcapAnalyzer:
             logger.error(f"Error comparing PCAPs: {e}")
             raise
 
-    async def analyze_multiple_pcaps_async(
-        self, pcap_files: List[str]
-    ) -> Dict[str, Any]:
+    async def analyze_multiple_pcaps_async(self, pcap_files: List[str]) -> Dict[str, Any]:
         """
         Analyze multiple PCAP files asynchronously with optimizations.
 
@@ -348,9 +336,7 @@ class HighPerformancePcapAnalyzer:
         # Create analysis tasks
         async def analyze_single_async(pcap_file: str) -> Tuple[str, Dict[str, Any]]:
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None, self.analyze_single_pcap, pcap_file
-            )
+            result = await loop.run_in_executor(None, self.analyze_single_pcap, pcap_file)
             return pcap_file, result
 
         # Execute all analyses concurrently
@@ -369,9 +355,7 @@ class HighPerformancePcapAnalyzer:
                 analysis_results[pcap_file] = analysis_result
                 successful_analyses += 1
 
-        logger.info(
-            f"Completed async analysis: {successful_analyses}/{len(pcap_files)} successful"
-        )
+        logger.info(f"Completed async analysis: {successful_analyses}/{len(pcap_files)} successful")
 
         return {
             "results": analysis_results,
@@ -447,9 +431,7 @@ class HighPerformancePcapAnalyzer:
 
         tls_packets = sum(1 for p in packets if p.is_client_hello)
 
-        time_span = max(p.timestamp for p in packets) - min(
-            p.timestamp for p in packets
-        )
+        time_span = max(p.timestamp for p in packets) - min(p.timestamp for p in packets)
 
         return {
             "basic_stats": {
@@ -485,8 +467,7 @@ class HighPerformancePcapAnalyzer:
                 metrics["total_processing_time"] / metrics["total_analyses"]
             )
             metrics["cache_hit_rate"] = (
-                metrics["cache_hits"]
-                / (metrics["cache_hits"] + metrics["cache_misses"])
+                metrics["cache_hits"] / (metrics["cache_hits"] + metrics["cache_misses"])
                 if (metrics["cache_hits"] + metrics["cache_misses"]) > 0
                 else 0.0
             )
@@ -548,9 +529,7 @@ if __name__ == "__main__":
 
         # Test batch analysis
         if len(existing_pcaps) > 1:
-            batch_results = analyzer.batch_analyze_with_optimization(
-                existing_pcaps, batch_size=2
-            )
+            batch_results = analyzer.batch_analyze_with_optimization(existing_pcaps, batch_size=2)
             print(f"Batch analysis completed: {batch_results['total_batches']} batches")
 
     else:

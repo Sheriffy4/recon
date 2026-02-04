@@ -383,9 +383,7 @@ class EngineConfigProfile(SerializableModel):
                         break
             data["fallback_engines"] = fallback_engines
         if "default_config" in data and isinstance(data["default_config"], dict):
-            data["default_config"] = EnhancedEngineConfig.from_dict(
-                data["default_config"]
-            )
+            data["default_config"] = EnhancedEngineConfig.from_dict(data["default_config"])
         return super().from_dict(data)
 
 
@@ -502,13 +500,9 @@ class ConfigurationManager:
         format: SerializationFormat = SerializationFormat.JSON,
     ) -> str:
         """Serialize engine profiles to string."""
-        profiles_dict = {
-            et.value: profile.to_dict() for et, profile in profiles.items()
-        }
+        profiles_dict = {et.value: profile.to_dict() for et, profile in profiles.items()}
         if format == SerializationFormat.JSON:
-            return json.dumps(
-                profiles_dict, indent=2, default=SerializableModel._json_serializer
-            )
+            return json.dumps(profiles_dict, indent=2, default=SerializableModel._json_serializer)
         else:
             raise NotImplementedError(f"Format {format} not implemented")
 
@@ -528,9 +522,7 @@ class ConfigurationManager:
                     break
         return profiles
 
-    def validate_configuration_file(
-        self, file_path: Union[str, Path]
-    ) -> ValidationResult:
+    def validate_configuration_file(self, file_path: Union[str, Path]) -> ValidationResult:
         """Validate a configuration file."""
         result = ValidationResult(valid=True)
         file_path = Path(file_path)
@@ -603,10 +595,7 @@ class ConfigurationManager:
         output_format: SerializationFormat = SerializationFormat.JSON,
     ):
         """Convert configuration file between formats."""
-        if (
-            input_format != SerializationFormat.JSON
-            or output_format != SerializationFormat.JSON
-        ):
+        if input_format != SerializationFormat.JSON or output_format != SerializationFormat.JSON:
             raise NotImplementedError("Only JSON format is currently supported")
         import shutil
 

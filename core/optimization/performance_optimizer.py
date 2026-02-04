@@ -39,9 +39,7 @@ class PerformanceOptimizer:
         self.monitoring_interval = 5.0
         self.history_size = 100
         self.profiles: deque[PerformanceProfile] = deque(maxlen=self.history_size)
-        self.thread_pool = ThreadPoolExecutor(
-            max_workers=4, thread_name_prefix="PerfOpt"
-        )
+        self.thread_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="PerfOpt")
         self._monitoring_thread: Optional[threading.Thread] = None
         self._monitoring_active = False
         self._caches: Dict[str, Any] = {}
@@ -78,9 +76,7 @@ class PerformanceOptimizer:
             timeout = max(self.monitoring_interval * 2, 10.0)
             self._monitoring_thread.join(timeout=timeout)
             if self._monitoring_thread.is_alive():
-                self.logger.warning(
-                    "Monitoring thread did not stop within timeout, forcing stop"
-                )
+                self.logger.warning("Monitoring thread did not stop within timeout, forcing stop")
             else:
                 self.logger.debug("Monitoring thread stopped successfully")
         self._monitoring_thread = None
@@ -109,9 +105,7 @@ class PerformanceOptimizer:
                     f"Monitoring error ({consecutive_errors}/{max_consecutive_errors}): {e}"
                 )
                 if consecutive_errors >= max_consecutive_errors:
-                    self.logger.error(
-                        "Too many consecutive monitoring errors, stopping monitoring"
-                    )
+                    self.logger.error("Too many consecutive monitoring errors, stopping monitoring")
                     self._monitoring_active = False
                     break
                 self._interruptible_sleep(min(self.monitoring_interval * 2, 30))
@@ -183,9 +177,7 @@ class PerformanceOptimizer:
         """Анализ производительности и применение оптимизаций."""
         recent_profiles = list(self.profiles)[-20:]
         avg_cpu = sum((p.cpu_percent for p in recent_profiles)) / len(recent_profiles)
-        avg_memory = sum((p.memory_percent for p in recent_profiles)) / len(
-            recent_profiles
-        )
+        avg_memory = sum((p.memory_percent for p in recent_profiles)) / len(recent_profiles)
         self.logger.debug(f"Performance: CPU={avg_cpu:.1f}%, Memory={avg_memory:.1f}%")
         if avg_cpu > 80 or avg_memory > 80:
             self.logger.info("High resource usage detected, applying optimizations")
@@ -207,18 +199,14 @@ class PerformanceOptimizer:
                 results[name] = result
                 self.metrics.stop_timer(f"optimization_{name}")
                 if result.get("success"):
-                    self.logger.info(
-                        f"Optimization {name} applied: {result.get('message')}"
-                    )
+                    self.logger.info(f"Optimization {name} applied: {result.get('message')}")
             except Exception as e:
                 self.logger.error(f"Optimization {optimization.__name__} failed: {e}")
                 results[optimization.__name__] = {"success": False, "error": str(e)}
                 self._handle_optimization_failure(optimization.__name__, e)
         return results
 
-    def _handle_optimization_failure(
-        self, optimization_name: str, error: Exception
-    ) -> None:
+    def _handle_optimization_failure(self, optimization_name: str, error: Exception) -> None:
         """
         Обработка ошибок оптимизации с graceful degradation.
 
@@ -227,13 +215,9 @@ class PerformanceOptimizer:
             error: Исключение, которое произошло
         """
         try:
-            self.logger.warning(
-                f"Optimization {optimization_name} failed, continuing without it"
-            )
+            self.logger.warning(f"Optimization {optimization_name} failed, continuing without it")
             if hasattr(self, "metrics"):
-                self.metrics.increment_counter(
-                    f"optimization_failures_{optimization_name}"
-                )
+                self.metrics.increment_counter(f"optimization_failures_{optimization_name}")
             if optimization_name == "_optimize_gc":
                 self.logger.info("Falling back to basic garbage collection")
                 try:
@@ -247,9 +231,7 @@ class PerformanceOptimizer:
             elif optimization_name == "_optimize_caches":
                 self.logger.info("Continuing without cache optimization")
         except Exception as fallback_error:
-            self.logger.error(
-                f"Error in optimization failure handler: {fallback_error}"
-            )
+            self.logger.error(f"Error in optimization failure handler: {fallback_error}")
 
     def _optimize_gc(self) -> Dict[str, Any]:
         """Оптимизация сборщика мусора."""
@@ -341,8 +323,7 @@ class PerformanceOptimizer:
         report = {
             "current": self._collect_profile().__dict__,
             "averages": {
-                "cpu_percent": sum((p.cpu_percent for p in recent_profiles))
-                / len(recent_profiles),
+                "cpu_percent": sum((p.cpu_percent for p in recent_profiles)) / len(recent_profiles),
                 "memory_percent": sum((p.memory_percent for p in recent_profiles))
                 / len(recent_profiles),
                 "thread_count": sum((p.thread_count for p in recent_profiles))
@@ -360,9 +341,7 @@ class PerformanceOptimizer:
             return recommendations
         recent_profiles = list(self.profiles)[-10:]
         avg_cpu = sum((p.cpu_percent for p in recent_profiles)) / len(recent_profiles)
-        avg_memory = sum((p.memory_percent for p in recent_profiles)) / len(
-            recent_profiles
-        )
+        avg_memory = sum((p.memory_percent for p in recent_profiles)) / len(recent_profiles)
         if avg_cpu > 80:
             recommendations.append(
                 "High CPU usage detected. Consider optimizing algorithms or distributing load."
@@ -373,13 +352,9 @@ class PerformanceOptimizer:
             )
         if len(self.profiles) > 50:
             older_profiles = list(self.profiles)[-50:-30]
-            old_avg_memory = sum((p.memory_percent for p in older_profiles)) / len(
-                older_profiles
-            )
+            old_avg_memory = sum((p.memory_percent for p in older_profiles)) / len(older_profiles)
             if avg_memory > old_avg_memory * 1.2:
-                recommendations.append(
-                    "Memory usage is trending upward. Check for memory leaks."
-                )
+                recommendations.append("Memory usage is trending upward. Check for memory leaks.")
         return recommendations
 
     def start_optimization(self) -> None:

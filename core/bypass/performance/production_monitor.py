@@ -199,9 +199,7 @@ class ProductionMonitor:
     ) -> None:
         """Create a new alert."""
         try:
-            alert_id = (
-                f"{component}_{title.lower().replace(' ', '_')}_{int(time.time())}"
-            )
+            alert_id = f"{component}_{title.lower().replace(' ', '_')}_{int(time.time())}"
             existing_alert_key = f"{component}_{title}"
             if existing_alert_key in self.active_alerts:
                 existing_alert = self.active_alerts[existing_alert_key]
@@ -252,10 +250,7 @@ class ProductionMonitor:
         while self.monitoring_active:
             try:
                 cutoff_time = datetime.now() - timedelta(hours=24)
-                while (
-                    self.health_history
-                    and self.health_history[0].timestamp < cutoff_time
-                ):
+                while self.health_history and self.health_history[0].timestamp < cutoff_time:
                     self.health_history.popleft()
                 while (
                     self.alerts
@@ -286,9 +281,7 @@ class ProductionMonitor:
     async def get_health_history(self, hours: int = 24) -> List[SystemHealth]:
         """Get system health history."""
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        return [
-            health for health in self.health_history if health.timestamp >= cutoff_time
-        ]
+        return [health for health in self.health_history if health.timestamp >= cutoff_time]
 
     async def get_active_alerts(self) -> List[Alert]:
         """Get all active alerts."""
@@ -351,8 +344,7 @@ class ProductionMonitor:
                 ),
                 "current_health": current_health.__dict__ if current_health else None,
                 "thresholds": self.thresholds,
-                "uptime": time.time()
-                - (current_health.uptime if current_health else 0),
+                "uptime": time.time() - (current_health.uptime if current_health else 0),
             }
             return status
         except Exception as e:

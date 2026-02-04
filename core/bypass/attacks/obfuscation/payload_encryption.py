@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Payload Encryption Obfuscation Attacks
 
@@ -11,7 +13,9 @@ import random
 import hashlib
 import struct
 import json
-from typing import List, Dict, Any, Tuple
+import secrets
+from typing import List, Dict, Any, Tuple, Optional
+
 from core.bypass.attacks.base import (
     BaseAttack,
     AttackContext,
@@ -19,6 +23,8 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.bypass.attacks.attack_registry import register_attack
+
+Segment = Tuple[bytes, int, Dict[str, Any]]
 
 
 @register_attack
@@ -61,16 +67,14 @@ class XORPayloadEncryptionAttack(BaseAttack):
 
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute XOR payload encryption attack."""
-        start_time = time.time()
+        start_ms = time.monotonic() * 1000
         try:
-            payload = context.payload
+            payload = context.payload or b""
             key_strategy = context.params.get("key_strategy", "random")
             key_length = context.params.get("key_length", 32)
             key_rotation = context.params.get("key_rotation", False)
             include_header = context.params.get("include_header", True)
-            encryption_key = self._generate_encryption_key(
-                key_strategy, key_length, context
-            )
+            encryption_key = self._generate_encryption_key(key_strategy, key_length, context)
             encrypted_payload = self._xor_encrypt(payload, encryption_key)
             if include_header:
                 final_packet = self._create_packet_with_header(
@@ -78,18 +82,14 @@ class XORPayloadEncryptionAttack(BaseAttack):
                 )
             else:
                 final_packet = encrypted_payload
-            segments = []
+            segments: List[Segment] = []
             if key_rotation and len(payload) > 100:
-                segments = await self._create_key_rotation_segments(
-                    payload, key_strategy, key_length
-                )
+                segments = await self._create_key_rotation_segments(payload, key_strategy, key_length, context)
             else:
-                segments = [
-                    (final_packet, 0, {"encrypted": True, "key_strategy": key_strategy})
-                ]
+                segments = [(final_packet, 0, {"encrypted": True, "key_strategy": key_strategy, "delay_ms": 0.0})]
             packets_sent = len(segments)
             bytes_sent = sum((len(seg[0]) for seg in segments))
-            latency = (time.time() - start_time) * 1000
+            latency = (time.monotonic() * 1000) - start_ms
             return AttackResult(
                 status=AttackStatus.SUCCESS,
                 latency_ms=latency,
@@ -113,30 +113,28 @@ class XORPayloadEncryptionAttack(BaseAttack):
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=str(e),
-                latency_ms=(time.time() - start_time) * 1000,
+                latency_ms=(time.monotonic() * 1000) - start_ms,
                 technique_used="xor_payload_encryption",
             )
 
-    def _generate_encryption_key(
-        self, strategy: str, length: int, context: AttackContext
-    ) -> bytes:
+    def _generate_encryption_key(self, strategy: str, length: int, context: AttackContext) -> bytes:
         """Generate encryption key based on strategy."""
         if strategy == "random":
-            return random.randbytes(length)
+            return secrets.token_bytes(int(length))
         elif strategy == "time_based":
-            time_seed = int(time.time()) // 60
-            random.seed(time_seed)
-            key = random.randbytes(length)
-            random.seed()
-            return key
+            # Avoid touching global RNG state
+            r = random.Random(int(time.time()) // 60)
+            return r.randbytes(int(length))
         elif strategy == "domain_based":
             domain = context.domain or f"{context.dst_ip}:{context.dst_port}"
             domain_hash = hashlib.sha256(domain.encode()).digest()
-            return (domain_hash * (length // 32 + 1))[:length]
+            ln = int(length)
+            return (domain_hash * (ln // 32 + 1))[:ln]
         elif strategy == "sequence_based":
-            seq_bytes = struct.pack("!I", context.tcp_seq or 0)
+            seq_bytes = struct.pack("!I", int(getattr(context, "tcp_seq", 0) or 0))
             key_material = hashlib.sha256(seq_bytes).digest()
-            return (key_material * (length // 32 + 1))[:length]
+            ln = int(length)
+            return (key_material * (ln // 32 + 1))[:ln]
         else:
             raise ValueError(f"Invalid key_strategy: {strategy}")
 
@@ -161,54 +159,47 @@ class XORPayloadEncryptionAttack(BaseAttack):
         }.get(strategy, 1)
         key_length = len(key)
         key_hint = hashlib.sha256(key).digest()[:8]
-        header = (
-            magic
-            + bytes([version, strategy_code])
-            + struct.pack("!H", key_length)
-            + key_hint
-        )
+        header = magic + bytes([version, strategy_code]) + struct.pack("!H", key_length) + key_hint
         return header + encrypted_payload
 
     async def _create_key_rotation_segments(
-        self, payload: bytes, strategy: str, key_length: int
-    ) -> List[Tuple[bytes, int, Dict[str, Any]]]:
-        """Create segments with key rotation."""
-        segments = []
+        self, payload: bytes, strategy: str, key_length: int, context: AttackContext
+    ) -> List[Segment]:
+        """Create segments with key rotation (no real sleeps; delays are stored in options)."""
+        segments: List[Segment] = []
         chunk_size = random.randint(50, 150)
+        delay_step_ms = float(context.params.get("rotation_delay_step_ms", 10.0))
         for i in range(0, len(payload), chunk_size):
             chunk = payload[i : i + chunk_size]
             segment_key = self._generate_rotation_key(strategy, key_length, i)
             encrypted_chunk = self._xor_encrypt(chunk, segment_key)
-            segment_packet = self._create_packet_with_header(
-                encrypted_chunk, segment_key, strategy
-            )
-            await asyncio.sleep(i * 10 / 1000.0)
+            segment_packet = self._create_packet_with_header(encrypted_chunk, segment_key, strategy)
+            # Keep async semantics
+            await asyncio.sleep(0)
             segments.append(
                 (
                     segment_packet,
-                    i * 10,
+                    i,  # payload offset
                     {
                         "encrypted": True,
                         "key_strategy": strategy,
                         "segment_index": i // chunk_size,
                         "key_rotated": True,
+                        "delay_ms": (i // chunk_size) * delay_step_ms,
+                        "legacy_delay_field": (i // chunk_size) * delay_step_ms,
                     },
                 )
             )
         return segments
 
-    def _generate_rotation_key(
-        self, strategy: str, length: int, segment_index: int
-    ) -> bytes:
+    def _generate_rotation_key(self, strategy: str, length: int, segment_index: int) -> bytes:
         """Generate rotated key for segment."""
         if strategy == "sequence_based":
             base_seed = int(time.time()) + segment_index
-            random.seed(base_seed)
-            key = random.randbytes(length)
-            random.seed()
-            return key
+            r = random.Random(base_seed)
+            return r.randbytes(int(length))
         else:
-            return random.randbytes(length)
+            return secrets.token_bytes(int(length))
 
 
 @register_attack
@@ -260,12 +251,8 @@ class AESPayloadEncryptionAttack(BaseAttack):
             padding_scheme = context.params.get("padding_scheme", "PKCS7")
             key = self._generate_aes_key(key_size // 8)
             iv = random.randbytes(16) if include_iv else b"\x00" * 16
-            encrypted_payload = self._aes_encrypt(
-                payload, key, iv, mode, padding_scheme
-            )
-            final_packet = self._create_aes_packet(
-                encrypted_payload, key, iv, mode, include_iv
-            )
+            encrypted_payload = self._aes_encrypt(payload, key, iv, mode, padding_scheme)
+            final_packet = self._create_aes_packet(encrypted_payload, key, iv, mode, include_iv)
             segments = [
                 (
                     final_packet,
@@ -313,9 +300,7 @@ class AESPayloadEncryptionAttack(BaseAttack):
         """Generate AES key."""
         return random.randbytes(key_length)
 
-    def _aes_encrypt(
-        self, data: bytes, key: bytes, iv: bytes, mode: str, padding: str
-    ) -> bytes:
+    def _aes_encrypt(self, data: bytes, key: bytes, iv: bytes, mode: str, padding: str) -> bytes:
         """Simulate AES encryption (simplified implementation)."""
         if mode in ["CBC", "ECB"] and padding == "PKCS7":
             data = self._apply_pkcs7_padding(data, 16)
@@ -411,9 +396,7 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
             else:
                 final_payload = encrypted_payload
                 auth_tag = b""
-            final_packet = self._create_chacha20_packet(
-                final_payload, key, nonce, use_poly1305
-            )
+            final_packet = self._create_chacha20_packet(final_payload, key, nonce, use_poly1305)
             segments = [
                 (
                     final_packet,
@@ -476,9 +459,7 @@ class ChaCha20PayloadEncryptionAttack(BaseAttack):
             encrypted.append(byte ^ keystream[i])
         return bytes(encrypted)
 
-    def _generate_chacha20_keystream(
-        self, key: bytes, nonce: bytes, length: int
-    ) -> bytes:
+    def _generate_chacha20_keystream(self, key: bytes, nonce: bytes, length: int) -> bytes:
         """Generate ChaCha20 keystream (simplified)."""
         keystream = b""
         counter = 0
@@ -558,16 +539,12 @@ class MultiLayerEncryptionAttack(BaseAttack):
             encrypted_payload = payload
             layer_info = []
             for i, layer_type in enumerate(layers):
-                layer_result = self._apply_encryption_layer(
-                    encrypted_payload, layer_type, i
-                )
+                layer_result = self._apply_encryption_layer(encrypted_payload, layer_type, i)
                 encrypted_payload = layer_result["encrypted_data"]
                 layer_info.append(layer_result["info"])
             if add_noise:
                 encrypted_payload = self._add_noise_layer(encrypted_payload)
-            final_packet = self._create_multilayer_packet(
-                encrypted_payload, layer_info, layers
-            )
+            final_packet = self._create_multilayer_packet(encrypted_payload, layer_info, layers)
             segments = [
                 (
                     final_packet,
@@ -601,9 +578,7 @@ class MultiLayerEncryptionAttack(BaseAttack):
                     "layer_info": layer_info,
                     "original_size": len(payload),
                     "final_size": len(final_packet),
-                    "expansion_ratio": (
-                        len(final_packet) / len(payload) if payload else 1.0
-                    ),
+                    "expansion_ratio": (len(final_packet) / len(payload) if payload else 1.0),
                     "segments": segments,
                 },
             )
@@ -719,9 +694,7 @@ class MultiLayerEncryptionAttack(BaseAttack):
             expanded += hashlib.sha256(expanded[-32:]).digest()
         return expanded[:length]
 
-    def _generate_simple_keystream(
-        self, key: bytes, nonce: bytes, length: int
-    ) -> bytes:
+    def _generate_simple_keystream(self, key: bytes, nonce: bytes, length: int) -> bytes:
         """Generate simple keystream."""
         keystream = b""
         counter = 0

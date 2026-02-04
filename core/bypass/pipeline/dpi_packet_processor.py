@@ -47,9 +47,7 @@ class DPIPacketProcessor:
             dpi_config: DPI configuration for strategy engine
         """
         self.dpi_config = dpi_config
-        self.strategy_engine = (
-            DPIStrategyEngine(dpi_config) if dpi_config.enabled else None
-        )
+        self.strategy_engine = DPIStrategyEngine(dpi_config) if dpi_config.enabled else None
 
         # Statistics
         self._stats = {
@@ -62,9 +60,7 @@ class DPIPacketProcessor:
         # Thread safety
         self._lock = threading.RLock()
 
-        logger.info(
-            f"DPI packet processor initialized with config: {dpi_config.to_dict()}"
-        )
+        logger.info(f"DPI packet processor initialized with config: {dpi_config.to_dict()}")
 
     def process_packet(self, packet: bytes) -> PacketProcessingResult:
         """
@@ -140,9 +136,7 @@ class DPIPacketProcessor:
                 error=str(e),
             )
 
-    def process_packet_batch(
-        self, packets: List[bytes]
-    ) -> List[PacketProcessingResult]:
+    def process_packet_batch(self, packets: List[bytes]) -> List[PacketProcessingResult]:
         """
         Process a batch of packets through the DPI strategy pipeline.
 
@@ -195,9 +189,7 @@ class DPIPacketProcessor:
             stats["modification_rate"] = (
                 stats["packets_modified"] / stats["packets_processed"]
             ) * 100
-            stats["error_rate"] = (
-                stats["processing_errors"] / stats["packets_processed"]
-            ) * 100
+            stats["error_rate"] = (stats["processing_errors"] / stats["packets_processed"]) * 100
             stats["average_processing_time_ms"] = (
                 stats["total_processing_time_ms"] / stats["packets_processed"]
             )
@@ -371,11 +363,7 @@ class DPIPipelineIntegrator:
                 """Hook for processing packets in UnifiedBypassEngine."""
                 result = self.packet_processor.process_packet(packet_data)
                 # Return first processed packet for simple integration
-                return (
-                    result.processed_packets[0]
-                    if result.processed_packets
-                    else packet_data
-                )
+                return result.processed_packets[0] if result.processed_packets else packet_data
 
             # Register the hook with the engine
             # This would require modifications to UnifiedBypassEngine to support hooks

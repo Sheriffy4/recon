@@ -85,9 +85,7 @@ class OnlineLearningIntegrator:
             "ab_tests_run": 0,
             "model_improvements_detected": 0,
         }
-        LOG.info(
-            f"Online learning integrator initialized (enabled: {enable_online_learning})"
-        )
+        LOG.info(f"Online learning integrator initialized (enabled: {enable_online_learning})")
 
     def classify_with_learning(
         self, metrics: Dict[str, Any], target: str = None
@@ -104,9 +102,7 @@ class OnlineLearningIntegrator:
         """
         self.stats["fingerprints_processed"] += 1
         if self.online_learning and self.online_learning.active_ab_test:
-            dpi_type, confidence, model_used = (
-                self.online_learning.classify_with_ab_test(metrics)
-            )
+            dpi_type, confidence, model_used = self.online_learning.classify_with_ab_test(metrics)
             alternatives = []
             LOG.debug(
                 f"A/B test classification: {dpi_type} (confidence: {confidence:.3f}, model: {model_used})"
@@ -133,8 +129,8 @@ class OnlineLearningIntegrator:
         self.stats["feedback_received"] += 1
         try:
             metrics = self._extract_metrics_from_fingerprint(feedback.fingerprint)
-            predicted_type, confidence, _ = (
-                self.ml_classifier.get_prediction_with_alternatives(metrics)
+            predicted_type, confidence, _ = self.ml_classifier.get_prediction_with_alternatives(
+                metrics
             )
             adjusted_confidence = min(confidence, feedback.confidence_in_feedback)
             learned = self.online_learning.add_learning_example(
@@ -243,9 +239,7 @@ class OnlineLearningIntegrator:
         success = self.online_learning.start_ab_test(config)
         if success:
             self.stats["ab_tests_run"] += 1
-            LOG.info(
-                f"Started A/B test '{test_name}' with {traffic_split:.1%} traffic split"
-            )
+            LOG.info(f"Started A/B test '{test_name}' with {traffic_split:.1%} traffic split")
         return success
 
     def get_learning_insights(self) -> Dict[str, Any]:
@@ -260,9 +254,7 @@ class OnlineLearningIntegrator:
         learning_stats = self.online_learning.get_learning_statistics()
         total_examples = learning_stats["statistics"]["total_examples_received"]
         learned_examples = learning_stats["statistics"]["examples_learned_from"]
-        learning_efficiency = (
-            learned_examples / total_examples if total_examples > 0 else 0
-        )
+        learning_efficiency = learned_examples / total_examples if total_examples > 0 else 0
         performance_trend = "stable"
         if (
             learning_stats["baseline_performance"]
@@ -289,13 +281,9 @@ class OnlineLearningIntegrator:
                 "Consider lowering confidence threshold or switching to aggressive learning mode"
             )
         if learning_stats["statistics"]["retraining_events"] > 3:
-            recommendations.append(
-                "Frequent retraining detected - consider reviewing data quality"
-            )
+            recommendations.append("Frequent retraining detected - consider reviewing data quality")
         if performance_trend == "degrading":
-            recommendations.append(
-                "Performance degradation detected - manual review recommended"
-            )
+            recommendations.append("Performance degradation detected - manual review recommended")
         if total_examples > 1000 and learned_examples < 100:
             recommendations.append(
                 "Low learning rate - consider adjusting learning mode or thresholds"
@@ -309,8 +297,7 @@ class OnlineLearningIntegrator:
             "examples_learned_from": learned_examples,
             "retraining_events": learning_stats["statistics"]["retraining_events"],
             "active_ab_test": learning_stats["active_ab_test"],
-            "buffer_utilization": learning_stats["buffer_size"]
-            / learning_stats["buffer_capacity"],
+            "buffer_utilization": learning_stats["buffer_size"] / learning_stats["buffer_capacity"],
             "recommendations": recommendations,
             "integration_stats": self.stats.copy(),
         }
@@ -332,9 +319,7 @@ class OnlineLearningIntegrator:
         LOG.info(f"Learning mode changed from {old_mode.value} to {mode.value}")
         return True
 
-    def enable_online_learning(
-        self, learning_mode: LearningMode = LearningMode.MODERATE
-    ) -> bool:
+    def enable_online_learning(self, learning_mode: LearningMode = LearningMode.MODERATE) -> bool:
         """
         Enable online learning if it was disabled.
 
@@ -380,9 +365,7 @@ class OnlineLearningIntegrator:
         LOG.info("Online learning disabled")
         return True
 
-    def _extract_metrics_from_fingerprint(
-        self, fingerprint: DPIFingerprint
-    ) -> Dict[str, Any]:
+    def _extract_metrics_from_fingerprint(self, fingerprint: DPIFingerprint) -> Dict[str, Any]:
         """
         Extract metrics dictionary from DPI fingerprint.
 
@@ -393,10 +376,8 @@ class OnlineLearningIntegrator:
             Dictionary of metrics suitable for ML classification
         """
         metrics = {
-            "rst_latency_ms": getattr(fingerprint, "connection_reset_timing", 0.0)
-            * 1000,
-            "connection_latency_ms": getattr(fingerprint, "analysis_duration", 0.0)
-            * 1000,
+            "rst_latency_ms": getattr(fingerprint, "connection_reset_timing", 0.0) * 1000,
+            "connection_latency_ms": getattr(fingerprint, "analysis_duration", 0.0) * 1000,
             "dns_resolution_time_ms": 30.0,
             "handshake_time_ms": 80.0,
             "rst_ttl": 63,
@@ -409,19 +390,15 @@ class OnlineLearningIntegrator:
             "supports_ip_frag": getattr(fingerprint, "supports_ipv6", True),
             "checksum_validation": True,
             "quic_udp_blocked": False,
-            "stateful_inspection": getattr(
-                fingerprint, "tcp_window_manipulation", False
-            ),
+            "stateful_inspection": getattr(fingerprint, "tcp_window_manipulation", False),
             "rate_limiting_detected": False,
-            "ml_detection_blocked": getattr(fingerprint, "content_inspection_depth", 0)
-            > 5,
+            "ml_detection_blocked": getattr(fingerprint, "content_inspection_depth", 0) > 5,
             "ip_level_blocked": getattr(fingerprint, "geographic_restrictions", False),
             "ech_blocked": False,
             "tcp_option_splicing": getattr(fingerprint, "tcp_options_filtering", False),
             "large_payload_bypass": True,
             "ecn_support": True,
-            "http2_detection": getattr(fingerprint, "http_method_restrictions", [])
-            != [],
+            "http2_detection": getattr(fingerprint, "http_method_restrictions", []) != [],
             "http3_support": False,
             "esni_support": False,
             "zero_rtt_blocked": False,

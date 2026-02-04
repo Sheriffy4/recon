@@ -17,6 +17,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 from collections import defaultdict, Counter
 import statistics
+import tempfile
 
 from .learning_engine import LearningEngine
 from .predictive_analyzer import PredictiveAnalyzer
@@ -92,9 +93,7 @@ class HistoricalDataIntegration:
                 self.historical_data["fingerprints"] = data.get("fingerprints", {})
                 self.historical_data["key_metrics"] = data.get("key_metrics", {})
                 self.historical_data["metadata"] = data.get("metadata", {})
-                self.historical_data["integration_analysis"] = data.get(
-                    "integration_analysis", []
-                )
+                self.historical_data["integration_analysis"] = data.get("integration_analysis", [])
 
                 # Analyze historical patterns
                 self._analyze_effectiveness_trends()
@@ -103,12 +102,51 @@ class HistoricalDataIntegration:
 
                 LOG.info("Historical data loaded and analyzed successfully")
             else:
-                LOG.warning(
-                    f"Historical data file not found: {self.recon_summary_file}"
-                )
+                LOG.warning(f"Historical data file not found: {self.recon_summary_file}")
 
         except Exception as e:
-            LOG.error(f"Failed to load historical data: {e}")
+            LOG.exception("Failed to load historical data: %s", e)
+
+    @staticmethod
+    def _atomic_write_json(path: str, payload: Dict[str, Any]) -> None:
+        """Write JSON atomically to reduce risk of corrupting recon_summary.json."""
+        base_dir = os.path.dirname(path) or "."
+        os.makedirs(base_dir, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(prefix=".tmp_", suffix=".json", dir=base_dir)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_path, path)
+        finally:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except OSError:
+                pass
+
+    @staticmethod
+    def _extract_int_after_token(strategy: str, token: str) -> int | None:
+        """Extract integer value after token like 'ttl=' or 'split-pos='."""
+        if not strategy or token not in strategy:
+            return None
+        try:
+            part = strategy.split(token, 1)[1].split()[0].rstrip(",)")
+            return int(part)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _extract_fooling_methods(strategy: str) -> List[str]:
+        """Extract fooling methods from 'fooling=' token."""
+        if not strategy or "fooling=" not in strategy:
+            return []
+        try:
+            fooling_part = strategy.split("fooling=", 1)[1].split()[0].rstrip(",)")
+            return [
+                m.strip() for m in fooling_part.strip("[]").replace("'", "").split(",") if m.strip()
+            ]
+        except Exception:
+            return []
 
     def _analyze_effectiveness_trends(self):
         """Analyze strategy effectiveness trends over time"""
@@ -141,9 +179,7 @@ class HistoricalDataIntegration:
                         "max_success_rate": max(success_rates),
                         "min_success_rate": min(success_rates),
                         "std_deviation": (
-                            statistics.stdev(success_rates)
-                            if len(success_rates) > 1
-                            else 0.0
+                            statistics.stdev(success_rates) if len(success_rates) > 1 else 0.0
                         ),
                         "total_attempts": len(results),
                         "successful_attempts": len(
@@ -155,7 +191,7 @@ class HistoricalDataIntegration:
             self._analyze_parameter_effectiveness(all_results)
 
         except Exception as e:
-            LOG.error(f"Failed to analyze effectiveness trends: {e}")
+            LOG.exception("Failed to analyze effectiveness trends: %s", e)
 
     def _analyze_parameter_effectiveness(self, all_results: List[Dict[str, Any]]):
         """Analyze effectiveness of specific strategy parameters"""
@@ -172,57 +208,29 @@ class HistoricalDataIntegration:
             success_rate = result.get("success_rate", 0.0)
 
             # Extract TTL values
-            if "ttl=" in strategy:
-                try:
-                    ttl_part = strategy.split("ttl=")[1].split()[0].rstrip(",)")
-                    ttl_value = int(ttl_part)
-                    parameter_analysis["ttl_effectiveness"][ttl_value].append(
-                        success_rate
-                    )
-                except:
-                    pass
+            ttl_value = self._extract_int_after_token(strategy, "ttl=")
+            if ttl_value is not None:
+                parameter_analysis["ttl_effectiveness"][ttl_value].append(success_rate)
 
             # Extract split positions
-            if "split-pos=" in strategy:
-                try:
-                    pos_part = strategy.split("split-pos=")[1].split()[0].rstrip(",)")
-                    split_pos = int(pos_part)
-                    parameter_analysis["split_pos_effectiveness"][split_pos].append(
-                        success_rate
-                    )
-                except:
-                    pass
+            split_pos = self._extract_int_after_token(strategy, "split-pos=")
+            if split_pos is not None:
+                parameter_analysis["split_pos_effectiveness"][split_pos].append(success_rate)
 
             # Extract fooling methods
-            if "fooling=" in strategy:
-                try:
-                    fooling_part = strategy.split("fooling=")[1].split()[0].rstrip(",)")
-                    fooling_methods = (
-                        fooling_part.strip("[]").replace("'", "").split(",")
-                    )
-                    for method in fooling_methods:
-                        method = method.strip()
-                        if method:
-                            parameter_analysis["fooling_effectiveness"][method].append(
-                                success_rate
-                            )
-                except:
-                    pass
+            for method in self._extract_fooling_methods(strategy):
+                parameter_analysis["fooling_effectiveness"][method].append(success_rate)
 
             # Extract strategy types
             if "fake" in strategy.lower():
                 if "disorder" in strategy.lower():
-                    parameter_analysis["strategy_type_effectiveness"][
-                        "fake_disorder"
-                    ].append(success_rate)
-                else:
-                    parameter_analysis["strategy_type_effectiveness"]["fake"].append(
+                    parameter_analysis["strategy_type_effectiveness"]["fake_disorder"].append(
                         success_rate
                     )
+                else:
+                    parameter_analysis["strategy_type_effectiveness"]["fake"].append(success_rate)
             elif "split" in strategy.lower():
-                parameter_analysis["strategy_type_effectiveness"]["split"].append(
-                    success_rate
-                )
+                parameter_analysis["strategy_type_effectiveness"]["split"].append(success_rate)
 
         # Calculate effectiveness statistics for each parameter
         for param_type, param_data in parameter_analysis.items():
@@ -251,9 +259,7 @@ class HistoricalDataIntegration:
 
         try:
             all_results = self.historical_data.get("all_results", [])
-            failed_results = [
-                r for r in all_results if r.get("success_rate", 0.0) == 0.0
-            ]
+            failed_results = [r for r in all_results if r.get("success_rate", 0.0) == 0.0]
 
             # Analyze common failure strategies
             failed_strategies = [r.get("strategy", "") for r in failed_results]
@@ -287,7 +293,7 @@ class HistoricalDataIntegration:
             self._analyze_failure_parameters(failed_results)
 
         except Exception as e:
-            LOG.error(f"Failed to analyze failure patterns: {e}")
+            LOG.exception("Failed to analyze failure patterns: %s", e)
 
     def _analyze_failure_parameters(self, failed_results: List[Dict[str, Any]]):
         """Analyze parameter patterns in failed strategies"""
@@ -303,36 +309,18 @@ class HistoricalDataIntegration:
             strategy = result.get("strategy", "")
 
             # Count TTL failures
-            if "ttl=" in strategy:
-                try:
-                    ttl_part = strategy.split("ttl=")[1].split()[0].rstrip(",)")
-                    ttl_value = int(ttl_part)
-                    parameter_failures["ttl_failures"][ttl_value] += 1
-                except:
-                    pass
+            ttl_value = self._extract_int_after_token(strategy, "ttl=")
+            if ttl_value is not None:
+                parameter_failures["ttl_failures"][ttl_value] += 1
 
             # Count split position failures
-            if "split-pos=" in strategy:
-                try:
-                    pos_part = strategy.split("split-pos=")[1].split()[0].rstrip(",)")
-                    split_pos = int(pos_part)
-                    parameter_failures["split_pos_failures"][split_pos] += 1
-                except:
-                    pass
+            split_pos = self._extract_int_after_token(strategy, "split-pos=")
+            if split_pos is not None:
+                parameter_failures["split_pos_failures"][split_pos] += 1
 
             # Count fooling method failures
-            if "fooling=" in strategy:
-                try:
-                    fooling_part = strategy.split("fooling=")[1].split()[0].rstrip(",)")
-                    fooling_methods = (
-                        fooling_part.strip("[]").replace("'", "").split(",")
-                    )
-                    for method in fooling_methods:
-                        method = method.strip()
-                        if method:
-                            parameter_failures["fooling_failures"][method] += 1
-                except:
-                    pass
+            for method in self._extract_fooling_methods(strategy):
+                parameter_failures["fooling_failures"][method] += 1
 
             # Count strategy type failures
             if "fake" in strategy.lower():
@@ -357,9 +345,7 @@ class HistoricalDataIntegration:
 
         try:
             all_results = self.historical_data.get("all_results", [])
-            successful_results = [
-                r for r in all_results if r.get("success_rate", 0.0) > 0.0
-            ]
+            successful_results = [r for r in all_results if r.get("success_rate", 0.0) > 0.0]
 
             if not successful_results:
                 LOG.info("No successful strategies found in historical data")
@@ -367,8 +353,7 @@ class HistoricalDataIntegration:
 
             # Analyze successful strategies
             successful_strategies = [
-                (r.get("strategy", ""), r.get("success_rate", 0.0))
-                for r in successful_results
+                (r.get("strategy", ""), r.get("success_rate", 0.0)) for r in successful_results
             ]
             successful_strategies.sort(key=lambda x: x[1], reverse=True)
 
@@ -384,7 +369,7 @@ class HistoricalDataIntegration:
             self._generate_success_factors(successful_results)
 
         except Exception as e:
-            LOG.error(f"Failed to analyze success patterns: {e}")
+            LOG.exception("Failed to analyze success patterns: %s", e)
 
     def _analyze_success_parameters(self, successful_results: List[Dict[str, Any]]):
         """Analyze parameter patterns in successful strategies"""
@@ -401,55 +386,29 @@ class HistoricalDataIntegration:
             success_rate = result.get("success_rate", 0.0)
 
             # Analyze TTL successes
-            if "ttl=" in strategy:
-                try:
-                    ttl_part = strategy.split("ttl=")[1].split()[0].rstrip(",)")
-                    ttl_value = int(ttl_part)
-                    parameter_successes["ttl_successes"][ttl_value].append(success_rate)
-                except:
-                    pass
+            ttl_value = self._extract_int_after_token(strategy, "ttl=")
+            if ttl_value is not None:
+                parameter_successes["ttl_successes"][ttl_value].append(success_rate)
 
             # Analyze split position successes
-            if "split-pos=" in strategy:
-                try:
-                    pos_part = strategy.split("split-pos=")[1].split()[0].rstrip(",)")
-                    split_pos = int(pos_part)
-                    parameter_successes["split_pos_successes"][split_pos].append(
-                        success_rate
-                    )
-                except:
-                    pass
+            split_pos = self._extract_int_after_token(strategy, "split-pos=")
+            if split_pos is not None:
+                parameter_successes["split_pos_successes"][split_pos].append(success_rate)
 
             # Analyze fooling method successes
-            if "fooling=" in strategy:
-                try:
-                    fooling_part = strategy.split("fooling=")[1].split()[0].rstrip(",)")
-                    fooling_methods = (
-                        fooling_part.strip("[]").replace("'", "").split(",")
-                    )
-                    for method in fooling_methods:
-                        method = method.strip()
-                        if method:
-                            parameter_successes["fooling_successes"][method].append(
-                                success_rate
-                            )
-                except:
-                    pass
+            for method in self._extract_fooling_methods(strategy):
+                parameter_successes["fooling_successes"][method].append(success_rate)
 
             # Analyze strategy type successes
             if "fake" in strategy.lower():
                 if "disorder" in strategy.lower():
-                    parameter_successes["strategy_type_successes"][
-                        "fake_disorder"
-                    ].append(success_rate)
-                else:
-                    parameter_successes["strategy_type_successes"]["fake"].append(
+                    parameter_successes["strategy_type_successes"]["fake_disorder"].append(
                         success_rate
                     )
+                else:
+                    parameter_successes["strategy_type_successes"]["fake"].append(success_rate)
             elif "split" in strategy.lower():
-                parameter_successes["strategy_type_successes"]["split"].append(
-                    success_rate
-                )
+                parameter_successes["strategy_type_successes"]["split"].append(success_rate)
 
         # Calculate success statistics
         for param_type, param_data in parameter_successes.items():
@@ -457,9 +416,7 @@ class HistoricalDataIntegration:
 
             for param_value, success_rates in param_data.items():
                 if success_rates:
-                    self.success_patterns["success_parameter_patterns"][param_type][
-                        param_value
-                    ] = {
+                    self.success_patterns["success_parameter_patterns"][param_type][param_value] = {
                         "average_success_rate": statistics.mean(success_rates),
                         "max_success_rate": max(success_rates),
                         "attempts": len(success_rates),
@@ -477,9 +434,7 @@ class HistoricalDataIntegration:
         # TTL success factors
         ttl_successes = success_params.get("ttl_successes", {})
         if ttl_successes:
-            best_ttl = max(
-                ttl_successes.items(), key=lambda x: x[1]["average_success_rate"]
-            )
+            best_ttl = max(ttl_successes.items(), key=lambda x: x[1]["average_success_rate"])
             success_factors.append(
                 f"TTL={best_ttl[0]} shows highest success rate ({best_ttl[1]['average_success_rate']:.1%})"
             )
@@ -487,9 +442,7 @@ class HistoricalDataIntegration:
         # Split position success factors
         split_successes = success_params.get("split_pos_successes", {})
         if split_successes:
-            best_split = max(
-                split_successes.items(), key=lambda x: x[1]["average_success_rate"]
-            )
+            best_split = max(split_successes.items(), key=lambda x: x[1]["average_success_rate"])
             success_factors.append(
                 f"split_pos={best_split[0]} shows highest success rate ({best_split[1]['average_success_rate']:.1%})"
             )
@@ -507,9 +460,7 @@ class HistoricalDataIntegration:
         # Strategy type success factors
         type_successes = success_params.get("strategy_type_successes", {})
         if type_successes:
-            best_type = max(
-                type_successes.items(), key=lambda x: x[1]["average_success_rate"]
-            )
+            best_type = max(type_successes.items(), key=lambda x: x[1]["average_success_rate"])
             success_factors.append(
                 f"{best_type[0]} strategy type shows highest success rate ({best_type[1]['average_success_rate']:.1%})"
             )
@@ -545,14 +496,12 @@ class HistoricalDataIntegration:
             )
 
             # Generate parameter recommendations based on history
-            context["parameter_recommendations"] = (
-                self._generate_parameter_recommendations(pcap_analysis_results)
+            context["parameter_recommendations"] = self._generate_parameter_recommendations(
+                pcap_analysis_results
             )
 
             # Generate failure warnings
-            context["failure_warnings"] = self._generate_failure_warnings(
-                pcap_analysis_results
-            )
+            context["failure_warnings"] = self._generate_failure_warnings(pcap_analysis_results)
 
             # Predict success based on historical patterns
             context["success_predictions"] = self._predict_success_from_history(
@@ -583,8 +532,7 @@ class HistoricalDataIntegration:
 
             # Look for TTL-related issues
             ttl_issues = any(
-                "ttl" in str(issue).lower()
-                for issue in pcap_comparison.get("critical_issues", [])
+                "ttl" in str(issue).lower() for issue in pcap_comparison.get("critical_issues", [])
             )
 
             # Look for split-related issues
@@ -623,10 +571,7 @@ class HistoricalDataIntegration:
 
                 # Score based on parameter matches
                 if strategy_params:
-                    if (
-                        "ttl" in strategy_params
-                        and f"ttl={strategy_params['ttl']}" in strategy
-                    ):
+                    if "ttl" in strategy_params and f"ttl={strategy_params['ttl']}" in strategy:
                         relevance_score += 0.5
 
                     if (
@@ -744,9 +689,7 @@ class HistoricalDataIntegration:
 
         return recommendations
 
-    def _generate_failure_warnings(
-        self, pcap_analysis_results: Dict[str, Any]
-    ) -> List[str]:
+    def _generate_failure_warnings(self, pcap_analysis_results: Dict[str, Any]) -> List[str]:
         """Generate warnings based on historical failure patterns"""
 
         warnings = []
@@ -796,71 +739,36 @@ class HistoricalDataIntegration:
         }
 
         try:
-            # Calculate overall success probability based on historical data
             all_results = self.historical_data.get("all_results", [])
-            if all_results:
-                successful_results = [
-                    r for r in all_results if r.get("success_rate", 0.0) > 0.0
-                ]
+            total = len(all_results)
+            successful_results = [r for r in all_results if r.get("success_rate", 0.0) > 0.0]
+            success_count = len(successful_results)
 
-                if successful_results:
-                    success_rates = [
-                        r.get("success_rate", 0.0) for r in successful_results
-                    ]
-                    predictions["overall_success_probability"] = statistics.mean(
-                        success_rates
-                    )
-                    predictions["confidence_level"] = (
-                        "MEDIUM" if len(successful_results) > 2 else "LOW"
-                    )
+            # Probability of any success (fraction of attempts that succeeded).
+            predictions["overall_success_probability"] = (success_count / total) if total else 0.0
 
-                    # Calculate parameter success probabilities
-                    param_success = {}
-                    for result in successful_results:
-                        strategy = result.get("strategy", "")
-                        success_rate = result.get("success_rate", 0.0)
+            # Keep additional diagnostic metric (backward-compatible extra field).
+            if total:
+                predictions["overall_average_success_rate"] = statistics.mean(
+                    [r.get("success_rate", 0.0) for r in all_results]
+                )
+            else:
+                predictions["overall_average_success_rate"] = 0.0
 
-                        # Extract TTL
-                        if "ttl=" in strategy:
-                            try:
-                                ttl_part = (
-                                    strategy.split("ttl=")[1].split()[0].rstrip(",)")
-                                )
-                                ttl_value = int(ttl_part)
-                                if ttl_value not in param_success:
-                                    param_success[ttl_value] = []
-                                param_success[ttl_value].append(success_rate)
-                            except:
-                                pass
-
-                    # Calculate averages
-                    for param, rates in param_success.items():
-                        predictions["parameter_success_probabilities"][
-                            f"ttl_{param}"
-                        ] = statistics.mean(rates)
-
-                predictions["overall_success_probability"] = len(
-                    successful_results
-                ) / len(all_results)
-
-            # Calculate parameter-specific success probabilities
-            success_params = self.success_patterns.get("success_parameter_patterns", {})
-
-            for param_type, param_data in success_params.items():
+            # Parameter-specific success probabilities:
+            # Use effectiveness trends computed from ALL results, because it has successful_attempts.
+            param_effectiveness = self.effectiveness_trends.get("parameter_effectiveness", {})
+            for param_type, param_data in param_effectiveness.items():
                 predictions["parameter_success_probabilities"][param_type] = {}
-
-                for param_value, stats in param_data.items():
-                    success_prob = (
-                        stats["successful_attempts"] / stats["attempts"]
-                        if stats["attempts"] > 0
-                        else 0.0
+                for param_value, st in (param_data or {}).items():
+                    attempts = st.get("attempts", 0) or 0
+                    successes = st.get("successful_attempts", 0) or 0
+                    predictions["parameter_success_probabilities"][param_type][param_value] = (
+                        (successes / attempts) if attempts else 0.0
                     )
-                    predictions["parameter_success_probabilities"][param_type][
-                        param_value
-                    ] = success_prob
 
             # Determine confidence level
-            total_historical_data = len(all_results)
+            total_historical_data = total
             if total_historical_data > 50:
                 predictions["confidence_level"] = "HIGH"
             elif total_historical_data > 20:
@@ -869,7 +777,7 @@ class HistoricalDataIntegration:
                 predictions["confidence_level"] = "LOW"
 
         except Exception as e:
-            LOG.error(f"Failed to predict success from history: {e}")
+            LOG.exception("Failed to predict success from history: %s", e)
 
         return predictions
 
@@ -915,10 +823,8 @@ class HistoricalDataIntegration:
             # Get updated predictions for similar scenarios
             strategy_params = fix_data.get("strategy_parameters", {})
             if strategy_params:
-                updated_prediction = (
-                    self.predictive_analyzer.predict_strategy_effectiveness(
-                        strategy_params
-                    )
+                updated_prediction = self.predictive_analyzer.predict_strategy_effectiveness(
+                    strategy_params
                 )
                 learning_results["prediction_improvements"] = updated_prediction
 
@@ -976,9 +882,7 @@ class HistoricalDataIntegration:
             LOG.error(f"Failed to get predictive analysis: {e}")
             return {"error": str(e)}
 
-    def get_pattern_database_insights(
-        self, query: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+    def get_pattern_database_insights(self, query: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Get insights from the pattern database.
         Task 19: Pattern database for common DPI bypass issues.
@@ -1003,15 +907,9 @@ class HistoricalDataIntegration:
                 matching_patterns = pattern_db.get_matching_patterns(query)
             else:
                 matching_patterns = {
-                    "failure_patterns": list(
-                        pattern_db.patterns["failure_patterns"].values()
-                    )[:10],
-                    "success_patterns": list(
-                        pattern_db.patterns["success_patterns"].values()
-                    )[:10],
-                    "fix_patterns": list(
-                        pattern_db.patterns.get("fix_patterns", {}).values()
-                    )[:10],
+                    "failure_patterns": list(pattern_db.patterns["failure_patterns"].values())[:10],
+                    "success_patterns": list(pattern_db.patterns["success_patterns"].values())[:10],
+                    "fix_patterns": list(pattern_db.patterns.get("fix_patterns", {}).values())[:10],
                 }
 
             # Get learning statistics
@@ -1106,29 +1004,24 @@ class HistoricalDataIntegration:
 
             # Keep only recent learning entries
             if len(summary_data["learning_history"]) > 100:
-                summary_data["learning_history"] = summary_data["learning_history"][
-                    -100:
-                ]
+                summary_data["learning_history"] = summary_data["learning_history"][-100:]
 
             # Update metadata
             if "metadata" not in summary_data:
                 summary_data["metadata"] = {}
 
-            summary_data["metadata"][
-                "last_learning_update"
-            ] = datetime.now().isoformat()
+            summary_data["metadata"]["last_learning_update"] = datetime.now().isoformat()
             summary_data["metadata"]["total_learning_entries"] = len(
                 summary_data["learning_history"]
             )
 
-            # Save updated summary
-            with open(self.recon_summary_file, "w", encoding="utf-8") as f:
-                json.dump(summary_data, f, indent=2, ensure_ascii=False)
+            # Save updated summary (atomically)
+            self._atomic_write_json(self.recon_summary_file, summary_data)
 
             LOG.debug("Learning data saved to recon_summary.json")
 
         except Exception as e:
-            LOG.error(f"Failed to save learning data to summary: {e}")
+            LOG.exception("Failed to save learning data to summary: %s", e)
 
     def export_learning_knowledge(
         self, export_file: str = "historical_learning_export.json"
@@ -1150,9 +1043,7 @@ class HistoricalDataIntegration:
 
         try:
             # Create proper file paths
-            base_dir = (
-                os.path.dirname(export_file) if os.path.dirname(export_file) else "."
-            )
+            base_dir = os.path.dirname(export_file) if os.path.dirname(export_file) else "."
             base_name = os.path.basename(export_file)
 
             learning_export_file = os.path.join(base_dir, f"learning_{base_name}")
@@ -1201,9 +1092,7 @@ class HistoricalDataIntegration:
 
         try:
             # Create proper file paths
-            base_dir = (
-                os.path.dirname(import_file) if os.path.dirname(import_file) else "."
-            )
+            base_dir = os.path.dirname(import_file) if os.path.dirname(import_file) else "."
             base_name = os.path.basename(import_file)
 
             learning_import_file = os.path.join(base_dir, f"learning_{base_name}")
@@ -1231,9 +1120,7 @@ class HistoricalDataIntegration:
                         self.historical_data[key] = value
 
                 # Merge patterns
-                self.effectiveness_trends.update(
-                    imported_data.get("effectiveness_trends", {})
-                )
+                self.effectiveness_trends.update(imported_data.get("effectiveness_trends", {}))
                 self.failure_patterns.update(imported_data.get("failure_patterns", {}))
                 self.success_patterns.update(imported_data.get("success_patterns", {}))
 
@@ -1244,9 +1131,7 @@ class HistoricalDataIntegration:
             LOG.error(f"Failed to import learning knowledge: {e}")
             return False
 
-    def _generate_historical_insights(
-        self, pcap_analysis_results: Dict[str, Any]
-    ) -> List[str]:
+    def _generate_historical_insights(self, pcap_analysis_results: Dict[str, Any]) -> List[str]:
         """Generate insights based on historical analysis"""
 
         insights = []
@@ -1258,9 +1143,7 @@ class HistoricalDataIntegration:
                 insights.append(f"Historical Success: {factor}")
 
             # Insights from effectiveness trends
-            strategy_performance = self.effectiveness_trends.get(
-                "strategy_performance", {}
-            )
+            strategy_performance = self.effectiveness_trends.get("strategy_performance", {})
             if strategy_performance:
                 best_strategy = max(
                     strategy_performance.items(),
@@ -1320,24 +1203,22 @@ class HistoricalDataIntegration:
                 "timestamp": datetime.now().isoformat(),
                 "analysis_type": "pcap_historical_integration",
                 "results_summary": {
-                    "similarity_score": new_analysis_results.get(
-                        "pcap_comparison", {}
-                    ).get("similarity_score", 0.0),
-                    "critical_issues_count": len(
-                        new_analysis_results.get("actionable_fixes", [])
+                    "similarity_score": new_analysis_results.get("pcap_comparison", {}).get(
+                        "similarity_score", 0.0
                     ),
+                    "critical_issues_count": len(new_analysis_results.get("actionable_fixes", [])),
                     "historical_strategies_found": len(
                         new_analysis_results.get("historical_context", {}).get(
                             "relevant_historical_strategies", []
                         )
                     ),
-                    "success_predictions": new_analysis_results.get(
-                        "historical_context", {}
-                    ).get("success_predictions", {}),
+                    "success_predictions": new_analysis_results.get("historical_context", {}).get(
+                        "success_predictions", {}
+                    ),
                 },
-                "historical_insights": new_analysis_results.get(
-                    "historical_context", {}
-                ).get("historical_insights", []),
+                "historical_insights": new_analysis_results.get("historical_context", {}).get(
+                    "historical_insights", []
+                ),
             }
 
             current_data["pcap_integration_history"].append(integration_entry)
@@ -1346,9 +1227,7 @@ class HistoricalDataIntegration:
             if "metadata" not in current_data:
                 current_data["metadata"] = {}
 
-            current_data["metadata"][
-                "last_pcap_integration"
-            ] = datetime.now().isoformat()
+            current_data["metadata"]["last_pcap_integration"] = datetime.now().isoformat()
             current_data["metadata"]["pcap_integration_count"] = len(
                 current_data["pcap_integration_history"]
             )
@@ -1369,9 +1248,7 @@ class HistoricalDataIntegration:
 
         summary = {
             "data_statistics": {
-                "total_historical_records": len(
-                    self.historical_data.get("all_results", [])
-                ),
+                "total_historical_records": len(self.historical_data.get("all_results", [])),
                 "successful_strategies": len(
                     [
                         r
@@ -1380,10 +1257,7 @@ class HistoricalDataIntegration:
                     ]
                 ),
                 "unique_strategies": len(
-                    set(
-                        r.get("strategy", "")
-                        for r in self.historical_data.get("all_results", [])
-                    )
+                    set(r.get("strategy", "") for r in self.historical_data.get("all_results", []))
                 ),
                 "data_file_exists": os.path.exists(self.recon_summary_file),
             },
@@ -1396,12 +1270,8 @@ class HistoricalDataIntegration:
                 ),
             },
             "insights_available": {
-                "success_factors": len(
-                    self.success_patterns.get("success_factors", [])
-                ),
-                "failure_warnings": len(
-                    self.failure_patterns.get("common_failure_strategies", [])
-                ),
+                "success_factors": len(self.success_patterns.get("success_factors", [])),
+                "failure_warnings": len(self.failure_patterns.get("common_failure_strategies", [])),
                 "parameter_recommendations": len(
                     self.effectiveness_trends.get("parameter_effectiveness", {})
                 ),

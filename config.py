@@ -186,3 +186,6 @@ HTTP_SPECIFIC_TECHS = [
     "http_header_injection",
     "http_path_obfuscation",
 ]
+
+# Strategy isolation mode - bypasses domain_rules.json during adaptive testing
+STRATEGY_ISOLATION_MODE = False

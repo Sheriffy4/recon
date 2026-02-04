@@ -28,9 +28,7 @@ async def resolve_all_ips(domain: str) -> Set[str]:
                 try:
                     params = {"name": domain, "type": "A"}
                     headers = {"accept": "application/dns-json"}
-                    async with s.get(
-                        doh, params=params, headers=headers, timeout=2
-                    ) as r:
+                    async with s.get(doh, params=params, headers=headers, timeout=2) as r:
                         if r.status == 200:
                             j = await r.json()
                             for ans in j.get("Answer", []):

@@ -137,9 +137,7 @@ class FinalIntegrationTester:
         report.system_health = self._check_system_health()
 
         # Generate optimization recommendations
-        report.optimization_recommendations = (
-            self._generate_optimization_recommendations(report)
-        )
+        report.optimization_recommendations = self._generate_optimization_recommendations(report)
 
         # Assess production readiness
         report.production_readiness = self._assess_production_readiness(report)
@@ -168,9 +166,7 @@ class FinalIntegrationTester:
                 mock_http.return_value = {"http_header_filtering": True}
                 mock_dns.return_value = {"dns_hijacking_detected": False}
 
-                fingerprint = await fingerprinter.fingerprint_target(
-                    self.test_targets[0]
-                )
+                fingerprint = await fingerprinter.fingerprint_target(self.test_targets[0])
 
                 duration = time.time() - start_time
 
@@ -225,9 +221,7 @@ class FinalIntegrationTester:
 
             # Test strategy generation
             generator = ZapretStrategyGenerator()
-            strategies = generator.generate_strategies(
-                fingerprint=fingerprint, count=10
-            )
+            strategies = generator.generate_strategies(fingerprint=fingerprint, count=10)
 
             duration = time.time() - start_time
 
@@ -632,9 +626,7 @@ class FinalIntegrationTester:
         operations = 50
 
         for i in range(operations):
-            strategies = generator.generate_strategies(
-                fingerprint=fingerprint, count=20
-            )
+            strategies = generator.generate_strategies(fingerprint=fingerprint, count=20)
             if len(strategies) != 20:
                 raise Exception(f"Expected 20 strategies, got {len(strategies)}")
 
@@ -738,9 +730,7 @@ class FinalIntegrationTester:
 
         return health_summary
 
-    def _generate_optimization_recommendations(
-        self, report: IntegrationReport
-    ) -> List[str]:
+    def _generate_optimization_recommendations(self, report: IntegrationReport) -> List[str]:
         """Generate optimization recommendations based on test results."""
         recommendations = []
 
@@ -765,9 +755,7 @@ class FinalIntegrationTester:
 
         # Analyze system health
         if report.system_health.get("critical_components", 0) > 0:
-            recommendations.append(
-                "Address critical system health issues before production"
-            )
+            recommendations.append("Address critical system health issues before production")
 
         if report.system_health.get("warning_components", 0) > 0:
             recommendations.append("Review and resolve system health warnings")
@@ -791,9 +779,7 @@ class FinalIntegrationTester:
 
         return recommendations
 
-    def _assess_production_readiness(
-        self, report: IntegrationReport
-    ) -> Dict[str, bool]:
+    def _assess_production_readiness(self, report: IntegrationReport) -> Dict[str, bool]:
         """Assess production readiness based on test results."""
         readiness = {
             "core_functionality": True,
@@ -908,13 +894,9 @@ async def run_final_integration_tests():
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Final Integration Testing and Optimization"
-    )
+    parser = argparse.ArgumentParser(description="Final Integration Testing and Optimization")
     parser.add_argument("--export", help="Export report to file")
-    parser.add_argument(
-        "--quick", action="store_true", help="Run quick validation only"
-    )
+    parser.add_argument("--quick", action="store_true", help="Run quick validation only")
 
     args = parser.parse_args()
 

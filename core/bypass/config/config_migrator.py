@@ -78,9 +78,7 @@ class ConfigurationMigrator:
             self._save_pool_config(pool_config, target_config_path)
             result.success = True
             result.migrated_pools = len(pool_config.pools)
-            result.migrated_domains = sum(
-                (len(pool.domains) for pool in pool_config.pools)
-            )
+            result.migrated_domains = sum((len(pool.domains) for pool in pool_config.pools))
             if legacy_config.success_rate < 0.5:
                 result.warnings.append(
                     f"Legacy configuration had low success rate ({legacy_config.success_rate:.2%})"
@@ -99,9 +97,7 @@ class ConfigurationMigrator:
             print(f"Error reading legacy config: {e}")
             return None
 
-    def _convert_legacy_to_pool(
-        self, legacy_config: LegacyConfiguration
-    ) -> PoolConfiguration:
+    def _convert_legacy_to_pool(self, legacy_config: LegacyConfiguration) -> PoolConfiguration:
         """Convert legacy configuration to pool format."""
         strategy = self._parse_zapret_strategy(legacy_config.strategy)
         default_pool = StrategyPool(
@@ -278,9 +274,7 @@ class ConfigurationMigrator:
             metadata={"migrated_from": "zapret", "original_config": zapret_config},
         )
 
-    def migrate_goodbyedpi_config(
-        self, goodbyedpi_params: List[str]
-    ) -> PoolConfiguration:
+    def migrate_goodbyedpi_config(self, goodbyedpi_params: List[str]) -> PoolConfiguration:
         """
         Migrate goodbyedpi parameters to pool format.
 
@@ -358,13 +352,9 @@ class ConfigurationMigrator:
                 issues.append("No pools found in target configuration")
             for pool in pools:
                 if "strategy" not in pool:
-                    issues.append(
-                        f"Pool '{pool.get('id', 'unknown')}' missing strategy"
-                    )
+                    issues.append(f"Pool '{pool.get('id', 'unknown')}' missing strategy")
                 if "attacks" not in pool.get("strategy", {}):
-                    issues.append(
-                        f"Pool '{pool.get('id', 'unknown')}' strategy missing attacks"
-                    )
+                    issues.append(f"Pool '{pool.get('id', 'unknown')}' strategy missing attacks")
         except Exception as e:
             issues.append(f"Validation error: {str(e)}")
         return issues

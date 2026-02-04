@@ -54,9 +54,7 @@ class IntegrationConfig:
     enable_network_validation: bool = True
     network_test_timeout: float = 5.0
     skip_network_test_for_errors: bool = True
-    strict_network_validation: bool = (
-        False  # If False, network failures don't fail the attack
-    )
+    strict_network_validation: bool = False  # If False, network failures don't fail the attack
 
     @classmethod
     def load_from_dict(cls, config_dict: Dict) -> "IntegrationConfig":
@@ -70,8 +68,7 @@ class IntegrationConfig:
     def to_dict(self) -> Dict:
         """Convert configuration to dictionary."""
         return {
-            field.name: getattr(self, field.name)
-            for field in self.__dataclass_fields__.values()
+            field.name: getattr(self, field.name) for field in self.__dataclass_fields__.values()
         }
 
     def validate(self) -> List[str]:
@@ -107,9 +104,7 @@ class IntegrationConfig:
 
         valid_strategies = ["optimal", "random", "round_robin", "adaptive"]
         if self.attack_selection_strategy not in valid_strategies:
-            issues.append(
-                f"attack_selection_strategy must be one of: {valid_strategies}"
-            )
+            issues.append(f"attack_selection_strategy must be one of: {valid_strategies}")
 
         return issues
 

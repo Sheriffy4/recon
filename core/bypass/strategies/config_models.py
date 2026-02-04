@@ -58,8 +58,7 @@ class DPIConfig:
         valid_modes = [mode.value for mode in DesyncMode]
         if self.desync_mode not in valid_modes:
             raise ValueError(
-                f"Invalid desync_mode: {self.desync_mode}. "
-                f"Valid modes: {valid_modes}"
+                f"Invalid desync_mode: {self.desync_mode}. " f"Valid modes: {valid_modes}"
             )
 
     def _validate_split_positions(self):
@@ -74,8 +73,7 @@ class DPIConfig:
             elif isinstance(pos, str):
                 if pos.lower() not in ["sni"]:
                     raise ValueError(
-                        f"Invalid string split position: {pos}. "
-                        f"Valid string positions: ['sni']"
+                        f"Invalid string split position: {pos}. " f"Valid string positions: ['sni']"
                     )
             else:
                 raise ValueError(f"Split position must be int or str: {pos}")
@@ -89,8 +87,7 @@ class DPIConfig:
         for method in self.fooling_methods:
             if method not in valid_methods:
                 raise ValueError(
-                    f"Invalid fooling method: {method}. "
-                    f"Valid methods: {valid_methods}"
+                    f"Invalid fooling method: {method}. " f"Valid methods: {valid_methods}"
                 )
 
     def has_numeric_positions(self) -> bool:
@@ -99,10 +96,7 @@ class DPIConfig:
 
     def has_sni_position(self) -> bool:
         """Check if configuration includes SNI split position."""
-        return any(
-            isinstance(pos, str) and pos.lower() == "sni"
-            for pos in self.split_positions
-        )
+        return any(isinstance(pos, str) and pos.lower() == "sni" for pos in self.split_positions)
 
     def get_numeric_positions(self) -> List[int]:
         """Get all numeric split positions."""
@@ -174,8 +168,7 @@ class SplitConfig:
         for priority in self.priority_order:
             if priority not in valid_priorities:
                 raise ValueError(
-                    f"Invalid priority: {priority}. "
-                    f"Valid priorities: {valid_priorities}"
+                    f"Invalid priority: {priority}. " f"Valid priorities: {valid_priorities}"
                 )
 
     def _validate_limits(self):
@@ -270,14 +263,10 @@ class FoolingConfig:
     def _validate_counts(self):
         """Validate count values."""
         if self.fake_packet_count < 0:
-            raise ValueError(
-                f"fake_packet_count must be non-negative: {self.fake_packet_count}"
-            )
+            raise ValueError(f"fake_packet_count must be non-negative: {self.fake_packet_count}")
 
         if self.disorder_window < 1:
-            raise ValueError(
-                f"disorder_window must be positive: {self.disorder_window}"
-            )
+            raise ValueError(f"disorder_window must be positive: {self.disorder_window}")
 
     def should_apply_badsum(self) -> bool:
         """
@@ -350,9 +339,7 @@ class PacketSplitResult:
 
         # Verify split positions match parts
         if len(self.split_positions) != len(self.split_parts) - 1:
-            raise ValueError(
-                "Number of split positions should be one less than number of parts"
-            )
+            raise ValueError("Number of split positions should be one less than number of parts")
 
     def get_part_sizes(self) -> List[int]:
         """Get sizes of all split parts."""

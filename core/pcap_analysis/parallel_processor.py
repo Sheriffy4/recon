@@ -55,13 +55,9 @@ class ParallelTaskManager:
 
         # Auto-detect worker count if not specified
         if self.config.max_workers is None:
-            self.config.max_workers = min(
-                mp.cpu_count(), 8
-            )  # Cap at 8 for memory reasons
+            self.config.max_workers = min(mp.cpu_count(), 8)  # Cap at 8 for memory reasons
 
-        logger.info(
-            f"Initialized parallel task manager with {self.config.max_workers} workers"
-        )
+        logger.info(f"Initialized parallel task manager with {self.config.max_workers} workers")
 
     def execute_parallel_tasks(
         self, tasks: List[Tuple[Callable, tuple]], task_ids: Optional[List[str]] = None
@@ -106,9 +102,7 @@ class ParallelTaskManager:
             # Submit all tasks
             future_to_task = {}
             for i, (func, args) in enumerate(tasks):
-                future = executor.submit(
-                    self._execute_single_task, func, args, task_ids[i]
-                )
+                future = executor.submit(self._execute_single_task, func, args, task_ids[i])
                 future_to_task[future] = task_ids[i]
 
             # Collect results
@@ -125,9 +119,7 @@ class ParallelTaskManager:
                         logger.warning(f"Task {task_id} failed: {result.error}")
                 except Exception as e:
                     logger.error(f"Task {task_id} raised exception: {e}")
-                    results.append(
-                        TaskResult(task_id=task_id, success=False, error=str(e))
-                    )
+                    results.append(TaskResult(task_id=task_id, success=False, error=str(e)))
 
         return results
 
@@ -137,16 +129,12 @@ class ParallelTaskManager:
         """Execute tasks using thread pool."""
         results = []
 
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=self.config.max_workers
-        ) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_workers) as executor:
 
             # Submit all tasks
             future_to_task = {}
             for i, (func, args) in enumerate(tasks):
-                future = executor.submit(
-                    self._execute_single_task, func, args, task_ids[i]
-                )
+                future = executor.submit(self._execute_single_task, func, args, task_ids[i])
                 future_to_task[future] = task_ids[i]
 
             # Collect results
@@ -163,9 +151,7 @@ class ParallelTaskManager:
                         logger.warning(f"Task {task_id} failed: {result.error}")
                 except Exception as e:
                     logger.error(f"Task {task_id} raised exception: {e}")
-                    results.append(
-                        TaskResult(task_id=task_id, success=False, error=str(e))
-                    )
+                    results.append(TaskResult(task_id=task_id, success=False, error=str(e)))
 
         return results
 
@@ -261,9 +247,7 @@ class ParallelPcapAnalyzer:
             },
         }
 
-    def compare_pcap_pairs(
-        self, pcap_pairs: List[Tuple[str, str]]
-    ) -> Dict[str, ComparisonResult]:
+    def compare_pcap_pairs(self, pcap_pairs: List[Tuple[str, str]]) -> Dict[str, ComparisonResult]:
         """Compare multiple PCAP file pairs in parallel."""
         logger.info(f"Starting parallel comparison of {len(pcap_pairs)} PCAP pairs")
 
@@ -292,9 +276,7 @@ class ParallelPcapAnalyzer:
         self, packets: List[PacketInfo], analysis_functions: List[Callable]
     ) -> Dict[str, Any]:
         """Perform multiple analysis functions on packets in parallel."""
-        logger.info(
-            f"Starting parallel packet analysis with {len(analysis_functions)} functions"
-        )
+        logger.info(f"Starting parallel packet analysis with {len(analysis_functions)} functions")
 
         # Create analysis tasks
         tasks = []
@@ -367,9 +349,7 @@ class AsyncParallelProcessor:
         self.max_concurrent_tasks = max_concurrent_tasks
         self.semaphore = asyncio.Semaphore(max_concurrent_tasks)
 
-    async def process_tasks_async(
-        self, tasks: List[Callable], task_args: List[tuple]
-    ) -> List[Any]:
+    async def process_tasks_async(self, tasks: List[Callable], task_args: List[tuple]) -> List[Any]:
         """Process multiple async tasks concurrently."""
         if len(tasks) != len(task_args):
             raise ValueError("Number of tasks must match number of argument tuples")
@@ -385,10 +365,7 @@ class AsyncParallelProcessor:
 
         # Execute all tasks concurrently
         results = await asyncio.gather(
-            *[
-                _execute_with_semaphore(task, args)
-                for task, args in zip(tasks, task_args)
-            ],
+            *[_execute_with_semaphore(task, args) for task, args in zip(tasks, task_args)],
             return_exceptions=True,
         )
 

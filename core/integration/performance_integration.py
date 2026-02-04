@@ -109,9 +109,7 @@ class BypassPerformanceIntegrator:
     def _initialize_performance_optimizer(self):
         """Initialize the performance optimizer."""
         if SIMPLE_PERFORMANCE_OPTIMIZER_AVAILABLE:
-            self.optimizer = SimplePerformanceOptimizer(
-                name="BypassPerformanceOptimizer"
-            )
+            self.optimizer = SimplePerformanceOptimizer(name="BypassPerformanceOptimizer")
             self.optimizer._optimizations.extend(
                 [
                     self._optimize_bypass_caches,
@@ -131,9 +129,7 @@ class BypassPerformanceIntegrator:
                 )
             except Exception as e:
                 LOG.warning(f"Full optimizer failed, falling back to simple: {e}")
-                self.optimizer = SimplePerformanceOptimizer(
-                    name="BypassPerformanceOptimizer"
-                )
+                self.optimizer = SimplePerformanceOptimizer(name="BypassPerformanceOptimizer")
                 self.optimizer._optimizations.extend(
                     [
                         self._optimize_bypass_caches,
@@ -177,15 +173,12 @@ class BypassPerformanceIntegrator:
         avg_attack_latency = 0.0
         if self.counters["attacks_executed"] > 0:
             avg_attack_latency = (
-                self.counters["total_attack_latency_ms"]
-                / self.counters["attacks_executed"]
+                self.counters["total_attack_latency_ms"] / self.counters["attacks_executed"]
             )
         success_rate = 0.0
         if self.counters["attacks_executed"] > 0:
             success_rate = (
-                self.counters["successful_attacks"]
-                / self.counters["attacks_executed"]
-                * 100
+                self.counters["successful_attacks"] / self.counters["attacks_executed"] * 100
             )
         memory_usage_mb = 0.0
         cpu_usage_percent = 0.0

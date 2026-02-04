@@ -1,0 +1,281 @@
+{
+  "clustering_results": [
+    {
+      "class_name": "AttackRegistry",
+      "file_path": "core\\bypass\\attacks\\attack_registry.py",
+      "total_methods": 48,
+      "clusters": [
+        {
+          "cluster_id": "cluster_0",
+          "suggested_name": "ConfigurationHandler",
+          "methods": [
+            {
+              "name": "register_attack",
+              "line_start": 92
+            },
+            {
+              "name": "_handle_duplicate_registration",
+              "line_start": 189
+            },
+            {
+              "name": "get_attack_handler",
+              "line_start": 320
+            },
+            {
+              "name": "get",
+              "line_start": 350
+            },
+            {
+              "name": "get_attack_metadata",
+              "line_start": 364
+            },
+            {
+              "name": "get_attack_definition",
+              "line_start": 388
+            },
+            {
+              "name": "list_attacks",
+              "line_start": 449
+            },
+            {
+              "name": "get_attack_aliases",
+              "line_start": 475
+            },
+            {
+              "name": "_resolve_attack_type",
+              "line_start": 492
+            },
+            {
+              "name": "_register_builtin_attacks",
+              "line_start": 501
+            },
+            {
+              "name": "_create_primitives_handler",
+              "line_start": 986
+            },
+            {
+              "name": "_create_disorder2_handler",
+              "line_start": 1016
+            },
+            {
+              "name": "_create_split_handler",
+              "line_start": 1028
+            },
+            {
+              "name": "_create_disorder_split_handler",
+              "line_start": 1048
+            },
+            {
+              "name": "_create_seqovl_handler",
+              "line_start": 1062
+            },
+            {
+              "name": "_create_fake_handler",
+              "line_start": 1090
+            },
+            {
+              "name": "_generate_positions",
+              "line_start": 1113
+            },
+            {
+              "name": "_create_multisplit_handler",
+              "line_start": 1241
+            },
+            {
+              "name": "_create_fakeddisorder_handler",
+              "line_start": 1321
+            },
+            {
+              "name": "_create_multidisorder_handler",
+              "line_start": 1363
+            },
+            {
+              "name": "_create_window_manipulation_handler",
+              "line_start": 1451
+            },
+            {
+              "name": "_create_tcp_options_handler",
+              "line_start": 1469
+            },
+            {
+              "name": "_create_advanced_timing_handler",
+              "line_start": 1487
+            },
+            {
+              "name": "_create_badsum_handler",
+              "line_start": 1505
+            },
+            {
+              "name": "_create_badseq_handler",
+              "line_start": 1523
+            },
+            {
+              "name": "_create_md5sig_handler",
+              "line_start": 1541
+            },
+            {
+              "name": "_create_passthrough_handler",
+              "line_start": 1559
+            },
+            {
+              "name": "_create_ttl_handler",
+              "line_start": 1568
+            },
+            {
+              "name": "_register_external_attacks",
+              "line_start": 1589
+            },
+            {
+              "name": "_is_attack_class",
+              "line_start": 1661
+            },
+            {
+              "name": "_register_attack_class",
+              "line_start": 1669
+            },
+            {
+              "name": "_validate_parameter_values",
+              "line_start": 1702
+            },
+            {
+              "name": "get_registration_conflicts",
+              "line_start": 1935
+            },
+            {
+              "name": "get_priority_statistics",
+              "line_start": 1966
+            },
+            {
+              "name": "register_alias",
+              "line_start": 2005
+            },
+            {
+              "name": "get_canonical_name",
+              "line_start": 2068
+            },
+            {
+              "name": "is_alias",
+              "line_start": 2080
+            },
+            {
+              "name": "get_all_names_for_attack",
+              "line_start": 2092
+            },
+            {
+              "name": "get_alias_mapping",
+              "line_start": 2118
+            },
+            {
+              "name": "promote_implementation",
+              "line_start": 2127
+            },
+            {
+              "name": "get_promotion_history",
+              "line_start": 2239
+            },
+            {
+              "name": "_discover_external_attacks",
+              "line_start": 2312
+            }
+          ],
+          "shared_attributes": [],
+          "shared_dependencies": [],
+          "dominant_responsibilities": [
+            "configuration",
+            "validation"
+          ],
+          "cohesion_score": 0.40099180687703406,
+          "confidence": 0.40099180687703406,
+          "quality": "low",
+          "interface_methods": [
+            "register_attack",
+            "get_attack_handler",
+            "get",
+            "get_attack_metadata",
+            "get_attack_definition",
+            "list_attacks",
+            "get_attack_aliases",
+            "get_registration_conflicts",
+            "get_priority_statistics",
+            "register_alias",
+            "get_canonical_name",
+            "is_alias",
+            "get_all_names_for_attack",
+            "get_alias_mapping",
+            "promote_implementation",
+            "get_promotion_history"
+          ],
+          "private_methods": [
+            "_handle_duplicate_registration",
+            "_resolve_attack_type",
+            "_register_builtin_attacks",
+            "_create_primitives_handler",
+            "_create_disorder2_handler",
+            "_create_split_handler",
+            "_create_disorder_split_handler",
+            "_create_seqovl_handler",
+            "_create_fake_handler",
+            "_generate_positions",
+            "_create_multisplit_handler",
+            "_create_fakeddisorder_handler",
+            "_create_multidisorder_handler",
+            "_create_window_manipulation_handler",
+            "_create_tcp_options_handler",
+            "_create_advanced_timing_handler",
+            "_create_badsum_handler",
+            "_create_badseq_handler",
+            "_create_md5sig_handler",
+            "_create_passthrough_handler",
+            "_create_ttl_handler",
+            "_register_external_attacks",
+            "_is_attack_class",
+            "_register_attack_class",
+            "_validate_parameter_values",
+            "_discover_external_attacks"
+          ]
+        }
+      ],
+      "unclustered_methods": [
+        {
+          "name": "validate_parameters",
+          "line_start": 400
+        },
+        {
+          "name": "validate_registry_integrity",
+          "line_start": 1849
+        },
+        {
+          "name": "validate_promotion_request",
+          "line_start": 2256
+        },
+        {
+          "name": "_load_module_on_demand",
+          "line_start": 2370
+        },
+        {
+          "name": "_ensure_attack_loaded",
+          "line_start": 2401
+        },
+        {
+          "name": "get_lazy_loading_stats",
+          "line_start": 2463
+        }
+      ],
+      "unclustered_ratio": 0.125,
+      "average_cohesion": 0.40099180687703406,
+      "silhouette_score": 0.33502251293074403,
+      "extraction_recommended": false,
+      "confidence": 0.287302044649259,
+      "recommendations": [
+        "Use composition or delegation to maintain loose coupling between extracted components"
+      ]
+    }
+  ],
+  "component_suggestions": [],
+  "summary": {
+    "total_classes_analyzed": 1,
+    "total_clusters_found": 1,
+    "total_suggestions": 0,
+    "extraction_recommended_count": 0
+  }
+}

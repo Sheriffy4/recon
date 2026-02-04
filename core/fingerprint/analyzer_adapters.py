@@ -140,9 +140,7 @@ class TCPAnalyzerAdapter(BaseAnalyzerAdapter):
                 tcp_result.tcp_window_manipulation = bool(
                     result_dict.get("tcp_window_manipulation", False)
                 )
-                tcp_result.sequence_tracking = bool(
-                    result_dict.get("sequence_tracking", False)
-                )
+                tcp_result.sequence_tracking = bool(result_dict.get("sequence_tracking", False))
 
                 # Fragmentation
                 fh = result_dict.get("fragmentation_handling", "unknown")
@@ -150,17 +148,11 @@ class TCPAnalyzerAdapter(BaseAnalyzerAdapter):
                 tcp_result.fragmentation_handling = fh
 
                 # TCP options
-                tcp_result.tcp_options_filtering = result_dict.get(
-                    "tcp_options_filtering", []
-                )
+                tcp_result.tcp_options_filtering = result_dict.get("tcp_options_filtering", [])
                 tcp_result.window_size = result_dict.get("window_size")
                 tcp_result.mss = result_dict.get("mss")
-                tcp_result.sack_permitted = bool(
-                    result_dict.get("sack_permitted", False)
-                )
-                tcp_result.timestamps_enabled = bool(
-                    result_dict.get("timestamps_enabled", False)
-                )
+                tcp_result.sack_permitted = bool(result_dict.get("sack_permitted", False))
+                tcp_result.timestamps_enabled = bool(result_dict.get("timestamps_enabled", False))
 
                 # Timing
                 tcp_result.syn_ack_to_client_hello_delta = result_dict.get(
@@ -452,9 +444,7 @@ class RealEffectivenessTesterAdapter(BaseAnalyzerAdapter):
                 if hasattr(self.tester, method):
                     available_methods.append(method)
                 else:
-                    self.logger.warning(
-                        f"Method {method} not available in RealEffectivenessTester"
-                    )
+                    self.logger.warning(f"Method {method} not available in RealEffectivenessTester")
 
             if available_methods:
                 self.logger.info(
@@ -477,9 +467,7 @@ class RealEffectivenessTesterAdapter(BaseAnalyzerAdapter):
             # Collect extended metrics if available
             if hasattr(self.tester, "collect_extended_metrics"):
                 try:
-                    extended_metrics = await self.tester.collect_extended_metrics(
-                        target, port
-                    )
+                    extended_metrics = await self.tester.collect_extended_metrics(target, port)
                     metrics.update(extended_metrics)
                 except Exception as e:
                     self.logger.warning(f"Failed to collect extended metrics: {e}")
@@ -537,9 +525,7 @@ class AdvancedTCPProberAdapter(BaseAnalyzerAdapter):
         super().__init__()
 
         if not ADVANCED_TCP_PROBES_AVAILABLE:
-            raise AnalyzerError(
-                f"AdvancedTCPProber not available: {ADVANCED_TCP_IMPORT_ERROR}"
-            )
+            raise AnalyzerError(f"AdvancedTCPProber not available: {ADVANCED_TCP_IMPORT_ERROR}")
 
         try:
             self.prober = AdvancedTCPProber(timeout=timeout)
@@ -573,9 +559,7 @@ class AdvancedTLSProberAdapter(BaseAnalyzerAdapter):
         super().__init__()
 
         if not ADVANCED_TLS_PROBES_AVAILABLE:
-            raise AnalyzerError(
-                f"AdvancedTLSProber not available: {ADVANCED_TLS_IMPORT_ERROR}"
-            )
+            raise AnalyzerError(f"AdvancedTLSProber not available: {ADVANCED_TLS_IMPORT_ERROR}")
 
         try:
             self.prober = AdvancedTLSProber(timeout=timeout)
@@ -609,9 +593,7 @@ class BehavioralProberAdapter(BaseAnalyzerAdapter):
         super().__init__()
 
         if not BEHAVIORAL_PROBES_AVAILABLE:
-            raise AnalyzerError(
-                f"BehavioralProber not available: {BEHAVIORAL_IMPORT_ERROR}"
-            )
+            raise AnalyzerError(f"BehavioralProber not available: {BEHAVIORAL_IMPORT_ERROR}")
 
         try:
             self.prober = BehavioralProber(timeout=timeout)
@@ -717,28 +699,20 @@ def check_analyzer_availability() -> Dict[str, Dict[str, Any]]:
         "effectiveness": {
             "available": EFFECTIVENESS_TESTER_AVAILABLE,
             "error": (
-                EFFECTIVENESS_TESTER_IMPORT_ERROR
-                if not EFFECTIVENESS_TESTER_AVAILABLE
-                else None
+                EFFECTIVENESS_TESTER_IMPORT_ERROR if not EFFECTIVENESS_TESTER_AVAILABLE else None
             ),
         },
         # Advanced probes - Task 23
         "advanced_tcp": {
             "available": ADVANCED_TCP_PROBES_AVAILABLE,
-            "error": (
-                ADVANCED_TCP_IMPORT_ERROR if not ADVANCED_TCP_PROBES_AVAILABLE else None
-            ),
+            "error": (ADVANCED_TCP_IMPORT_ERROR if not ADVANCED_TCP_PROBES_AVAILABLE else None),
         },
         "advanced_tls": {
             "available": ADVANCED_TLS_PROBES_AVAILABLE,
-            "error": (
-                ADVANCED_TLS_IMPORT_ERROR if not ADVANCED_TLS_PROBES_AVAILABLE else None
-            ),
+            "error": (ADVANCED_TLS_IMPORT_ERROR if not ADVANCED_TLS_PROBES_AVAILABLE else None),
         },
         "behavioral": {
             "available": BEHAVIORAL_PROBES_AVAILABLE,
-            "error": (
-                BEHAVIORAL_IMPORT_ERROR if not BEHAVIORAL_PROBES_AVAILABLE else None
-            ),
+            "error": (BEHAVIORAL_IMPORT_ERROR if not BEHAVIORAL_PROBES_AVAILABLE else None),
         },
     }

@@ -164,16 +164,14 @@ class TLSParser:
             data = info.extensions[TLSExtensionType.SUPPORTED_GROUPS].data
             list_len = struct.unpack("!H", data[:2])[0]
             info.supported_groups = [
-                struct.unpack("!H", data[2 + i : 2 + i + 2])[0]
-                for i in range(0, list_len, 2)
+                struct.unpack("!H", data[2 + i : 2 + i + 2])[0] for i in range(0, list_len, 2)
             ]
 
         if TLSExtensionType.SIGNATURE_ALGORITHMS in info.extensions:
             data = info.extensions[TLSExtensionType.SIGNATURE_ALGORITHMS].data
             list_len = struct.unpack("!H", data[:2])[0]
             info.signature_algorithms = [
-                struct.unpack("!H", data[2 + i : 2 + i + 2])[0]
-                for i in range(0, list_len, 2)
+                struct.unpack("!H", data[2 + i : 2 + i + 2])[0] for i in range(0, list_len, 2)
             ]
 
         if TLSExtensionType.EC_POINT_FORMATS in info.extensions:

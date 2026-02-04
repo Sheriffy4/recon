@@ -71,9 +71,7 @@ class EnhancedRSTCompatibilityLayer:
 
         if ENHANCED_RST_ANALYZER_AVAILABLE:
             try:
-                self.enhanced_rst_analyzer = EnhancedRSTAnalyzer(
-                    recon_summary_file, "dummy.pcap"
-                )
+                self.enhanced_rst_analyzer = EnhancedRSTAnalyzer(recon_summary_file, "dummy.pcap")
                 LOG.info("Enhanced RST Analyzer initialized")
             except Exception as e:
                 LOG.warning(f"Failed to initialize Enhanced RST Analyzer: {e}")
@@ -196,9 +194,7 @@ class EnhancedRSTCompatibilityLayer:
         # Update metadata
         end_time = datetime.now()
         results["analysis_metadata"]["end_time"] = end_time.isoformat()
-        results["analysis_metadata"]["duration_seconds"] = (
-            end_time - start_time
-        ).total_seconds()
+        results["analysis_metadata"]["duration_seconds"] = (end_time - start_time).total_seconds()
 
         LOG.info(
             f"Enhanced PCAP analysis completed in {results['analysis_metadata']['duration_seconds']:.2f}s"
@@ -385,12 +381,8 @@ class EnhancedRSTCompatibilityLayer:
                 insights.append(f"PCAP Integration: {advantage}")
 
         # Cross-analysis insights
-        insights.append(
-            "Combined analysis provides enhanced confidence through cross-validation"
-        )
-        insights.append(
-            "Multiple data sources reduce false positives in strategy recommendations"
-        )
+        insights.append("Combined analysis provides enhanced confidence through cross-validation")
+        insights.append("Multiple data sources reduce false positives in strategy recommendations")
 
         return insights
 
@@ -411,9 +403,9 @@ class EnhancedRSTCompatibilityLayer:
 
         # RST analysis confidence
         if rst_strategies:
-            scores["rst_analysis_confidence"] = sum(
-                s["confidence"] for s in rst_strategies
-            ) / len(rst_strategies)
+            scores["rst_analysis_confidence"] = sum(s["confidence"] for s in rst_strategies) / len(
+                rst_strategies
+            )
 
         # PCAP analysis confidence
         if pcap_strategies:
@@ -482,9 +474,7 @@ class EnhancedRSTCompatibilityLayer:
             "total_duration": metadata.get("duration_seconds", 0),
             "components_used": len(components),
             "strategies_generated": len(
-                results.get("integrated_results", {}).get(
-                    "strategy_recommendations", []
-                )
+                results.get("integrated_results", {}).get("strategy_recommendations", [])
             ),
             "cross_validation_rate": len(
                 [
@@ -497,11 +487,7 @@ class EnhancedRSTCompatibilityLayer:
             )
             / max(
                 1,
-                len(
-                    results.get("integrated_results", {}).get(
-                        "strategy_recommendations", []
-                    )
-                ),
+                len(results.get("integrated_results", {}).get("strategy_recommendations", [])),
             ),
         }
 
@@ -509,9 +495,7 @@ class EnhancedRSTCompatibilityLayer:
         recommendations = []
 
         if not ENHANCED_RST_FINDER_AVAILABLE:
-            recommendations.append(
-                "Install enhanced_find_rst_triggers for full compatibility"
-            )
+            recommendations.append("Install enhanced_find_rst_triggers for full compatibility")
 
         if data_flow["bidirectional_integration"]:
             recommendations.append("Full integration achieved - all data flows working")
@@ -519,17 +503,13 @@ class EnhancedRSTCompatibilityLayer:
             recommendations.append("Partial integration - some data flows missing")
 
         if report["performance_metrics"]["cross_validation_rate"] > 0.5:
-            recommendations.append(
-                "High cross-validation rate indicates reliable integration"
-            )
+            recommendations.append("High cross-validation rate indicates reliable integration")
 
         report["recommendations"] = recommendations
 
         return report
 
-    def export_enhanced_rst_format(
-        self, analysis_results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def export_enhanced_rst_format(self, analysis_results: Dict[str, Any]) -> Dict[str, Any]:
         """Export results in enhanced_find_rst_triggers compatible format"""
 
         enhanced_format = {
@@ -545,14 +525,10 @@ class EnhancedRSTCompatibilityLayer:
 
         # Enhanced analysis section
         enhanced_format["enhanced_analysis"] = {
-            "generated_strategies": integrated_results.get(
-                "strategy_recommendations", []
-            ),
+            "generated_strategies": integrated_results.get("strategy_recommendations", []),
             "confidence_scores": integrated_results.get("confidence_scores", {}),
             "second_pass_summary": {
-                "strategies_generated": len(
-                    integrated_results.get("strategy_recommendations", [])
-                ),
+                "strategies_generated": len(integrated_results.get("strategy_recommendations", [])),
                 "success_rate": integrated_results.get("confidence_scores", {}).get(
                     "overall_confidence", 0.0
                 ),

@@ -77,9 +77,7 @@ class BaseBypassEngine(ABC):
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
-    def start(
-        self, target_ips: Set[str], strategy_map: Dict[str, Dict[str, Any]]
-    ) -> bool:
+    def start(self, target_ips: Set[str], strategy_map: Dict[str, Dict[str, Any]]) -> bool:
         """
         Start the bypass engine.
 

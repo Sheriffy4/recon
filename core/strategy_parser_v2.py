@@ -1,12 +1,19 @@
-﻿"""Strategy Parser V2 - Enhanced parser with dual syntax support."""
+#!/usr/bin/env python3
 
-import re
+"""Strategy Parser V2 - Enhanced parser with dual syntax support."""
+
 import logging
-from typing import Dict, Any, List, Optional
+import re
+import shlex
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+logger = logging.getLogger(__name__)
+
+ZapretIntLike = Union[int, str]
 
 
-@dataclass
+@dataclass(frozen=True)
 class ParsedStrategy:
     attack_type: str
     params: Dict[str, Any]
@@ -15,7 +22,15 @@ class ParsedStrategy:
 
 
 class StrategyParserV2:
-    def __init__(self):
+    """
+    Parser supporting two syntaxes:
+      1) function style: attack(param=value, ...)
+      2) zapret style: CLI-like string containing --dpi-desync=...
+    """
+
+    _IDENT_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+    def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)
         self.known_attacks = {
             "fake",
@@ -31,29 +46,100 @@ class StrategyParserV2:
     def parse(self, strategy_string: str) -> ParsedStrategy:
         if not strategy_string or not strategy_string.strip():
             raise ValueError("Empty strategy string")
+
         strategy_string = strategy_string.strip()
-        if self._is_function_style(strategy_string):
-            return self._parse_function_style(strategy_string)
-        elif self._is_zapret_style(strategy_string):
-            return self._parse_zapret_style(strategy_string)
+
+        if self._is_zapret_style(strategy_string):
+            parsed = self._parse_zapret_style(strategy_string)
+        elif self._is_function_style(strategy_string):
+            parsed = self._parse_function_style(strategy_string)
         else:
             raise ValueError(f"Unknown syntax: {strategy_string}")
 
+        # Optional consistency default (kept compatible with existing zapret default):
+        parsed.params.setdefault("repeats", 1)
+
+        return parsed
+
     def _is_function_style(self, strategy: str) -> bool:
-        return bool(re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*$", strategy))
+        try:
+            name, _ = self._split_function_call(strategy)
+        except ValueError:
+            return False
+        return bool(self._IDENT_RE.match(name))
 
     def _is_zapret_style(self, strategy: str) -> bool:
         return "--dpi-desync" in strategy
 
-    def _parse_function_style(self, strategy: str) -> ParsedStrategy:
-        match = re.match(r"^([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)\s*$", strategy)
-        if not match:
+    def _split_function_call(self, strategy: str) -> Tuple[str, str]:
+        """
+        Split `name(args...)` into (name, args_string), robust against quotes/brackets
+        in args by scanning for matching closing ')'.
+        """
+        s = strategy.strip()
+
+        open_idx = s.find("(")
+        if open_idx <= 0:
             raise ValueError(f"Invalid function syntax: {strategy}")
-        attack_name = match.group(1).lower().strip()
-        params_str = match.group(2).strip()
+
+        name = s[:open_idx].strip()
+        if not self._IDENT_RE.match(name):
+            raise ValueError(f"Invalid function name: {name}")
+
+        # Find matching closing paren for the first '('
+        depth = 0
+        in_quote: Optional[str] = None
+        escape = False
+        close_idx: Optional[int] = None
+
+        for i in range(open_idx, len(s)):
+            ch = s[i]
+
+            if escape:
+                escape = False
+                continue
+
+            if in_quote is not None:
+                if ch == "\\":
+                    escape = True
+                elif ch == in_quote:
+                    in_quote = None
+                continue
+
+            if ch in ("'", '"'):
+                in_quote = ch
+                continue
+
+            if ch == "(":
+                depth += 1
+                continue
+            if ch == ")":
+                depth -= 1
+                if depth == 0:
+                    close_idx = i
+                    break
+                if depth < 0:
+                    raise ValueError(f"Unbalanced parentheses in: {strategy}")
+
+        if close_idx is None:
+            raise ValueError(f"Unclosed parentheses in: {strategy}")
+
+        trailing = s[close_idx + 1 :].strip()
+        if trailing:
+            raise ValueError(f"Unexpected trailing characters after ')': {trailing}")
+
+        args_str = s[open_idx + 1 : close_idx].strip()
+        return name, args_str
+
+    def _parse_function_style(self, strategy: str) -> ParsedStrategy:
+        attack_name, params_str = self._split_function_call(strategy)
+        attack_name = attack_name.lower().strip()
+
         if attack_name not in self.known_attacks:
-            self.logger.warning(f"Unknown attack type '{attack_name}'")
+            self.logger.warning("Unknown attack type '%s' in '%s'", attack_name, strategy)
+
         params = self._parse_parameters(params_str) if params_str else {}
+
         return ParsedStrategy(
             attack_type=attack_name,
             params=params,
@@ -64,42 +150,62 @@ class StrategyParserV2:
     def _parse_parameters(self, params_str: str) -> Dict[str, Any]:
         if not params_str:
             return {}
-        params = {}
+
+        params: Dict[str, Any] = {}
         parts = self._smart_split(params_str, ",")
+
         for part in parts:
             part = part.strip()
-            if not part or "=" not in part:
+            if not part:
                 continue
+
+            if "=" not in part:
+                self.logger.warning("Skipping invalid parameter fragment '%s' (no '=')", part)
+                continue
+
             key, value = part.split("=", 1)
             key = key.strip()
             value = value.strip()
-            if key:
-                params[key] = self._parse_value(value)
+
+            if not key:
+                self.logger.warning("Skipping parameter with empty name in fragment '%s'", part)
+                continue
+
+            # Normalize to match validator naming (snake_case)
+            key = key.replace("-", "_")
+
+            params[key] = self._parse_value(value)
+
         return params
 
     def _parse_value(self, value_str: str) -> Any:
         value_str = value_str.strip()
         if not value_str:
             return None
+
         if value_str.startswith("[") and value_str.endswith("]"):
             return self._parse_list(value_str)
+
         if (value_str.startswith("'") and value_str.endswith("'")) or (
             value_str.startswith('"') and value_str.endswith('"')
         ):
             return value_str[1:-1]
-        if value_str.lower() == "true":
+
+        lowered = value_str.lower()
+        if lowered == "true":
             return True
-        if value_str.lower() == "false":
+        if lowered == "false":
             return False
-        if value_str.lower() in ("none", "null"):
+        if lowered in ("none", "null"):
             return None
+
         try:
-            if "." not in value_str and "e" not in value_str.lower():
+            # Prefer int when it looks like int; else float
+            if "." not in value_str and "e" not in lowered:
                 return int(value_str)
             return float(value_str)
         except ValueError:
-            pass
-        return value_str
+            return value_str
 
     def _parse_list(self, list_str: str) -> List[Any]:
         content = list_str[1:-1].strip()
@@ -109,91 +215,181 @@ class StrategyParserV2:
         return [self._parse_value(item.strip()) for item in items]
 
     def _smart_split(self, text: str, delimiter: str) -> List[str]:
-        parts = []
-        current = []
+        """
+        Split by delimiter, ignoring delimiters inside quotes and nested brackets/parens/braces.
+        Raises ValueError on unclosed quotes or unbalanced brackets for robustness.
+        """
+        if len(delimiter) != 1:
+            raise ValueError("Delimiter must be a single character")
+
+        parts: List[str] = []
+        current: List[str] = []
         depth = 0
-        in_quote = None
-        for char in text:
-            if char in ('"', "'"):
-                if in_quote is None:
-                    in_quote = char
-                elif in_quote == char:
+        in_quote: Optional[str] = None
+        escape = False
+
+        for ch in text:
+            if escape:
+                current.append(ch)
+                escape = False
+                continue
+
+            if in_quote is not None:
+                if ch == "\\":
+                    current.append(ch)
+                    escape = True
+                    continue
+                if ch == in_quote:
                     in_quote = None
-                current.append(char)
-            elif char in ("[", "(", "{") and in_quote is None:
+                current.append(ch)
+                continue
+
+            if ch in ('"', "'"):
+                in_quote = ch
+                current.append(ch)
+                continue
+
+            if ch in ("[", "(", "{"):
                 depth += 1
-                current.append(char)
-            elif char in ("]", ")", "}") and in_quote is None:
+                current.append(ch)
+                continue
+
+            if ch in ("]", ")", "}"):
                 depth -= 1
-                current.append(char)
-            elif char == delimiter and depth == 0 and in_quote is None:
+                if depth < 0:
+                    raise ValueError(f"Unbalanced brackets in '{text}'")
+                current.append(ch)
+                continue
+
+            if ch == delimiter and depth == 0:
                 parts.append("".join(current))
                 current = []
-            else:
-                current.append(char)
-        if current:
-            parts.append("".join(current))
+                continue
+
+            current.append(ch)
+
+        if in_quote is not None:
+            raise ValueError(f"Unclosed quote in '{text}'")
+        if depth != 0:
+            raise ValueError(f"Unbalanced brackets in '{text}'")
+
+        parts.append("".join(current))
         return parts
 
+    def _parse_cli_options(self, strategy: str) -> Dict[str, Optional[str]]:
+        """
+        Parse CLI-like string into {--opt: value_or_None}.
+        Supports both --opt=value and --opt value forms and respects quotes via shlex.
+        """
+        try:
+            tokens = shlex.split(strategy)
+        except ValueError as e:
+            raise ValueError(f"Invalid CLI string (quoting error): {e}") from e
+
+        opts: Dict[str, Optional[str]] = {}
+        i = 0
+        while i < len(tokens):
+            tok = tokens[i]
+            if tok.startswith("--"):
+                if "=" in tok:
+                    k, v = tok.split("=", 1)
+                    opts[k] = v
+                else:
+                    # if next token is a value (not another option), bind it
+                    if i + 1 < len(tokens) and not tokens[i + 1].startswith("--"):
+                        opts[tok] = tokens[i + 1]
+                        i += 1
+                    else:
+                        opts[tok] = None
+            i += 1
+
+        return opts
+
+    def _normalize_attack_type(self, parts: List[str], raw_strategy: str) -> str:
+        """
+        Normalize zapret --dpi-desync list to internal attack_type.
+        If multiple parts are present, choose a reasonable main type and log warning.
+        """
+        parts = [p for p in (x.strip().lower() for x in parts) if p]
+        if not parts:
+            raise ValueError(f"Empty --dpi-desync value in: {raw_strategy}")
+
+        # Known composite
+        if "fake" in parts and ("disorder" in parts or "disorder2" in parts):
+            return "fakeddisorder"
+
+        # Prefer explicit known types in order
+        for candidate in parts:
+            if candidate in self.known_attacks:
+                if len(parts) > 1:
+                    self.logger.warning(
+                        "Multiple --dpi-desync parts %s detected; choosing '%s' (strategy: %s)",
+                        parts,
+                        candidate,
+                        raw_strategy,
+                    )
+                return candidate
+
+        # Fallback: first token
+        if len(parts) > 1:
+            self.logger.warning(
+                "Unknown multi-part --dpi-desync %s; falling back to '%s' (strategy: %s)",
+                parts,
+                parts[0],
+                raw_strategy,
+            )
+        return parts[0]
+
     def _parse_zapret_style(self, strategy: str) -> ParsedStrategy:
-        attack_match = re.search(r"--dpi-desync=([^\s]+)", strategy)
-        if not attack_match:
+        opts = self._parse_cli_options(strategy)
+
+        desync_value = opts.get("--dpi-desync")
+        if not desync_value:
             raise ValueError(f"No --dpi-desync found: {strategy}")
-        attack_str = attack_match.group(1).lower()
-        attack_parts = [p.strip() for p in attack_str.split(",")]
 
-        # Determine attack type
-        if "fake" in attack_parts and "disorder" in attack_parts:
-            attack_type = "fakeddisorder"
-        elif "multidisorder" in attack_parts:
-            attack_type = "multidisorder"
-        elif len(attack_parts) == 1:
-            attack_type = attack_parts[0]
-        else:
-            attack_type = attack_parts[0]
+        attack_parts = [p.strip() for p in desync_value.split(",")]
+        attack_type = self._normalize_attack_type(attack_parts, strategy)
 
-        params = {}
+        if attack_type not in self.known_attacks:
+            self.logger.warning("Unknown attack type '%s' in '%s'", attack_type, strategy)
 
-        # Parse integer parameters
-        for param_name in [
+        params: Dict[str, Any] = {}
+
+        int_params = [
             "ttl",
             "autottl",
             "split-pos",
             "split-count",
             "split-seqovl",
             "repeats",
-        ]:
-            value = self._extract_zapret_int(strategy, param_name)
+        ]
+        for param_name in int_params:
+            value = self._extract_zapret_int(opts, param_name)
             if value is not None:
                 key = param_name.replace("-", "_")
                 params[key] = value
 
-        # Parse string parameters
         for param_name in ["fake-sni"]:
-            value = self._extract_zapret_string(strategy, param_name)
+            value = self._extract_zapret_string(opts, param_name)
             if value is not None:
                 key = param_name.replace("-", "_")
                 params[key] = value
 
-        # Parse fooling list
-        fooling = self._extract_zapret_list(strategy, "fooling")
+        fooling = self._extract_zapret_list(opts, "fooling")
         if fooling:
             params["fooling"] = fooling
 
-        # Map split_seqovl to overlap_size
-        if "split_seqovl" in params:
+        # Alias for validator/consumer: overlap_size may be required for seqovl,
+        # while zapret uses split-seqovl.
+        if "split_seqovl" in params and "overlap_size" not in params:
             params["overlap_size"] = params["split_seqovl"]
 
-        # Validate mutual exclusivity of ttl and autottl
+        # Validate mutual exclusivity of ttl and autottl early (kept also in validator)
         if "ttl" in params and "autottl" in params:
             raise ValueError(
-                f"Cannot specify both --dpi-desync-ttl and --dpi-desync-autottl in the same strategy. "
+                "Cannot specify both --dpi-desync-ttl and --dpi-desync-autottl in the same strategy. "
                 f"These parameters are mutually exclusive. Strategy: {strategy}"
             )
-
-        # Set default for repeats if not specified
-        if "repeats" not in params:
-            params["repeats"] = 1
 
         return ParsedStrategy(
             attack_type=attack_type,
@@ -202,43 +398,60 @@ class StrategyParserV2:
             syntax_type="zapret",
         )
 
-    def _extract_zapret_int(self, strategy: str, param_name: str) -> Optional[int]:
-        pattern = rf"--dpi-desync-{param_name}=([^\s]+)"
-        match = re.search(pattern, strategy)
-        if not match:
+    def _extract_zapret_int(
+        self, opts: Dict[str, Optional[str]], param_name: str
+    ) -> Optional[ZapretIntLike]:
+        key = f"--dpi-desync-{param_name}"
+        raw = opts.get(key)
+        if raw is None:
             return None
-        value_str = match.group(1)
-        if value_str.lower() == "midsld":
-            return "midsld"
+
+        value_str = raw.strip()
+        if not value_str:
+            return None
+
+        lowered = value_str.lower()
+        # split-pos may be special token; do not drop it
+        if lowered in ("midsld", "sni", "cipher", "random"):
+            return lowered
+
+        # Some options may contain comma-separated values; take the first
         if "," in value_str:
-            value_str = value_str.split(",")[0]
+            value_str = value_str.split(",", 1)[0].strip()
+
         try:
             return int(value_str)
         except ValueError:
             return None
 
-    def _extract_zapret_string(self, strategy: str, param_name: str) -> Optional[str]:
-        pattern = rf"--dpi-desync-{param_name}=([^\s]+)"
-        match = re.search(pattern, strategy)
-        return match.group(1) if match else None
+    def _extract_zapret_string(
+        self, opts: Dict[str, Optional[str]], param_name: str
+    ) -> Optional[str]:
+        key = f"--dpi-desync-{param_name}"
+        raw = opts.get(key)
+        if raw is None:
+            return None
+        raw = raw.strip()
+        return raw if raw else None
 
-    def _extract_zapret_list(self, strategy: str, param_name: str) -> List[str]:
-        pattern = rf"--dpi-desync-{param_name}=([^\s]+)"
-        match = re.search(pattern, strategy)
-        if not match:
+    def _extract_zapret_list(self, opts: Dict[str, Optional[str]], param_name: str) -> List[str]:
+        key = f"--dpi-desync-{param_name}"
+        raw = opts.get(key)
+        if raw is None:
             return []
-        value_str = match.group(1)
-        return [item.strip() for item in value_str.split(",")]
+        raw = raw.strip()
+        if not raw:
+            return []
+        return [item.strip() for item in raw.split(",") if item.strip()]
 
 
 class ParameterValidator:
     """Validates attack parameters against specifications."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)
 
-        # Parameter specifications with type, range, and validation rules
-        self.param_specs = {
+        self.param_specs: Dict[str, Dict[str, Any]] = {
             "ttl": {
                 "type": int,
                 "min": 1,
@@ -261,8 +474,8 @@ class ParameterValidator:
                 "type": (int, str),
                 "min": 0,
                 "max": 65535,
-                "description": 'Position to split packet (or "midsld")',
-                "allowed_strings": ["midsld"],
+                "description": 'Position to split packet (int) or special token ("midsld","sni","cipher","random")',
+                "allowed_strings": ["midsld", "sni", "cipher", "random"],
             },
             "split_count": {
                 "type": int,
@@ -274,13 +487,13 @@ class ParameterValidator:
                 "type": int,
                 "min": 0,
                 "max": 65535,
-                "description": "Sequence overlap size",
+                "description": "Sequence overlap size (zapret naming)",
             },
             "overlap_size": {
                 "type": int,
                 "min": 0,
                 "max": 65535,
-                "description": "Overlap size for disorder attacks",
+                "description": "Overlap size for disorder/seqovl attacks",
             },
             "repeats": {
                 "type": int,
@@ -309,8 +522,7 @@ class ParameterValidator:
             "enabled": {"type": bool, "description": "Enable/disable flag"},
         }
 
-        # Required parameters for each attack type
-        self.attack_requirements = {
+        self.attack_requirements: Dict[str, Dict[str, Any]] = {
             "split": {
                 "required": ["split_pos"],
                 "optional": ["ttl", "autottl", "fooling", "repeats"],
@@ -376,37 +588,26 @@ class ParameterValidator:
         }
 
     def validate(self, parsed: ParsedStrategy) -> bool:
-        """
-        Validate parsed strategy parameters.
+        errors: List[str] = []
+        warnings: List[str] = []
 
-        Args:
-            parsed: ParsedStrategy object to validate
-
-        Returns:
-            True if validation passes
-
-        Raises:
-            ValueError: If validation fails with detailed error message
-        """
-        errors = []
-        warnings = []
-
-        # Validate attack type is known
-        if parsed.attack_type not in self.attack_requirements:
+        attack_spec = self.attack_requirements.get(parsed.attack_type)
+        if not attack_spec:
             warnings.append(
                 f"Unknown attack type '{parsed.attack_type}' - validation may be incomplete"
             )
+            attack_spec = {}
 
-        # Validate mutual exclusivity: ttl and autottl
+        # Mutual exclusivity: ttl and autottl
         if "ttl" in parsed.params and "autottl" in parsed.params:
             errors.append(
                 "Parameters 'ttl' and 'autottl' are mutually exclusive. "
                 "Use either fixed TTL or auto-calculated TTL, not both."
             )
 
-        # Validate required parameters are present
-        attack_spec = self.attack_requirements.get(parsed.attack_type, {})
         required_params = attack_spec.get("required", [])
+        optional_params = attack_spec.get("optional", [])
+        all_expected_params = set(required_params + optional_params)
 
         for param in required_params:
             if param not in parsed.params:
@@ -417,85 +618,78 @@ class ParameterValidator:
 
         # Validate each parameter
         for param_name, param_value in parsed.params.items():
-            param_errors = self._validate_parameter(
-                param_name, param_value, parsed.attack_type
-            )
-            errors.extend(param_errors)
+            errors.extend(self._validate_parameter(param_name, param_value, parsed.attack_type))
 
-        # Check for unknown parameters (warnings only)
-        optional_params = attack_spec.get("optional", [])
-        all_known_params = set(required_params + optional_params)
+            # Unknown param: warn explicitly (helps observability)
+            if param_name not in self.param_specs:
+                warnings.append(
+                    f"Unknown parameter '{param_name}' (attack '{parsed.attack_type}'): "
+                    "no validation rule exists for it"
+                )
+                continue
 
-        for param_name in parsed.params.keys():
-            if param_name not in all_known_params and param_name in self.param_specs:
+            # Known but not typical for this attack: warn
+            if all_expected_params and (param_name not in all_expected_params):
                 warnings.append(
                     f"Parameter '{param_name}' is not typically used with attack '{parsed.attack_type}'"
                 )
 
-        # Log warnings
-        for warning in warnings:
-            self.logger.warning(warning)
+        for w in warnings:
+            self.logger.warning(w)
 
-        # Raise error if validation failed
         if errors:
-            error_msg = f"Validation failed for strategy '{parsed.raw_string}':\n"
-            error_msg += "\n".join(f"  - {err}" for err in errors)
-            error_msg += f"\n\nAttack: {parsed.attack_type}"
+            msg = f"Validation failed for strategy '{parsed.raw_string}':\n"
+            msg += "\n".join(f"  - {err}" for err in errors)
+            msg += f"\n\nAttack: {parsed.attack_type}"
+
             if attack_spec:
-                error_msg += f"\nDescription: {attack_spec.get('description', 'N/A')}"
-                error_msg += f"\nRequired parameters: {', '.join(required_params) if required_params else 'none'}"
-                error_msg += f"\nOptional parameters: {', '.join(optional_params) if optional_params else 'none'}"
-            raise ValueError(error_msg)
+                msg += f"\nDescription: {attack_spec.get('description', 'N/A')}"
+                msg += f"\nRequired parameters: {', '.join(required_params) if required_params else 'none'}"
+                msg += f"\nOptional parameters: {', '.join(optional_params) if optional_params else 'none'}"
+            raise ValueError(msg)
 
         return True
 
-    def _validate_parameter(
-        self, param_name: str, param_value: Any, attack_type: str
-    ) -> List[str]:
+    def _type_matches(self, value: Any, expected: Any) -> bool:
         """
-        Validate a single parameter.
-
-        Args:
-            param_name: Name of parameter
-            param_value: Value of parameter
-            attack_type: Type of attack (for context)
-
-        Returns:
-            List of error messages (empty if valid)
+        isinstance() wrapper that prevents bool being accepted as int.
         """
-        errors = []
+        if expected is int:
+            return isinstance(value, int) and not isinstance(value, bool)
+        if expected is bool:
+            return type(value) is bool
+        return isinstance(value, expected)
 
-        # Check if parameter is known
-        if param_name not in self.param_specs:
-            # Unknown parameter - skip validation but don't error
-            return errors
+    def _validate_parameter(self, param_name: str, param_value: Any, attack_type: str) -> List[str]:
+        errors: List[str] = []
 
-        spec = self.param_specs[param_name]
+        spec = self.param_specs.get(param_name)
+        if not spec:
+            return errors  # Unknown param: warn handled in validate()
+
         expected_type = spec["type"]
 
-        # Validate type
+        # Type validation
         if isinstance(expected_type, tuple):
-            # Multiple allowed types
-            if not isinstance(param_value, expected_type):
+            if not any(self._type_matches(param_value, t) for t in expected_type):
                 type_names = " or ".join(t.__name__ for t in expected_type)
                 errors.append(
-                    f"Parameter '{param_name}' has wrong type. "
+                    f"Parameter '{param_name}' has wrong type for attack '{attack_type}'. "
                     f"Expected {type_names}, got {type(param_value).__name__}. "
                     f"Description: {spec.get('description', 'N/A')}"
                 )
                 return errors
         else:
-            # Single expected type
-            if not isinstance(param_value, expected_type):
+            if not self._type_matches(param_value, expected_type):
                 errors.append(
-                    f"Parameter '{param_name}' has wrong type. "
+                    f"Parameter '{param_name}' has wrong type for attack '{attack_type}'. "
                     f"Expected {expected_type.__name__}, got {type(param_value).__name__}. "
                     f"Description: {spec.get('description', 'N/A')}"
                 )
                 return errors
 
-        # Validate integer ranges
-        if isinstance(param_value, int):
+        # Integer range validation (exclude bool)
+        if isinstance(param_value, int) and not isinstance(param_value, bool):
             if "min" in spec and param_value < spec["min"]:
                 errors.append(
                     f"Parameter '{param_name}' value {param_value} is below minimum {spec['min']}. "
@@ -507,9 +701,8 @@ class ParameterValidator:
                     f"Description: {spec.get('description', 'N/A')}"
                 )
 
-        # Validate string values
+        # String constraints
         if isinstance(param_value, str):
-            # Check allowed strings
             if "allowed_strings" in spec and param_value not in spec["allowed_strings"]:
                 errors.append(
                     f"Parameter '{param_name}' has invalid string value '{param_value}'. "
@@ -517,7 +710,6 @@ class ParameterValidator:
                     f"Description: {spec.get('description', 'N/A')}"
                 )
 
-            # Check string length
             if "min_length" in spec and len(param_value) < spec["min_length"]:
                 errors.append(
                     f"Parameter '{param_name}' string is too short (min length: {spec['min_length']})"
@@ -527,11 +719,18 @@ class ParameterValidator:
                     f"Parameter '{param_name}' string is too long (max length: {spec['max_length']})"
                 )
 
-        # Validate list values
+        # List validation
         if isinstance(param_value, list):
             if "allowed_values" in spec:
+                allowed = set(spec["allowed_values"])
                 for item in param_value:
-                    if item not in spec["allowed_values"]:
+                    if not isinstance(item, str):
+                        errors.append(
+                            f"Parameter '{param_name}' contains non-string item {item!r} "
+                            f"(type {type(item).__name__}); allowed values must be strings."
+                        )
+                        continue
+                    if item not in allowed:
                         errors.append(
                             f"Parameter '{param_name}' contains invalid value '{item}'. "
                             f"Allowed values: {', '.join(spec['allowed_values'])}. "
@@ -541,27 +740,9 @@ class ParameterValidator:
         return errors
 
     def get_attack_info(self, attack_type: str) -> Optional[Dict[str, Any]]:
-        """
-        Get information about an attack type.
-
-        Args:
-            attack_type: Name of attack
-
-        Returns:
-            Dictionary with attack information or None if unknown
-        """
         return self.attack_requirements.get(attack_type)
 
     def get_parameter_info(self, param_name: str) -> Optional[Dict[str, Any]]:
-        """
-        Get information about a parameter.
-
-        Args:
-            param_name: Name of parameter
-
-        Returns:
-            Dictionary with parameter information or None if unknown
-        """
         return self.param_specs.get(param_name)
 
 
@@ -569,6 +750,5 @@ def parse_strategy(strategy_string: str, validate: bool = True) -> ParsedStrateg
     parser = StrategyParserV2()
     parsed = parser.parse(strategy_string)
     if validate:
-        validator = ParameterValidator()
-        validator.validate(parsed)
+        ParameterValidator().validate(parsed)
     return parsed

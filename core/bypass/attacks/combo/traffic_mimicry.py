@@ -44,9 +44,7 @@ class TrafficPattern:
     burst_size_range: Tuple[int, int] = (1, 5)
     burst_interval_range: Tuple[float, float] = (100.0, 500.0)
     session_duration_range: Tuple[float, float] = (30.0, 300.0)
-    idle_periods: List[Tuple[float, float]] = field(
-        default_factory=lambda: [(1.0, 5.0)]
-    )
+    idle_periods: List[Tuple[float, float]] = field(default_factory=lambda: [(1.0, 5.0)])
     bidirectional_ratio: float = 0.7
     keep_alive_interval: float = 30.0
     protocol_headers: Dict[str, bytes] = field(default_factory=dict)
@@ -173,7 +171,6 @@ class TrafficMimicryAttack(BaseAttack):
     def optional_params(self) -> Dict[str, Any]:
         # Этот класс выбирает профиль сам, поэтому явных параметров нет
         return {}
-    
 
     def register_profile(self, profile: TrafficProfile):
         """
@@ -231,9 +228,7 @@ class TrafficMimicryAttack(BaseAttack):
             if "generic_browsing" in self._profiles:
                 selected = self._profiles["generic_browsing"]
             else:
-                selected = (
-                    next(iter(self._profiles.values())) if self._profiles else None
-                )
+                selected = next(iter(self._profiles.values())) if self._profiles else None
         else:
             selected = random.choice(suitable_profiles)
         if selected:
@@ -257,10 +252,7 @@ class TrafficMimicryAttack(BaseAttack):
         profile_scores = {}
         for profile_name, profile in self._profiles.items():
             score = 0.0
-            if (
-                hasattr(fingerprint, "ml_detection_blocked")
-                and fingerprint.ml_detection_blocked
-            ):
+            if hasattr(fingerprint, "ml_detection_blocked") and fingerprint.ml_detection_blocked:
                 if profile.traffic_type in [
                     TrafficType.VIDEO_CALL,
                     TrafficType.MESSAGING,
@@ -268,10 +260,7 @@ class TrafficMimicryAttack(BaseAttack):
                     score += 0.3
                 else:
                     score += 0.1
-            if (
-                hasattr(fingerprint, "stateful_inspection")
-                and fingerprint.stateful_inspection
-            ):
+            if hasattr(fingerprint, "stateful_inspection") and fingerprint.stateful_inspection:
                 if profile.traffic_type == TrafficType.VIDEO_CALL:
                     score += 0.2
                 elif profile.traffic_type == TrafficType.MESSAGING:
@@ -288,10 +277,7 @@ class TrafficMimicryAttack(BaseAttack):
             if hasattr(fingerprint, "http2_detection") and fingerprint.http2_detection:
                 if profile.traffic_type == TrafficType.BROWSING:
                     score += 0.2
-            if (
-                hasattr(fingerprint, "quic_udp_blocked")
-                and fingerprint.quic_udp_blocked
-            ):
+            if hasattr(fingerprint, "quic_udp_blocked") and fingerprint.quic_udp_blocked:
                 if profile.traffic_type == TrafficType.VIDEO_CALL:
                     score -= 0.1
             if (
@@ -334,9 +320,7 @@ class TrafficMimicryAttack(BaseAttack):
                     error_message="No suitable traffic profile found",
                     latency_ms=(time.time() - start_time) * 1000,
                 )
-            packet_sequence = await profile.generate_packet_sequence(
-                context.payload, context
-            )
+            packet_sequence = await profile.generate_packet_sequence(context.payload, context)
             if not packet_sequence:
                 return AttackResult(
                     status=AttackStatus.ERROR,

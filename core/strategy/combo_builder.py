@@ -20,20 +20,23 @@ logger = logging.getLogger(__name__)
 # DATA CLASSES
 # ============================================================================
 
+
 @dataclass
 class AttackStep:
     """Represents a single step in an attack recipe."""
-    attack_type: str              # e.g. "fake", "split", "multisplit", "disorder"
-    order: int                    # Execution order (lower = earlier)
-    params: Dict[str, Any]        # Parameters specific to this attack
+
+    attack_type: str  # e.g. "fake", "split", "multisplit", "disorder"
+    order: int  # Execution order (lower = earlier)
+    params: Dict[str, Any]  # Parameters specific to this attack
 
 
 @dataclass
 class AttackRecipe:
     """Represents a complete attack recipe with ordered steps."""
-    attacks: List[str]            # Original attack list (as requested)
-    steps: List[AttackStep]       # Ordered steps to execute
-    params: Dict[str, Any]        # Merged parameters for all attacks
+
+    attacks: List[str]  # Original attack list (as requested)
+    steps: List[AttackStep]  # Ordered steps to execute
+    params: Dict[str, Any]  # Merged parameters for all attacks
 
     def __post_init__(self) -> None:
         """Sort steps by order after initialization (stable)."""
@@ -44,6 +47,7 @@ class AttackRecipe:
 @dataclass
 class ValidationResult:
     """Result of compatibility validation."""
+
     valid: bool
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -57,21 +61,51 @@ class ValidationResult:
 # fake → split/multisplit → disorder; комбинированные атаки приравнены к fake-фазе
 ATTACK_ORDER: Dict[str, int] = {
     "fake": 1,
-    "fakeddisorder": 1,              # combined fake+disorder
-    "disorder_short_ttl_decoy": 1,   # combined decoy
+    "fakeddisorder": 1,  # combined fake+disorder
+    "disorder_short_ttl_decoy": 1,  # combined decoy
     "split": 2,
     "multisplit": 2,
     "disorder": 3,
+    # CRITICAL FIX: Add missing attack types
+    "seqovl": 2,  # sequence overlap
+    "ttl": 1,  # TTL manipulation
+    "ttl_manipulation": 1,  # TTL manipulation (alias)
+    "passthrough": 999,  # passthrough (no modification)
+    "multidisorder": 3,  # multiple disorder
+    "badseq": 999,  # bad sequence fooling
+    "badsum": 999,  # bad checksum fooling
+    "md5sig": 999,  # MD5 signature fooling
+    "fragmentation": 2,  # fragmentation attack
+    "fooling": 999,  # general fooling
 }
 
 # Параметры, специфичные для каждого типа атаки
 ATTACK_PARAM_MAPPING: Dict[str, List[str]] = {
     "fake": ["ttl", "fooling", "fake_sni", "fake_data", "fake_mode"],
-    "split": ["split_pos"],
-    "multisplit": ["split_pos", "split_count", "positions", "fake_mode"],
+    "split": ["split_pos", "ttl", "fake_ttl"],
+    "multisplit": [
+        "split_pos",
+        "split_count",
+        "positions",
+        "fake_mode",
+        "ttl",
+        "fake_ttl",
+        "fooling",
+    ],
     "disorder": ["disorder_method"],
     "fakeddisorder": ["ttl", "fooling", "fake_sni", "disorder_method", "fake_mode"],
     "disorder_short_ttl_decoy": ["ttl", "fooling", "disorder_method", "fake_mode"],
+    # CRITICAL FIX: Add missing attack parameter mappings
+    "seqovl": ["split_pos", "overlap_size", "fake_ttl", "fooling", "custom_sni"],
+    "ttl": ["ttl"],
+    "ttl_manipulation": ["ttl"],
+    "passthrough": [],  # no parameters
+    "multidisorder": ["disorder_count", "disorder_method"],
+    "badseq": [],  # no parameters
+    "badsum": [],  # no parameters
+    "md5sig": [],  # no parameters
+    "fragmentation": ["split_pos", "fragment_size"],
+    "fooling": ["fooling_method"],
 }
 
 # Общие параметры, которые всегда передаются шагам (если присутствуют)
@@ -82,13 +116,20 @@ KNOWN_ATTACKS = set(ATTACK_ORDER.keys())
 
 # Набор несовместимых комбинаций (каждый элемент — сет типов атак)
 INCOMPATIBLE_COMBOS = [
-    {"split", "multisplit"},  # нельзя одновременно обычный split и multisplit
+    # Removed split+multisplit incompatibility to align with SmartAttackCombinator
+    # {"split", "multisplit"},  # Allow but warn about functionality duplication
+]
+
+# Набор комбинаций, которые вызывают предупреждения (но не блокируются)
+WARNING_COMBOS = [
+    {"split", "multisplit"},  # Дублирование функциональности фрагментации
 ]
 
 
 # ============================================================================
 # BUILDER
 # ============================================================================
+
 
 class ComboAttackBuilder:
     """
@@ -214,6 +255,14 @@ class ComboAttackBuilder:
                     "cannot be used together"
                 )
 
+        # Warning combinations (allowed but not recommended)
+        for warning_combo in WARNING_COMBOS:
+            if warning_combo.issubset(attack_set):
+                warnings.append(
+                    f"Potentially redundant combination: {', '.join(sorted(warning_combo))} "
+                    "may duplicate functionality. Consider using only one."
+                )
+
         # Unknown attacks
         unknown_attacks = attack_set - KNOWN_ATTACKS
         if unknown_attacks:
@@ -297,9 +346,7 @@ class ComboAttackBuilder:
     # Internal helpers
     # ------------------------------------------------------------------ #
 
-    def _extract_attack_params(
-        self, attack: str, all_params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _extract_attack_params(self, attack: str, all_params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extract parameters relevant to a specific attack.
 

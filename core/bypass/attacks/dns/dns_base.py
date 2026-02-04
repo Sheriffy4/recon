@@ -48,8 +48,6 @@ class BaseAttack(ABC):
         self.name = self.__class__.__name__
 
     @abstractmethod
-    async def execute(
-        self, target: str, parameters: Dict[str, Any] = None
-    ) -> AttackResult:
+    async def execute(self, target: str, parameters: Dict[str, Any] = None) -> AttackResult:
         """Execute the attack against the target."""
         pass

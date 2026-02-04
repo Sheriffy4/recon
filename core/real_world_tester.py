@@ -64,9 +64,7 @@ class RealWorldTester:
         try:
 
             self.target_ips = target_ips
-            LOG.info(
-                f"Starting bypass engine for IPs {target_ips} with strategy: {strategy}"
-            )
+            LOG.info(f"Starting bypass engine for IPs {target_ips} with strategy: {strategy}")
 
             self.stop_event.clear()
             self.engine_thread = threading.Thread(
@@ -114,28 +112,20 @@ class RealWorldTester:
 
                     last_error = None
                     for filter_str in candidates:
-                        LOG.debug(
-                            f"Creating global WinDivert with filter: {filter_str}"
-                        )
+                        LOG.debug(f"Creating global WinDivert with filter: {filter_str}")
                         try:
-                            RealWorldTester._global_windivert = pydivert.WinDivert(
-                                filter_str
-                            )
+                            RealWorldTester._global_windivert = pydivert.WinDivert(filter_str)
                             RealWorldTester._global_windivert.open()
                             break
                         except Exception as e:
                             last_error = e
-                            LOG.warning(
-                                f"Failed to open WinDivert with filter '{filter_str}': {e}"
-                            )
+                            LOG.warning(f"Failed to open WinDivert with filter '{filter_str}': {e}")
                             RealWorldTester._global_windivert = None
                     if RealWorldTester._global_windivert is None:
                         # Fallback самый простой
                         simple_filter = "outbound and tcp"
                         LOG.info(f"Trying simplified filter: {simple_filter}")
-                        RealWorldTester._global_windivert = pydivert.WinDivert(
-                            simple_filter
-                        )
+                        RealWorldTester._global_windivert = pydivert.WinDivert(simple_filter)
                         RealWorldTester._global_windivert.open()
 
                 RealWorldTester._active_testers += 1
@@ -158,18 +148,14 @@ class RealWorldTester:
 
                         # Обработка и TLS (443) и HTTP (80)
                         if (
-                            packet.tcp.dst_port == 443
-                            and len(payload) > 5
-                            and payload[0] == 0x16
+                            packet.tcp.dst_port == 443 and len(payload) > 5 and payload[0] == 0x16
                         ) or (packet.tcp.dst_port == 80 and payload.startswith(b"GET")):
 
                             LOG.debug(
                                 f"Intercepted {'TLS' if packet.tcp.dst_port == 443 else 'HTTP'} packet ({len(payload)} bytes)"
                             )
 
-                            modified_packets = self._apply_strategy_to_packet(
-                                packet, params
-                            )
+                            modified_packets = self._apply_strategy_to_packet(packet, params)
 
                             for i, mod_packet in enumerate(modified_packets):
                                 w.send(mod_packet)
@@ -187,9 +173,7 @@ class RealWorldTester:
                         LOG.debug(f"Packet processing error: {e}")
                     continue
 
-            LOG.debug(
-                f"Packet interception stopped. Processed {packets_processed} packets."
-            )
+            LOG.debug(f"Packet interception stopped. Processed {packets_processed} packets.")
 
         except Exception as e:
             LOG.error(f"System bypass thread error: {e}", exc_info=self.debug)
@@ -197,10 +181,7 @@ class RealWorldTester:
             if self.is_using_global_windivert:
                 with RealWorldTester._global_lock:
                     RealWorldTester._active_testers -= 1
-                    if (
-                        RealWorldTester._active_testers <= 0
-                        and RealWorldTester._global_windivert
-                    ):
+                    if RealWorldTester._active_testers <= 0 and RealWorldTester._global_windivert:
                         try:
                             RealWorldTester._global_windivert.close()
                             RealWorldTester._global_windivert = None
@@ -212,9 +193,7 @@ class RealWorldTester:
     def _apply_strategy_to_packet(self, packet, params: dict) -> list:
         try:
             raw_bytes = (
-                packet.raw.tobytes()
-                if hasattr(packet.raw, "tobytes")
-                else bytes(packet.raw)
+                packet.raw.tobytes() if hasattr(packet.raw, "tobytes") else bytes(packet.raw)
             )
             scapy_pkt = ScapyIP(raw_bytes)
 
@@ -233,9 +212,7 @@ class RealWorldTester:
                 LOG.debug("Phase 1: Generating fake packets...")
                 fake_scapy_packets = self._create_fake_packets(scapy_pkt, params)
                 for fake_pkt in fake_scapy_packets:
-                    pydivert_fake = self._scapy_to_pydivert(
-                        fake_pkt, original_interface
-                    )
+                    pydivert_fake = self._scapy_to_pydivert(fake_pkt, original_interface)
                     if pydivert_fake:
                         all_packets_to_send.append(pydivert_fake)
 
@@ -309,8 +286,7 @@ class RealWorldTester:
         seqovl_size = params.get("dpi_desync_split_seqovl") or 0
         desync_modes = params.get("dpi_desync", [])
         is_disorder = any(
-            m in desync_modes
-            for m in ["disorder", "disorder2", "multidisorder", "fakeddisorder"]
+            m in desync_modes for m in ["disorder", "disorder2", "multidisorder", "fakeddisorder"]
         )
 
         if is_disorder and seqovl_size > 0 and seqovl_size >= split_pos:
@@ -385,9 +361,7 @@ class RealWorldTester:
                 if "badsum" in fooling:
                     modified_pkt[ScapyTCP].chksum = 0xDEAD
                 if "badseq" in fooling:
-                    modified_pkt[ScapyTCP].seq += params.get(
-                        "dpi_desync_badseq_increment", -10000
-                    )
+                    modified_pkt[ScapyTCP].seq += params.get("dpi_desync_badseq_increment", -10000)
                 if "md5sig" in fooling:
                     current_options = list(modified_pkt[ScapyTCP].options)
                     md5_option = ("MD5", b"\x00" * 16)
@@ -416,18 +390,14 @@ class RealWorldTester:
                 try:
                     fake_data = bytes.fromhex(fake_tls_hex.replace("0x", ""))
                 except ValueError:
-                    LOG.warning(
-                        f"Invalid hex for fake_tls: {fake_tls_hex}. Using default."
-                    )
+                    LOG.warning(f"Invalid hex for fake_tls: {fake_tls_hex}. Using default.")
                     fake_data = b"GET / HTTP/1.1\r\nHost: www.iana.org\r\n\r\n"
             else:
                 fake_data = b"GET / HTTP/1.1\r\nHost: www.iana.org\r\n\r\n"
 
             fake_pkt[ScapyRaw].load = fake_data
 
-            modified_fake = self._apply_simple_modifications(
-                fake_pkt, params, apply_fooling=True
-            )
+            modified_fake = self._apply_simple_modifications(fake_pkt, params, apply_fooling=True)
             fake_packets.append(modified_fake)
 
         LOG.debug(f"Created {len(fake_packets)} fake Scapy packets.")
@@ -447,13 +417,8 @@ class RealWorldTester:
 
             if self.is_using_global_windivert:
                 with RealWorldTester._global_lock:
-                    RealWorldTester._active_testers = max(
-                        0, RealWorldTester._active_testers - 1
-                    )
-                    if (
-                        RealWorldTester._active_testers <= 0
-                        and RealWorldTester._global_windivert
-                    ):
+                    RealWorldTester._active_testers = max(0, RealWorldTester._active_testers - 1)
+                    if RealWorldTester._active_testers <= 0 and RealWorldTester._global_windivert:
                         try:
                             RealWorldTester._global_windivert.close()
                             RealWorldTester._global_windivert = None
@@ -498,16 +463,12 @@ class RealWorldTester:
             pass
 
         try:
-            client_timeout = aiohttp.ClientTimeout(
-                total=timeout, connect=2.0, sock_read=3.0
-            )
+            client_timeout = aiohttp.ClientTimeout(total=timeout, connect=2.0, sock_read=3.0)
 
             async with aiohttp.ClientSession(
                 timeout=client_timeout, connector=aiohttp.TCPConnector(ssl=False)
             ) as session:
-                async with session.get(
-                    site, headers=HEADERS, allow_redirects=True
-                ) as response:
+                async with session.get(site, headers=HEADERS, allow_redirects=True) as response:
                     latency = (time.time() - start_time) * 1000
                     if response.status:
                         try:
@@ -585,9 +546,7 @@ class RealWorldTester:
             await asyncio.sleep(1.5)
 
             # Этап 3: Устанавливаем соединения и проверяем доступность ПАРАЛЛЕЛЬНО
-            LOG.debug(
-                "Phase 3: Testing site connectivity through bypass (in parallel)..."
-            )
+            LOG.debug("Phase 3: Testing site connectivity through bypass (in parallel)...")
 
             # Используем test_multiple_sites для параллельного тестирования
             results = await self.test_multiple_sites(test_sites, max_concurrent=30)
@@ -601,16 +560,12 @@ class RealWorldTester:
                 else:
                     LOG.debug(f"✗ {site}: {status}")
 
-            LOG.info(
-                f"Strategy results: {successful_count}/{len(test_sites)} sites working"
-            )
+            LOG.info(f"Strategy results: {successful_count}/{len(test_sites)} sites working")
             return successful_count, len(test_sites), results
 
         except Exception as e:
             LOG.error(f"Error during strategy testing: {e}")
-            error_results = {
-                site: ("TEST_ERROR", "unknown", 0.0, 0) for site in test_sites
-            }
+            error_results = {site: ("TEST_ERROR", "unknown", 0.0, 0) for site in test_sites}
             return 0, len(test_sites), error_results
 
         finally:

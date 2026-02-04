@@ -82,11 +82,7 @@ class FallbackResult:
     def get_summary(self) -> str:
         """Get a summary of the fallback result."""
         if self.success:
-            engine_info = (
-                f"{self.final_engine_type.value}"
-                if self.final_engine_type
-                else "Unknown"
-            )
+            engine_info = f"{self.final_engine_type.value}" if self.final_engine_type else "Unknown"
             fallback_info = " (fallback)" if self.fallback_used else ""
             mock_info = " (mock)" if self.mock_used else ""
             return f"Success: {engine_info}{fallback_info}{mock_info} after {len(self.attempts)} attempts"
@@ -156,9 +152,7 @@ class FallbackStrategy_Interface(ABC):
         pass
 
     @abstractmethod
-    def should_attempt_fallback(
-        self, error: BaseEngineError, attempt_count: int
-    ) -> bool:
+    def should_attempt_fallback(self, error: BaseEngineError, attempt_count: int) -> bool:
         """Determine if fallback should be attempted."""
         pass
 
@@ -178,14 +172,9 @@ class PriorityOrderStrategy(FallbackStrategy_Interface):
         """Get fallback order based on configured priorities."""
         return self.config_manager.get_fallback_order(preferred_engine)
 
-    def should_attempt_fallback(
-        self, error: BaseEngineError, attempt_count: int
-    ) -> bool:
+    def should_attempt_fallback(self, error: BaseEngineError, attempt_count: int) -> bool:
         """Always attempt fallback for high/critical errors."""
-        return (
-            error.severity in [ErrorSeverity.HIGH, ErrorSeverity.CRITICAL]
-            and attempt_count < 3
-        )
+        return error.severity in [ErrorSeverity.HIGH, ErrorSeverity.CRITICAL] and attempt_count < 3
 
 
 class DependencyBasedStrategy(FallbackStrategy_Interface):
@@ -210,9 +199,7 @@ class DependencyBasedStrategy(FallbackStrategy_Interface):
                 engines_without_deps.append(engine_type)
         return engines_with_deps + engines_without_deps
 
-    def should_attempt_fallback(
-        self, error: BaseEngineError, attempt_count: int
-    ) -> bool:
+    def should_attempt_fallback(self, error: BaseEngineError, attempt_count: int) -> bool:
         """Attempt fallback for dependency errors."""
         return isinstance(error, EngineDependencyError) and attempt_count < 5
 
@@ -234,9 +221,7 @@ class LeastRequirementsStrategy(FallbackStrategy_Interface):
         }
         return sorted(available_engines, key=lambda e: requirements_map.get(e, 10))
 
-    def should_attempt_fallback(
-        self, error: BaseEngineError, attempt_count: int
-    ) -> bool:
+    def should_attempt_fallback(self, error: BaseEngineError, attempt_count: int) -> bool:
         """Always attempt fallback with least requirements."""
         return attempt_count < 3
 
@@ -322,17 +307,13 @@ class FallbackRecoveryManager:
                 )
                 attempt.recovery_action = recovery_action
                 if recovery_action == RecoveryAction.RETRY:
-                    delay = self.retry_delays[
-                        min(attempt_num - 1, len(self.retry_delays) - 1)
-                    ]
+                    delay = self.retry_delays[min(attempt_num - 1, len(self.retry_delays) - 1)]
                     time.sleep(delay)
                     continue
                 elif recovery_action == RecoveryAction.FAIL:
                     break
         if not result.success and self.enable_mock_fallback:
-            mock_attempt = self._attempt_mock_engine_creation(
-                request, len(result.attempts) + 1
-            )
+            mock_attempt = self._attempt_mock_engine_creation(request, len(result.attempts) + 1)
             result.attempts.append(mock_attempt)
             if mock_attempt.success:
                 result.success = True
@@ -342,9 +323,7 @@ class FallbackRecoveryManager:
                 result.warnings.append("Using mock engine as final fallback")
         result.total_duration = time.time() - start_time
         if not result.success:
-            result.errors = [
-                attempt.error.message for attempt in result.attempts if attempt.error
-            ]
+            result.errors = [attempt.error.message for attempt in result.attempts if attempt.error]
         self.logger.info(f"Fallback process completed: {result.get_summary()}")
         return result
 
@@ -400,9 +379,7 @@ class FallbackRecoveryManager:
             "retry_delays": self.retry_delays,
         }
 
-    def test_fallback_chain(
-        self, preferred_engine: Optional[EngineType] = None
-    ) -> Dict[str, Any]:
+    def test_fallback_chain(self, preferred_engine: Optional[EngineType] = None) -> Dict[str, Any]:
         """
         Test the fallback chain without actually creating engines.
 
@@ -415,9 +392,7 @@ class FallbackRecoveryManager:
         available_engines = self.detector.detect_available_engines()
         results = {}
         for strategy_name, strategy in self.strategies.items():
-            fallback_order = strategy.get_fallback_order(
-                preferred_engine, available_engines
-            )
+            fallback_order = strategy.get_fallback_order(preferred_engine, available_engines)
             results[strategy_name.value] = {
                 "fallback_order": [e.value for e in fallback_order],
                 "available_engines": [e.value for e in available_engines],
@@ -481,9 +456,7 @@ class FallbackRecoveryManager:
             context.engine_type = engine_type
             from core.bypass.engines.error_handling import create_error_from_exception
 
-            structured_error = create_error_from_exception(
-                e, EngineCreationError, context
-            )
+            structured_error = create_error_from_exception(e, EngineCreationError, context)
             attempt.error = structured_error
             self.logger.warning(
                 f"Failed to create {engine_type.value} engine: {structured_error.message}"
@@ -499,9 +472,7 @@ class FallbackRecoveryManager:
             engine_type=None, attempt_number=attempt_num, start_time=time.time()
         )
         try:
-            self.logger.info(
-                f"Creating mock engine as final fallback (attempt {attempt_num})"
-            )
+            self.logger.info(f"Creating mock engine as final fallback (attempt {attempt_num})")
             config = request.config
             if not config:
                 config = EngineConfig()

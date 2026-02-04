@@ -58,9 +58,7 @@ class StrategySaver:
                 LOG.warning("No effective strategies found to save after validation.")
                 return False
             existing_config = self._load_existing_strategies()
-            merged_config = self._merge_strategies(
-                existing_config, effective_strategies
-            )
+            merged_config = self._merge_strategies(existing_config, effective_strategies)
             return self._save_to_file(merged_config)
         except Exception as e:
             LOG.error(f"Failed to save effective strategies: {e}", exc_info=True)
@@ -114,9 +112,7 @@ class StrategySaver:
                 return False
         return True
 
-    def format_strategy_for_service(
-        self, strategy: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    def format_strategy_for_service(self, strategy: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Formats a strategy into the standardized structure for best_strategy.json.
         Decides whether to save it as a 'zapret' command or a 'native' task.
@@ -141,15 +137,11 @@ class StrategySaver:
             if zapret_command and (not zapret_command.strip().startswith("#")):
                 formatted["mode"] = "zapret"
                 formatted["config"] = {"command": zapret_command}
-                LOG.info(
-                    f"Strategy '{task_data.get('name')}' formatted for 'zapret' mode."
-                )
+                LOG.info(f"Strategy '{task_data.get('name')}' formatted for 'zapret' mode.")
             else:
                 formatted["mode"] = "native"
                 formatted["config"] = task_data
-                LOG.info(
-                    f"Strategy '{task_data.get('name')}' formatted for 'native' mode."
-                )
+                LOG.info(f"Strategy '{task_data.get('name')}' formatted for 'native' mode.")
             return formatted
         except Exception as e:
             LOG.error(f"Failed to format strategy: {e}", exc_info=True)
@@ -182,13 +174,9 @@ class StrategySaver:
                 fp_hash = self._generate_fingerprint_hash(strategy)
                 existing_list = strategies_by_fp.get(fp_hash, [])
                 existing_list.append(strategy)
-                sorted_strategies = self._sort_strategies_by_effectiveness(
-                    existing_list
-                )
+                sorted_strategies = self._sort_strategies_by_effectiveness(existing_list)
                 unique_strategies = self._deduplicate_strategies(sorted_strategies)
-                trimmed_strategies = unique_strategies[
-                    : self.max_strategies_per_fingerprint
-                ]
+                trimmed_strategies = unique_strategies[: self.max_strategies_per_fingerprint]
                 strategies_by_fp[fp_hash] = trimmed_strategies
                 LOG.info(
                     f"Updated strategies for fingerprint {fp_hash}. Now have {len(trimmed_strategies)} unique options (limit: {self.max_strategies_per_fingerprint})."
@@ -312,9 +300,7 @@ class StrategySaver:
             LOG.error(f"Error sorting strategies: {e}")
             return strategies
 
-    def _deduplicate_strategies(
-        self, strategies: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _deduplicate_strategies(self, strategies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Remove duplicate strategies based on their configuration, keeping the best ones.
         """
@@ -325,9 +311,7 @@ class StrategySaver:
             def make_hashable(obj):
                 """Recursively convert dicts and lists to hashable tuples."""
                 if isinstance(obj, dict):
-                    return tuple(
-                        sorted(((k, make_hashable(v)) for k, v in obj.items()))
-                    )
+                    return tuple(sorted(((k, make_hashable(v)) for k, v in obj.items())))
                 if isinstance(obj, list):
                     return tuple((make_hashable(e) for e in obj))
                 return obj
@@ -344,9 +328,7 @@ class StrategySaver:
             LOG.error(f"Error deduplicating strategies: {e}")
             return strategies
 
-    def _should_replace_strategy(
-        self, existing: Dict[str, Any], new: Dict[str, Any]
-    ) -> bool:
+    def _should_replace_strategy(self, existing: Dict[str, Any], new: Dict[str, Any]) -> bool:
         """Determine if new strategy should replace existing one."""
         try:
             existing_score = existing.get("effectiveness_score", 0)

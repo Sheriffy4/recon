@@ -76,9 +76,7 @@ class CompatibilityBridge:
         try:
             parsed_config = self._parse_configuration(config, detection.tool)
             parsing_success = True
-            validation_issues = self._validate_configuration(
-                parsed_config, detection.tool
-            )
+            validation_issues = self._validate_configuration(parsed_config, detection.tool)
         except Exception as e:
             parsing_errors.append(str(e))
         conversion_results = {}
@@ -131,27 +129,17 @@ class CompatibilityBridge:
         elif tool == ExternalTool.NATIVE:
             import json
 
-            return (
-                json.loads(config)
-                if config.strip().startswith("{")
-                else {"raw": config}
-            )
+            return json.loads(config) if config.strip().startswith("{") else {"raw": config}
         else:
             raise ValueError(f"Unsupported tool type: {tool}")
 
-    def _validate_configuration(
-        self, parsed_config: Any, tool: ExternalTool
-    ) -> List[str]:
+    def _validate_configuration(self, parsed_config: Any, tool: ExternalTool) -> List[str]:
         """Validate parsed configuration."""
         if tool == ExternalTool.ZAPRET and hasattr(parsed_config, "validate_config"):
             return self.zapret_parser.validate_config(parsed_config)
-        elif tool == ExternalTool.GOODBYEDPI and hasattr(
-            parsed_config, "validate_config"
-        ):
+        elif tool == ExternalTool.GOODBYEDPI and hasattr(parsed_config, "validate_config"):
             return self.goodbyedpi_parser.validate_config(parsed_config)
-        elif tool == ExternalTool.BYEBYEDPI and hasattr(
-            parsed_config, "validate_config"
-        ):
+        elif tool == ExternalTool.BYEBYEDPI and hasattr(parsed_config, "validate_config"):
             return self.byebyedpi_parser.validate_config(parsed_config)
         else:
             return []
@@ -224,9 +212,7 @@ class CompatibilityBridge:
         """
         return self.converter.convert(config, target_tool, source_tool)
 
-    def migrate_from_file(
-        self, file_path: str, target_tool: ExternalTool
-    ) -> Dict[str, Any]:
+    def migrate_from_file(self, file_path: str, target_tool: ExternalTool) -> Dict[str, Any]:
         """
         Migrate configuration from file to target tool format.
 
@@ -261,9 +247,7 @@ class CompatibilityBridge:
             self.logger.error(f"Migration failed: {e}")
             return {"success": False, "error": str(e), "results": []}
 
-    def _migrate_json_file(
-        self, content: str, target_tool: ExternalTool
-    ) -> List[ConversionResult]:
+    def _migrate_json_file(self, content: str, target_tool: ExternalTool) -> List[ConversionResult]:
         """Migrate JSON configuration file."""
         import json
 
@@ -278,9 +262,7 @@ class CompatibilityBridge:
                         )
                         results.append(result)
                 else:
-                    result = self.converter.convert(
-                        content, target_tool, ExternalTool.NATIVE
-                    )
+                    result = self.converter.convert(content, target_tool, ExternalTool.NATIVE)
                     results.append(result)
             elif isinstance(data, list):
                 for config in data:

@@ -138,9 +138,7 @@ class SmartCache:
             )
 
             self.db_connection.commit()
-            self.logger.info(
-                f"Persistent cache initialized at {self.persistent_cache_path}"
-            )
+            self.logger.info(f"Persistent cache initialized at {self.persistent_cache_path}")
 
         except Exception as e:
             self.logger.error(f"Failed to initialize persistent cache: {e}")
@@ -175,9 +173,7 @@ class SmartCache:
     def _cleanup_expired(self):
         """Remove expired entries."""
         with self.lock:
-            expired_keys = [
-                key for key, entry in self.cache.items() if entry.is_expired()
-            ]
+            expired_keys = [key for key, entry in self.cache.items() if entry.is_expired()]
 
             for key in expired_keys:
                 self._remove_entry(key)
@@ -197,9 +193,7 @@ class SmartCache:
                 return
 
             # Sort by last accessed time (LRU)
-            entries_by_access = sorted(
-                self.cache.items(), key=lambda x: x[1].last_accessed
-            )
+            entries_by_access = sorted(self.cache.items(), key=lambda x: x[1].last_accessed)
 
             # Evict oldest entries
             evicted = 0
@@ -249,8 +243,7 @@ class SmartCache:
                 return 8
             elif isinstance(value, dict):
                 return sum(
-                    self._calculate_size(k) + self._calculate_size(v)
-                    for k, v in value.items()
+                    self._calculate_size(k) + self._calculate_size(v) for k, v in value.items()
                 )
             elif isinstance(value, (list, tuple)):
                 return sum(self._calculate_size(item) for item in value)
@@ -358,9 +351,7 @@ class SmartCache:
 
             # Check if expired
             if ttl_seconds and time.time() - created_at > ttl_seconds:
-                self.db_connection.execute(
-                    "DELETE FROM cache_entries WHERE key = ?", (key,)
-                )
+                self.db_connection.execute("DELETE FROM cache_entries WHERE key = ?", (key,))
                 self.db_connection.commit()
                 return None
 
@@ -426,22 +417,16 @@ class SmartCache:
                     )
                     self.db_connection.commit()
                 except Exception as e:
-                    self.logger.error(
-                        f"Error invalidating persistent cache by tag: {e}"
-                    )
+                    self.logger.error(f"Error invalidating persistent cache by tag: {e}")
 
-            self.logger.debug(
-                f"Invalidated {len(keys_to_remove)} entries with tag '{tag}'"
-            )
+            self.logger.debug(f"Invalidated {len(keys_to_remove)} entries with tag '{tag}'")
 
     def invalidate_by_pattern(self, pattern: str):
         """Invalidate all entries whose keys match the pattern."""
         import fnmatch
 
         with self.lock:
-            keys_to_remove = [
-                key for key in self.cache.keys() if fnmatch.fnmatch(key, pattern)
-            ]
+            keys_to_remove = [key for key in self.cache.keys() if fnmatch.fnmatch(key, pattern)]
 
             for key in keys_to_remove:
                 self._remove_entry(key)
@@ -539,16 +524,12 @@ class StrategyCache(SmartCache):
     def __init__(self, **kwargs):
         super().__init__(default_ttl_seconds=1800, **kwargs)  # 30 minutes default TTL
 
-    def get_strategy_result(
-        self, domain: str, strategy_hash: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_strategy_result(self, domain: str, strategy_hash: str) -> Optional[Dict[str, Any]]:
         """Get strategy result for domain and strategy."""
         key = f"strategy:{domain}:{strategy_hash}"
         return self.get(key)
 
-    def put_strategy_result(
-        self, domain: str, strategy_hash: str, result: Dict[str, Any]
-    ):
+    def put_strategy_result(self, domain: str, strategy_hash: str, result: Dict[str, Any]):
         """Store strategy result."""
         key = f"strategy:{domain}:{strategy_hash}"
 
@@ -589,7 +570,5 @@ def get_strategy_cache() -> StrategyCache:
     if _strategy_cache is None:
         cache_dir = Path("recon/cache")
         cache_dir.mkdir(exist_ok=True)
-        _strategy_cache = StrategyCache(
-            persistent_cache_path=str(cache_dir / "strategies.db")
-        )
+        _strategy_cache = StrategyCache(persistent_cache_path=str(cache_dir / "strategies.db"))
     return _strategy_cache

@@ -51,9 +51,7 @@ class AdvancedTCPProbeResult:
     reordering_window_size: Optional[int] = None
 
     # IP Fragmentation Tests
-    ip_fragmentation_overlap_handling: str = (
-        "unknown"  # "vulnerable", "blocked", "unknown"
-    )
+    ip_fragmentation_overlap_handling: str = "unknown"  # "vulnerable", "blocked", "unknown"
     fragment_reassembly_timeout: Optional[float] = None
 
     # Exotic TCP Flags and Options
@@ -89,9 +87,7 @@ class AdvancedTCPProber:
         if not self.is_available:
             self.logger.warning("Scapy not available - advanced TCP probes disabled")
 
-    async def run_advanced_tcp_probes(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def run_advanced_tcp_probes(self, target: str, port: int = 443) -> Dict[str, Any]:
         """
         Run all advanced TCP/IP probes against the target.
 
@@ -124,9 +120,7 @@ class AdvancedTCPProber:
                 f"Advanced TCP probes for {target}:{port} completed. Reordering tolerance: {result.packet_reordering_tolerance}"
             )
         except Exception as e:
-            self.logger.error(
-                f"Advanced TCP probes failed for {target}: {e}", exc_info=True
-            )
+            self.logger.error(f"Advanced TCP probes failed for {target}: {e}", exc_info=True)
 
         return result.to_dict()
 
@@ -158,9 +152,7 @@ class AdvancedTCPProber:
                 seq_base = random.randint(1000000, 9000000)
 
                 # Segment 1: SYN (should be first)
-                syn_pkt = IP(dst=target_ip) / TCP(
-                    sport=sport, dport=port, seq=seq_base, flags="S"
-                )
+                syn_pkt = IP(dst=target_ip) / TCP(sport=sport, dport=port, seq=seq_base, flags="S")
 
                 # Segment 2: Data segment (should be third)
                 data_pkt = (
@@ -175,18 +167,14 @@ class AdvancedTCPProber:
                 )
 
                 # Send packets in wrong order: Data, SYN, ACK
-                responses = sr(
-                    [data_pkt, syn_pkt, ack_pkt], timeout=self.timeout, verbose=0
-                )
+                responses = sr([data_pkt, syn_pkt, ack_pkt], timeout=self.timeout, verbose=0)
 
                 # Analyze responses to detect reordering tolerance
                 if responses[0]:  # Got responses
                     # If we get proper responses despite wrong order, DPI tolerates reordering
                     result.packet_reordering_tolerance = True
                     result.reordering_window_size = 3  # We tested with 3 packets
-                    self.logger.debug(
-                        f"Packet reordering tolerance detected for {target_ip}"
-                    )
+                    self.logger.debug(f"Packet reordering tolerance detected for {target_ip}")
                 else:
                     result.packet_reordering_tolerance = False
                     self.logger.debug(f"No packet reordering tolerance for {target_ip}")
@@ -284,9 +272,7 @@ class AdvancedTCPProber:
 
                 for flag_name, flags in exotic_flags.items():
                     try:
-                        pkt = IP(dst=target_ip) / TCP(
-                            sport=sport, dport=port, flags=flags
-                        )
+                        pkt = IP(dst=target_ip) / TCP(sport=sport, dport=port, flags=flags)
 
                         response = sr1(pkt, timeout=1.0, verbose=0)
 
@@ -297,9 +283,7 @@ class AdvancedTCPProber:
                             elif tcp_flags & 0x12:  # SYN-ACK
                                 result.exotic_tcp_flags_response[flag_name] = "syn_ack"
                             else:
-                                result.exotic_tcp_flags_response[flag_name] = (
-                                    f"flags_{tcp_flags}"
-                                )
+                                result.exotic_tcp_flags_response[flag_name] = f"flags_{tcp_flags}"
                         else:
                             result.exotic_tcp_flags_response[flag_name] = "no_response"
 
@@ -342,18 +326,14 @@ class AdvancedTCPProber:
                     except Exception as e:
                         self.logger.debug(f"Exotic options test {i} failed: {e}")
 
-                self.logger.debug(
-                    f"Exotic TCP flags/options test completed for {target_ip}"
-                )
+                self.logger.debug(f"Exotic TCP flags/options test completed for {target_ip}")
 
             except Exception as e:
                 self.logger.debug(f"Exotic TCP flags probe failed: {e}")
 
         await asyncio.get_event_loop().run_in_executor(None, probe)
 
-    async def _probe_ttl_distance(
-        self, result: AdvancedTCPProbeResult, target_ip: str, port: int
-    ):
+    async def _probe_ttl_distance(self, result: AdvancedTCPProbeResult, target_ip: str, port: int):
         """
         Analyze TTL to determine distance to DPI device.
 
@@ -372,9 +352,7 @@ class AdvancedTCPProber:
 
                 for ttl in range(1, 20):  # Test TTL 1-19
                     try:
-                        pkt = IP(dst=target_ip, ttl=ttl) / TCP(
-                            sport=sport, dport=port, flags="S"
-                        )
+                        pkt = IP(dst=target_ip, ttl=ttl) / TCP(sport=sport, dport=port, flags="S")
 
                         response = sr1(pkt, timeout=1.0, verbose=0)
 
@@ -401,17 +379,13 @@ class AdvancedTCPProber:
                 # Analyze TTL responses to find DPI distance
                 # Look for pattern changes that indicate DPI intervention
                 rst_ttls = [ttl for ttl, resp in ttl_responses.items() if resp == "rst"]
-                synack_ttls = [
-                    ttl for ttl, resp in ttl_responses.items() if resp == "syn_ack"
-                ]
+                synack_ttls = [ttl for ttl, resp in ttl_responses.items() if resp == "syn_ack"]
 
                 if rst_ttls and synack_ttls:
                     # If we get RST for low TTL and SYN-ACK for high TTL,
                     # the transition point indicates DPI distance
                     min_synack_ttl = min(synack_ttls)
-                    max_rst_ttl = max(
-                        [ttl for ttl in rst_ttls if ttl < min_synack_ttl], default=0
-                    )
+                    max_rst_ttl = max([ttl for ttl in rst_ttls if ttl < min_synack_ttl], default=0)
 
                     if max_rst_ttl > 0:
                         result.dpi_distance_hops = max_rst_ttl + 1
@@ -446,9 +420,7 @@ class AdvancedTCPProber:
                         252,
                     ]:
                         result.ttl_manipulation_detected = True
-                        self.logger.debug(
-                            f"Unusual response TTL detected: {response_ttl}"
-                        )
+                        self.logger.debug(f"Unusual response TTL detected: {response_ttl}")
 
             except Exception as e:
                 self.logger.debug(f"TTL distance probe failed: {e}")

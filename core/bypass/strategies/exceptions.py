@@ -51,9 +51,7 @@ class InvalidSplitPositionError(DPIStrategyError):
             message: Optional custom message
         """
         if message is None:
-            message = (
-                f"Invalid split position {position} for packet of size {packet_size}"
-            )
+            message = f"Invalid split position {position} for packet of size {packet_size}"
 
         details = {"position": position, "packet_size": packet_size}
 
@@ -133,9 +131,7 @@ class ChecksumCalculationError(DPIStrategyError):
     - Checksum algorithm fails
     """
 
-    def __init__(
-        self, packet_size: int, checksum_type: str = "TCP", message: str = None
-    ):
+    def __init__(self, packet_size: int, checksum_type: str = "TCP", message: str = None):
         """
         Initialize the exception.
 
@@ -145,7 +141,9 @@ class ChecksumCalculationError(DPIStrategyError):
             message: Optional custom message
         """
         if message is None:
-            message = f"Failed to calculate {checksum_type} checksum for packet of size {packet_size}"
+            message = (
+                f"Failed to calculate {checksum_type} checksum for packet of size {packet_size}"
+            )
 
         details = {"packet_size": packet_size, "checksum_type": checksum_type}
 
@@ -172,7 +170,9 @@ class PacketProcessingError(DPIStrategyError):
             message: Optional custom message
         """
         if message is None:
-            message = f"Packet processing failed in {processor_name} for packet of size {packet_size}"
+            message = (
+                f"Packet processing failed in {processor_name} for packet of size {packet_size}"
+            )
 
         details = {"packet_size": packet_size, "processor_name": processor_name}
 
@@ -191,9 +191,7 @@ class ConfigurationError(DPIStrategyError):
     - Configuration conflicts exist
     """
 
-    def __init__(
-        self, config_field: str, config_value: any = None, message: str = None
-    ):
+    def __init__(self, config_field: str, config_value: any = None, message: str = None):
         """
         Initialize the exception.
 
@@ -203,9 +201,7 @@ class ConfigurationError(DPIStrategyError):
             message: Optional custom message
         """
         if message is None:
-            message = (
-                f"Invalid configuration for field '{config_field}': {config_value}"
-            )
+            message = f"Invalid configuration for field '{config_field}': {config_value}"
 
         details = {"config_field": config_field, "config_value": config_value}
 

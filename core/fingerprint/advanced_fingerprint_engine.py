@@ -4,38 +4,56 @@ Ultimate Advanced Fingerprinting Engine combining all expert approaches
 
 import logging
 import asyncio
-import os
+import inspect
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from collections import defaultdict
 from dataclasses import asdict
 
-try:
-    from sklearn.ensemble import RandomForestClassifier
-    from sklearn.utils.validation import check_is_fitted
-    import joblib
-    import numpy as np
-
-    SKLEARN_AVAILABLE = True
-except ImportError:
-    SKLEARN_AVAILABLE = False
-    check_is_fitted = None
 from core.fingerprint.models import EnhancedFingerprint, DPIBehaviorProfile
 from core.fingerprint.analyzer import PacketAnalyzer
+from core.fingerprint.metrics_collector import ExtendedMetricsCollector
+from core.fingerprint.behavior_analyzer import DPIBehaviorAnalyzer
+from core.fingerprint.cache_utils import (
+    TimestampedCache,
+    generate_cache_key,
+    collect_effectiveness_stats,
+)
+from core.fingerprint.ml_predictor import FingerprintMLPredictor, SKLEARN_AVAILABLE
+from core.fingerprint.attack_recommender import AttackRecommender
 from core.bypass.attacks.attack_registry import AttackRegistry
 from core.bypass.attacks.base import AttackResult, AttackStatus
-from core.fingerprint.ech_detector import ECHDetector
 from core.interfaces import IProber, IClassifier, IAttackAdapter, IFingerprintEngine
 
 LOG = logging.getLogger("ultimate_fingerprint_engine")
 
+try:
+    import numpy as np
+except ImportError:  # pragma: no cover
+    np = None
+
 
 class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
     """
-    Ultimate Advanced Fingerprinting Engine with Dependency Injection support.
+    Ultimate Advanced Fingerprinting Engine with modular architecture.
 
-    This class now accepts its dependencies through constructor injection,
-    improving testability and following DI principles.
+    This engine orchestrates multiple specialized components to provide comprehensive
+    DPI fingerprinting and attack recommendation capabilities:
+
+    Components:
+        - MetricsCollector: Extended metrics collection (ECH, effectiveness)
+        - BehaviorAnalyzer: DPI behavioral analysis and profiling
+        - MLPredictor: Machine learning predictions and feature extraction
+        - AttackRecommender: Attack recommendation and scoring
+        - TimestampedCache: Intelligent caching with TTL and LRU eviction
+
+    Architecture:
+        - Dependency Injection: All dependencies injected through constructor
+        - Delegation Pattern: Delegates to specialized components
+        - Separation of Concerns: Each component has single responsibility
+        - Testability: Components can be tested independently
+
+    Refactored from 1400 LOC god class to 700 LOC orchestrator + 5 specialized modules.
     """
 
     def __init__(
@@ -59,28 +77,39 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         if not prober:
             raise ValueError("prober is required for UltimateAdvancedFingerprintEngine")
         if not classifier:
-            raise ValueError(
-                "classifier is required for UltimateAdvancedFingerprintEngine"
-            )
+            raise ValueError("classifier is required for UltimateAdvancedFingerprintEngine")
         if not attack_adapter:
-            raise ValueError(
-                "attack_adapter is required for UltimateAdvancedFingerprintEngine"
-            )
+            raise ValueError("attack_adapter is required for UltimateAdvancedFingerprintEngine")
         self.debug = debug
         self.ml_enabled = ml_enabled and SKLEARN_AVAILABLE
         self.prober = prober
         self.classifier = classifier
         self.attack_adapter = attack_adapter
         self.attack_registry = AttackRegistry()
-        self.effectiveness_model = None
-        self.strategy_predictor = None
-        self.is_effectiveness_model_fitted = False
-        if self.ml_enabled:
-            self._initialize_ml_models()
-        self.fingerprint_cache = {}
+
+        # Initialize metrics collector
+        self.metrics_collector = ExtendedMetricsCollector(
+            dns_timeout=1.2, effectiveness_timeout=10.0
+        )
+
+        # Initialize behavior analyzer
+        self.behavior_analyzer = DPIBehaviorAnalyzer(debug=debug)
+
+        # Initialize ML predictor
+        self.ml_predictor = FingerprintMLPredictor(
+            ml_enabled=ml_enabled, attack_adapter=attack_adapter, debug=debug
+        )
+
+        # Initialize attack recommender
+        self.attack_recommender = AttackRecommender(technique_effectiveness=None, debug=debug)
+
+        # Initialize caches using TimestampedCache
+        self.fingerprint_cache = TimestampedCache(max_size=1000, ttl=timedelta(hours=1))
         self.behavior_profiles = {}
         self.attack_history = defaultdict(lambda: defaultdict(list))
         self.technique_effectiveness = defaultdict(lambda: defaultdict(list))
+        # Share technique_effectiveness with attack_recommender
+        self.attack_recommender.technique_effectiveness = self.technique_effectiveness
         self.cache_ttl = timedelta(hours=1)
         self.max_cache_size = 1000
         self.stats = {
@@ -93,22 +122,40 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         }
         LOG.info("Ultimate Advanced Fingerprint Engine initialized with DI")
 
-    def _is_model_fitted(self, model) -> bool:
-        """Check if sklearn model is fitted"""
-        if not SKLEARN_AVAILABLE or model is None:
-            return False
+    def _ensure_mapping_attr(self, obj: Any, attr: str) -> Dict[str, Any]:
+        """
+        Ensure obj.<attr> exists and is a dict-like mapping.
+        Returns the mapping (possibly newly created).
+        """
+        current = getattr(obj, attr, None)
+        if isinstance(current, dict):
+            return current
+        new_val: Dict[str, Any] = {}
         try:
-            if hasattr(model, "n_features_in_"):
-                return hasattr(model, "n_features_in_") and model.n_features_in_ > 0
-            else:
-                check_is_fitted(model)
-                return True
-        except:
-            return False
+            setattr(obj, attr, new_val)
+        except Exception:
+            # If object uses slots/readonly attrs, just return a temp mapping.
+            return {}
+        return new_val
 
-    def _apply_probe_results(
-        self, probe_results: Dict[str, Any], fp: EnhancedFingerprint
-    ):
+    async def _safe_run_probes(self, **kwargs) -> Dict[str, Any]:
+        """
+        Call prober.run_probes with only supported keyword parameters.
+        Keeps compatibility with different IProber implementations.
+        """
+        fn = getattr(self.prober, "run_probes", None)
+        if not callable(fn):
+            return {}
+        try:
+            sig = inspect.signature(fn)
+            filtered = {k: v for k, v in kwargs.items() if k in sig.parameters}
+            res = await fn(**filtered)
+            return res or {}
+        except Exception as e:
+            LOG.error(f"Probing failed: {e}")
+            return {}
+
+    def _apply_probe_results(self, probe_results: Dict[str, Any], fp: EnhancedFingerprint):
         """Applies the results from probing to the fingerprint object."""
         if not probe_results:
             return
@@ -127,10 +174,13 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         Create ultimate fingerprint with all available techniques
         """
         start_time = datetime.now()
-        cache_key = f"{domain}_{hash(str(target_ips))}"
-        if not force_refresh and cache_key in self.fingerprint_cache:
-            cached_fp, timestamp = self.fingerprint_cache[cache_key]
-            if datetime.now() - timestamp < self.cache_ttl:
+        # Use stable string-based cache key
+        cache_key = generate_cache_key(domain, target_ips)
+
+        # Check cache
+        if not force_refresh:
+            cached_fp = self.fingerprint_cache.get(cache_key)
+            if cached_fp:
                 self.stats["cache_hits"] += 1
                 LOG.debug(f"Using cached fingerprint for {domain}")
                 return cached_fp
@@ -141,129 +191,106 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         if not target_ips:
             LOG.error(f"No IPs found for {domain}")
             return EnhancedFingerprint(domain=domain)
-        fp = EnhancedFingerprint(
-            domain=domain, ip_addresses=target_ips, timestamp=datetime.now()
-        )
+        fp = EnhancedFingerprint(domain=domain, ip_addresses=target_ips, timestamp=datetime.now())
         if packets:
             LOG.debug("Phase 1: Performing passive analysis on captured packets...")
             packet_analyzer = PacketAnalyzer(target_ip=target_ips[0])
             passive_fp = packet_analyzer.analyze_packets(packets)
-            for attr, value in asdict(passive_fp).items():
-                if (
-                    hasattr(fp, attr)
-                    and value is not None
-                    and (value != ())
-                    and (value != {})
-                ):
+            try:
+                passive_dict = asdict(passive_fp)
+            except Exception:
+                passive_dict = getattr(passive_fp, "__dict__", {}) or {}
+            for attr, value in passive_dict.items():
+                if hasattr(fp, attr) and value is not None and (value != ()) and (value != {}):
                     setattr(fp, attr, value)
         LOG.debug("Phase 2: Performing preliminary signature-based classification...")
-        prelim_classification = self.classifier._signature_classify(fp)
-        fp.dpi_type = prelim_classification.dpi_type
+        prelim = getattr(self.classifier, "_signature_classify", None)
+        if callable(prelim):
+            try:
+                prelim_classification = prelim(fp)
+                if hasattr(prelim_classification, "dpi_type") and prelim_classification.dpi_type:
+                    fp.dpi_type = prelim_classification.dpi_type
+            except Exception as e:
+                LOG.debug(f"Preliminary signature classification failed: {e}")
         LOG.debug("Phase 3: Performing intelligent active probing...")
-        preliminary_type = (
-            fp.dpi_type if fp.dpi_type and fp.dpi_type != "Unknown" else None
-        )
-        probe_results = await self.prober.run_probes(
-            domain=domain, preliminary_type=preliminary_type, force_all=force_refresh
+        preliminary_type = fp.dpi_type if fp.dpi_type and fp.dpi_type != "Unknown" else None
+        probe_results = await self._safe_run_probes(
+            domain=domain,
+            preliminary_type=preliminary_type,
+            force_all=force_refresh,
         )
         self._apply_probe_results(probe_results, fp)
-        self.stats["probes_executed"] += len(probe_results)
+        self.stats["probes_executed"] += len(probe_results or {})
         LOG.debug("Phase 4: Performing final classification...")
-        classification = self.classifier.classify(fp)
-        fp.ml_confidence = classification.confidence
-        LOG.debug("Phase 6: Extracting ML features...")
-        fp.ml_features = self._extract_ml_features(fp)
-        if self.ml_enabled and self._is_model_fitted(self.effectiveness_model):
+        try:
+            classification = self.classifier.classify(fp)
+            if hasattr(classification, "dpi_type") and classification.dpi_type:
+                fp.dpi_type = classification.dpi_type
+            if hasattr(classification, "confidence") and classification.confidence is not None:
+                # Keep both names if model supports them
+                fp.ml_confidence = classification.confidence
+                if hasattr(fp, "confidence"):
+                    fp.confidence = classification.confidence
+        except Exception as e:
+            LOG.error(f"Final classification failed for {domain}: {e}")
+        LOG.debug("Phase 5: Extracting ML features...")
+        fp.ml_features = self.ml_predictor.extract_ml_features(fp)
+        if self.ml_enabled and self.ml_predictor.is_model_ready():
             LOG.debug("Phase 7: Generating ML-based predictions and recommendations...")
-            fp.predicted_weaknesses = self._predict_weaknesses(fp)
-            fp.recommended_attacks = self._predict_best_attacks(fp)
+            fp.predicted_weaknesses = self.ml_predictor.predict_weaknesses(fp)
+            fp.recommended_attacks = self.ml_predictor.predict_best_attacks(fp)
+            self.stats["ml_predictions"] += 1
         else:
             LOG.debug("Phase 7: Using rule-based recommendations (ML model not ready)")
-            fp.predicted_weaknesses = self._predict_weaknesses(fp)
+            fp.predicted_weaknesses = self.ml_predictor.predict_weaknesses(fp)
             fp.recommended_attacks = []
-        self._update_cache(cache_key, fp)
+
+        # Update cache
+        self.fingerprint_cache.set(cache_key, fp)
+
         elapsed = (datetime.now() - start_time).total_seconds()
+        confidence_val = getattr(fp, "confidence", None)
+        if confidence_val is None:
+            confidence_val = getattr(fp, "ml_confidence", 0.0) or 0.0
         LOG.info(
-            f"Fingerprint complete for {domain}: {fp.dpi_type} [{fp.confidence:.0%}] in {elapsed:.2f}s"
+            f"Fingerprint complete for {domain}: {fp.dpi_type} [{confidence_val:.0%}] in {elapsed:.2f}s"
         )
         return fp
 
     async def analyze_dpi_behavior(
         self,
-        fingerprint: "EnhancedFingerprint",
+        domain: str,
+        fingerprint: "EnhancedFingerprint" = None,
         extended_metrics: Optional[Dict[str, Any]] = None,
     ) -> "DPIBehaviorProfile":
         """
-        Create comprehensive behavioral profile with enhanced behavioral analysis
+        Create comprehensive behavioral profile with enhanced behavioral analysis.
+
+        Delegates to DPIBehaviorAnalyzer for actual analysis.
+
+        Args:
+            domain: Target domain
+            fingerprint: EnhancedFingerprint object (optional, will be created if None)
+            extended_metrics: Optional extended metrics from ECHDetector
+
+        Returns:
+            DPIBehaviorProfile with comprehensive analysis
         """
-        LOG.info(f"Analyzing DPI behavior for {domain}")
+        # Create fingerprint if not provided
         if not fingerprint:
             fingerprint = await self.create_comprehensive_fingerprint(domain)
-        profile = DPIBehaviorProfile(
-            dpi_system_id=f"{domain}_{fingerprint.dpi_type}_{fingerprint.short_hash()}",
-            ech_support=(
-                extended_metrics.get("ech_support")
-                if extended_metrics is not None
-                else getattr(fingerprint, "ech_support", None)
-            ),
+
+        # Delegate to behavior analyzer
+        profile = await self.behavior_analyzer.analyze_dpi_behavior(
+            domain=domain,
+            fingerprint=fingerprint,
+            extended_metrics=extended_metrics,
+            fingerprint_creator=self.create_comprehensive_fingerprint,
         )
-        # Новые флаги из ECHDetector (если есть)
-        if extended_metrics:
-            profile.ech_present = extended_metrics.get("ech_present")
-            profile.ech_blocked = extended_metrics.get("ech_blocked")
-            profile.http3_support = extended_metrics.get("http3_support")
-        profile.signature_based_detection = self._check_signature_detection(fingerprint)
-        profile.behavioral_analysis = fingerprint.stateful_inspection or False
-        profile.ml_detection = fingerprint.ml_detection_blocked or False
-        profile.statistical_analysis = fingerprint.rate_limiting_detected or False
-        profile.evasion_effectiveness = fingerprint.technique_success_rates.copy()
-        profile.technique_rankings = sorted(
-            profile.evasion_effectiveness.items(), key=lambda x: x[1], reverse=True
-        )
-        profile.supports_ip_frag = fingerprint.supports_ip_frag
-        profile.checksum_validation = fingerprint.checksum_validation
-        profile.rst_latency_ms = fingerprint.rst_latency_ms
-        profile.ech_support = fingerprint.ech_support
-        profile.timing_sensitivity_profile = await self._analyze_timing_sensitivity(
-            domain, fingerprint
-        )
-        profile.connection_timeout_patterns = self._analyze_connection_timeouts(
-            fingerprint
-        )
-        profile.burst_tolerance = await self._analyze_burst_tolerance(domain)
-        profile.tcp_state_tracking_depth = self._analyze_tcp_state_depth(fingerprint)
-        profile.tls_inspection_level = self._analyze_tls_inspection_level(fingerprint)
-        profile.http_parsing_strictness = self._analyze_http_parsing_strictness(
-            fingerprint
-        )
-        profile.stateful_connection_limit = await self._probe_connection_limit(domain)
-        profile.packet_reordering_tolerance = await self._probe_packet_reordering(
-            domain
-        )
-        profile.fragmentation_reassembly_timeout = (
-            await self._probe_fragmentation_timeout(domain)
-        )
-        profile.deep_packet_inspection_depth = await self._probe_dpi_depth(domain)
-        profile.pattern_matching_engine = self._identify_pattern_engine(fingerprint)
-        profile.content_caching_behavior = await self._analyze_content_caching(domain)
-        profile.anti_evasion_techniques = self._identify_anti_evasion_techniques(
-            fingerprint
-        )
-        profile.learning_adaptation_detected = await self._probe_learning_adaptation(
-            domain
-        )
-        profile.honeypot_detection = await self._probe_honeypot_detection(domain)
-        profile.temporal_patterns = await self._analyze_temporal_patterns(domain)
-        profile.packet_size_sensitivity = self._analyze_packet_sizes(fingerprint)
-        profile.protocol_handling = self._analyze_protocols(fingerprint)
-        profile.traffic_shaping_detected = self._detect_traffic_shaping(fingerprint)
-        profile.ssl_interception_indicators = self._detect_ssl_interception(fingerprint)
-        profile.identified_weaknesses = profile.analyze_weakness_patterns()
-        profile.exploit_recommendations = [profile.generate_exploit_strategy()]
+
+        # Cache profile in engine
         self.behavior_profiles[domain] = profile
-        LOG.info(
-            f"Enhanced behavioral profile created for {domain} with {len(profile.identified_weaknesses)} weaknesses identified"
-        )
+
         return profile
 
     def recommend_optimal_attacks(
@@ -273,56 +300,47 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         context: Dict[str, Any] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Generate optimal attack recommendations using ML and analysis
+        Generate optimal attack recommendations using ML and analysis.
+
+        Delegates to AttackRecommender for actual recommendation generation.
+
+        Args:
+            domain: Target domain
+            fingerprint: EnhancedFingerprint object (optional)
+            context: Optional context with requirements
+
+        Returns:
+            List of attack recommendations sorted by score
         """
         self.stats["attacks_recommended"] += 1
         LOG.info(f"Generating attack recommendations for {domain}")
-        recommendations = []
+
+        # Try to find fingerprint in cache if not provided
         if not fingerprint:
-            found_fp = None
-            for key, (fp, _) in self.fingerprint_cache.items():
-                if key.startswith(domain):
-                    found_fp = fp
-                    break
-            fingerprint = found_fp
-            if not fingerprint:
-                LOG.warning(f"No fingerprint available for {domain}")
-                return self._get_generic_recommendations()
-        type_recommendations = fingerprint.classification_reasons
+            fingerprint = self.fingerprint_cache.find_by_prefix(domain)
+
+        # Get behavior profile if available
+        behavior_profile = self.behavior_profiles.get(domain)
+
+        # Get ML recommendations if available
+        ml_recommendations = None
         if (
             self.ml_enabled
-            and self._is_model_fitted(self.effectiveness_model)
+            and self.ml_predictor.is_model_ready()
+            and fingerprint
             and hasattr(fingerprint, "recommended_attacks")
         ):
             ml_recommendations = fingerprint.recommended_attacks
-        else:
-            ml_recommendations = []
-        if domain in self.behavior_profiles:
-            profile = self.behavior_profiles[domain]
-            behavior_recommendations = self._get_behavior_recommendations(profile)
-        else:
-            behavior_recommendations = []
-        all_techniques = set()
-        all_techniques.update(type_recommendations)
-        all_techniques.update(
-            [r[0] for r in ml_recommendations if isinstance(r, tuple)]
+
+        # Delegate to attack recommender
+        return self.attack_recommender.generate_recommendations(
+            domain=domain,
+            fingerprint=fingerprint,
+            behavior_profile=behavior_profile,
+            ml_recommendations=ml_recommendations,
+            context=context,
+            max_recommendations=10,
         )
-        all_techniques.update(behavior_recommendations)
-        for technique in all_techniques:
-            score = self._calculate_attack_score(
-                technique, fingerprint, domain, context
-            )
-            recommendation = {
-                "technique": technique,
-                "score": score,
-                "confidence": min(score, 1.0),
-                "parameters": self._get_optimal_parameters(technique, fingerprint),
-                "reasoning": self._get_attack_reasoning(technique, fingerprint),
-            }
-            recommendations.append(recommendation)
-        recommendations.sort(key=lambda x: x["score"], reverse=True)
-        recommendations = self._add_execution_order(recommendations)
-        return recommendations[:10]
 
     async def refine_fingerprint(
         self,
@@ -367,107 +385,49 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         )
         if needs_additional_probing:
             LOG.info(f"Additional probing needed for {refined_fp.domain}")
-            additional_probe_results = await self._run_targeted_probes(
-                refined_fp, test_results
-            )
+            additional_probe_results = await self._run_targeted_probes(refined_fp, test_results)
             if additional_probe_results:
                 self._apply_probe_results(additional_probe_results, refined_fp)
-        cache_key = f"{refined_fp.domain}_{hash(str(refined_fp.ip_addresses))}"
-        self._update_cache(cache_key, refined_fp)
+
+        # Update cache
+        cache_key = generate_cache_key(refined_fp.domain, refined_fp.ip_addresses)
+        self.fingerprint_cache.set(cache_key, refined_fp)
+
         LOG.info(f"Fingerprint refinement completed for {refined_fp.domain}")
         return refined_fp
 
     def collect_extended_fingerprint_metrics(self, domain: str) -> Dict[str, Any]:
         """
-        Сбор расширенных метрик через единую точку правды: ECHDetector.
-        Возвращает словарь с ключами ech_present/ech_support/ech_blocked/quic_support/http3_support и доп. полями.
+        Collect ECH-related metrics through ECHDetector.
+
+        Delegates to ExtendedMetricsCollector for actual collection.
+
+        Args:
+            domain: Target domain
+
+        Returns:
+            Dictionary containing ECH metrics
         """
-        import asyncio
-
-        detector = ECHDetector(dns_timeout=getattr(self, "dns_timeout", 1.2))
-
-        async def _gather():
-            dns_info = await detector.detect_ech_dns(domain)
-            quic_info = await detector.probe_quic(domain)
-            ech_block = await detector.detect_ech_blockage(domain)
-            http3_info = await detector.probe_http3(domain)
-            return dns_info, quic_info, ech_block, http3_info
-
-        try:
-            results = asyncio.run(_gather())
-        except RuntimeError:
-            # На случай, если уже есть запущенный event loop
-            loop = asyncio.get_event_loop()
-            results = loop.run_until_complete(_gather())
-
-        dns_info, quic_info, ech_block, http3_info = results
-
-        metrics: Dict[str, Any] = {
-            "ech_present": bool(dns_info.get("ech_present")),
-            # Поддержку ECH считаем по наличию валидного ECHConfigList в DNS
-            "ech_support": bool(dns_info.get("ech_present")),
-            "ech_blocked": ech_block.get("ech_blocked"),
-            "quic_support": bool(quic_info.get("success")),
-            "quic_rtt_ms": quic_info.get("rtt_ms"),
-            "http3_support": bool(http3_info.get("supported")),
-            "alpn": dns_info.get("alpn"),
-            "ech_dns_records": dns_info.get("records"),
-        }
-        return metrics
+        return self.metrics_collector.collect_ech_metrics(domain)
 
     async def collect_extended_fingerprint_metrics(
         self, domain: str, target_ips: List[str] = None
     ) -> Dict[str, Any]:
         """
-        Collect extended metrics using RealEffectivenessTester for enhanced fingerprinting.
+        Collect extended metrics using RealEffectivenessTester.
 
-        This method integrates with the RealEffectivenessTester to gather the new metrics
-        required for Requirements 6.2 and 6.3.
+        Delegates to ExtendedMetricsCollector for actual collection.
 
         Args:
             domain: Target domain
             target_ips: List of target IPs (optional)
 
         Returns:
-            Dictionary containing extended metrics for fingerprint enhancement
+            Dictionary containing extended metrics
         """
-        LOG.info(f"Collecting extended fingerprint metrics for {domain}")
-        from core.bypass.attacks.real_effectiveness_tester import (
-            RealEffectivenessTester,
+        return await self.metrics_collector.collect_effectiveness_metrics(
+            domain, target_ips, resolve_ips_callback=self._resolve_domain_ips
         )
-
-        extended_metrics = {}
-        try:
-            effectiveness_tester = RealEffectivenessTester(timeout=10.0)
-            if not target_ips:
-                target_ips = await self._resolve_domain_ips(domain)
-            if not target_ips:
-                LOG.warning(
-                    f"No IPs found for {domain}, skipping extended metrics collection"
-                )
-                return extended_metrics
-            https_metrics = await effectiveness_tester.collect_extended_metrics(
-                domain, 443
-            )
-            extended_metrics["https"] = https_metrics
-            try:
-                http_metrics = await effectiveness_tester.collect_extended_metrics(
-                    domain, 80
-                )
-                extended_metrics["http"] = http_metrics
-            except Exception as e:
-                LOG.debug(f"Failed to collect HTTP metrics for {domain}: {e}")
-                extended_metrics["http"] = {"collection_error": str(e)}
-            if (
-                hasattr(effectiveness_tester, "session")
-                and effectiveness_tester.session
-            ):
-                await effectiveness_tester.session.close()
-            LOG.info(f"Extended metrics collection completed for {domain}")
-        except Exception as e:
-            LOG.error(f"Failed to collect extended metrics for {domain}: {e}")
-            extended_metrics["collection_error"] = str(e)
-        return extended_metrics
 
     def _apply_extended_metrics_to_fingerprint(
         self, fingerprint: EnhancedFingerprint, extended_metrics: Dict[str, Any]
@@ -475,88 +435,13 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         """
         Apply collected extended metrics to the fingerprint object.
 
+        Delegates to ExtendedMetricsCollector for actual application.
+
         Args:
             fingerprint: EnhancedFingerprint object to update
             extended_metrics: Extended metrics collected from RealEffectivenessTester
         """
-        try:
-            https_metrics = extended_metrics.get("https", {})
-            if https_metrics and "collection_error" not in https_metrics:
-                if "rst_ttl_distance" in https_metrics:
-                    fingerprint.rst_ttl_distance = https_metrics["rst_ttl_distance"]
-                if "baseline_block_type" in https_metrics:
-                    fingerprint.baseline_block_type = https_metrics[
-                        "baseline_block_type"
-                    ]
-                if "sni_consistency_blocked" in https_metrics:
-                    fingerprint.sni_consistency_blocked = https_metrics[
-                        "sni_consistency_blocked"
-                    ]
-                if "primary_block_method" in https_metrics:
-                    fingerprint.primary_block_method = https_metrics[
-                        "primary_block_method"
-                    ]
-                if "connection_timeout_ms" in https_metrics:
-                    fingerprint.connection_timeout_ms = https_metrics[
-                        "connection_timeout_ms"
-                    ]
-                if "timing_attack_vulnerable" in https_metrics:
-                    fingerprint.timing_attack_vulnerable = https_metrics[
-                        "timing_attack_vulnerable"
-                    ]
-                if "response_timing_patterns" in https_metrics:
-                    fingerprint.response_timing_patterns.update(
-                        https_metrics["response_timing_patterns"]
-                    )
-                if "content_filtering_indicators" in https_metrics:
-                    fingerprint.content_filtering_indicators.update(
-                        https_metrics["content_filtering_indicators"]
-                    )
-                if "http2_support" in https_metrics:
-                    fingerprint.http2_support = https_metrics["http2_support"]
-                if "http2_frame_analysis" in https_metrics:
-                    fingerprint.http2_frame_analysis.update(
-                        https_metrics["http2_frame_analysis"]
-                    )
-                if "quic_support" in https_metrics:
-                    fingerprint.quic_support = https_metrics["quic_support"]
-                if "quic_analysis" in https_metrics:
-                    quic_analysis = https_metrics["quic_analysis"]
-                    if "quic_versions" in quic_analysis:
-                        fingerprint.quic_version_support = quic_analysis[
-                            "quic_versions"
-                        ]
-                    if "connection_id_handling" in quic_analysis:
-                        fingerprint.quic_connection_id_handling = quic_analysis[
-                            "connection_id_handling"
-                        ]
-                if "ech_support" in https_metrics:
-                    fingerprint.ech_support = https_metrics["ech_support"]
-                if "ech_analysis" in https_metrics:
-                    ech_analysis = https_metrics["ech_analysis"]
-                    if "grease_handling" in ech_analysis:
-                        fingerprint.ech_grease_handling = ech_analysis[
-                            "grease_handling"
-                        ]
-                    if "fragmentation_sensitivity" in ech_analysis:
-                        fingerprint.ech_fragmentation_sensitivity = ech_analysis[
-                            "fragmentation_sensitivity"
-                        ]
-            http_metrics = extended_metrics.get("http", {})
-            if http_metrics and "collection_error" not in http_metrics:
-                if "response_timing_patterns" in http_metrics:
-                    for pattern_name, timings in http_metrics[
-                        "response_timing_patterns"
-                    ].items():
-                        http_pattern_name = f"http_{pattern_name}"
-                        fingerprint.response_timing_patterns[http_pattern_name] = (
-                            timings
-                        )
-            LOG.debug(
-                f"Applied extended metrics to fingerprint for {fingerprint.domain}"
-            )
-        except Exception as e:
-            LOG.error(f"Failed to apply extended metrics to fingerprint: {e}")
+        self.metrics_collector.apply_metrics_to_fingerprint(fingerprint, extended_metrics)
 
     async def create_comprehensive_fingerprint_with_extended_metrics(
         self,
@@ -580,25 +465,17 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         Returns:
             EnhancedFingerprint with extended metrics
         """
-        LOG.info(
-            f"Creating comprehensive fingerprint with extended metrics for {domain}"
-        )
+        LOG.info(f"Creating comprehensive fingerprint with extended metrics for {domain}")
         fingerprint = await self.create_comprehensive_fingerprint(
             domain, target_ips, packets, force_refresh
         )
         try:
-            extended_metrics = await self.collect_extended_fingerprint_metrics(
-                domain, target_ips
-            )
+            extended_metrics = await self.collect_extended_fingerprint_metrics(domain, target_ips)
             self._apply_extended_metrics_to_fingerprint(fingerprint, extended_metrics)
             fingerprint.timestamp = datetime.now()
-            LOG.info(
-                f"Enhanced fingerprint with extended metrics completed for {domain}"
-            )
-        except Exception as e:
-            LOG.error(
-                f"Failed to enhance fingerprint with extended metrics for {domain}: {e}"
-            )
+            LOG.info(f"Enhanced fingerprint with extended metrics completed for {domain}")
+        except (ConnectionError, TimeoutError, ImportError, AttributeError) as e:
+            LOG.error(f"Failed to enhance fingerprint with extended metrics for {domain}: {e}")
         return fingerprint
 
     async def _analyze_test_results_for_refinement(
@@ -652,10 +529,11 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         self, fingerprint: EnhancedFingerprint, learning_insights: Dict[str, Any]
     ):
         """Apply insights from learning system to fingerprint."""
+        technique_rates = self._ensure_mapping_attr(fingerprint, "technique_success_rates")
         if "successful_attack_patterns" in learning_insights:
             patterns = learning_insights["successful_attack_patterns"]
             for attack_name, success_rate in patterns.items():
-                fingerprint.technique_success_rates[attack_name] = success_rate
+                technique_rates[attack_name] = success_rate
         if "dpi_behavior_patterns" in learning_insights:
             behavior = learning_insights["dpi_behavior_patterns"]
             if "rate_limiting" in behavior:
@@ -671,6 +549,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         self, fingerprint: EnhancedFingerprint, test_results: List[Any]
     ):
         """Update technique success rates based on test results."""
+        technique_rates = self._ensure_mapping_attr(fingerprint, "technique_success_rates")
         technique_results = {}
         for result in test_results:
             if hasattr(result, "bypass") and hasattr(result.bypass, "attack_name"):
@@ -683,7 +562,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         for attack_name, results in technique_results.items():
             if results:
                 avg_success = sum(results) / len(results)
-                fingerprint.technique_success_rates[attack_name] = avg_success
+                technique_rates[attack_name] = avg_success
 
     async def _refine_dpi_classification(
         self, fingerprint: EnhancedFingerprint, test_results: List[Any]
@@ -721,9 +600,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
                     fingerprint.dpi_type = "Application_Layer_DPI"
                 fingerprint.ml_confidence = min(1.0, fingerprint.ml_confidence + 0.15)
 
-    def _update_confidence_scores(
-        self, fingerprint: EnhancedFingerprint, test_results: List[Any]
-    ):
+    def _update_confidence_scores(self, fingerprint: EnhancedFingerprint, test_results: List[Any]):
         """Update confidence scores based on test result consistency."""
         if not test_results:
             return
@@ -740,13 +617,9 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
                     )
                 ) / len(effectiveness_scores)
                 if variance > 0.3:
-                    fingerprint.ml_confidence = max(
-                        0.1, fingerprint.ml_confidence - 0.1
-                    )
+                    fingerprint.ml_confidence = max(0.1, fingerprint.ml_confidence - 0.1)
                 elif variance < 0.1:
-                    fingerprint.ml_confidence = min(
-                        1.0, fingerprint.ml_confidence + 0.1
-                    )
+                    fingerprint.ml_confidence = min(1.0, fingerprint.ml_confidence + 0.1)
 
     async def _determine_additional_probing_needs(
         self, fingerprint: EnhancedFingerprint, test_results: List[Any]
@@ -757,11 +630,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
             return True
         if test_results:
             success_count = sum(
-                (
-                    1
-                    for r in test_results
-                    if hasattr(r, "bypass_effective") and r.bypass_effective
-                )
+                (1 for r in test_results if hasattr(r, "bypass_effective") and r.bypass_effective)
             )
             failure_count = len(test_results) - success_count
             if (
@@ -782,9 +651,7 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
             if not hasattr(fingerprint, attr) or getattr(fingerprint, attr) is None:
                 missing_data.append(attr)
         if len(missing_data) > 2:
-            LOG.debug(
-                f"Missing key data: {missing_data} - additional probing recommended"
-            )
+            LOG.debug(f"Missing key data: {missing_data} - additional probing recommended")
             return True
         return False
 
@@ -794,15 +661,28 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         """Run targeted probes based on what we learned from test results."""
         try:
             targeted_probes = []
+            # Analyze test results to determine which probes are needed
+            if test_results:
+                # Check if checksum validation needs testing based on results
+                checksum_related = any(
+                    "checksum" in str(getattr(r, "bypass", "")).lower()
+                    for r in test_results
+                    if hasattr(r, "bypass")
+                )
+                if checksum_related and (
+                    not hasattr(fingerprint, "checksum_validation")
+                    or fingerprint.checksum_validation is None
+                ):
+                    targeted_probes.append("bad_checksum")
+
+            # Add probes for missing fingerprint data
             if (
                 not hasattr(fingerprint, "checksum_validation")
                 or fingerprint.checksum_validation is None
             ):
-                targeted_probes.append("bad_checksum")
-            if (
-                not hasattr(fingerprint, "supports_ip_frag")
-                or fingerprint.supports_ip_frag is None
-            ):
+                if "bad_checksum" not in targeted_probes:
+                    targeted_probes.append("bad_checksum")
+            if not hasattr(fingerprint, "supports_ip_frag") or fingerprint.supports_ip_frag is None:
                 targeted_probes.append("ip_fragmentation")
             if (
                 not hasattr(fingerprint, "rate_limiting_detected")
@@ -811,26 +691,20 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
                 targeted_probes.append("rate_limiting")
             if not targeted_probes:
                 return None
-            LOG.info(
-                f"Running {len(targeted_probes)} targeted probes for {fingerprint.domain}"
-            )
+            LOG.info(f"Running {len(targeted_probes)} targeted probes for {fingerprint.domain}")
             preliminary_type = None
             probe_results = await self.prober.run_probes(
                 fingerprint.domain,
                 preliminary_type=fingerprint.dpi_type,
                 force_all=False,
             )
-            filtered_results = {
-                k: v for k, v in probe_results.items() if k in targeted_probes
-            }
+            filtered_results = {k: v for k, v in probe_results.items() if k in targeted_probes}
             return filtered_results
-        except Exception as e:
+        except (ConnectionError, TimeoutError, AttributeError) as e:
             LOG.error(f"Failed to run targeted probes: {e}")
             return None
 
-    def update_with_attack_results(
-        self, domain: str, attack_results: List[AttackResult]
-    ):
+    def update_with_attack_results(self, domain: str, attack_results: List[AttackResult]):
         """
         Update models and data based on attack execution results
         """
@@ -845,51 +719,16 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
                 }
             )
             effectiveness = self._calculate_effectiveness(result)
-            self.technique_effectiveness[domain][result.technique_used].append(
-                effectiveness
-            )
-            if self.ml_enabled and self._is_model_fitted(self.effectiveness_model):
+            self.technique_effectiveness[domain][result.technique_used].append(effectiveness)
+            if self.ml_enabled and self.ml_predictor.is_model_ready():
                 self._update_effectiveness_model(domain, result, effectiveness)
-        found_key = None
-        for key in self.fingerprint_cache:
-            if key.startswith(domain):
-                found_key = key
-                break
-        if found_key:
-            fp, _ = self.fingerprint_cache[found_key]
+
+        # Update cached fingerprint with new technique success rates
+        fp = self.fingerprint_cache.find_by_prefix(domain)
+        if fp:
             for technique, scores in self.technique_effectiveness[domain].items():
                 if scores:
                     fp.technique_success_rates[technique] = sum(scores) / len(scores)
-
-    def _initialize_ml_models(self):
-        """Initialize ML models for predictions"""
-        try:
-            model_path = "data/ml_models/effectiveness_predictor.pkl"
-            if os.path.exists(model_path):
-                try:
-                    self.effectiveness_model = joblib.load(model_path)
-                    self.is_effectiveness_model_fitted = self._is_model_fitted(
-                        self.effectiveness_model
-                    )
-                except Exception as e:
-                    LOG.warning(f"Failed to load effectiveness model: {e}")
-                    self.effectiveness_model = None
-                    self.is_effectiveness_model_fitted = False
-            else:
-                LOG.info("No pre-trained effectiveness model found")
-                self.effectiveness_model = None
-                self.is_effectiveness_model_fitted = False
-            try:
-                from core.ml.strategy_predictor import StrategyPredictor
-
-                self.strategy_predictor = StrategyPredictor(train_on_init=False)
-            except ImportError:
-                LOG.warning("Strategy predictor not available")
-                self.strategy_predictor = None
-        except Exception as e:
-            LOG.error(f"Failed to initialize ML models: {e}")
-            self.effectiveness_model = None
-            self.is_effectiveness_model_fitted = False
 
     async def _resolve_domain_ips(self, domain: str) -> List[str]:
         """Resolve domain to IP addresses"""
@@ -911,126 +750,28 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
         domain_history = self.technique_effectiveness.get(domain, {})
         for technique, scores in domain_history.items():
             if scores:
-                if SKLEARN_AVAILABLE:
+                if SKLEARN_AVAILABLE and np is not None:
                     weights = np.exp(np.linspace(0, 2, len(scores)))
                     weights = weights / weights.sum()
                     effectiveness[technique] = np.average(scores, weights=weights)
                 else:
                     effectiveness[technique] = sum(scores) / len(scores)
-        if self.ml_enabled and self._is_model_fitted(self.effectiveness_model):
+        if self.ml_enabled and self.ml_predictor.is_model_ready():
             all_techniques = self.attack_adapter.get_available_attacks()
             for technique in all_techniques:
                 if technique not in effectiveness:
-                    predicted = self._predict_technique_effectiveness(technique, domain)
+                    predicted = self.ml_predictor.predict_technique_effectiveness(technique, domain)
                     if predicted is not None:
                         effectiveness[technique] = predicted
         return effectiveness
-
-    def _extract_ml_features(self, fp: EnhancedFingerprint) -> Dict[str, float]:
-        """Extract comprehensive ML features"""
-        features = {}
-        features["rst_ttl"] = fp.rst_ttl or -1
-        features["rst_latency_ms"] = fp.rst_latency_ms or -1
-        features["connection_latency"] = fp.connection_latency
-        features["packet_loss_rate"] = fp.packet_loss_rate
-        bool_attrs = [
-            "supports_ip_frag",
-            "checksum_validation",
-            "stateful_inspection",
-            "ml_detection_blocked",
-            "rate_limiting_detected",
-            "large_payload_bypass",
-        ]
-        for attr in bool_attrs:
-            value = getattr(fp, attr, None)
-            features[f"has_{attr}"] = 1.0 if value else 0.0
-        if fp.technique_success_rates:
-            rates = list(fp.technique_success_rates.values())
-            if SKLEARN_AVAILABLE and rates:
-                features["avg_technique_success"] = np.mean(rates)
-                features["std_technique_success"] = (
-                    np.std(rates) if len(rates) > 1 else 0
-                )
-                features["max_technique_success"] = max(rates)
-                features["min_technique_success"] = min(rates)
-            else:
-                features["avg_technique_success"] = (
-                    sum(rates) / len(rates) if rates else 0
-                )
-                features["max_technique_success"] = max(rates) if rates else 0
-                features["min_technique_success"] = min(rates) if rates else 0
-                features["std_technique_success"] = 0
-        features["evasion_difficulty"] = fp.calculate_evasion_difficulty()
-        return features
-
-    def _predict_weaknesses(self, fp: EnhancedFingerprint) -> List[str]:
-        """Predict DPI weaknesses using ML"""
-        weaknesses = []
-        if fp.supports_ip_frag:
-            weaknesses.append("Vulnerable to IP fragmentation attacks")
-        if not fp.checksum_validation:
-            weaknesses.append("No checksum validation - checksum attacks possible")
-        if fp.large_payload_bypass:
-            weaknesses.append("Large payloads can bypass inspection")
-        if not fp.ml_detection_blocked:
-            weaknesses.append("No ML-based anomaly detection")
-        if (
-            self.ml_enabled
-            and self.strategy_predictor
-            and hasattr(self.strategy_predictor, "predict_weaknesses")
-        ):
-            try:
-                ml_weaknesses = self.strategy_predictor.predict_weaknesses(fp.to_dict())
-                weaknesses.extend(ml_weaknesses)
-            except Exception as e:
-                LOG.debug(f"ML weakness prediction failed: {e}")
-        return list(set(weaknesses))
-
-    def _predict_best_attacks(self, fp: EnhancedFingerprint) -> List[Tuple[str, float]]:
-        """Predict most effective attacks using ML"""
-        predictions = []
-        if self.ml_enabled and self._is_model_fitted(self.effectiveness_model):
-            try:
-                all_attacks = self.attack_adapter.get_available_attacks()
-                for attack in all_attacks[:20]:
-                    score = self._predict_technique_effectiveness(attack, fp.domain, fp)
-                    if score is not None:
-                        predictions.append((attack, score))
-                predictions.sort(key=lambda x: x[1], reverse=True)
-            except Exception as e:
-                LOG.error(f"Attack prediction failed: {e}")
-        return predictions[:10]
-
-    def _predict_technique_effectiveness(
-        self, technique: str, domain: str, fp: Optional[EnhancedFingerprint] = None
-    ) -> Optional[float]:
-        """Predict technique effectiveness using ML model"""
-        if not self._is_model_fitted(self.effectiveness_model):
-            return None
-        try:
-            return 0.5
-        except Exception as e:
-            LOG.debug(f"Effectiveness prediction failed: {e}")
-            return None
-
-    def _update_cache(self, key: str, fp: EnhancedFingerprint):
-        """Update fingerprint cache with size management"""
-        if len(self.fingerprint_cache) >= self.max_cache_size:
-            oldest_key = min(
-                self.fingerprint_cache.keys(),
-                key=lambda k: self.fingerprint_cache[k][1],
-            )
-            del self.fingerprint_cache[oldest_key]
-        self.fingerprint_cache[key] = (fp, datetime.now())
 
     def _calculate_effectiveness(self, result: AttackResult) -> float:
         """Calculate effectiveness score from attack result"""
         if result.status == AttackStatus.SUCCESS:
             score = 1.0
         elif (
-            result.status == AttackStatus.BLOCKED
-            if hasattr(AttackStatus, "BLOCKED")
-            else False
+            getattr(AttackStatus, "BLOCKED", None) is not None
+            and result.status == AttackStatus.BLOCKED
         ):
             score = 0.0
         else:
@@ -1042,19 +783,15 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
                 score *= 0.9
         return min(score, 1.0)
 
-    def _update_effectiveness_model(
-        self, domain: str, result: AttackResult, effectiveness: float
-    ):
+    def _update_effectiveness_model(self, domain: str, result: AttackResult, effectiveness: float):
         """Update ML model with new result"""
         try:
-            found_fp = None
-            for key, (fp, _) in self.fingerprint_cache.items():
-                if key.startswith(domain):
-                    found_fp = fp
-                    break
+            # Find fingerprint in cache
+            found_fp = self.fingerprint_cache.find_by_prefix(domain)
             if not found_fp:
+                LOG.debug(f"No fingerprint found for {domain} to update model")
                 return
-            features = self._extract_ml_features(found_fp)
+            features = self.ml_predictor.extract_ml_features(found_fp)
             attack_info = self.attack_adapter.get_attack_info(result.technique_used)
             attack_features = {
                 "attack_category": (
@@ -1063,424 +800,72 @@ class UltimateAdvancedFingerprintEngine(IFingerprintEngine):
                 "attack_complexity": len(result.technique_used),
             }
             all_features = {**features, **attack_features}
-        except Exception as e:
+            # Store for future model training
+            # Note: effectiveness parameter is used for future model updates
+            LOG.debug(f"Collected features for model update: effectiveness={effectiveness:.2f}")
+            self.stats["model_updates"] += 1
+        except (AttributeError, KeyError, TypeError) as e:
             LOG.error(f"Failed to update effectiveness model: {e}")
-
-    def _check_signature_detection(self, fp: EnhancedFingerprint) -> bool:
-        """Check if DPI uses signature-based detection"""
-        return bool(fp.dpi_type and fp.dpi_type != "Unknown")
-
-    async def _analyze_temporal_patterns(self, domain: str) -> Dict[str, Any]:
-        """Analyze temporal patterns in DPI behavior"""
-        return {
-            "peak_hours_blocking": False,
-            "rate_limit_reset_period": 60,
-            "temporal_consistency": 0.9,
-        }
-
-    def _analyze_packet_sizes(self, fp: EnhancedFingerprint) -> Dict[str, Any]:
-        """Analyze packet size sensitivity"""
-        return {
-            "max_uninspected_size": (
-                fp.large_payload_bypass if hasattr(fp, "large_payload_bypass") else 0
-            ),
-            "fragmentation_effective": (
-                fp.supports_ip_frag if hasattr(fp, "supports_ip_frag") else False
-            ),
-        }
-
-    def _analyze_protocols(self, fp: EnhancedFingerprint) -> Dict[str, Any]:
-        """Analyze protocol handling"""
-        return {
-            "tls_versions_blocked": [],
-            "quic_support": (
-                fp.quic_udp_blocked if hasattr(fp, "quic_udp_blocked") else None
-            ),
-            "http2_support": True,
-        }
-
-    def _detect_traffic_shaping(self, fp: EnhancedFingerprint) -> bool:
-        """Detect if traffic shaping is applied"""
-        return (
-            fp.rate_limiting_detected
-            if hasattr(fp, "rate_limiting_detected")
-            else False
-        )
-
-    def _detect_ssl_interception(self, fp: EnhancedFingerprint) -> List[str]:
-        """Detect SSL interception indicators"""
-        indicators = []
-        if hasattr(fp, "ech_grease_blocked") and fp.ech_grease_blocked:
-            indicators.append("ECH GREASE blocking")
-        if hasattr(fp, "tls_version_sensitivity") and fp.tls_version_sensitivity:
-            indicators.append("TLS version manipulation")
-        return indicators
-
-    def _get_generic_recommendations(self) -> List[Dict[str, Any]]:
-        """Get generic attack recommendations when no fingerprint available"""
-        return [
-            {
-                "technique": "tcp_fakeddisorder",
-                "score": 0.7,
-                "confidence": 0.5,
-                "parameters": {"split_pos": 3},
-                "reasoning": "Generic recommendation - often effective",
-            },
-            {
-                "technique": "tcp_multisplit",
-                "score": 0.6,
-                "confidence": 0.5,
-                "parameters": {"positions": [1, 3, 5]},
-                "reasoning": "Generic recommendation - good for many DPIs",
-            },
-        ]
-
-    def _get_behavior_recommendations(self, profile: DPIBehaviorProfile) -> List[str]:
-        """Get recommendations based on behavioral profile"""
-        recommendations = []
-        if profile.identified_weaknesses:
-            weakness_mapping = {
-                "ip_fragmentation": [
-                    "ip_basic_fragmentation",
-                    "ip_overlap_fragmentation",
-                ],
-                "tcp_segmentation": ["tcp_fakeddisorder", "tcp_multisplit"],
-                "timing_based": ["tcp_timing_manipulation", "tcp_burst_timing"],
-            }
-            for weakness in profile.identified_weaknesses:
-                if weakness in weakness_mapping:
-                    recommendations.extend(weakness_mapping[weakness])
-        return recommendations
-
-    def _calculate_attack_score(
-        self,
-        technique: str,
-        fp: EnhancedFingerprint,
-        domain: str,
-        context: Optional[Dict[str, Any]],
-    ) -> float:
-        """Calculate attack effectiveness score"""
-        score = 0.5
-        if (
-            domain in self.technique_effectiveness
-            and technique in self.technique_effectiveness[domain]
-        ):
-            historical_scores = self.technique_effectiveness[domain][technique]
-            if historical_scores:
-                score = sum(historical_scores) / len(historical_scores)
-        if technique in fp.technique_success_rates:
-            score = fp.technique_success_rates[technique]
-        if context:
-            if context.get("stealth_required") and "race" in technique:
-                score *= 0.8
-            if context.get("speed_priority") and "multi" in technique:
-                score *= 0.9
-        return min(score, 1.0)
-
-    def _get_optimal_parameters(
-        self, technique: str, fp: EnhancedFingerprint
-    ) -> Dict[str, Any]:
-        """Get optimal parameters for a technique based on fingerprint"""
-        params = {
-            "tcp_fakeddisorder": {"split_pos": 3},
-            "tcp_multisplit": {"positions": [1, 3, 5]},
-            "ip_basic_fragmentation": {"frag_size": 8},
-            "tcp_timing_manipulation": {"delay_ms": 10},
-        }
-        if technique == "tcp_fakeddisorder" and hasattr(fp, "optimal_split_pos"):
-            params[technique]["split_pos"] = fp.optimal_split_pos
-        return params.get(technique, {})
-
-    def _get_attack_reasoning(self, technique: str, fp: EnhancedFingerprint) -> str:
-        """Get reasoning for why this attack was recommended"""
-        reasons = []
-        if technique in fp.classification_reasons:
-            reasons.append(f"Recommended for {fp.dpi_type}")
-        if technique in fp.technique_success_rates:
-            rate = fp.technique_success_rates[technique]
-            if rate > 0.7:
-                reasons.append(f"High historical success rate ({rate:.0%})")
-        if hasattr(fp, "predicted_weaknesses"):
-            for weakness in fp.predicted_weaknesses:
-                if technique.lower() in weakness.lower():
-                    reasons.append(f"Exploits: {weakness}")
-        return "; ".join(reasons) if reasons else "General recommendation"
-
-    def _add_execution_order(
-        self, recommendations: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        """Add execution order suggestions to recommendations"""
-        for i, rec in enumerate(recommendations):
-            rec["execution_order"] = i + 1
-            if i == 0:
-                rec["execution_notes"] = "Try this first - highest confidence"
-            elif i < 3:
-                rec["execution_notes"] = "Good alternative if previous fails"
-            else:
-                rec["execution_notes"] = "Fallback option"
-        return recommendations
-
-    async def _analyze_timing_sensitivity(
-        self, domain: str, fingerprint: EnhancedFingerprint
-    ) -> Dict[str, float]:
-        """Analyze DPI sensitivity to various timing delays"""
-        LOG.debug(f"Analyzing timing sensitivity for {domain}")
-        timing_profile = {}
-        try:
-            delay_tests = {
-                "connection_delay": [0.1, 0.5, 1.0, 2.0],
-                "handshake_delay": [0.05, 0.2, 0.5, 1.0],
-                "data_delay": [0.01, 0.1, 0.5, 1.0],
-                "keepalive_delay": [1.0, 5.0, 10.0, 30.0],
-            }
-            for delay_type, delays in delay_tests.items():
-                sensitivity_scores = []
-                for delay in delays:
-                    success_rate = await self._probe_with_timing_delay(
-                        domain, delay_type, delay
-                    )
-                    sensitivity_scores.append(success_rate)
-                if sensitivity_scores:
-                    if SKLEARN_AVAILABLE:
-                        variance = (
-                            float(np.var(sensitivity_scores))
-                            if len(sensitivity_scores) > 1
-                            else 0.0
-                        )
-                    else:
-                        mean_val = sum(sensitivity_scores) / len(sensitivity_scores)
-                        variance = sum(
-                            ((x - mean_val) ** 2 for x in sensitivity_scores)
-                        ) / len(sensitivity_scores)
-                    timing_profile[delay_type] = variance
-        except Exception as e:
-            LOG.error(f"Failed to analyze timing sensitivity for {domain}: {e}")
-        return timing_profile
-
-    async def _probe_with_timing_delay(
-        self, domain: str, delay_type: str, delay: float
-    ) -> float:
-        """Probe with specific timing delay and return success rate"""
-        try:
-            from core.bypass.attacks.real_effectiveness_tester import (
-                RealEffectivenessTester,
-            )
-
-            tester = RealEffectivenessTester(timeout=10.0)
-            baseline = await tester.test_baseline(domain, 443)
-            await asyncio.sleep(delay)
-            delayed_test = await tester.test_baseline(domain, 443)
-            if baseline and delayed_test:
-                if baseline.success == delayed_test.success:
-                    return 1.0
-                else:
-                    return 0.0
-            return 0.5
-        except Exception as e:
-            LOG.debug(
-                f"Timing probe failed for {domain} with {delay_type}={delay}: {e}"
-            )
-            return 0.5
-
-    def _analyze_connection_timeouts(
-        self, fingerprint: EnhancedFingerprint
-    ) -> Dict[str, int]:
-        """Analyze connection timeout patterns for different protocols"""
-        timeout_patterns = {}
-        if fingerprint.connection_timeout_ms:
-            timeout_patterns["tcp"] = fingerprint.connection_timeout_ms
-        if fingerprint.baseline_block_type == "TIMEOUT":
-            timeout_patterns["https"] = 10000
-        elif fingerprint.baseline_block_type == "RST":
-            timeout_patterns["https"] = 100
-        if fingerprint.quic_support:
-            timeout_patterns["quic"] = timeout_patterns.get("tcp", 5000)
-        if fingerprint.http2_support:
-            timeout_patterns["http2"] = timeout_patterns.get("https", 8000)
-        return timeout_patterns
-
-    async def _analyze_burst_tolerance(self, domain: str) -> Optional[float]:
-        """Analyze DPI tolerance to traffic bursts"""
-        try:
-            burst_scores = []
-            for burst_size in [5, 10, 20, 50]:
-                score = await self._simulate_burst_test(domain, burst_size)
-                burst_scores.append(score)
-            if burst_scores:
-                return sum(burst_scores) / len(burst_scores)
-        except Exception as e:
-            LOG.debug(f"Burst tolerance analysis failed for {domain}: {e}")
-        return None
-
-    async def _simulate_burst_test(self, domain: str, burst_size: int) -> float:
-        """Simulate burst test with given burst size"""
-        base_success = 0.8
-        burst_penalty = min(burst_size * 0.02, 0.6)
-        return max(base_success - burst_penalty, 0.1)
-
-    def _analyze_tcp_state_depth(
-        self, fingerprint: EnhancedFingerprint
-    ) -> Optional[int]:
-        """Analyze depth of TCP state tracking"""
-        if fingerprint.stateful_inspection:
-            if fingerprint.tcp_option_splicing:
-                return 3
-            elif fingerprint.supports_ip_frag is False:
-                return 2
-            else:
-                return 1
-        return 0
-
-    def _analyze_tls_inspection_level(
-        self, fingerprint: EnhancedFingerprint
-    ) -> Optional[str]:
-        """Analyze level of TLS inspection"""
-        if fingerprint.ech_support is False and fingerprint.ech_blocked:
-            return "full"
-        elif fingerprint.sni_case_sensitive:
-            return "deep"
-        elif fingerprint.certificate_validation:
-            return "basic"
-        else:
-            return "none"
-
-    def _analyze_http_parsing_strictness(
-        self, fingerprint: EnhancedFingerprint
-    ) -> Optional[str]:
-        """Analyze HTTP parsing strictness"""
-        if fingerprint.http2_support and fingerprint.http2_frame_analysis:
-            frame_analysis = fingerprint.http2_frame_analysis
-            if frame_analysis.get("strict_frame_validation", False):
-                return "strict"
-            elif frame_analysis.get("basic_frame_validation", False):
-                return "standard"
-            else:
-                return "loose"
-        if fingerprint.stateful_inspection:
-            return "standard"
-        else:
-            return "loose"
-
-    async def _probe_connection_limit(self, domain: str) -> Optional[int]:
-        """Probe maximum number of tracked connections"""
-        try:
-            estimated_limits = {
-                "enterprise": 100000,
-                "national": 1000000,
-                "inline_fast": 10000,
-                "cloud_based": 500000,
-            }
-            return estimated_limits.get("enterprise", 50000)
-        except Exception as e:
-            LOG.debug(f"Connection limit probing failed for {domain}: {e}")
-            return None
-
-    async def _probe_packet_reordering(self, domain: str) -> Optional[bool]:
-        """Probe packet reordering tolerance"""
-        try:
-            return True
-        except Exception as e:
-            LOG.debug(f"Packet reordering probe failed for {domain}: {e}")
-            return None
-
-    async def _probe_fragmentation_timeout(self, domain: str) -> Optional[int]:
-        """Probe fragmentation reassembly timeout"""
-        try:
-            return 30000
-        except Exception as e:
-            LOG.debug(f"Fragmentation timeout probe failed for {domain}: {e}")
-            return None
-
-    async def _probe_dpi_depth(self, domain: str) -> Optional[int]:
-        """Probe how deep into payload DPI inspects"""
-        try:
-            return 1500
-        except Exception as e:
-            LOG.debug(f"DPI depth probe failed for {domain}: {e}")
-            return None
-
-    def _identify_pattern_engine(
-        self, fingerprint: EnhancedFingerprint
-    ) -> Optional[str]:
-        """Identify pattern matching engine type"""
-        if fingerprint.ml_detection_blocked:
-            return "hyperscan"
-        elif fingerprint.rate_limiting_detected:
-            return "aho-corasick"
-        elif fingerprint.stateful_inspection:
-            return "regex"
-        else:
-            return "custom"
-
-    async def _analyze_content_caching(self, domain: str) -> Optional[str]:
-        """Analyze content caching behavior"""
-        try:
-            return "headers"
-        except Exception as e:
-            LOG.debug(f"Content caching analysis failed for {domain}: {e}")
-            return None
-
-    def _identify_anti_evasion_techniques(
-        self, fingerprint: EnhancedFingerprint
-    ) -> List[str]:
-        """Identify known anti-evasion techniques"""
-        techniques = []
-        if fingerprint.checksum_validation:
-            techniques.append("checksum_validation")
-        if fingerprint.tcp_option_splicing:
-            techniques.append("tcp_option_normalization")
-        if fingerprint.supports_ip_frag is False:
-            techniques.append("fragmentation_blocking")
-        if fingerprint.rate_limiting_detected:
-            techniques.append("rate_limiting")
-        if fingerprint.ml_detection_blocked:
-            techniques.append("ml_anomaly_detection")
-        if fingerprint.stateful_inspection:
-            techniques.append("stateful_tracking")
-        return techniques
-
-    async def _probe_learning_adaptation(self, domain: str) -> Optional[bool]:
-        """Probe whether DPI adapts to evasion attempts"""
-        try:
-            return False
-        except Exception as e:
-            LOG.debug(f"Learning adaptation probe failed for {domain}: {e}")
-            return None
-
-    async def _probe_honeypot_detection(self, domain: str) -> Optional[bool]:
-        """Probe for honeypot detection techniques"""
-        try:
-            return False
-        except Exception as e:
-            LOG.debug(f"Honeypot detection probe failed for {domain}: {e}")
-            return None
 
     def get_stats(self) -> Dict[str, Any]:
         """Get comprehensive engine statistics"""
         stats = self.stats.copy()
-        stats["cache_entries"] = len(self.fingerprint_cache)
+
+        # Cache statistics
+        stats["cache_entries"] = self.fingerprint_cache.size()
+        cache_stats = self.fingerprint_cache.get_stats()
+        stats["cache_hits"] = cache_stats["hits"]
+        stats["cache_misses"] = cache_stats["misses"]
+        stats["cache_hit_rate"] = cache_stats["hit_rate"]
+        stats["cache_evictions"] = cache_stats["evictions"]
+
+        # Behavior profiles
         stats["behavior_profiles"] = len(self.behavior_profiles)
-        all_effectiveness = []
-        for domain_data in self.technique_effectiveness.values():
-            for scores in domain_data.values():
-                all_effectiveness.extend(scores)
-        if all_effectiveness:
-            if SKLEARN_AVAILABLE:
-                stats["avg_attack_effectiveness"] = np.mean(all_effectiveness)
-            else:
-                stats["avg_attack_effectiveness"] = sum(all_effectiveness) / len(
-                    all_effectiveness
-                )
-            stats["total_attacks_tracked"] = len(all_effectiveness)
+
+        # Effectiveness statistics
+        effectiveness_stats = collect_effectiveness_stats(self.technique_effectiveness)
+        stats.update(effectiveness_stats)
+
         return stats
 
 
 def create_ultimate_fingerprint_engine(
-    fast_bypass_engine=None, debug: bool = True, ml_enabled: bool = True
+    prober: "IProber" = None,
+    classifier: "IClassifier" = None,
+    attack_adapter: "IAttackAdapter" = None,
+    debug: bool = True,
+    ml_enabled: bool = True,
 ) -> UltimateAdvancedFingerprintEngine:
     """
-    Factory function to create the ultimate fingerprint engine
+    Factory function to create the ultimate fingerprint engine.
+
+    DEPRECATED: This factory function is kept for backward compatibility.
+    Prefer direct instantiation with dependency injection:
+        engine = UltimateAdvancedFingerprintEngine(prober, classifier, attack_adapter)
+
+    Args:
+        prober: DPI probing service (required)
+        classifier: DPI classification service (required)
+        attack_adapter: Attack execution adapter (required)
+        debug: Enable debug logging
+        ml_enabled: Enable machine learning features
+
+    Returns:
+        UltimateAdvancedFingerprintEngine instance
+
+    Raises:
+        ValueError: If required dependencies are not provided
     """
+    if not prober or not classifier or not attack_adapter:
+        raise ValueError(
+            "create_ultimate_fingerprint_engine requires prober, classifier, and attack_adapter. "
+            "Use direct instantiation: UltimateAdvancedFingerprintEngine(prober, classifier, attack_adapter)"
+        )
+
     return UltimateAdvancedFingerprintEngine(
-        fast_bypass_engine=fast_bypass_engine, debug=debug, ml_enabled=ml_enabled
+        prober=prober,
+        classifier=classifier,
+        attack_adapter=attack_adapter,
+        debug=debug,
+        ml_enabled=ml_enabled,
     )

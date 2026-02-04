@@ -72,12 +72,8 @@ class RobustPacketProcessor:
             # Получаем raw данные безопасно
             try:
                 raw_data = self._get_raw_data_safely(packet)
-                if (
-                    not raw_data or len(raw_data) < 20
-                ):  # Минимальный размер IP заголовка
-                    self.logger.debug(
-                        f"Packet too small: {len(raw_data) if raw_data else 0} bytes"
-                    )
+                if not raw_data or len(raw_data) < 20:  # Минимальный размер IP заголовка
+                    self.logger.debug(f"Packet too small: {len(raw_data) if raw_data else 0} bytes")
                     return False
             except Exception as e:
                 self.logger.debug(f"Failed to extract raw data: {e}")
@@ -117,9 +113,7 @@ class RobustPacketProcessor:
                 self.logger.exception("Detailed validation error:")
             return False
 
-    def reconstruct_packet(
-        self, packet: "pydivert.Packet"
-    ) -> Optional["pydivert.Packet"]:
+    def reconstruct_packet(self, packet: "pydivert.Packet") -> Optional["pydivert.Packet"]:
         """
         Безопасная реконструкция пакета для предотвращения WinError 87.
 
@@ -153,13 +147,9 @@ class RobustPacketProcessor:
 
             # Стандартная реконструкция
             try:
-                reconstructed = pydivert.Packet(
-                    bytes(raw_data), packet.interface, packet.direction
-                )
+                reconstructed = pydivert.Packet(bytes(raw_data), packet.interface, packet.direction)
 
-                self.logger.debug(
-                    f"Packet reconstructed successfully: {len(raw_data)} bytes"
-                )
+                self.logger.debug(f"Packet reconstructed successfully: {len(raw_data)} bytes")
                 return reconstructed
 
             except Exception as e:
@@ -191,9 +181,7 @@ class RobustPacketProcessor:
             self.stats["localhost_packets_handled"] += 1
 
             # Логируем localhost пакет
-            self.logger.debug(
-                f"Localhost packet: {packet.src_addr} -> {packet.dst_addr}"
-            )
+            self.logger.debug(f"Localhost packet: {packet.src_addr} -> {packet.dst_addr}")
 
             # Проверяем, нужно ли игнорировать этот пакет
             if self._should_ignore_localhost_packet(packet):
@@ -247,9 +235,7 @@ class RobustPacketProcessor:
                 # Проверка общей длины
                 total_length = struct.unpack("!H", raw_data[2:4])[0]
                 if total_length > len(raw_data):
-                    self.logger.debug(
-                        f"Invalid total length: {total_length} > {len(raw_data)}"
-                    )
+                    self.logger.debug(f"Invalid total length: {total_length} > {len(raw_data)}")
                     return False
 
             elif version == 6:
@@ -368,9 +354,7 @@ class RobustPacketProcessor:
         """Специальная реконструкция для localhost пакетов."""
         try:
             # Для localhost пакетов используем более осторожный подход
-            reconstructed = pydivert.Packet(
-                bytes(raw_data), packet.interface, packet.direction
-            )
+            reconstructed = pydivert.Packet(bytes(raw_data), packet.interface, packet.direction)
 
             self.logger.debug(f"Localhost packet reconstructed: {len(raw_data)} bytes")
             return reconstructed
@@ -389,9 +373,7 @@ class RobustPacketProcessor:
                 self.logger.debug(f"Reconstructing large packet: {len(raw_data)} bytes")
 
             # Используем стандартную реконструкцию, но с дополнительными проверками
-            reconstructed = pydivert.Packet(
-                bytes(raw_data), packet.interface, packet.direction
-            )
+            reconstructed = pydivert.Packet(bytes(raw_data), packet.interface, packet.direction)
 
             return reconstructed
 

@@ -26,7 +26,7 @@ from gui.service_manager import ServiceManager
 
 # Импорты из проекта
 try:
-    from core.adaptive_engine import AdaptiveEngine
+    from core.adaptive_refactored.facade import AdaptiveEngine
     from core.domain_manager import DomainManager
     CORE_AVAILABLE = True
 except ImportError:

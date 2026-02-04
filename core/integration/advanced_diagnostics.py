@@ -172,9 +172,7 @@ class AdvancedDiagnostics:
             issues.extend(config_issues)
 
             # Calculate system health score
-            system_health_score = await self._calculate_system_health_score(
-                issues, system_metrics
-            )
+            system_health_score = await self._calculate_system_health_score(issues, system_metrics)
 
             # Generate optimization recommendations
             recommendations = await self._generate_optimization_recommendations(
@@ -182,12 +180,8 @@ class AdvancedDiagnostics:
             )
 
             # Count issues by severity
-            critical_issues = len(
-                [i for i in issues if i.severity == DiagnosticSeverity.CRITICAL]
-            )
-            warning_issues = len(
-                [i for i in issues if i.severity == DiagnosticSeverity.WARNING]
-            )
+            critical_issues = len([i for i in issues if i.severity == DiagnosticSeverity.CRITICAL])
+            warning_issues = len([i for i in issues if i.severity == DiagnosticSeverity.WARNING])
 
             # Create diagnostic report
             report = SystemDiagnosticReport(
@@ -216,9 +210,7 @@ class AdvancedDiagnostics:
             LOG.error(f"Failed to run comprehensive diagnostics: {e}")
             return None
 
-    async def diagnose_attack_performance(
-        self, attack_name: str
-    ) -> List[DiagnosticIssue]:
+    async def diagnose_attack_performance(self, attack_name: str) -> List[DiagnosticIssue]:
         """Diagnose performance issues for specific attack."""
 
         try:
@@ -228,10 +220,8 @@ class AdvancedDiagnostics:
                 return issues
 
             # Get attack performance summary
-            performance_summary = (
-                await self.performance_monitor.get_attack_performance_summary(
-                    attack_name
-                )
+            performance_summary = await self.performance_monitor.get_attack_performance_summary(
+                attack_name
             )
 
             if "error" in performance_summary:
@@ -459,17 +449,13 @@ class AdvancedDiagnostics:
         try:
             # Performance metrics
             if self.performance_monitor:
-                health_report = (
-                    await self.performance_monitor.get_system_health_report()
-                )
+                health_report = await self.performance_monitor.get_system_health_report()
                 metrics["performance"] = health_report
 
             # Attack manager metrics
             if self.attack_manager:
                 registered_attacks = self.attack_manager.get_registered_attacks()
-                performance_metrics = (
-                    await self.attack_manager.get_performance_metrics()
-                )
+                performance_metrics = await self.attack_manager.get_performance_metrics()
 
                 metrics["attack_manager"] = {
                     "registered_attacks": len(registered_attacks),
@@ -855,9 +841,7 @@ class AdvancedDiagnostics:
 
             # Consider performance metrics if available
             if "performance" in system_metrics:
-                perf_health = system_metrics["performance"].get(
-                    "system_health_score", 100
-                )
+                perf_health = system_metrics["performance"].get("system_health_score", 100)
                 base_score = (base_score + perf_health) / 2
 
             return max(0.0, min(100.0, base_score))

@@ -68,9 +68,7 @@ class ComprehensiveAttackMapping:
 
         self.registry = get_attack_registry()
         registered_attacks = self.registry.list_attacks()
-        logger.info(
-            f"Building mappings for {len(registered_attacks)} registered attacks"
-        )
+        logger.info(f"Building mappings for {len(registered_attacks)} registered attacks")
 
         for attack_name in registered_attacks:
             try:
@@ -88,9 +86,7 @@ class ComprehensiveAttackMapping:
                         self.aliases[alias] = attack_name
 
             except Exception as e:
-                logger.warning(
-                    f"Failed to create mapping for attack {attack_name}: {e}"
-                )
+                logger.warning(f"Failed to create mapping for attack {attack_name}: {e}")
 
         logger.info(
             f"Successfully mapped {len(self.attacks)} attacks across {len(self.categories)} categories"
@@ -105,9 +101,7 @@ class ComprehensiveAttackMapping:
                 return None
 
             # Get basic info from attack definition
-            category = (
-                attack_def.category if hasattr(attack_def, "category") else "unknown"
-            )
+            category = attack_def.category if hasattr(attack_def, "category") else "unknown"
             description = (
                 attack_def.description
                 if hasattr(attack_def, "description")
@@ -115,8 +109,8 @@ class ComprehensiveAttackMapping:
             )
 
             # Generate zapret mapping and parameters
-            zapret_args, parameters, default_params, aliases = (
-                self._generate_zapret_mapping(attack_name, attack_def)
+            zapret_args, parameters, default_params, aliases = self._generate_zapret_mapping(
+                attack_name, attack_def
             )
 
             return AttackInfo(
@@ -360,9 +354,7 @@ class ComprehensiveAttackMapping:
             return {}
 
         return {
-            name: self.attacks[name]
-            for name in self.categories[category]
-            if name in self.attacks
+            name: self.attacks[name] for name in self.categories[category] if name in self.attacks
         }
 
     def get_categories(self) -> List[str]:
@@ -536,13 +528,9 @@ class ComprehensiveAttackMapping:
         """Get statistics about the attack mapping."""
         return {
             "total_attacks": len(self.attacks),
-            "categories": {
-                cat: len(attacks) for cat, attacks in self.categories.items()
-            },
+            "categories": {cat: len(attacks) for cat, attacks in self.categories.items()},
             "total_aliases": len(self.aliases),
-            "supported_zapret_commands": len(
-                [a for a in self.attacks.values() if a.zapret_args]
-            ),
+            "supported_zapret_commands": len([a for a in self.attacks.values() if a.zapret_args]),
         }
 
 

@@ -12,6 +12,7 @@ from core.protocols.tls import TLSParser
 from core.bypass.attacks.attack_registry import register_attack, RegistrationPriority
 from core.bypass.attacks.metadata import AttackCategories
 
+
 def _safe_create_result(status_name: str, **kwargs):
     """Safely create AttackResult to prevent AttackStatus errors."""
     try:
@@ -33,13 +34,9 @@ def _safe_create_result(status_name: str, **kwargs):
     category=AttackCategories.TLS,
     priority=RegistrationPriority.NORMAL,
     required_params=[],
-    optional_params={
-        "fake_sni": "example.com",
-        "sni_position": "auto",
-        "fragment_at_sni": True
-    },
+    optional_params={"fake_sni": "example.com", "sni_position": "auto", "fragment_at_sni": True},
     aliases=["sni_fake", "server_name_manipulation"],
-    description="Manipulates TLS SNI extension to evade DPI"
+    description="Manipulates TLS SNI extension to evade DPI",
 )
 class SNIManipulationAttack(BaseAttack):
     """
@@ -78,7 +75,7 @@ class SNIManipulationAttack(BaseAttack):
             "subdomain_prefix": "www",
             "fake_tld": "local",
             "obfuscation_method": "mixed",
-            "fake_domain": "example.com"
+            "fake_domain": "example.com",
         }
 
     def execute(self, context: AttackContext) -> AttackResult:
@@ -88,9 +85,7 @@ class SNIManipulationAttack(BaseAttack):
             payload = context.payload
             manipulation_type = context.params.get("manipulation_type", "case_change")
             if not self._is_tls_payload(payload):
-                domain = context.domain or context.params.get(
-                    "target_domain", "example.com"
-                )
+                domain = context.domain or context.params.get("target_domain", "example.com")
                 payload = self._create_mock_client_hello(domain)
             original_domain = TLSParser.get_sni(payload)
             if not original_domain:
@@ -222,19 +217,13 @@ class SNIManipulationAttack(BaseAttack):
                 result.append(char)
         return "".join(result)
 
-    def _find_sni_extension(
-        self, payload: bytes
-    ) -> Optional[Tuple[int, int, int, int]]:
+    def _find_sni_extension(self, payload: bytes) -> Optional[Tuple[int, int, int, int]]:
         """
         Robustly finds the SNI extension by parsing the TLS ClientHello extensions block.
         Returns a tuple: (ext_start, ext_end, domain_start, domain_end) or None.
         """
         try:
-            if not (
-                payload.startswith(b"\x16\x03")
-                and len(payload) > 43
-                and (payload[5] == 1)
-            ):
+            if not (payload.startswith(b"\x16\x03") and len(payload) > 43 and (payload[5] == 1)):
                 return None
             session_id_len_pos = 43
             session_id_len = payload[session_id_len_pos]
@@ -253,17 +242,11 @@ class SNIManipulationAttack(BaseAttack):
             extensions_start_pos = extensions_len_pos + 2
             current_pos = extensions_start_pos
             while current_pos < extensions_start_pos + total_extensions_len:
-                ext_type = struct.unpack("!H", payload[current_pos : current_pos + 2])[
-                    0
-                ]
-                ext_len = struct.unpack(
-                    "!H", payload[current_pos + 2 : current_pos + 4]
-                )[0]
+                ext_type = struct.unpack("!H", payload[current_pos : current_pos + 2])[0]
+                ext_len = struct.unpack("!H", payload[current_pos + 2 : current_pos + 4])[0]
                 if ext_type == 0:
                     sni_data_start = current_pos + 4
-                    list_len = struct.unpack(
-                        "!H", payload[sni_data_start : sni_data_start + 2]
-                    )[0]
+                    list_len = struct.unpack("!H", payload[sni_data_start : sni_data_start + 2])[0]
                     name_type = payload[sni_data_start + 2]
                     if name_type != 0:
                         current_pos += 4 + ext_len
@@ -295,10 +278,10 @@ class SNIManipulationAttack(BaseAttack):
     optional_params={
         "fake_protocols": ["h2", "http/1.1"],
         "protocol_order": "random",
-        "add_unknown_protocols": True
+        "add_unknown_protocols": True,
     },
     aliases=["alpn_fake", "application_layer_protocol_manipulation"],
-    description="Manipulates TLS ALPN extension to evade DPI"
+    description="Manipulates TLS ALPN extension to evade DPI",
 )
 class ALPNManipulationAttack(BaseAttack):
     """
@@ -332,7 +315,7 @@ class ALPNManipulationAttack(BaseAttack):
         return {
             "manipulation_type": "protocol_add",
             "fake_protocols": ["h2", "http/1.1"],
-            "protocol_order": "random"
+            "protocol_order": "random",
         }
 
     def execute(self, context: AttackContext) -> AttackResult:
@@ -368,11 +351,7 @@ class ALPNManipulationAttack(BaseAttack):
                 data_transmitted=True,
                 metadata={
                     "fake_protocols": [
-                        (
-                            p.decode("utf-8", errors="ignore")
-                            if isinstance(p, bytes)
-                            else p
-                        )
+                        (p.decode("utf-8", errors="ignore") if isinstance(p, bytes) else p)
                         for p in fake_protocols
                     ],
                     "alpn_extension_size": len(alpn_extension),
@@ -395,10 +374,10 @@ class ALPNManipulationAttack(BaseAttack):
     optional_params={
         "grease_intensity": "medium",
         "randomize_values": True,
-        "include_cipher_suites": True
+        "include_cipher_suites": True,
     },
     aliases=["grease_extension"],
-    description="Uses GREASE values in TLS to confuse DPI analysis"
+    description="Uses GREASE values in TLS to confuse DPI analysis",
 )
 class GREASEAttack(BaseAttack):
     """
@@ -429,9 +408,7 @@ class GREASEAttack(BaseAttack):
     @property
     def optional_params(self) -> Dict[str, Any]:
         """Dictionary of optional parameters with default values."""
-        return {
-            "grease_count": 3
-        }
+        return {"grease_count": 3}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute GREASE attack."""

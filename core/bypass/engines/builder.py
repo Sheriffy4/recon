@@ -42,10 +42,7 @@ class PacketBuilder:
     ) -> int:
         """Build TCP checksum including pseudo-header."""
         pseudo_header = (
-            src_ip
-            + dst_ip
-            + b"\x00\x06"
-            + struct.pack("!H", len(tcp_header) + len(payload))
+            src_ip + dst_ip + b"\x00\x06" + struct.pack("!H", len(tcp_header) + len(payload))
         )
         data = pseudo_header + tcp_header + payload
         if len(data) % 2:
@@ -172,9 +169,7 @@ class PacketBuilder:
         )
         src_ip_bytes = socket.inet_aton(src_ip)
         dst_ip_bytes = socket.inet_aton(dst_ip)
-        tcp_checksum = cls.build_tcp_checksum(
-            src_ip_bytes, dst_ip_bytes, tcp_header, payload
-        )
+        tcp_checksum = cls.build_tcp_checksum(src_ip_bytes, dst_ip_bytes, tcp_header, payload)
         tcp_header = tcp_header[:16] + struct.pack("!H", tcp_checksum) + tcp_header[18:]
         total_length = 20 + len(ip_options) + len(tcp_header) + len(payload)
         ip_header = cls.build_ip_header(
@@ -230,15 +225,9 @@ class PacketBuilder:
             else struct.unpack("!H", packet_data[tcp_start + 14 : tcp_start + 16])[0]
         )
         urgent = struct.unpack("!H", packet_data[tcp_start + 18 : tcp_start + 20])[0]
-        tcp_options = (
-            packet_data[tcp_start + 20 : tcp_start + tcp_hlen] if tcp_hlen > 20 else b""
-        )
+        tcp_options = packet_data[tcp_start + 20 : tcp_start + tcp_hlen] if tcp_hlen > 20 else b""
         ip_options = packet_data[20:ip_hlen] if ip_hlen > 20 else b""
-        payload = (
-            new_payload
-            if new_payload is not None
-            else packet_data[ip_hlen + tcp_hlen :]
-        )
+        payload = new_payload if new_payload is not None else packet_data[ip_hlen + tcp_hlen :]
         return cls.assemble_packet(
             src_ip,
             dst_ip,
@@ -296,9 +285,7 @@ class PacketBuilder:
                 + dst_ip
             )
             checksum = cls.calculate_checksum(frag_header)
-            frag_header = (
-                frag_header[:10] + struct.pack("!H", checksum) + frag_header[12:]
-            )
+            frag_header = frag_header[:10] + struct.pack("!H", checksum) + frag_header[12:]
             fragments.append(frag_header + frag_data)
             offset += current_frag_size
         return fragments

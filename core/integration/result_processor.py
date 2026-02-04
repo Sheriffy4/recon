@@ -108,9 +108,7 @@ class ResultProcessor:
             )
             return legacy_result
         except Exception as e:
-            LOG.error(
-                f"Failed to process attack result for {attack_name}: {e}", exc_info=True
-            )
+            LOG.error(f"Failed to process attack result for {attack_name}: {e}", exc_info=True)
             return self._create_error_result(attack_name, str(e))
 
     def aggregate_results(
@@ -137,24 +135,18 @@ class ResultProcessor:
                 )
             ]
             successful_results = [r for r in processed_results if r["success"]]
-            latencies = [
-                r["latency_ms"] for r in successful_results if r["latency_ms"] > 0
-            ]
+            latencies = [r["latency_ms"] for r in successful_results if r["latency_ms"] > 0]
             aggregate = {
                 "total_attacks": len(results),
                 "successful_attacks": len(successful_results),
                 "failed_attacks": len(results) - len(successful_results),
-                "success_rate": (
-                    len(successful_results) / len(results) if results else 0.0
-                ),
+                "success_rate": (len(successful_results) / len(results) if results else 0.0),
                 "total_latency_ms": sum((r["latency_ms"] for r in processed_results)),
                 "average_latency_ms": mean(latencies) if latencies else 0.0,
                 "median_latency_ms": median(latencies) if latencies else 0.0,
                 "max_latency_ms": max(latencies) if latencies else 0.0,
                 "min_latency_ms": min(latencies) if latencies else 0.0,
-                "total_packets_sent": sum(
-                    (r["packets_sent"] for r in processed_results)
-                ),
+                "total_packets_sent": sum((r["packets_sent"] for r in processed_results)),
                 "total_bytes_sent": sum((r["bytes_sent"] for r in processed_results)),
                 "average_throughput_bps": (
                     mean([r["throughput_bps"] for r in successful_results])
@@ -252,9 +244,7 @@ class ResultProcessor:
             score *= latency_factor
         return min(1.0, score)
 
-    def _calculate_status_breakdown(
-        self, results: List[AttackResult]
-    ) -> Dict[str, int]:
+    def _calculate_status_breakdown(self, results: List[AttackResult]) -> Dict[str, int]:
         """Calculates the breakdown of statuses."""
         breakdown = defaultdict(int)
         for result in results:
@@ -262,13 +252,9 @@ class ResultProcessor:
                 breakdown[result.status.value] += 1
         return dict(breakdown)
 
-    def _calculate_attack_breakdown(
-        self, processed_results: List[Dict]
-    ) -> Dict[str, Dict]:
+    def _calculate_attack_breakdown(self, processed_results: List[Dict]) -> Dict[str, Dict]:
         """Calculates performance breakdown per attack."""
-        breakdown = defaultdict(
-            lambda: {"count": 0, "success_count": 0, "total_latency_ms": 0}
-        )
+        breakdown = defaultdict(lambda: {"count": 0, "success_count": 0, "total_latency_ms": 0})
         for result in processed_results:
             attack_name = result["attack_name"]
             breakdown[attack_name]["count"] += 1
@@ -287,9 +273,7 @@ class ResultProcessor:
         if len(self.result_cache[attack_name]) > 100:
             self.result_cache[attack_name] = self.result_cache[attack_name][-100:]
 
-    def _create_error_result(
-        self, attack_name: str, error_message: str
-    ) -> Dict[str, Any]:
+    def _create_error_result(self, attack_name: str, error_message: str) -> Dict[str, Any]:
         """Creates a standardized error result dictionary."""
         return {
             "success": False,

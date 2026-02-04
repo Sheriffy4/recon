@@ -299,9 +299,7 @@ class FingerprintCache:
         """Get cache statistics"""
         with self._lock:
             total_requests = self._stats["hits"] + self._stats["misses"]
-            hit_rate = (
-                self._stats["hits"] / total_requests * 100 if total_requests > 0 else 0
-            )
+            hit_rate = self._stats["hits"] / total_requests * 100 if total_requests > 0 else 0
             return {
                 "entries": len(self._cache),
                 "max_entries": self.max_entries,

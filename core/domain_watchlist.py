@@ -5,6 +5,7 @@ from pathlib import Path
 
 LOG = logging.getLogger("domain_watchlist")
 
+
 class DomainWatchlist:
     """
     Управляет списком доменов, для которых требуется обход DPI.
@@ -13,8 +14,14 @@ class DomainWatchlist:
 
     # Список по умолчанию, можно расширять
     DEFAULT_WATCHLIST = {
-        'x.com', 'twitter.com', 'instagram.com', 'facebook.com',
-        'youtube.com', 'telegram.org', 'discord.com', 'rutracker.org'
+        "x.com",
+        "twitter.com",
+        "instagram.com",
+        "facebook.com",
+        "youtube.com",
+        "telegram.org",
+        "discord.com",
+        "rutracker.org",
     }
 
     def __init__(self, domains_file_path: Optional[str] = None):
@@ -31,10 +38,10 @@ class DomainWatchlist:
         try:
             path = Path(file_path)
             if path.exists():
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, "r", encoding="utf-8") as f:
                     for line in f:
                         domain = line.strip().lower()
-                        if domain and not domain.startswith('#'):
+                        if domain and not domain.startswith("#"):
                             self.watchlist.add(domain)
             LOG.info(f"Загружено {len(self.watchlist)} доменов в список наблюдения.")
         except Exception as e:
@@ -61,10 +68,10 @@ class DomainWatchlist:
             return True
 
         # Проверка родительских доменов (например, для 'sub.domain.com' проверяем 'domain.com')
-        parts = domain.split('.')
+        parts = domain.split(".")
         if len(parts) > 2:
             for i in range(1, len(parts) - 1):
-                parent_domain = '.'.join(parts[i:])
+                parent_domain = ".".join(parts[i:])
                 if parent_domain in self.watchlist:
                     return True
 

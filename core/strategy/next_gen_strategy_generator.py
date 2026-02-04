@@ -1,380 +1,113 @@
 """
-NextGenStrategyGenerator - адаптивный генератор стратегий следующего поколения.
+Next generation strategy generator.
 
-Этот модуль реализует:
-- Машинное обучение для генерации стратегий обхода
-- Алгоритм генетической эволюции стратегий
-- Систему весов для параметров стратегий на основе успешности
-- Механизм мутации и кроссовера стратегий для поиска новых решений
-- Адаптивную настройку TTL на основе сетевой топологии
-- Интеллектуальный выбор позиций split на основе анализа payload
-
-Requirements: FR-15.5, FR-15.6
+Note: This module can run with optional dependencies missing. In that case it provides
+minimal fallback types to prevent runtime NameError in non-critical paths.
 """
 
-import asyncio
+from __future__ import annotations
+
 import logging
 import random
 import time
 import statistics
 import hashlib
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple, Set
-from dataclasses import dataclass, field, asdict
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import math
-from collections import defaultdict, deque
+
+# Genetic algorithm components
+from .genetics import (
+    EvolutionStrategy,
+    MutationType,
+    CrossoverType,
+    StrategyGene,
+    StrategyChromosome,
+    EvolutionParameters,
+)
+from .genetics.topology_analyzer import NetworkTopologyInfo, TopologyAnalyzer
+from .genetics.payload_analyzer import PayloadAnalysisResult, PayloadAnalyzer
+from .genetics.population_manager import PopulationManager
+from .genetics.attack_parameter_generator import AttackParameterGenerator
+from .genetics.strategy_converter import StrategyConverter
+from .genetics.parameter_weight_analyzer import ParameterWeightAnalyzer
+
+# Utilities
+from utils.config_loader import load_json_config, save_json_config
 
 # Интеграция с существующими модулями
 try:
     from ..pcap_analysis.blocking_pattern_detector import (
-        BlockingPatternAnalysis, DPIAggressivenessLevel, BlockingType
+        BlockingPatternAnalysis,
+        BlockingType,
     )
-    from ..learning.iterative_analysis_engine import (
-        KnowledgePattern, StrategyEffectivenessMetrics
-    )
-    from ..bypass.attacks.attack_registry import get_attack_registry
-    from ..strategy_failure_analyzer import FailureReport, FailureCause
+    from ..learning.iterative_analysis_engine import StrategyEffectivenessMetrics
+
     STRATEGY_COMPONENTS_AVAILABLE = True
 except ImportError:
     STRATEGY_COMPONENTS_AVAILABLE = False
-    logging.warning("Strategy components not available")
+    logging.getLogger(__name__).warning("Strategy components not available; using fallbacks")
+
+    class BlockingType(Enum):
+        SNI_FILTERING = "sni_filtering"
+        RST_INJECTION = "rst_injection"
+        UNKNOWN = "unknown"
+
+    @dataclass
+    class BlockingPatternAnalysis:
+        primary_blocking_type: BlockingType = BlockingType.UNKNOWN
+
+    @dataclass
+    class StrategyEffectivenessMetrics:
+        success_rate: float = 0.0
+        reliability_score: float = 0.0
+        average_response_time: float = 1.0
+
 
 LOG = logging.getLogger("NextGenStrategyGenerator")
-
-
-class EvolutionStrategy(Enum):
-    """Стратегии эволюции."""
-    GENETIC_ALGORITHM = "genetic_algorithm"
-    PARTICLE_SWARM = "particle_swarm"
-    SIMULATED_ANNEALING = "simulated_annealing"
-    DIFFERENTIAL_EVOLUTION = "differential_evolution"
-    HYBRID = "hybrid"
-
-
-class MutationType(Enum):
-    """Типы мутаций стратегий."""
-    PARAMETER_TWEAK = "parameter_tweak"        # Небольшое изменение параметра
-    PARAMETER_RANDOM = "parameter_random"      # Случайное значение параметра
-    ATTACK_SUBSTITUTION = "attack_substitution" # Замена атаки на похожую
-    ATTACK_ADDITION = "attack_addition"        # Добавление новой атаки
-    ATTACK_REMOVAL = "attack_removal"          # Удаление атаки
-    SEQUENCE_REORDER = "sequence_reorder"      # Изменение порядка атак
-
-
-class CrossoverType(Enum):
-    """Типы кроссовера стратегий."""
-    SINGLE_POINT = "single_point"              # Одноточечный кроссовер
-    MULTI_POINT = "multi_point"                # Многоточечный кроссовер
-    UNIFORM = "uniform"                        # Равномерный кроссовер
-    PARAMETER_BLEND = "parameter_blend"        # Смешивание параметров
-    ATTACK_MERGE = "attack_merge"              # Слияние атак
-
-
-@dataclass
-class StrategyGene:
-    """Ген стратегии для генетического алгоритма."""
-    attack_name: str
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    weight: float = 1.0
-    enabled: bool = True
-    
-    def mutate(self, mutation_rate: float = 0.1) -> 'StrategyGene':
-        """Мутация гена."""
-        mutated = StrategyGene(
-            attack_name=self.attack_name,
-            parameters=self.parameters.copy(),
-            weight=self.weight,
-            enabled=self.enabled
-        )
-        
-        if random.random() < mutation_rate:
-            # Мутация параметров
-            for param_name, param_value in mutated.parameters.items():
-                if isinstance(param_value, (int, float)):
-                    # Числовые параметры - добавляем шум
-                    noise = random.gauss(0, abs(param_value) * 0.1)
-                    mutated.parameters[param_name] = max(0, param_value + noise)
-                elif isinstance(param_value, bool):
-                    # Булевы параметры - инвертируем с малой вероятностью
-                    if random.random() < 0.1:
-                        mutated.parameters[param_name] = not param_value
-            
-            # Мутация веса
-            weight_noise = random.gauss(0, 0.1)
-            mutated.weight = max(0.1, min(2.0, mutated.weight + weight_noise))
-        
-        return mutated
-
-
-@dataclass
-class StrategyChromosome:
-    """Хромосома стратегии для генетического алгоритма."""
-    chromosome_id: str
-    genes: List[StrategyGene] = field(default_factory=list)
-    fitness: float = 0.0
-    generation: int = 0
-    
-    # Метаданные
-    created_at: datetime = field(default_factory=datetime.now)
-    parent_ids: List[str] = field(default_factory=list)
-    mutation_history: List[str] = field(default_factory=list)
-    
-    def calculate_fitness(self, 
-                         effectiveness_metrics: Dict[str, StrategyEffectivenessMetrics],
-                         domain: str) -> float:
-        """Расчет приспособленности хромосомы."""
-        if not self.genes:
-            return 0.0
-        
-        fitness_components = []
-        
-        for gene in self.genes:
-            if not gene.enabled:
-                continue
-            
-            # Поиск метрик эффективности для атаки
-            strategy_key = f"{domain}_{gene.attack_name}"
-            if strategy_key in effectiveness_metrics:
-                metrics = effectiveness_metrics[strategy_key]
-                
-                # Компоненты приспособленности
-                success_component = metrics.success_rate * gene.weight
-                reliability_component = metrics.reliability_score * 0.5
-                speed_component = (1.0 / max(metrics.average_response_time, 0.1)) * 0.3
-                
-                gene_fitness = success_component + reliability_component + speed_component
-                fitness_components.append(gene_fitness)
-            else:
-                # Нет данных - базовая оценка
-                fitness_components.append(0.5 * gene.weight)
-        
-        self.fitness = statistics.mean(fitness_components) if fitness_components else 0.0
-        return self.fitness
-    
-    def crossover(self, other: 'StrategyChromosome', crossover_type: CrossoverType) -> Tuple['StrategyChromosome', 'StrategyChromosome']:
-        """Кроссовер с другой хромосомой."""
-        child1_genes = []
-        child2_genes = []
-        
-        if crossover_type == CrossoverType.SINGLE_POINT:
-            # Одноточечный кроссовер
-            crossover_point = random.randint(1, min(len(self.genes), len(other.genes)) - 1)
-            
-            child1_genes = self.genes[:crossover_point] + other.genes[crossover_point:]
-            child2_genes = other.genes[:crossover_point] + self.genes[crossover_point:]
-        
-        elif crossover_type == CrossoverType.UNIFORM:
-            # Равномерный кроссовер
-            max_length = max(len(self.genes), len(other.genes))
-            
-            for i in range(max_length):
-                if random.random() < 0.5:
-                    if i < len(self.genes):
-                        child1_genes.append(self.genes[i])
-                    if i < len(other.genes):
-                        child2_genes.append(other.genes[i])
-                else:
-                    if i < len(other.genes):
-                        child1_genes.append(other.genes[i])
-                    if i < len(self.genes):
-                        child2_genes.append(self.genes[i])
-        
-        elif crossover_type == CrossoverType.PARAMETER_BLEND:
-            # Смешивание параметров
-            all_attacks = set(gene.attack_name for gene in self.genes + other.genes)
-            
-            for attack_name in all_attacks:
-                self_gene = next((g for g in self.genes if g.attack_name == attack_name), None)
-                other_gene = next((g for g in other.genes if g.attack_name == attack_name), None)
-                
-                if self_gene and other_gene:
-                    # Смешиваем параметры
-                    blended_params = {}
-                    all_params = set(self_gene.parameters.keys()) | set(other_gene.parameters.keys())
-                    
-                    for param_name in all_params:
-                        self_value = self_gene.parameters.get(param_name, 0)
-                        other_value = other_gene.parameters.get(param_name, 0)
-                        
-                        if isinstance(self_value, (int, float)) and isinstance(other_value, (int, float)):
-                            # Числовые параметры - линейная интерполяция
-                            alpha = random.random()
-                            blended_params[param_name] = self_value * alpha + other_value * (1 - alpha)
-                        else:
-                            # Остальные параметры - случайный выбор
-                            blended_params[param_name] = random.choice([self_value, other_value])
-                    
-                    # Создаем гены для потомков
-                    child1_gene = StrategyGene(
-                        attack_name=attack_name,
-                        parameters=blended_params,
-                        weight=(self_gene.weight + other_gene.weight) / 2,
-                        enabled=self_gene.enabled and other_gene.enabled
-                    )
-                    child1_genes.append(child1_gene)
-                    
-                    child2_gene = StrategyGene(
-                        attack_name=attack_name,
-                        parameters=blended_params.copy(),
-                        weight=(self_gene.weight + other_gene.weight) / 2,
-                        enabled=self_gene.enabled or other_gene.enabled
-                    )
-                    child2_genes.append(child2_gene)
-                
-                elif self_gene:
-                    child1_genes.append(self_gene)
-                elif other_gene:
-                    child2_genes.append(other_gene)
-        
-        # Создание потомков
-        child1 = StrategyChromosome(
-            chromosome_id=f"child_{int(time.time())}_{random.randint(1000, 9999)}",
-            genes=child1_genes,
-            generation=max(self.generation, other.generation) + 1,
-            parent_ids=[self.chromosome_id, other.chromosome_id]
-        )
-        
-        child2 = StrategyChromosome(
-            chromosome_id=f"child_{int(time.time())}_{random.randint(1000, 9999)}",
-            genes=child2_genes,
-            generation=max(self.generation, other.generation) + 1,
-            parent_ids=[self.chromosome_id, other.chromosome_id]
-        )
-        
-        return child1, child2
-    
-    def mutate(self, mutation_rate: float = 0.1, mutation_types: List[MutationType] = None) -> 'StrategyChromosome':
-        """Мутация хромосомы."""
-        if mutation_types is None:
-            mutation_types = [MutationType.PARAMETER_TWEAK, MutationType.PARAMETER_RANDOM]
-        
-        mutated = StrategyChromosome(
-            chromosome_id=f"mutant_{int(time.time())}_{random.randint(1000, 9999)}",
-            genes=[gene.mutate(mutation_rate) for gene in self.genes],
-            generation=self.generation + 1,
-            parent_ids=[self.chromosome_id]
-        )
-        
-        # Дополнительные мутации
-        for mutation_type in mutation_types:
-            if random.random() < mutation_rate:
-                if mutation_type == MutationType.ATTACK_ADDITION and len(mutated.genes) < 5:
-                    # Добавление новой атаки (требует доступа к реестру атак)
-                    pass  # Реализуется в контексте генератора
-                
-                elif mutation_type == MutationType.ATTACK_REMOVAL and len(mutated.genes) > 1:
-                    # Удаление случайной атаки
-                    gene_to_remove = random.choice(mutated.genes)
-                    mutated.genes.remove(gene_to_remove)
-                    mutated.mutation_history.append(f"removed_{gene_to_remove.attack_name}")
-                
-                elif mutation_type == MutationType.SEQUENCE_REORDER:
-                    # Изменение порядка атак
-                    random.shuffle(mutated.genes)
-                    mutated.mutation_history.append("reordered_sequence")
-        
-        return mutated
-
-
-@dataclass
-class EvolutionParameters:
-    """Параметры эволюционного алгоритма."""
-    population_size: int = 50
-    generations: int = 20
-    mutation_rate: float = 0.1
-    crossover_rate: float = 0.8
-    elite_size: int = 5
-    
-    # Стратегии
-    evolution_strategy: EvolutionStrategy = EvolutionStrategy.GENETIC_ALGORITHM
-    crossover_type: CrossoverType = CrossoverType.PARAMETER_BLEND
-    mutation_types: List[MutationType] = field(default_factory=lambda: [
-        MutationType.PARAMETER_TWEAK, MutationType.PARAMETER_RANDOM
-    ])
-    
-    # Критерии остановки
-    max_generations_without_improvement: int = 10
-    target_fitness: float = 0.95
-    max_evolution_time_minutes: int = 30
-
-
-@dataclass
-class NetworkTopologyInfo:
-    """Информация о сетевой топологии для адаптивной настройки TTL."""
-    domain: str
-    target_ip: str
-    
-    # Характеристики маршрута
-    hop_count: Optional[int] = None
-    intermediate_hops: List[str] = field(default_factory=list)
-    rtt_ms: Optional[float] = None
-    
-    # Анализ TTL
-    observed_ttl_values: List[int] = field(default_factory=list)
-    estimated_initial_ttl: Optional[int] = None
-    ttl_decrement_pattern: List[int] = field(default_factory=list)
-    
-    # DPI характеристики
-    dpi_hop_estimate: Optional[int] = None
-    dpi_detection_timing_ms: Optional[float] = None
-    
-    # Рекомендации
-    recommended_ttl_range: Tuple[int, int] = (1, 64)
-    optimal_ttl: Optional[int] = None
-
-
-@dataclass
-class PayloadAnalysisResult:
-    """Результат анализа payload для интеллектуального выбора позиций split."""
-    payload_type: str  # "tls_client_hello", "http_request", "generic"
-    total_length: int
-    
-    # Критические позиции
-    critical_positions: List[int] = field(default_factory=list)
-    safe_split_positions: List[int] = field(default_factory=list)
-    avoid_positions: List[int] = field(default_factory=list)
-    
-    # Анализ содержимого
-    contains_sni: bool = False
-    sni_position: Optional[int] = None
-    contains_host_header: bool = False
-    host_header_position: Optional[int] = None
-    
-    # Рекомендации
-    recommended_split_positions: List[int] = field(default_factory=list)
-    split_strategy: str = "random"  # "random", "targeted", "multi_point"
 
 
 class NextGenStrategyGenerator:
     """
     Адаптивный генератор стратегий следующего поколения.
-    
+
     Использует машинное обучение и генетические алгоритмы для
     эволюции стратегий обхода DPI.
     """
-    
-    def __init__(self, 
-                 data_dir: str = "data/next_gen_strategies",
-                 evolution_params: Optional[EvolutionParameters] = None):
+
+    def __init__(
+        self,
+        data_dir: str = "data/next_gen_strategies",
+        evolution_params: Optional[EvolutionParameters] = None,
+    ):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.evolution_params = evolution_params or EvolutionParameters()
-        
+
         # Популяция стратегий
         self.population: Dict[str, List[StrategyChromosome]] = {}
         self.generation_history: Dict[str, List[Dict[str, Any]]] = {}
-        
+
         # Веса параметров
         self.parameter_weights: Dict[str, Dict[str, float]] = {}
-        
+
         # Кэш анализов
         self.topology_cache: Dict[str, NetworkTopologyInfo] = {}
         self.payload_analysis_cache: Dict[str, PayloadAnalysisResult] = {}
-        
+
+        # Analyzers
+        self.topology_analyzer = TopologyAnalyzer()
+        self.payload_analyzer = PayloadAnalyzer()
+        self.population_manager = PopulationManager(
+            population_size=self.evolution_params.population_size
+        )
+        self.attack_param_generator = AttackParameterGenerator()
+        self.strategy_converter = StrategyConverter()
+        self.weight_analyzer = ParameterWeightAnalyzer()
+
         # Статистика
         self.stats = {
             "populations_evolved": 0,
@@ -383,654 +116,510 @@ class NextGenStrategyGenerator:
             "successful_mutations": 0,
             "successful_crossovers": 0,
             "topology_analyses": 0,
-            "payload_analyses": 0
+            "payload_analyses": 0,
         }
-        
+
         # Загрузка сохраненных данных
         self._load_evolution_data()
-        
+
         LOG.info("NextGenStrategyGenerator initialized")
-    
-    async def evolve_strategies(self, 
-                              domain: str,
-                              blocking_analysis: BlockingPatternAnalysis,
-                              effectiveness_metrics: Dict[str, StrategyEffectivenessMetrics],
-                              target_count: int = 10) -> List[Dict[str, Any]]:
+
+    def _strategy_gene_to_dict(self, gene: StrategyGene) -> Dict[str, Any]:
+        return {
+            "attack_name": gene.attack_name,
+            "parameters": gene.parameters,
+            "weight": gene.weight,
+            "enabled": gene.enabled,
+        }
+
+    def _strategy_gene_from_dict(self, data: Dict[str, Any]) -> StrategyGene:
+        return StrategyGene(
+            attack_name=str(data.get("attack_name", "")),
+            parameters=dict(data.get("parameters", {}) or {}),
+            weight=float(data.get("weight", 1.0)),
+            enabled=bool(data.get("enabled", True)),
+        )
+
+    def _chromosome_to_dict(self, chromosome: StrategyChromosome) -> Dict[str, Any]:
+        return {
+            "chromosome_id": chromosome.chromosome_id,
+            "genes": [self._strategy_gene_to_dict(g) for g in chromosome.genes],
+            "fitness": chromosome.fitness,
+            "generation": chromosome.generation,
+            "created_at": chromosome.created_at.isoformat(),
+            "parent_ids": list(chromosome.parent_ids),
+            "mutation_history": list(chromosome.mutation_history),
+        }
+
+    def _chromosome_from_dict(self, data: Dict[str, Any]) -> StrategyChromosome:
+        created_at_raw = data.get("created_at")
+        created_at = datetime.now()
+        if isinstance(created_at_raw, str):
+            try:
+                created_at = datetime.fromisoformat(created_at_raw)
+            except ValueError:
+                created_at = datetime.now()
+
+        genes_raw = data.get("genes", []) or []
+        genes: List[StrategyGene] = []
+        if isinstance(genes_raw, list):
+            for g in genes_raw:
+                if isinstance(g, dict):
+                    genes.append(self._strategy_gene_from_dict(g))
+
+        return StrategyChromosome(
+            chromosome_id=str(data.get("chromosome_id", "")),
+            genes=genes,
+            fitness=float(data.get("fitness", 0.0)),
+            generation=int(data.get("generation", 0)),
+            created_at=created_at,
+            parent_ids=list(data.get("parent_ids", []) or []),
+            mutation_history=list(data.get("mutation_history", []) or []),
+        )
+
+    def _save_populations(self) -> None:
+        """Best-effort сохранение популяций (без изменения внешнего интерфейса)."""
+        populations_file = self.data_dir / "populations.json"
+        payload: Dict[str, Any] = {}
+        for domain, chromosomes in self.population.items():
+            payload[domain] = [self._chromosome_to_dict(c) for c in chromosomes]
+        try:
+            save_json_config(populations_file, payload)
+        except Exception as e:
+            LOG.error("Failed to save populations: %s", e, exc_info=True)
+
+    async def evolve_strategies(
+        self,
+        domain: str,
+        blocking_analysis: BlockingPatternAnalysis,
+        effectiveness_metrics: Dict[str, StrategyEffectivenessMetrics],
+        target_count: int = 10,
+    ) -> List[Dict[str, Any]]:
         """
         Эволюция стратегий с использованием генетического алгоритма.
-        
+
         Args:
             domain: Целевой домен
             blocking_analysis: Анализ паттернов блокировки
             effectiveness_metrics: Метрики эффективности стратегий
             target_count: Целевое количество стратегий
-            
+
         Returns:
             Список эволюционировавших стратегий
         """
         LOG.info(f"Starting strategy evolution for {domain}")
         start_time = time.time()
-        
+
         # Инициализация популяции
         if domain not in self.population:
             await self._initialize_population(domain, blocking_analysis)
-        
+
         population = self.population[domain]
         best_fitness_history = []
         generations_without_improvement = 0
-        
+
+        # Основной цикл эволюции
         for generation in range(self.evolution_params.generations):
             generation_start = time.time()
-            
-            # Оценка приспособленности
-            for chromosome in population:
-                chromosome.calculate_fitness(effectiveness_metrics, domain)
-            
-            # Сортировка по приспособленности
-            population.sort(key=lambda c: c.fitness, reverse=True)
-            
-            current_best_fitness = population[0].fitness
+
+            # Оценка и сортировка популяции
+            self._evaluate_population(population, effectiveness_metrics, domain)
+            current_best_fitness = population[0].fitness if population else 0.0
             best_fitness_history.append(current_best_fitness)
-            
+
             LOG.debug(f"Generation {generation}: best fitness = {current_best_fitness:.3f}")
-            
+
             # Проверка критериев остановки
-            if current_best_fitness >= self.evolution_params.target_fitness:
-                LOG.info(f"Target fitness reached in generation {generation}")
+            should_stop, stop_reason = self._check_stopping_criteria(
+                generation,
+                current_best_fitness,
+                best_fitness_history,
+                generations_without_improvement,
+                start_time,
+            )
+
+            if should_stop:
+                LOG.info(f"Evolution stopped: {stop_reason}")
                 break
-            
+
+            # Обновление счетчика поколений без улучшения
             if generation > 0 and current_best_fitness <= best_fitness_history[-2]:
                 generations_without_improvement += 1
             else:
                 generations_without_improvement = 0
-            
-            if generations_without_improvement >= self.evolution_params.max_generations_without_improvement:
-                LOG.info(f"No improvement for {generations_without_improvement} generations, stopping")
-                break
-            
-            # Проверка времени
-            elapsed_minutes = (time.time() - start_time) / 60
-            if elapsed_minutes >= self.evolution_params.max_evolution_time_minutes:
-                LOG.info(f"Evolution time limit reached ({elapsed_minutes:.1f} minutes)")
-                break
-            
-            # Селекция элиты
-            elite = population[:self.evolution_params.elite_size]
-            
-            # Создание нового поколения
-            new_population = elite.copy()
-            
-            while len(new_population) < self.evolution_params.population_size:
-                # Селекция родителей (турнирная селекция)
-                parent1 = self._tournament_selection(population)
-                parent2 = self._tournament_selection(population)
-                
-                # Кроссовер
-                if random.random() < self.evolution_params.crossover_rate:
-                    child1, child2 = parent1.crossover(parent2, self.evolution_params.crossover_type)
-                    
-                    # Мутация
-                    if random.random() < self.evolution_params.mutation_rate:
-                        child1 = child1.mutate(
-                            self.evolution_params.mutation_rate,
-                            self.evolution_params.mutation_types
-                        )
-                        self.stats["successful_mutations"] += 1
-                    
-                    if random.random() < self.evolution_params.mutation_rate:
-                        child2 = child2.mutate(
-                            self.evolution_params.mutation_rate,
-                            self.evolution_params.mutation_types
-                        )
-                        self.stats["successful_mutations"] += 1
-                    
-                    new_population.extend([child1, child2])
-                    self.stats["successful_crossovers"] += 1
-                else:
-                    # Клонирование с мутацией
-                    clone = parent1.mutate(
-                        self.evolution_params.mutation_rate,
-                        self.evolution_params.mutation_types
-                    )
-                    new_population.append(clone)
-            
-            # Обрезка до нужного размера
-            population = new_population[:self.evolution_params.population_size]
-            
+
+            # Создание нового поколения (кроме последнего шага, чтобы не оставить "неоцененную" популяцию на выходе)
+            if generation < self.evolution_params.generations - 1:
+                population = self._create_next_generation(population)
+
             # Сохранение истории поколения
-            generation_stats = {
-                "generation": generation,
-                "best_fitness": current_best_fitness,
-                "average_fitness": statistics.mean(c.fitness for c in population),
-                "diversity": self._calculate_population_diversity(population),
-                "generation_time_ms": (time.time() - generation_start) * 1000
-            }
-            
-            if domain not in self.generation_history:
-                self.generation_history[domain] = []
-            self.generation_history[domain].append(generation_stats)
-        
+            self._save_generation_stats(
+                domain, generation, current_best_fitness, population, generation_start
+            )
+
         # Обновление популяции
         self.population[domain] = population
-        
+
+        # Best-effort persist populations
+        self._save_populations()
+
         # Конвертация лучших хромосом в стратегии
+        strategies = await self._convert_best_chromosomes(
+            domain, population, blocking_analysis, target_count
+        )
+
+        # Обновление статистики
+        self._update_evolution_stats(best_fitness_history, strategies, start_time, domain)
+
+        return strategies
+
+    def _evaluate_population(
+        self,
+        population: List[StrategyChromosome],
+        effectiveness_metrics: Dict[str, StrategyEffectivenessMetrics],
+        domain: str,
+    ):
+        """Оценка приспособленности и сортировка популяции."""
+        for chromosome in population:
+            chromosome.calculate_fitness(effectiveness_metrics, domain)
+        population.sort(key=lambda c: c.fitness, reverse=True)
+
+    def _check_stopping_criteria(
+        self,
+        generation: int,
+        current_best_fitness: float,
+        best_fitness_history: List[float],
+        generations_without_improvement: int,
+        start_time: float,
+    ) -> tuple[bool, str]:
+        """Проверка критериев остановки эволюции."""
+        # Достигнута целевая приспособленность
+        if current_best_fitness >= self.evolution_params.target_fitness:
+            return True, f"Target fitness reached in generation {generation}"
+
+        # Нет улучшений длительное время
+        if (
+            generations_without_improvement
+            >= self.evolution_params.max_generations_without_improvement
+        ):
+            return (
+                True,
+                f"No improvement for {generations_without_improvement} generations",
+            )
+
+        # Превышено время эволюции
+        elapsed_minutes = (time.time() - start_time) / 60
+        if elapsed_minutes >= self.evolution_params.max_evolution_time_minutes:
+            return True, f"Evolution time limit reached ({elapsed_minutes:.1f} minutes)"
+
+        return False, ""
+
+    def _create_next_generation(
+        self, population: List[StrategyChromosome]
+    ) -> List[StrategyChromosome]:
+        """Создание нового поколения через селекцию, кроссовер и мутацию."""
+        # Селекция элиты
+        elite = population[: self.evolution_params.elite_size]
+        new_population = elite.copy()
+
+        while len(new_population) < self.evolution_params.population_size:
+            # Селекция родителей
+            parent1 = self.population_manager.tournament_selection(population)
+            parent2 = self.population_manager.tournament_selection(population)
+
+            # Кроссовер
+            if random.random() < self.evolution_params.crossover_rate:
+                child1, child2 = parent1.crossover(parent2, self.evolution_params.crossover_type)
+
+                # Мутация потомков
+                if random.random() < self.evolution_params.mutation_rate:
+                    child1 = child1.mutate(
+                        self.evolution_params.mutation_rate,
+                        self.evolution_params.mutation_types,
+                    )
+                    self.stats["successful_mutations"] += 1
+
+                if random.random() < self.evolution_params.mutation_rate:
+                    child2 = child2.mutate(
+                        self.evolution_params.mutation_rate,
+                        self.evolution_params.mutation_types,
+                    )
+                    self.stats["successful_mutations"] += 1
+
+                new_population.extend([child1, child2])
+                self.stats["successful_crossovers"] += 1
+            else:
+                # Клонирование с мутацией
+                clone = parent1.mutate(
+                    self.evolution_params.mutation_rate, self.evolution_params.mutation_types
+                )
+                new_population.append(clone)
+
+        # Обрезка до нужного размера
+        return new_population[: self.evolution_params.population_size]
+
+    def _save_generation_stats(
+        self,
+        domain: str,
+        generation: int,
+        best_fitness: float,
+        population: List[StrategyChromosome],
+        generation_start: float,
+    ):
+        """Сохранение статистики поколения."""
+        generation_stats = {
+            "generation": generation,
+            "best_fitness": best_fitness,
+            "average_fitness": (
+                statistics.mean(c.fitness for c in population) if population else 0.0
+            ),
+            "diversity": self.population_manager.calculate_population_diversity(population),
+            "generation_time_ms": (time.time() - generation_start) * 1000,
+        }
+
+        if domain not in self.generation_history:
+            self.generation_history[domain] = []
+        self.generation_history[domain].append(generation_stats)
+
+    async def _convert_best_chromosomes(
+        self,
+        domain: str,
+        population: List[StrategyChromosome],
+        blocking_analysis: BlockingPatternAnalysis,
+        target_count: int,
+    ) -> List[Dict[str, Any]]:
+        """Конвертация лучших хромосом в стратегии."""
         best_chromosomes = population[:target_count]
         strategies = []
-        
+
         for chromosome in best_chromosomes:
-            strategy = await self._chromosome_to_strategy(domain, chromosome, blocking_analysis)
+            strategy = await self.strategy_converter.chromosome_to_strategy(
+                domain, chromosome, blocking_analysis
+            )
             strategies.append(strategy)
-        
-        # Обновление статистики
+
+        return strategies
+
+    def _update_evolution_stats(
+        self,
+        best_fitness_history: List[float],
+        strategies: List[Dict[str, Any]],
+        start_time: float,
+        domain: str,
+    ):
+        """Обновление статистики эволюции."""
         self.stats["populations_evolved"] += 1
         self.stats["generations_computed"] += len(best_fitness_history)
         self.stats["strategies_generated"] += len(strategies)
-        
+
         evolution_time = time.time() - start_time
-        LOG.info(f"Strategy evolution completed for {domain} in {evolution_time:.2f}s, generated {len(strategies)} strategies")
-        
-        return strategies
-    
-    async def adaptive_ttl_optimization(self, 
-                                      domain: str,
-                                      target_ip: str) -> NetworkTopologyInfo:
+        LOG.info(
+            f"Strategy evolution completed for {domain} in {evolution_time:.2f}s, "
+            f"generated {len(strategies)} strategies"
+        )
+
+    async def adaptive_ttl_optimization(self, domain: str, target_ip: str) -> NetworkTopologyInfo:
         """
         Адаптивная настройка TTL на основе сетевой топологии.
-        
+
         Args:
             domain: Целевой домен
             target_ip: IP адрес цели
-            
+
         Returns:
             Информация о сетевой топологии с рекомендациями по TTL
         """
         cache_key = f"{domain}_{target_ip}"
-        
+
         # Проверяем кэш
         if cache_key in self.topology_cache:
             cached_info = self.topology_cache[cache_key]
             # Проверяем актуальность (обновляем каждые 24 часа)
             if datetime.now() - cached_info.created_at < timedelta(hours=24):
                 return cached_info
-        
+
         LOG.info(f"Analyzing network topology for {domain} ({target_ip})")
-        
-        topology_info = NetworkTopologyInfo(
-            domain=domain,
-            target_ip=target_ip
-        )
-        
+
+        topology_info = NetworkTopologyInfo(domain=domain, target_ip=target_ip)
+
         try:
             # Анализ маршрута (упрощенная версия без внешних зависимостей)
-            await self._analyze_network_route(topology_info)
-            
+            await self.topology_analyzer.analyze_network_route(topology_info)
+
             # Анализ TTL паттернов
-            await self._analyze_ttl_patterns(topology_info)
-            
+            await self.topology_analyzer.analyze_ttl_patterns(topology_info)
+
             # Оценка позиции DPI
-            await self._estimate_dpi_position(topology_info)
-            
+            await self.topology_analyzer.estimate_dpi_position(topology_info)
+
             # Генерация рекомендаций по TTL
-            self._generate_ttl_recommendations(topology_info)
-            
+            self.topology_analyzer.generate_ttl_recommendations(topology_info)
+
             # Кэширование результата
             self.topology_cache[cache_key] = topology_info
             self.stats["topology_analyses"] += 1
-            
-            LOG.info(f"Network topology analysis completed for {domain}, optimal TTL: {topology_info.optimal_ttl}")
-            
+
+            LOG.info(
+                f"Network topology analysis completed for {domain}, optimal TTL: {topology_info.optimal_ttl}"
+            )
+
         except Exception as e:
-            LOG.error(f"Network topology analysis failed for {domain}: {e}")
-        
+            LOG.error("Network topology analysis failed for %s: %s", domain, e, exc_info=True)
+
         return topology_info
-    
-    async def intelligent_split_position_selection(self, 
-                                                 payload: bytes,
-                                                 payload_type: str = "auto") -> PayloadAnalysisResult:
+
+    async def intelligent_split_position_selection(
+        self, payload: bytes, payload_type: str = "auto"
+    ) -> PayloadAnalysisResult:
         """
         Интеллектуальный выбор позиций split на основе анализа payload.
-        
+
         Args:
             payload: Данные для анализа
             payload_type: Тип payload ("tls_client_hello", "http_request", "auto")
-            
+
         Returns:
             Результат анализа с рекомендациями по позициям split
         """
-        payload_hash = hashlib.md5(payload).hexdigest()
-        
+        # Avoid MD5-related restrictions in some environments (e.g., FIPS).
+        # Key is internal/in-memory only.
+        payload_hash = hashlib.blake2s(payload, digest_size=16).hexdigest()
+
         # Проверяем кэш
         if payload_hash in self.payload_analysis_cache:
             return self.payload_analysis_cache[payload_hash]
-        
+
         LOG.debug(f"Analyzing payload for split positions (length: {len(payload)})")
-        
+
         # Автоопределение типа payload
         if payload_type == "auto":
-            payload_type = self._detect_payload_type(payload)
-        
-        analysis = PayloadAnalysisResult(
-            payload_type=payload_type,
-            total_length=len(payload)
-        )
-        
+            payload_type = self.payload_analyzer.detect_payload_type(payload)
+
+        analysis = PayloadAnalysisResult(payload_type=payload_type, total_length=len(payload))
+
         try:
             if payload_type == "tls_client_hello":
-                await self._analyze_tls_client_hello(payload, analysis)
+                await self.payload_analyzer.analyze_tls_client_hello(payload, analysis)
             elif payload_type == "http_request":
-                await self._analyze_http_request(payload, analysis)
+                await self.payload_analyzer.analyze_http_request(payload, analysis)
             else:
-                await self._analyze_generic_payload(payload, analysis)
-            
+                await self.payload_analyzer.analyze_generic_payload(payload, analysis)
+
             # Генерация рекомендаций по split позициям
-            self._generate_split_recommendations(analysis)
-            
+            self.payload_analyzer.generate_split_recommendations(analysis)
+
             # Кэширование результата
             self.payload_analysis_cache[payload_hash] = analysis
             self.stats["payload_analyses"] += 1
-            
+
         except Exception as e:
-            LOG.error(f"Payload analysis failed: {e}")
-        
+            LOG.error("Payload analysis failed: %s", e, exc_info=True)
+
         return analysis
-    
-    async def update_parameter_weights(self, 
-                                     domain: str,
-                                     strategy_results: List[Tuple[Dict[str, Any], bool, float]]):
+
+    async def update_parameter_weights(
+        self, domain: str, strategy_results: List[Tuple[Dict[str, Any], bool, float]]
+    ):
         """
         Обновление весов параметров стратегий на основе успешности.
-        
+
         Args:
             domain: Целевой домен
             strategy_results: Результаты тестирования (стратегия, успех, время_ответа)
         """
-        LOG.info(f"Updating parameter weights for {domain} based on {len(strategy_results)} results")
-        
+        LOG.info(
+            f"Updating parameter weights for {domain} based on {len(strategy_results)} results"
+        )
+
         if domain not in self.parameter_weights:
             self.parameter_weights[domain] = {}
-        
+
         domain_weights = self.parameter_weights[domain]
-        
-        # Анализ успешных и неуспешных стратегий
-        successful_strategies = [s for s, success, _ in strategy_results if success]
-        failed_strategies = [s for s, success, _ in strategy_results if not success]
-        
+
+        # Разделение на успешные и неуспешные стратегии
+        successful_strategies, failed_strategies = self.weight_analyzer.split_by_success(
+            strategy_results
+        )
+
+        # Извлечение всех параметров
+        all_parameters = self.weight_analyzer.extract_all_parameters(strategy_results)
+
         # Обновление весов для каждого параметра
-        all_parameters = set()
-        for strategy, _, _ in strategy_results:
-            if 'parameters' in strategy:
-                all_parameters.update(strategy['parameters'].keys())
-        
         for param_name in all_parameters:
-            if param_name not in domain_weights:
-                domain_weights[param_name] = {}
-            
-            # Анализ значений параметра в успешных стратегиях
-            successful_values = []
-            failed_values = []
-            
-            for strategy in successful_strategies:
-                if param_name in strategy.get('parameters', {}):
-                    successful_values.append(strategy['parameters'][param_name])
-            
-            for strategy in failed_strategies:
-                if param_name in strategy.get('parameters', {}):
-                    failed_values.append(strategy['parameters'][param_name])
-            
-            # Обновление весов на основе успешности
-            if successful_values:
-                # Для числовых параметров - анализ распределения
-                if all(isinstance(v, (int, float)) for v in successful_values):
-                    mean_successful = statistics.mean(successful_values)
-                    
-                    # Увеличиваем вес для успешных значений
-                    for value in successful_values:
-                        value_key = str(value)
-                        if value_key not in domain_weights[param_name]:
-                            domain_weights[param_name][value_key] = 1.0
-                        domain_weights[param_name][value_key] *= 1.1  # Увеличиваем вес
-                
-                # Для категориальных параметров - подсчет частоты
-                else:
-                    for value in successful_values:
-                        value_key = str(value)
-                        if value_key not in domain_weights[param_name]:
-                            domain_weights[param_name][value_key] = 1.0
-                        domain_weights[param_name][value_key] *= 1.2
-            
-            # Уменьшение весов для неуспешных значений
-            for value in failed_values:
-                value_key = str(value)
-                if value_key not in domain_weights[param_name]:
-                    domain_weights[param_name][value_key] = 1.0
-                domain_weights[param_name][value_key] *= 0.9  # Уменьшаем вес
-        
+            successful_values = self.weight_analyzer.collect_parameter_values(
+                successful_strategies, param_name
+            )
+            failed_values = self.weight_analyzer.collect_parameter_values(
+                failed_strategies, param_name
+            )
+
+            self.weight_analyzer.update_weights_for_parameter(
+                domain_weights, param_name, successful_values, failed_values
+            )
+
         # Сохранение обновленных весов
         await self._save_parameter_weights()
-        
+
         LOG.info(f"Parameter weights updated for {domain}")
-    
+
     # Приватные методы для внутренней логики
-    
-    async def _initialize_population(self, 
-                                   domain: str,
-                                   blocking_analysis: BlockingPatternAnalysis):
+
+    async def _initialize_population(self, domain: str, blocking_analysis: BlockingPatternAnalysis):
         """Инициализация популяции стратегий."""
-        LOG.debug(f"Initializing population for {domain}")
-        
-        population = []
-        
-        # Получение доступных атак (заглушка, требует интеграции с реестром)
-        available_attacks = self._get_available_attacks(blocking_analysis)
-        
-        for i in range(self.evolution_params.population_size):
-            # Случайный выбор атак для хромосомы
-            num_attacks = random.randint(1, min(4, len(available_attacks)))
-            selected_attacks = random.sample(available_attacks, num_attacks)
-            
-            genes = []
-            for attack_name in selected_attacks:
-                # Генерация случайных параметров
-                parameters = self._generate_random_parameters(attack_name, blocking_analysis)
-                
-                gene = StrategyGene(
-                    attack_name=attack_name,
-                    parameters=parameters,
-                    weight=random.uniform(0.5, 2.0),
-                    enabled=True
-                )
-                genes.append(gene)
-            
-            chromosome = StrategyChromosome(
-                chromosome_id=f"{domain}_init_{i}",
-                genes=genes,
-                generation=0
-            )
-            population.append(chromosome)
-        
+        available_attacks = self.attack_param_generator.get_available_attacks(blocking_analysis)
+        population = await self.population_manager.initialize_population(
+            domain=domain,
+            available_attacks=available_attacks,
+            parameter_generator_func=self.attack_param_generator.generate_random_parameters,
+            blocking_analysis=blocking_analysis,
+        )
         self.population[domain] = population
-        LOG.debug(f"Initialized population of {len(population)} chromosomes for {domain}")
-    
-    def _tournament_selection(self, population: List[StrategyChromosome], tournament_size: int = 3) -> StrategyChromosome:
-        """Турнирная селекция."""
-        tournament = random.sample(population, min(tournament_size, len(population)))
-        return max(tournament, key=lambda c: c.fitness)
-    
-    def _calculate_population_diversity(self, population: List[StrategyChromosome]) -> float:
-        """Расчет разнообразия популяции."""
-        if len(population) < 2:
-            return 0.0
-        
-        # Упрощенная метрика разнообразия на основе различий в генах
-        diversity_scores = []
-        
-        for i in range(len(population)):
-            for j in range(i + 1, len(population)):
-                chromosome1 = population[i]
-                chromosome2 = population[j]
-                
-                # Сравнение атак
-                attacks1 = set(gene.attack_name for gene in chromosome1.genes)
-                attacks2 = set(gene.attack_name for gene in chromosome2.genes)
-                
-                attack_similarity = len(attacks1 & attacks2) / max(len(attacks1 | attacks2), 1)
-                diversity_scores.append(1.0 - attack_similarity)
-        
-        return statistics.mean(diversity_scores) if diversity_scores else 0.0
-    
-    async def _chromosome_to_strategy(self, 
-                                    domain: str,
-                                    chromosome: StrategyChromosome,
-                                    blocking_analysis: BlockingPatternAnalysis) -> Dict[str, Any]:
-        """Конвертация хромосомы в стратегию."""
-        strategy = {
-            "strategy_id": chromosome.chromosome_id,
-            "name": f"Evolved strategy for {domain}",
-            "generation_method": "genetic_evolution",
-            "fitness": chromosome.fitness,
-            "generation": chromosome.generation,
-            "attacks": [],
-            "parameters": {},
-            "metadata": {
-                "parent_ids": chromosome.parent_ids,
-                "mutation_history": chromosome.mutation_history,
-                "created_at": chromosome.created_at.isoformat()
-            }
-        }
-        
-        # Конвертация генов в атаки
-        for gene in chromosome.genes:
-            if gene.enabled:
-                attack_config = {
-                    "name": gene.attack_name,
-                    "parameters": gene.parameters,
-                    "weight": gene.weight
-                }
-                strategy["attacks"].append(attack_config)
-                
-                # Объединение параметров
-                for param_name, param_value in gene.parameters.items():
-                    strategy["parameters"][f"{gene.attack_name}_{param_name}"] = param_value
-        
-        return strategy
-    
-    def _get_available_attacks(self, blocking_analysis: BlockingPatternAnalysis) -> List[str]:
-        """Получение доступных атак на основе анализа блокировки."""
-        # Базовый набор атак (заглушка)
-        base_attacks = [
-            "fake", "multisplit", "disorder", "tls_sni_split",
-            "tls_chello_frag", "http_split", "tcp_split"
-        ]
-        
-        # Фильтрация атак на основе типа блокировки
-        if blocking_analysis.primary_blocking_type == BlockingType.SNI_FILTERING:
-            return ["fake", "tls_sni_split", "tls_chello_frag", "disorder"]
-        elif blocking_analysis.primary_blocking_type == BlockingType.RST_INJECTION:
-            return ["fake", "disorder", "multisplit", "tcp_split"]
-        else:
-            return base_attacks
-    
-    def _generate_random_parameters(self, 
-                                  attack_name: str,
-                                  blocking_analysis: BlockingPatternAnalysis) -> Dict[str, Any]:
-        """Генерация случайных параметров для атаки."""
-        parameters = {}
-        
-        # Базовые параметры для разных типов атак
-        if "split" in attack_name:
-            parameters["split_position"] = random.randint(1, 100)
-            parameters["split_count"] = random.randint(1, 5)
-        
-        if "fake" in attack_name:
-            parameters["fake_ttl"] = random.randint(1, 32)
-            parameters["fake_count"] = random.randint(1, 3)
-        
-        if "disorder" in attack_name:
-            parameters["disorder_count"] = random.randint(2, 10)
-            parameters["disorder_delay_ms"] = random.randint(1, 100)
-        
-        if "tls" in attack_name:
-            parameters["tls_record_split"] = random.choice([True, False])
-            parameters["sni_obfuscation"] = random.choice([True, False])
-        
-        # Общие параметры
-        parameters["enabled"] = True
-        parameters["priority"] = random.uniform(0.1, 1.0)
-        
-        return parameters
-    
-    async def _analyze_network_route(self, topology_info: NetworkTopologyInfo):
-        """Анализ сетевого маршрута (упрощенная версия)."""
-        # Заглушка для анализа маршрута
-        # В реальной реализации здесь был бы traceroute или аналогичный анализ
-        topology_info.hop_count = random.randint(8, 20)
-        topology_info.rtt_ms = random.uniform(10.0, 200.0)
-        topology_info.intermediate_hops = [f"hop_{i}" for i in range(topology_info.hop_count)]
-    
-    async def _analyze_ttl_patterns(self, topology_info: NetworkTopologyInfo):
-        """Анализ паттернов TTL."""
-        # Симуляция наблюдаемых TTL значений
-        topology_info.observed_ttl_values = [
-            random.randint(50, 64) for _ in range(10)
-        ]
-        
-        if topology_info.observed_ttl_values:
-            # Оценка начального TTL
-            max_observed = max(topology_info.observed_ttl_values)
-            if max_observed <= 64:
-                topology_info.estimated_initial_ttl = 64
-            elif max_observed <= 128:
-                topology_info.estimated_initial_ttl = 128
-            else:
-                topology_info.estimated_initial_ttl = 255
-    
-    async def _estimate_dpi_position(self, topology_info: NetworkTopologyInfo):
-        """Оценка позиции DPI в маршруте."""
-        if topology_info.hop_count:
-            # Предполагаем, что DPI находится в первой трети маршрута
-            topology_info.dpi_hop_estimate = random.randint(1, topology_info.hop_count // 3)
-            topology_info.dpi_detection_timing_ms = random.uniform(1.0, 50.0)
-    
-    def _generate_ttl_recommendations(self, topology_info: NetworkTopologyInfo):
-        """Генерация рекомендаций по TTL."""
-        if topology_info.dpi_hop_estimate:
-            # Рекомендуем TTL меньше позиции DPI
-            min_ttl = 1
-            max_ttl = max(topology_info.dpi_hop_estimate - 1, 1)
-            topology_info.recommended_ttl_range = (min_ttl, max_ttl)
-            topology_info.optimal_ttl = max_ttl
-        else:
-            # Базовые рекомендации
-            topology_info.recommended_ttl_range = (1, 32)
-            topology_info.optimal_ttl = 16
-    
-    def _detect_payload_type(self, payload: bytes) -> str:
-        """Автоопределение типа payload."""
-        if len(payload) > 5:
-            # TLS Client Hello
-            if payload[0] == 0x16 and payload[1] == 0x03:
-                return "tls_client_hello"
-            
-            # HTTP запрос
-            if payload.startswith(b'GET ') or payload.startswith(b'POST ') or payload.startswith(b'PUT '):
-                return "http_request"
-        
-        return "generic"
-    
-    async def _analyze_tls_client_hello(self, payload: bytes, analysis: PayloadAnalysisResult):
-        """Анализ TLS Client Hello для выбора позиций split."""
-        try:
-            # Поиск SNI extension
-            sni_position = payload.find(b'\x00\x00')  # Упрощенный поиск SNI
-            if sni_position != -1:
-                analysis.contains_sni = True
-                analysis.sni_position = sni_position
-                analysis.critical_positions.append(sni_position)
-                
-                # Позиции до и после SNI - критические
-                analysis.avoid_positions.extend([
-                    sni_position - 1, sni_position, sni_position + 1
-                ])
-            
-            # Безопасные позиции для split
-            safe_positions = []
-            for i in range(5, len(payload) - 5, 10):  # Каждые 10 байт, избегая краев
-                if i not in analysis.avoid_positions:
-                    safe_positions.append(i)
-            
-            analysis.safe_split_positions = safe_positions[:10]  # Максимум 10 позиций
-            
-        except Exception as e:
-            LOG.error(f"TLS Client Hello analysis failed: {e}")
-    
-    async def _analyze_http_request(self, payload: bytes, analysis: PayloadAnalysisResult):
-        """Анализ HTTP запроса для выбора позиций split."""
-        try:
-            payload_str = payload.decode('utf-8', errors='ignore')
-            
-            # Поиск Host заголовка
-            host_match = payload_str.find('Host:')
-            if host_match != -1:
-                analysis.contains_host_header = True
-                analysis.host_header_position = host_match
-                analysis.critical_positions.append(host_match)
-                
-                # Избегаем split в области Host заголовка
-                analysis.avoid_positions.extend(range(host_match - 5, host_match + 50))
-            
-            # Безопасные позиции - между заголовками
-            lines = payload_str.split('\r\n')
-            current_pos = 0
-            
-            for line in lines:
-                if line and not line.startswith('Host:'):
-                    # Позиция в конце строки - безопасна для split
-                    line_end = current_pos + len(line)
-                    if line_end not in analysis.avoid_positions:
-                        analysis.safe_split_positions.append(line_end)
-                
-                current_pos += len(line) + 2  # +2 для \r\n
-            
-        except Exception as e:
-            LOG.error(f"HTTP request analysis failed: {e}")
-    
-    async def _analyze_generic_payload(self, payload: bytes, analysis: PayloadAnalysisResult):
-        """Анализ общего payload для выбора позиций split."""
-        # Простая стратегия - равномерное распределение позиций
-        step = max(len(payload) // 10, 1)
-        
-        for i in range(step, len(payload) - step, step):
-            analysis.safe_split_positions.append(i)
-    
-    def _generate_split_recommendations(self, analysis: PayloadAnalysisResult):
-        """Генерация рекомендаций по позициям split."""
-        if analysis.contains_sni or analysis.contains_host_header:
-            # Целевая стратегия - избегаем критических позиций
-            analysis.split_strategy = "targeted"
-            analysis.recommended_split_positions = analysis.safe_split_positions[:5]
-        else:
-            # Случайная стратегия
-            analysis.split_strategy = "random"
-            if analysis.safe_split_positions:
-                analysis.recommended_split_positions = random.sample(
-                    analysis.safe_split_positions,
-                    min(5, len(analysis.safe_split_positions))
-                )
-            else:
-                # Fallback - равномерное распределение
-                step = max(analysis.total_length // 5, 1)
-                analysis.recommended_split_positions = list(range(step, analysis.total_length, step))[:5]
-    
+
     def _load_evolution_data(self):
         """Загрузка сохраненных данных эволюции."""
-        try:
-            # Загрузка весов параметров
-            weights_file = self.data_dir / "parameter_weights.json"
-            if weights_file.exists():
-                with open(weights_file, 'r', encoding='utf-8') as f:
-                    self.parameter_weights = json.load(f)
-                LOG.info(f"Loaded parameter weights for {len(self.parameter_weights)} domains")
-            
-            # Загрузка популяций (упрощенная версия)
-            populations_file = self.data_dir / "populations.json"
-            if populations_file.exists():
-                with open(populations_file, 'r', encoding='utf-8') as f:
-                    populations_data = json.load(f)
-                    # Конвертация обратно в объекты (упрощенная)
-                    LOG.info(f"Found saved populations for {len(populations_data)} domains")
-        
-        except Exception as e:
-            LOG.error(f"Failed to load evolution data: {e}")
-    
+        # Загрузка весов параметров
+        weights_file = self.data_dir / "parameter_weights.json"
+        self.parameter_weights = load_json_config(weights_file, default={})
+        if self.parameter_weights:
+            LOG.info(f"Loaded parameter weights for {len(self.parameter_weights)} domains")
+
+        # Загрузка популяций (упрощенная версия)
+        populations_file = self.data_dir / "populations.json"
+        populations_data = load_json_config(populations_file, default={})
+        if populations_data:
+            loaded = 0
+            if isinstance(populations_data, dict):
+                for domain, chromo_list in populations_data.items():
+                    if not isinstance(chromo_list, list):
+                        continue
+                    chromosomes: List[StrategyChromosome] = []
+                    for item in chromo_list:
+                        if isinstance(item, dict):
+                            try:
+                                chromosomes.append(self._chromosome_from_dict(item))
+                            except Exception:
+                                LOG.debug(
+                                    "Skipping invalid chromosome data for domain=%s",
+                                    domain,
+                                    exc_info=True,
+                                )
+                    if chromosomes:
+                        self.population[str(domain)] = chromosomes
+                        loaded += 1
+
+            if loaded:
+                LOG.info("Loaded saved populations for %d domains", loaded)
+            else:
+                LOG.debug("Found populations.json but nothing could be loaded safely")
+
     async def _save_parameter_weights(self):
         """Сохранение весов параметров."""
+        weights_file = self.data_dir / "parameter_weights.json"
         try:
-            weights_file = self.data_dir / "parameter_weights.json"
-            with open(weights_file, 'w', encoding='utf-8') as f:
-                json.dump(self.parameter_weights, f, indent=2, ensure_ascii=False)
+            save_json_config(weights_file, self.parameter_weights)
         except Exception as e:
-            LOG.error(f"Failed to save parameter weights: {e}")
-    
+            LOG.error("Failed to save parameter weights: %s", e, exc_info=True)
+
     def get_stats(self) -> Dict[str, Any]:
         """Получение статистики работы генератора."""
         return {
@@ -1038,5 +627,5 @@ class NextGenStrategyGenerator:
             "active_populations": len(self.population),
             "cached_topologies": len(self.topology_cache),
             "cached_payload_analyses": len(self.payload_analysis_cache),
-            "parameter_weight_domains": len(self.parameter_weights)
+            "parameter_weight_domains": len(self.parameter_weights),
         }

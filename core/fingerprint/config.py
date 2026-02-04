@@ -232,9 +232,7 @@ class AdvancedFingerprintingConfig:
             "http": AnalyzerConfig(enabled=True, timeout=10.0, max_samples=5),
             "dns": AnalyzerConfig(enabled=True, timeout=5.0, max_samples=3),
             "ml_classifier": AnalyzerConfig(enabled=True, timeout=2.0, max_samples=1),
-            "metrics_collector": AnalyzerConfig(
-                enabled=True, timeout=15.0, max_samples=20
-            ),
+            "metrics_collector": AnalyzerConfig(enabled=True, timeout=15.0, max_samples=20),
             "monitor": AnalyzerConfig(enabled=True, timeout=30.0, max_samples=1),
         }
     )
@@ -440,9 +438,7 @@ class ConfigurationManager:
 
         return None
 
-    def load_config(
-        self, config_path: Optional[str] = None
-    ) -> AdvancedFingerprintingConfig:
+    def load_config(self, config_path: Optional[str] = None) -> AdvancedFingerprintingConfig:
         """
         Load configuration from file.
 
@@ -468,9 +464,7 @@ class ConfigurationManager:
                 elif self.config_path.endswith(".json"):
                     data = json.load(f)
                 else:
-                    raise ConfigLoadError(
-                        f"Unsupported configuration format: {self.config_path}"
-                    )
+                    raise ConfigLoadError(f"Unsupported configuration format: {self.config_path}")
 
             self.config = AdvancedFingerprintingConfig.from_dict(data)
             self._last_modified = os.path.getmtime(self.config_path)
@@ -478,9 +472,7 @@ class ConfigurationManager:
             # Validate configuration
             errors = self.config.validate()
             if errors:
-                raise ConfigValidationError(
-                    f"Configuration validation failed: {errors}"
-                )
+                raise ConfigValidationError(f"Configuration validation failed: {errors}")
 
             logger.info(f"Configuration loaded from {self.config_path}")
             return self.config
@@ -518,9 +510,7 @@ class ConfigurationManager:
                 elif self.config_path.endswith(".json"):
                     json.dump(data, f, indent=2, default=str)
                 else:
-                    raise ConfigLoadError(
-                        f"Unsupported configuration format: {self.config_path}"
-                    )
+                    raise ConfigLoadError(f"Unsupported configuration format: {self.config_path}")
 
             self._last_modified = os.path.getmtime(self.config_path)
             logger.info(f"Configuration saved to {self.config_path}")
@@ -628,9 +618,7 @@ if __name__ == "__main__":
     parser.add_argument("--create-default", help="Create default configuration file")
     parser.add_argument("--validate", help="Validate configuration file")
     parser.add_argument("--show", help="Show configuration from file")
-    parser.add_argument(
-        "--format", choices=["yaml", "json"], default="yaml", help="Output format"
-    )
+    parser.add_argument("--format", choices=["yaml", "json"], default="yaml", help="Output format")
 
     args = parser.parse_args()
 

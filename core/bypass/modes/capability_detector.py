@@ -68,9 +68,7 @@ class CapabilityDetector:
             "windivert_driver": self._detect_windivert_driver(),
         }
         self._capabilities_cache = capabilities
-        self.logger.info(
-            f"Capability detection complete. Found {len(capabilities)} capabilities."
-        )
+        self.logger.info(f"Capability detection complete. Found {len(capabilities)} capabilities.")
         return capabilities
 
     def is_native_mode_available(self) -> bool:
@@ -87,8 +85,7 @@ class CapabilityDetector:
             driver_cap = capabilities.get("windivert_driver")
             return (
                 pydivert_cap
-                and pydivert_cap.level
-                in [CapabilityLevel.FULL, CapabilityLevel.PARTIAL]
+                and pydivert_cap.level in [CapabilityLevel.FULL, CapabilityLevel.PARTIAL]
                 and admin_cap
                 and admin_cap.requirements_met
                 and driver_cap
@@ -104,10 +101,7 @@ class CapabilityDetector:
                 and (
                     netfilter_cap
                     and netfilter_cap.level != CapabilityLevel.UNAVAILABLE
-                    or (
-                        raw_sockets_cap
-                        and raw_sockets_cap.level != CapabilityLevel.UNAVAILABLE
-                    )
+                    or (raw_sockets_cap and raw_sockets_cap.level != CapabilityLevel.UNAVAILABLE)
                 )
             )
         return False
@@ -260,9 +254,7 @@ class CapabilityDetector:
 
             try:
                 if self._system_info["platform"] == "Windows":
-                    sock = socket.socket(
-                        socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
-                    )
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
                     sock.close()
                     return CapabilityInfo(
                         level=CapabilityLevel.PARTIAL,
@@ -272,9 +264,7 @@ class CapabilityDetector:
                         fallback_available=True,
                     )
                 else:
-                    sock = socket.socket(
-                        socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP
-                    )
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_TCP)
                     sock.close()
                     return CapabilityInfo(
                         level=CapabilityLevel.FULL,
@@ -392,12 +382,8 @@ class CapabilityDetector:
         report.append(
             f"Platform: {self._system_info['platform']} ({self._system_info['architecture']})"
         )
-        report.append(
-            f"Python: {'.'.join(map(str, self._system_info['python_version'][:3]))}"
-        )
-        report.append(
-            f"Admin Privileges: {('Yes' if self._system_info['is_admin'] else 'No')}"
-        )
+        report.append(f"Python: {'.'.join(map(str, self._system_info['python_version'][:3]))}")
+        report.append(f"Admin Privileges: {('Yes' if self._system_info['is_admin'] else 'No')}")
         report.append("")
         report.append("Capabilities:")
         for name, info in capabilities.items():

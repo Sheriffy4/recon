@@ -74,11 +74,7 @@ class AdaptiveMetrics:
     @property
     def success_rate(self) -> float:
         """Calculate current success rate."""
-        return (
-            (self.success_count / self.total_attempts)
-            if self.total_attempts > 0
-            else 0.0
-        )
+        return (self.success_count / self.total_attempts) if self.total_attempts > 0 else 0.0
 
     @property
     def recent_success_rate(self) -> float:
@@ -94,9 +90,7 @@ class AttackCombinator:
     simultaneously and adapts based on real-time success rates.
     """
 
-    def __init__(
-        self, strategy_selector: Optional[StrategySelector] = None, debug: bool = True
-    ):
+    def __init__(self, strategy_selector: Optional[StrategySelector] = None, debug: bool = True):
         """
         Initialize AttackCombinator.
 
@@ -287,9 +281,7 @@ class AttackCombinator:
         valid_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                self.logger.error(
-                    f"Attack {attack_list[i]} failed with exception: {result}"
-                )
+                self.logger.error(f"Attack {attack_list[i]} failed with exception: {result}")
             elif isinstance(result, AttackResult):
                 valid_results.append(result)
                 self._update_metrics(result)
@@ -331,9 +323,7 @@ class AttackCombinator:
 
         try:
             # Parse strategy to engine task
-            engine_task = self.strategy_translator.translate_zapret_to_recon(
-                strategy_string
-            )
+            engine_task = self.strategy_translator.translate_zapret_to_recon(strategy_string)
 
             # Simulate attack execution (in real implementation, this would use BypassEngine)
             success, latency_ms, rst_packets, connection_established, error = (
@@ -454,9 +444,7 @@ class AttackCombinator:
         selected = [attack for attack, score in sorted_attacks[:num_attacks]]
 
         self.logger.info(f"Adaptive selection for {domain_pattern}: {selected}")
-        self.logger.debug(
-            f"Attack scores: {dict(sorted_attacks[:5])}"
-        )  # Log top 5 scores
+        self.logger.debug(f"Attack scores: {dict(sorted_attacks[:5])}")  # Log top 5 scores
 
         return selected
 
@@ -514,9 +502,7 @@ class AttackCombinator:
 
         # Adjust for latency (lower latency is better)
         if metrics.avg_latency_ms > 0:
-            latency_penalty = (
-                (metrics.avg_latency_ms / 1000) * self.config["latency_weight"] * 10
-            )
+            latency_penalty = (metrics.avg_latency_ms / 1000) * self.config["latency_weight"] * 10
             score -= latency_penalty
 
         # Boost for recent good performance
@@ -647,18 +633,14 @@ class AttackCombinator:
 
         # If chain failed and fallback is available, try fallback
         if current_success_rate < chain.success_threshold and chain.fallback_strategy:
-            self.logger.info(
-                f"Chain failed, trying fallback: {chain.fallback_strategy}"
-            )
+            self.logger.info(f"Chain failed, trying fallback: {chain.fallback_strategy}")
             fallback_result = await self._test_single_attack(
                 chain.fallback_strategy, domain, target_ip
             )
             results.append(fallback_result)
             self._update_metrics(fallback_result)
 
-        self.logger.info(
-            f"Attack chain '{chain_name}' completed with {len(results)} attempts"
-        )
+        self.logger.info(f"Attack chain '{chain_name}' completed with {len(results)} attempts")
         return results
 
     def get_best_strategy_for_domain(self, domain: str) -> Tuple[str, float]:
@@ -713,16 +695,12 @@ class AttackCombinator:
                     if r.timestamp > datetime.now() - timedelta(hours=1)
                 ]
             ),
-            "total_strategies_tested": len(
-                set(r.strategy_type for r in self.results_history)
-            ),
+            "total_strategies_tested": len(set(r.strategy_type for r in self.results_history)),
             "total_domains_tested": len(set(r.domain for r in self.results_history)),
         }
 
         # Strategy performance breakdown
-        strategy_stats = defaultdict(
-            lambda: {"attempts": 0, "successes": 0, "avg_latency": 0.0}
-        )
+        strategy_stats = defaultdict(lambda: {"attempts": 0, "successes": 0, "avg_latency": 0.0})
 
         for result in self.results_history:
             strategy_stats[result.strategy_type]["attempts"] += 1

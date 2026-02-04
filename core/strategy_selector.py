@@ -82,9 +82,7 @@ class StrategySelector:
         # Initialize rule sets
         self.domain_rules: Dict[str, DomainRule] = {}
         self.ip_rules: Dict[str, str] = ip_rules or {}
-        self.global_strategy = (
-            global_strategy or "--dpi-desync=badsum_race --dpi-desync-ttl=4"
-        )
+        self.global_strategy = global_strategy or "--dpi-desync=badsum_race --dpi-desync-ttl=4"
 
         # Load domain rules
         if domain_rules:
@@ -155,12 +153,8 @@ class StrategySelector:
 
     def _log_rule_summary(self) -> None:
         """Log summary of loaded rules."""
-        exact_rules = sum(
-            1 for rule in self.domain_rules.values() if not rule.is_wildcard
-        )
-        wildcard_rules = sum(
-            1 for rule in self.domain_rules.values() if rule.is_wildcard
-        )
+        exact_rules = sum(1 for rule in self.domain_rules.values() if not rule.is_wildcard)
+        wildcard_rules = sum(1 for rule in self.domain_rules.values() if rule.is_wildcard)
 
         self.logger.debug(
             f"Rule summary: {exact_rules} exact, {wildcard_rules} wildcard, "
@@ -172,9 +166,7 @@ class StrategySelector:
             if i < 5:  # Log first 5 rules
                 rule_type = "wildcard" if rule.is_wildcard else "exact"
                 strategy_str = rule.strategy
-                strategy_preview = (
-                    strategy_str[:50] if len(strategy_str) > 50 else strategy_str
-                )
+                strategy_preview = strategy_str[:50] if len(strategy_str) > 50 else strategy_str
                 self.logger.debug(f"  {rule_type}: {pattern} -> {strategy_preview}...")
 
     def select_strategy(self, sni: Optional[str], dst_ip: str) -> StrategyResult:
@@ -216,20 +208,14 @@ class StrategySelector:
         if dst_ip in self.ip_rules:
             self.stats["ip_matches"] += 1
             strategy = self.ip_rules[dst_ip]
-            result = StrategyResult(
-                strategy=strategy, source="ip", ip_matched=dst_ip, priority=2
-            )
+            result = StrategyResult(strategy=strategy, source="ip", ip_matched=dst_ip, priority=2)
             self.logger.info(f"IP strategy for {dst_ip}: {strategy}")
             return result
 
         # Priority 3: Global fallback
         self.stats["global_fallbacks"] += 1
-        result = StrategyResult(
-            strategy=self.global_strategy, source="global", priority=3
-        )
-        self.logger.info(
-            f"Fallback strategy for SNI={sni}/IP={dst_ip}: {self.global_strategy}"
-        )
+        result = StrategyResult(strategy=self.global_strategy, source="global", priority=3)
+        self.logger.info(f"Fallback strategy for SNI={sni}/IP={dst_ip}: {self.global_strategy}")
         return result
 
     def _check_exact_domain_match(self, sni: str) -> Optional[StrategyResult]:
@@ -279,9 +265,7 @@ class StrategySelector:
                     return True
 
         except Exception as e:
-            self.logger.warning(
-                f"Error matching pattern {pattern} against {domain}: {e}"
-            )
+            self.logger.warning(f"Error matching pattern {pattern} against {domain}: {e}")
 
         return False
 
@@ -291,9 +275,7 @@ class StrategySelector:
 
     def add_domain_rule(self, pattern: str, strategy: str, priority: int = 1) -> None:
         """Add or update domain rule."""
-        rule = DomainRule(
-            pattern=pattern.lower().strip(), strategy=strategy, priority=priority
-        )
+        rule = DomainRule(pattern=pattern.lower().strip(), strategy=strategy, priority=priority)
         self.domain_rules[rule.pattern] = rule
         self._sort_domain_rules()
 
@@ -331,12 +313,8 @@ class StrategySelector:
         stats = self.stats.copy()
         stats.update(
             {
-                "domain_exact_percentage": (self.stats["domain_exact_matches"] / total)
-                * 100,
-                "domain_wildcard_percentage": (
-                    self.stats["domain_wildcard_matches"] / total
-                )
-                * 100,
+                "domain_exact_percentage": (self.stats["domain_exact_matches"] / total) * 100,
+                "domain_wildcard_percentage": (self.stats["domain_wildcard_matches"] / total) * 100,
                 "ip_percentage": (self.stats["ip_matches"] / total) * 100,
                 "global_percentage": (self.stats["global_fallbacks"] / total) * 100,
                 "total_domain_rules": len(self.domain_rules),

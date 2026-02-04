@@ -25,9 +25,7 @@ class ModeTransitionError(ModeError):
         self.from_mode = from_mode
         self.to_mode = to_mode
         self.reason = reason
-        super().__init__(
-            f"Failed to transition from {from_mode} to {to_mode}: {reason}"
-        )
+        super().__init__(f"Failed to transition from {from_mode} to {to_mode}: {reason}")
 
 
 class CapabilityDetectionError(ModeError):

@@ -1,16 +1,16 @@
 {
-  "domain": "pagead2.googlesyndication.com",
-  "strategy": "smart_combo_disorder_multisplit",
+  "domain": "nnmclub.to",
+  "strategy": "http_fragmentation_header",
   "attack_name": "disorder",
   "attacks": [
-    "disorder",
-    "multisplit"
+    "disorder"
   ],
   "parameters": {
-    "split_pos": 2,
-    "split_count": 6,
-    "disorder_method": "reverse"
+    "domain": "nnmclub.to",
+    "fragmentation_method": "header",
+    "disorder_method": "reverse",
+    "split_pos": 2
   },
-  "timestamp": "2025-12-05T17:33:42.442676",
+  "timestamp": "2026-02-04T12:59:09.803771",
   "source": "adaptive_engine_cli"
 }

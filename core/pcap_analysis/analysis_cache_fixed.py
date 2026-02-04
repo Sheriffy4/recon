@@ -116,10 +116,7 @@ class MemoryCache:
             return False
 
         # Evict entries if necessary
-        while (
-            self._stats.total_size_bytes + required_bytes > self.max_size_bytes
-            and self._cache
-        ):
+        while self._stats.total_size_bytes + required_bytes > self.max_size_bytes and self._cache:
             self._evict_lru_entry()
 
         return True

@@ -27,9 +27,7 @@ class StrategyAdapter:
             Engine task dictionary or None if translation fails
         """
         desync = [normalize_attack_name(d) for d in params.get("dpi_desync", [])]
-        fooling = [
-            normalize_attack_name(f) for f in params.get("dpi_desync_fooling", [])
-        ]
+        fooling = [normalize_attack_name(f) for f in params.get("dpi_desync_fooling", [])]
 
         # Determine task type with new priority logic
         task_type = self._determine_task_type(desync, fooling, params)
@@ -42,9 +40,7 @@ class StrategyAdapter:
 
         return {"type": task_type, "params": task_params}
 
-    def _determine_task_type(
-        self, desync: List[str], fooling: List[str], params: Dict
-    ) -> str:
+    def _determine_task_type(self, desync: List[str], fooling: List[str], params: Dict) -> str:
         """
         Determine task type from desync methods.
         QUIC fragmentation now has the highest priority.
@@ -73,9 +69,7 @@ class StrategyAdapter:
         # Priority 4: Sequence overlap
         elif params.get("dpi_desync_split_seqovl"):
             # Ensure it's not just a parameter for fakeddisorder
-            has_faked = any(
-                x in desync for x in ["fakeddisorder", "desync", "disorder"]
-            )
+            has_faked = any(x in desync for x in ["fakeddisorder", "desync", "disorder"])
             if not has_faked:
                 return "seqovl"
 
@@ -122,9 +116,7 @@ class StrategyAdapter:
             if any(p.get("type") == "midsld" for p in split_pos_raw):
                 task_params["split_pos"] = "midsld"
             else:
-                positions = [
-                    p["value"] for p in split_pos_raw if p.get("type") == "absolute"
-                ]
+                positions = [p["value"] for p in split_pos_raw if p.get("type") == "absolute"]
                 if task_type == "fakeddisorder":
                     task_params["split_pos"] = positions[0] if positions else 76
                 else:
@@ -161,9 +153,7 @@ class StrategyAdapter:
 
         return task_params
 
-    def ensure_engine_task(
-        self, strategy: Union[str, Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+    def ensure_engine_task(self, strategy: Union[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """
         Ensure strategy is in engine task format.
 

@@ -105,16 +105,12 @@ class AsyncOptimizer:
         operation_name = f"{func.__module__}.{func.__name__}"
 
         # Track operation
-        self.active_operations[operation_name] = (
-            self.active_operations.get(operation_name, 0) + 1
-        )
+        self.active_operations[operation_name] = self.active_operations.get(operation_name, 0) + 1
 
         start_time = time.time()
         try:
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.thread_pool, partial(func, *args, **kwargs)
-            )
+            result = await loop.run_in_executor(self.thread_pool, partial(func, *args, **kwargs))
 
             # Update stats
             duration = time.time() - start_time
@@ -182,9 +178,7 @@ class AsyncOptimizer:
         await self._ensure_http_session()
 
         operation_name = f"http_request.{method.upper()}"
-        self.active_operations[operation_name] = (
-            self.active_operations.get(operation_name, 0) + 1
-        )
+        self.active_operations[operation_name] = self.active_operations.get(operation_name, 0) + 1
 
         start_time = time.time()
         try:
@@ -206,9 +200,7 @@ class AsyncOptimizer:
                     result["data"] = await response.text()
 
                 duration = time.time() - start_time
-                self._update_operation_stats(
-                    operation_name, duration, response.status < 400
-                )
+                self._update_operation_stats(operation_name, duration, response.status < 400)
 
                 return result
 

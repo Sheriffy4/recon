@@ -1,0 +1,19 @@
+{
+  "config": {
+    "default_mode": "normal",
+    "enable_subdomain_matching": true,
+    "enable_statistics": true,
+    "max_rules": 100,
+    "stats_retention_hours": 24,
+    "cache_size": 1000,
+    "log_filtered_packets": false,
+    "log_level": "INFO",
+    "discovery_timeout_minutes": 60,
+    "auto_cleanup_rules": true
+  },
+  "rules": [],
+  "metadata": {
+    "saved_at": 1765789061.8434467,
+    "version": "1.0"
+  }
+}

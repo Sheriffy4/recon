@@ -22,13 +22,9 @@ class PcapInsightsWorker:
     Поддерживает как одиночный анализ файла, так и фоновый просмотр директории.
     """
 
-    def __init__(
-        self, pcap_dir: str = "pcap_failures", kb: Optional[CdnAsnKnowledgeBase] = None
-    ):
+    def __init__(self, pcap_dir: str = "pcap_failures", kb: Optional[CdnAsnKnowledgeBase] = None):
         if not SCAPY_AVAILABLE:
-            raise ImportError(
-                "Scapy is required for PCAP insights worker. pip install scapy"
-            )
+            raise ImportError("Scapy is required for PCAP insights worker. pip install scapy")
         self.dir = Path(pcap_dir)
         self.dir.mkdir(exist_ok=True)
         self.kb = kb or CdnAsnKnowledgeBase()

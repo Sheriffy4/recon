@@ -129,9 +129,7 @@ class ResourceMonitor:
             self.usage.update_execution_time()
             memory_info = self._process.memory_info()
             self.usage.memory_mb = memory_info.rss / (1024 * 1024)
-            self.usage.peak_memory_mb = max(
-                self.usage.peak_memory_mb, self.usage.memory_mb
-            )
+            self.usage.peak_memory_mb = max(self.usage.peak_memory_mb, self.usage.memory_mb)
             self.usage.cpu_percent = self._process.cpu_percent()
             current_cpu_times = self._process.cpu_times()
             self.usage.cpu_time_seconds = (
@@ -272,9 +270,7 @@ class ResourceManager:
         """Check if rate limits allow new attack."""
         now = datetime.now()
         minute_ago = now - timedelta(minutes=1)
-        recent_attacks = [
-            t for t in self._rate_limiter["attacks_per_minute"] if t > minute_ago
-        ]
+        recent_attacks = [t for t in self._rate_limiter["attacks_per_minute"] if t > minute_ago]
         if len(recent_attacks) >= self.default_limits.max_attacks_per_minute:
             raise ResourceLimitExceededError(
                 f"Attack rate limit exceeded: {len(recent_attacks)} attacks/minute >= {self.default_limits.max_attacks_per_minute}",
@@ -374,20 +370,14 @@ class ResourceManager:
                 return {"total_attacks": 0}
             total_attacks = len(self._attack_history)
             avg_execution_time = (
-                sum((h["execution_time_seconds"] for h in self._attack_history))
-                / total_attacks
+                sum((h["execution_time_seconds"] for h in self._attack_history)) / total_attacks
             )
-            avg_memory = (
-                sum((h["peak_memory_mb"] for h in self._attack_history)) / total_attacks
-            )
+            avg_memory = sum((h["peak_memory_mb"] for h in self._attack_history)) / total_attacks
             avg_cpu_time = (
-                sum((h["cpu_time_seconds"] for h in self._attack_history))
-                / total_attacks
+                sum((h["cpu_time_seconds"] for h in self._attack_history)) / total_attacks
             )
             max_memory = max((h["peak_memory_mb"] for h in self._attack_history))
-            max_execution_time = max(
-                (h["execution_time_seconds"] for h in self._attack_history)
-            )
+            max_execution_time = max((h["execution_time_seconds"] for h in self._attack_history))
             return {
                 "total_attacks": total_attacks,
                 "averages": {

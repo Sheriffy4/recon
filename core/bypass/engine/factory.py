@@ -36,9 +36,7 @@ class BypassEngineFactory:
                 # The correct class is now in base_engine
                 engine_class = WindowsBypassEngine
             except ImportError:
-                logger.error(
-                    "Failed to import WindowsBypassEngine. Check pydivert installation."
-                )
+                logger.error("Failed to import WindowsBypassEngine. Check pydivert installation.")
                 return None
         else:
             # For Linux, macOS, or if Windows fails, use the fallback.
@@ -46,14 +44,15 @@ class BypassEngineFactory:
 
         if engine_class:
             try:
-                logger.info(f"Creating instance of {engine_class.__name__}")
+                logger.info("Creating instance of %s", engine_class.__name__)
                 return engine_class(config)
             except Exception as e:
-                logger.error(f"Failed to instantiate {engine_class.__name__}: {e}")
+                logger.error("Failed to instantiate %s: %s", engine_class.__name__, e)
                 # On Windows, if instantiation fails (e.g., driver issue), fallback is better than nothing.
                 if system == "Windows":
                     logger.warning(
-                        f"Falling back to {FallbackBypassEngine.__name__} due to instantiation error."
+                        "Falling back to %s due to instantiation error.",
+                        FallbackBypassEngine.__name__,
                     )
                     return FallbackBypassEngine(config)
                 return None

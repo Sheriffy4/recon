@@ -1,31 +1,24 @@
-import json
-import os
 import logging
-import time
-import requests
 import threading
 from typing import Dict, Optional, Any, TYPE_CHECKING
-from datetime import datetime
 
-try:
-    import schedule
+from .signature_persistence import (
+    load_signatures_from_file,
+    save_signatures_to_file,
+)
+from .signature_sync import sync_from_remote_source
+from .signature_scheduler import SyncScheduler
+from .signature_queries import find_matching_signature
+from .signature_updates import create_signature_entry, update_strategy_in_place
+from .signature_io import export_signatures, import_signatures
+from .signature_analytics import compute_signature_statistics, generate_text_report
 
-    SCHEDULE_AVAILABLE = True
-except ImportError:
-    SCHEDULE_AVAILABLE = False
-try:
-    import jsonschema
-
-    JSONSCHEMA_AVAILABLE = True
-except ImportError:
-    JSONSCHEMA_AVAILABLE = False
 if TYPE_CHECKING:
     from recon.core.fingerprint import Fingerprint
+
 LOG = logging.getLogger("SignatureManager")
 SIGNATURE_DB_PATH = "dpi_signatures.json"
-REMOTE_DB_URL = (
-    "https://raw.githubusercontent.com/ValdikSS/Recon/main/dpi_signatures_export.json"
-)
+REMOTE_DB_URL = "https://raw.githubusercontent.com/ValdikSS/Recon/main/dpi_signatures_export.json"
 SIGNATURE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -45,307 +38,118 @@ SIGNATURE_SCHEMA = {
 
 
 class SignatureManager:
+    """
+    Facade for DPI signature management operations.
+
+    Coordinates persistence, synchronization, queries, updates, I/O, and analytics.
+    Thread-safe for concurrent access.
+    """
 
     def __init__(self, db_path: str = SIGNATURE_DB_PATH):
         self.db_path = db_path
+        self._lock = threading.RLock()  # Reentrant lock for thread safety
         self.signatures = self._load_signatures()
+        self._scheduler = SyncScheduler()
 
     def _load_signatures(self) -> Dict[str, Any]:
-        if not os.path.exists(self.db_path):
-            LOG.info(
-                f"Файл базы данных сигнатур '{self.db_path}' не найден. Будет создан новый."
-            )
-            return {}
-        try:
-            with open(self.db_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                LOG.info(f"✅ Загружено {len(data)} сигнатур из '{self.db_path}'.")
-                return data
-        except (json.JSONDecodeError, IOError) as e:
-            LOG.error(
-                f"❌ Не удалось загрузить базу данных сигнатур: {e}. Будет использована пустая база."
-            )
-            return {}
+        """Load signatures from file (delegates to persistence layer)."""
+        return load_signatures_from_file(self.db_path)
 
     def _save_signatures(self):
-        try:
-            if os.path.exists(self.db_path):
-                backup_path = f"{self.db_path}.bak"
-                import shutil
-
-                shutil.copy2(self.db_path, backup_path)
-            with open(self.db_path, "w", encoding="utf-8") as f:
-                json.dump(self.signatures, f, indent=2, ensure_ascii=False)
-            LOG.debug(f"База данных сигнатур сохранена в '{self.db_path}'.")
-        except IOError as e:
-            LOG.error(f"❌ Не удалось сохранить базу данных сигнатур: {e}")
+        """Save signatures to file (delegates to persistence layer)."""
+        save_signatures_to_file(self.db_path, self.signatures)
 
     def sync_from_remote(self):
-        LOG.info(f"Синхронизация с удаленной базой: {REMOTE_DB_URL}")
-        try:
-            response = requests.get(REMOTE_DB_URL, timeout=10, verify=True)
-            response.raise_for_status()
-            remote_data = response.json().get("signatures", {})
-            new_signatures_count = 0
-            for key, entry in remote_data.items():
-                if key not in self.signatures:
-                    if JSONSCHEMA_AVAILABLE:
-                        try:
-                            jsonschema.validate(instance=entry, schema=SIGNATURE_SCHEMA)
-                        except jsonschema.ValidationError as e:
-                            LOG.warning(
-                                f"Пропущена невалидная сигнатура {key} из удаленной базы: {e.message}"
-                            )
-                            continue
-                    self.signatures[key] = entry
-                    new_signatures_count += 1
-            if new_signatures_count > 0:
-                self._save_signatures()
-                LOG.info(
-                    f"✅ База синхронизирована: добавлено {new_signatures_count} новых сигнатур."
-                )
-            else:
-                LOG.info("Локальная база данных сигнатур уже актуальна.")
-        except requests.RequestException as e:
-            LOG.warning(f"⚠️ Не удалось синхронизировать базу сигнатур: {e}")
-        except json.JSONDecodeError:
-            LOG.error(
-                "⚠️ Не удалось разобрать ответ от удаленного сервера. Возможно, файл поврежден."
-            )
-
-    def start_auto_sync(self, interval_hours: int = 24):
-        if not SCHEDULE_AVAILABLE:
-            LOG.warning(
-                "Библиотека 'schedule' не установлена. Автоматическая синхронизация отключена."
-            )
-            return
-
-        def job():
-            LOG.info("Auto-sync: Проверка обновлений в удаленной базе...")
-            self.sync_from_remote()
-
-        job()
-        schedule.every(interval_hours).hours.do(job)
-
-        def run_schedule():
-            while True:
-                schedule.run_pending()
-                time.sleep(3600)
-
-        thread = threading.Thread(target=run_schedule, daemon=True)
-        thread.start()
-        LOG.info(
-            f"✅ Автоматическая синхронизация базы сигнатур запущена (интервал: {interval_hours} ч)."
+        """Synchronize with remote signature database (thread-safe)."""
+        # Perform network I/O and merge without holding lock
+        updated_signatures, new_count = sync_from_remote_source(
+            self.signatures.copy(),  # Work on snapshot to avoid long lock
+            REMOTE_DB_URL,
+            SIGNATURE_SCHEMA,
+            timeout=10,
         )
 
-    def find_strategy_for_fingerprint(
-        self, fp: "Fingerprint"
-    ) -> Optional[Dict[str, Any]]:
-        fp_hash = fp.short_hash()
-        if fp_hash in self.signatures:
-            LOG.info(f"🔍 Найдена точная сигнатура DPI в базе (hash: {fp_hash}).")
-            return self.signatures[fp_hash]
-        if fp.dpi_type:
-            for sig_hash, entry in self.signatures.items():
-                if entry.get("fingerprint_details", {}).get("dpi_type") == fp.dpi_type:
-                    LOG.info(
-                        f"🔍 Найдена похожая сигнатура (по типу DPI: {fp.dpi_type})"
-                    )
-                    return entry
-        return None
+        # Only lock for final update
+        if new_count > 0:
+            with self._lock:
+                self.signatures = updated_signatures
+                self._save_signatures()
+
+    def start_auto_sync(self, interval_hours: int = 24):
+        """Start automatic periodic synchronization."""
+        self._scheduler.start(self.sync_from_remote, interval_hours)
+
+    def stop_auto_sync(self):
+        """Stop automatic synchronization."""
+        self._scheduler.stop()
+
+    def find_strategy_for_fingerprint(self, fp: "Fingerprint") -> Optional[Dict[str, Any]]:
+        """Find matching strategy for a fingerprint (thread-safe)."""
+        with self._lock:
+            return find_matching_signature(self.signatures, fp)
 
     def update_signature(self, fp: "Fingerprint", best_strategy_result: Dict[str, Any]):
-        fp_hash = fp.short_hash()
-        strategy_info = {
-            "strategy": best_strategy_result.get("strategy"),
-            "success_rate": best_strategy_result.get("success_rate"),
-            "avg_latency_ms": best_strategy_result.get("avg_latency_ms"),
-            "successful_sites": best_strategy_result.get("successful_sites", 0),
-            "total_sites": best_strategy_result.get("total_sites", 0),
-        }
-        existing_entry = self.signatures.get(fp_hash, {})
-        history = existing_entry.get("strategy_history", [])
-        if "working_strategy" in existing_entry:
-            old_entry = existing_entry["working_strategy"].copy()
-            old_entry["timestamp"] = existing_entry.get("metadata", {}).get("last_seen")
-            history.append(old_entry)
-        entry = {
-            "fingerprint_details": fp.to_dict(),
-            "working_strategy": strategy_info,
-            "strategy_history": history[-5:],
-            "metadata": {
-                "first_seen": existing_entry.get("metadata", {}).get(
-                    "first_seen", time.time()
-                ),
-                "last_seen": time.time(),
-                "update_count": existing_entry.get("metadata", {}).get(
-                    "update_count", 0
-                )
-                + 1,
-            },
-        }
-        self.signatures[fp_hash] = entry
-        LOG.info(f"💾 База данных сигнатур обновлена для фингерпринта {fp_hash}.")
-        self._save_signatures()
+        """Update signature with new strategy result (thread-safe)."""
+        with self._lock:
+            fp_hash = fp.short_hash()
+            existing_entry = self.signatures.get(fp_hash, {})
+
+            entry = create_signature_entry(fp, best_strategy_result, existing_entry)
+            self.signatures[fp_hash] = entry
+
+            LOG.info(f"💾 База данных сигнатур обновлена для фингерпринта {fp_hash}.")
+            self._save_signatures()
 
     def update_strategy_for_fingerprint(
         self, fp_hash: str, new_strategy: str, new_success_rate: float
     ):
-        if fp_hash not in self.signatures:
-            LOG.warning(
-                f"Попытка обновить стратегию для несуществующего фингерпринта: {fp_hash}"
-            )
-            return
-        entry = self.signatures[fp_hash]
-        history = entry.get("strategy_history", [])
-        if "working_strategy" in entry:
-            old_entry = entry["working_strategy"].copy()
-            old_entry["timestamp"] = entry.get("metadata", {}).get("last_seen")
-            history.append(old_entry)
-        entry["working_strategy"]["strategy"] = new_strategy
-        entry["working_strategy"]["success_rate"] = new_success_rate
-        entry["strategy_history"] = history[-5:]
-        entry["metadata"]["last_seen"] = time.time()
-        entry["metadata"]["update_count"] = entry["metadata"].get("update_count", 0) + 1
-        self.signatures[fp_hash] = entry
-        LOG.info(f"💾 [Монитор] Стратегия для {fp_hash} обновлена на: {new_strategy}")
-        self._save_signatures()
+        """Update strategy for existing fingerprint (thread-safe)."""
+        with self._lock:
+            if fp_hash not in self.signatures:
+                LOG.warning(
+                    f"Попытка обновить стратегию для несуществующего фингерпринта: {fp_hash}"
+                )
+                return
+
+            entry = self.signatures[fp_hash]
+            update_strategy_in_place(entry, new_strategy, new_success_rate)
+
+            LOG.info(f"💾 [Монитор] Стратегия для {fp_hash} обновлена на: {new_strategy}")
+            self._save_signatures()
 
     def export_for_sharing(self, export_path: str = "dpi_signatures_export.json"):
-        export_data = {
-            "version": "2.0",
-            "exported_at": datetime.now().isoformat(),
-            "signatures_count": len(self.signatures),
-            "signatures": {},
-        }
-        for fp_hash, entry in self.signatures.items():
-            clean_entry = {
-                "fingerprint_details": {
-                    "dpi_type": entry.get("fingerprint_details", {}).get("dpi_type"),
-                    "dpi_family": entry.get("fingerprint_details", {}).get(
-                        "dpi_family"
-                    ),
-                },
-                "working_strategy": {
-                    "strategy": entry.get("working_strategy", {}).get("strategy"),
-                    "success_rate": entry.get("working_strategy", {}).get(
-                        "success_rate"
-                    ),
-                },
-                "metadata": {
-                    "update_count": entry.get("metadata", {}).get("update_count", 0)
-                },
-            }
-            export_data["signatures"][fp_hash] = clean_entry
-        try:
-            with open(export_path, "w", encoding="utf-8") as f:
-                json.dump(export_data, f, indent=2, ensure_ascii=False)
-            LOG.info(f"📤 База сигнатур экспортирована в '{export_path}' для обмена.")
-        except IOError as e:
-            LOG.error(f"Ошибка экспорта базы сигнатур: {e}")
+        """Export signatures for community sharing (thread-safe)."""
+        with self._lock:
+            export_signatures(self.signatures, export_path)
 
     def import_from_community(self, import_path: str):
-        if not JSONSCHEMA_AVAILABLE:
-            LOG.error("Библиотека 'jsonschema' не установлена. Импорт невозможен.")
-            return
-        if not os.path.exists(import_path):
-            LOG.error(f"Файл для импорта не найден: '{import_path}'")
-            return
-        try:
-            with open(import_path, "r", encoding="utf-8") as f:
-                import_data = json.load(f)
-            imported_count = 0
-            skipped_count = 0
-            for fp_hash, entry in import_data.get("signatures", {}).items():
+        """Import signatures from community file (thread-safe)."""
+        with self._lock:
+            imported, imported_count, skipped_count = import_signatures(
+                import_path, SIGNATURE_SCHEMA
+            )
+
+            # Merge only new signatures and count actually added
+            actually_added = 0
+            for fp_hash, entry in imported.items():
                 if fp_hash not in self.signatures:
-                    try:
-                        jsonschema.validate(instance=entry, schema=SIGNATURE_SCHEMA)
-                        self.signatures[fp_hash] = entry
-                        self.signatures[fp_hash].setdefault("metadata", {})[
-                            "imported_from"
-                        ] = import_path
-                        imported_count += 1
-                    except jsonschema.ValidationError as e:
-                        LOG.warning(
-                            f"Пропущена невалидная сигнатура {fp_hash} из '{import_path}': {e.message}"
-                        )
-                        skipped_count += 1
-            if imported_count > 0:
+                    self.signatures[fp_hash] = entry
+                    actually_added += 1
+
+            if actually_added > 0:
                 self._save_signatures()
-                LOG.info(
-                    f"📥 Импортировано {imported_count} новых сигнатур из '{import_path}'."
-                )
-            if skipped_count == 0 and imported_count == 0:
+                LOG.info(f"📥 Импортировано {actually_added} новых сигнатур из '{import_path}'.")
+
+            if skipped_count == 0 and actually_added == 0:
                 LOG.info("Новых сигнатур для импорта не найдено.")
-        except Exception as e:
-            LOG.error(f"Ошибка импорта сигнатур: {e}")
 
     def generate_report(self, output_file: str = "dpi_report.txt"):
-        stats = self.get_statistics()
-        try:
-            with open(output_file, "w", encoding="utf-8") as f:
-                f.write("=" * 30 + "\n")
-                f.write(" Recon DPI Signatures Report\n")
-                f.write(
-                    f" Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                )
-                f.write("=" * 30 + "\n\n")
-                f.write(f"Total Signatures: {stats['total_signatures']}\n")
-                f.write(f"Average Success Rate: {stats['average_success_rate']:.1%}\n")
-                f.write(
-                    f"Recently Updated (last 7 days): {stats['recent_updates_7d']}\n\n"
-                )
-                f.write("--- DPI Types Distribution ---\n")
-                for dtype, count in sorted(
-                    stats["dpi_types"].items(), key=lambda item: item[1], reverse=True
-                ):
-                    f.write(f"- {dtype:<15}: {count} entries\n")
-                f.write("\n--- Top Strategies by DPI Type ---\n")
-                for dtype, strategies in sorted(stats["top_strategies_by_dpi"].items()):
-                    f.write(f"\nFor '{dtype}':\n")
-                    if strategies:
-                        for i, strat in enumerate(strategies, 1):
-                            f.write(f"  {i}. {strat}\n")
-                    else:
-                        f.write("  No dominant strategies found.\n")
-            LOG.info(f"📊 Отчет по сигнатурам успешно сгенерирован: {output_file}")
-        except IOError as e:
-            LOG.error(f"Не удалось сгенерировать отчет: {e}")
+        """Generate comprehensive signature report (thread-safe)."""
+        with self._lock:
+            stats = self.get_statistics()
+            generate_text_report(stats, output_file)
 
     def get_statistics(self) -> Dict[str, Any]:
-        stats = {
-            "total_signatures": len(self.signatures),
-            "dpi_types": {},
-            "average_success_rate": 0,
-            "recent_updates_7d": 0,
-            "stale_signatures_30d": 0,
-            "top_strategies_by_dpi": {},
-        }
-        success_rates = []
-        now = time.time()
-        for entry in self.signatures.values():
-            dpi_type = entry.get("fingerprint_details", {}).get("dpi_type", "Unknown")
-            stats["dpi_types"][dpi_type] = stats["dpi_types"].get(dpi_type, 0) + 1
-            if (
-                sr := entry.get("working_strategy", {}).get("success_rate")
-            ) is not None:
-                success_rates.append(sr)
-            last_seen = entry.get("metadata", {}).get("last_seen", 0)
-            if now - last_seen < 7 * 24 * 3600:
-                stats["recent_updates_7d"] += 1
-            if now - last_seen > 30 * 24 * 3600:
-                stats["stale_signatures_30d"] += 1
-            if strategy := entry.get("working_strategy", {}).get("strategy"):
-                if dpi_type not in stats["top_strategies_by_dpi"]:
-                    stats["top_strategies_by_dpi"][dpi_type] = {}
-                stats["top_strategies_by_dpi"][dpi_type][strategy] = (
-                    stats["top_strategies_by_dpi"][dpi_type].get(strategy, 0) + 1
-                )
-        if success_rates:
-            stats["average_success_rate"] = sum(success_rates) / len(success_rates)
-        for dpi_type, strats in stats["top_strategies_by_dpi"].items():
-            sorted_strats = sorted(
-                strats.items(), key=lambda item: item[1], reverse=True
-            )
-            stats["top_strategies_by_dpi"][dpi_type] = [s[0] for s in sorted_strats[:3]]
-        return stats
+        """Get comprehensive statistics about signatures (thread-safe)."""
+        with self._lock:
+            return compute_signature_statistics(self.signatures)

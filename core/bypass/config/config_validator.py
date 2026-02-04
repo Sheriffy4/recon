@@ -76,9 +76,7 @@ class ConfigurationValidator:
             "traffic_obfuscation",
         }
 
-    def validate_configuration(
-        self, config: PoolConfiguration
-    ) -> List[ValidationError]:
+    def validate_configuration(self, config: PoolConfiguration) -> List[ValidationError]:
         """
         Validate complete pool configuration.
 
@@ -93,15 +91,11 @@ class ConfigurationValidator:
         errors.extend(self._validate_pools(config.pools))
         errors.extend(self._validate_default_pool(config))
         errors.extend(self._validate_fallback_strategy(config))
-        errors.extend(
-            self._validate_auto_assignment_rules(config.auto_assignment_rules)
-        )
+        errors.extend(self._validate_auto_assignment_rules(config.auto_assignment_rules))
         errors.extend(self._validate_cross_references(config))
         return errors
 
-    def _validate_basic_structure(
-        self, config: PoolConfiguration
-    ) -> List[ValidationError]:
+    def _validate_basic_structure(self, config: PoolConfiguration) -> List[ValidationError]:
         """Validate basic configuration structure."""
         errors = []
         if not isinstance(config.version, ConfigurationVersion):
@@ -124,9 +118,7 @@ class ConfigurationValidator:
             )
         if config.created_at > datetime.now():
             errors.append(
-                ValidationError(
-                    "warning", "Created timestamp is in the future", "created_at"
-                )
+                ValidationError("warning", "Created timestamp is in the future", "created_at")
             )
         if config.updated_at < config.created_at:
             errors.append(
@@ -162,9 +154,7 @@ class ConfigurationValidator:
         errors = []
         if not pool.id or not isinstance(pool.id, str):
             errors.append(
-                ValidationError(
-                    "error", "Pool ID must be a non-empty string", f"{path}.id"
-                )
+                ValidationError("error", "Pool ID must be a non-empty string", f"{path}.id")
             )
         elif not re.match("^[a-zA-Z0-9_-]+$", pool.id):
             errors.append(
@@ -185,16 +175,12 @@ class ConfigurationValidator:
             )
         if not pool.name or not isinstance(pool.name, str):
             errors.append(
-                ValidationError(
-                    "error", "Pool name must be a non-empty string", f"{path}.name"
-                )
+                ValidationError("error", "Pool name must be a non-empty string", f"{path}.name")
             )
         errors.extend(self._validate_strategy(pool.strategy, f"{path}.strategy"))
         errors.extend(self._validate_domains(pool.domains, f"{path}.domains"))
         for subdomain, strategy in pool.subdomains.items():
-            errors.extend(
-                self._validate_strategy(strategy, f"{path}.subdomains[{subdomain}]")
-            )
+            errors.extend(self._validate_strategy(strategy, f"{path}.subdomains[{subdomain}]"))
         for port, strategy in pool.ports.items():
             if port not in self.valid_ports:
                 errors.append(
@@ -216,22 +202,16 @@ class ConfigurationValidator:
             )
         return errors
 
-    def _validate_strategy(
-        self, strategy: BypassStrategy, path: str
-    ) -> List[ValidationError]:
+    def _validate_strategy(self, strategy: BypassStrategy, path: str) -> List[ValidationError]:
         """Validate bypass strategy."""
         errors = []
         if not strategy.id or not isinstance(strategy.id, str):
             errors.append(
-                ValidationError(
-                    "error", "Strategy ID must be a non-empty string", f"{path}.id"
-                )
+                ValidationError("error", "Strategy ID must be a non-empty string", f"{path}.id")
             )
         if not strategy.name or not isinstance(strategy.name, str):
             errors.append(
-                ValidationError(
-                    "error", "Strategy name must be a non-empty string", f"{path}.name"
-                )
+                ValidationError("error", "Strategy name must be a non-empty string", f"{path}.name")
             )
         if not strategy.attacks:
             errors.append(
@@ -255,9 +235,7 @@ class ConfigurationValidator:
         for port in strategy.target_ports:
             if not isinstance(port, int) or port < 1 or port > 65535:
                 errors.append(
-                    ValidationError(
-                        "error", f"Invalid port number: {port}", f"{path}.target_ports"
-                    )
+                    ValidationError("error", f"Invalid port number: {port}", f"{path}.target_ports")
                 )
         valid_modes = {"native", "zapret", "goodbyedpi", "byebyedpi"}
         if strategy.compatibility_mode not in valid_modes:
@@ -271,9 +249,7 @@ class ConfigurationValidator:
             )
         if not isinstance(strategy.priority, int):
             errors.append(
-                ValidationError(
-                    "error", "Strategy priority must be an integer", f"{path}.priority"
-                )
+                ValidationError("error", "Strategy priority must be an integer", f"{path}.priority")
             )
         if not 0.0 <= strategy.success_rate <= 1.0:
             errors.append(
@@ -291,9 +267,7 @@ class ConfigurationValidator:
         for i, domain in enumerate(domains):
             domain_path = f"{path}[{i}]"
             if not isinstance(domain, str):
-                errors.append(
-                    ValidationError("error", "Domain must be a string", domain_path)
-                )
+                errors.append(ValidationError("error", "Domain must be a string", domain_path))
                 continue
             if domain == "*":
                 continue
@@ -323,9 +297,7 @@ class ConfigurationValidator:
                 )
         return errors
 
-    def _validate_default_pool(
-        self, config: PoolConfiguration
-    ) -> List[ValidationError]:
+    def _validate_default_pool(self, config: PoolConfiguration) -> List[ValidationError]:
         """Validate default pool reference."""
         errors = []
         if config.default_pool:
@@ -341,20 +313,14 @@ class ConfigurationValidator:
                 )
         return errors
 
-    def _validate_fallback_strategy(
-        self, config: PoolConfiguration
-    ) -> List[ValidationError]:
+    def _validate_fallback_strategy(self, config: PoolConfiguration) -> List[ValidationError]:
         """Validate fallback strategy."""
         errors = []
         if config.fallback_strategy:
-            errors.extend(
-                self._validate_strategy(config.fallback_strategy, "fallback_strategy")
-            )
+            errors.extend(self._validate_strategy(config.fallback_strategy, "fallback_strategy"))
         return errors
 
-    def _validate_auto_assignment_rules(
-        self, rules: List[DomainRule]
-    ) -> List[ValidationError]:
+    def _validate_auto_assignment_rules(self, rules: List[DomainRule]) -> List[ValidationError]:
         """Validate auto-assignment rules."""
         errors = []
         for i, rule in enumerate(rules):
@@ -363,9 +329,7 @@ class ConfigurationValidator:
                 re.compile(rule.pattern)
             except re.error as e:
                 errors.append(
-                    ValidationError(
-                        "error", f"Invalid regex pattern: {e}", f"{rule_path}.pattern"
-                    )
+                    ValidationError("error", f"Invalid regex pattern: {e}", f"{rule_path}.pattern")
                 )
             if not rule.pool_id or not isinstance(rule.pool_id, str):
                 errors.append(
@@ -385,9 +349,7 @@ class ConfigurationValidator:
                 )
         return errors
 
-    def _validate_cross_references(
-        self, config: PoolConfiguration
-    ) -> List[ValidationError]:
+    def _validate_cross_references(self, config: PoolConfiguration) -> List[ValidationError]:
         """Validate cross-references between configuration elements."""
         errors = []
         pool_ids = {pool.id for pool in config.pools}
@@ -417,9 +379,7 @@ class ConfigurationValidator:
         try:
             if not Path(config_path).exists():
                 errors.append(
-                    ValidationError(
-                        "error", f"Configuration file not found: {config_path}", "file"
-                    )
+                    ValidationError("error", f"Configuration file not found: {config_path}", "file")
                 )
                 return errors
             with open(config_path, "r", encoding="utf-8") as f:

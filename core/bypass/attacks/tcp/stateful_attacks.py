@@ -60,10 +60,10 @@ class StatefulAttackConfig:
         "fake_ttl": 3,
         "fooling_methods": ["badsum"],
         "fake_data": None,
-        "disorder_method": "reverse"
+        "disorder_method": "reverse",
     },
     aliases=["fakeddisorder", "fake_disorder_attack"],
-    description="Sends fake disordered TCP segments to evade DPI"
+    description="Sends fake disordered TCP segments to evade DPI",
 )
 class FakeDisorderAttack(BaseAttack):
     """
@@ -77,7 +77,6 @@ class FakeDisorderAttack(BaseAttack):
     2. Sending real packets out of order
     3. Relying on the target to reassemble correctly while DPI gets confused
     """
-
 
     @property
     def required_params(self) -> list:
@@ -117,10 +116,8 @@ class FakeDisorderAttack(BaseAttack):
             payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
             segments = self._split_payload_for_disorder(payload)
             fake_packets = self._create_fake_packets(target_ip, target_port, segments)
-            real_packets = self._create_disordered_packets(
-                target_ip, target_port, segments
-            )
-            
+            real_packets = self._create_disordered_packets(target_ip, target_port, segments)
+
             # Send fake packets and collect their segments
             fake_segments = []
             try:
@@ -130,20 +127,21 @@ class FakeDisorderAttack(BaseAttack):
             except Exception as fake_err:
                 # Log but don't fail - fake packets are optional
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Failed to send fake packets: {fake_err}")
-            
+
             if self.config.timing_jitter:
                 jitter = random.randint(0, self.config.max_jitter_ms)
-            
+
             # Send real packets and collect their segments
             real_segments = asyncio.run(self._send_disordered_packets(real_packets))
-            
+
             # Combine all segments (fake + real)
             all_segments = fake_segments + (real_segments if real_segments else [])
-            
+
             success = self._analyze_response(real_segments)
-            
+
             result = AttackResult(
                 status=AttackStatus.SUCCESS if success else AttackStatus.ERROR,
                 technique_used=self.name,
@@ -159,11 +157,11 @@ class FakeDisorderAttack(BaseAttack):
                     "modified_packets": len(fake_packets + real_packets),
                 },
             )
-            
+
             # Set segments for orchestrated execution
             if all_segments:
                 result.segments = all_segments
-            
+
             return result
         except Exception as e:
             return AttackResult(
@@ -266,10 +264,10 @@ class FakeDisorderAttack(BaseAttack):
         "fake_ttl": 3,
         "fooling_methods": ["badsum"],
         "randomize_order": False,
-        "disorder_method": "reverse"
+        "disorder_method": "reverse",
     },
     aliases=["multidisorder", "multiple_disorder"],
-    description="Sends multiple disordered TCP segments to evade DPI"
+    description="Sends multiple disordered TCP segments to evade DPI",
 )
 class MultiDisorderAttack(BaseAttack):
     """
@@ -301,64 +299,63 @@ class MultiDisorderAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "disorder_level": 3,
-            "state_confusion": True,
-            "stream_count": 5
-        }
+        return {"disorder_level": 3, "state_confusion": True, "stream_count": 5}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute multi-disorder attack using primitives.py implementation.
-        
+
         CRITICAL FIX: This now delegates to BypassTechniques.apply_multidisorder
         which properly uses the 'positions' parameter to create multiple segments.
         """
         try:
             from ...techniques.primitives import BypassTechniques
-            
+
             # Extract parameters
             positions = context.params.get("positions")
             if not positions:
                 # Fallback: generate positions from split_pos and split_count
                 split_pos = context.params.get("split_pos", 2)
                 split_count = context.params.get("split_count", 6)
-                
+
                 # Generate positions based on split_count
                 if isinstance(split_pos, int) and isinstance(split_count, int):
                     step = max(1, (len(context.payload) - split_pos) // (split_count - 1))
                     positions = [split_pos + i * step for i in range(split_count - 1)]
                     positions = [p for p in positions if p < len(context.payload)]
-                    logger.info(f"🔧 Generated positions={positions} from split_pos={split_pos}, split_count={split_count}")
+                    logger.info(
+                        f"🔧 Generated positions={positions} from split_pos={split_pos}, split_count={split_count}"
+                    )
                 else:
                     positions = [2, 7, 12]  # Default positions
                     logger.warning(f"⚠️ Using default positions={positions}")
-            
+
             fake_ttl = context.params.get("fake_ttl", context.params.get("ttl", 3))
-            
+
             # Use fooling_methods if available, otherwise default to badsum
-            fooling = context.params.get("fooling_methods", context.params.get("fooling", ["badsum"]))
+            fooling = context.params.get(
+                "fooling_methods", context.params.get("fooling", ["badsum"])
+            )
             logger.info(f"🎯 MultiDisorderAttack: using fooling={fooling}")
-            
-            logger.info(f"🎯 MultiDisorderAttack FINAL: positions={positions}, fake_ttl={fake_ttl}, fooling={fooling}, payload_len={len(context.payload)}")
-            
+
+            logger.info(
+                f"🎯 MultiDisorderAttack FINAL: positions={positions}, fake_ttl={fake_ttl}, fooling={fooling}, payload_len={len(context.payload)}"
+            )
+
             # Use primitives.py implementation which properly handles positions
             segments = BypassTechniques.apply_multidisorder(
-                context.payload,
-                positions,
-                fooling,
-                fake_ttl
+                context.payload, positions, fooling, fake_ttl
             )
-            
+
             if not segments:
                 return AttackResult(
                     status=AttackStatus.ERROR,
                     technique_used=self.name,
                     error_message="No segments generated",
                 )
-            
+
             logger.info(f"✅ MultiDisorderAttack generated {len(segments)} segments")
-            
+
             return AttackResult(
                 status=AttackStatus.SUCCESS,
                 technique_used=self.name,
@@ -390,9 +387,7 @@ class MultiDisorderAttack(BaseAttack):
             if stream_id == stream_count - 1:
                 stream_payload = payload[start_offset:]
             else:
-                stream_payload = payload[
-                    start_offset : start_offset + payload_per_stream
-                ]
+                stream_payload = payload[start_offset : start_offset + payload_per_stream]
             stream_packets = self._create_stream_packets(
                 target_ip, target_port, stream_payload, stream_id
             )
@@ -406,9 +401,7 @@ class MultiDisorderAttack(BaseAttack):
         packets = []
         base_seq = random.randint(1000 + stream_id * 10000, 5000 + stream_id * 10000)
         segment_size = max(10, len(payload) // 3)
-        segments = [
-            payload[i : i + segment_size] for i in range(0, len(payload), segment_size)
-        ]
+        segments = [payload[i : i + segment_size] for i in range(0, len(payload), segment_size)]
         for i, segment in enumerate(segments):
             packet = (
                 IP(dst=target_ip)
@@ -424,9 +417,7 @@ class MultiDisorderAttack(BaseAttack):
         random.shuffle(packets)
         return packets
 
-    async def _send_multiple_disordered_streams(
-        self, streams: List[List[Any]]
-    ) -> Optional[Any]:
+    async def _send_multiple_disordered_streams(self, streams: List[List[Any]]) -> Optional[Any]:
         """Send multiple disordered streams concurrently."""
         response = None
         all_packets = []
@@ -487,10 +478,7 @@ class SequenceOverlapAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "overlap_size": 10,
-            "overlap_method": "aggressive"
-        }
+        return {"overlap_size": 10, "overlap_method": "aggressive"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute sequence overlap attack."""
@@ -504,9 +492,7 @@ class SequenceOverlapAttack(BaseAttack):
             target_ip = context.dst_ip
             target_port = context.dst_port
             payload = context.payload or b"GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"
-            overlapping_packets = self._create_overlapping_packets(
-                target_ip, target_port, payload
-            )
+            overlapping_packets = self._create_overlapping_packets(target_ip, target_port, payload)
             response = asyncio.run(self._send_overlapping_packets(overlapping_packets))
             success = self._analyze_response(response)
             return AttackResult(
@@ -546,9 +532,7 @@ class SequenceOverlapAttack(BaseAttack):
             overlap_packet = (
                 IP(dst=target_ip)
                 / TCP(dport=target_port, seq=base_seq + split_point, flags="PA")
-                / Raw(
-                    load=payload[split_point : split_point + self.config.overlap_size]
-                )
+                / Raw(load=payload[split_point : split_point + self.config.overlap_size])
             )
             packets.append(overlap_packet)
         elif self.config.overlap_method == "modify":
@@ -627,11 +611,7 @@ class TimingManipulationAttack(BaseAttack):
 
     @property
     def optional_params(self) -> dict:
-        return {
-            "timing_jitter": True,
-            "max_jitter_ms": 100,
-            "delay_pattern": "random"
-        }
+        return {"timing_jitter": True, "max_jitter_ms": 100, "delay_pattern": "random"}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """Execute timing manipulation attack."""
@@ -673,9 +653,7 @@ class TimingManipulationAttack(BaseAttack):
         timed_packets = []
         base_seq = random.randint(1000, 10000)
         segment_size = max(10, len(payload) // 4)
-        segments = [
-            payload[i : i + segment_size] for i in range(0, len(payload), segment_size)
-        ]
+        segments = [payload[i : i + segment_size] for i in range(0, len(payload), segment_size)]
         timing_patterns = self._generate_timing_patterns(len(segments))
         for i, (segment, delay) in enumerate(zip(segments, timing_patterns)):
             packet = (
@@ -701,9 +679,7 @@ class TimingManipulationAttack(BaseAttack):
             patterns.append(delay)
         return patterns
 
-    async def _send_timed_packets(
-        self, timed_packets: List[Tuple[Any, float]]
-    ) -> Optional[Any]:
+    async def _send_timed_packets(self, timed_packets: List[Tuple[Any, float]]) -> Optional[Any]:
         """Send packets with precise timing control."""
         response = None
         for i, (packet, delay) in enumerate(timed_packets):

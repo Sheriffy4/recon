@@ -40,9 +40,7 @@ class AdvancedAttackRegistry:
     def __init__(self):
         self.registered_attacks: Dict[str, AttackRegistration] = {}
         self.attack_instances: Dict[str, Any] = {}
-        self.signature_mappings: Dict[str, List[str]] = (
-            {}
-        )  # DPI signature -> attack names
+        self.signature_mappings: Dict[str, List[str]] = {}  # DPI signature -> attack names
         self.protocol_mappings: Dict[str, List[str]] = {}  # Protocol -> attack names
 
         LOG.info("Advanced Attack Registry initialized")
@@ -101,9 +99,7 @@ class AdvancedAttackRegistry:
                 if attack_name not in self.protocol_mappings[protocol]:
                     self.protocol_mappings[protocol].append(attack_name)
 
-            LOG.info(
-                f"Registered advanced attack: {attack_name} (priority: {config.priority})"
-            )
+            LOG.info(f"Registered advanced attack: {attack_name} (priority: {config.priority})")
             return True
 
         except Exception as e:
@@ -144,9 +140,7 @@ class AdvancedAttackRegistry:
         # Sort by priority (lower number = higher priority)
         suitable_attacks.sort(key=lambda a: a.config.priority)
 
-        LOG.debug(
-            f"Found {len(suitable_attacks)} attacks for DPI signature: {signature.dpi_type}"
-        )
+        LOG.debug(f"Found {len(suitable_attacks)} attacks for DPI signature: {signature.dpi_type}")
         return suitable_attacks
 
     def get_attacks_for_protocol(self, protocol: str) -> List[Any]:
@@ -382,9 +376,7 @@ class AdvancedAttackRegistry:
             "sophisticated": ["High"],
         }
 
-        required_complexities = sophistication_to_complexity.get(
-            sophistication_level, ["High"]
-        )
+        required_complexities = sophistication_to_complexity.get(sophistication_level, ["High"])
 
         return attack.config.complexity in required_complexities
 

@@ -12,6 +12,8 @@ import json
 import sys
 import time
 from typing import Dict, Any, List, Optional
+import inspect
+import threading
 
 # Core imports
 from core.bypass.attacks.base import AttackContext, AttackStatus
@@ -25,23 +27,35 @@ from core.bypass.performance.segment_performance_optimizer import (
     OptimizationConfig,
 )
 
-# Reference attacks
-from core.bypass.attacks.reference.tcp_timing_manipulation_attack import (
-    create_tcp_timing_attack,
-)
-from core.bypass.attacks.reference.multisplit_attack import create_multisplit_attack
-from core.bypass.attacks.reference.faked_disorder_attack import (
-    create_faked_disorder_attack,
-)
-from core.bypass.attacks.reference.payload_obfuscation_attack import (
-    create_payload_obfuscation_attack,
-)
-from core.bypass.attacks.reference.urgent_pointer_manipulation_attack import (
-    create_urgent_pointer_attack,
-)
-from core.bypass.attacks.reference.window_scaling_attack import (
-    create_window_scaling_attack,
-)
+# Reference attacks (optional - may not be available in all configurations)
+try:
+    from core.bypass.attacks.reference.tcp_timing_manipulation_attack import (
+        create_tcp_timing_attack,
+    )
+    from core.bypass.attacks.reference.multisplit_attack import create_multisplit_attack
+    from core.bypass.attacks.reference.faked_disorder_attack import (
+        create_faked_disorder_attack,
+    )
+    from core.bypass.attacks.reference.payload_obfuscation_attack import (
+        create_payload_obfuscation_attack,
+    )
+    from core.bypass.attacks.reference.urgent_pointer_manipulation_attack import (
+        create_urgent_pointer_attack,
+    )
+    from core.bypass.attacks.reference.window_scaling_attack import (
+        create_window_scaling_attack,
+    )
+
+    REFERENCE_ATTACKS_AVAILABLE = True
+except ImportError:
+    # Reference attacks not available - CLI will work with limited functionality
+    REFERENCE_ATTACKS_AVAILABLE = False
+    create_tcp_timing_attack = None
+    create_multisplit_attack = None
+    create_faked_disorder_attack = None
+    create_payload_obfuscation_attack = None
+    create_urgent_pointer_attack = None
+    create_window_scaling_attack = None
 
 
 class SegmentAttackCLI:
@@ -53,39 +67,107 @@ class SegmentAttackCLI:
         self.diagnostics = SegmentDiagnostics()
         self.performance_optimizer = None
 
-        # Available segment-based attacks
-        self.segment_attacks = {
-            "tcp-timing": {
-                "factory": create_tcp_timing_attack,
-                "description": "TCP timing manipulation with variable delays",
-                "params": ["delay_ms", "jitter_ms", "burst_count"],
-            },
-            "multisplit": {
-                "factory": create_multisplit_attack,
-                "description": "Multi-segment payload splitting with overlap",
-                "params": ["split_count", "overlap_size", "delay_between_ms"],
-            },
-            "faked-disorder": {
-                "factory": create_faked_disorder_attack,
-                "description": "Fake packet disorder technique (zapret-style)",
-                "params": ["split_pos", "fake_ttl", "disorder_delay_ms"],
-            },
-            "payload-obfuscation": {
-                "factory": create_payload_obfuscation_attack,
-                "description": "Payload obfuscation with encoding segments",
-                "params": ["encoding_type", "chunk_size", "obfuscation_level"],
-            },
-            "urgent-pointer": {
-                "factory": create_urgent_pointer_attack,
-                "description": "TCP urgent pointer manipulation",
-                "params": ["urgent_offset", "urgent_data_size"],
-            },
-            "window-scaling": {
-                "factory": create_window_scaling_attack,
-                "description": "TCP window scaling manipulation",
-                "params": ["window_size", "scale_factor", "dynamic_scaling"],
-            },
-        }
+        # Available segment-based attacks (only include if reference attacks are available)
+        self.segment_attacks = {}
+
+        if REFERENCE_ATTACKS_AVAILABLE:
+            self.segment_attacks = {
+                "tcp-timing": {
+                    "factory": create_tcp_timing_attack,
+                    "description": "TCP timing manipulation with variable delays",
+                    "params": ["delay_ms", "jitter_ms", "burst_count"],
+                },
+                "multisplit": {
+                    "factory": create_multisplit_attack,
+                    "description": "Multi-segment payload splitting with overlap",
+                    "params": ["split_count", "overlap_size", "delay_between_ms"],
+                },
+                "faked-disorder": {
+                    "factory": create_faked_disorder_attack,
+                    "description": "Fake packet disorder technique (zapret-style)",
+                    "params": ["split_pos", "fake_ttl", "disorder_delay_ms"],
+                },
+                "payload-obfuscation": {
+                    "factory": create_payload_obfuscation_attack,
+                    "description": "Payload obfuscation with encoding segments",
+                    "params": ["encoding_type", "chunk_size", "obfuscation_level"],
+                },
+                "urgent-pointer": {
+                    "factory": create_urgent_pointer_attack,
+                    "description": "TCP urgent pointer manipulation",
+                    "params": ["urgent_offset", "urgent_data_size"],
+                },
+                "window-scaling": {
+                    "factory": create_window_scaling_attack,
+                    "description": "TCP window scaling manipulation",
+                    "params": ["window_size", "scale_factor", "dynamic_scaling"],
+                },
+            }
+
+    async def _maybe_await(self, value: Any) -> Any:
+        """
+        Await coroutine results when attack implementations are async.
+        Keeps public interfaces intact (call sites remain the same).
+        """
+        if inspect.iscoroutine(value):
+            return await value
+        return value
+
+    def _run_coroutine_sync(self, coro: Any) -> Any:
+        """
+        Run coroutine from synchronous context safely.
+
+        - If there's no running loop: use asyncio.run() (or loop fallback).
+        - If there IS a running loop in this thread: execute in a dedicated thread
+          with its own event loop and block until completion.
+
+        This avoids RuntimeError: "asyncio.run() cannot be called from a running event loop".
+        """
+        if not inspect.iscoroutine(coro):
+            return coro
+
+        # Detect running loop in current thread
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop is not None and running_loop.is_running():
+            result_holder: Dict[str, Any] = {}
+            exc_holder: Dict[str, BaseException] = {}
+
+            def _thread_runner() -> None:
+                loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(loop)
+                    result_holder["result"] = loop.run_until_complete(coro)
+                except BaseException as e:  # pragma: no cover
+                    exc_holder["exc"] = e
+                finally:
+                    try:
+                        loop.close()
+                    except Exception:
+                        pass
+
+            t = threading.Thread(target=_thread_runner, daemon=True)
+            t.start()
+            t.join()
+            if "exc" in exc_holder:
+                raise exc_holder["exc"]
+            return result_holder.get("result")
+
+        # No running loop in this thread -> safe to run directly
+        run_fn = getattr(asyncio, "run", None)
+        if callable(run_fn):
+            return run_fn(coro)
+
+        # Fallback for very old Python
+        loop = asyncio.new_event_loop()
+        try:  # pragma: no cover
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
     def create_parser(self) -> argparse.ArgumentParser:
         """Create CLI argument parser."""
@@ -99,21 +181,24 @@ class SegmentAttackCLI:
         subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
         # Execute attack command
-        execute_parser = subparsers.add_parser(
-            "execute", help="Execute segment-based attack"
-        )
-        execute_parser.add_argument(
-            "attack",
-            choices=list(self.segment_attacks.keys()),
-            help="Attack type to execute",
-        )
+        execute_parser = subparsers.add_parser("execute", help="Execute segment-based attack")
+        attack_choices = list(self.segment_attacks.keys())
+        if attack_choices:
+            execute_parser.add_argument(
+                "attack",
+                choices=attack_choices,
+                help="Attack type to execute",
+            )
+        else:
+            execute_parser.add_argument(
+                "attack",
+                help="Attack type to execute (reference attacks not available)",
+            )
         execute_parser.add_argument("--target", required=True, help="Target IP address")
         execute_parser.add_argument(
             "--port", type=int, default=80, help="Target port (default: 80)"
         )
-        execute_parser.add_argument(
-            "--payload", help="Custom payload (default: HTTP GET)"
-        )
+        execute_parser.add_argument("--payload", help="Custom payload (default: HTTP GET)")
         execute_parser.add_argument("--payload-file", help="Load payload from file")
         execute_parser.add_argument(
             "--params", action="append", help="Attack parameters (key=value)"
@@ -141,14 +226,18 @@ class SegmentAttackCLI:
         )
 
         # Benchmark command
-        benchmark_parser = subparsers.add_parser(
-            "benchmark", help="Benchmark attack performance"
-        )
-        benchmark_parser.add_argument(
-            "attack",
-            choices=list(self.segment_attacks.keys()),
-            help="Attack type to benchmark",
-        )
+        benchmark_parser = subparsers.add_parser("benchmark", help="Benchmark attack performance")
+        if attack_choices:
+            benchmark_parser.add_argument(
+                "attack",
+                choices=attack_choices,
+                help="Attack type to benchmark",
+            )
+        else:
+            benchmark_parser.add_argument(
+                "attack",
+                help="Attack type to benchmark (reference attacks not available)",
+            )
         benchmark_parser.add_argument(
             "--iterations",
             type=int,
@@ -158,33 +247,31 @@ class SegmentAttackCLI:
         benchmark_parser.add_argument(
             "--target", default="127.0.0.1", help="Target IP for benchmarking"
         )
-        benchmark_parser.add_argument(
-            "--output", "-o", help="Save benchmark results to file"
-        )
+        benchmark_parser.add_argument("--output", "-o", help="Save benchmark results to file")
 
         # Validate command
-        validate_parser = subparsers.add_parser(
-            "validate", help="Validate attack configuration"
-        )
-        validate_parser.add_argument(
-            "attack",
-            choices=list(self.segment_attacks.keys()),
-            help="Attack type to validate",
-        )
+        validate_parser = subparsers.add_parser("validate", help="Validate attack configuration")
+        if attack_choices:
+            validate_parser.add_argument(
+                "attack",
+                choices=attack_choices,
+                help="Attack type to validate",
+            )
+        else:
+            validate_parser.add_argument(
+                "attack",
+                help="Attack type to validate (reference attacks not available)",
+            )
         validate_parser.add_argument(
             "--params", action="append", help="Attack parameters to validate"
         )
 
         # Monitor command
-        monitor_parser = subparsers.add_parser(
-            "monitor", help="Monitor attack execution"
-        )
+        monitor_parser = subparsers.add_parser("monitor", help="Monitor attack execution")
         monitor_parser.add_argument(
             "--duration", type=int, default=60, help="Monitoring duration in seconds"
         )
-        monitor_parser.add_argument(
-            "--output", "-o", help="Save monitoring data to file"
-        )
+        monitor_parser.add_argument("--output", "-o", help="Save monitoring data to file")
 
         return parser
 
@@ -214,6 +301,17 @@ Examples:
     async def execute_attack(self, args) -> Dict[str, Any]:
         """Execute segment-based attack."""
         print(f"Executing {args.attack} attack against {args.target}:{args.port}")
+
+        if args.attack not in self.segment_attacks:
+            msg = f"Attack '{args.attack}' is not available in this build/configuration"
+            print(msg)
+            return {
+                "attack_type": args.attack,
+                "target": f"{args.target}:{args.port}",
+                "status": "ERROR",
+                "error": msg,
+                "dry_run": getattr(args, "dry_run", False),
+            }
 
         # Setup performance optimization if requested
         if args.optimize:
@@ -260,7 +358,7 @@ Examples:
                 print("🔍 DRY RUN MODE - No packets will be sent")
                 result = await self._execute_dry_run(attack, context)
             else:
-                result = attack.execute(context)
+                result = await self._maybe_await(attack.execute(context))
 
             execution_time = time.perf_counter() - start_time
 
@@ -268,22 +366,25 @@ Examples:
             self.stats_collector.record_execution_result(
                 args.attack,
                 context.connection_id,
-                result.status == AttackStatus.SUCCESS,
+                getattr(result, "status", None) == AttackStatus.SUCCESS,
                 execution_time,
             )
 
             # Collect execution statistics
             execution_stats = self.stats_collector.get_execution_summary()
 
+            status_obj = getattr(result, "status", None)
+            status_value = getattr(status_obj, "value", None) if status_obj is not None else None
+
             # Prepare result data
             result_data = {
                 "attack_type": args.attack,
                 "target": f"{args.target}:{args.port}",
                 "execution_time_ms": execution_time * 1000,
-                "status": result.status.value,
-                "technique_used": result.technique_used,
-                "packets_sent": result.packets_sent,
-                "bytes_sent": result.bytes_sent,
+                "status": status_value or "UNKNOWN",
+                "technique_used": getattr(result, "technique_used", None),
+                "packets_sent": getattr(result, "packets_sent", None),
+                "bytes_sent": getattr(result, "bytes_sent", None),
                 "dry_run": args.dry_run,
                 "segments_info": self._extract_segments_info(result),
                 "execution_stats": execution_stats if args.stats else None,
@@ -331,15 +432,19 @@ Examples:
     async def _execute_dry_run(self, attack, context: AttackContext) -> Any:
         """Execute attack in dry run mode."""
         # Execute attack logic without network transmission
-        result = attack.execute(context)
+        result = await self._maybe_await(attack.execute(context))
 
         # Log what would be executed
-        if result.segments:
+        segments = getattr(result, "segments", None)
+        if isinstance(segments, list) and segments:
             print("📋 Execution Plan:")
-            print(f"   Segments: {len(result.segments)}")
+            print(f"   Segments: {len(segments)}")
 
             total_delay = 0
-            for i, (payload_data, seq_offset, options) in enumerate(result.segments):
+            for i, seg in enumerate(segments):
+                if not (isinstance(seg, tuple) and len(seg) == 3):
+                    continue
+                payload_data, seq_offset, options = seg
                 delay = options.get("delay_ms", 0)
                 total_delay += delay
 
@@ -394,18 +499,26 @@ Examples:
 
     def _extract_segments_info(self, result) -> Optional[Dict[str, Any]]:
         """Extract segments information from attack result."""
-        if not result.segments:
+        segments = getattr(result, "segments", None)
+        if not isinstance(segments, list) or not segments:
             return None
 
         segments_info = {
-            "count": len(result.segments),
-            "total_payload_size": sum(len(seg[0]) for seg in result.segments),
-            "sequence_offsets": [seg[1] for seg in result.segments],
+            "count": len(segments),
+            "total_payload_size": sum(
+                len(seg[0]) for seg in segments if isinstance(seg, tuple) and len(seg) >= 1
+            ),
+            "sequence_offsets": [
+                seg[1] for seg in segments if isinstance(seg, tuple) and len(seg) >= 2
+            ],
             "options_summary": {},
         }
 
         # Analyze options
-        for _, _, options in result.segments:
+        for seg in segments:
+            if not (isinstance(seg, tuple) and len(seg) == 3):
+                continue
+            _, _, options = seg
             for key, value in options.items():
                 if key not in segments_info["options_summary"]:
                     segments_info["options_summary"][key] = []
@@ -473,6 +586,10 @@ Examples:
         print("Available Segment-based Attacks:")
         print("=" * 50)
 
+        if not self.segment_attacks:
+            print("\nNo reference attacks are available in this build/configuration.")
+            return
+
         for name, info in self.segment_attacks.items():
             print(f"\n🎯 {name}")
             print(f"   Description: {info['description']}")
@@ -494,13 +611,16 @@ Examples:
 
                 if example_params:
                     params_str = " ".join(f"--params {p}" for p in example_params)
-                    print(
-                        f"   Example: execute {name} --target 192.168.1.1 {params_str}"
-                    )
+                    print(f"   Example: execute {name} --target 192.168.1.1 {params_str}")
 
     async def benchmark_attack(self, args) -> Dict[str, Any]:
         """Benchmark attack performance."""
         print(f"Benchmarking {args.attack} attack ({args.iterations} iterations)")
+
+        if args.attack not in self.segment_attacks:
+            msg = f"Attack '{args.attack}' is not available in this build/configuration"
+            print(msg)
+            return {"attack_type": args.attack, "status": "ERROR", "error": msg}
 
         attack_info = self.segment_attacks[args.attack]
         execution_times = []
@@ -524,11 +644,11 @@ Examples:
 
             start_time = time.perf_counter()
             try:
-                result = attack.execute(context)
+                result = await self._maybe_await(attack.execute(context))
                 execution_time = time.perf_counter() - start_time
                 execution_times.append(execution_time)
 
-                if result.status == AttackStatus.SUCCESS:
+                if getattr(result, "status", None) == AttackStatus.SUCCESS:
                     success_count += 1
 
             except Exception:
@@ -562,9 +682,7 @@ Examples:
         print(f"   Average Time: {avg_time * 1000:.2f}ms")
         print(f"   Min Time: {min_time * 1000:.2f}ms")
         print(f"   Max Time: {max_time * 1000:.2f}ms")
-        print(
-            f"   Throughput: {benchmark_results['throughput_ops_per_sec']:.1f} ops/sec"
-        )
+        print(f"   Throughput: {benchmark_results['throughput_ops_per_sec']:.1f} ops/sec")
 
         # Save results if requested
         if args.output:
@@ -575,6 +693,16 @@ Examples:
     def validate_attack(self, args) -> Dict[str, Any]:
         """Validate attack configuration."""
         print(f"Validating {args.attack} attack configuration")
+
+        if args.attack not in self.segment_attacks:
+            msg = f"Attack '{args.attack}' is not available in this build/configuration"
+            print(msg)
+            return {
+                "attack_type": args.attack,
+                "validation_status": "ERROR",
+                "issues": [msg],
+                "recommendations": [],
+            }
 
         attack_info = self.segment_attacks[args.attack]
         params = self._parse_parameters(args.params or [])
@@ -604,19 +732,20 @@ Examples:
             if hasattr(attack, "validate_parameters"):
                 param_validation = attack.validate_parameters(params)
                 if not param_validation.get("valid", True):
-                    validation_results["issues"].extend(
-                        param_validation.get("issues", [])
-                    )
+                    validation_results["issues"].extend(param_validation.get("issues", []))
 
             # Test execution (dry run)
-            result = attack.execute(context)
+            exec_result = attack.execute(context)
+            # attack.execute may be sync or async; validate_attack is sync -> run coroutine safely
+            result = self._run_coroutine_sync(exec_result)
 
-            if result.status == AttackStatus.SUCCESS:
+            if getattr(result, "status", None) == AttackStatus.SUCCESS:
                 validation_results["validation_status"] = "VALID"
 
                 # Analyze segments if present
-                if result.segments:
-                    segments_analysis = self._analyze_segments(result.segments)
+                segments = getattr(result, "segments", None)
+                if isinstance(segments, list) and segments:
+                    segments_analysis = self._analyze_segments(segments)
                     validation_results["segments_analysis"] = segments_analysis
 
                     if segments_analysis.get("issues"):
@@ -625,7 +754,7 @@ Examples:
             else:
                 validation_results["validation_status"] = "INVALID"
                 validation_results["issues"].append(
-                    f"Attack execution failed: {result.error}"
+                    f"Attack execution failed: {getattr(result, 'error', 'unknown error')}"
                 )
 
         except Exception as e:
@@ -633,9 +762,7 @@ Examples:
             validation_results["issues"].append(f"Validation error: {str(e)}")
 
         # Print validation results
-        status_emoji = (
-            "✅" if validation_results["validation_status"] == "VALID" else "❌"
-        )
+        status_emoji = "✅" if validation_results["validation_status"] == "VALID" else "❌"
         print(f"\n{status_emoji} Validation Results:")
         print(f"   Attack: {args.attack}")
         print(f"   Status: {validation_results['validation_status']}")
@@ -708,9 +835,7 @@ Examples:
 
         # Calculate summary
         monitoring_data["end_time"] = time.time()
-        monitoring_data["summary"] = self._calculate_monitoring_summary(
-            monitoring_data["samples"]
-        )
+        monitoring_data["summary"] = self._calculate_monitoring_summary(monitoring_data["samples"])
 
         # Print summary
         print("\n📈 Monitoring Summary:")
@@ -724,9 +849,7 @@ Examples:
 
         return monitoring_data
 
-    def _calculate_monitoring_summary(
-        self, samples: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _calculate_monitoring_summary(self, samples: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate monitoring summary from samples."""
         if not samples:
             return {}
@@ -741,11 +864,7 @@ Examples:
 
             completed = len(stats.get("completed_executions", []))
             successful = len(
-                [
-                    e
-                    for e in stats.get("completed_executions", [])
-                    if e.get("success", False)
-                ]
+                [e for e in stats.get("completed_executions", []) if e.get("success", False)]
             )
             success_rate = successful / completed if completed > 0 else 0
             success_rates.append(success_rate)

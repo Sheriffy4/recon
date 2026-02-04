@@ -1,469 +1,564 @@
 #!/usr/bin/env python3
 """
 Integrated Performance Optimizer
-Combines monitoring, caching, async optimization, and configuration management
-to provide comprehensive performance optimization for the recon system.
+
+Coordinates:
+- performance monitoring
+- caching
+- async optimization
+- configuration management
+
+Notes:
+- Avoids SyntaxError for package name "async" by importing via importlib.
+- Does NOT auto-cleanup global singleton in context manager exit.
 """
 
+from __future__ import annotations
+
 import asyncio
+import importlib
 import logging
-import time
-from typing import Dict, Any, Optional, List, Callable
-from pathlib import Path
 import threading
-
-# Import our performance components
-from core.monitoring.performance_monitor import (
-    PerformanceMonitor,
-    get_global_monitor,
-    monitor_operation,
-)
-from core.caching.smart_cache import get_fingerprint_cache, get_strategy_cache
-from core.async.async_optimizer import AsyncOptimizer, get_global_optimizer
-from core.config.performance_config import (
-    PerformanceConfigManager,
-    get_global_config_manager,
-    apply_environment_overrides,
-    apply_performance_preset,
-)
+import time
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
 
 
+# ----------------------------
+# Optional imports (Monitoring)
+# ----------------------------
+try:
+    from core.monitoring.performance_monitor import (
+        PerformanceMonitor,
+        get_global_monitor,
+        monitor_operation,
+    )
+except Exception:
+    PerformanceMonitor = None
+    get_global_monitor = None
+    monitor_operation = lambda *args, **kwargs: (lambda f: f)
+
+
+# -------------------------
+# Optional imports (Caching)
+# -------------------------
+try:
+    from core.caching.smart_cache import get_fingerprint_cache, get_strategy_cache
+except Exception:
+    get_fingerprint_cache = None
+    get_strategy_cache = None
+
+
+# ------------------------------------------
+# Optional imports (Async optimizer) - IMPORTANT
+# "core.async.*" cannot be imported via "from core.async ..."
+# because "async" is a keyword -> SyntaxError.
+# Use importlib with a string.
+# ------------------------------------------
+AsyncOptimizer = None
+get_global_optimizer = None
+try:
+    _async_mod = importlib.import_module("core.async.async_optimizer")
+    AsyncOptimizer = getattr(_async_mod, "AsyncOptimizer", None)
+    get_global_optimizer = getattr(_async_mod, "get_global_optimizer", None)
+except Exception:
+    AsyncOptimizer = None
+    get_global_optimizer = None
+
+
+# -------------------------------
+# Optional imports (Performance config)
+# -------------------------------
+PerformanceConfigManager = None
+apply_environment_overrides = lambda x: x
+apply_performance_preset = lambda cfg, preset: cfg
+
+try:
+    from core.config.performance_config import (
+        PerformanceConfigManager,
+        apply_environment_overrides,
+        apply_performance_preset,
+    )
+except Exception:
+    PerformanceConfigManager = None
+    apply_environment_overrides = lambda x: x
+    apply_performance_preset = lambda cfg, preset: cfg
+
+
+# ----------------------------
+# Helpers
+# ----------------------------
+def _to_dict(cfg: Any) -> Any:
+    """Convert config object to dict if possible, otherwise return as-is."""
+    if hasattr(cfg, "to_dict") and callable(getattr(cfg, "to_dict")):
+        return cfg.to_dict()
+    return cfg
+
+
+def _safe_call(obj: Any, method_name: str, *args, **kwargs) -> None:
+    """Call obj.method_name if exists."""
+    if obj is None:
+        return
+    m = getattr(obj, method_name, None)
+    if callable(m):
+        m(*args, **kwargs)
+
+
+# ============================================================
+# Main class
+# ============================================================
 class IntegratedPerformanceOptimizer:
-    """
-    Integrated performance optimizer that coordinates all performance components.
-    """
-
     def __init__(self, config_path: Optional[str] = None):
         self.logger = logging.getLogger(__name__)
+        self._lock = threading.RLock()
 
-        # Initialize components
+        # Hard-fail early if config system is missing
+        if PerformanceConfigManager is None:
+            raise ImportError(
+                "PerformanceConfigManager could not be imported. "
+                "Ensure core.config.performance_config is available."
+            )
+
         self.config_manager = PerformanceConfigManager(config_path)
-        self.config = self.config_manager.get_config()
+        self.config = apply_environment_overrides(self.config_manager.get_config())
 
-        # Apply environment overrides
-        self.config = apply_environment_overrides(self.config)
+        # Components
+        self.monitor: Optional[Any] = None
+        self.fingerprint_cache: Optional[Any] = None
+        self.strategy_cache: Optional[Any] = None
+        self.async_optimizer: Optional[Any] = None
 
-        # Initialize monitoring
-        self.monitor = get_global_monitor() if self.config.monitoring.enabled else None
-
-        # Initialize caching
-        self.fingerprint_cache = (
-            get_fingerprint_cache() if self.config.caching.enabled else None
-        )
-        self.strategy_cache = (
-            get_strategy_cache() if self.config.caching.enabled else None
-        )
-
-        # Initialize async optimizer
-        self.async_optimizer = (
-            get_global_optimizer() if self.config.async_ops.enabled else None
-        )
-
-        # Performance tracking
-        self.optimization_stats = {
+        # Stats
+        self.optimization_stats: Dict[str, int] = {
             "cache_optimizations": 0,
             "async_optimizations": 0,
             "monitoring_alerts": 0,
             "config_reloads": 0,
         }
 
-        # Register config change callback
-        self.config_manager.add_change_callback(self._on_config_change)
+        # Register config change callback (if supported)
+        if hasattr(self.config_manager, "add_change_callback"):
+            self.config_manager.add_change_callback(self._on_config_change)
+
+        # Initialize components according to config
+        self._initialize_components()
 
         self.logger.info("Integrated Performance Optimizer initialized")
 
-    def _on_config_change(self, new_config):
-        """Handle configuration changes."""
-        self.config = new_config
-        self.optimization_stats["config_reloads"] += 1
-        self.logger.info("Configuration reloaded")
+    def _initialize_components(self) -> None:
+        """Initial initialization based on current config."""
+        with self._lock:
+            # Monitoring
+            try:
+                if getattr(self.config.monitoring, "enabled", False):
+                    if get_global_monitor is None:
+                        raise ImportError(
+                            "Monitoring enabled but PerformanceMonitor not available."
+                        )
+                    self.monitor = get_global_monitor()
+                    interval = float(getattr(self.config.monitoring, "interval_seconds", 60.0))
+                    _safe_call(self.monitor, "start_monitoring", interval)
+            except Exception as e:
+                self.logger.warning(f"Monitoring init skipped/failed: {e}")
+                self.monitor = None
 
-        # Reconfigure components based on new config
-        self._reconfigure_components()
+            # Caching
+            try:
+                if getattr(self.config.caching, "enabled", False):
+                    if get_fingerprint_cache is None or get_strategy_cache is None:
+                        raise ImportError("Caching enabled but cache modules not available.")
+                    self.fingerprint_cache = get_fingerprint_cache()
+                    self.strategy_cache = get_strategy_cache()
+            except Exception as e:
+                self.logger.warning(f"Caching init skipped/failed: {e}")
+                self.fingerprint_cache = None
+                self.strategy_cache = None
 
-    def _reconfigure_components(self):
-        """Reconfigure components based on current configuration."""
-        # Reconfigure monitoring
-        if self.config.monitoring.enabled and not self.monitor:
-            self.monitor = get_global_monitor()
-            self.monitor.start_monitoring(self.config.monitoring.interval_seconds)
-        elif not self.config.monitoring.enabled and self.monitor:
-            self.monitor.stop_monitoring()
-            self.monitor = None
+            # Async optimizer
+            try:
+                if getattr(self.config.async_ops, "enabled", False):
+                    if get_global_optimizer is None:
+                        raise ImportError(
+                            "Async optimization enabled but AsyncOptimizer not available."
+                        )
+                    self.async_optimizer = get_global_optimizer()
+            except Exception as e:
+                self.logger.warning(f"Async optimizer init skipped/failed: {e}")
+                self.async_optimizer = None
 
-        # Reconfigure caching
-        if self.config.caching.enabled:
-            if not self.fingerprint_cache:
-                self.fingerprint_cache = get_fingerprint_cache()
-            if not self.strategy_cache:
-                self.strategy_cache = get_strategy_cache()
+    def _on_config_change(self, new_config: Any) -> None:
+        """Callback for configuration changes."""
+        with self._lock:
+            self.config = apply_environment_overrides(new_config)
+            self.optimization_stats["config_reloads"] += 1
+            self.logger.info("Configuration reloaded")
+            self._reconfigure_components()
 
-        # Reconfigure async optimizer
-        if self.config.async_ops.enabled and not self.async_optimizer:
-            self.async_optimizer = get_global_optimizer()
+    def _reconfigure_components(self) -> None:
+        """Reconfigure components based on current config."""
+        with self._lock:
+            # Monitoring
+            if getattr(self.config.monitoring, "enabled", False):
+                if self.monitor is None:
+                    if get_global_monitor is None:
+                        self.logger.error(
+                            "Monitoring enabled but PerformanceMonitor not available."
+                        )
+                    else:
+                        self.monitor = get_global_monitor()
+                        interval = float(getattr(self.config.monitoring, "interval_seconds", 60.0))
+                        _safe_call(self.monitor, "start_monitoring", interval)
+            else:
+                if self.monitor is not None:
+                    _safe_call(self.monitor, "stop_monitoring")
+                    self.monitor = None
+
+            # Caching
+            if getattr(self.config.caching, "enabled", False):
+                if get_fingerprint_cache is None or get_strategy_cache is None:
+                    self.logger.error("Caching enabled but cache modules not available.")
+                else:
+                    if self.fingerprint_cache is None:
+                        self.fingerprint_cache = get_fingerprint_cache()
+                    if self.strategy_cache is None:
+                        self.strategy_cache = get_strategy_cache()
+            else:
+                if self.fingerprint_cache is not None:
+                    _safe_call(self.fingerprint_cache, "stop_cleanup_thread")
+                    self.fingerprint_cache = None
+                if self.strategy_cache is not None:
+                    _safe_call(self.strategy_cache, "stop_cleanup_thread")
+                    self.strategy_cache = None
+
+            # Async optimizer
+            if getattr(self.config.async_ops, "enabled", False):
+                if self.async_optimizer is None:
+                    if get_global_optimizer is None:
+                        self.logger.error(
+                            "Async optimization enabled but AsyncOptimizer not available."
+                        )
+                    else:
+                        self.async_optimizer = get_global_optimizer()
+            else:
+                self.async_optimizer = None
+
+    def apply_performance_preset(self, preset_name: str) -> None:
+        """Apply preset via config manager."""
+        with self._lock:
+            new_cfg = apply_performance_preset(self.config, preset_name)
+            payload = _to_dict(new_cfg)
+            if hasattr(self.config_manager, "update_config"):
+                self.config_manager.update_config(payload)
+            else:
+                # fallback: just set config locally
+                self.config = new_cfg
+            self.logger.info(f"Applied performance preset: {preset_name}")
 
     @monitor_operation("optimizer", "fingerprint_with_cache")
     def optimize_fingerprinting(
-        self, domain: str, port: int, fingerprint_func: Callable
+        self,
+        domain: str,
+        port: int,
+        fingerprint_func: Callable[[], Any],
     ) -> Dict[str, Any]:
-        """
-        Optimize fingerprinting with caching and monitoring.
+        """Optimize fingerprinting with caching + monitoring."""
+        if not getattr(self.config.fingerprinting, "enabled", False):
+            res = fingerprint_func()
+            return res if isinstance(res, dict) else {"result": res}
 
-        Args:
-            domain: Target domain
-            port: Target port
-            fingerprint_func: Function to perform fingerprinting
+        cached_result = None
 
-        Returns:
-            Fingerprint result
-        """
-        if not self.config.fingerprinting.enabled:
-            return fingerprint_func()
-
-        # Check cache first
-        if self.fingerprint_cache and self.config.fingerprinting.cache_results:
+        # Cache lookup
+        if self.fingerprint_cache and getattr(self.config.fingerprinting, "cache_results", False):
             cached_result = self.fingerprint_cache.get_fingerprint(domain, port)
-            if cached_result and self.config.fingerprinting.skip_on_cache_hit:
+            if cached_result and getattr(self.config.fingerprinting, "skip_on_cache_hit", False):
                 if self.monitor:
-                    self.monitor.record_cache_hit()
+                    _safe_call(self.monitor, "record_cache_hit")
                 self.optimization_stats["cache_optimizations"] += 1
                 return cached_result
 
-        # Perform fingerprinting
         start_time = time.time()
         try:
             result = fingerprint_func()
+            if not isinstance(result, dict):
+                result = {"result": result, "confidence": 0.0}
 
-            # Cache result if successful
+            # Cache result if confident enough
             if (
                 self.fingerprint_cache
-                and self.config.fingerprinting.cache_results
-                and result.get("confidence", 0) > 0.3
+                and getattr(self.config.fingerprinting, "cache_results", False)
+                and float(result.get("confidence", 0.0)) > 0.3
             ):
-
                 self.fingerprint_cache.put_fingerprint(
-                    domain, port, result, result.get("confidence", 1.0)
+                    domain, port, result, float(result.get("confidence", 1.0))
                 )
 
             # Record metrics
             if self.monitor:
-                duration_ms = (time.time() - start_time) * 1000
-                self.monitor.record_operation(
-                    "fingerprinter", "fingerprint", duration_ms, True
+                duration_ms = (time.time() - start_time) * 1000.0
+                _safe_call(
+                    self.monitor,
+                    "record_operation",
+                    "fingerprinter",
+                    "fingerprint",
+                    duration_ms,
+                    True,
                 )
-                if not cached_result:
-                    self.monitor.record_cache_miss()
+
+                if (
+                    self.fingerprint_cache
+                    and getattr(self.config.fingerprinting, "cache_results", False)
+                    and cached_result is None
+                ):
+                    _safe_call(self.monitor, "record_cache_miss")
 
             return result
 
         except Exception as e:
-            # Record failure
             if self.monitor:
-                duration_ms = (time.time() - start_time) * 1000
-                self.monitor.record_operation(
-                    "fingerprinter", "fingerprint", duration_ms, False, str(e)
+                duration_ms = (time.time() - start_time) * 1000.0
+                _safe_call(
+                    self.monitor,
+                    "record_operation",
+                    "fingerprinter",
+                    "fingerprint",
+                    duration_ms,
+                    False,
+                    str(e),
                 )
             raise
 
     @monitor_operation("optimizer", "bypass_with_cache")
     def optimize_bypass_strategy(
-        self, domain: str, strategy_hash: str, bypass_func: Callable
+        self,
+        domain: str,
+        strategy_hash: str,
+        bypass_func: Callable[[], Any],
     ) -> Dict[str, Any]:
-        """
-        Optimize bypass strategy execution with caching and monitoring.
+        """Optimize bypass execution with caching + monitoring."""
+        if not getattr(self.config.bypass_engine, "enabled", False):
+            res = bypass_func()
+            return res if isinstance(res, dict) else {"result": res}
 
-        Args:
-            domain: Target domain
-            strategy_hash: Hash of the strategy
-            bypass_func: Function to execute bypass
-
-        Returns:
-            Bypass result
-        """
-        if not self.config.bypass_engine.enabled:
-            return bypass_func()
-
-        # Check cache first
-        if self.strategy_cache:
-            cached_result = self.strategy_cache.get_strategy_result(
-                domain, strategy_hash
-            )
+        cached_result = None
+        if self.strategy_cache and getattr(self.config.caching, "enabled", False):
+            cached_result = self.strategy_cache.get_strategy_result(domain, strategy_hash)
             if cached_result:
                 if self.monitor:
-                    self.monitor.record_cache_hit()
+                    _safe_call(self.monitor, "record_cache_hit")
                 self.optimization_stats["cache_optimizations"] += 1
                 return cached_result
 
-        # Execute bypass
         start_time = time.time()
         try:
             result = bypass_func()
+            if not isinstance(result, dict):
+                result = {"result": result, "success_rate": 0.0}
 
-            # Cache result
-            if self.strategy_cache:
+            if self.strategy_cache and getattr(self.config.caching, "enabled", False):
                 self.strategy_cache.put_strategy_result(domain, strategy_hash, result)
 
-            # Record metrics
             if self.monitor:
-                duration_ms = (time.time() - start_time) * 1000
-                success = result.get("success_rate", 0) > 0
-                self.monitor.record_operation(
-                    "bypass_engine", "execute_strategy", duration_ms, success
+                duration_ms = (time.time() - start_time) * 1000.0
+                success = float(result.get("success_rate", 0.0)) > 0.0
+                _safe_call(
+                    self.monitor,
+                    "record_operation",
+                    "bypass_engine",
+                    "execute_strategy",
+                    duration_ms,
+                    success,
                 )
-                self.monitor.record_cache_miss()
+                if cached_result is None:
+                    _safe_call(self.monitor, "record_cache_miss")
 
             return result
 
         except Exception as e:
-            # Record failure
             if self.monitor:
-                duration_ms = (time.time() - start_time) * 1000
-                self.monitor.record_operation(
-                    "bypass_engine", "execute_strategy", duration_ms, False, str(e)
+                duration_ms = (time.time() - start_time) * 1000.0
+                _safe_call(
+                    self.monitor,
+                    "record_operation",
+                    "bypass_engine",
+                    "execute_strategy",
+                    duration_ms,
+                    False,
+                    str(e),
                 )
             raise
 
-    async def optimize_async_operation(
-        self, operation: Callable, *args, **kwargs
-    ) -> Any:
+    async def optimize_async_operation(self, operation: Callable, *args, **kwargs) -> Any:
         """
-        Optimize an async operation with proper resource management.
-
-        Args:
-            operation: Async operation to execute
-            *args: Operation arguments
-            **kwargs: Operation keyword arguments
-
-        Returns:
-            Operation result
+        Optimize async or blocking operation.
+        - If `operation` is a coroutine object -> await it
+        - If coroutine function -> await it
+        - Else run in thread (asyncio.to_thread or optimizer.run_in_thread)
         """
-        if not self.async_optimizer:
-            return await operation(*args, **kwargs)
+        # coroutine object passed directly
+        if asyncio.iscoroutine(operation):
+            return await operation
 
-        # Use async optimizer for better resource management
+        # coroutine function
         if asyncio.iscoroutinefunction(operation):
             return await operation(*args, **kwargs)
-        else:
-            # Convert blocking operation to async
-            return await self.async_optimizer.run_in_thread(operation, *args, **kwargs)
+
+        # blocking callable
+        if self.async_optimizer is None:
+            return await asyncio.to_thread(operation, *args, **kwargs)
+
+        self.optimization_stats["async_optimizations"] += 1
+        return await self.async_optimizer.run_in_thread(operation, *args, **kwargs)
 
     def get_performance_report(self) -> Dict[str, Any]:
-        """Get comprehensive performance report."""
-        report = {
+        """Return a best-effort report (won't crash if some parts are missing)."""
+        report: Dict[str, Any] = {
             "timestamp": time.time(),
-            "config": self.config.to_dict(),
-            "optimization_stats": self.optimization_stats.copy(),
+            "optimization_stats": dict(self.optimization_stats),
+            "config": _to_dict(self.config),
         }
 
-        # Add monitoring data
         if self.monitor:
-            current_metrics = self.monitor.get_current_metrics()
-            if current_metrics:
-                report["current_metrics"] = {
-                    "bypass_success_rate": current_metrics.bypass_success_rate,
-                    "fingerprint_success_rate": current_metrics.fingerprint_success_rate,
-                    "cache_hit_rate": current_metrics.cache_hit_rate,
-                    "memory_usage_mb": current_metrics.memory_usage_mb,
-                    "cpu_usage_percent": current_metrics.cpu_usage_percent,
-                }
+            try:
+                cur = self.monitor.get_current_metrics()
+                if cur:
+                    report["current_metrics"] = {
+                        "bypass_success_rate": getattr(cur, "bypass_success_rate", None),
+                        "fingerprint_success_rate": getattr(cur, "fingerprint_success_rate", None),
+                        "cache_hit_rate": getattr(cur, "cache_hit_rate", None),
+                        "memory_usage_mb": getattr(cur, "memory_usage_mb", None),
+                        "cpu_usage_percent": getattr(cur, "cpu_usage_percent", None),
+                    }
+                report["component_summary"] = self.monitor.get_component_summary()
+            except Exception as e:
+                report["monitor_error"] = str(e)
 
-            report["component_summary"] = self.monitor.get_component_summary()
-
-        # Add cache statistics
         if self.fingerprint_cache:
-            report["fingerprint_cache"] = self.fingerprint_cache.get_info()
+            try:
+                report["fingerprint_cache"] = self.fingerprint_cache.get_info()
+            except Exception as e:
+                report["fingerprint_cache_error"] = str(e)
 
         if self.strategy_cache:
-            report["strategy_cache"] = self.strategy_cache.get_info()
+            try:
+                report["strategy_cache"] = self.strategy_cache.get_info()
+            except Exception as e:
+                report["strategy_cache_error"] = str(e)
 
-        # Add async optimizer stats
         if self.async_optimizer:
-            report["async_stats"] = {
-                "operation_stats": self.async_optimizer.get_operation_stats(),
-                "active_operations": self.async_optimizer.get_active_operations(),
-            }
+            try:
+                report["async_stats"] = {
+                    "operation_stats": self.async_optimizer.get_operation_stats(),
+                    "active_operations": self.async_optimizer.get_active_operations(),
+                }
+            except Exception as e:
+                report["async_error"] = str(e)
 
         return report
 
-    def apply_performance_preset(self, preset_name: str):
-        """Apply a performance preset."""
-        try:
-            new_config = apply_performance_preset(self.config, preset_name)
-            self.config_manager.update_config(new_config.to_dict())
-            self.logger.info(f"Applied performance preset: {preset_name}")
-        except Exception as e:
-            self.logger.error(f"Error applying preset {preset_name}: {e}")
+    def export_performance_data(self, filepath: str) -> None:
+        """Export report to JSON file."""
+        report = self.get_performance_report()
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+        import json
 
-    def optimize_for_regression_fix(self):
-        """
-        Apply specific optimizations to fix the performance regression
-        identified in the analysis.
-        """
-        self.logger.info("Applying regression fix optimizations...")
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, default=str)
+        self.logger.info(f"Performance data exported to {filepath}")
 
-        # Apply fast preset to reduce timeouts and improve success rates
-        regression_fix_config = {
-            "fingerprinting": {
-                "timeout_seconds": 20.0,  # Reduced from 30s
-                "max_concurrent_fingerprints": 3,  # Reduced concurrency
-                "analysis_levels": {
-                    "basic": True,
-                    "advanced": True,
-                    "deep": False,  # Disable deep analysis
-                    "behavioral": False,  # Disable behavioral analysis
-                    "timing": False,  # Disable timing analysis
-                },
-            },
-            "bypass_engine": {
-                "max_concurrent_bypasses": 10,  # Reduced concurrency
-                "strategy_timeout_seconds": 45.0,  # Reduced timeout
-                "packet_injection_timeout_seconds": 3.0,  # Reduced injection timeout
-                "tcp_retransmission_mitigation": True,  # Enable mitigation
-                "packet_validation": True,  # Enable validation
-                "performance_mode": "balanced",
-            },
-            "caching": {
-                "enabled": True,
-                "max_memory_mb": 150,
-                "default_ttl_seconds": 3600,
-            },
-            "monitoring": {
-                "enabled": True,
-                "interval_seconds": 60.0,  # Reduced monitoring frequency
-            },
-        }
+    async def cleanup(self) -> None:
+        """Stop/cleanup components (idempotent-ish)."""
+        with self._lock:
+            if self.async_optimizer:
+                try:
+                    await self.async_optimizer.cleanup()
+                except Exception:
+                    pass
+                self.async_optimizer = None
 
-        # Update configuration
-        self.config_manager.update_config(regression_fix_config)
+            if self.monitor:
+                _safe_call(self.monitor, "stop_monitoring")
+                self.monitor = None
 
-        # Clear caches to ensure fresh data
-        if self.fingerprint_cache:
-            self.fingerprint_cache.clear()
-        if self.strategy_cache:
-            self.strategy_cache.clear()
+            if self.fingerprint_cache:
+                _safe_call(self.fingerprint_cache, "stop_cleanup_thread")
+                self.fingerprint_cache = None
 
-        self.logger.info("Regression fix optimizations applied")
-
-    def export_performance_data(self, filepath: str):
-        """Export performance data for analysis."""
-        try:
-            report = self.get_performance_report()
-
-            # Ensure directory exists
-            Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-
-            import json
-
-            with open(filepath, "w") as f:
-                json.dump(report, f, indent=2, default=str)
-
-            self.logger.info(f"Performance data exported to {filepath}")
-
-        except Exception as e:
-            self.logger.error(f"Error exporting performance data: {e}")
-
-    async def cleanup(self):
-        """Cleanup all resources."""
-        if self.async_optimizer:
-            await self.async_optimizer.cleanup()
-
-        if self.monitor:
-            self.monitor.stop_monitoring()
-
-        if self.fingerprint_cache:
-            self.fingerprint_cache.stop_cleanup_thread()
-
-        if self.strategy_cache:
-            self.strategy_cache.stop_cleanup_thread()
+            if self.strategy_cache:
+                _safe_call(self.strategy_cache, "stop_cleanup_thread")
+                self.strategy_cache = None
 
 
-# Global optimizer instance
+# ============================================================
+# Global singleton (thread-safe)
+# ============================================================
 _global_integrated_optimizer: Optional[IntegratedPerformanceOptimizer] = None
+_global_integrated_optimizer_lock = threading.Lock()
 
 
 def get_integrated_optimizer() -> IntegratedPerformanceOptimizer:
-    """Get or create global integrated performance optimizer."""
     global _global_integrated_optimizer
-    if _global_integrated_optimizer is None:
-        _global_integrated_optimizer = IntegratedPerformanceOptimizer()
-    return _global_integrated_optimizer
+    with _global_integrated_optimizer_lock:
+        if _global_integrated_optimizer is None:
+            _global_integrated_optimizer = IntegratedPerformanceOptimizer()
+        return _global_integrated_optimizer
 
 
+# ============================================================
+# Convenience wrappers
+# ============================================================
 def optimize_fingerprinting(
-    domain: str, port: int, fingerprint_func: Callable
+    domain: str, port: int, fingerprint_func: Callable[[], Any]
 ) -> Dict[str, Any]:
-    """Global function to optimize fingerprinting."""
-    optimizer = get_integrated_optimizer()
-    return optimizer.optimize_fingerprinting(domain, port, fingerprint_func)
+    return get_integrated_optimizer().optimize_fingerprinting(domain, port, fingerprint_func)
 
 
 def optimize_bypass_strategy(
-    domain: str, strategy_hash: str, bypass_func: Callable
+    domain: str, strategy_hash: str, bypass_func: Callable[[], Any]
 ) -> Dict[str, Any]:
-    """Global function to optimize bypass strategy."""
-    optimizer = get_integrated_optimizer()
-    return optimizer.optimize_bypass_strategy(domain, strategy_hash, bypass_func)
+    return get_integrated_optimizer().optimize_bypass_strategy(domain, strategy_hash, bypass_func)
 
 
 async def optimize_async_operation(operation: Callable, *args, **kwargs) -> Any:
-    """Global function to optimize async operations."""
-    optimizer = get_integrated_optimizer()
-    return await optimizer.optimize_async_operation(operation, *args, **kwargs)
-
-
-def apply_regression_fix():
-    """Apply regression fix optimizations."""
-    optimizer = get_integrated_optimizer()
-    optimizer.optimize_for_regression_fix()
+    return await get_integrated_optimizer().optimize_async_operation(operation, *args, **kwargs)
 
 
 def get_performance_report() -> Dict[str, Any]:
-    """Get global performance report."""
-    optimizer = get_integrated_optimizer()
-    return optimizer.get_performance_report()
+    return get_integrated_optimizer().get_performance_report()
 
 
-# Context manager for performance optimization
+# ============================================================
+# Async context manager (does NOT cleanup global singleton)
+# ============================================================
 class PerformanceOptimizationContext:
-    """Context manager for performance optimization."""
+    """
+    IMPORTANT:
+    - This context manager does NOT cleanup the global optimizer on exit.
+    - Optionally applies preset and restores prior config on exit.
+    """
 
-    def __init__(self, preset: Optional[str] = None):
+    def __init__(self, preset: Optional[str] = None, restore_config_on_exit: bool = True):
         self.preset = preset
-        self.optimizer = None
+        self.restore_config_on_exit = restore_config_on_exit
+        self.optimizer: Optional[IntegratedPerformanceOptimizer] = None
+        self._prev_config_dict: Optional[Dict[str, Any]] = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> IntegratedPerformanceOptimizer:
         self.optimizer = get_integrated_optimizer()
+
+        if self.restore_config_on_exit:
+            self._prev_config_dict = _to_dict(self.optimizer.config)
 
         if self.preset:
             self.optimizer.apply_performance_preset(self.preset)
 
         return self.optimizer
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.optimizer:
-            await self.optimizer.cleanup()
-
-
-# Decorator for automatic performance optimization
-def with_performance_optimization(preset: Optional[str] = None):
-    """Decorator to apply performance optimization to functions."""
-
-    def decorator(func):
-        if asyncio.iscoroutinefunction(func):
-
-            async def async_wrapper(*args, **kwargs):
-                async with PerformanceOptimizationContext(preset):
-                    return await func(*args, **kwargs)
-
-            return async_wrapper
-        else:
-
-            def sync_wrapper(*args, **kwargs):
-                optimizer = get_integrated_optimizer()
-                if preset:
-                    optimizer.apply_performance_preset(preset)
-                return func(*args, **kwargs)
-
-            return sync_wrapper
-
-    return decorator
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> bool:
+        if self.optimizer and self.restore_config_on_exit and self._prev_config_dict:
+            if hasattr(self.optimizer.config_manager, "update_config"):
+                self.optimizer.config_manager.update_config(self._prev_config_dict)
+            else:
+                # fallback: best-effort restore local config
+                self.optimizer.config = self._prev_config_dict
+        return False

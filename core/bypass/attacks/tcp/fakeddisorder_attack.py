@@ -32,9 +32,7 @@ from core.bypass.attacks.base import (
 )
 from core.bypass.attacks.attack_registry import (
     RegistrationPriority,
-    register_attack,
 )
-from core.bypass.techniques.primitives import BypassTechniques
 
 # Import payload system for fake payload support
 # Requirements: 6.1, 6.2, 6.3, 6.4
@@ -43,6 +41,7 @@ try:
         get_attack_payload,
         PayloadType,
     )
+
     PAYLOAD_SYSTEM_AVAILABLE = True
 except ImportError:
     PAYLOAD_SYSTEM_AVAILABLE = False
@@ -53,9 +52,10 @@ class FakedDisorderConfig:
     """
     Configuration for unified FakedDisorderAttack.
     Handles parameter aliases directly in the constructor for robustness.
-    
+
     Requirements: 6.1, 6.2, 6.3, 6.4 - Payload integration support
     """
+
     # Core parameters
     split_pos: Union[int, str] = 3
     fake_ttl: int = 3
@@ -85,8 +85,7 @@ class FakedDisorderConfig:
     repeat_delay_ms: float = 1.0
 
     fooling_methods: List[str] = field(default_factory=lambda: ["badsum", "badseq"])
-    fooling: InitVar[Optional[List[str]]] = None # Alias for fooling_methods
-
+    fooling: InitVar[Optional[List[str]]] = None  # Alias for fooling_methods
 
     def __post_init__(self, ttl: Optional[int], fooling: Optional[List[str]]):
         """
@@ -96,7 +95,7 @@ class FakedDisorderConfig:
         # If 'ttl' was provided, its value overrides 'fake_ttl'.
         if ttl is not None:
             self.fake_ttl = ttl
-        
+
         # If 'fooling' was provided, its value overrides 'fooling_methods'.
         if fooling is not None:
             self.fooling_methods = fooling
@@ -117,14 +116,14 @@ class FakedDisorderAttack(BaseAttack):
         Simplified constructor. All alias handling is now done in FakedDisorderConfig.
         """
         super().__init__()
-        
+
         if config:
             self.config = config
         else:
             # The dispatcher passes kwargs here. We create the config object,
             # which will now correctly handle the 'ttl' alias itself.
             self.config = FakedDisorderConfig(**kwargs)
-        
+
         self._validate_config()
 
         self.logger.info(
@@ -139,9 +138,7 @@ class FakedDisorderAttack(BaseAttack):
 
     @property
     def description(self) -> str:
-        return (
-            "Unified fake packet + disorder attack with comprehensive parameter support"
-        )
+        return "Unified fake packet + disorder attack with comprehensive parameter support"
 
     @property
     def category(self) -> str:
@@ -177,15 +174,11 @@ class FakedDisorderAttack(BaseAttack):
             raise ValueError(f"split_pos must be >= 1, got {self.config.split_pos}")
 
         if self.config.fake_ttl < 1 or self.config.fake_ttl > 255:
-            raise ValueError(
-                f"fake_ttl must be between 1 and 255, got {self.config.fake_ttl}"
-            )
+            raise ValueError(f"fake_ttl must be between 1 and 255, got {self.config.fake_ttl}")
 
         if self.config.autottl is not None:
             if self.config.autottl < 1 or self.config.autottl > 10:
-                raise ValueError(
-                    f"autottl must be between 1 and 10, got {self.config.autottl}"
-                )
+                raise ValueError(f"autottl must be between 1 and 10, got {self.config.autottl}")
 
         if self.config.repeats < 1:
             raise ValueError(f"repeats must be >= 1, got {self.config.repeats}")
@@ -228,9 +221,7 @@ class FakedDisorderAttack(BaseAttack):
         fake_payload = self._generate_zapret_fake_payload(context.payload, context)
 
         # Create segments using primitives.py as foundation
-        segments = self._create_unified_segments(
-            context.payload, split_pos, fake_payload
-        )
+        segments = self._create_unified_segments(context.payload, split_pos, fake_payload)
 
         # Apply repeats if configured
         if self.config.repeats > 1:
@@ -307,9 +298,7 @@ class FakedDisorderAttack(BaseAttack):
 
                 # If we found a highly effective TTL, stop testing
                 if effectiveness >= 0.9:
-                    self.logger.info(
-                        f"AutoTTL: Found highly effective TTL={ttl}, stopping tests"
-                    )
+                    self.logger.info(f"AutoTTL: Found highly effective TTL={ttl}, stopping tests")
                     break
 
             # Minimal delay between TTL attempts
@@ -374,19 +363,11 @@ class FakedDisorderAttack(BaseAttack):
         if isinstance(self.config.split_pos, str):
             if self.config.split_pos == "sni":
                 # For SNI, use position 43 (typical SNI position in TLS)
-                split_pos = (
-                    min(43, len(payload) // 2)
-                    if len(payload) > 43
-                    else len(payload) // 2
-                )
+                split_pos = min(43, len(payload) // 2) if len(payload) > 43 else len(payload) // 2
                 self.logger.debug(f"Resolved SNI split position: {split_pos}")
             elif self.config.split_pos == "cipher":
                 # For cipher, use position 11 (after TLS header)
-                split_pos = (
-                    min(11, len(payload) // 2)
-                    if len(payload) > 11
-                    else len(payload) // 2
-                )
+                split_pos = min(11, len(payload) // 2) if len(payload) > 11 else len(payload) // 2
                 self.logger.debug(f"Resolved cipher split position: {split_pos}")
             elif self.config.split_pos == "midsld":
                 # For midsld, use middle of payload
@@ -417,7 +398,7 @@ class FakedDisorderAttack(BaseAttack):
         Generate zapret-compatible fake payload.
 
         Integrated from fake_disorder_attack_fixed.py generation logic.
-        
+
         Priority order for payload resolution (Requirements: 6.1, 6.2, 6.3):
         1. config.fake_payload (direct bytes) - highest priority
         2. PayloadManager lookup (if available)
@@ -434,28 +415,28 @@ class FakedDisorderAttack(BaseAttack):
             if self.config.randomize_fake_content and fake_payload:
                 fake_payload = self._randomize_payload_content(fake_payload)
             return fake_payload
-        
+
         # Priority 2: Use PayloadManager if available (Requirements: 6.1)
         if PAYLOAD_SYSTEM_AVAILABLE:
             try:
                 # Determine payload type from protocol
                 protocol = self._detect_protocol(original_payload, context)
                 payload_type = (
-                    PayloadType.TLS if protocol == "tls" 
-                    else PayloadType.HTTP if protocol == "http"
-                    else PayloadType.TLS  # Default to TLS
+                    PayloadType.TLS
+                    if protocol == "tls"
+                    else (
+                        PayloadType.HTTP if protocol == "http" else PayloadType.TLS
+                    )  # Default to TLS
                 )
-                
+
                 # Get payload from manager
                 # Pass fake_tls as payload_param for hex/file/placeholder resolution
                 payload_param = self.config.fake_tls or self.config.fake_http
-                
+
                 fake_payload = get_attack_payload(
-                    payload_param=payload_param,
-                    payload_type=payload_type,
-                    domain=context.domain
+                    payload_param=payload_param, payload_type=payload_type, domain=context.domain
                 )
-                
+
                 if fake_payload and len(fake_payload) > 0:
                     # Determine payload source for logging
                     if payload_param and payload_param.startswith("0x"):
@@ -466,7 +447,7 @@ class FakedDisorderAttack(BaseAttack):
                         source = f"placeholder ({payload_param})"
                     else:
                         source = "PayloadManager default"
-                    
+
                     self.logger.info(
                         f"✅ Using fake payload: {len(fake_payload)} bytes "
                         f"(source: {source}, protocol={protocol}, domain={context.domain})"
@@ -475,12 +456,10 @@ class FakedDisorderAttack(BaseAttack):
                     if self.config.randomize_fake_content:
                         fake_payload = self._randomize_payload_content(fake_payload)
                     return fake_payload
-                    
+
             except Exception as e:
-                self.logger.warning(
-                    f"PayloadManager lookup failed, falling back to built-in: {e}"
-                )
-        
+                self.logger.warning(f"PayloadManager lookup failed, falling back to built-in: {e}")
+
         # Priority 3 & 4: Fall back to built-in generation
         protocol = self._detect_protocol(original_payload, context)
 
@@ -537,7 +516,7 @@ class FakedDisorderAttack(BaseAttack):
         session_id_len = b"\x00"  # No session ID
 
         # Cipher suites (zapret compatible)
-        cipher_suites = b"\x00\x02\x13\x01" # Just one cipher suite for simplicity
+        cipher_suites = b"\x00\x02\x13\x01"  # Just one cipher suite for simplicity
 
         compression_methods = b"\x01\x00"  # No compression
 
@@ -558,7 +537,11 @@ class FakedDisorderAttack(BaseAttack):
         # Assemble ClientHello
         client_hello = tls_version + random_bytes + session_id_len
         client_hello += (
-            len(cipher_suites).to_bytes(2, "big") + cipher_suites + compression_methods + extensions_len + extensions
+            len(cipher_suites).to_bytes(2, "big")
+            + cipher_suites
+            + compression_methods
+            + extensions_len
+            + extensions
         )
 
         # Handshake header
@@ -606,18 +589,18 @@ class FakedDisorderAttack(BaseAttack):
         Create segments using the fakeddisorder logic.
         """
         segments = []
-        
+
         # 1. Fake packet
         fake_options = {
             "is_fake": True,
             "ttl": self.config.fake_ttl,
-            "delay_ms": self.config.fake_delay_ms
+            "delay_ms": self.config.fake_delay_ms,
         }
         if "badsum" in self.config.fooling_methods:
             fake_options["bad_checksum"] = True
         if "badseq" in self.config.fooling_methods:
             fake_options["bad_sequence"] = True
-        
+
         segments.append((fake_payload, 0, fake_options))
 
         # 2. Real packets in disorder
@@ -626,7 +609,7 @@ class FakedDisorderAttack(BaseAttack):
 
         # Segment for part 2
         segments.append((part2, split_pos, {"delay_ms": self.config.disorder_delay_ms}))
-        
+
         # Segment for part 1
         segments.append((part1, 0, {}))
 
@@ -669,9 +652,7 @@ class FakedDisorderAttack(BaseAttack):
             return False
 
         if len(context.payload) < 10:
-            self.logger.warning(
-                f"Payload very short for splitting: {len(context.payload)} bytes"
-            )
+            self.logger.warning(f"Payload very short for splitting: {len(context.payload)} bytes")
             return False
 
         return True

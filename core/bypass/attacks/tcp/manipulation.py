@@ -29,7 +29,6 @@ class TCPWindowScalingAttack(ManipulationAttack):
     - apply_tcp_window_scaling (fast_bypass.py)
     """
 
-
     @property
     def required_params(self) -> list:
         return []
@@ -171,9 +170,7 @@ class TCPSequenceNumberManipulationAttack(ManipulationAttack):
         start_time = time.time()
         try:
             payload = context.payload
-            manipulation_type = context.params.get(
-                "manipulation_type", "overlap_forward"
-            )
+            manipulation_type = context.params.get("manipulation_type", "overlap_forward")
             overlap_size = context.params.get("overlap_size", 4)
             gap_size = context.params.get("gap_size", 10)
             split_pos = context.params.get("split_pos", len(payload) // 2)
@@ -215,9 +212,7 @@ class TCPSequenceNumberManipulationAttack(ManipulationAttack):
                 data_transmitted=True,
                 metadata={
                     "manipulation_type": manipulation_type,
-                    "overlap_size": (
-                        overlap_size if "overlap" in manipulation_type else None
-                    ),
+                    "overlap_size": (overlap_size if "overlap" in manipulation_type else None),
                     "gap_size": gap_size if "gap" in manipulation_type else None,
                     "split_pos": split_pos,
                     "segment_count": len(segments),
@@ -386,9 +381,7 @@ class UrgentPointerAttack(ManipulationAttack):
             split_pos = context.params.get("split_pos", 5)
             urgent_data_size = context.params.get("urgent_data_size", 2)
             if not 0 < split_pos < len(payload):
-                segments = [
-                    (payload, 0, {"urgent": True, "urgent_size": urgent_data_size})
-                ]
+                segments = [(payload, 0, {"urgent": True, "urgent_size": urgent_data_size})]
             else:
                 part1 = payload[:split_pos]
                 part2 = payload[split_pos:]
@@ -531,9 +524,7 @@ class TCPMultiSplitAttack(ManipulationAttack):
             for i in range(split_count):
                 size = segment_size + (1 if i < remainder else 0)
                 end_pos = current_pos + size
-                start_offset = (
-                    max(0, current_pos - overlap_size) if i > 0 else current_pos
-                )
+                start_offset = max(0, current_pos - overlap_size) if i > 0 else current_pos
                 segment_payload = payload[start_offset:end_pos]
                 if not segment_payload:
                     continue
@@ -574,9 +565,7 @@ class TCPMultiSplitAttack(ManipulationAttack):
                 latency_ms=(time.time() - start_time) * 1000,
             )
 
-    def _execute_with_positions(
-        self, context: AttackContext, positions: list
-    ) -> AttackResult:
+    def _execute_with_positions(self, context: AttackContext, positions: list) -> AttackResult:
         """Execute multisplit with specific positions."""
         start_time = time.time()
         payload = context.payload

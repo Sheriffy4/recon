@@ -45,13 +45,9 @@ class SharingManager:
                     return SharingConfig(
                         enable_sharing=data.get("enable_sharing", True),
                         enable_auto_updates=data.get("enable_auto_updates", False),
-                        default_share_level=ShareLevel(
-                            data.get("default_share_level", "private")
-                        ),
+                        default_share_level=ShareLevel(data.get("default_share_level", "private")),
                         min_trust_score=data.get("min_trust_score", 0.7),
-                        max_strategies_per_source=data.get(
-                            "max_strategies_per_source", 1000
-                        ),
+                        max_strategies_per_source=data.get("max_strategies_per_source", 1000),
                         validation_timeout=data.get("validation_timeout", 300),
                         community_db_url=data.get("community_db_url", ""),
                         private_key=data.get("private_key", ""),
@@ -117,14 +113,10 @@ class SharingManager:
                 tags=tags or [],
             )
             if self.config.private_key:
-                strategy.signature = strategy.calculate_signature(
-                    self.config.private_key
-                )
+                strategy.signature = strategy.calculate_signature(self.config.private_key)
             validation_result = await self.validator.validate_strategy(strategy)
             if not validation_result.is_valid:
-                self.logger.warning(
-                    f"Strategy validation failed: {validation_result.issues}"
-                )
+                self.logger.warning(f"Strategy validation failed: {validation_result.issues}")
                 return None
             strategy.trust_score = validation_result.trust_score
             strategy.validation_status = ValidationStatus.VALIDATED
@@ -147,9 +139,7 @@ class SharingManager:
                 self.logger.warning(f"Strategy not found: {strategy_id}")
                 return None
             if strategy.trust_score < self.config.min_trust_score:
-                self.logger.warning(
-                    f"Strategy trust score too low: {strategy.trust_score}"
-                )
+                self.logger.warning(f"Strategy trust score too low: {strategy.trust_score}")
                 return None
             await self.community_db.increment_download_count(strategy_id)
             self.logger.info(f"Downloaded strategy: {strategy.name}")
@@ -261,9 +251,7 @@ class SharingManager:
         """Start automatic synchronization with trusted sources."""
         if self._auto_sync_task and (not self._auto_sync_task.done()):
             return
-        self._auto_sync_task = asyncio.create_task(
-            self.update_manager.start_auto_sync_scheduler()
-        )
+        self._auto_sync_task = asyncio.create_task(self.update_manager.start_auto_sync_scheduler())
         self.logger.info("Started auto-sync scheduler")
 
     async def stop_auto_sync(self):

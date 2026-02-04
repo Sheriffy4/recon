@@ -126,9 +126,7 @@ class PerformanceProfiler:
                 f"Operation '{operation_name}' completed in {metrics.execution_time:.4f}s"
             )
 
-    def profile_function(
-        self, func: Callable, *args, **kwargs
-    ) -> tuple[Any, PerformanceMetrics]:
+    def profile_function(self, func: Callable, *args, **kwargs) -> tuple[Any, PerformanceMetrics]:
         """
         Profile a function execution.
 
@@ -236,9 +234,7 @@ class PerformanceProfiler:
 
         return report
 
-    def save_report(
-        self, report: ProfileReport, filename: Optional[str] = None
-    ) -> Path:
+    def save_report(self, report: ProfileReport, filename: Optional[str] = None) -> Path:
         """
         Save profiling report to file.
 
@@ -286,8 +282,7 @@ class PerformanceProfiler:
         for op_name, count in operation_counts.items():
             if count > 10:
                 recommendations.append(
-                    f"Operation '{op_name}' called {count} times. "
-                    "Consider batching or caching."
+                    f"Operation '{op_name}' called {count} times. " "Consider batching or caching."
                 )
 
         # Check average time

@@ -428,10 +428,7 @@ class BaselineManager:
     def _update_current_baseline(self, baseline_file: Path):
         """Update the current baseline symlink."""
         # Remove old symlink if exists
-        if (
-            self.current_baseline_link.exists()
-            or self.current_baseline_link.is_symlink()
-        ):
+        if self.current_baseline_link.exists() or self.current_baseline_link.is_symlink():
             self.current_baseline_link.unlink()
 
         # Create new symlink (or copy on Windows if symlink fails)
@@ -490,10 +487,7 @@ class BaselineManager:
             )
 
         # Medium: Packet count decreased significantly
-        if (
-            baseline.packet_count > 0
-            and current.packet_count < baseline.packet_count * 0.8
-        ):
+        if baseline.packet_count > 0 and current.packet_count < baseline.packet_count * 0.8:
             return Regression(
                 attack_name=current.attack_name,
                 severity=RegressionSeverity.MEDIUM,
@@ -504,8 +498,7 @@ class BaselineManager:
                     "baseline_packet_count": baseline.packet_count,
                     "current_packet_count": current.packet_count,
                     "decrease_percent": (
-                        (baseline.packet_count - current.packet_count)
-                        / baseline.packet_count
+                        (baseline.packet_count - current.packet_count) / baseline.packet_count
                     )
                     * 100,
                 },

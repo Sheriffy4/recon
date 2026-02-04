@@ -37,9 +37,7 @@ class StrategyIntegrationHelper:
             global_strategy=global_strategy,
         )
 
-        self.logger.info(
-            f"Created StrategySelector with {len(domain_rules)} domain rules"
-        )
+        self.logger.info(f"Created StrategySelector with {len(domain_rules)} domain rules")
         return self.selector
 
     def _load_domain_strategies(self) -> Dict[str, str]:
@@ -107,9 +105,7 @@ class StrategyIntegrationHelper:
         result = self.selector.select_strategy(sni, dst_ip)
         return result.strategy
 
-    def get_strategy_with_metadata(
-        self, sni: Optional[str], dst_ip: str
-    ) -> Dict[str, Any]:
+    def get_strategy_with_metadata(self, sni: Optional[str], dst_ip: str) -> Dict[str, Any]:
         """
         Get strategy with full metadata for logging/debugging.
 
@@ -155,9 +151,7 @@ class StrategyIntegrationHelper:
 
         self.logger.info("Added optimized Twitter/X.com strategies")
 
-    def migrate_to_new_format(
-        self, output_file: str = "domain_strategies_v3.json"
-    ) -> None:
+    def migrate_to_new_format(self, output_file: str = "domain_strategies_v3.json") -> None:
         """
         Migrate existing strategies to new format with wildcard support.
 
@@ -227,9 +221,7 @@ class StrategyIntegrationHelper:
                 1 for rule in self.selector.domain_rules.values() if rule.is_wildcard
             ),
             "exact_rules": sum(
-                1
-                for rule in self.selector.domain_rules.values()
-                if not rule.is_wildcard
+                1 for rule in self.selector.domain_rules.values() if not rule.is_wildcard
             ),
         }
 

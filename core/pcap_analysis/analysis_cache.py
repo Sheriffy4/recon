@@ -61,9 +61,7 @@ class CacheKeyGenerator:
                 "file_size": stat.st_size,
                 "modified_time": stat.st_mtime,
             }
-            return hashlib.sha256(
-                json.dumps(key_data, sort_keys=True).encode()
-            ).hexdigest()
+            return hashlib.sha256(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
         except OSError:
             # Fallback to just file path if stat fails
             return hashlib.sha256(pcap_file.encode()).hexdigest()
@@ -74,7 +72,9 @@ class CacheKeyGenerator:
         # Create a hash based on packet characteristics
         packet_hashes = []
         for packet in packets[:100]:  # Sample first 100 packets for performance
-            packet_data = f"{packet.timestamp}_{packet.src_ip}_{packet.dst_ip}_{packet.sequence_num}"
+            packet_data = (
+                f"{packet.timestamp}_{packet.src_ip}_{packet.dst_ip}_{packet.sequence_num}"
+            )
             packet_hashes.append(hashlib.md5(packet_data.encode()).hexdigest()[:8])
 
         key_data = {
@@ -85,9 +85,7 @@ class CacheKeyGenerator:
         return hashlib.sha256(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
 
     @staticmethod
-    def comparison_key(
-        recon_pcap: str, zapret_pcap: str, comparison_type: str = "full"
-    ) -> str:
+    def comparison_key(recon_pcap: str, zapret_pcap: str, comparison_type: str = "full") -> str:
         """Generate cache key for PCAP comparison."""
         recon_key = CacheKeyGenerator.pcap_file_key(recon_pcap)
         zapret_key = CacheKeyGenerator.pcap_file_key(zapret_pcap)
@@ -102,17 +100,13 @@ class CacheKeyGenerator:
     @staticmethod
     def strategy_analysis_key(strategy_config: Dict[str, Any]) -> str:
         """Generate cache key for strategy analysis."""
-        return hashlib.sha256(
-            json.dumps(strategy_config, sort_keys=True).encode()
-        ).hexdigest()
+        return hashlib.sha256(json.dumps(strategy_config, sort_keys=True).encode()).hexdigest()
 
 
 class MemoryCache:
     """In-memory cache with LRU eviction and TTL support."""
 
-    def __init__(
-        self, max_size_mb: int = 256, default_ttl_seconds: Optional[float] = 3600
-    ):
+    def __init__(self, max_size_mb: int = 256, default_ttl_seconds: Optional[float] = 3600):
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self.default_ttl_seconds = default_ttl_seconds
         self._cache: Dict[str, Any] = {}
@@ -234,10 +228,7 @@ class MemoryCache:
             return False
 
         # Evict entries if necessary
-        while (
-            self._stats.total_size_bytes + required_bytes > self.max_size_bytes
-            and self._cache
-        ):
+        while self._stats.total_size_bytes + required_bytes > self.max_size_bytes and self._cache:
             self._evict_lru_entry()
 
         return True
@@ -248,9 +239,7 @@ class MemoryCache:
             return
 
         # Find LRU entry
-        lru_key = min(
-            self._metadata.keys(), key=lambda k: self._metadata[k].last_accessed
-        )
+        lru_key = min(self._metadata.keys(), key=lambda k: self._metadata[k].last_accessed)
 
         self._remove_entry(lru_key)
         self._stats.eviction_count += 1
@@ -336,10 +325,7 @@ class PersistentCache:
                     current_time = time.time()
 
                     # Check TTL
-                    if (
-                        ttl_seconds is not None
-                        and current_time - created_at > ttl_seconds
-                    ):
+                    if ttl_seconds is not None and current_time - created_at > ttl_seconds:
                         # Entry expired, remove it
                         conn.execute("DELETE FROM cache_entries WHERE key = ?", (key,))
                         return None
@@ -407,9 +393,7 @@ class PersistentCache:
         with self._lock:
             try:
                 with sqlite3.connect(self.db_path) as conn:
-                    cursor = conn.execute(
-                        "DELETE FROM cache_entries WHERE key = ?", (key,)
-                    )
+                    cursor = conn.execute("DELETE FROM cache_entries WHERE key = ?", (key,))
                     return cursor.rowcount > 0
             except Exception as e:
                 logger.error(f"Error removing from persistent cache: {e}")
@@ -555,9 +539,7 @@ class HybridCache:
 class CachedAnalyzer:
     """Analyzer wrapper that adds caching to analysis operations."""
 
-    def __init__(
-        self, cache: Optional[Union[MemoryCache, PersistentCache, HybridCache]] = None
-    ):
+    def __init__(self, cache: Optional[Union[MemoryCache, PersistentCache, HybridCache]] = None):
         self.cache = cache or HybridCache()
 
     def cached_pcap_analysis(
@@ -568,7 +550,9 @@ class CachedAnalyzer:
     ) -> Any:
         """Perform cached PCAP analysis."""
         # Generate cache key
-        cache_key = f"pcap_analysis_{CacheKeyGenerator.pcap_file_key(pcap_file)}_{analysis_func.__name__}"
+        cache_key = (
+            f"pcap_analysis_{CacheKeyGenerator.pcap_file_key(pcap_file)}_{analysis_func.__name__}"
+        )
 
         # Try to get from cache
         result = self.cache.get(cache_key)
@@ -594,7 +578,9 @@ class CachedAnalyzer:
     ) -> Any:
         """Perform cached packet analysis."""
         # Generate cache key
-        cache_key = f"packet_analysis_{CacheKeyGenerator.packet_analysis_key(packets, analysis_type)}"
+        cache_key = (
+            f"packet_analysis_{CacheKeyGenerator.packet_analysis_key(packets, analysis_type)}"
+        )
 
         # Try to get from cache
         result = self.cache.get(cache_key)
@@ -620,16 +606,12 @@ class CachedAnalyzer:
     ) -> ComparisonResult:
         """Perform cached PCAP comparison."""
         # Generate cache key
-        cache_key = (
-            f"comparison_{CacheKeyGenerator.comparison_key(recon_pcap, zapret_pcap)}"
-        )
+        cache_key = f"comparison_{CacheKeyGenerator.comparison_key(recon_pcap, zapret_pcap)}"
 
         # Try to get from cache
         result = self.cache.get(cache_key)
         if result is not None:
-            logger.debug(
-                f"Cache hit for PCAP comparison: {recon_pcap} vs {zapret_pcap}"
-            )
+            logger.debug(f"Cache hit for PCAP comparison: {recon_pcap} vs {zapret_pcap}")
             return result
 
         # Perform comparison
@@ -697,9 +679,7 @@ if __name__ == "__main__":
     # Test persistent cache
     persistent_cache = PersistentCache(cache_dir=".test_cache", max_size_mb=50)
 
-    persistent_cache.put(
-        "persistent_key", {"analysis": "result", "timestamp": time.time()}
-    )
+    persistent_cache.put("persistent_key", {"analysis": "result", "timestamp": time.time()})
     result = persistent_cache.get("persistent_key")
     print(f"Persistent cache result: {result}")
 
@@ -717,12 +697,8 @@ if __name__ == "__main__":
         return {"analyzed": data, "timestamp": time.time()}
 
     # Test cached analysis
-    result1 = cached_analyzer.cached_packet_analysis(
-        [], sample_analysis_func, "test_analysis"
-    )
-    result2 = cached_analyzer.cached_packet_analysis(
-        [], sample_analysis_func, "test_analysis"
-    )
+    result1 = cached_analyzer.cached_packet_analysis([], sample_analysis_func, "test_analysis")
+    result2 = cached_analyzer.cached_packet_analysis([], sample_analysis_func, "test_analysis")
 
     print(f"First analysis result: {result1}")
     print(f"Second analysis result (cached): {result2}")

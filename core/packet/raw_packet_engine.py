@@ -191,9 +191,7 @@ class TCPHeader:
     def pack(self) -> bytes:
         """Упаковывает TCP заголовок в байты."""
         # Формируем поле data_offset + reserved + flags
-        offset_reserved_flags = (
-            (self.data_offset << 12) | (self.reserved << 6) | self.flags
-        )
+        offset_reserved_flags = (self.data_offset << 12) | (self.reserved << 6) | self.flags
 
         header = struct.pack(
             "!HHLLHHHH",
@@ -450,9 +448,7 @@ class RawPacketEngine:
                 src_ip=ip_header.src_ip,
                 dst_ip=ip_header.dst_ip,
                 protocol=(
-                    ProtocolType(ip_header.protocol)
-                    if ip_header.protocol in [1, 6, 17]
-                    else None
+                    ProtocolType(ip_header.protocol) if ip_header.protocol in [1, 6, 17] else None
                 ),
             )
 
@@ -473,9 +469,7 @@ class RawPacketEngine:
             self.logger.error(f"Error parsing packet: {e}")
             raise
 
-    def _fragment_packet_internal(
-        self, packet: RawPacket, fragment_size: int
-    ) -> List[RawPacket]:
+    def _fragment_packet_internal(self, packet: RawPacket, fragment_size: int) -> List[RawPacket]:
         """Фрагментирует пакет на части."""
         try:
             if len(packet.data) <= fragment_size:
@@ -669,9 +663,7 @@ class RawPacketEngine:
         """Фрагментирует пакет (async версия)."""
         try:
             # Создаем временный RawPacket для фрагментации
-            temp_packet = RawPacket(
-                data=packet_data, src_ip="0.0.0.0", dst_ip="0.0.0.0"
-            )
+            temp_packet = RawPacket(data=packet_data, src_ip="0.0.0.0", dst_ip="0.0.0.0")
 
             fragments = self.fragment_packet_sync(temp_packet, mtu)
             return [frag.data for frag in fragments]
@@ -680,60 +672,58 @@ class RawPacketEngine:
             self.logger.error(f"Error fragmenting packet: {e}")
             return [packet_data]
 
-    def fragment_packet_sync(
-        self, packet: RawPacket, fragment_size: int
-    ) -> List[RawPacket]:
+    def fragment_packet_sync(self, packet: RawPacket, fragment_size: int) -> List[RawPacket]:
         """Синхронная версия fragment_packet."""
         return self._fragment_packet_internal(packet, fragment_size)
 
     def is_client_hello(self, payload: bytes) -> bool:
         """
         Проверяет, является ли payload TLS ClientHello.
-        
+
         TLS Record Header:
         - Byte 0: Content Type (0x16 = Handshake)
         - Bytes 1-2: TLS Version
         - Bytes 3-4: Record Length
-        
+
         Handshake Header:
         - Byte 5: Handshake Type (0x01 = ClientHello)
         """
         if not payload or len(payload) < 6:
             return False
-        
+
         # Проверяем TLS Record Type (0x16 = Handshake)
         if payload[0] != 0x16:
             return False
-        
+
         # Проверяем Handshake Type (0x01 = ClientHello)
         if payload[5] != 0x01:
             return False
-        
+
         return True
 
     def is_server_hello(self, payload: bytes) -> bool:
         """
         Проверяет, является ли payload TLS ServerHello.
-        
+
         Handshake Type для ServerHello: 0x02
         """
         if not payload or len(payload) < 6:
             return False
-        
+
         # Проверяем TLS Record Type (0x16 = Handshake)
         if payload[0] != 0x16:
             return False
-        
+
         # Проверяем Handshake Type (0x02 = ServerHello)
         if payload[5] != 0x02:
             return False
-        
+
         return True
 
     def extract_tls_sni(self, payload: bytes) -> Optional[str]:
         """
         Извлекает SNI из TLS ClientHello payload.
-        
+
         Algorithm:
         1. Проверить TLS Record Header (offset 0)
         2. Проверить Handshake Type = ClientHello (offset 5)
@@ -744,64 +734,66 @@ class RawPacketEngine:
         """
         if not self.is_client_hello(payload):
             return None
-        
+
         try:
             # Начинаем после Handshake Type
             offset = 6  # После TLS Record (5 bytes) + Handshake Type (1 byte)
-            
+
             # Пропускаем: Handshake Length (3), TLS Version (2), Random (32)
             offset += 3 + 2 + 32
-            
+
             if offset >= len(payload):
                 return None
-            
+
             # Session ID Length
             session_id_len = payload[offset]
             offset += 1 + session_id_len
-            
+
             if offset + 2 > len(payload):
                 return None
-            
+
             # Cipher Suites Length
-            cipher_suites_len = struct.unpack('!H', payload[offset:offset+2])[0]
+            cipher_suites_len = struct.unpack("!H", payload[offset : offset + 2])[0]
             offset += 2 + cipher_suites_len
-            
+
             if offset >= len(payload):
                 return None
-            
+
             # Compression Methods Length
             compression_len = payload[offset]
             offset += 1 + compression_len
-            
+
             if offset + 2 > len(payload):
                 return None
-            
+
             # Extensions Length
-            extensions_len = struct.unpack('!H', payload[offset:offset+2])[0]
+            extensions_len = struct.unpack("!H", payload[offset : offset + 2])[0]
             offset += 2
-            
+
             # Парсим Extensions
             extensions_end = offset + extensions_len
             while offset + 4 <= extensions_end and offset + 4 <= len(payload):
-                ext_type = struct.unpack('!H', payload[offset:offset+2])[0]
-                ext_len = struct.unpack('!H', payload[offset+2:offset+4])[0]
+                ext_type = struct.unpack("!H", payload[offset : offset + 2])[0]
+                ext_len = struct.unpack("!H", payload[offset + 2 : offset + 4])[0]
                 offset += 4
-                
+
                 if ext_type == 0x0000:  # SNI Extension
                     # Парсим SNI
                     if offset + 5 <= len(payload):
-                        name_list_len = struct.unpack('!H', payload[offset:offset+2])[0]
-                        name_type = payload[offset+2]
-                        name_len = struct.unpack('!H', payload[offset+3:offset+5])[0]
-                        
+                        name_list_len = struct.unpack("!H", payload[offset : offset + 2])[0]
+                        name_type = payload[offset + 2]
+                        name_len = struct.unpack("!H", payload[offset + 3 : offset + 5])[0]
+
                         if name_type == 0x00 and offset + 5 + name_len <= len(payload):
-                            sni = payload[offset+5:offset+5+name_len].decode('utf-8', errors='ignore')
+                            sni = payload[offset + 5 : offset + 5 + name_len].decode(
+                                "utf-8", errors="ignore"
+                            )
                             return sni
-                
+
                 offset += ext_len
-            
+
             return None
-            
+
         except Exception as e:
             self.logger.debug(f"Error extracting SNI: {e}")
             return None
@@ -857,69 +849,69 @@ class RawPacketEngine:
 def raw_packet_to_packet_info(raw_packet: RawPacket, timestamp: float = 0.0) -> PacketInfo:
     """
     Конвертирует RawPacket в PacketInfo для совместимости с анализаторами.
-    
+
     Args:
         raw_packet: Сырой пакет для конвертации
         timestamp: Временная метка пакета (по умолчанию 0.0)
-    
+
     Returns:
         PacketInfo с детальной информацией о пакете
     """
     # Парсим IP заголовок
     ip_header = IPHeader.unpack(raw_packet.data[:20])
     ip_header_size = ip_header.ihl * 4
-    
+
     # Инициализируем значения по умолчанию
     sequence_num = 0
     ack_num = 0
     tcp_flags_int = 0
     checksum = 0
-    
+
     # Парсим TCP заголовок если это TCP пакет
     if raw_packet.protocol == ProtocolType.TCP and len(raw_packet.data) >= ip_header_size + 20:
         tcp_data = raw_packet.data[ip_header_size:]
         tcp_header = TCPHeader.unpack(tcp_data)
-        
+
         sequence_num = tcp_header.seq_num
         ack_num = tcp_header.ack_num
         tcp_flags_int = tcp_header.flags
         checksum = tcp_header.checksum
-    
+
     # Определяем флаги
     flags = []
     if tcp_flags_int & TCPHeader.FLAG_FIN:
-        flags.append('FIN')
+        flags.append("FIN")
     if tcp_flags_int & TCPHeader.FLAG_SYN:
-        flags.append('SYN')
+        flags.append("SYN")
     if tcp_flags_int & TCPHeader.FLAG_RST:
-        flags.append('RST')
+        flags.append("RST")
     if tcp_flags_int & TCPHeader.FLAG_PSH:
-        flags.append('PSH')
+        flags.append("PSH")
     if tcp_flags_int & TCPHeader.FLAG_ACK:
-        flags.append('ACK')
+        flags.append("ACK")
     if tcp_flags_int & TCPHeader.FLAG_URG:
-        flags.append('URG')
+        flags.append("URG")
     if tcp_flags_int & TCPHeader.FLAG_ECE:
-        flags.append('ECE')
+        flags.append("ECE")
     if tcp_flags_int & TCPHeader.FLAG_CWR:
-        flags.append('CWR')
-    
+        flags.append("CWR")
+
     # Проверяем payload на TLS
     payload = raw_packet.payload or b""
     is_client_hello_flag = False
     tls_info = None
-    
+
     if payload:
         engine = RawPacketEngine()
         is_client_hello_flag = engine.is_client_hello(payload)
-        
+
         if is_client_hello_flag:
             sni = engine.extract_tls_sni(payload)
             tls_version = None
-            
+
             # Извлекаем TLS версию из Record Header
             if len(payload) >= 3:
-                version_bytes = struct.unpack('!H', payload[1:3])[0]
+                version_bytes = struct.unpack("!H", payload[1:3])[0]
                 version_map = {
                     0x0301: "TLS 1.0",
                     0x0302: "TLS 1.1",
@@ -927,21 +919,15 @@ def raw_packet_to_packet_info(raw_packet: RawPacket, timestamp: float = 0.0) -> 
                     0x0304: "TLS 1.3",
                 }
                 tls_version = version_map.get(version_bytes, f"Unknown (0x{version_bytes:04x})")
-            
+
             tls_info = TLSInfo(
-                sni=sni,
-                is_client_hello=True,
-                is_server_hello=False,
-                tls_version=tls_version
+                sni=sni, is_client_hello=True, is_server_hello=False, tls_version=tls_version
             )
         elif engine.is_server_hello(payload):
             tls_info = TLSInfo(
-                sni=None,
-                is_client_hello=False,
-                is_server_hello=True,
-                tls_version=None
+                sni=None, is_client_hello=False, is_server_hello=True, tls_version=None
             )
-    
+
     # Валидация checksum
     checksum_valid = True
     if raw_packet.protocol == ProtocolType.TCP and checksum != 0:
@@ -950,16 +936,14 @@ def raw_packet_to_packet_info(raw_packet: RawPacket, timestamp: float = 0.0) -> 
             tcp_header = TCPHeader.unpack(tcp_data)
             tcp_header_size = tcp_header.data_offset * 4
             tcp_payload = tcp_data[tcp_header_size:] if len(tcp_data) > tcp_header_size else b""
-            
+
             calculated_checksum = tcp_header.calculate_checksum(
-                raw_packet.src_ip,
-                raw_packet.dst_ip,
-                tcp_payload
+                raw_packet.src_ip, raw_packet.dst_ip, tcp_payload
             )
-            checksum_valid = (calculated_checksum == checksum)
+            checksum_valid = calculated_checksum == checksum
         except Exception:
             checksum_valid = False
-    
+
     return PacketInfo(
         timestamp=timestamp,
         src_ip=raw_packet.src_ip,
@@ -975,7 +959,7 @@ def raw_packet_to_packet_info(raw_packet: RawPacket, timestamp: float = 0.0) -> 
         checksum=checksum,
         checksum_valid=checksum_valid,
         is_client_hello=is_client_hello_flag,
-        tls_info=tls_info
+        tls_info=tls_info,
     )
 
 

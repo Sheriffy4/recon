@@ -111,9 +111,7 @@ class StrategyManagementIntegration:
 
         if INTELLIGENT_GENERATOR_AVAILABLE:
             try:
-                self.intelligent_generator = IntelligentStrategyGenerator(
-                    recon_summary_file
-                )
+                self.intelligent_generator = IntelligentStrategyGenerator(recon_summary_file)
                 LOG.info("Intelligent Strategy Generator initialized")
             except Exception as e:
                 LOG.warning(f"Failed to initialize Intelligent Strategy Generator: {e}")
@@ -141,9 +139,7 @@ class StrategyManagementIntegration:
                 strategies["active_strategies"] = config_data.get("strategies", [])
                 strategies["configuration_metadata"] = config_data.get("metadata", {})
 
-                LOG.info(
-                    f"Loaded {len(strategies['active_strategies'])} strategies from config"
-                )
+                LOG.info(f"Loaded {len(strategies['active_strategies'])} strategies from config")
 
             # Load effectiveness data from recon summary
             if os.path.exists(self.recon_summary_file):
@@ -253,9 +249,7 @@ class StrategyManagementIntegration:
                             "strategy_command": fix.get("description", "").replace(
                                 "Apply strategy: ", ""
                             ),
-                            "confidence": (
-                                0.8 if fix.get("confidence") == "HIGH" else 0.6
-                            ),
+                            "confidence": (0.8 if fix.get("confidence") == "HIGH" else 0.6),
                             "source": "pcap_analysis_fixes",
                             "reasoning": fix.get("description", ""),
                             "fix_priority": fix.get("priority", "MEDIUM"),
@@ -295,9 +289,7 @@ class StrategyManagementIntegration:
 
             # Extract parameter differences
             if "parameter_differences" in pcap_comparison:
-                evidence["parameter_differences"] = pcap_comparison[
-                    "parameter_differences"
-                ]
+                evidence["parameter_differences"] = pcap_comparison["parameter_differences"]
 
             # Extract critical issues
             if "critical_issues" in pcap_comparison:
@@ -308,9 +300,7 @@ class StrategyManagementIntegration:
 
         return evidence
 
-    def _get_management_strategies(
-        self, target_domain: str = None
-    ) -> List[Dict[str, Any]]:
+    def _get_management_strategies(self, target_domain: str = None) -> List[Dict[str, Any]]:
         """Get strategy recommendations from management system"""
 
         management_strategies = []
@@ -340,9 +330,7 @@ class StrategyManagementIntegration:
 
         return management_strategies
 
-    def _get_combinator_strategies(
-        self, target_domain: str = None
-    ) -> List[Dict[str, Any]]:
+    def _get_combinator_strategies(self, target_domain: str = None) -> List[Dict[str, Any]]:
         """Get strategies from Strategy Combinator"""
 
         strategies = []
@@ -366,9 +354,7 @@ class StrategyManagementIntegration:
 
         return strategies
 
-    def _get_selector_strategies(
-        self, target_domain: str = None
-    ) -> List[Dict[str, Any]]:
+    def _get_selector_strategies(self, target_domain: str = None) -> List[Dict[str, Any]]:
         """Get strategies from Strategy Selector"""
 
         strategies = []
@@ -392,9 +378,7 @@ class StrategyManagementIntegration:
 
         return strategies
 
-    def _get_intelligent_strategies(
-        self, target_domain: str = None
-    ) -> List[Dict[str, Any]]:
+    def _get_intelligent_strategies(self, target_domain: str = None) -> List[Dict[str, Any]]:
         """Get strategies from Intelligent Strategy Generator"""
 
         strategies = []
@@ -476,9 +460,7 @@ class StrategyManagementIntegration:
 
             # Create unified recommendations for each group
             for group_key, group_strategies in strategy_groups.items():
-                unified_strategy = self._create_unified_strategy(
-                    group_strategies, target_domain
-                )
+                unified_strategy = self._create_unified_strategy(group_strategies, target_domain)
                 if unified_strategy:
                     unified_strategies.append(unified_strategy)
 
@@ -567,19 +549,15 @@ class StrategyManagementIntegration:
             if total_weight > 0:
                 final_confidence = weighted_confidence / total_weight
             else:
-                final_confidence = sum(
-                    s.get("confidence", 0.0) for s in group_strategies
-                ) / len(group_strategies)
+                final_confidence = sum(s.get("confidence", 0.0) for s in group_strategies) / len(
+                    group_strategies
+                )
 
             # Select the best strategy command (highest individual confidence)
-            best_strategy = max(
-                group_strategies, key=lambda x: x.get("confidence", 0.0)
-            )
+            best_strategy = max(group_strategies, key=lambda x: x.get("confidence", 0.0))
 
             # Combine reasoning from all sources
-            all_reasoning = [
-                s.get("reasoning", "") for s in group_strategies if s.get("reasoning")
-            ]
+            all_reasoning = [s.get("reasoning", "") for s in group_strategies if s.get("reasoning")]
             combined_reasoning = "; ".join(all_reasoning)
 
             # Create unified strategy
@@ -589,9 +567,7 @@ class StrategyManagementIntegration:
                 "source": "unified_integration",
                 "reasoning": combined_reasoning,
                 "source_strategies": len(group_strategies),
-                "contributing_sources": list(
-                    set(s.get("source", "") for s in group_strategies)
-                ),
+                "contributing_sources": list(set(s.get("source", "") for s in group_strategies)),
                 "target_domain": target_domain,
                 "integration_metadata": {
                     "created_at": datetime.now().isoformat(),
@@ -619,14 +595,10 @@ class StrategyManagementIntegration:
                 self._update_strategy_config(unified_strategies)
 
             # Update effectiveness tracking
-            self._update_effectiveness_tracking(
-                unified_strategies, pcap_analysis_results
-            )
+            self._update_effectiveness_tracking(unified_strategies, pcap_analysis_results)
 
             # Update recon summary with integration results
-            self._update_recon_summary_integration(
-                unified_strategies, pcap_analysis_results
-            )
+            self._update_recon_summary_integration(unified_strategies, pcap_analysis_results)
 
         except Exception as e:
             LOG.error(f"Failed to update strategy system: {e}")
@@ -660,17 +632,13 @@ class StrategyManagementIntegration:
                 for strategy in unified_strategies[:5]  # Top 5 strategies
             ]
 
-            current_config["pcap_integration"][
-                "last_update"
-            ] = datetime.now().isoformat()
+            current_config["pcap_integration"]["last_update"] = datetime.now().isoformat()
 
             # Save updated config
             with open(self.strategy_config_file, "w", encoding="utf-8") as f:
                 json.dump(current_config, f, indent=2, ensure_ascii=False)
 
-            LOG.info(
-                f"Updated strategy config with {len(unified_strategies)} unified strategies"
-            )
+            LOG.info(f"Updated strategy config with {len(unified_strategies)} unified strategies")
 
         except Exception as e:
             LOG.error(f"Failed to update strategy config: {e}")
@@ -686,9 +654,7 @@ class StrategyManagementIntegration:
             # This would update the effectiveness tracking system
             # For now, we'll log the update
 
-            LOG.info(
-                f"Effectiveness tracking updated with {len(unified_strategies)} strategies"
-            )
+            LOG.info(f"Effectiveness tracking updated with {len(unified_strategies)} strategies")
 
             # Update current strategies in memory
             self.current_strategies["integration_update"] = {
@@ -724,12 +690,10 @@ class StrategyManagementIntegration:
                 "top_strategy": unified_strategies[0] if unified_strategies else None,
                 "integration_components": self._get_available_components(),
                 "pcap_analysis_summary": {
-                    "similarity_score": pcap_analysis_results.get(
-                        "pcap_comparison", {}
-                    ).get("similarity_score", 0.0),
-                    "critical_issues_count": len(
-                        pcap_analysis_results.get("actionable_fixes", [])
+                    "similarity_score": pcap_analysis_results.get("pcap_comparison", {}).get(
+                        "similarity_score", 0.0
                     ),
+                    "critical_issues_count": len(pcap_analysis_results.get("actionable_fixes", [])),
                     "recommendations_count": len(
                         pcap_analysis_results.get("strategy_recommendations", {}).get(
                             "combined_strategies", []
@@ -744,9 +708,7 @@ class StrategyManagementIntegration:
             if "metadata" not in current_summary:
                 current_summary["metadata"] = {}
 
-            current_summary["metadata"][
-                "last_strategy_integration"
-            ] = datetime.now().isoformat()
+            current_summary["metadata"]["last_strategy_integration"] = datetime.now().isoformat()
             current_summary["metadata"]["strategy_integration_count"] = len(
                 current_summary["strategy_integration"]
             )

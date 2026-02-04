@@ -94,17 +94,13 @@ class PCAPAnalyzer:
 
                 # Читаем пакеты
                 packet_count = 0
-                while (
-                    packet_count < 10000
-                ):  # Ограничиваем количество для производительности
+                while packet_count < 10000:  # Ограничиваем количество для производительности
                     packet_header = f.read(16)
                     if len(packet_header) < 16:
                         break
 
                     # Парсим заголовок пакета
-                    ts_sec, ts_usec, caplen, origlen = struct.unpack(
-                        "<IIII", packet_header
-                    )
+                    ts_sec, ts_usec, caplen, origlen = struct.unpack("<IIII", packet_header)
 
                     # Читаем данные пакета
                     packet_data = f.read(caplen)
@@ -172,9 +168,7 @@ class PCAPAnalyzer:
 
         return packets
 
-    async def parse_packet_data(
-        self, packet_data: bytes, timestamp: float
-    ) -> Optional[PacketInfo]:
+    async def parse_packet_data(self, packet_data: bytes, timestamp: float) -> Optional[PacketInfo]:
         """Парсинг данных пакета."""
         try:
             if len(packet_data) < 14:  # Минимальный Ethernet заголовок
@@ -284,9 +278,7 @@ class PCAPAnalyzer:
             )
 
             # Анализ соединений
-            conn_key = (
-                f"{packet.src_ip}:{packet.src_port}->{packet.dst_ip}:{packet.dst_port}"
-            )
+            conn_key = f"{packet.src_ip}:{packet.src_port}->{packet.dst_ip}:{packet.dst_port}"
             if conn_key not in connections:
                 connections[conn_key] = {
                     "packets": 0,
@@ -342,15 +334,11 @@ class PCAPAnalyzer:
             }
 
         # Детальный анализ соединений
-        analysis["connection_analysis"] = await self.analyze_connections_detailed(
-            connections
-        )
+        analysis["connection_analysis"] = await self.analyze_connections_detailed(connections)
 
         return analysis
 
-    async def analyze_connections_detailed(
-        self, connections: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def analyze_connections_detailed(self, connections: Dict[str, Any]) -> Dict[str, Any]:
         """Детальный анализ соединений."""
         analysis = {
             "total_connections": len(connections),
@@ -384,9 +372,7 @@ class PCAPAnalyzer:
         # Проверяем на множественные соединения к одному IP (признак повторных попыток)
         for dst_ip, data in by_dst.items():
             if data["connections"] > 5:
-                bypass_indicators.append(
-                    f"Множественные попытки подключения к {dst_ip}"
-                )
+                bypass_indicators.append(f"Множественные попытки подключения к {dst_ip}")
 
             if data["tls_packets"] == 0 and data["connections"] > 1:
                 bypass_indicators.append(f"Неудачные TLS handshakes к {dst_ip}")

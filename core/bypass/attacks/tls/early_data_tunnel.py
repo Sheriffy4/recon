@@ -48,9 +48,7 @@ def _hkdf_extract(salt: bytes, ikm: bytes, hash_algorithm=hashes.SHA256()) -> by
     return h.digest()
 
 
-def _hkdf_expand(
-    prk: bytes, info: bytes, length: int, hash_algorithm=hashes.SHA256()
-) -> bytes:
+def _hkdf_expand(prk: bytes, info: bytes, length: int, hash_algorithm=hashes.SHA256()) -> bytes:
     """HKDF-Expand function as per RFC 5869."""
     hash_len = hash_algorithm.digest_size
     if length > 255 * hash_len:
@@ -96,9 +94,7 @@ def _calculate_psk_binder(
     psk: bytes, handshake_context: bytes, hash_algorithm=hashes.SHA256()
 ) -> bytes:
     """Calculate PSK binder for pre_shared_key extension."""
-    early_secret = _hkdf_extract(
-        b"\x00" * hash_algorithm.digest_size, psk, hash_algorithm
-    )
+    early_secret = _hkdf_extract(b"\x00" * hash_algorithm.digest_size, psk, hash_algorithm)
     binder_key = derive_secret(early_secret, b"ext binder", b"", hash_algorithm)
     transcript_hash = hashlib.sha256(handshake_context).digest()
     finished_key = derive_secret(binder_key, b"finished", b"", hash_algorithm)
@@ -146,21 +142,15 @@ def _build_client_hello_with_early_data(
     client_random_bytes = client_random
     session_id = os.urandom(32)
     session_id_len = bytes([len(session_id)])
-    cipher_suites = (
-        TLS_AES_128_GCM_SHA256 + TLS_AES_256_GCM_SHA384 + TLS_CHACHA20_POLY1305_SHA256
-    )
+    cipher_suites = TLS_AES_128_GCM_SHA256 + TLS_AES_256_GCM_SHA384 + TLS_CHACHA20_POLY1305_SHA256
     cipher_suites_len = struct.pack("!H", len(cipher_suites))
     compression_methods = b"\x01\x00"
     extensions = b""
     server_name = domain.encode("utf-8")
-    server_name_list = (
-        struct.pack("!B", 0) + struct.pack("!H", len(server_name)) + server_name
-    )
+    server_name_list = struct.pack("!B", 0) + struct.pack("!H", len(server_name)) + server_name
     server_name_ext_data = struct.pack("!H", len(server_name_list)) + server_name_list
     extensions += (
-        EXT_SERVER_NAME
-        + struct.pack("!H", len(server_name_ext_data))
-        + server_name_ext_data
+        EXT_SERVER_NAME + struct.pack("!H", len(server_name_ext_data)) + server_name_ext_data
     )
     versions = TLS_VERSION_1_3
     supported_versions_ext_data = struct.pack("!B", len(versions)) + versions
@@ -179,9 +169,7 @@ def _build_client_hello_with_early_data(
     public_key, private_key = _generate_x25519_key_share()
     key_share_entry = GROUP_X25519 + struct.pack("!H", len(public_key)) + public_key
     key_share_ext_data = struct.pack("!H", len(key_share_entry)) + key_share_entry
-    extensions += (
-        EXT_KEY_SHARE + struct.pack("!H", len(key_share_ext_data)) + key_share_ext_data
-    )
+    extensions += EXT_KEY_SHARE + struct.pack("!H", len(key_share_ext_data)) + key_share_ext_data
     sig_algs = b"\x04\x03\x08\x04\x04\x01"
     signature_algorithms_ext_data = struct.pack("!H", len(sig_algs)) + sig_algs
     extensions += (
@@ -190,16 +178,10 @@ def _build_client_hello_with_early_data(
         + signature_algorithms_ext_data
     )
     psk_modes = b"\x01\x01"
-    extensions += (
-        EXT_PSK_KEY_EXCHANGE_MODES + struct.pack("!H", len(psk_modes)) + psk_modes
-    )
+    extensions += EXT_PSK_KEY_EXCHANGE_MODES + struct.pack("!H", len(psk_modes)) + psk_modes
     max_early_data_size = struct.pack("!I", ticket_info["max_early_data"])
     early_data_ext_data = b""
-    extensions += (
-        EXT_EARLY_DATA
-        + struct.pack("!H", len(early_data_ext_data))
-        + early_data_ext_data
-    )
+    extensions += EXT_EARLY_DATA + struct.pack("!H", len(early_data_ext_data)) + early_data_ext_data
     extensions_without_psk_len = struct.pack("!H", len(extensions))
     client_hello_body_without_psk = (
         client_hello_version
@@ -213,9 +195,7 @@ def _build_client_hello_with_early_data(
         + extensions
     )
     psk_identity_len = struct.pack("!H", len(psk_identity))
-    psk_identity_entry = (
-        psk_identity_len + psk_identity + struct.pack("!I", obfuscated_ticket_age)
-    )
+    psk_identity_entry = psk_identity_len + psk_identity + struct.pack("!I", obfuscated_ticket_age)
     identities = psk_identity_entry
     identities_len = struct.pack("!H", len(identities))
     binder_len = 32
@@ -238,9 +218,7 @@ def _build_client_hello_with_early_data(
         + extensions_with_psk
     )
     handshake_len = struct.pack("!I", len(client_hello_body_with_placeholder))[1:]
-    handshake_message = (
-        handshake_type + handshake_len + client_hello_body_with_placeholder
-    )
+    handshake_message = handshake_type + handshake_len + client_hello_body_with_placeholder
     binder_offset = len(handshake_message) - binder_len
     handshake_context = handshake_message[: binder_offset - 1]
     actual_binder = _calculate_psk_binder(psk, handshake_context)
@@ -254,9 +232,7 @@ def _build_client_hello_with_early_data(
     record_type = b"\x16"
     record_version = TLS_LEGACY_VERSION
     record_len = struct.pack("!H", len(client_hello_handshake))
-    client_hello_record = (
-        record_type + record_version + record_len + client_hello_handshake
-    )
+    client_hello_record = record_type + record_version + record_len + client_hello_handshake
     early_secret = _hkdf_extract(b"\x00" * 32, psk)
     transcript_hash_client_hello = hashlib.sha256(client_hello_handshake).digest()
     client_early_traffic_secret = derive_secret(
@@ -290,9 +266,7 @@ def _encrypt_early_data(
     record_type = b"\x17"
     record_version = TLS_VERSION_1_2
     ciphertext_length = len(tls_inner_plaintext) + 16
-    additional_data = (
-        record_type + record_version + struct.pack("!H", ciphertext_length)
-    )
+    additional_data = record_type + record_version + struct.pack("!H", ciphertext_length)
     encryptor.authenticate_additional_data(additional_data)
     ciphertext = encryptor.update(tls_inner_plaintext) + encryptor.finalize()
     tag = encryptor.tag
@@ -335,12 +309,7 @@ class TLS13EarlyDataTunnelingAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "domain": None,
-            "session_ticket": b"",
-            "psk": b"",
-            "early_data_size": 1024
-        }
+        return {"domain": None, "session_ticket": b"", "psk": b"", "early_data_size": 1024}
 
     def execute(self, context: AttackContext) -> AttackResult:
         """
@@ -360,18 +329,14 @@ class TLS13EarlyDataTunnelingAttack(BaseAttack):
                 client_hello_record,
                 client_early_traffic_secret,
                 early_exporter_master_secret,
-            ) = _build_client_hello_with_early_data(
-                domain, session_ticket, payload, client_random
-            )
+            ) = _build_client_hello_with_early_data(domain, session_ticket, payload, client_random)
             segments = [(client_hello_record, 0)]
             early_data_to_send = payload[:max_early_data_size]
             remaining_data = payload[max_early_data_size:]
             fragments = _fragment_early_data(early_data_to_send, fragment_size)
             current_offset = len(client_hello_record)
             for i, fragment in enumerate(fragments):
-                encrypted_record = _encrypt_early_data(
-                    fragment, client_early_traffic_secret, i
-                )
+                encrypted_record = _encrypt_early_data(fragment, client_early_traffic_secret, i)
                 segments.append((encrypted_record, current_offset))
                 current_offset += len(encrypted_record)
             if remaining_data:
@@ -434,12 +399,7 @@ class TLSEarlyDataAttack(BaseAttack):
 
     @property
     def optional_params(self) -> Dict[str, Any]:
-        return {
-            "domain": None,
-            "session_ticket": b"",
-            "psk": b"",
-            "early_data_size": 1024
-        }
+        return {"domain": None, "session_ticket": b"", "psk": b"", "early_data_size": 1024}
 
     def execute(self, context: AttackContext) -> AttackResult:
         full_attack = TLS13EarlyDataTunnelingAttack()

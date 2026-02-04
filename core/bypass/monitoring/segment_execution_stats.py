@@ -271,9 +271,7 @@ class SegmentExecutionStatsCollector:
             # Update session statistics
             self._update_session_stats_for_segment(metrics)
 
-    def start_session(
-        self, session_id: str, connection_id: str
-    ) -> SessionExecutionStats:
+    def start_session(self, session_id: str, connection_id: str) -> SessionExecutionStats:
         """Start tracking a session execution."""
         with self._lock:
             session_stats = SessionExecutionStats(
@@ -360,9 +358,7 @@ class SegmentExecutionStatsCollector:
                 successful_segments = [
                     s for s in recent_segments if s.status == ExecutionStatus.SUCCESS
                 ]
-                recent_success_rate = (
-                    len(successful_segments) / len(recent_segments)
-                ) * 100
+                recent_success_rate = (len(successful_segments) / len(recent_segments)) * 100
 
                 if successful_segments:
                     recent_avg_time = statistics.mean(
@@ -371,9 +367,7 @@ class SegmentExecutionStatsCollector:
 
                 # Calculate recent throughput
                 if len(recent_segments) > 1:
-                    time_span = (
-                        recent_segments[-1].start_time - recent_segments[0].start_time
-                    )
+                    time_span = recent_segments[-1].start_time - recent_segments[0].start_time
                     if time_span > 0:
                         recent_throughput = len(recent_segments) / time_span
 
@@ -442,12 +436,8 @@ class SegmentExecutionStatsCollector:
 
         # Update timing metrics
         execution_time = metrics.total_execution_time_ms
-        session_stats.min_segment_time_ms = min(
-            session_stats.min_segment_time_ms, execution_time
-        )
-        session_stats.max_segment_time_ms = max(
-            session_stats.max_segment_time_ms, execution_time
-        )
+        session_stats.min_segment_time_ms = min(session_stats.min_segment_time_ms, execution_time)
+        session_stats.max_segment_time_ms = max(session_stats.max_segment_time_ms, execution_time)
 
         # Update payload and packet sizes
         session_stats.total_payload_bytes += metrics.payload_size
@@ -472,9 +462,7 @@ class SegmentExecutionStatsCollector:
 
             # Get all segments for this session
             session_segments = [
-                s
-                for s in self._completed_segments
-                if s.session_id == session_stats.session_id
+                s for s in self._completed_segments if s.session_id == session_stats.session_id
             ]
 
             if session_segments:
@@ -489,9 +477,7 @@ class SegmentExecutionStatsCollector:
                 ]
 
                 if timing_errors:
-                    session_stats.avg_timing_accuracy_error_ms = statistics.mean(
-                        timing_errors
-                    )
+                    session_stats.avg_timing_accuracy_error_ms = statistics.mean(timing_errors)
                     # Calculate accuracy percentage (assuming requested delays are reasonable)
                     avg_requested_delay = (
                         statistics.mean(
@@ -501,20 +487,15 @@ class SegmentExecutionStatsCollector:
                                 if s.options.get("delay_ms", 0) > 0
                             ]
                         )
-                        if any(
-                            s.options.get("delay_ms", 0) > 0 for s in session_segments
-                        )
+                        if any(s.options.get("delay_ms", 0) > 0 for s in session_segments)
                         else 1.0
                     )
 
                     if avg_requested_delay > 0:
                         error_percent = (
-                            session_stats.avg_timing_accuracy_error_ms
-                            / avg_requested_delay
+                            session_stats.avg_timing_accuracy_error_ms / avg_requested_delay
                         ) * 100
-                        session_stats.timing_accuracy_percent = max(
-                            0, 100 - error_percent
-                        )
+                        session_stats.timing_accuracy_percent = max(0, 100 - error_percent)
 
         # Calculate session duration and throughput
         if session_stats.end_time:
@@ -542,38 +523,28 @@ class SegmentExecutionStatsCollector:
                 s.total_execution_time_ms for s in completed_sessions if s.is_completed
             ]
             if session_durations:
-                self._global_stats.avg_session_duration_ms = statistics.mean(
-                    session_durations
-                )
+                self._global_stats.avg_session_duration_ms = statistics.mean(session_durations)
 
             segments_per_session = [s.total_segments for s in completed_sessions]
             if segments_per_session:
-                self._global_stats.avg_segments_per_session = statistics.mean(
-                    segments_per_session
-                )
+                self._global_stats.avg_segments_per_session = statistics.mean(segments_per_session)
 
         # Calculate global throughput
         current_time = time.time()
-        if (
-            current_time - self._last_throughput_calculation > 1.0
-        ):  # Update every second
+        if current_time - self._last_throughput_calculation > 1.0:  # Update every second
             recent_segments = [
                 s for s in self._completed_segments if current_time - s.start_time < 60
             ]  # Last minute
 
             if len(recent_segments) > 1:
-                time_span = (
-                    recent_segments[-1].start_time - recent_segments[0].start_time
-                )
+                time_span = recent_segments[-1].start_time - recent_segments[0].start_time
                 if time_span > 0:
                     self._global_stats.global_throughput_segments_per_sec = (
                         len(recent_segments) / time_span
                     )
 
                     total_bytes = sum(s.payload_size for s in recent_segments)
-                    self._global_stats.global_throughput_bytes_per_sec = (
-                        total_bytes / time_span
-                    )
+                    self._global_stats.global_throughput_bytes_per_sec = total_bytes / time_span
 
             self._last_throughput_calculation = current_time
 
@@ -592,14 +563,10 @@ class SegmentExecutionStatsCollector:
             return {"error": "No segments available for timing analysis"}
 
         construction_times = [
-            s.construction_time_ms
-            for s in recent_segments
-            if s.construction_time_ms > 0
+            s.construction_time_ms for s in recent_segments if s.construction_time_ms > 0
         ]
         transmission_times = [
-            s.transmission_time_ms
-            for s in recent_segments
-            if s.transmission_time_ms > 0
+            s.transmission_time_ms for s in recent_segments if s.transmission_time_ms > 0
         ]
         total_times = [s.total_execution_time_ms for s in recent_segments]
         timing_errors = [
@@ -652,32 +619,24 @@ class SegmentExecutionStatsCollector:
         return {
             "ttl_modifications": {
                 "count": ttl_modified,
-                "percentage": (
-                    (ttl_modified / total_segments) * 100 if total_segments > 0 else 0
-                ),
+                "percentage": ((ttl_modified / total_segments) * 100 if total_segments > 0 else 0),
             },
             "checksum_corruptions": {
                 "count": checksum_corrupted,
                 "percentage": (
-                    (checksum_corrupted / total_segments) * 100
-                    if total_segments > 0
-                    else 0
+                    (checksum_corrupted / total_segments) * 100 if total_segments > 0 else 0
                 ),
             },
             "tcp_flags_modifications": {
                 "count": tcp_flags_modified,
                 "percentage": (
-                    (tcp_flags_modified / total_segments) * 100
-                    if total_segments > 0
-                    else 0
+                    (tcp_flags_modified / total_segments) * 100 if total_segments > 0 else 0
                 ),
             },
             "window_size_modifications": {
                 "count": window_size_modified,
                 "percentage": (
-                    (window_size_modified / total_segments) * 100
-                    if total_segments > 0
-                    else 0
+                    (window_size_modified / total_segments) * 100 if total_segments > 0 else 0
                 ),
             },
             "total_segments_analyzed": total_segments,
@@ -706,9 +665,7 @@ class SegmentExecutionStatsCollector:
             "status_distribution": dict(status_counts),
             "error_types": dict(error_counts),
             "error_rate_percent": (
-                (status_counts.get("failed", 0) / total_segments) * 100
-                if total_segments > 0
-                else 0
+                (status_counts.get("failed", 0) / total_segments) * 100 if total_segments > 0 else 0
             ),
             "success_rate_percent": (
                 (status_counts.get("success", 0) / total_segments) * 100

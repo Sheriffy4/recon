@@ -86,9 +86,7 @@ class BehavioralProber:
         if not self.is_available:
             self.logger.warning("Scapy not available - behavioral probes disabled")
 
-    async def run_behavioral_probes(
-        self, target: str, port: int = 443
-    ) -> Dict[str, Any]:
+    async def run_behavioral_probes(self, target: str, port: int = 443) -> Dict[str, Any]:
         """
         Run all behavioral and timing probes against the target.
 
@@ -121,9 +119,7 @@ class BehavioralProber:
                 f"Behavioral probes for {target}:{port} completed. Session tracking detected: {result.session_tracking_detected}"
             )
         except Exception as e:
-            self.logger.error(
-                f"Behavioral probes failed for {target}: {e}", exc_info=True
-            )
+            self.logger.error(f"Behavioral probes failed for {target}: {e}", exc_info=True)
 
         return result.to_dict()
 
@@ -165,9 +161,7 @@ class BehavioralProber:
                         connect_end = time.perf_counter()
 
                         # Send a simple HTTP request
-                        request = (
-                            f"GET / HTTP/1.1\r\nHost: {target_ip}\r\n\r\n".encode()
-                        )
+                        request = f"GET / HTTP/1.1\r\nHost: {target_ip}\r\n\r\n".encode()
                         send_start = time.perf_counter()
                         sock.send(request)
 
@@ -215,14 +209,10 @@ class BehavioralProber:
 
                     # Calculate statistics
                     avg_connect = statistics.mean(connect_times)
-                    std_connect = (
-                        statistics.stdev(connect_times) if len(connect_times) > 1 else 0
-                    )
+                    std_connect = statistics.stdev(connect_times) if len(connect_times) > 1 else 0
                     avg_response = statistics.mean(response_times)
                     std_response = (
-                        statistics.stdev(response_times)
-                        if len(response_times) > 1
-                        else 0
+                        statistics.stdev(response_times) if len(response_times) > 1 else 0
                     )
 
                     result.connection_timing_patterns = {
@@ -241,9 +231,7 @@ class BehavioralProber:
 
                     # Detect timing variance (inconsistent DPI behavior)
                     cv_connect = (std_connect / avg_connect) if avg_connect > 0 else 0
-                    cv_response = (
-                        (std_response / avg_response) if avg_response > 0 else 0
-                    )
+                    cv_response = (std_response / avg_response) if avg_response > 0 else 0
 
                     if cv_connect > 0.5 or cv_response > 0.5:
                         result.timing_variance_detected = True
@@ -310,14 +298,10 @@ class BehavioralProber:
                         time.sleep(0.2)
 
                     except Exception as e:
-                        ip_tracking_results.append(
-                            {"source_port": source_port, "error": str(e)}
-                        )
+                        ip_tracking_results.append({"source_port": source_port, "error": str(e)})
 
                 # Analyze for tracking patterns
-                successful_connections = [
-                    r for r in ip_tracking_results if "error" not in r
-                ]
+                successful_connections = [r for r in ip_tracking_results if "error" not in r]
 
                 if len(successful_connections) >= 3:
                     connect_times = [r["connect_time"] for r in successful_connections]
@@ -325,15 +309,11 @@ class BehavioralProber:
                     # If connection times increase significantly, might indicate tracking
                     if len(connect_times) > 1:
                         time_trend = connect_times[-1] - connect_times[0]
-                        if (
-                            time_trend > 50
-                        ):  # 50ms increase suggests processing overhead
+                        if time_trend > 50:  # 50ms increase suggests processing overhead
                             result.session_tracking_detected = True
 
                     # Check for port-based patterns
-                    response_sizes = [
-                        r["response_size"] for r in successful_connections
-                    ]
+                    response_sizes = [r["response_size"] for r in successful_connections]
                     if len(set(response_sizes)) == 1 and response_sizes[0] > 0:
                         # Identical responses might indicate caching/tracking
                         result.ip_based_tracking = True
@@ -384,9 +364,7 @@ class BehavioralProber:
                         correlation_results.append({"error": str(e)})
 
                 # Analyze correlation results
-                successful_correlations = [
-                    r for r in correlation_results if "error" not in r
-                ]
+                successful_correlations = [r for r in correlation_results if "error" not in r]
                 if successful_correlations:
                     avg_similarity = statistics.mean(
                         [r["response_similarity"] for r in successful_correlations]
@@ -411,9 +389,7 @@ class BehavioralProber:
             return 0.0
 
         # Simple similarity based on response length and common bytes
-        len_similarity = 1.0 - abs(len(resp1) - len(resp2)) / max(
-            len(resp1), len(resp2)
-        )
+        len_similarity = 1.0 - abs(len(resp1) - len(resp2)) / max(len(resp1), len(resp2))
 
         # Check for common patterns (HTTP status codes, headers)
         common_patterns = [b"HTTP/", b"200", b"404", b"Content-Length", b"Server"]
@@ -427,9 +403,7 @@ class BehavioralProber:
 
         return (len_similarity + pattern_similarity) / 2
 
-    async def _probe_dpi_adaptation(
-        self, result: BehavioralProbeResult, target_ip: str, port: int
-    ):
+    async def _probe_dpi_adaptation(self, result: BehavioralProbeResult, target_ip: str, port: int):
         """
         Test for DPI learning and adaptation behavior.
 
@@ -443,12 +417,8 @@ class BehavioralProber:
                 learning_results = []
 
                 # Create a pattern that might trigger DPI learning
-                suspicious_pattern = (
-                    b"GET /admin HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\n"
-                )
-                suspicious_pattern += (
-                    b"User-Agent: sqlmap/1.0\r\n"  # Suspicious user agent
-                )
+                suspicious_pattern = b"GET /admin HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\n"
+                suspicious_pattern += b"User-Agent: sqlmap/1.0\r\n"  # Suspicious user agent
                 suspicious_pattern += b"X-Forwarded-For: 127.0.0.1\r\n\r\n"
 
                 # Send the pattern multiple times and measure response
@@ -474,8 +444,7 @@ class BehavioralProber:
                                     "connect_time": connect_time * 1000,
                                     "response_time": response_time * 1000,
                                     "response_size": len(response),
-                                    "blocked": b"403" in response
-                                    or b"blocked" in response.lower(),
+                                    "blocked": b"403" in response or b"blocked" in response.lower(),
                                     "success": len(response) > 0,
                                 }
                             )
@@ -499,16 +468,12 @@ class BehavioralProber:
                         )
 
                 # Analyze for learning patterns
-                successful_attempts = [
-                    r for r in learning_results if r.get("success", False)
-                ]
+                successful_attempts = [r for r in learning_results if r.get("success", False)]
 
                 if len(successful_attempts) >= 5:
                     # Check if response times increase over time (DPI learning overhead)
                     response_times = [
-                        r["response_time"]
-                        for r in successful_attempts
-                        if "response_time" in r
+                        r["response_time"] for r in successful_attempts if "response_time" in r
                     ]
 
                     if len(response_times) >= 5:
@@ -522,9 +487,7 @@ class BehavioralProber:
                             )  # seconds
 
                     # Check for increasing block rate
-                    blocked_attempts = [
-                        r for r in successful_attempts if r.get("blocked", False)
-                    ]
+                    blocked_attempts = [r for r in successful_attempts if r.get("blocked", False)]
                     if len(blocked_attempts) > 0:
                         # If blocking increases over time, suggests adaptation
                         block_positions = [r["attempt"] for r in blocked_attempts]
@@ -533,9 +496,7 @@ class BehavioralProber:
 
                 # Test bypass degradation with a known working pattern
                 # First establish a working baseline
-                baseline_pattern = (
-                    b"GET / HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\n\r\n"
-                )
+                baseline_pattern = b"GET / HTTP/1.1\r\nHost: " + target_ip.encode() + b"\r\n\r\n"
 
                 baseline_success = False
                 try:
@@ -676,20 +637,14 @@ class BehavioralProber:
                         # No delay - test rapid connections
 
                     except Exception as e:
-                        rate_limit_results.append(
-                            {"attempt": i, "error": str(e), "success": False}
-                        )
+                        rate_limit_results.append({"attempt": i, "error": str(e), "success": False})
 
                 # Analyze rate limiting
-                successful_rate_tests = [
-                    r for r in rate_limit_results if r.get("success", False)
-                ]
+                successful_rate_tests = [r for r in rate_limit_results if r.get("success", False)]
                 rate_limited_responses = [
                     r for r in successful_rate_tests if r.get("rate_limited", False)
                 ]
-                timeout_responses = [
-                    r for r in rate_limit_results if r.get("timeout", False)
-                ]
+                timeout_responses = [r for r in rate_limit_results if r.get("timeout", False)]
 
                 if rate_limited_responses or len(timeout_responses) > 5:
                     result.rate_limiting_detected = True
@@ -727,8 +682,7 @@ class BehavioralProber:
                         fingerprint_results[test_name] = {
                             "connect_time": connect_time * 1000,
                             "response_size": len(response),
-                            "blocked": b"403" in response
-                            or b"blocked" in response.lower(),
+                            "blocked": b"403" in response or b"blocked" in response.lower(),
                             "success": len(response) > 0,
                         }
 

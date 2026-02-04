@@ -183,9 +183,7 @@ class DPIFingerprint:
             if isinstance(field_value, Enum):
                 result[field_name] = field_value.value
             elif (
-                isinstance(field_value, list)
-                and field_value
-                and isinstance(field_value[0], tuple)
+                isinstance(field_value, list) and field_value and isinstance(field_value[0], tuple)
             ):
                 # Handle alternative_types list of tuples with enums
                 result[field_name] = [
@@ -262,14 +260,10 @@ class DPIFingerprint:
             strategies.append("ipv6_tunneling")
 
         if self.dns_hijacking_detected:
-            strategies.extend(
-                ["dns_over_tls", "dns_over_https", "alternative_dns_servers"]
-            )
+            strategies.extend(["dns_over_tls", "dns_over_https", "alternative_dns_servers"])
 
         if self.http_header_filtering:
-            strategies.extend(
-                ["header_case_manipulation", "header_order_randomization"]
-            )
+            strategies.extend(["header_case_manipulation", "header_order_randomization"])
 
         if self.rst_injection_detected:
             strategies.extend(["tcp_sequence_manipulation", "connection_multiplexing"])
@@ -416,15 +410,11 @@ class DPIFingerprint:
             self.connection_reset_timing = other.connection_reset_timing
 
         # Merge lists (union)
-        self.handshake_anomalies = list(
-            set(self.handshake_anomalies + other.handshake_anomalies)
-        )
+        self.handshake_anomalies = list(set(self.handshake_anomalies + other.handshake_anomalies))
         self.http_method_restrictions = list(
             set(self.http_method_restrictions + other.http_method_restrictions)
         )
-        self.protocol_whitelist = list(
-            set(self.protocol_whitelist + other.protocol_whitelist)
-        )
+        self.protocol_whitelist = list(set(self.protocol_whitelist + other.protocol_whitelist))
         self.analysis_methods_used = list(
             set(self.analysis_methods_used + other.analysis_methods_used)
         )
@@ -475,10 +465,7 @@ class DPIFingerprint:
         if self.connection_reset_timing < 0:
             errors.append("Connection reset timing cannot be negative")
 
-        if (
-            self.packet_size_limitations is not None
-            and self.packet_size_limitations <= 0
-        ):
+        if self.packet_size_limitations is not None and self.packet_size_limitations <= 0:
             errors.append("Packet size limitations must be positive")
 
         # Validate enum values in alternative_types

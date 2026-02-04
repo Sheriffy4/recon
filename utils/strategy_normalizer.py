@@ -22,9 +22,7 @@ def normalize_zapret_string(strategy: str) -> str:
         return strategy
 
     # Fix split-count values < 3 (no bypass benefit)
-    strategy = re.sub(
-        r"--dpi-desync-split-count=([0-2])", "--dpi-desync-split-count=3", strategy
-    )
+    strategy = re.sub(r"--dpi-desync-split-count=([0-2])", "--dpi-desync-split-count=3", strategy)
 
     # Normalize TTL to reasonable range (3-8)
     def normalize_ttl(match):
@@ -49,9 +47,7 @@ def normalize_zapret_string(strategy: str) -> str:
         return f"--dpi-desync-split-count={normalized_count}"
 
     if "multisplit" in strategy:
-        strategy = re.sub(
-            r"--dpi-desync-split-count=(\d+)", normalize_multisplit_count, strategy
-        )
+        strategy = re.sub(r"--dpi-desync-split-count=(\d+)", normalize_multisplit_count, strategy)
 
     # Convert legacy disorder to fakedisorder for compatibility
     strategy = re.sub(r"--dpi-desync=disorder\b", "--dpi-desync=fakedisorder", strategy)
@@ -121,9 +117,7 @@ def validate_strategy_parameters(strategy: str) -> Dict[str, Any]:
     # Check for legacy methods that need updating
     if re.search(r"--dpi-desync=disorder\b", strategy):
         issues.append("Using legacy 'disorder' method")
-        recommendations.append(
-            "Use 'fakedisorder' instead of 'disorder' for better compatibility"
-        )
+        recommendations.append("Use 'fakedisorder' instead of 'disorder' for better compatibility")
 
     return {
         "valid": len(issues) == 0,
@@ -197,7 +191,9 @@ def recommend_strategy_for_hints(hints: List[str]) -> str:
         return "--dpi-desync=fake,fakeddisorder --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum"
 
     # Default recommendation
-    return "--dpi-desync=fake --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum"
+    return (
+        "--dpi-desync=fake --dpi-desync-split-pos=3 --dpi-desync-ttl=4 --dpi-desync-fooling=badsum"
+    )
 
 
 if __name__ == "__main__":

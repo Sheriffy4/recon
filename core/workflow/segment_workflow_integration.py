@@ -48,9 +48,7 @@ class SegmentWorkflowConfig:
 
     # Performance optimization
     enable_performance_optimization: bool = True
-    optimization_config: OptimizationConfig = field(
-        default_factory=lambda: OptimizationConfig()
-    )
+    optimization_config: OptimizationConfig = field(default_factory=lambda: OptimizationConfig())
 
     # Monitoring and statistics
     enable_detailed_monitoring: bool = True
@@ -163,21 +161,13 @@ class SegmentWorkflowIntegration:
         try:
             # Execute based on mode
             if self.config.execution_mode == WorkflowExecutionMode.SINGLE_SHOT:
-                await self._execute_single_shot(
-                    attack_scenarios, result, progress_callback
-                )
+                await self._execute_single_shot(attack_scenarios, result, progress_callback)
             elif self.config.execution_mode == WorkflowExecutionMode.CONTINUOUS:
-                await self._execute_continuous(
-                    attack_scenarios, result, progress_callback
-                )
+                await self._execute_continuous(attack_scenarios, result, progress_callback)
             elif self.config.execution_mode == WorkflowExecutionMode.ADAPTIVE:
-                await self._execute_adaptive(
-                    attack_scenarios, result, progress_callback
-                )
+                await self._execute_adaptive(attack_scenarios, result, progress_callback)
             elif self.config.execution_mode == WorkflowExecutionMode.BENCHMARK:
-                await self._execute_benchmark(
-                    attack_scenarios, result, progress_callback
-                )
+                await self._execute_benchmark(attack_scenarios, result, progress_callback)
 
             # Finalize results
             result.end_time = time.time()
@@ -224,13 +214,9 @@ class SegmentWorkflowIntegration:
 
         # Execute scenarios sequentially or concurrently based on config
         if self.config.max_concurrent_attacks > 1:
-            await self._execute_concurrent_scenarios(
-                attack_scenarios, result, progress_callback
-            )
+            await self._execute_concurrent_scenarios(attack_scenarios, result, progress_callback)
         else:
-            await self._execute_sequential_scenarios(
-                attack_scenarios, result, progress_callback
-            )
+            await self._execute_sequential_scenarios(attack_scenarios, result, progress_callback)
 
     async def _execute_continuous(
         self,
@@ -251,9 +237,7 @@ class SegmentWorkflowIntegration:
             print(f"   Iteration {iteration}")
 
             # Execute scenarios
-            await self._execute_sequential_scenarios(
-                attack_scenarios, result, progress_callback
-            )
+            await self._execute_sequential_scenarios(attack_scenarios, result, progress_callback)
 
             # Check for optimization opportunities
             if self.config.enable_closed_loop_optimization and iteration % 5 == 0:
@@ -286,9 +270,7 @@ class SegmentWorkflowIntegration:
                 if adaptations:
                     print(f"   Applied {len(adaptations)} adaptations")
                     # Apply adaptations to remaining scenarios
-                    self._apply_adaptations_to_scenarios(
-                        adaptations, attack_scenarios[i + 1 :]
-                    )
+                    self._apply_adaptations_to_scenarios(adaptations, attack_scenarios[i + 1 :])
 
             # Progress callback
             if progress_callback:
@@ -319,9 +301,7 @@ class SegmentWorkflowIntegration:
             iteration_start = time.time()
 
             # Execute all scenarios
-            await self._execute_sequential_scenarios(
-                attack_scenarios, result, progress_callback
-            )
+            await self._execute_sequential_scenarios(attack_scenarios, result, progress_callback)
 
             iteration_duration = time.time() - iteration_start
 
@@ -368,10 +348,7 @@ class SegmentWorkflowIntegration:
                 return await self._execute_single_scenario(scenario, result), index
 
         # Execute scenarios concurrently
-        tasks = [
-            execute_with_semaphore(scenario, i)
-            for i, scenario in enumerate(attack_scenarios)
-        ]
+        tasks = [execute_with_semaphore(scenario, i) for i, scenario in enumerate(attack_scenarios)]
 
         completed_tasks = 0
         for task in asyncio.as_completed(tasks):
@@ -437,9 +414,7 @@ class SegmentWorkflowIntegration:
                 result.successful_attacks += 1
 
                 # Estimate effectiveness
-                effectiveness = self._estimate_attack_effectiveness(
-                    attack_result, context
-                )
+                effectiveness = self._estimate_attack_effectiveness(attack_result, context)
                 result.effectiveness_scores.append(effectiveness)
             else:
                 result.failed_attacks += 1
@@ -450,9 +425,7 @@ class SegmentWorkflowIntegration:
             # Collect segment statistics
             if attack_result.segments:
                 result.total_segments_executed += len(attack_result.segments)
-                result.total_bytes_transmitted += sum(
-                    len(seg[0]) for seg in attack_result.segments
-                )
+                result.total_bytes_transmitted += sum(len(seg[0]) for seg in attack_result.segments)
 
             # Create execution detail record
             execution_detail = {
@@ -464,9 +437,7 @@ class SegmentWorkflowIntegration:
                 "technique_used": attack_result.technique_used,
                 "packets_sent": attack_result.packets_sent,
                 "bytes_sent": attack_result.bytes_sent,
-                "segments_count": (
-                    len(attack_result.segments) if attack_result.segments else 0
-                ),
+                "segments_count": (len(attack_result.segments) if attack_result.segments else 0),
                 "effectiveness_score": (
                     effectiveness if attack_result.status == AttackStatus.SUCCESS else 0
                 ),
@@ -498,9 +469,7 @@ class SegmentWorkflowIntegration:
 
             return execution_detail
 
-    def _estimate_attack_effectiveness(
-        self, attack_result, context: AttackContext
-    ) -> float:
+    def _estimate_attack_effectiveness(self, attack_result, context: AttackContext) -> float:
         """Estimate attack effectiveness based on result and context."""
 
         # Basic effectiveness estimation
@@ -640,13 +609,9 @@ class SegmentWorkflowIntegration:
             )
 
         # Calculate average execution time
-        execution_times = [
-            detail["execution_time_ms"] for detail in result.execution_details
-        ]
+        execution_times = [detail["execution_time_ms"] for detail in result.execution_details]
         if execution_times:
-            result.average_execution_time_ms = sum(execution_times) / len(
-                execution_times
-            )
+            result.average_execution_time_ms = sum(execution_times) / len(execution_times)
 
     def _generate_recommendations(self, result: WorkflowExecutionResult):
         """Generate recommendations based on workflow results."""

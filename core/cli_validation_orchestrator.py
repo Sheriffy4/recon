@@ -87,9 +87,7 @@ class CLIValidationReport:
             "strategy_validation": (
                 {
                     "passed": self.strategy_validation.passed,
-                    "strategy_type": self.strategy_validation.strategy.get(
-                        "type", "unknown"
-                    ),
+                    "strategy_type": self.strategy_validation.strategy.get("type", "unknown"),
                     "errors_count": len(self.strategy_validation.errors),
                     "warnings_count": len(self.strategy_validation.warnings),
                 }
@@ -120,9 +118,7 @@ class CLIValidationOrchestrator:
     - Validation result formatting
     """
 
-    def __init__(
-        self, baselines_dir: Optional[Path] = None, output_dir: Optional[Path] = None
-    ):
+    def __init__(self, baselines_dir: Optional[Path] = None, output_dir: Optional[Path] = None):
         """
         Initialize CLI validation orchestrator.
 
@@ -159,8 +155,7 @@ class CLIValidationOrchestrator:
 
         # Save detailed validation report
         report_file = (
-            self.output_dir
-            / f"pcap_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            self.output_dir / f"pcap_validation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
         self._save_pcap_validation_report(result, report_file)
 
@@ -199,9 +194,7 @@ class CLIValidationOrchestrator:
                 attack_mapping = get_attack_mapping()
 
                 if not attack_mapping.is_supported(attack_type):
-                    result.errors.append(
-                        f"Attack type '{attack_type}' not found in registry"
-                    )
+                    result.errors.append(f"Attack type '{attack_type}' not found in registry")
                     result.passed = False
                 else:
                     result.details["attack_available"] = True
@@ -229,10 +222,7 @@ class CLIValidationOrchestrator:
 
                 # Check required parameters
                 for param in attack_info.parameters:
-                    if (
-                        param not in strategy
-                        and param not in attack_info.default_params
-                    ):
+                    if param not in strategy and param not in attack_info.default_params:
                         result.warnings.append(
                             f"Parameter '{param}' not provided, will use default if available"
                         )
@@ -294,16 +284,13 @@ class CLIValidationOrchestrator:
 
         # Save comparison report
         report_file = (
-            self.output_dir
-            / f"baseline_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            self.output_dir / f"baseline_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
         self._save_comparison_report(comparison, report_file)
 
         return comparison
 
-    def save_baseline(
-        self, results: List[Dict[str, Any]], name: Optional[str] = None
-    ) -> Path:
+    def save_baseline(self, results: List[Dict[str, Any]], name: Optional[str] = None) -> Path:
         """
         Save current results as baseline.
 
@@ -430,9 +417,7 @@ class CLIValidationOrchestrator:
 
             lines.append(f"  {BOLD}Status:{RESET} {status}")
             lines.append(f"  {BOLD}File:{RESET} {report.pcap_validation.pcap_file}")
-            lines.append(
-                f"  {BOLD}Packets:{RESET} {report.pcap_validation.packet_count}"
-            )
+            lines.append(f"  {BOLD}Packets:{RESET} {report.pcap_validation.packet_count}")
 
             issues_count = len(report.pcap_validation.issues)
             warnings_count = len(report.pcap_validation.warnings)
@@ -441,9 +426,7 @@ class CLIValidationOrchestrator:
             warnings_color = YELLOW if warnings_count > 0 else GREEN
 
             lines.append(f"  {BOLD}Issues:{RESET} {issues_color}{issues_count}{RESET}")
-            lines.append(
-                f"  {BOLD}Warnings:{RESET} {warnings_color}{warnings_count}{RESET}"
-            )
+            lines.append(f"  {BOLD}Warnings:{RESET} {warnings_color}{warnings_count}{RESET}")
 
             if report.pcap_validation.issues:
                 lines.append(f"\n  {RED}Issues Found:{RESET}")
@@ -460,9 +443,7 @@ class CLIValidationOrchestrator:
                     lines.append(f"    {YELLOW}{WARN}{RESET} {warning}")
                 if len(report.pcap_validation.warnings) > 10:
                     remaining = len(report.pcap_validation.warnings) - 10
-                    lines.append(
-                        f"    {YELLOW}... and {remaining} more warnings{RESET}"
-                    )
+                    lines.append(f"    {YELLOW}... and {remaining} more warnings{RESET}")
 
             lines.append("")
 
@@ -489,9 +470,7 @@ class CLIValidationOrchestrator:
             warnings_color = YELLOW if warnings_count > 0 else GREEN
 
             lines.append(f"  {BOLD}Errors:{RESET} {errors_color}{errors_count}{RESET}")
-            lines.append(
-                f"  {BOLD}Warnings:{RESET} {warnings_color}{warnings_count}{RESET}"
-            )
+            lines.append(f"  {BOLD}Warnings:{RESET} {warnings_color}{warnings_count}{RESET}")
 
             if report.strategy_validation.errors:
                 lines.append(f"\n  {RED}Errors Found:{RESET}")
@@ -500,16 +479,12 @@ class CLIValidationOrchestrator:
 
             if report.strategy_validation.warnings:
                 lines.append(f"\n  {YELLOW}Warnings:{RESET}")
-                display_count = (
-                    10 if not verbose else len(report.strategy_validation.warnings)
-                )
+                display_count = 10 if not verbose else len(report.strategy_validation.warnings)
                 for warn in report.strategy_validation.warnings[:display_count]:
                     lines.append(f"    {YELLOW}{WARN}{RESET} {warn}")
                 if len(report.strategy_validation.warnings) > display_count:
                     remaining = len(report.strategy_validation.warnings) - display_count
-                    lines.append(
-                        f"    {YELLOW}... and {remaining} more warnings{RESET}"
-                    )
+                    lines.append(f"    {YELLOW}... and {remaining} more warnings{RESET}")
 
             if verbose and report.strategy_validation.details:
                 lines.append(f"\n  {BLUE}Details:{RESET}")
@@ -523,12 +498,8 @@ class CLIValidationOrchestrator:
             lines.append(f"{BOLD}{BLUE}BASELINE COMPARISON:{RESET}")
             lines.append(f"{CYAN}{'-' * 70}{RESET}")
 
-            lines.append(
-                f"  {BOLD}Baseline:{RESET} {report.baseline_comparison.baseline_name}"
-            )
-            lines.append(
-                f"  {BOLD}Total Tests:{RESET} {report.baseline_comparison.total_tests}"
-            )
+            lines.append(f"  {BOLD}Baseline:{RESET} {report.baseline_comparison.baseline_name}")
+            lines.append(f"  {BOLD}Total Tests:{RESET} {report.baseline_comparison.total_tests}")
 
             regressions_count = len(report.baseline_comparison.regressions)
             improvements_count = len(report.baseline_comparison.improvements)
@@ -542,42 +513,28 @@ class CLIValidationOrchestrator:
             lines.append(
                 f"  {BOLD}Improvements:{RESET} {improvements_color}{improvements_count}{RESET}"
             )
-            lines.append(
-                f"  {BOLD}Unchanged:{RESET} {report.baseline_comparison.unchanged}"
-            )
+            lines.append(f"  {BOLD}Unchanged:{RESET} {report.baseline_comparison.unchanged}")
 
             if report.baseline_comparison.regressions:
                 lines.append(f"\n  {RED}{BOLD}{WARN} REGRESSIONS DETECTED:{RESET}")
                 for reg in report.baseline_comparison.regressions:
                     severity_indicator = f"{RED}[{reg.severity.value.upper()}]{RESET}"
-                    lines.append(
-                        f"    {severity_indicator} {reg.attack_name}: {reg.description}"
-                    )
+                    lines.append(f"    {severity_indicator} {reg.attack_name}: {reg.description}")
 
             if report.baseline_comparison.improvements:
                 lines.append(f"\n  {GREEN}{CHECK} IMPROVEMENTS:{RESET}")
-                display_count = (
-                    10 if not verbose else len(report.baseline_comparison.improvements)
-                )
+                display_count = 10 if not verbose else len(report.baseline_comparison.improvements)
                 for imp in report.baseline_comparison.improvements[:display_count]:
-                    lines.append(
-                        f"    {GREEN}{CHECK}{RESET} {imp.attack_name}: {imp.description}"
-                    )
+                    lines.append(f"    {GREEN}{CHECK}{RESET} {imp.attack_name}: {imp.description}")
                 if len(report.baseline_comparison.improvements) > display_count:
-                    remaining = (
-                        len(report.baseline_comparison.improvements) - display_count
-                    )
-                    lines.append(
-                        f"    {GREEN}... and {remaining} more improvements{RESET}"
-                    )
+                    remaining = len(report.baseline_comparison.improvements) - display_count
+                    lines.append(f"    {GREEN}... and {remaining} more improvements{RESET}")
 
             lines.append("")
 
         # Baseline Saved
         if report.baseline_saved:
-            lines.append(
-                f"  {GREEN}{CHECK} Baseline saved:{RESET} {report.baseline_saved}"
-            )
+            lines.append(f"  {GREEN}{CHECK} Baseline saved:{RESET} {report.baseline_saved}")
             lines.append("")
 
         # Summary
@@ -627,9 +584,7 @@ class CLIValidationOrchestrator:
             results=baseline_results,
         )
 
-    def _save_pcap_validation_report(
-        self, result: PCAPValidationResult, output_path: Path
-    ):
+    def _save_pcap_validation_report(self, result: PCAPValidationResult, output_path: Path):
         """Save PCAP validation report to file."""
         report = {
             "timestamp": datetime.now().isoformat(),
@@ -668,16 +623,12 @@ class CLIValidationOrchestrator:
             status = "PASSED" if report.strategy_validation.passed else "FAILED"
             lines.append(f"Strategy Validation: {status}")
             if not report.strategy_validation.passed:
-                lines.append(
-                    f"  - {len(report.strategy_validation.errors)} errors found"
-                )
+                lines.append(f"  - {len(report.strategy_validation.errors)} errors found")
 
         if report.baseline_comparison:
             reg_count = len(report.baseline_comparison.regressions)
             imp_count = len(report.baseline_comparison.improvements)
-            lines.append(
-                f"Baseline Comparison: {reg_count} regressions, {imp_count} improvements"
-            )
+            lines.append(f"Baseline Comparison: {reg_count} regressions, {imp_count} improvements")
             if reg_count > 0:
                 lines.append("  - WARNING: Regressions detected!")
 
@@ -711,9 +662,7 @@ class CLIValidationOrchestrator:
 
         return output_path
 
-    def format_validation_output_rich(
-        self, report: CLIValidationReport, console=None
-    ) -> None:
+    def format_validation_output_rich(self, report: CLIValidationReport, console=None) -> None:
         """
         Format validation report using rich library for enhanced output.
 
@@ -733,9 +682,7 @@ class CLIValidationOrchestrator:
             # Header
             console.print()
             console.print(
-                Panel.fit(
-                    "[bold cyan]VALIDATION REPORT[/bold cyan]", border_style="cyan"
-                )
+                Panel.fit("[bold cyan]VALIDATION REPORT[/bold cyan]", border_style="cyan")
             )
             console.print(f"[blue]Timestamp:[/blue] {report.timestamp}")
             console.print()
@@ -770,17 +717,13 @@ class CLIValidationOrchestrator:
                 pcap_table.add_row("File", str(report.pcap_validation.pcap_file))
                 pcap_table.add_row("Packets", str(report.pcap_validation.packet_count))
 
-                issues_color = (
-                    "red" if len(report.pcap_validation.issues) > 0 else "green"
-                )
+                issues_color = "red" if len(report.pcap_validation.issues) > 0 else "green"
                 pcap_table.add_row(
                     "Issues",
                     f"[{issues_color}]{len(report.pcap_validation.issues)}[/{issues_color}]",
                 )
 
-                warnings_color = (
-                    "yellow" if len(report.pcap_validation.warnings) > 0 else "green"
-                )
+                warnings_color = "yellow" if len(report.pcap_validation.warnings) > 0 else "green"
                 pcap_table.add_row(
                     "Warnings",
                     f"[{warnings_color}]{len(report.pcap_validation.warnings)}[/{warnings_color}]",
@@ -794,9 +737,7 @@ class CLIValidationOrchestrator:
                         console.print(f"  [red]✗[/red] {issue}")
                     if len(report.pcap_validation.issues) > 5:
                         remaining = len(report.pcap_validation.issues) - 5
-                        console.print(
-                            f"  [yellow]... and {remaining} more issues[/yellow]"
-                        )
+                        console.print(f"  [yellow]... and {remaining} more issues[/yellow]")
 
                 console.print()
 
@@ -817,18 +758,14 @@ class CLIValidationOrchestrator:
                     report.strategy_validation.strategy.get("type", "unknown"),
                 )
 
-                errors_color = (
-                    "red" if len(report.strategy_validation.errors) > 0 else "green"
-                )
+                errors_color = "red" if len(report.strategy_validation.errors) > 0 else "green"
                 strategy_table.add_row(
                     "Errors",
                     f"[{errors_color}]{len(report.strategy_validation.errors)}[/{errors_color}]",
                 )
 
                 warnings_color = (
-                    "yellow"
-                    if len(report.strategy_validation.warnings) > 0
-                    else "green"
+                    "yellow" if len(report.strategy_validation.warnings) > 0 else "green"
                 )
                 strategy_table.add_row(
                     "Warnings",
@@ -848,9 +785,7 @@ class CLIValidationOrchestrator:
                         console.print(f"  [yellow]⚠[/yellow] {warn}")
                     if len(report.strategy_validation.warnings) > 5:
                         remaining = len(report.strategy_validation.warnings) - 5
-                        console.print(
-                            f"  [yellow]... and {remaining} more warnings[/yellow]"
-                        )
+                        console.print(f"  [yellow]... and {remaining} more warnings[/yellow]")
 
                 console.print()
 
@@ -860,17 +795,11 @@ class CLIValidationOrchestrator:
                 baseline_table.add_column("Metric", style="cyan")
                 baseline_table.add_column("Value", style="magenta")
 
-                baseline_table.add_row(
-                    "Baseline", report.baseline_comparison.baseline_name
-                )
-                baseline_table.add_row(
-                    "Total Tests", str(report.baseline_comparison.total_tests)
-                )
+                baseline_table.add_row("Baseline", report.baseline_comparison.baseline_name)
+                baseline_table.add_row("Total Tests", str(report.baseline_comparison.total_tests))
 
                 regressions_color = (
-                    "red"
-                    if len(report.baseline_comparison.regressions) > 0
-                    else "green"
+                    "red" if len(report.baseline_comparison.regressions) > 0 else "green"
                 )
                 baseline_table.add_row(
                     "Regressions",
@@ -878,18 +807,14 @@ class CLIValidationOrchestrator:
                 )
 
                 improvements_color = (
-                    "green"
-                    if len(report.baseline_comparison.improvements) > 0
-                    else "white"
+                    "green" if len(report.baseline_comparison.improvements) > 0 else "white"
                 )
                 baseline_table.add_row(
                     "Improvements",
                     f"[{improvements_color}]{len(report.baseline_comparison.improvements)}[/{improvements_color}]",
                 )
 
-                baseline_table.add_row(
-                    "Unchanged", str(report.baseline_comparison.unchanged)
-                )
+                baseline_table.add_row("Unchanged", str(report.baseline_comparison.unchanged))
 
                 console.print(baseline_table)
 
@@ -903,22 +828,16 @@ class CLIValidationOrchestrator:
                 if report.baseline_comparison.improvements:
                     console.print("\n[bold green]✓ IMPROVEMENTS:[/bold green]")
                     for imp in report.baseline_comparison.improvements[:5]:
-                        console.print(
-                            f"  [green]✓[/green] {imp.attack_name}: {imp.description}"
-                        )
+                        console.print(f"  [green]✓[/green] {imp.attack_name}: {imp.description}")
                     if len(report.baseline_comparison.improvements) > 5:
                         remaining = len(report.baseline_comparison.improvements) - 5
-                        console.print(
-                            f"  [green]... and {remaining} more improvements[/green]"
-                        )
+                        console.print(f"  [green]... and {remaining} more improvements[/green]")
 
                 console.print()
 
             # Baseline Saved
             if report.baseline_saved:
-                console.print(
-                    f"[green]✓ Baseline saved:[/green] {report.baseline_saved}"
-                )
+                console.print(f"[green]✓ Baseline saved:[/green] {report.baseline_saved}")
                 console.print()
 
             # Summary
@@ -934,9 +853,7 @@ class CLIValidationOrchestrator:
         except ImportError:
             # Fallback to plain text if rich is not available
             self.logger.warning("Rich library not available, using plain text output")
-            output = self.format_validation_output(
-                report, use_colors=True, verbose=False
-            )
+            output = self.format_validation_output(report, use_colors=True, verbose=False)
             print(output)
 
 

@@ -41,9 +41,7 @@ class StrategySynthesizer:
 
     def __init__(self):
         self.kb = CdnAsnKnowledgeBase() if (CdnAsnKnowledgeBase is not None) else None
-        self.fooling_selector = (
-            FoolingSelector() if (FoolingSelector is not None) else None
-        )
+        self.fooling_selector = FoolingSelector() if (FoolingSelector is not None) else None
 
     def _auto_split_pos(self, ch: Optional[bytes]) -> Optional[int]:
         if not ch or TLSParser is None:

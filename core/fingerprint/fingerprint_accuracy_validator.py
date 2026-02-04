@@ -333,9 +333,7 @@ class FingerprintAccuracyValidator:
 
         # Run all test cases
         for test_case in self.test_cases:
-            LOG.info(
-                f"Running test case: {test_case.test_id} - {test_case.description}"
-            )
+            LOG.info(f"Running test case: {test_case.test_id} - {test_case.description}")
 
             result = await self._run_single_test_case(test_case)
             self.test_results.append(result)
@@ -369,9 +367,7 @@ class FingerprintAccuracyValidator:
 
         return summary
 
-    async def _run_single_test_case(
-        self, test_case: ValidationTestCase
-    ) -> AccuracyTestResult:
+    async def _run_single_test_case(self, test_case: ValidationTestCase) -> AccuracyTestResult:
         """Run a single validation test case"""
 
         start_time = time.time()
@@ -388,9 +384,7 @@ class FingerprintAccuracyValidator:
                 # Evaluate detection accuracy
                 detected_dpi_type = fingerprint_result.get("dpi_type", "unknown")
                 actual_confidence = fingerprint_result.get("confidence", 0.0)
-                strategy_recommendations = fingerprint_result.get(
-                    "strategy_recommendations", []
-                )
+                strategy_recommendations = fingerprint_result.get("strategy_recommendations", [])
 
                 # Check DPI type accuracy
                 dpi_type_accurate = self._is_dpi_type_accurate(
@@ -398,9 +392,7 @@ class FingerprintAccuracyValidator:
                 )
 
                 # Check confidence accuracy
-                confidence_accurate = (
-                    actual_confidence >= test_case.expected_confidence_min
-                )
+                confidence_accurate = actual_confidence >= test_case.expected_confidence_min
 
                 # Evaluate strategy recommendations
                 strategy_accuracy = self._evaluate_strategy_accuracy(
@@ -409,12 +401,10 @@ class FingerprintAccuracyValidator:
 
                 # Determine false positive/negative
                 false_positive = (
-                    test_case.expected_dpi_type == "unknown"
-                    and detected_dpi_type != "unknown"
+                    test_case.expected_dpi_type == "unknown" and detected_dpi_type != "unknown"
                 )
                 false_negative = (
-                    test_case.expected_dpi_type != "unknown"
-                    and detected_dpi_type == "unknown"
+                    test_case.expected_dpi_type != "unknown" and detected_dpi_type == "unknown"
                 )
 
                 return AccuracyTestResult(
@@ -504,9 +494,7 @@ class FingerprintAccuracyValidator:
         # Fallback to simulation based on network data
         return self._simulate_fingerprint_from_data(network_data)
 
-    def _simulate_fingerprint_from_data(
-        self, network_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _simulate_fingerprint_from_data(self, network_data: Dict[str, Any]) -> Dict[str, Any]:
         """Simulate fingerprint result from network data"""
 
         # Analyze network data to determine DPI type
@@ -611,9 +599,7 @@ class FingerprintAccuracyValidator:
             ["--dpi-desync=fake --dpi-desync-ttl=4 --dpi-desync-fooling=badsum"],
         )
 
-    async def _generate_strategy_recommendations(
-        self, fingerprint_result: Any
-    ) -> List[str]:
+    async def _generate_strategy_recommendations(self, fingerprint_result: Any) -> List[str]:
         """Generate strategy recommendations from fingerprint result"""
 
         if hasattr(fingerprint_result, "dpi_type"):
@@ -640,17 +626,13 @@ class FingerprintAccuracyValidator:
             return True
         if "sandvine" in expected_lower and "sandvine" in detected_lower:
             return True
-        if "gfw" in expected_lower and (
-            "gfw" in detected_lower or "firewall" in detected_lower
-        ):
+        if "gfw" in expected_lower and ("gfw" in detected_lower or "firewall" in detected_lower):
             return True
         if "cloudflare" in expected_lower and "cloudflare" in detected_lower:
             return True
         if "aws" in expected_lower and "aws" in detected_lower:
             return True
-        if "palo_alto" in expected_lower and (
-            "palo" in detected_lower or "alto" in detected_lower
-        ):
+        if "palo_alto" in expected_lower and ("palo" in detected_lower or "alto" in detected_lower):
             return True
 
         return False
@@ -726,9 +708,7 @@ class FingerprintAccuracyValidator:
 
         # Extract fooling
         if "--dpi-desync-fooling=" in strategy:
-            start = strategy.find("--dpi-desync-fooling=") + len(
-                "--dpi-desync-fooling="
-            )
+            start = strategy.find("--dpi-desync-fooling=") + len("--dpi-desync-fooling=")
             end = strategy.find(" ", start)
             if end == -1:
                 end = len(strategy)
@@ -765,9 +745,7 @@ class FingerprintAccuracyValidator:
         test_durations = [r.test_duration for r in self.test_results]
         performance_metrics = {
             "total_test_time": total_time,
-            "average_test_duration": (
-                statistics.mean(test_durations) if test_durations else 0.0
-            ),
+            "average_test_duration": (statistics.mean(test_durations) if test_durations else 0.0),
             "fastest_test": min(test_durations) if test_durations else 0.0,
             "slowest_test": max(test_durations) if test_durations else 0.0,
         }
@@ -798,9 +776,7 @@ class FingerprintAccuracyValidator:
                 "timestamp": timestamp,
             }
 
-            results_file = (
-                Path("recon") / "reports" / f"fingerprint_validation_{timestamp}.json"
-            )
+            results_file = Path("recon") / "reports" / f"fingerprint_validation_{timestamp}.json"
             results_file.parent.mkdir(parents=True, exist_ok=True)
 
             with open(results_file, "w") as f:
@@ -821,8 +797,7 @@ class FingerprintAccuracyValidator:
         previous = self.validation_history[-2]
 
         trends = {
-            "overall_accuracy_change": recent.overall_accuracy
-            - previous.overall_accuracy,
+            "overall_accuracy_change": recent.overall_accuracy - previous.overall_accuracy,
             "confidence_accuracy_change": recent.average_confidence_accuracy
             - previous.average_confidence_accuracy,
             "strategy_accuracy_change": recent.average_strategy_accuracy
@@ -883,9 +858,7 @@ class FingerprintAccuracyValidator:
                 }
 
                 # Get rule engine recommendations
-                rule_result = self.strategy_rule_engine.evaluate_fingerprint(
-                    fingerprint_data
-                )
+                rule_result = self.strategy_rule_engine.evaluate_fingerprint(fingerprint_data)
                 recommended_techniques = rule_result.recommended_techniques
 
                 # Compare with expected strategies
@@ -893,9 +866,7 @@ class FingerprintAccuracyValidator:
                 recommended_strategies = set(recommended_techniques)
 
                 # Calculate accuracy metrics
-                true_positives = len(
-                    expected_strategies.intersection(recommended_strategies)
-                )
+                true_positives = len(expected_strategies.intersection(recommended_strategies))
                 false_positives = len(recommended_strategies - expected_strategies)
                 false_negatives = len(expected_strategies - recommended_strategies)
 
@@ -937,12 +908,8 @@ class FingerprintAccuracyValidator:
                     validation_results["accurate_recommendations"] += 1
 
                 # Update rule engine performance stats
-                self.rule_engine_performance["rules_tested"] += len(
-                    rule_result.matched_rules
-                )
-                self.rule_engine_performance[
-                    "accurate_recommendations"
-                ] += true_positives
+                self.rule_engine_performance["rules_tested"] += len(rule_result.matched_rules)
+                self.rule_engine_performance["accurate_recommendations"] += true_positives
                 self.rule_engine_performance["false_positives"] += false_positives
                 self.rule_engine_performance["false_negatives"] += false_negatives
 
@@ -958,8 +925,7 @@ class FingerprintAccuracyValidator:
                 validation_results["strategy_accuracy_scores"]
             )
             validation_results["accuracy_rate"] = (
-                validation_results["accurate_recommendations"]
-                / validation_results["total_tests"]
+                validation_results["accurate_recommendations"] / validation_results["total_tests"]
             )
         else:
             validation_results["average_f1_score"] = 0.0
@@ -1001,9 +967,7 @@ async def main():
         LOG.info(f"False positives: {summary.false_positives}")
         LOG.info(f"False negatives: {summary.false_negatives}")
         LOG.info(f"Overall accuracy: {summary.overall_accuracy:.2%}")
-        LOG.info(
-            f"Average confidence accuracy: {summary.average_confidence_accuracy:.2f}"
-        )
+        LOG.info(f"Average confidence accuracy: {summary.average_confidence_accuracy:.2f}")
         LOG.info(f"Average strategy accuracy: {summary.average_strategy_accuracy:.2%}")
 
         # Show performance metrics

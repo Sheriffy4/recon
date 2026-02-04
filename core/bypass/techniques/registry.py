@@ -78,9 +78,7 @@ class TechniqueRegistry:
             if category not in self._categories:
                 self._categories[category] = []
             self._categories[category].append(technique_name)
-            self.logger.debug(
-                f"Registered technique: {technique_name} in category: {category}"
-            )
+            self.logger.debug(f"Registered technique: {technique_name} in category: {category}")
 
             @wraps(func)
             def wrapper(*args, **kwargs):
@@ -95,16 +93,29 @@ class TechniqueRegistry:
         technique = self._techniques.get(technique_name)
         if not technique and technique_name == "disorder":  # backward-compat
             return self._techniques.get("fakeddisorder")
+        if technique is None:
+            return None
+        # Backward compatibility: if a raw callable was stored, wrap it.
+        if callable(technique) and not isinstance(technique, TechniqueInfo):
+            func = technique
+            sig = inspect.signature(func)
+            return TechniqueInfo(
+                technique_type=None,
+                name=technique_name,
+                category="general",
+                description=func.__doc__ or "",
+                implementation=func,
+                supported_protocols=["tcp"],
+                required_params=[],
+                optional_params=[],
+                signature=sig,
+            )
         return technique
 
     def get_techniques_by_category(self, category: str) -> List["TechniqueInfo"]:
         """Get all techniques in a category."""
         technique_names = self._categories.get(category, [])
-        return [
-            self._techniques[name]
-            for name in technique_names
-            if name in self._techniques
-        ]
+        return [self._techniques[name] for name in technique_names if name in self._techniques]
 
     def get_all_techniques(self) -> Dict[str, "TechniqueInfo"]:
         """Get all registered techniques."""
@@ -135,17 +146,15 @@ class TechniqueRegistry:
             TechniqueNotFoundError: If technique not found
             InvalidStrategyError: If parameters are invalid
         """
-        technique_callable = self.get_technique(technique_name)
+        info = self.get_technique(technique_name)
 
-        if not technique_callable:
-            raise TechniqueNotFoundError(
-                f"Technique '{technique_name}' not found in registry"
-            )
+        if not info:
+            raise TechniqueNotFoundError(f"Technique '{technique_name}' not found in registry")
 
         # For now, we assume params is a dict
         missing_params = [
             p
-            for p in inspect.signature(technique_callable).parameters
+            for p in info.signature.parameters
             if p not in params and p not in ["payload", "fooling_methods"]
         ]
         if missing_params:
@@ -153,7 +162,7 @@ class TechniqueRegistry:
             pass
 
         try:
-            return technique_callable(packet_data, **params)
+            return info.implementation(packet_data, **params)
         except Exception as e:
             self.logger.error(f"Error applying technique {technique_name}: {e}")
             raise
@@ -180,7 +189,7 @@ class TechniqueInfo:
 
     def __init__(
         self,
-        technique_type: Union[TechniqueType, str],
+        technique_type: Union[TechniqueType, str, None],
         name: str,
         category: str,
         description: str,
@@ -247,10 +256,26 @@ __all__ = [
 
 registry = TechniqueRegistry()
 
-# Register default techniques
-registry._techniques["fakeddisorder"] = BypassTechniques.apply_fakeddisorder
-registry._techniques["multisplit"] = BypassTechniques.apply_multisplit
-registry._techniques["seqovl"] = BypassTechniques.apply_seqovl
+
+# Register default techniques as TechniqueInfo objects (avoid mixed storage).
+def _register_default(name: str, func: Callable[..., Any], category: str = "general") -> None:
+    sig = inspect.signature(func)
+    registry._techniques[name] = TechniqueInfo(
+        technique_type=None,
+        name=name,
+        category=category,
+        description=func.__doc__ or "",
+        implementation=func,
+        supported_protocols=["tcp"],
+        required_params=[],
+        optional_params=[],
+        signature=sig,
+    )
+
+
+_register_default("fakeddisorder", BypassTechniques.apply_fakeddisorder, category="segmentation")
+_register_default("multisplit", BypassTechniques.apply_multisplit, category="segmentation")
+_register_default("seqovl", BypassTechniques.apply_seqovl, category="segmentation")
 
 # For backward compatibility
 FakeddisorderTechnique = BypassTechniques.apply_fakeddisorder

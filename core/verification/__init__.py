@@ -10,13 +10,13 @@ from core.verification.attack_verifier import (
     FakeAttackVerification,
     MultisplitVerification,
     DisorderVerification,
-    ComparisonReport
+    ComparisonReport,
 )
 
 __all__ = [
-    'AttackApplicationVerifier',
-    'FakeAttackVerification',
-    'MultisplitVerification',
-    'DisorderVerification',
-    'ComparisonReport'
+    "AttackApplicationVerifier",
+    "FakeAttackVerification",
+    "MultisplitVerification",
+    "DisorderVerification",
+    "ComparisonReport",
 ]

@@ -24,9 +24,7 @@ class PacketAnalyzer:
     Analyzes captured packets to extract DPI fingerprint characteristics.
     """
 
-    def __init__(
-        self, target_ip: str, target_port: int = 443, domain: Optional[str] = None
-    ):
+    def __init__(self, target_ip: str, target_port: int = 443, domain: Optional[str] = None):
         self.target_ip = target_ip
         self.target_port = target_port
         self.packet_buffer = deque(maxlen=1000)
@@ -77,9 +75,7 @@ class PacketAnalyzer:
             fp.rst_latency_ms = self._calculate_rst_latency(rst)
         return fp
 
-    def _analyze_icmp_packets(
-        self, fp: Fingerprint, packets: List[Packet]
-    ) -> Fingerprint:
+    def _analyze_icmp_packets(self, fp: Fingerprint, packets: List[Packet]) -> Fingerprint:
         """Analyze ICMP packets for DPI indicators."""
         icmp_packets = [p for p in packets if p.haslayer(ICMP)]
         for pkt in icmp_packets:
@@ -90,9 +86,7 @@ class PacketAnalyzer:
                     pass
         return fp
 
-    def _analyze_timing_patterns(
-        self, fp: Fingerprint, packets: List[Packet]
-    ) -> Fingerprint:
+    def _analyze_timing_patterns(self, fp: Fingerprint, packets: List[Packet]) -> Fingerprint:
         """Analyze timing patterns in packet flow."""
         if len(packets) < 2:
             return fp
@@ -103,16 +97,12 @@ class PacketAnalyzer:
                 delays.append(delay * 1000)
         if delays:
             fp.ml_features["timing_mean"] = statistics.mean(delays)
-            fp.ml_features["timing_std"] = (
-                statistics.stdev(delays) if len(delays) > 1 else 0
-            )
+            fp.ml_features["timing_std"] = statistics.stdev(delays) if len(delays) > 1 else 0
             fp.ml_features["timing_min"] = min(delays)
             fp.ml_features["timing_max"] = max(delays)
         return fp
 
-    def _analyze_tcp_behavior(
-        self, fp: Fingerprint, packets: List[Packet]
-    ) -> Fingerprint:
+    def _analyze_tcp_behavior(self, fp: Fingerprint, packets: List[Packet]) -> Fingerprint:
         """Analyze TCP-specific behavior."""
         tcp_packets = [p for p in packets if p.haslayer(TCP)]
         if not tcp_packets:
@@ -127,9 +117,7 @@ class PacketAnalyzer:
                 fp.ml_features[f"tcp_flag_{flag_combo}"] = flag_counts[flag_combo]
         seq_numbers = [p[TCP].seq for p in tcp_packets if p[TCP].seq]
         if len(seq_numbers) > 1:
-            seq_diffs = [
-                seq_numbers[i + 1] - seq_numbers[i] for i in range(len(seq_numbers) - 1)
-            ]
+            seq_diffs = [seq_numbers[i + 1] - seq_numbers[i] for i in range(len(seq_numbers) - 1)]
             if seq_diffs:
                 fp.ml_features["seq_randomness"] = (
                     statistics.stdev(seq_diffs) if len(seq_diffs) > 1 else 0
@@ -174,14 +162,10 @@ class BehaviorAnalyzer:
         """
         Create comprehensive behavioral profile from fingerprint and attack results.
         """
-        profile = DPIBehaviorProfile(
-            dpi_system_id=f"{fingerprint.domain}_{fingerprint.dpi_type}"
-        )
+        profile = DPIBehaviorProfile(dpi_system_id=f"{fingerprint.domain}_{fingerprint.dpi_type}")
         profile.detection_patterns = self._analyze_detection_patterns(fingerprint)
         profile.evasion_effectiveness = attack_results.copy()
-        profile.temporal_patterns = self._analyze_temporal_patterns(
-            fingerprint, attack_results
-        )
+        profile.temporal_patterns = self._analyze_temporal_patterns(fingerprint, attack_results)
         profile.packet_size_sensitivity = self._analyze_size_sensitivity(fingerprint)
         profile.protocol_handling = self._analyze_protocol_handling(fingerprint)
         profile.traffic_shaping_detected = self._detect_traffic_shaping(fingerprint)
@@ -239,16 +223,12 @@ class BehaviorAnalyzer:
         for technique, results in attack_results.items():
             if len(results) > 10:
                 burst_results = results[:10]
-                sustained_results = (
-                    results[10:20] if len(results) > 20 else results[10:]
-                )
+                sustained_results = results[10:20] if len(results) > 20 else results[10:]
                 burst_effectiveness = (
                     sum(burst_results) / len(burst_results) if burst_results else 0
                 )
                 sustained_effectiveness = (
-                    sum(sustained_results) / len(sustained_results)
-                    if sustained_results
-                    else 0
+                    sum(sustained_results) / len(sustained_results) if sustained_results else 0
                 )
                 patterns["burst_tolerance"].append(burst_effectiveness)
                 patterns["sustained_rate"].append(sustained_effectiveness)
@@ -282,9 +262,7 @@ class BehaviorAnalyzer:
             handling["http2"] = "allowed"
         else:
             handling["http2"] = "blocked"
-        handling["https"] = (
-            "deep_inspection" if fp.sni_case_sensitive else "basic_inspection"
-        )
+        handling["https"] = "deep_inspection" if fp.sni_case_sensitive else "basic_inspection"
         if fp.quic_udp_blocked:
             handling["quic"] = "blocked"
             handling["http3"] = "blocked"
@@ -371,9 +349,7 @@ class MLAnomalyDetector:
             current_pattern = profile.temporal_patterns["hourly_effectiveness"]
             baseline_pattern = baseline.get("temporal_pattern", [])
             if baseline_pattern and len(current_pattern) == len(baseline_pattern):
-                pattern_diff = sum(
-                    (abs(c - b) for c, b in zip(current_pattern, baseline_pattern))
-                )
+                pattern_diff = sum((abs(c - b) for c, b in zip(current_pattern, baseline_pattern)))
                 pattern_diff_normalized = pattern_diff / len(current_pattern)
                 if pattern_diff_normalized > 0.2:
                     anomalies["temporal_pattern_shift"] = pattern_diff_normalized
@@ -399,9 +375,7 @@ class MLAnomalyDetector:
                 tech_baseline["mean"] = statistics.mean(tech_baseline["values"])
                 tech_baseline["std"] = statistics.stdev(tech_baseline["values"])
         if "hourly_effectiveness" in profile.temporal_patterns:
-            baseline["temporal_pattern"] = profile.temporal_patterns[
-                "hourly_effectiveness"
-            ]
+            baseline["temporal_pattern"] = profile.temporal_patterns["hourly_effectiveness"]
 
 
 async def comprehensive_analysis(

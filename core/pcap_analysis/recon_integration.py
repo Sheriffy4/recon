@@ -98,9 +98,7 @@ class ReconIntegrationManager:
         # Integration state
         self.integration_results = {}
 
-        LOG.info(
-            f"ReconIntegrationManager initialized with summary file: {recon_summary_file}"
-        )
+        LOG.info(f"ReconIntegrationManager initialized with summary file: {recon_summary_file}")
 
     def _load_historical_data(self) -> Dict[str, Any]:
         """Load historical data from recon_summary.json"""
@@ -118,9 +116,7 @@ class ReconIntegrationManager:
                     data = json.load(f)
 
                 # Extract relevant sections
-                historical_data["strategy_effectiveness"] = data.get(
-                    "strategy_effectiveness", {}
-                )
+                historical_data["strategy_effectiveness"] = data.get("strategy_effectiveness", {})
                 historical_data["fingerprints"] = data.get("fingerprints", {})
                 historical_data["all_results"] = data.get("all_results", [])
                 historical_data["key_metrics"] = data.get("key_metrics", {})
@@ -130,9 +126,7 @@ class ReconIntegrationManager:
                     f"Loaded historical data: {len(historical_data['all_results'])} strategy results"
                 )
             else:
-                LOG.warning(
-                    f"Historical data file not found: {self.recon_summary_file}"
-                )
+                LOG.warning(f"Historical data file not found: {self.recon_summary_file}")
 
         except Exception as e:
             LOG.error(f"Failed to load historical data: {e}")
@@ -183,24 +177,18 @@ class ReconIntegrationManager:
         try:
             # Step 1: Core PCAP comparison
             LOG.info("Running PCAP comparison...")
-            comparison_result = self.pcap_comparator.compare_pcaps(
-                recon_pcap, zapret_pcap
-            )
+            comparison_result = self.pcap_comparator.compare_pcaps(recon_pcap, zapret_pcap)
             results["pcap_comparison"] = comparison_result.to_dict()
 
             # Step 2: Add historical context
             LOG.info("Adding historical context...")
-            historical_context = self._analyze_historical_context(
-                comparison_result, target_domain
-            )
+            historical_context = self._analyze_historical_context(comparison_result, target_domain)
             results["historical_context"] = historical_context
 
             # Step 3: RST trigger analysis integration
             if include_rst_analysis:
                 LOG.info("Running integrated RST analysis...")
-                rst_results = self._run_integrated_rst_analysis(
-                    recon_pcap, target_domain
-                )
+                rst_results = self._run_integrated_rst_analysis(recon_pcap, target_domain)
                 results["rst_analysis"] = rst_results
 
             # Step 4: Strategy generation with historical data
@@ -228,9 +216,7 @@ class ReconIntegrationManager:
         # Update metadata
         end_time = datetime.now()
         results["analysis_metadata"]["end_time"] = end_time.isoformat()
-        results["analysis_metadata"]["duration_seconds"] = (
-            end_time - start_time
-        ).total_seconds()
+        results["analysis_metadata"]["duration_seconds"] = (end_time - start_time).total_seconds()
 
         # Store results for future reference
         self.integration_results = results
@@ -294,9 +280,7 @@ class ReconIntegrationManager:
                     )
 
             # Analyze effectiveness patterns
-            strategy_effectiveness = self.historical_data.get(
-                "strategy_effectiveness", {}
-            )
+            strategy_effectiveness = self.historical_data.get("strategy_effectiveness", {})
 
             top_working = strategy_effectiveness.get("top_working", [])
             top_failing = strategy_effectiveness.get("top_failing", [])
@@ -315,10 +299,8 @@ class ReconIntegrationManager:
                 )
 
             # Generate recommendations based on history
-            context["recommendations_from_history"] = (
-                self._generate_historical_recommendations(
-                    context["relevant_strategies"], context["effectiveness_patterns"]
-                )
+            context["recommendations_from_history"] = self._generate_historical_recommendations(
+                context["relevant_strategies"], context["effectiveness_patterns"]
             )
 
         except Exception as e:
@@ -336,9 +318,7 @@ class ReconIntegrationManager:
             recon_packets = comparison_result.recon_packets
             zapret_packets = comparison_result.zapret_packets
 
-            fake_packets_detected = any(
-                p.is_fake_packet() for p in recon_packets + zapret_packets
-            )
+            fake_packets_detected = any(p.is_fake_packet() for p in recon_packets + zapret_packets)
             if fake_packets_detected:
                 return True
 
@@ -346,9 +326,7 @@ class ReconIntegrationManager:
         if "ttl" in strategy.lower():
             # Look for TTL differences in comparison
             ttl_differences = [
-                d
-                for d in comparison_result.sequence_differences
-                if d.get("type") == "ttl_mismatch"
+                d for d in comparison_result.sequence_differences if d.get("type") == "ttl_mismatch"
             ]
             if ttl_differences:
                 return True
@@ -401,9 +379,7 @@ class ReconIntegrationManager:
             if "fooling=" in strategy:
                 try:
                     fooling_part = strategy.split("fooling=")[1].split()[0].rstrip(",)")
-                    fooling_methods.extend(
-                        fooling_part.strip("[]").replace("'", "").split(",")
-                    )
+                    fooling_methods.extend(fooling_part.strip("[]").replace("'", "").split(","))
                 except:
                     pass
 
@@ -414,9 +390,7 @@ class ReconIntegrationManager:
 
         if split_positions:
             most_common_split = max(set(split_positions), key=split_positions.count)
-            factors.append(
-                f"split_pos={most_common_split} appears in successful strategies"
-            )
+            factors.append(f"split_pos={most_common_split} appears in successful strategies")
 
         if fooling_methods:
             unique_methods = list(set(m.strip() for m in fooling_methods if m.strip()))
@@ -454,9 +428,7 @@ class ReconIntegrationManager:
 
         if ch_counts:
             avg_ch = sum(ch_counts) / len(ch_counts)
-            factors.append(
-                f"Failed strategies average {avg_ch:.1f} ClientHello packets"
-            )
+            factors.append(f"Failed strategies average {avg_ch:.1f} ClientHello packets")
 
         # Check for common failure patterns
         no_sites_working = sum(
@@ -491,13 +463,9 @@ class ReconIntegrationManager:
 
         # Recommendations based on relevant strategies
         if relevant_strategies:
-            successful_relevant = [
-                s for s in relevant_strategies if s["success_rate"] > 0
-            ]
+            successful_relevant = [s for s in relevant_strategies if s["success_rate"] > 0]
             if successful_relevant:
-                best_strategy = max(
-                    successful_relevant, key=lambda x: x["success_rate"]
-                )
+                best_strategy = max(successful_relevant, key=lambda x: x["success_rate"])
                 recommendations.append(
                     f"Historical data suggests '{best_strategy['strategy']}' "
                     f"with {best_strategy['success_rate']:.1%} success rate"
@@ -682,9 +650,7 @@ class ReconIntegrationManager:
 
         return insights
 
-    def _generate_actionable_fixes(
-        self, results: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    def _generate_actionable_fixes(self, results: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Generate actionable fixes based on integrated analysis"""
 
         fixes = []
@@ -743,9 +709,7 @@ class ReconIntegrationManager:
 
             # Fixes based on strategy recommendations
             strategy_recommendations = results.get("strategy_recommendations", {})
-            combined_strategies = strategy_recommendations.get(
-                "combined_strategies", []
-            )
+            combined_strategies = strategy_recommendations.get("combined_strategies", [])
 
             for strategy in combined_strategies:
                 if strategy.get("confidence", 0) > 0.8:
@@ -797,16 +761,12 @@ class ReconIntegrationManager:
                 "results_summary": {
                     "pcap_files_analyzed": [
                         analysis_results.get("analysis_metadata", {}).get("recon_pcap"),
-                        analysis_results.get("analysis_metadata", {}).get(
-                            "zapret_pcap"
-                        ),
+                        analysis_results.get("analysis_metadata", {}).get("zapret_pcap"),
                     ],
-                    "integration_components": analysis_results.get(
-                        "analysis_metadata", {}
-                    ).get("integration_components", []),
-                    "actionable_fixes_count": len(
-                        analysis_results.get("actionable_fixes", [])
+                    "integration_components": analysis_results.get("analysis_metadata", {}).get(
+                        "integration_components", []
                     ),
+                    "actionable_fixes_count": len(analysis_results.get("actionable_fixes", [])),
                     "strategy_recommendations_count": len(
                         analysis_results.get("strategy_recommendations", {}).get(
                             "combined_strategies", []
@@ -821,9 +781,7 @@ class ReconIntegrationManager:
             if "metadata" not in current_summary:
                 current_summary["metadata"] = {}
 
-            current_summary["metadata"][
-                "last_integration_analysis"
-            ] = datetime.now().isoformat()
+            current_summary["metadata"]["last_integration_analysis"] = datetime.now().isoformat()
             current_summary["metadata"]["integration_analysis_count"] = len(
                 current_summary["integration_analysis"]
             )
@@ -853,9 +811,7 @@ class ReconIntegrationManager:
             },
             "historical_data_status": {
                 "recon_summary_available": os.path.exists(self.recon_summary_file),
-                "strategies_in_history": len(
-                    self.historical_data.get("all_results", [])
-                ),
+                "strategies_in_history": len(self.historical_data.get("all_results", [])),
                 "effectiveness_data_available": bool(
                     self.historical_data.get("strategy_effectiveness")
                 ),

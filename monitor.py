@@ -16,9 +16,9 @@ if __name__ == "__main__" and __package__ is None:
 
 from core.monitoring_system import (
     MonitoringSystem,
-    MonitoringConfig,
     load_monitoring_config,
 )
+from core.monitoring.models import MonitoringConfig
 from recon.web.monitoring_server import MonitoringWebServer
 
 try:
@@ -59,9 +59,7 @@ class MonitoringCLI:
         """Настраивает обработчики сигналов для graceful shutdown."""
 
         def signal_handler(signum, frame):
-            console.print(
-                "\n[yellow]Received shutdown signal. Stopping monitoring...[/yellow]"
-            )
+            console.print("\n[yellow]Received shutdown signal. Stopping monitoring...[/yellow]")
             self.running = False
 
         signal.signal(signal.SIGINT, signal_handler)
@@ -226,9 +224,7 @@ async def main():
     )
 
     # Основные параметры
-    parser.add_argument(
-        "sites", nargs="*", help="Sites to monitor (domain:port format)"
-    )
+    parser.add_argument("sites", nargs="*", help="Sites to monitor (domain:port format)")
     parser.add_argument("-f", "--sites-file", help="File with list of sites to monitor")
     parser.add_argument(
         "-c",
@@ -244,9 +240,7 @@ async def main():
         action="store_true",
         help="Interactive mode with live status updates",
     )
-    parser.add_argument(
-        "-w", "--web-interface", action="store_true", help="Enable web interface"
-    )
+    parser.add_argument("-w", "--web-interface", action="store_true", help="Enable web interface")
     parser.add_argument(
         "--disable-learning",
         action="store_true",

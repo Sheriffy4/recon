@@ -21,9 +21,7 @@ class AnalysisConfig:
 
     # Difference detection settings
     confidence_threshold: float = 0.7
-    impact_level_filter: List[str] = field(
-        default_factory=lambda: ["CRITICAL", "HIGH", "MEDIUM"]
-    )
+    impact_level_filter: List[str] = field(default_factory=lambda: ["CRITICAL", "HIGH", "MEDIUM"])
 
     # Pattern recognition settings
     enable_pattern_recognition: bool = True
@@ -118,9 +116,7 @@ class ConfigManager:
                         break
 
                     except Exception as e:
-                        self.logger.warning(
-                            f"Failed to load config from {expanded_path}: {e}"
-                        )
+                        self.logger.warning(f"Failed to load config from {expanded_path}: {e}")
                         continue
             else:
                 # No config file found, use defaults
@@ -169,9 +165,7 @@ class ConfigManager:
         # Validate log level
         valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if self.config.log_level not in valid_log_levels:
-            self.logger.warning(
-                f"Invalid log level: {self.config.log_level}, using INFO"
-            )
+            self.logger.warning(f"Invalid log level: {self.config.log_level}, using INFO")
             self.config.log_level = "INFO"
 
         # Validate paths
@@ -186,18 +180,11 @@ class ConfigManager:
         analysis = self.config.analysis
 
         if analysis.confidence_threshold < 0 or analysis.confidence_threshold > 1:
-            self.logger.warning(
-                "Confidence threshold must be between 0 and 1, using 0.7"
-            )
+            self.logger.warning("Confidence threshold must be between 0 and 1, using 0.7")
             analysis.confidence_threshold = 0.7
 
-        if (
-            analysis.pattern_confidence_threshold < 0
-            or analysis.pattern_confidence_threshold > 1
-        ):
-            self.logger.warning(
-                "Pattern confidence threshold must be between 0 and 1, using 0.6"
-            )
+        if analysis.pattern_confidence_threshold < 0 or analysis.pattern_confidence_threshold > 1:
+            self.logger.warning("Pattern confidence threshold must be between 0 and 1, using 0.6")
             analysis.pattern_confidence_threshold = 0.6
 
         # Validate numeric limits

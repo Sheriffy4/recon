@@ -230,9 +230,7 @@ class AttackSpecLoader:
             notes=data.get("notes", []),
         )
 
-    def get_parameter_spec(
-        self, attack_name: str, param_name: str
-    ) -> Optional[AttackParameter]:
+    def get_parameter_spec(self, attack_name: str, param_name: str) -> Optional[AttackParameter]:
         """
         Get specification for a specific parameter.
 
@@ -311,9 +309,7 @@ class AttackSpecLoader:
 
         return spec.error_cases
 
-    def validate_parameters(
-        self, attack_name: str, params: Dict[str, Any]
-    ) -> List[str]:
+    def validate_parameters(self, attack_name: str, params: Dict[str, Any]) -> List[str]:
         """
         Validate parameters against spec.
 

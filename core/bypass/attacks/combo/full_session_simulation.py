@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Full Session Simulation Attack
 
@@ -26,9 +28,17 @@ from core.bypass.attacks.base import (
     AttackStatus,
 )
 from core.bypass.attacks.attack_registry import register_attack
-from core.dns.robust_dns_handler import RobustDNSHandler
+
+# Optional dependency (project subsets may not ship core.dns)
+try:
+    from core.dns.robust_dns_handler import RobustDNSHandler  # type: ignore
+except Exception:  # pragma: no cover
+    RobustDNSHandler = None  # type: ignore[assignment]
 
 LOG = logging.getLogger(__name__)
+
+SessionPacket = Tuple[bytes, float]  # (data, delay_ms) legacy format used in phase_results
+Segment = Tuple[bytes, int, Dict[str, Any]]  # (data, offset, options) engine-friendly format
 
 
 class SessionPhase(Enum):
@@ -99,6 +109,11 @@ class SessionConfig:
     accept_language: str = "en-US,en;q=0.9"
     timing: SessionTiming = field(default_factory=SessionTiming)
 
+    # Execution control:
+    # If False (default), we DO NOT sleep in real time; we only "simulate" time
+    # by accumulating delay values. This keeps attacks usable in validators/runners.
+    real_time: bool = False
+
 
 @register_attack
 class FullSessionSimulationAttack(BaseAttack):
@@ -110,7 +125,7 @@ class FullSessionSimulationAttack(BaseAttack):
     def __init__(self, config: Optional[SessionConfig] = None):
         super().__init__()
         self.config = config or SessionConfig()
-        self.dns_handler = RobustDNSHandler()
+        self.dns_handler = RobustDNSHandler() if RobustDNSHandler is not None else None
         self._session_state = {}
 
     @property
@@ -119,9 +134,7 @@ class FullSessionSimulationAttack(BaseAttack):
 
     @property
     def description(self) -> str:
-        return (
-            "Simulates complete user session lifecycle for maximum DPI evasion realism"
-        )
+        return "Simulates complete user session lifecycle for maximum DPI evasion realism"
 
     @property
     def category(self) -> str:
@@ -144,8 +157,13 @@ class FullSessionSimulationAttack(BaseAttack):
             "simulate_keep_alive": True,
             "simulate_teardown": True,
             "browser_type": "chrome",
+            # New (safe defaults):
+            # - real_time=False keeps generation fast (no actual waits)
+            # - time_scale allows shrinking/expanding simulated delays written into packets
+            "real_time": False,
+            "time_scale": 1.0,
         }
-    
+
     async def execute(self, context: AttackContext) -> AttackResult:
         """
         Execute full session simulation attack with maximum realism.
@@ -156,8 +174,17 @@ class FullSessionSimulationAttack(BaseAttack):
         Returns:
             Attack result with session simulation details
         """
-        start_time = time.time()
-        session_packets = []
+        wall_start = time.monotonic()
+        start_time = time.time()  # epoch for headers/ids (intended)
+
+        # Merge per-call params into config without breaking constructor-based usage.
+        base_config = self.config
+        self.config = self._merge_config_with_params(base_config, context.params or {})
+
+        # Virtual timeline in ms (used when real_time=False)
+        self._session_state["simulated_time_ms"] = 0.0
+
+        session_packets: List[SessionPacket] = []
         total_bytes_sent = 0
         try:
             self._session_state = {
@@ -173,6 +200,7 @@ class FullSessionSimulationAttack(BaseAttack):
                 "connection_start_time": start_time,
                 "packet_sequence": 0,
                 "bytes_transferred": 0,
+                "simulated_time_ms": 0.0,
             }
             LOG.debug(
                 f"Starting enhanced full session simulation for {self._session_state['domain']} (Browser: {self.config.browser_type}, OS: {self.config.os_type})"
@@ -200,13 +228,9 @@ class FullSessionSimulationAttack(BaseAttack):
                 resource_result = await self._simulate_resource_loading_phase(context)
                 session_packets.extend(resource_result["packets"])
                 total_bytes_sent += resource_result["bytes_sent"]
-                self._session_state["phase_results"][
-                    "resource_loading"
-                ] = resource_result
+                self._session_state["phase_results"]["resource_loading"] = resource_result
             if self.config.simulate_keep_alive:
-                keepalive_result = await self._simulate_enhanced_keep_alive_phase(
-                    context
-                )
+                keepalive_result = await self._simulate_enhanced_keep_alive_phase(context)
                 session_packets.extend(keepalive_result["packets"])
                 total_bytes_sent += keepalive_result["bytes_sent"]
                 self._session_state["phase_results"]["keep_alive"] = keepalive_result
@@ -215,24 +239,29 @@ class FullSessionSimulationAttack(BaseAttack):
                 session_packets.extend(teardown_result["packets"])
                 total_bytes_sent += teardown_result["bytes_sent"]
                 self._session_state["phase_results"]["teardown"] = teardown_result
-            execution_time = (time.time() - start_time) * 1000
+
+            generation_time_ms = (time.monotonic() - wall_start) * 1000
+            simulated_duration_ms = float(self._session_state.get("simulated_time_ms", 0.0))
+            # Backward-compatible key: total_session_duration now reflects simulated duration,
+            # while generation_time_ms provides the actual runtime.
             return AttackResult(
                 status=AttackStatus.SUCCESS,
-                latency_ms=execution_time,
+                latency_ms=generation_time_ms,
                 packets_sent=len(session_packets),
                 bytes_sent=total_bytes_sent,
                 connection_established=True,
                 data_transmitted=True,
                 metadata={
                     "session_id": self._session_state["session_id"],
-                    "phases_completed": list(
-                        self._session_state["phase_results"].keys()
-                    ),
-                    "total_session_duration": execution_time / 1000.0,
+                    "phases_completed": list(self._session_state["phase_results"].keys()),
+                    "total_session_duration": simulated_duration_ms / 1000.0,
+                    "generation_time_ms": generation_time_ms,
                     "phase_results": self._session_state["phase_results"],
                     "realism_score": self._calculate_enhanced_realism_score(),
                     "browser_fingerprint": self._session_state["browser_fingerprint"],
                     "behavioral_metrics": self._calculate_behavioral_metrics(),
+                    # Engine-friendly segments with delay metadata (doesn't replace legacy packets list)
+                    "segments": self._packets_to_segments(session_packets),
                     "is_raw": True,
                 },
             )
@@ -241,12 +270,85 @@ class FullSessionSimulationAttack(BaseAttack):
             return AttackResult(
                 status=AttackStatus.ERROR,
                 error_message=str(e),
-                latency_ms=(time.time() - start_time) * 1000,
+                latency_ms=(time.monotonic() - wall_start) * 1000,
             )
+        finally:
+            # Restore config to avoid leaking per-call params into next execution.
+            self.config = base_config
 
-    async def _simulate_enhanced_dns_phase(
-        self, context: AttackContext
-    ) -> Dict[str, Any]:
+    def _merge_config_with_params(self, base: SessionConfig, params: Dict[str, Any]) -> SessionConfig:
+        """
+        Merge known optional params into the current config instance.
+        Preserves interface: execute() still relies on self.config fields.
+        """
+        # We mutate a shallow copy by re-creating SessionConfig; nested timing may also be overridden.
+        cfg = SessionConfig(**{**base.__dict__})
+        timing = SessionTiming(**{**base.timing.__dict__})
+
+        # Top-level flags
+        for key in (
+            "simulate_dns",
+            "simulate_tcp_handshake",
+            "simulate_tls_handshake",
+            "simulate_keep_alive",
+            "simulate_teardown",
+            "browser_type",
+            "os_type",
+            "real_time",
+        ):
+            if key in params:
+                try:
+                    setattr(cfg, key, params[key])
+                except Exception:
+                    pass
+
+        # Timing scaling (simulated delays only)
+        cfg.time_scale = float(params.get("time_scale", 1.0) or 1.0)
+        cfg.timing = timing
+        return cfg
+
+    async def _sleep(self, seconds: float) -> None:
+        """
+        Sleep abstraction.
+        - real_time=True: actual asyncio.sleep(seconds)
+        - real_time=False: accumulate simulated time and yield control
+        """
+        seconds = max(0.0, float(seconds))
+        scale = getattr(self.config, "time_scale", 1.0) or 1.0
+        seconds *= scale
+
+        if getattr(self.config, "real_time", False):
+            await asyncio.sleep(seconds)
+            return
+
+        # Virtual time path
+        self._session_state["simulated_time_ms"] = float(self._session_state.get("simulated_time_ms", 0.0)) + seconds * 1000.0
+        await asyncio.sleep(0)
+
+    def _packets_to_segments(self, packets: List[SessionPacket]) -> List[Segment]:
+        """
+        Convert legacy (bytes, delay_ms) to engine-friendly (bytes, offset, options).
+        """
+        segments: List[Segment] = []
+        for idx, (data, delay_ms) in enumerate(packets):
+            segments.append(
+                (
+                    data,
+                    0,
+                    {
+                        "delay_ms": float(delay_ms),
+                        "segment_index": idx,
+                        "is_raw": True,
+                    },
+                )
+            )
+        return segments
+
+    def _safe_pack_u16(self, value: int) -> bytes:
+        """Safely pack value as unsigned 16-bit integer, clamping to valid range."""
+        return struct.pack("!H", min(max(0, int(value)), 65535))
+
+    async def _simulate_enhanced_dns_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced DNS resolution phase with realistic behavior.
 
@@ -259,9 +361,7 @@ class FullSessionSimulationAttack(BaseAttack):
         start_time = time.time()
         packets = []
         domain = context.domain or f"{context.dst_ip}"
-        cache_check_delay = (
-            random.uniform(*self.config.timing.dns_cache_check_delay) / 1000.0
-        )
+        cache_check_delay = random.uniform(*self.config.timing.dns_cache_check_delay) / 1000.0
         await asyncio.sleep(cache_check_delay)
         base_delay = random.uniform(*self.config.timing.dns_resolution_delay)
         if self.config.add_jitter_to_timing:
@@ -288,9 +388,7 @@ class FullSessionSimulationAttack(BaseAttack):
             dns_aaaa_response = self._create_dns_aaaa_response_packet(domain)
             packets.append((dns_aaaa_response, aaaa_response_delay * 1000))
         bytes_sent = sum((len(packet) for packet, _ in packets))
-        LOG.debug(
-            f"Enhanced DNS phase completed: {len(packets)} packets, {bytes_sent} bytes"
-        )
+        LOG.debug(f"Enhanced DNS phase completed: {len(packets)} packets, {bytes_sent} bytes")
         return {
             "phase": SessionPhase.DNS_RESOLUTION.value,
             "packets": packets,
@@ -299,11 +397,7 @@ class FullSessionSimulationAttack(BaseAttack):
             "domain_resolved": domain,
             "resolved_ip": context.dst_ip,
             "queries_sent": len(
-                [
-                    p
-                    for p in packets
-                    if b"DNS_QUERY" in p[0] or b"DNS_AAAA_QUERY" in p[0]
-                ]
+                [p for p in packets if b"DNS_QUERY" in p[0] or b"DNS_AAAA_QUERY" in p[0]]
             ),
             "cache_behavior": "miss" if len(packets) > 2 else "hit",
         }
@@ -467,22 +561,16 @@ class FullSessionSimulationAttack(BaseAttack):
             if self.config.simulate_real_user_patterns:
                 think_time = random.uniform(*self.config.timing.user_think_time) * 1000
             else:
-                think_time = random.uniform(
-                    *self.config.timing.subsequent_request_delay
-                )
+                think_time = random.uniform(*self.config.timing.subsequent_request_delay)
             await asyncio.sleep(think_time / 1000.0)
-            additional_request = self._create_enhanced_additional_http_request(
-                context, i
-            )
+            additional_request = self._create_enhanced_additional_http_request(context, i)
             packets.append((additional_request, think_time))
             add_response_delay = random.uniform(*self.config.timing.response_delay)
             if self.config.add_jitter_to_timing:
                 jitter = random.uniform(-50.0, 50.0)
                 add_response_delay = max(50.0, add_response_delay + jitter)
             await asyncio.sleep(add_response_delay / 1000.0)
-            additional_response = self._create_enhanced_http_response(
-                context, request_id=i
-            )
+            additional_response = self._create_enhanced_http_response(context, request_id=i)
             packets.append((additional_response, add_response_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
         self._session_state["bytes_transferred"] += bytes_sent
@@ -502,9 +590,7 @@ class FullSessionSimulationAttack(BaseAttack):
             / max(len(packets[2::2]), 1),
         }
 
-    async def _simulate_resource_loading_phase(
-        self, context: AttackContext
-    ) -> Dict[str, Any]:
+    async def _simulate_resource_loading_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate resource loading phase (CSS, JS, images) for maximum realism.
 
@@ -543,19 +629,13 @@ class FullSessionSimulationAttack(BaseAttack):
             if i == 0:
                 resource_delay = random.uniform(*self.config.timing.page_load_delay)
             else:
-                resource_delay = random.uniform(
-                    *self.config.timing.resource_fetch_delay
-                )
+                resource_delay = random.uniform(*self.config.timing.resource_fetch_delay)
             await asyncio.sleep(resource_delay / 1000.0)
-            resource_request = self._create_resource_request(
-                context, path, content_type
-            )
+            resource_request = self._create_resource_request(context, path, content_type)
             packets.append((resource_request, resource_delay))
             resource_response_delay = random.uniform(50.0, 200.0)
             await asyncio.sleep(resource_response_delay / 1000.0)
-            resource_response = self._create_resource_response(
-                context, content_type, size
-            )
+            resource_response = self._create_resource_response(context, content_type, size)
             packets.append((resource_response, resource_response_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
         self._session_state["bytes_transferred"] += bytes_sent
@@ -572,9 +652,7 @@ class FullSessionSimulationAttack(BaseAttack):
             "resource_types": [r[1] for r in resources],
         }
 
-    async def _simulate_enhanced_keep_alive_phase(
-        self, context: AttackContext
-    ) -> Dict[str, Any]:
+    async def _simulate_enhanced_keep_alive_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced keep-alive phase with realistic connection maintenance.
 
@@ -597,9 +675,7 @@ class FullSessionSimulationAttack(BaseAttack):
             await asyncio.sleep(ka_interval)
             keep_alive_packet = self._create_enhanced_keep_alive_packet(context, i)
             packets.append((keep_alive_packet, ka_interval * 1000))
-            ka_response_delay = random.uniform(
-                *self.config.timing.keep_alive_response_delay
-            )
+            ka_response_delay = random.uniform(*self.config.timing.keep_alive_response_delay)
             await asyncio.sleep(ka_response_delay / 1000.0)
             keep_alive_response = self._create_enhanced_keep_alive_response(context, i)
             packets.append((keep_alive_response, ka_response_delay))
@@ -620,9 +696,7 @@ class FullSessionSimulationAttack(BaseAttack):
             / 1000,
         }
 
-    async def _simulate_enhanced_teardown_phase(
-        self, context: AttackContext
-    ) -> Dict[str, Any]:
+    async def _simulate_enhanced_teardown_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate enhanced session teardown with graceful connection closure.
 
@@ -652,9 +726,7 @@ class FullSessionSimulationAttack(BaseAttack):
         bytes_sent = sum((len(packet) for packet, _ in packets))
         self._session_state["bytes_transferred"] += bytes_sent
         self._session_state["packet_sequence"] += len(packets)
-        LOG.debug(
-            f"Enhanced teardown phase completed: {len(packets)} packets, {bytes_sent} bytes"
-        )
+        LOG.debug(f"Enhanced teardown phase completed: {len(packets)} packets, {bytes_sent} bytes")
         return {
             "phase": SessionPhase.SESSION_TEARDOWN.value,
             "packets": packets,
@@ -664,9 +736,7 @@ class FullSessionSimulationAttack(BaseAttack):
             "teardown_type": "graceful",
         }
 
-    async def _simulate_keep_alive_phase(
-        self, context: AttackContext
-    ) -> Dict[str, Any]:
+    async def _simulate_keep_alive_phase(self, context: AttackContext) -> Dict[str, Any]:
         """
         Simulate keep-alive packets to maintain session.
 
@@ -684,16 +754,12 @@ class FullSessionSimulationAttack(BaseAttack):
             await asyncio.sleep(ka_interval)
             keep_alive_packet = self._create_keep_alive_packet(context, i)
             packets.append((keep_alive_packet, ka_interval * 1000))
-            ka_response_delay = random.uniform(
-                *self.config.timing.keep_alive_response_delay
-            )
+            ka_response_delay = random.uniform(*self.config.timing.keep_alive_response_delay)
             await asyncio.sleep(ka_response_delay / 1000.0)
             keep_alive_response = self._create_keep_alive_response(context, i)
             packets.append((keep_alive_response, ka_response_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
-        LOG.debug(
-            f"Keep-alive phase completed: {len(packets)} packets, {bytes_sent} bytes"
-        )
+        LOG.debug(f"Keep-alive phase completed: {len(packets)} packets, {bytes_sent} bytes")
         return {
             "phase": SessionPhase.KEEP_ALIVE.value,
             "packets": packets,
@@ -727,9 +793,7 @@ class FullSessionSimulationAttack(BaseAttack):
         final_ack_packet = self._create_tcp_final_ack_packet(context)
         packets.append((final_ack_packet, final_ack_delay))
         bytes_sent = sum((len(packet) for packet, _ in packets))
-        LOG.debug(
-            f"Teardown phase completed: {len(packets)} packets, {bytes_sent} bytes"
-        )
+        LOG.debug(f"Teardown phase completed: {len(packets)} packets, {bytes_sent} bytes")
         return {
             "phase": SessionPhase.SESSION_TEARDOWN.value,
             "packets": packets,
@@ -918,9 +982,7 @@ class FullSessionSimulationAttack(BaseAttack):
             53,
             10,
         ]
-        suites = (
-            chrome_suites if self.config.browser_type == "chrome" else firefox_suites
-        )
+        suites = chrome_suites if self.config.browser_type == "chrome" else firefox_suites
         suite_bytes = b""
         for suite in suites:
             suite_bytes += struct.pack("!H", suite)
@@ -939,7 +1001,9 @@ class FullSessionSimulationAttack(BaseAttack):
         extensions += struct.pack("!HH", 0, len(sni_data)) + sni_data
         groups = b"\x00\x08\x00\x1d\x00\x17\x00\x18\x00\x19"
         extensions += struct.pack("!HH", 10, len(groups)) + groups
-        sig_algs = b"\x00\x12\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01\x02\x01"
+        sig_algs = (
+            b"\x00\x12\x04\x03\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01\x02\x01"
+        )
         extensions += struct.pack("!HH", 13, len(sig_algs)) + sig_algs
         alpn_data = b"\x00\x0c\x02h2\x08http/1.1"
         extensions += struct.pack("!HH", 16, len(alpn_data)) + alpn_data
@@ -1031,9 +1095,7 @@ class FullSessionSimulationAttack(BaseAttack):
         )
         return finished
 
-    def _create_enhanced_http_request_with_payload(
-        self, context: AttackContext
-    ) -> bytes:
+    def _create_enhanced_http_request_with_payload(self, context: AttackContext) -> bytes:
         """Create enhanced HTTP request with realistic browser headers."""
         domain = context.domain or f"{context.dst_ip}:{context.dst_port}"
         fingerprint = self._session_state["browser_fingerprint"]
@@ -1064,18 +1126,23 @@ class FullSessionSimulationAttack(BaseAttack):
             )
         request_lines.extend(["", ""])
         http_header = "\r\n".join(request_lines).encode()
+        payload = context.payload or b""
+        # TLS record length is limited to 16KB (2^14), but we cap at 65535 for struct.pack("!H")
+        total_len = len(http_header) + len(payload)
+        if total_len > 65535:
+            # Truncate payload to fit
+            payload = payload[: 65535 - len(http_header)]
+            total_len = len(http_header) + len(payload)
         tls_app_data = (
             b"\x17"
             + b"\x03\x03"
-            + struct.pack("!H", len(http_header) + len(context.payload))
+            + self._safe_pack_u16(total_len)
             + http_header
-            + context.payload
+            + payload
         )
         return tls_app_data
 
-    def _create_enhanced_http_response(
-        self, context: AttackContext, request_id: int = 0
-    ) -> bytes:
+    def _create_enhanced_http_response(self, context: AttackContext, request_id: int = 0) -> bytes:
         """Create enhanced HTTP response with realistic server headers."""
         response_body = f"""{{"status": "success", "request_id": {request_id}, "timestamp": {int(time.time())}, "session_id": "{self._session_state['session_id']}"}}"""
         response_lines = [
@@ -1095,12 +1162,8 @@ class FullSessionSimulationAttack(BaseAttack):
             response_body,
         ]
         http_response = "\r\n".join(response_lines).encode()
-        tls_app_data = (
-            b"\x17"
-            + b"\x03\x03"
-            + struct.pack("!H", len(http_response))
-            + http_response
-        )
+        resp_len = min(len(http_response), 65535)
+        tls_app_data = b"\x17" + b"\x03\x03" + self._safe_pack_u16(resp_len) + http_response[:resp_len]
         return tls_app_data
 
     def _create_enhanced_additional_http_request(
@@ -1135,14 +1198,11 @@ class FullSessionSimulationAttack(BaseAttack):
             f"Referer: https://{domain}/",
         ]
         if body:
-            request_lines.extend(
-                ["Content-Type: application/json", f"Content-Length: {len(body)}"]
-            )
+            request_lines.extend(["Content-Type: application/json", f"Content-Length: {len(body)}"])
         request_lines.extend(["", body if body else ""])
         http_request = "\r\n".join(request_lines).encode()
-        tls_app_data = (
-            b"\x17" + b"\x03\x03" + struct.pack("!H", len(http_request)) + http_request
-        )
+        req_len = min(len(http_request), 65535)
+        tls_app_data = b"\x17" + b"\x03\x03" + self._safe_pack_u16(req_len) + http_request[:req_len]
         return tls_app_data
 
     def _create_resource_request(
@@ -1165,9 +1225,7 @@ class FullSessionSimulationAttack(BaseAttack):
             "",
         ]
         http_request = "\r\n".join(request_lines).encode()
-        tls_app_data = (
-            b"\x17" + b"\x03\x03" + struct.pack("!H", len(http_request)) + http_request
-        )
+        tls_app_data = b"\x17" + b"\x03\x03" + struct.pack("!H", len(http_request)) + http_request
         return tls_app_data
 
     def _create_resource_response(
@@ -1188,12 +1246,8 @@ class FullSessionSimulationAttack(BaseAttack):
         ]
         http_header = "\r\n".join(response_lines).encode()
         http_response = http_header + resource_content
-        tls_app_data = (
-            b"\x17"
-            + b"\x03\x03"
-            + struct.pack("!H", len(http_response))
-            + http_response
-        )
+        resp_len = min(len(http_response), 65535)
+        tls_app_data = b"\x17" + b"\x03\x03" + self._safe_pack_u16(resp_len) + http_response[:resp_len]
         return tls_app_data
 
     def _get_accept_header_for_resource(self, content_type: str) -> str:
@@ -1207,9 +1261,7 @@ class FullSessionSimulationAttack(BaseAttack):
         else:
             return "*/*"
 
-    def _create_enhanced_keep_alive_packet(
-        self, context: AttackContext, ka_id: int
-    ) -> bytes:
+    def _create_enhanced_keep_alive_packet(self, context: AttackContext, ka_id: int) -> bytes:
         """Create enhanced keep-alive packet."""
         tcp_header = struct.pack(
             "!HHLLBBHHH",
@@ -1225,9 +1277,7 @@ class FullSessionSimulationAttack(BaseAttack):
         )
         return b"TCP_KEEPALIVE_ENHANCED:" + tcp_header
 
-    def _create_enhanced_keep_alive_response(
-        self, context: AttackContext, ka_id: int
-    ) -> bytes:
+    def _create_enhanced_keep_alive_response(self, context: AttackContext, ka_id: int) -> bytes:
         """Create enhanced keep-alive response packet."""
         tcp_header = struct.pack(
             "!HHLLBBHHH",
@@ -1419,9 +1469,7 @@ class FullSessionSimulationAttack(BaseAttack):
 
     def _create_tls_certificate(self, context: AttackContext) -> bytes:
         """Create TLS Certificate packet."""
-        cert_data = b"FAKE_CERTIFICATE_DATA_" + bytes(
-            [random.randint(0, 255) for _ in range(100)]
-        )
+        cert_data = b"FAKE_CERTIFICATE_DATA_" + bytes([random.randint(0, 255) for _ in range(100)])
         certificate = (
             b"\x16"
             + b"\x03\x03"
@@ -1486,11 +1534,11 @@ class FullSessionSimulationAttack(BaseAttack):
         )
         return tls_app_data
 
-    def _create_http_response(
-        self, context: AttackContext, request_id: int = 0
-    ) -> bytes:
+    def _create_http_response(self, context: AttackContext, request_id: int = 0) -> bytes:
         """Create HTTP response packet."""
-        response_body = f'{{"status": "success", "request_id": {request_id}, "timestamp": {int(time.time())}}}'
+        response_body = (
+            f'{{"status": "success", "request_id": {request_id}, "timestamp": {int(time.time())}}}'
+        )
         response_lines = [
             "HTTP/1.1 200 OK",
             "Content-Type: application/json",
@@ -1501,17 +1549,10 @@ class FullSessionSimulationAttack(BaseAttack):
             response_body,
         ]
         http_response = "\r\n".join(response_lines).encode()
-        tls_app_data = (
-            b"\x17"
-            + b"\x03\x03"
-            + struct.pack("!H", len(http_response))
-            + http_response
-        )
+        tls_app_data = b"\x17" + b"\x03\x03" + struct.pack("!H", len(http_response)) + http_response
         return tls_app_data
 
-    def _create_additional_http_request(
-        self, context: AttackContext, request_id: int
-    ) -> bytes:
+    def _create_additional_http_request(self, context: AttackContext, request_id: int) -> bytes:
         """Create additional HTTP request for realism."""
         domain = context.domain or f"{context.dst_ip}:{context.dst_port}"
         request_types = [
@@ -1534,9 +1575,7 @@ class FullSessionSimulationAttack(BaseAttack):
             "",
         ]
         http_request = "\r\n".join(request_lines).encode()
-        tls_app_data = (
-            b"\x17" + b"\x03\x03" + struct.pack("!H", len(http_request)) + http_request
-        )
+        tls_app_data = b"\x17" + b"\x03\x03" + struct.pack("!H", len(http_request)) + http_request
         return tls_app_data
 
     def _create_keep_alive_packet(self, context: AttackContext, ka_id: int) -> bytes:
@@ -1692,10 +1731,8 @@ class FullSessionSimulationAttack(BaseAttack):
         total_duration = time.time() - self._session_state["connection_start_time"]
         return {
             "session_duration_seconds": total_duration,
-            "packets_per_second": self._session_state["packet_sequence"]
-            / max(total_duration, 1),
-            "bytes_per_second": self._session_state["bytes_transferred"]
-            / max(total_duration, 1),
+            "packets_per_second": self._session_state["packet_sequence"] / max(total_duration, 1),
+            "bytes_per_second": self._session_state["bytes_transferred"] / max(total_duration, 1),
             "phases_completed": len(self._session_state["phase_results"]),
             "browser_simulation_active": self.config.simulate_browser_behavior,
             "timing_jitter_enabled": self.config.add_jitter_to_timing,

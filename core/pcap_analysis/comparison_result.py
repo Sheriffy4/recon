@@ -127,9 +127,7 @@ class ComparisonResult:
         # Packet count similarity
         recon_count = len(self.recon_packets)
         zapret_count = len(self.zapret_packets)
-        count_similarity = 1.0 - abs(recon_count - zapret_count) / max(
-            recon_count, zapret_count
-        )
+        count_similarity = 1.0 - abs(recon_count - zapret_count) / max(recon_count, zapret_count)
         factors.append(count_similarity * 0.2)  # 20% weight
 
         # Sequence similarity (based on differences found)

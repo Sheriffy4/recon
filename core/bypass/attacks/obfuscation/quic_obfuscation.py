@@ -53,26 +53,19 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
     def optional_params(self) -> Dict[str, Any]:
         return {}
 
-
     async def execute(self, context: AttackContext) -> AttackResult:
         """Execute QUIC fragmentation obfuscation attack."""
         start_time = time.time()
         try:
             payload = context.payload
             fragment_size = context.params.get("fragment_size", 300)
-            add_version_negotiation = context.params.get(
-                "add_version_negotiation", False
-            )
+            add_version_negotiation = context.params.get("add_version_negotiation", False)
             connection_id_length = context.params.get("connection_id_length", 8)
             quic_packets = []
             if add_version_negotiation:
-                vn_packet = self._create_version_negotiation_packet(
-                    connection_id_length
-                )
+                vn_packet = self._create_version_negotiation_packet(connection_id_length)
                 quic_packets.append(vn_packet)
-            initial_packet = self._create_initial_packet(
-                connection_id_length, context.domain
-            )
+            initial_packet = self._create_initial_packet(connection_id_length, context.domain)
             quic_packets.append(initial_packet)
             if payload:
                 fragment_packets = self._create_fragmented_data_packets(
@@ -180,15 +173,11 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
         packets = []
         for i in range(0, len(payload), fragment_size):
             fragment = payload[i : i + fragment_size]
-            packet = self._create_1rtt_packet(
-                fragment, connection_id_length, i // fragment_size
-            )
+            packet = self._create_1rtt_packet(fragment, connection_id_length, i // fragment_size)
             packets.append(packet)
         return packets
 
-    def _create_1rtt_packet(
-        self, data: bytes, connection_id_length: int, sequence: int
-    ) -> bytes:
+    def _create_1rtt_packet(self, data: bytes, connection_id_length: int, sequence: int) -> bytes:
         """Create QUIC 1-RTT packet."""
         header_byte = 64
         header_byte |= random.randint(0, 1) << 5
@@ -226,9 +215,7 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
         )
         handshake_length = len(client_hello)
         handshake_msg = (
-            bytes([handshake_type])
-            + struct.pack("!I", handshake_length)[1:]
-            + client_hello
+            bytes([handshake_type]) + struct.pack("!I", handshake_length)[1:] + client_hello
         )
         return handshake_msg
 
@@ -287,9 +274,7 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
         auth_tag = random.randbytes(16)
         return bytes(encrypted) + auth_tag
 
-    async def _calculate_quic_delay(
-        self, packet_index: int, has_version_negotiation: bool
-    ) -> int:
+    async def _calculate_quic_delay(self, packet_index: int, has_version_negotiation: bool) -> int:
         """Calculate realistic QUIC packet delay."""
         delay = 0
         if has_version_negotiation and packet_index == 0:
@@ -303,9 +288,7 @@ class QUICFragmentationObfuscationAttack(BaseAttack):
             await asyncio.sleep(delay / 1000.0)
         return delay
 
-    def _get_quic_packet_type(
-        self, packet_index: int, has_version_negotiation: bool
-    ) -> str:
+    def _get_quic_packet_type(self, packet_index: int, has_version_negotiation: bool) -> str:
         """Get QUIC packet type description."""
         if has_version_negotiation:
             if packet_index == 0:
